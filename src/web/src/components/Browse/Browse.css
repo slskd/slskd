@@ -1,0 +1,68 @@
+.browse-results {
+  margin: unset !important;
+}
+
+.browse-error {
+  display: block;
+  text-align: center;
+  font-size: 18px;
+  margin-top: 50px;
+}
+
+.browse-results-row {
+  padding-top: 0px !important;
+}
+
+.browse-results-row:last-child {
+  padding-bottom: 0px !important;  
+}
+
+.browse-folderlist {
+  width: 100% !important;
+  white-space: pre;
+  overflow: auto !important;
+  max-height: 400px;
+  padding: 1em !important;
+  box-shadow: unset !important;
+}
+
+.browse-folderlist-list {
+  margin: 0px !important;
+  margin-bottom: 1px !important;
+}
+
+.browse-folderlist-header {
+  cursor: pointer;
+  margin-left: 3px !important;
+}
+
+.browse-folderlist-icon {
+  float: left;
+}
+
+.browse-filelist {
+  width: 100% !important;
+  padding: 1em !important;
+}
+
+.ui.list .list, ol.ui.list ol, ul.ui.list ul {
+  padding-left: 0px !important;
+  padding-top: 3px !important;
+  padding-bottom: 0px !important;
+}
+
+.ui.list .list>.item>.icon+.content, .ui.list .list>.item>.image+.content, .ui.list>.item>.icon+.content, .ui.list>.item>.image+.content {
+  padding-left: 0px !important;
+}
+
+.browse-tree-card {
+  width: 100% !important;
+}
+
+.browse-container:last-child {
+  margin-bottom: 17px;
+}
+
+.browse-meta {
+  margin-top: 5px;
+}

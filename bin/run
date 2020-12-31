@@ -1,0 +1,14 @@
+docker run -i \
+    -p 5000:5000 \
+    -p 50000:50000 \
+    -v $SLSK_OUTPUT_DIR:/var/slsk/download \
+    -v $SLSK_SHARED_DIR:/var/slsk/shared \
+    -e "SLSK_USERNAME=$SLSK_USERNAME" \
+    -e "SLSK_PASSWORD=$SLSK_PASSWORD" \
+    -e "SLSK_LISTEN_PORT=50000" \
+    -e "SLSK_ENABLE_DNET=true" \
+    -e "SLSK_DNET_CHILD_LIMIT=10" \
+    -e "SLSK_DIAGNOSTIC=Info" \
+    -e "SLSK_CONNECT_TIMEOUT=5000" \
+    -e "SLSK_INACTIVITY_TIMEOUT=15000" \
+    jpdillingham/slsk-web-example:latest

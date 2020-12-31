@@ -1,0 +1,100 @@
+.chat {
+  display: flex;
+  margin-top: 1rem;
+  height: calc(100vh - 255px);
+}
+
+.chat > .segments {
+  width: 100%;
+  box-shadow: unset !important;
+}
+
+.chats {
+  padding-left: 15px;
+  padding-right: 15px;
+  max-width: 1200px !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  margin-bottom: 17px;
+}
+
+.chats > .segment:first-child {
+  margin-top: 15px !important;
+  height: 78px;
+}
+
+.conversation-menu {
+  overflow-x: auto;
+  box-shadow: unset !important;
+  height: 47px;
+}
+
+.conversation-menu > .menu-item {
+  font-size: 14pt;
+}
+
+.conversation-menu > .menu-active {
+  font-weight: bold !important;
+}
+
+.conversation-menu > .menu > .add-button {
+  margin: 0px;
+  border-top-left-radius: 0%;
+  border-bottom-left-radius: 0%;
+  border-radius: 0%;
+} 
+
+.chat-history {
+  padding: .5em .5em 0 .5em !important;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scroll-snap-type: y proximity;
+  display: grid;
+  height: calc(100vh - 292px);
+}
+
+.chat-history > .list {
+  align-self: end;
+  margin-bottom: .5em !important;
+}
+
+.chat-active-card {
+  width: 100% !important;
+}
+
+.chat-message-name {
+  font-weight: bold;
+}
+
+.chat-message-time {
+  float:right;
+  opacity: .5;
+  font-size: smaller;
+  font-variant: small-caps;
+  font-style: italic;
+}
+
+.chat-message-self {
+  color: blue;
+}
+
+.chat-input {
+  padding: 0px 0px 0px 1em !important;
+}
+
+.chat-message-button {
+  background-color: transparent !important;
+}
+
+#chat-history-scroll-anchor {
+  scroll-snap-align: start
+}
+
+/* semantic-ui-react colors the border of inputs
+   when a right aligned action is used, even when 
+   transparent is specified, and it uses !important.
+   this had to be added to an id to override the class
+   declaration. */
+#chat-message-input {
+    border-right-color: transparent !important;
+}

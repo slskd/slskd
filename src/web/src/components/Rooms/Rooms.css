@@ -1,0 +1,132 @@
+.rooms {
+  padding-left: 15px;
+  padding-right: 15px;
+  max-width: 1200px !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  margin-bottom: 17px;
+}
+
+.rooms > .segment:first-child {
+  margin-top: 15px !important;
+  height: 78px;
+}
+
+.room-menu {
+  overflow-x: auto;
+  box-shadow: unset !important;
+  height: 47px;
+}
+
+.room-menu > .menu-item {
+  font-size: 14pt;
+}
+
+.room-menu > .menu-active {
+  font-weight: bold !important;
+}
+
+.room-menu > .menu > .add-button {
+  margin: 0px;
+  border-top-left-radius: 0%;
+  border-bottom-left-radius: 0%;
+  border-radius: 0%;
+}
+
+.join-room-modal > .content > .table > thead > tr > th > .icon {
+  float: right !important;
+}
+
+@media only screen and (max-width: 767px) {
+  .room-users {
+    display: none;
+  }
+}
+
+.room {
+  display: flex;
+  margin-top: 1rem;
+  height: calc(100vh - 255px);
+}
+
+.room-active-card {
+  width: 100% !important;
+}
+
+.room-active-card > .content > .room > .segments {
+  box-shadow: unset !important;
+  margin-bottom: 0px;
+  border-top-right-radius: unset !important;
+  border-bottom-right-radius: unset !important;
+  width: 100% !important;
+}
+
+.room-history {
+  padding: .5em .5em 0 .5em !important;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scroll-snap-type: y proximity;
+  display: grid;
+  height: calc(100vh - 292px);
+}
+
+.room-history > .list {
+  align-self: end;
+  margin-bottom: .5em !important;
+}
+
+.room-users {
+  margin-top: 0px !important;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scroll-snap-type: y proximity;
+  overflow-x: hidden;
+  min-width: 250px;
+  max-width: 250px;
+  box-shadow: unset !important;
+  border-left: unset !important;
+  border-bottom-left-radius: unset !important;
+  border-top-left-radius: unset !important;
+  padding: 7px !important;
+}
+
+.room-message-name {
+  font-weight: bold;
+}
+
+.room-message-time {
+  float:right;
+  opacity: .5;
+  font-size: smaller;
+  font-variant: small-caps;
+  font-style: italic;
+}
+
+.room-message-self, .room-user-self {
+  color: blue;
+}
+
+.room-input {
+  padding: 0px 0px 0px 1em !important;
+}
+
+.room-message-button {
+  background-color: transparent !important;
+}
+
+#room-history-scroll-anchor {
+  scroll-snap-align: start
+}
+
+/* semantic-ui-react colors the border of inputs
+   when a right aligned action is used, even when 
+   transparent is specified, and it uses !important.
+   this had to be added to an id to override the class
+   declaration. */
+#room-message-input {
+    border-right-color: transparent !important;
+}
+
+.unknown-user-flag {
+  opacity: .1 !important;
+}

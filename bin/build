@@ -1,0 +1,26 @@
+#!/bin/bash
+set -e
+
+# build web
+cd web
+pwd
+npm install
+npm run build
+
+# remove old build, but keep .gitkeep
+rm -rf ../api/wwwroot
+mkdir ../api/wwwroot
+touch ../api/wwwroot/.gitkeep
+
+# copy new files
+cp -r build/* ../api/wwwroot/
+
+# publish api + web
+cd ../api
+pwd
+dotnet publish --configuration Release
+
+# build docker
+cd ..
+pwd
+docker build -t jpdillingham/slsk-web-example:latest .
