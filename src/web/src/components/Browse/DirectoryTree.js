@@ -6,7 +6,7 @@ import {
 
 const subtree = (root, selectedDirectoryName, onSelect) => {
   return (root || []).map((d, index) => {
-      const selected = d.directoryName === selectedDirectoryName;
+      const selected = d.name === selectedDirectoryName;
       const dimIfLocked = { opacity: d.locked ? 0.5 : 1 };
 
       return (
@@ -24,7 +24,7 @@ const subtree = (root, selectedDirectoryName, onSelect) => {
                     onClick={(event) => onSelect(event, d)}
                     style={{ color: selected ? '#0E6EB8' : 'black', fontWeight: selected ? 700 : 400, ...dimIfLocked }}
                   >
-                      {d.directoryName.split('\\').pop().split('/').pop()}
+                      {d.name.split('\\').pop().split('/').pop()}
                   </List.Header>
                   <List.List>
                       {subtree(d.children, selectedDirectoryName, onSelect)}

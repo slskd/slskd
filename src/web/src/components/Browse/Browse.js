@@ -124,24 +124,24 @@ class Browse extends Component {
   }
 
   getDirectoryTree = (directories) => {
-    if (directories.length === 0 || directories[0].directoryName === undefined) {
+    if (directories.length === 0 || directories[0].name === undefined) {
       return [];
     }
 
-    const separator = this.sep(directories[0].directoryName);
-    const depth = Math.min.apply(null, directories.map(d => d.directoryName.split(separator).length));
+    const separator = this.sep(directories[0].name);
+    const depth = Math.min.apply(null, directories.map(d => d.name.split(separator).length));
 
     const topLevelDirs = directories
-      .filter(d => d.directoryName.split(separator).length === depth);
+      .filter(d => d.name.split(separator).length === depth);
 
     return topLevelDirs.map(directory => this.getChildDirectories(directories, directory, separator, depth));
   }
 
   getChildDirectories = (directories, root, separator, depth) => {
     const children = directories
-      .filter(d => d.directoryName !== root.directoryName)
-      .filter(d => d.directoryName.split(separator).length === depth + 1)
-      .filter(d => d.directoryName.startsWith(root.directoryName));
+      .filter(d => d.name !== root.name)
+      .filter(d => d.name.split(separator).length === depth + 1)
+      .filter(d => d.name.startsWith(root.name));
 
     return { ...root, children: children.map(c => this.getChildDirectories(directories, c, separator, depth + 1)) };
   }
@@ -154,16 +154,16 @@ class Browse extends Component {
     this.setState({ selectedDirectory: initialState.selectedDirectory }, () => this.saveState());
   }
 
-  sep = (directoryName) => directoryName.includes('\\') ? '\\' : '/';
+  sep = (name) => name.includes('\\') ? '\\' : '/';
 
   render = () => {
     const { browseState, browseStatus, browseError, tree, selectedDirectory, username, info } = this.state;
-    const { directoryName, locked } = selectedDirectory;
+    const { name, locked } = selectedDirectory;
     const pending = browseState === 'pending';
 
     const emptyTree = !(tree && tree.length > 0);
 
-    const files = (selectedDirectory.files || []).map(f => ({ ...f, filename: `${directoryName}${this.sep(directoryName)}${f.filename}`}));
+    const files = (selectedDirectory.files || []).map(f => ({ ...f, filename: `${name}${this.sep(name)}${f.filename}`}));
 
     return (
       <div className='search-container'>
@@ -208,15 +208,15 @@ class Browse extends Component {
                     <Segment className='browse-folderlist'>
                       <DirectoryTree 
                         tree={tree} 
-                        selectedDirectoryName={directoryName}
+                        selectedDirectoryName={name}
                         onSelect={(_, value) => this.selectDirectory(value)}
                       />
                     </Segment>
                   </Card.Content>
                 </Card>}
-                {directoryName && <Directory
+                {name && <Directory
                     marginTop={-20}
-                    name={directoryName}
+                    name={name}
                     locked={locked}
                     files={files}
                     username={username}
