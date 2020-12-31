@@ -1,10 +1,10 @@
 #!/bin/bash
 set -e
 
-cd api
+cd src/slskd
 pwd
 
-dotnet publish --configuration Release --self-contained --runtime win-x64
-dotnet publish --configuration Release --self-contained --runtime linux-x64
-dotnet publish --configuration Release --self-contained --runtime linux-arm
-dotnet publish --configuration Release --self-contained --runtime osx-x64
+dotnet publish --configuration Release -p:PublishSingleFile=true -p:ReadyToRun=true -p:PublishTrimmed=true -p:IncludeNativeLibrariesForSelfExtract=true --self-contained --runtime win-x64
+dotnet publish --configuration Release -p:PublishSingleFile=true -p:ReadyToRun=true -p:PublishTrimmed=true -p:IncludeNativeLibrariesForSelfExtract=true --self-contained --runtime linux-x64
+dotnet publish --configuration Release -p:PublishSingleFile=true -p:ReadyToRun=true -p:PublishTrimmed=true -p:IncludeNativeLibrariesForSelfExtract=true --self-contained --runtime linux-arm
+dotnet publish --configuration Release -p:PublishSingleFile=true -p:ReadyToRun=true -p:PublishTrimmed=true -p:IncludeNativeLibrariesForSelfExtract=true --self-contained --runtime osx-x64

@@ -11,6 +11,5 @@ docker run -d \
     -e "SLSK_DIAGNOSTIC=Info" \
     -e "SLSK_CONNECT_TIMEOUT=5000" \
     -e "SLSK_INACTIVITY_TIMEOUT=15000" \
-    --name soulseek \
-    --restart always \
-    jpdillingham/slsk-web-example:latest
+    --name slskd \
+    slskd/slskd:latest

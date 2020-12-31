@@ -2,25 +2,41 @@
 set -e
 
 # build web
-cd web
+cd src/web
+
+echo $'\n> pwd\n'
 pwd
+echo $'\n> npm install\n'
 npm install
+echo $'\n> npm run build\n'
 npm run build
 
 # remove old build, but keep .gitkeep
-rm -rf ../api/wwwroot
-mkdir ../api/wwwroot
-touch ../api/wwwroot/.gitkeep
+rm -rf ../slskd/wwwroot
+mkdir ../slskd/wwwroot
+touch ../slskd/wwwroot/.gitkeep
 
 # copy new files
-cp -r build/* ../api/wwwroot/
+echo $'\n> cp -r build/* ../slskd/wwwroot/\n'
+cp -r build/* ../slskd/wwwroot/
 
 # publish api + web
-cd ../api
+cd ../slskd
+echo $'\n> pwd\n'
 pwd
+echo $'\n> dotnet publish --configuration Release\n'
 dotnet publish --configuration Release
 
 # build docker
-cd ..
-pwd
-docker build -t jpdillingham/slsk-web-example:latest .
+if [ "$1" == "--with-docker" ]; then
+	tag=$(git log -1 --pretty=%H)
+	cd ../..
+	echo $'\n> pwd\n'
+	pwd
+	echo $'\n> docker build -t slskd/slskd:'$tag$' .\n'
+	docker build -t slskd/slskd:$tag .
+	echo $'\n> docker tag slsk/slskd:'$tag$' slskd/sldkd:latest\n'
+	docker tag slsk/slskd:$tag slskd/slskd:latest
+fi
+
+echo build succeded.
