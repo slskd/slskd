@@ -47,7 +47,7 @@
                 Name = room.Name,
                 IsPrivate = room.IsPrivate,
                 OperatorCount = room.OperatorCount,
-                Operators = room.Operators.ToList(),
+                Operators = room.Operators?.ToList(),
                 Owner = room.Owner,
                 Users = new List<UserDataResponse>(),
                 Messages = new List<RoomMessageResponse>()
