@@ -1,10 +1,18 @@
 #!/bin/bash
 set -e
 
+echo $'\n> bin/build\n'
+bin/build
+
 cd src/slskd
+echo $'\n> pwd\n'
 pwd
 
+echo $'\n> dotnet publish ... --runtime win-x64\n'
 dotnet publish --configuration Release -p:PublishSingleFile=true -p:ReadyToRun=true -p:PublishTrimmed=true -p:IncludeNativeLibrariesForSelfExtract=true --self-contained --runtime win-x64
+echo $'\n> dotnet publish ... --runtime linux-x64\n'
 dotnet publish --configuration Release -p:PublishSingleFile=true -p:ReadyToRun=true -p:PublishTrimmed=true -p:IncludeNativeLibrariesForSelfExtract=true --self-contained --runtime linux-x64
+echo $'\n> dotnet publish ... --runtime linux-arm\n'
 dotnet publish --configuration Release -p:PublishSingleFile=true -p:ReadyToRun=true -p:PublishTrimmed=true -p:IncludeNativeLibrariesForSelfExtract=true --self-contained --runtime linux-arm
+echo $'\n> dotnet publish ... --runtime osx-x64\n'
 dotnet publish --configuration Release -p:PublishSingleFile=true -p:ReadyToRun=true -p:PublishTrimmed=true -p:IncludeNativeLibrariesForSelfExtract=true --self-contained --runtime osx-x64
