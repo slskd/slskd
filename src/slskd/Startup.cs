@@ -196,7 +196,7 @@
                 await next();
             });
 
-            WebRoot ??= Path.Combine(Path.GetDirectoryName(new Uri(Assembly.GetExecutingAssembly().GetName().CodeBase).AbsolutePath), "wwwroot");
+            WebRoot ??= Path.Combine(Path.GetDirectoryName(new Uri(AppContext.BaseDirectory).AbsolutePath), "wwwroot");
             Console.WriteLine($"Serving static content from {WebRoot}");
 
             var fileServerOptions = new FileServerOptions
