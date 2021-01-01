@@ -35,8 +35,8 @@ if [ "$1" == "--with-docker" ]; then
 	pwd
 	echo $'\n> docker build -t slskd/slskd:'$tag$' .\n'
 	docker build -t slskd/slskd:$tag .
-	echo $'\n> docker tag slsk/slskd:'$tag$' slskd/sldkd:latest\n'
-	docker tag slsk/slskd:$tag slskd/slskd:latest
+	echo $'\n> docker tag slskd/slskd:'$tag$' slskd/sldkd:latest\n'
+	docker tag slskd/slskd:$tag slskd/slskd:latest
 fi
 
 echo build succeded.
