@@ -1,6 +1,6 @@
 FROM mcr.microsoft.com/dotnet/aspnet:5.0
 
-COPY slskd/bin/Release/net5.0/publish app/
+COPY src/slskd/bin/Release/net5.0/publish app/
 
 RUN mkdir /var/slsk
 RUN mkdir /var/slsk/shared
