@@ -1,0 +1,8 @@
+src/web/build
+src/web/node_modules
+src/web/.eslintcache
+src/web/.gitignore
+
+src/slskd/bin
+src/slskd/obj
+src/slskd/.gitignore

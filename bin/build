@@ -24,19 +24,8 @@ cp -r build/* ../slskd/wwwroot/
 cd ../slskd
 echo $'\n> pwd\n'
 pwd
-echo $'\n> dotnet publish --configuration Release\n'
-dotnet publish --configuration Release
+echo $'\n> dotnet build --configuration Release\n'
 
-# build docker
-if [ "$1" == "--with-docker" ]; then
-	tag=$(git log -1 --pretty=%H)
-	cd ../..
-	echo $'\n> pwd\n'
-	pwd
-	echo $'\n> docker build -t slskd/slskd:'$tag$' .\n'
-	docker build -t slskd/slskd:$tag .
-	echo $'\n> docker tag slskd/slskd:'$tag$' slskd/sldkd:latest\n'
-	docker tag slskd/slskd:$tag slskd/slskd:latest
-fi
+dotnet build --configuration Release
 
-echo build succeded.
+echo $'\nbuild succeded.'
