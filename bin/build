@@ -6,8 +6,17 @@ cd src/web
 
 echo $'\n> pwd\n'
 pwd
+
 echo $'\n> npm install\n'
 npm install
+
+if [ ! "$1" == "--skip-tests" ]; then
+    echo $'\n> npm run test-unattended\n'
+    npm run test-unattended
+else
+    echo $'\ntests skipped\n'
+fi
+
 echo $'\n> npm run build\n'
 npm run build
 
@@ -20,12 +29,23 @@ touch ../slskd/wwwroot/.gitkeep
 echo $'\n> cp -r build/* ../slskd/wwwroot/\n'
 cp -r build/* ../slskd/wwwroot/
 
-# publish api + web
+# build api + web
 cd ../slskd
+
 echo $'\n> pwd\n'
 pwd
-echo $'\n> dotnet build --configuration Release\n'
 
-dotnet build --configuration Release
+echo $'\n> dotnet build --no-incremental --nologo --configuration Release\n'
+dotnet build --no-incremental --nologo --configuration Release
+
+if [ ! "$1" == "--skip-tests" ]; then
+    echo $'\n> dotnet test --no-build --verbosity minimal --blame ../../tests/slskd.Tests.Unit'
+    dotnet test --no-build --verbosity minimal --blame ../../tests/slskd.Tests.Unit
+
+    echo $'\n> dotnet test --no-build --verbosity minimal --blame ../../tests/slskd.Tests.Integration'
+    dotnet test --no-build --verbosity minimal --blame ../../tests/slskd.Tests.Integration
+else
+    echo $'\ntests skipped\n'
+fi
 
 echo $'\nbuild succeded.'
