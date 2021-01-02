@@ -40,10 +40,10 @@ dotnet build --no-incremental --nologo --configuration Release
 
 if [ ! "$1" == "--skip-tests" ]; then
     echo $'\n> dotnet test --no-build --verbosity minimal --blame ../../tests/slskd.Tests.Unit'
-    dotnet test --no-build --verbosity minimal --blame ../../tests/slskd.Tests.Unit
+    dotnet test --blame ../../tests/slskd.Tests.Unit
 
     echo $'\n> dotnet test --no-build --verbosity minimal --blame ../../tests/slskd.Tests.Integration'
-    dotnet test --no-build --verbosity minimal --blame ../../tests/slskd.Tests.Integration
+    dotnet test --blame ../../tests/slskd.Tests.Integration
 else
     echo $'\ntests skipped\n'
 fi

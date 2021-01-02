@@ -22,6 +22,19 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		README.md = README.md
 	EndProjectSection
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".github", ".github", "{6186A99C-FE43-4C97-8A6A-F27432F44282}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "workflows", "workflows", "{ED2A1CCD-9C47-4AB5-AF00-84EF507E2402}"
+	ProjectSection(SolutionItems) = preProject
+		.github\workflows\ci.yml = .github\workflows\ci.yml
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{137724E1-1613-4EFC-BD67-399A620AEABF}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "slskd.Tests.Unit", "tests\slskd.Tests.Unit\slskd.Tests.Unit.csproj", "{2777623C-3DBE-4EB4-A092-DFEA7BD8EA3A}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "slskd.Tests.Integration", "tests\slskd.Tests.Integration\slskd.Tests.Integration.csproj", "{6BF0549C-F88D-43F9-85EE-388BA5FC38D0}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -32,12 +45,23 @@ Global
 		{E9EA3F80-07F4-4BEF-A233-5D87EF7D9ABC}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{E9EA3F80-07F4-4BEF-A233-5D87EF7D9ABC}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{E9EA3F80-07F4-4BEF-A233-5D87EF7D9ABC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2777623C-3DBE-4EB4-A092-DFEA7BD8EA3A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2777623C-3DBE-4EB4-A092-DFEA7BD8EA3A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2777623C-3DBE-4EB4-A092-DFEA7BD8EA3A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2777623C-3DBE-4EB4-A092-DFEA7BD8EA3A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6BF0549C-F88D-43F9-85EE-388BA5FC38D0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6BF0549C-F88D-43F9-85EE-388BA5FC38D0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6BF0549C-F88D-43F9-85EE-388BA5FC38D0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6BF0549C-F88D-43F9-85EE-388BA5FC38D0}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{E9EA3F80-07F4-4BEF-A233-5D87EF7D9ABC} = {5478DBA0-A595-4273-9F9D-3D5E11A8ECE8}
+		{ED2A1CCD-9C47-4AB5-AF00-84EF507E2402} = {6186A99C-FE43-4C97-8A6A-F27432F44282}
+		{2777623C-3DBE-4EB4-A092-DFEA7BD8EA3A} = {137724E1-1613-4EFC-BD67-399A620AEABF}
+		{6BF0549C-F88D-43F9-85EE-388BA5FC38D0} = {137724E1-1613-4EFC-BD67-399A620AEABF}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {A793ED59-76F4-4874-846B-2A199C92A48E}
