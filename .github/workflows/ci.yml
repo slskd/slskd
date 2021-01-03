@@ -1,30 +1,52 @@
-# This is a basic workflow to help you get started with Actions
-
 name: CI
-
-# Controls when the action will run. 
 on:
-  # Triggers the workflow on push or pull request events but only for the master branch
   push:
     branches: [ master ]
   pull_request:
     branches: [ master ]
-
-  # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  # This workflow contains a single job called "build"
   build:
-    # The type of runner that the job will run on
+    name: Build and Test
     runs-on: ubuntu-latest
-
-    # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v2
-
-      # Runs a single command using the runners shell
       - name: Build
         run: ./bin/build
+      - name: Upload Static Web Content
+        uses: actions/upload-artifact@v2
+        with:
+          name: web
+          path: src/slskd/wwwroot
+  publish:
+    name: Publish Build Artifacts
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/master'
+    strategy:
+      matrix:
+        runtime: ["win-x64", "linux-x64", "linux-musl-x64", "linux-arm64", "osx-x64"]
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/download-artifact@v2
+        with:
+          name: web
+          path: src/slskd/wwwroot
+      - name: Publish ${{ matrix.runtime }}
+        run: bin/publish --no-web-build --runtime ${{ matrix.runtime }}
+
+      - name: Upload a Build Artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ matrix.runtime }}
+          path: dist/${{ matrix.runtime }}
+  docker:
+    name: Build Docker Image
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/master'
+    steps:
+      - uses: actions/checkout@v2
+      - name: Build
+        run: docker build -t slskd/slskd:${{ github.sha }} .
