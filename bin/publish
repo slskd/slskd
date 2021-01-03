@@ -5,7 +5,14 @@ build=true
 
 while test $# -gt 0; do
   case "$1" in
-    --no-build)
+    -h|--help)
+      echo 'options:'
+      echo '-h, --help      show help'
+      echo '--no-web-build  skip web build'
+      echo '--runtine       a valid RID (https://docs.microsoft.com/en-us/dotnet/core/rid-catalog)'
+      exit 0
+      ;;
+    --no-web-build)
       build=false
       shift
       ;;
@@ -26,10 +33,10 @@ if [ -z "$runtime" ]; then
 fi
 
 if [ "$build" == true ]; then
-    echo $'\n> bin/build\n'
-    bin/build
+    echo $'\n> bin/build --web-only --skip-tests\n'
+    bin/build --web-only --skip-tests
 else
-    echo $'\n build skipped\n'
+    echo $'\nbuild skipped\n'
 fi
 
 cd src/slskd

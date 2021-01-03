@@ -1,16 +1,42 @@
 #!/bin/bash
 set -e
 
+web_only=false
+skip_tests=false
+
+while test $# -gt 0; do
+  case "$1" in
+    -h|--help)
+      echo 'options:'
+      echo '-h, --help      show help'
+      echo '--web-only      skip dotnet build'
+      echo '--skip-tests    skip execution of npm and dotnet tests'
+      exit 0
+      ;;
+    --web-only)
+      web_only=true
+      shift
+      ;;
+    --skip-tests)
+      skip_tests=true
+      shift
+      ;;
+    *)
+      break
+      ;;
+  esac
+done
+
 # build web
 cd src/web
 
 echo $'\n> pwd\n'
 pwd
 
-echo $'\n> npm install\n'
-npm install
+echo $'\n> npm ci\n'
+npm ci
 
-if [ ! "$1" == "--skip-tests" ]; then
+if [ "$skip_tests" == false ]; then
     echo $'\n> npm run test-unattended\n'
     npm run test-unattended
 else
@@ -29,23 +55,27 @@ touch ../slskd/wwwroot/.gitkeep
 echo $'\n> cp -r build/* ../slskd/wwwroot/\n'
 cp -r build/* ../slskd/wwwroot/
 
-# build api + web
-cd ../slskd
-
-echo $'\n> pwd\n'
-pwd
-
-echo $'\n> dotnet build --no-incremental --nologo --configuration Release\n'
-dotnet build --no-incremental --nologo --configuration Release
-
-if [ ! "$1" == "--skip-tests" ]; then
-    echo $'\n> dotnet test --configuration Release ../../tests/slskd.Tests.Unit'
-    dotnet test --configuration Release ../../tests/slskd.Tests.Unit
-
-    echo $'\n> ddotnet test --configuration Release ../../tests/slskd.Tests.Integration'
-    dotnet test --configuration Release ../../tests/slskd.Tests.Integration
+if [ "$web_only" == true ]; then
+    echo $'\ndotnet build skipped\n'
 else
-    echo $'\ntests skipped\n'
+    # build api + web
+    cd ../slskd
+
+    echo $'\n> pwd\n'
+    pwd
+
+    echo $'\n> dotnet build --no-incremental --nologo --configuration Release\n'
+    dotnet build --no-incremental --nologo --configuration Release
+
+    if [ "$skip_tests" == false ]; then
+        echo $'\n> dotnet test --configuration Release ../../tests/slskd.Tests.Unit'
+        dotnet test --configuration Release ../../tests/slskd.Tests.Unit
+
+        echo $'\n> ddotnet test --configuration Release ../../tests/slskd.Tests.Integration'
+        dotnet test --configuration Release ../../tests/slskd.Tests.Integration
+    else
+        echo $'\ntests skipped\n'
+    fi
 fi
 
 echo $'\nbuild succeded.'
