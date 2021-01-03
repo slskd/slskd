@@ -1,17 +1,43 @@
 #!/bin/bash
 set -e
 
-if [ ! "$1" == "--no-build" ]; then
+build=true
+
+while test $# -gt 0; do
+  case "$1" in
+    --no-build)
+      build=false
+      shift
+      ;;
+    --runtime*)
+      shift
+      runtime=$1
+      shift
+      ;;
+    *)
+      break
+      ;;
+  esac
+done
+
+if [ -z "$runtime" ]; then
+    echo "error: no runtime specified; provide a valid RID (https://docs.microsoft.com/en-us/dotnet/core/rid-catalog)"
+    exit 1
+fi
+
+if [ "$build" == true ]; then
     echo $'\n> bin/build\n'
     bin/build
+else
+    echo $'\n build skipped\n'
 fi
 
 cd src/slskd
 echo $'\n> pwd\n'
 pwd
 
-echo $'\n> dotnet publish ... --runtime win-x64\n'
-rm -rf dist/win-x64/*
+echo $'\n> dotnet publish ... --runtime '$runtime$'\n'
+rm -rf dist/$runtime/*
 dotnet publish \
     --configuration Release \
     -p:PublishSingleFile=true \
@@ -20,44 +46,7 @@ dotnet publish \
     -p:IncludeNativeLibrariesForSelfExtract=true \
     -p:CopyOutputSymbolsToPublishDirectory=false \
     --self-contained \
-    --runtime win-x64 \
-    --output ../../dist/win-x64
+    --runtime $runtime \
+    --output ../../dist/$runtime
 
-echo $'\n> dotnet publish ... --runtime linux-x64\n'
-rm -rf dist/linux-x64/*
-dotnet publish \
-    --configuration Release \
-    -p:PublishSingleFile=true \
-    -p:ReadyToRun=true \
-    -p:PublishTrimmed=true \
-    -p:IncludeNativeLibrariesForSelfExtract=true \
-    -p:CopyOutputSymbolsToPublishDirectory=false \
-    --self-contained \
-    --runtime linux-x64 \
-    --output ../../dist/linux-x64
-
-echo $'\n> dotnet publish ... --runtime linux-arm\n'
-rm -rf dist/linux-arm/*
-dotnet publish \
-    --configuration Release \
-    -p:PublishSingleFile=true \
-    -p:ReadyToRun=true \
-    -p:PublishTrimmed=true \
-    -p:IncludeNativeLibrariesForSelfExtract=true \
-    -p:CopyOutputSymbolsToPublishDirectory=false \
-    --self-contained \
-    --runtime linux-arm \
-    --output ../../dist/linux-arm
-
-echo $'\n> dotnet publish ... --runtime osx-x64\n'
-rm -rf dist/osx-x64/*
-dotnet publish \
-    --configuration Release \
-    -p:PublishSingleFile=true \
-    -p:ReadyToRun=true \
-    -p:PublishTrimmed=true \
-    -p:IncludeNativeLibrariesForSelfExtract=true \
-    -p:CopyOutputSymbolsToPublishDirectory=false \
-    --self-contained \
-    --runtime osx-x64 \
-    --output ../../dist/osx-x64
+echo $'\npublish succeeded.'
