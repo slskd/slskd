@@ -13,23 +13,19 @@ on:
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  # This workflow contains a single job called "build"
-  win-x64:
-    # The type of runner that the job will run on
+  publish:
     runs-on: ubuntu-latest
-
-    # Steps represent a sequence of tasks that will be executed as part of the job
+    strategy:
+      matrix:
+        runtime: ["win-x64", "linux-x64"]
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v2
-
-      # Runs a single command using the runners shell
-      - name: Publish win-x64
-        run: bin/publish --runtime win-x64
+      - name: Publish ${{ matrix.runtime }}
+        run: bin/publish --runtime ${{ matrix.runtime }}
 
       - name: Upload a Build Artifact
         uses: actions/upload-artifact@v2
         with:
-          name: win-x64
-          path: dist/win-x64 
+          name: ${{ matrix.runtime }}
+          path: dist/${{ matrix.runtime }}
 
