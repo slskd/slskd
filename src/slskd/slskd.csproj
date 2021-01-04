@@ -7,7 +7,7 @@
   
   <PropertyGroup>
     <ServerGarbageCollection>false</ServerGarbageCollection>
-    <Version>0.0.1</Version>
+    <VersionPrefix>0.0.1</VersionPrefix>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">

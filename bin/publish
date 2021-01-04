@@ -2,23 +2,30 @@
 set -e
 
 build=true
+version_suffix=$(git rev-parse --short HEAD)
 
 while test $# -gt 0; do
   case "$1" in
     -h|--help)
       echo 'options:'
-      echo '-h, --help      show help'
-      echo '--no-web-build  skip web build'
-      echo '--runtine       a valid RID (https://docs.microsoft.com/en-us/dotnet/core/rid-catalog)'
+      echo '-h, --help          show help'
+      echo '--no-build          skip build'
+      echo '--version-suffix    version suffix for the binary. defaults to current git SHA'
+      echo '--runtine           a valid RID (https://docs.microsoft.com/en-us/dotnet/core/rid-catalog)'
       exit 0
       ;;
-    --no-web-build)
+    --no-build)
       build=false
       shift
       ;;
     --runtime*)
       shift
       runtime=$1
+      shift
+      ;;
+    --version-suffix)
+      shift
+      version_suffix=$1
       shift
       ;;
     *)
@@ -33,8 +40,8 @@ if [ -z "$runtime" ]; then
 fi
 
 if [ "$build" == true ]; then
-    echo $'\n> bin/build --web-only --skip-tests\n'
-    bin/build --web-only --skip-tests
+    echo $'\n> bin/build\n'
+    bin/build
 else
     echo $'\nbuild skipped\n'
 fi
@@ -43,7 +50,7 @@ cd src/slskd
 echo $'\n> pwd\n'
 pwd
 
-echo $'\n> dotnet publish ... --runtime '$runtime$'\n'
+echo $'\n> dotnet publish ... --runtime '$runtime$' --version-suffix '$version_suffix$'\n'
 rm -rf dist/$runtime/*
 dotnet publish \
     --configuration Release \
@@ -53,6 +60,7 @@ dotnet publish \
     -p:IncludeNativeLibrariesForSelfExtract=true \
     -p:CopyOutputSymbolsToPublishDirectory=false \
     --self-contained \
+    --version-suffix $version_suffix \
     --runtime $runtime \
     --output ../../dist/$runtime
 
