@@ -34,7 +34,7 @@ jobs:
           name: web
           path: src/slskd/wwwroot
       - name: Publish ${{ matrix.runtime }}
-        run: bin/publish --no-build --runtime ${{ matrix.runtime }} --version-suffix $(echo $GITHUB_SHA | cut -c1-8)
+        run: bin/publish --no-prebuild --runtime ${{ matrix.runtime }} --version-suffix $(echo $GITHUB_SHA | cut -c1-8)
 
       - name: Upload a Build Artifact
         uses: actions/upload-artifact@v2

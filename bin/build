@@ -3,14 +3,16 @@ set -e
 
 web_only=false
 skip_tests=false
+version_suffix=$(git rev-parse --short HEAD)
 
 while test $# -gt 0; do
   case "$1" in
     -h|--help)
       echo 'options:'
-      echo '-h, --help      show help'
-      echo '--web-only      skip dotnet build'
-      echo '--skip-tests    skip execution of npm and dotnet tests'
+      echo '-h, --help          show help'
+      echo '--web-only          skip dotnet build'
+      echo '--skip-tests        skip execution of npm and dotnet tests'
+      echo '--version-suffix    version suffix for the binary. defaults to current git SHA'
       exit 0
       ;;
     --web-only)
@@ -19,6 +21,11 @@ while test $# -gt 0; do
       ;;
     --skip-tests)
       skip_tests=true
+      shift
+      ;;
+    --version-suffix)
+      shift
+      version_suffix=$1
       shift
       ;;
     *)
@@ -65,7 +72,7 @@ else
     pwd
 
     echo $'\n> dotnet build --no-incremental --nologo --configuration Release\n'
-    dotnet build --no-incremental --nologo --configuration Release
+    dotnet build --no-incremental --nologo --configuration Release --version-suffix $version_suffix
 
     if [ "$skip_tests" == false ]; then
         echo $'\n> dotnet test --configuration Release ../../tests/slskd.Tests.Unit'

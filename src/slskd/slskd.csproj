@@ -7,7 +7,12 @@
   
   <PropertyGroup>
     <ServerGarbageCollection>false</ServerGarbageCollection>
-    <VersionPrefix>0.0.1</VersionPrefix>
+    <VersionPrefix>0.9.1</VersionPrefix>
+    <RepositoryUrl>https://github.com/slskd/slskd</RepositoryUrl>
+    <PackageProjectUrl>https://slskd.org</PackageProjectUrl>
+    <Authors>slskd Team</Authors>
+    <Copyright>Copyright (c) slskd Team</Copyright>
+    <PackageLicenseFile>LICENSE</PackageLicenseFile>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
@@ -37,6 +42,13 @@
     <Content Update="wwwroot\.gitkeep">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\LICENSE">
+      <Pack>True</Pack>
+      <PackagePath></PackagePath>
+    </None>
   </ItemGroup>
 
 </Project>
