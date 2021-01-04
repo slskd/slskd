@@ -12,8 +12,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - name: Build
-        run: ./bin/build
+      - name: Web
+        run: ./bin/build --web-only
+      - name: Dotnet
+        run: ./bin/build --dotnet-only
       - name: Upload Static Web Content
         uses: actions/upload-artifact@v2
         with:
@@ -34,7 +36,7 @@ jobs:
           name: web
           path: src/slskd/wwwroot
       - name: Publish ${{ matrix.runtime }}
-        run: bin/publish --no-prebuild --runtime ${{ matrix.runtime }} --version-suffix $(echo $GITHUB_SHA | cut -c1-8)
+        run: bin/publish --no-prebuild --runtime ${{ matrix.runtime }} --version-suffix $(echo $GITHUB_SHA | cut -c1-7)
 
       - name: Upload a Build Artifact
         uses: actions/upload-artifact@v2
@@ -49,4 +51,4 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Build
-        run: docker build -t slskd/slskd:$(echo $GITHUB_SHA | cut -c1-8) .
+        run: docker build -t slskd/slskd:$(echo $GITHUB_SHA | cut -c1-7) .
