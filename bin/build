@@ -2,6 +2,7 @@
 set -e
 
 web_only=false
+dotnet_only=false
 skip_tests=false
 version_suffix=$(git rev-parse --short HEAD)
 
@@ -11,12 +12,17 @@ while test $# -gt 0; do
       echo 'options:'
       echo '-h, --help          show help'
       echo '--web-only          skip dotnet build'
+      echo '--dotnet-only       skip web build'
       echo '--skip-tests        skip execution of npm and dotnet tests'
       echo '--version-suffix    version suffix for the binary. defaults to current git SHA'
       exit 0
       ;;
     --web-only)
       web_only=true
+      shift
+      ;;
+    --dotnet-only)
+      dotnet_only=true
       shift
       ;;
     --skip-tests)
@@ -34,39 +40,45 @@ while test $# -gt 0; do
   esac
 done
 
-# build web
-cd src/web
+if [ "$dotnet_only" == true ]; then
+  echo $'\nweb build skipped\n'
+else 
+  # build web
+  cd src/web
 
-echo $'\n> pwd\n'
-pwd
+  echo $'\n> pwd\n'
+  pwd
 
-echo $'\n> npm ci\n'
-npm ci
+  echo $'\n> npm ci\n'
+  npm ci
 
-if [ "$skip_tests" == false ]; then
-    echo $'\n> npm run test-unattended\n'
-    npm run test-unattended
-else
-    echo $'\ntests skipped\n'
+  if [ "$skip_tests" == true ]; then
+      echo $'\nweb tests skipped\n'
+  else
+      echo $'\n> npm run test-unattended\n'
+      npm run test-unattended
+  fi
+
+  echo $'\n> npm run build\n'
+  npm run build
+
+  # remove old build, but keep .gitkeep
+  rm -rf ../slskd/wwwroot
+  mkdir ../slskd/wwwroot
+  touch ../slskd/wwwroot/.gitkeep
+
+  # copy new files
+  echo $'\n> cp -r build/* ../slskd/wwwroot/\n'
+  cp -r build/* ../slskd/wwwroot/
+
+  cd ../..
 fi
-
-echo $'\n> npm run build\n'
-npm run build
-
-# remove old build, but keep .gitkeep
-rm -rf ../slskd/wwwroot
-mkdir ../slskd/wwwroot
-touch ../slskd/wwwroot/.gitkeep
-
-# copy new files
-echo $'\n> cp -r build/* ../slskd/wwwroot/\n'
-cp -r build/* ../slskd/wwwroot/
 
 if [ "$web_only" == true ]; then
     echo $'\ndotnet build skipped\n'
 else
     # build api + web
-    cd ../slskd
+    cd src/slskd
 
     echo $'\n> pwd\n'
     pwd
@@ -74,14 +86,14 @@ else
     echo $'\n> dotnet build --no-incremental --nologo --configuration Release\n'
     dotnet build --no-incremental --nologo --configuration Release --version-suffix $version_suffix
 
-    if [ "$skip_tests" == false ]; then
+    if [ "$skip_tests" == true ]; then
+        echo $'\ndotnet tests skipped\n'
+    else
         echo $'\n> dotnet test --configuration Release ../../tests/slskd.Tests.Unit'
         dotnet test --configuration Release ../../tests/slskd.Tests.Unit
 
-        echo $'\n> ddotnet test --configuration Release ../../tests/slskd.Tests.Integration'
+        echo $'\n> dotnet test --configuration Release ../../tests/slskd.Tests.Integration'
         dotnet test --configuration Release ../../tests/slskd.Tests.Integration
-    else
-        echo $'\ntests skipped\n'
     fi
 fi
 
