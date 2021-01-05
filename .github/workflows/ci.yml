@@ -63,9 +63,13 @@ jobs:
           pattern='<VersionPrefix>(.*)<\/VersionPrefix>'
           [[ "$csproj" =~ $pattern ]]
           echo "APP_VERSION=${BASH_REMATCH[1]}" >> $GITHUB_ENV
-      - name: Docker Build
+      - name: Build
         run: docker build -t slskd/slskd:${{ env.APP_VERSION }}.${{ env.SHORT_SHA }} .
-      - name: Login to Docker Hub
+      - name: Tag (Nightly)
+        run: docker tag slskd/slskd:${{ env.APP_VERSION }}.${{ env.SHORT_SHA }} slskd/slskd:Nightly
+      - name: Login
         run: echo ${{ secrets.DOCKERHUB_PASSWORD }} | docker login -u ${{ secrets.DOCKERHUB_USERNAME }} --password-stdin
-      - name: Docker Push SHA Tag
-        run: docker push slskd/slskd:${{ env.APP_VERSION }}.${{ env.SHORT_SHA }}
+      - name: Push
+        run: |
+          docker push slskd/slskd:${{ env.APP_VERSION }}.${{ env.SHORT_SHA }}
+          docker push slskd/slskd:nightly
