@@ -7,7 +7,6 @@
   
   <PropertyGroup>
     <ServerGarbageCollection>false</ServerGarbageCollection>
-    <VersionPrefix>0.9.1</VersionPrefix>
     <RepositoryUrl>https://github.com/slskd/slskd</RepositoryUrl>
     <PackageProjectUrl>https://slskd.org</PackageProjectUrl>
     <Authors>slskd Team</Authors>
@@ -48,6 +47,7 @@
     <None Include="..\..\LICENSE">
       <Pack>True</Pack>
       <PackagePath></PackagePath>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
   </ItemGroup>
 

@@ -4,7 +4,9 @@ set -e
 web_only=false
 dotnet_only=false
 skip_tests=false
-version_suffix=$(git rev-parse --short HEAD)
+tag=$(git describe --tags)
+sha=$(git rev-parse --short HEAD)
+version=$tag-$sha
 
 while test $# -gt 0; do
   case "$1" in
@@ -29,9 +31,9 @@ while test $# -gt 0; do
       skip_tests=true
       shift
       ;;
-    --version-suffix)
+    --version)
       shift
-      version_suffix=$1
+      version=$1
       shift
       ;;
     *)
@@ -83,8 +85,8 @@ else
     echo $'\n> pwd\n'
     pwd
 
-    echo $'\n> dotnet build --no-incremental --nologo --configuration Release\n'
-    dotnet build --no-incremental --nologo --configuration Release --version-suffix $version_suffix
+    echo $'\n> dotnet build --no-incremental --nologo --configuration Release -p:Version '$version$'\n'
+    dotnet build --no-incremental --nologo --configuration Release -p:Version=$version
 
     if [ "$skip_tests" == true ]; then
         echo $'\ndotnet tests skipped\n'

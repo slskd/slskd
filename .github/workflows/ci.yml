@@ -12,10 +12,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Set Environment Variables
+        run: |
+          echo "LATEST_TAG=$(git describe --tags --abbrev=0)" >> $GITHUB_ENV
+          echo "SHORT_SHA=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
       - name: Web
         run: ./bin/build --web-only
       - name: Dotnet
-        run: ./bin/build --dotnet-only
+        run: ./bin/build --dotnet-only --version ${{ env.LATEST_TAG }}-${{ env.SHORT_SHA }}
       - name: Upload Static Web Content
         uses: actions/upload-artifact@v2
         with:
@@ -31,23 +37,22 @@ jobs:
         runtime: ["win-x64", "linux-x64", "linux-musl-x64", "linux-arm64", "osx-x64"]
     steps:
       - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
       - name: Set Environment Variables
         run: |
-          echo "SHORT_SHA=$(echo $GITHUB_SHA | cut -c1-7)" >> $GITHUB_ENV
-          csproj=$(cat src/slskd/slskd.csproj)
-          pattern='<VersionPrefix>(.*)<\/VersionPrefix>'
-          [[ "$csproj" =~ $pattern ]]
-          echo "APP_VERSION=${BASH_REMATCH[1]}" >> $GITHUB_ENV
+          echo "LATEST_TAG=$(git describe --tags --abbrev=0)" >> $GITHUB_ENV
+          echo "SHORT_SHA=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
       - uses: actions/download-artifact@v2
         with:
           name: web
           path: src/slskd/wwwroot
       - name: Publish ${{ matrix.runtime }}
-        run: bin/publish --no-prebuild --runtime ${{ matrix.runtime }} --version-suffix ${{ env.SHORT_SHA }}
+        run: bin/publish --no-prebuild --runtime ${{ matrix.runtime }} --version ${{ env.LATEST_TAG }}-${{ env.SHORT_SHA }}
       - name: Upload a Build Artifact
         uses: actions/upload-artifact@v2
         with:
-          name: slskd-${{ env.APP_VERSION }}.${{ env.SHORT_SHA }}-${{ matrix.runtime }}
+          name: slskd-${{ env.LATEST_TAG }}.${{ env.SHORT_SHA }}-${{ matrix.runtime }}
           path: dist/${{ matrix.runtime }}
   docker:
     name: Build Docker Image
@@ -56,20 +61,19 @@ jobs:
     if: github.ref == 'refs/heads/master'
     steps:
       - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
       - name: Set Environment Variables
         run: |
-          echo "SHORT_SHA=$(echo $GITHUB_SHA | cut -c1-7)" >> $GITHUB_ENV
-          csproj=$(cat src/slskd/slskd.csproj)
-          pattern='<VersionPrefix>(.*)<\/VersionPrefix>'
-          [[ "$csproj" =~ $pattern ]]
-          echo "APP_VERSION=${BASH_REMATCH[1]}" >> $GITHUB_ENV
+          echo "LATEST_TAG=$(git describe --tags --abbrev=0)" >> $GITHUB_ENV
+          echo "SHORT_SHA=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
       - name: Build
-        run: docker build -t slskd/slskd:${{ env.APP_VERSION }}.${{ env.SHORT_SHA }} .
+        run: docker build -t slskd/slskd:${{ env.LATEST_TAG }}.${{ env.SHORT_SHA }} .
       - name: Tag (Nightly)
-        run: docker tag slskd/slskd:${{ env.APP_VERSION }}.${{ env.SHORT_SHA }} slskd/slskd:Nightly
+        run: docker tag slskd/slskd:${{ env.LATEST_TAG }}.${{ env.SHORT_SHA }} slskd/slskd:Nightly
       - name: Login
         run: echo ${{ secrets.DOCKERHUB_PASSWORD }} | docker login -u ${{ secrets.DOCKERHUB_USERNAME }} --password-stdin
       - name: Push
         run: |
-          docker push slskd/slskd:${{ env.APP_VERSION }}.${{ env.SHORT_SHA }}
+          docker push slskd/slskd:${{ env.LATEST_TAG }}.${{ env.SHORT_SHA }}
           docker push slskd/slskd:nightly

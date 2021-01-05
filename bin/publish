@@ -2,7 +2,9 @@
 set -e
 
 build=true
-version_suffix=$(git rev-parse --short HEAD)
+tag=$(git describe --tags)
+sha=$(git rev-parse --short HEAD)
+version=$tag-$sha
 
 while test $# -gt 0; do
   case "$1" in
@@ -23,9 +25,9 @@ while test $# -gt 0; do
       runtime=$1
       shift
       ;;
-    --version-suffix)
+    --version)
       shift
-      version_suffix=$1
+      version=$1
       shift
       ;;
     *)
@@ -50,7 +52,7 @@ cd src/slskd
 echo $'\n> pwd\n'
 pwd
 
-echo $'\n> dotnet publish ... --runtime '$runtime$' --version-suffix '$version_suffix$'\n'
+echo $'\n> dotnet publish ... --runtime '$runtime$' -p:Version '$version$'\n'
 rm -rf dist/$runtime/*
 dotnet publish \
     --configuration Release \
@@ -59,8 +61,8 @@ dotnet publish \
     -p:PublishTrimmed=true \
     -p:IncludeNativeLibrariesForSelfExtract=true \
     -p:CopyOutputSymbolsToPublishDirectory=false \
+    -p:Version=$version \
     --self-contained \
-    --version-suffix $version_suffix \
     --runtime $runtime \
     --output ../../dist/$runtime
 
