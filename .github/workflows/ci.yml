@@ -68,9 +68,9 @@ jobs:
           echo "LATEST_TAG=$(git describe --tags --abbrev=0)" >> $GITHUB_ENV
           echo "SHORT_SHA=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
       - name: Build
-        run: docker build -t slskd/slskd:${{ env.LATEST_TAG }}.${{ env.SHORT_SHA }} .
+        run: docker build -t slskd/slskd:${{ env.LATEST_TAG }}.${{ env.SHORT_SHA }} --build-arg VERSION=${{ env.LATEST_TAG }} --build-arg SHA=${{ env.SHORT_SHA }} .
       - name: Tag (Nightly)
-        run: docker tag slskd/slskd:${{ env.LATEST_TAG }}.${{ env.SHORT_SHA }} slskd/slskd:Nightly
+        run: docker tag slskd/slskd:${{ env.LATEST_TAG }}.${{ env.SHORT_SHA }} slskd/slskd:nightly
       - name: Login
         run: echo ${{ secrets.DOCKERHUB_PASSWORD }} | docker login -u ${{ secrets.DOCKERHUB_USERNAME }} --password-stdin
       - name: Push
