@@ -1,10 +1,7 @@
 #!/bin/bash
 set -e
 
-build=true
-tag=$(git describe --tags)
-sha=$(git rev-parse --short HEAD)
-version=$tag-$sha
+prebuild=true
 
 while test $# -gt 0; do
   case "$1" in
@@ -13,11 +10,11 @@ while test $# -gt 0; do
       echo '-h, --help          show help'
       echo '--no-prebuild       skip build and test'
       echo '--runtime           a valid RID (https://docs.microsoft.com/en-us/dotnet/core/rid-catalog)'
-      echo '--version-suffix    version suffix for the binary. defaults to current git SHA'
+      echo '--version           version for the binary. defaults to current git tag-SHA'
       exit 0
       ;;
     --no-prebuild)
-      build=false
+      prebuild=false
       shift
       ;;
     --runtime*)
@@ -36,24 +33,30 @@ while test $# -gt 0; do
   esac
 done
 
+if [ -z "$version" ]; then 
+  tag=$(git describe --tags --abbrev=0)
+  sha=$(git rev-parse --short HEAD)
+  version=$tag-$sha
+fi
+
 if [ -z "$runtime" ]; then
-    echo "error: no runtime specified; provide a valid RID (https://docs.microsoft.com/en-us/dotnet/core/rid-catalog)"
+    echo "💥  error: no runtime specified; provide a valid RID (https://docs.microsoft.com/en-us/dotnet/core/rid-catalog)"
     exit 1
 fi
 
-if [ "$build" == true ]; then
-    echo $'\n> bin/build\n'
+if [ "$prebuild" == true ]; then
+    echo $'\n\t🛠️  bin/build --version '$version$'\n'
     bin/build
 else
-    echo $'\nbuild skipped\n'
+    echo $'\n\t⏩  pre-build skipped\n'
 fi
 
 cd src/slskd
-echo $'\n> pwd\n'
-pwd
+echo $'\n\t📍  '$(pwd)$'\n'
 
-echo $'\n> dotnet publish ... --runtime '$runtime$' -p:Version '$version$'\n'
+echo $'\n\t🛠️  dotnet publish ... --runtime '$runtime$' -p:Version '$version$'\n'
 rm -rf dist/$runtime/*
+
 dotnet publish \
     --configuration Release \
     -p:PublishSingleFile=true \
@@ -66,4 +69,10 @@ dotnet publish \
     --runtime $runtime \
     --output ../../dist/$runtime
 
-echo $'\npublish succeeded.'
+cd ../../dist/$runtime
+echo $'\n\t📍  '$(pwd)$'\n'
+
+echo $'\n\t📦  artifacts:\n'
+find .
+
+echo $'\n\t🎉  publish succeeded!\n'
