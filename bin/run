@@ -1,3 +1,8 @@
+if [ -z "$1" ]; then
+    echo "💥  error: no image specified; provide a valid image and tag (e.g. slskd/slskd:latest)"
+    exit 1
+fi
+
 docker run -i \
     -p 5000:5000 \
     -p $SLSK_LISTEN_PORT:$SLSK_LISTEN_PORT \
@@ -12,4 +17,4 @@ docker run -i \
     -e "SLSK_ENABLE_SECURITY=$SLSK_ENABLE_SECURITY" \
     -e "SLSK_CONNECT_TIMEOUT=5000" \
     -e "SLSK_INACTIVITY_TIMEOUT=15000" \
-    slskd/slskd:latest
+    $1
