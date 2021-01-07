@@ -108,7 +108,7 @@ jobs:
       - name: Zip win-x64
         run: |
           cd dist/win-x64
-          zip -r ../../slskd-${{ env.LATEST_TAG }}.0-win-x64.zip .
+          zip -r ../../slskd-${{ env.LATEST_TAG }}-win-x64.zip .
       - uses: actions/download-artifact@v2
         with:
           name: slskd-${{ env.LATEST_TAG }}.${{ env.SHORT_SHA }}-linux-x64
@@ -116,7 +116,7 @@ jobs:
       - name: Zip linux-x64
         run: |
           cd dist/linux-x64
-          zip -r ../../slskd-${{ env.LATEST_TAG }}.0-linux-x64.zip .
+          zip -r ../../slskd-${{ env.LATEST_TAG }}-linux-x64.zip .
       - uses: actions/download-artifact@v2
         with:
           name: slskd-${{ env.LATEST_TAG }}.${{ env.SHORT_SHA }}-linux-musl-x64
@@ -124,7 +124,7 @@ jobs:
       - name: Zip linux-musl-x64
         run: |
           cd dist/linux-musl-x64
-          zip -r ../../slskd-${{ env.LATEST_TAG }}.0-linux-musl-x64.zip .
+          zip -r ../../slskd-${{ env.LATEST_TAG }}-linux-musl-x64.zip .
       - uses: actions/download-artifact@v2
         with:
           name: slskd-${{ env.LATEST_TAG }}.${{ env.SHORT_SHA }}-linux-arm64
@@ -132,7 +132,7 @@ jobs:
       - name: Zip linux-arm64
         run: |
           cd dist/linux-arm64
-          zip -r ../../slskd-${{ env.LATEST_TAG }}.0-linux-arm64.zip .
+          zip -r ../../slskd-${{ env.LATEST_TAG }}-linux-arm64.zip .
       - uses: actions/download-artifact@v2
         with:
           name: slskd-${{ env.LATEST_TAG }}.${{ env.SHORT_SHA }}-osx-x64
@@ -140,16 +140,16 @@ jobs:
       - name: Zip osx-x64
         run: |
           cd dist/osx-x64
-          zip -r ../../slskd-${{ env.LATEST_TAG }}.0-osx-x64.zip .
+          zip -r ../../slskd-${{ env.LATEST_TAG }}-osx-x64.zip .
       - name: Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
-            slskd-${{ env.LATEST_TAG }}.0-win-x64.zip
-            slskd-${{ env.LATEST_TAG }}.0-linux-x64.zip
-            slskd-${{ env.LATEST_TAG }}.0-linux-musl-x64.zip
-            slskd-${{ env.LATEST_TAG }}.0-linux-arm64.zip
-            slskd-${{ env.LATEST_TAG }}.0-osx-x64.zip
+            slskd-${{ env.LATEST_TAG }}-win-x64.zip
+            slskd-${{ env.LATEST_TAG }}-linux-x64.zip
+            slskd-${{ env.LATEST_TAG }}-linux-musl-x64.zip
+            slskd-${{ env.LATEST_TAG }}-linux-arm64.zip
+            slskd-${{ env.LATEST_TAG }}-osx-x64.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
