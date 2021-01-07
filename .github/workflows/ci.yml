@@ -2,6 +2,7 @@ name: CI
 on:
   push:
     branches: [ master ]
+    tags: "[0-9]+.[0-9]+.[0-9]+"
   pull_request:
     branches: [ master ]
   workflow_dispatch:
@@ -31,7 +32,7 @@ jobs:
     name: Publish Build Artifacts
     runs-on: ubuntu-latest
     needs: build
-    if: github.ref == 'refs/heads/master'
+    if: github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/')
     strategy:
       matrix:
         runtime: ["win-x64", "linux-x64", "linux-musl-x64", "linux-arm64", "osx-x64"]
@@ -58,7 +59,7 @@ jobs:
     name: Build Docker Image
     runs-on: ubuntu-latest
     needs: build
-    if: github.ref == 'refs/heads/master'
+    if: github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/')
     steps:
       - uses: actions/checkout@v2
         with:
@@ -69,11 +70,86 @@ jobs:
           echo "SHORT_SHA=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
       - name: Build
         run: docker build -t slskd/slskd:${{ env.LATEST_TAG }}.${{ env.SHORT_SHA }} --build-arg VERSION=${{ env.LATEST_TAG }} --build-arg SHA=${{ env.SHORT_SHA }} .
-      - name: Tag (Nightly)
-        run: docker tag slskd/slskd:${{ env.LATEST_TAG }}.${{ env.SHORT_SHA }} slskd/slskd:nightly
+      - name: Tag (Canary)
+        run: docker tag slskd/slskd:${{ env.LATEST_TAG }}.${{ env.SHORT_SHA }} slskd/slskd:canary
+      - name: Tag (Release)
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          docker tag slskd/slskd:${{ env.LATEST_TAG }}.${{ env.SHORT_SHA }} slskd/slskd:${{ env.LATEST_TAG }}.0
+          docker tag slskd/slskd:${{ env.LATEST_TAG }}.${{ env.SHORT_SHA }} slskd/slskd:latest
       - name: Login
         run: echo ${{ secrets.DOCKERHUB_PASSWORD }} | docker login -u ${{ secrets.DOCKERHUB_USERNAME }} --password-stdin
-      - name: Push
+      - name: Push Image
+        run: docker push slskd/slskd:${{ env.LATEST_TAG }}.${{ env.SHORT_SHA }}
+      - name: Push Tag (Canary)
+        run: docker push slskd/slskd:canary
+      - name: Push Tag (Release)
+        if: startsWith(github.ref, 'refs/tags/')
         run: |
-          docker push slskd/slskd:${{ env.LATEST_TAG }}.${{ env.SHORT_SHA }}
-          docker push slskd/slskd:nightly
+          docker push slskd/slskd:${{ env.LATEST_TAG }}.0
+          docker push slskd/slskd:latest
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: [publish, docker]
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Set Environment Variables
+        run: |
+          echo "LATEST_TAG=$(git describe --tags --abbrev=0)" >> $GITHUB_ENV
+          echo "SHORT_SHA=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+      - uses: actions/download-artifact@v2
+        with:
+          name: slskd-${{ env.LATEST_TAG }}.${{ env.SHORT_SHA }}-win-x64
+          path: dist/win-x64
+      - name: Zip win-x64
+        run: |
+          cd dist/win-x64
+          zip -r ../../slskd-${{ env.LATEST_TAG }}.0-win-x64.zip .
+      - uses: actions/download-artifact@v2
+        with:
+          name: slskd-${{ env.LATEST_TAG }}.${{ env.SHORT_SHA }}-linux-x64
+          path: dist/linux-x64
+      - name: Zip linux-x64
+        run: |
+          cd dist/linux-x64
+          zip -r ../../slskd-${{ env.LATEST_TAG }}.0-linux-x64.zip .
+      - uses: actions/download-artifact@v2
+        with:
+          name: slskd-${{ env.LATEST_TAG }}.${{ env.SHORT_SHA }}-linux-musl-x64
+          path: dist/linux-musl-x64
+      - name: Zip linux-musl-x64
+        run: |
+          cd dist/linux-musl-x64
+          zip -r ../../slskd-${{ env.LATEST_TAG }}.0-linux-musl-x64.zip .
+      - uses: actions/download-artifact@v2
+        with:
+          name: slskd-${{ env.LATEST_TAG }}.${{ env.SHORT_SHA }}-linux-arm64
+          path: dist/linux-arm64
+      - name: Zip linux-arm64
+        run: |
+          cd dist/linux-arm64
+          zip -r ../../slskd-${{ env.LATEST_TAG }}.0-linux-arm64.zip .
+      - uses: actions/download-artifact@v2
+        with:
+          name: slskd-${{ env.LATEST_TAG }}.${{ env.SHORT_SHA }}-osx-x64
+          path: dist/osx-x64
+      - name: Zip osx-x64
+        run: |
+          cd dist/osx-x64
+          zip -r ../../slskd-${{ env.LATEST_TAG }}.0-osx-x64.zip .
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            slskd-${{ env.LATEST_TAG }}.0-win-x64.zip
+            slskd-${{ env.LATEST_TAG }}.0-linux-x64.zip
+            slskd-${{ env.LATEST_TAG }}.0-linux-musl-x64.zip
+            slskd-${{ env.LATEST_TAG }}.0-linux-arm64.zip
+            slskd-${{ env.LATEST_TAG }}.0-osx-x64.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
