@@ -108,7 +108,7 @@
             var credentials = new SigningCredentials(Startup.JwtSigningKey, SecurityAlgorithms.HmacSha256);
 
             var token = new JwtSecurityToken(
-                issuer: "slsk-web-example",
+                issuer: "slskd",
                 claims: claims,
                 notBefore: issuedUtc,
                 expires: expiresUtc,

@@ -32,7 +32,7 @@ class LoginForm extends Component {
                 {initialized && <Grid textAlign='center' style={{ height: '100vh' }} verticalAlign='middle'>
                     <Grid.Column style={{ maxWidth: 372 }}>
                         <Header as='h2' textAlign='center'>
-                            Soulseek Web Example
+                            slsk<strong>d</strong>
                         </Header>
                         <Form size='large'>
                             <Segment loading={loading}>
