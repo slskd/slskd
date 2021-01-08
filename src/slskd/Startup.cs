@@ -101,7 +101,7 @@
                             RequireSignedTokens = true,
                             RequireExpirationTime = true,
                             ValidateLifetime = true,
-                            ValidIssuer = "slsk-web-example",
+                            ValidIssuer = "slskd",
                             ValidateIssuer = true,
                             ValidateAudience = false,
                             IssuerSigningKey = JwtSigningKey,
@@ -142,11 +142,11 @@
             services.AddSwaggerGen(options =>
             {
                 options.DescribeAllParametersInCamelCase();
-                options.SwaggerDoc("v1",
+                options.SwaggerDoc("v0",
                     new OpenApiInfo
                     {
-                        Title = "Soulseek.NET Example API",
-                        Version = "v1"
+                        Title = "slskd",
+                        Version = "v0"
                     }
                  );
 
