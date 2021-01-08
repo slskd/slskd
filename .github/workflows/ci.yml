@@ -21,7 +21,7 @@ jobs:
           echo "LATEST_TAG=$(git describe --tags --abbrev=0)" >> $GITHUB_ENV
           echo "REVISION=$([[ $GITHUB_REF = refs/tags/* ]] && echo 0 || echo 65534)" >> $GITHUB_ENV
           echo "SHORT_SHA=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
-          echo "VERSION=$(git describe --tags --abbrev=0).$([[ $GITHUB_REF = refs/tags/* ]] && echo 0 || echo 65534).$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+          echo "VERSION=$(git describe --tags --abbrev=0).$([[ $GITHUB_REF = refs/tags/* ]] && echo 0 || echo 65534)-$(git rev-parse --short HEAD)" >> $GITHUB_ENV
       - name: Web
         run: ./bin/build --web-only
       - name: Dotnet
@@ -30,7 +30,7 @@ jobs:
         if: github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/')
         uses: actions/upload-artifact@v2
         with:
-          name: web
+          name: web-${{ env.VERSION }}
           path: src/web/build
   publish:
     name: Build Platform-Specific Binaries
@@ -50,11 +50,11 @@ jobs:
           echo "LATEST_TAG=$(git describe --tags --abbrev=0)" >> $GITHUB_ENV
           echo "REVISION=$([[ $GITHUB_REF = refs/tags/* ]] && echo 0 || echo 65534)" >> $GITHUB_ENV
           echo "SHORT_SHA=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
-          echo "VERSION=$(git describe --tags --abbrev=0).$([[ $GITHUB_REF = refs/tags/* ]] && echo 0 || echo 65534).$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+          echo "VERSION=$(git describe --tags --abbrev=0).$([[ $GITHUB_REF = refs/tags/* ]] && echo 0 || echo 65534)-$(git rev-parse --short HEAD)" >> $GITHUB_ENV
       - name: Download Static Web Content
         uses: actions/download-artifact@v2
         with:
-          name: web
+          name: web-${{ env.VERSION }}
           path: src/slskd/wwwroot
       - name: Build ${{ matrix.runtime }}
         run: bin/publish --no-prebuild --runtime ${{ matrix.runtime }} --version ${{ env.VERSION }}
@@ -78,7 +78,7 @@ jobs:
           echo "LATEST_TAG=$(git describe --tags --abbrev=0)" >> $GITHUB_ENV
           echo "REVISION=$([[ $GITHUB_REF = refs/tags/* ]] && echo 0 || echo 65534)" >> $GITHUB_ENV
           echo "SHORT_SHA=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
-          echo "VERSION=$(git describe --tags --abbrev=0).$([[ $GITHUB_REF = refs/tags/* ]] && echo 0 || echo 65534).$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+          echo "VERSION=$(git describe --tags --abbrev=0).$([[ $GITHUB_REF = refs/tags/* ]] && echo 0 || echo 65534)-$(git rev-parse --short HEAD)" >> $GITHUB_ENV
       - name: Build
         run: docker build -t slskd/slskd:${{ env.VERSION }} --build-arg VERSION=${{ env.VERSION }} .
       - name: Tag (Canary)
@@ -114,7 +114,7 @@ jobs:
           echo "LATEST_TAG=$(git describe --tags --abbrev=0)" >> $GITHUB_ENV
           echo "REVISION=$([[ $GITHUB_REF = refs/tags/* ]] && echo 0 || echo 65534)" >> $GITHUB_ENV
           echo "SHORT_SHA=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
-          echo "VERSION=$(git describe --tags --abbrev=0).$([[ $GITHUB_REF = refs/tags/* ]] && echo 0 || echo 65534).$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+          echo "VERSION=$(git describe --tags --abbrev=0).$([[ $GITHUB_REF = refs/tags/* ]] && echo 0 || echo 65534)-$(git rev-parse --short HEAD)" >> $GITHUB_ENV
       - name: Download win-x64 Binaries
         uses: actions/download-artifact@v2
         with:
@@ -162,7 +162,7 @@ jobs:
           zip -r ../../slskd-${{ env.LATEST_TAG }}-osx-x64.zip .
       - name: "Build Changelog"
         id: build_changelog
-        uses: mikepenz/release-changelog-builder-action@{latest-release}
+        uses: mikepenz/release-changelog-builder-action@v1.4.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Create Release
