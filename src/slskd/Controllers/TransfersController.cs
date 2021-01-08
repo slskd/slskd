@@ -17,7 +17,7 @@
     ///     Transfers
     /// </summary>
     [Route("api/v{version:apiVersion}/[controller]")]
-    [ApiVersion("1")]
+    [ApiVersion("0")]
     [ApiController]
     [Produces("application/json")]
     [Consumes("application/json")]
