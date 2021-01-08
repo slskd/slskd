@@ -1,8 +1,8 @@
-const baseUrl = process.env.NODE_ENV === 'production' ? 'api/v1' : 'http://localhost:5000/api/v1';
-const tokenKey = 'soulseek-example-token';
+const baseUrl = process.env.NODE_ENV === 'production' ? 'api/v0' : 'http://localhost:5000/api/v0';
+const tokenKey = 'slskd-token';
 const tokenPassthroughValue = 'n/a';
-const activeChatKey = 'soulseek-example-active-chat';
-const activeRoomKey = 'soulseek-example-active-room';
+const activeChatKey = 'slskd-active-chat';
+const activeRoomKey = 'sslskd-active-room';
 
 export {
     baseUrl,
