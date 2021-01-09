@@ -1,0 +1,27 @@
+{
+    "categories": [
+        {
+            "title": "### Features",
+            "labels": ["feature"]
+        },
+        {
+            "title": "### Bug Fixes",
+            "labels": ["fix"]
+        },
+        {
+            "title": "### Refactoring",
+            "labels": ["refactor"]
+        },
+        {
+            "title": "### Tests",
+            "labels": ["tests"]
+        }
+    ],
+    "sort": "ASC",
+    "template": "${{CHANGELOG}}### Uncategorized\n\n${{UNCATEGORIZED}}",
+    "pr_template": "- ${{TITLE}} (#${{NUMBER}})",
+    "empty_template": "- No Changes",
+    "max_tags_to_fetch": 200,
+    "max_pull_requests": 200,
+    "max_back_track_time_days": 180
+}
