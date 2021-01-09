@@ -160,11 +160,11 @@ jobs:
         run: |
           cd dist/osx-x64
           zip -r ../../slskd-${{ env.LATEST_TAG }}-osx-x64.zip .
-      - name: "Build Changelog"
+      - name: Build Changelog
         id: build_changelog
-        uses: mikepenz/release-changelog-builder-action@v1.4.0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: heinrichreimer/github-changelog-generator-action@v2.1.1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
       - name: Create Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
