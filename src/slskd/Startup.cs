@@ -49,6 +49,8 @@
         internal static int RoomMessageLimit { get; set; }
         internal static int ReadBufferSize { get; set; }
         internal static int WriteBufferSize { get; set; }
+        internal static bool EnableSwagger { get; set; }
+        internal static string XmlDocFile { get; set; }
 
         internal static SymmetricSecurityKey JwtSigningKey { get; set; }
 
@@ -78,6 +80,8 @@
             RoomMessageLimit = Configuration.GetValue<int>("ROOM_MESSAGE_LIMIT", 250);
             ReadBufferSize = Configuration.GetValue<int>("READ_BUFFER_SIZE", 16384);
             WriteBufferSize = Configuration.GetValue<int>("WRITE_BUFFER_SIZE", 16384);
+            EnableSwagger = Configuration.GetValue<bool>("ENABLE_SWAGGER", true);
+            XmlDocFile = Configuration.GetValue<string>("XML_DOC_FILE", Path.Combine(AppContext.BaseDirectory, typeof(Startup).GetTypeInfo().Assembly.GetName().Name + ".xml"));
 
             JwtSigningKey = new SymmetricSecurityKey(PBKDF2.GetKey(Password));
 
@@ -139,19 +143,25 @@
                 options.SubstituteApiVersionInUrl = true;
             });
 
-            services.AddSwaggerGen(options =>
+            if (EnableSwagger)
             {
-                options.DescribeAllParametersInCamelCase();
-                options.SwaggerDoc("v0",
-                    new OpenApiInfo
-                    {
-                        Title = "slskd",
-                        Version = "v0"
-                    }
-                 );
+                services.AddSwaggerGen(options =>
+                {
+                    options.DescribeAllParametersInCamelCase();
+                    options.SwaggerDoc("v0",
+                        new OpenApiInfo
+                        {
+                            Title = "slskd",
+                            Version = "v0"
+                        }
+                     );
 
-                options.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, typeof(Startup).GetTypeInfo().Assembly.GetName().Name + ".xml"));
-            });
+                    if (System.IO.File.Exists(XmlDocFile))
+                    {
+                        options.IncludeXmlComments(XmlDocFile);
+                    }
+                });
+            }
 
             services.AddSingleton<ISoulseekClient, SoulseekClient>(serviceProvider => Client);
             services.AddSingleton<ITransferTracker, TransferTracker>();
@@ -212,9 +222,12 @@
             app.UseAuthentication();
             app.UseMvc();
 
-            app.UseSwagger();
-            app.UseSwaggerUI(options => provider.ApiVersionDescriptions.ToList()
-                .ForEach(description => options.SwaggerEndpoint($"/swagger/{description.GroupName}/swagger.json", description.GroupName)));
+            if (EnableSwagger)
+            {
+                app.UseSwagger();
+                app.UseSwaggerUI(options => provider.ApiVersionDescriptions.ToList()
+                    .ForEach(description => options.SwaggerEndpoint($"/swagger/{description.GroupName}/swagger.json", description.GroupName)));
+            }
 
             // if we made it this far and the route still wasn't matched, return the index
             // this is required so that SPA routing (React Router, etc) can work properly
