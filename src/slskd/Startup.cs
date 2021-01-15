@@ -13,7 +13,6 @@
     using Microsoft.AspNetCore.Authentication.JwtBearer;
     using Microsoft.AspNetCore.Builder;
     using Microsoft.AspNetCore.Hosting;
-    using Microsoft.AspNetCore.Mvc;
     using Microsoft.AspNetCore.Mvc.ApiExplorer;
     using Microsoft.Extensions.Caching.Memory;
     using Microsoft.Extensions.Configuration;
@@ -22,7 +21,6 @@
     using Microsoft.Extensions.Hosting;
     using Microsoft.IdentityModel.Tokens;
     using Microsoft.OpenApi.Models;
-    using Newtonsoft.Json;
     using Soulseek;
     using Soulseek.Diagnostics;
     using slskd.Entities;
@@ -65,7 +63,7 @@
             Username = Configuration.GetValue<string>("USERNAME");
             Password = Configuration.GetValue<string>("PASSWORD");
             BasePath = Configuration.GetValue<string>("BASE_PATH");
-            WebRoot = Configuration.GetValue<string>("WEB_ROOT");
+            WebRoot = Configuration.GetValue<string>("WEB_ROOT", Path.Combine(Path.GetDirectoryName(new Uri(AppContext.BaseDirectory).AbsolutePath), "wwwroot"));
             ListenPort = Configuration.GetValue<int>("LISTEN_PORT", 50000);
             OutputDirectory = Configuration.GetValue<string>("OUTPUT_DIR");
             SharedDirectory = Configuration.GetValue<string>("SHARED_DIR");
@@ -86,6 +84,12 @@
             JwtSigningKey = new SymmetricSecurityKey(PBKDF2.GetKey(Password));
 
             SharedFileCache = new SharedFileCache(SharedDirectory, SharedCacheTTL);
+
+            BasePath ??= "/";
+            BasePath = BasePath.StartsWith("/") ? BasePath : $"/{BasePath}";
+
+            Console.WriteLine($"Serving static content from {WebRoot}");
+            Console.WriteLine($"Using base request path {BasePath}");
         }
 
         public IConfiguration Configuration { get; }
@@ -122,29 +126,23 @@
                     });
             }
 
-            services.AddMvc(options =>
-            {
-                options.EnableEndpointRouting = false;
-            })
-                .SetCompatibilityVersion(CompatibilityVersion.Latest)
-                .AddJsonOptions(options =>
-                {
-                    options.JsonSerializerOptions.Converters.Add(new IPAddressConverter());
-                    options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
-                    options.JsonSerializerOptions.IgnoreNullValues = true;
-                });
-
             services.AddRouting(options => options.LowercaseUrls = true);
-
-            services.AddApiVersioning(options => options.ReportApiVersions = true);
-            services.AddVersionedApiExplorer(options =>
+            services.AddControllers().AddJsonOptions(options =>
             {
-                options.GroupNameFormat = "'v'VVV";
-                options.SubstituteApiVersionInUrl = true;
+                options.JsonSerializerOptions.Converters.Add(new IPAddressConverter());
+                options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+                options.JsonSerializerOptions.IgnoreNullValues = true;
             });
 
             if (EnableSwagger)
             {
+                services.AddApiVersioning(options => options.ReportApiVersions = true);
+                services.AddVersionedApiExplorer(options =>
+                {
+                    options.GroupNameFormat = "'v'VVV";
+                    options.SubstituteApiVersionInUrl = true;
+                });
+
                 services.AddSwaggerGen(options =>
                 {
                     options.DescribeAllParametersInCamelCase();
@@ -186,10 +184,8 @@
             }
 
             app.UseCors("AllowAll");
-
-            BasePath ??= "/";
-            BasePath = BasePath.StartsWith("/") ? BasePath : $"/{BasePath}";
-
+            app.UseAuthentication();
+            app.UseRouting();
             app.UsePathBase(BasePath);
 
             // remove any errant double forward slashes which may have been introduced
@@ -206,9 +202,6 @@
                 await next();
             });
 
-            WebRoot ??= Path.Combine(Path.GetDirectoryName(new Uri(AppContext.BaseDirectory).AbsolutePath), "wwwroot");
-            Console.WriteLine($"Serving static content from {WebRoot}");
-
             var fileServerOptions = new FileServerOptions
             {
                 FileProvider = new PhysicalFileProvider(WebRoot),
@@ -219,8 +212,11 @@
 
             app.UseFileServer(fileServerOptions);
 
-            app.UseAuthentication();
-            app.UseMvc();
+            app.UseAuthorization();
+            app.UseEndpoints(endpoints =>
+            {
+                endpoints.MapControllers();
+            });
 
             if (EnableSwagger)
             {
@@ -229,7 +225,7 @@
                     .ForEach(description => options.SwaggerEndpoint($"/swagger/{description.GroupName}/swagger.json", description.GroupName)));
             }
 
-            // if we made it this far and the route still wasn't matched, return the index
+            // if we made it this far and the route still wasn't matched, return the index unless it's an api route
             // this is required so that SPA routing (React Router, etc) can work properly
             app.Use(async (context, next) =>
             {
@@ -242,6 +238,8 @@
                 await next();
             });
 
+            // finally, hit the fileserver again.  if the path was modified to return the index above, the index document will be returned
+            // otherwise it will throw a final 404 back to the client.
             app.UseFileServer(fileServerOptions);
 
             // ---------------------------------------------------------------------------------------------------------------------------------------------
