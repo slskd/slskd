@@ -26,6 +26,7 @@
     using slskd.Entities;
     using slskd.Security;
     using slskd.Trackers;
+    using Microsoft.Extensions.Logging;
 
     public class Startup
     {
@@ -171,7 +172,8 @@
 
         public void Configure(
             IApplicationBuilder app, 
-            IWebHostEnvironment env, 
+            IWebHostEnvironment env,
+            ILoggerFactory loggerFactory,
             IApiVersionDescriptionProvider provider, 
             ITransferTracker tracker, 
             IBrowseTracker browseTracker, 
@@ -246,6 +248,8 @@
             // begin SoulseekClient implementation
             // ---------------------------------------------------------------------------------------------------------------------------------------------
 
+            var logger = loggerFactory.CreateLogger<Startup>();
+
             var connectionOptions = new ConnectionOptions(
                 readBufferSize: ReadBufferSize,
                 writeBufferSize: WriteBufferSize,
@@ -277,13 +281,22 @@
             // isn't bound the minimumDiagnosticLevel should be set to None.
             Client.DiagnosticGenerated += (e, args) =>
             {
-                lock (ConsoleSyncRoot)
+                static LogLevel TranslateLogLevel(DiagnosticLevel diagnosticLevel) => diagnosticLevel switch
                 {
-                    if (args.Level == DiagnosticLevel.Debug) Console.ForegroundColor = ConsoleColor.DarkGray;
-                    if (args.Level == DiagnosticLevel.Warning) Console.ForegroundColor = ConsoleColor.Yellow;
+                    DiagnosticLevel.Debug => LogLevel.Debug,
+                    DiagnosticLevel.Info => LogLevel.Information,
+                    DiagnosticLevel.Warning => LogLevel.Warning,
+                    DiagnosticLevel.None => LogLevel.None,
+                    _ => LogLevel.None
+                };
 
-                    Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] [DIAGNOSTIC:{e.GetType().Name}] [{args.Level}] {args.Message}");
-                    Console.ResetColor();
+                if (args.Level == DiagnosticLevel.Debug)
+                {
+                    logger.Log(TranslateLogLevel(args.Level), "[DIAG] {@Message} (source: {@source})", args.Message, e.GetType().Name);
+                }
+                else
+                {
+                    logger.Log(TranslateLogLevel(args.Level), "[DIAG] {@Message}", args.Message);             
                 }
             };
 
