@@ -29,6 +29,7 @@
     using System.Collections.Concurrent;
     using Serilog;
     using Serilog.Events;
+    using Microsoft.Extensions.Logging;
 
     public class Startup
     {
@@ -178,6 +179,7 @@
         public void Configure(
             IApplicationBuilder app, 
             IWebHostEnvironment env,
+            ILoggerFactory loggerFactory,
             IApiVersionDescriptionProvider provider, 
             ITransferTracker tracker, 
             IBrowseTracker browseTracker, 
@@ -254,6 +256,8 @@
             // ---------------------------------------------------------------------------------------------------------------------------------------------
             // begin SoulseekClient implementation
             // ---------------------------------------------------------------------------------------------------------------------------------------------
+
+            var logger = loggerFactory.CreateLogger<Startup>();
 
             var connectionOptions = new ConnectionOptions(
                 readBufferSize: ReadBufferSize,
@@ -369,14 +373,14 @@
 
             Client.Disconnected += async (e, args) =>
             {
-                Console.WriteLine($"Disconnected from Soulseek server: {args.Message}");
+                logger.LogWarning("Disconnected from Soulseek server: {Message}", args.Message, args.Exception);
 
                 // don't reconnect if the disconnecting Exception is either of these types.
                 // if KickedFromServerException, another client was most likely signed in, and retrying will cause a connect loop.
                 // if ObjectDisposedException, the client is shutting down.
                 if (!(args.Exception is KickedFromServerException || args.Exception is ObjectDisposedException))
                 {
-                    Console.WriteLine($"Attepting to reconnect...");
+                    logger.LogWarning("Attepting to reconnect...");
                     await Client.ConnectAsync(Username, Password);
                 }
             };
@@ -386,7 +390,7 @@
                 await Client.ConnectAsync(Username, Password);
             }).GetAwaiter().GetResult();
 
-            Console.WriteLine($"Connected and logged in.");
+            logger.LogInformation("Connected and logged in as {Username}", Username);
         }
 
         /// <summary>
