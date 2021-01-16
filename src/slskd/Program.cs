@@ -15,8 +15,8 @@
     {
         public static bool Debug { get; private set; }
         public static string InstanceName { get; private set; }
-        public static bool EnableLoki { get; private set; }
-        public static string LokiUrl { get; private set; }
+        public static bool LoggerLokiEnable { get; private set; }
+        public static string LoggerLokiUrl { get; private set; }
 
         public static void Main(string[] args)
         {
@@ -46,14 +46,15 @@
 
             InstanceName = Environment.GetEnvironmentVariable("SLSKD_INSTANCE_NAME") ?? "default";
 
-            LokiUrl = Environment.GetEnvironmentVariable("SLSKD_LOKI_URL");
-            EnableLoki = !string.IsNullOrWhiteSpace(LokiUrl) && Environment.GetEnvironmentVariable("SLSKD_ENABLE_LOKI") != null;
+            LoggerLokiUrl = Environment.GetEnvironmentVariable("SLSKD_LOGGER_LOKI_URL");
+            LoggerLokiEnable = !string.IsNullOrWhiteSpace(LoggerLokiUrl) && Environment.GetEnvironmentVariable("SLSKD_LOGGER_LOKI_ENABLE") != null;
 
             if (Debug)
             {
                 Log.Logger = new LoggerConfiguration()
                     .MinimumLevel.Debug()
                     .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
+                    .Enrich.WithProperty("InstanceName", InstanceName)
                     .Enrich.WithProperty("ProcessId", processId)
                     .Enrich.WithProperty("RunId", runId)
                     .Enrich.FromLogContext()
@@ -65,9 +66,9 @@
                             outputTemplate: "[{SourceContext}] [{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}",
                             rollingInterval: RollingInterval.Day))
                     .WriteTo.Conditional(
-                        e => EnableLoki,
+                        e => LoggerLokiEnable,
                         config => config.GrafanaLoki(
-                            LokiUrl, 
+                            LoggerLokiUrl ?? string.Empty, 
                             outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}"))
                     .CreateLogger();
             }
@@ -89,9 +90,9 @@
                             outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}",
                             rollingInterval: RollingInterval.Day))
                     .WriteTo.Conditional(
-                        e => EnableLoki, 
+                        e => LoggerLokiEnable, 
                         config => config.GrafanaLoki(
-                            LokiUrl,
+                            LoggerLokiUrl ?? string.Empty,
                             outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}"))
                     .CreateLogger();
             }
@@ -104,9 +105,9 @@
             logger.Information("Process ID: {ProcessId}", processId);
             logger.Information("Run ID: {RunId}", runId);
 
-            if (EnableLoki)
+            if (LoggerLokiEnable)
             {
-                logger.Information("Logging to Loki instance at {LokiUrl}", LokiUrl);
+                logger.Information("Logging to Loki instance at {LoggerLokiUrl}", LoggerLokiUrl);
             }
 
             try
