@@ -26,9 +26,9 @@
     using slskd.Entities;
     using slskd.Security;
     using slskd.Trackers;
-    using Microsoft.Extensions.Logging;
     using System.Collections.Concurrent;
     using Serilog;
+    using Serilog.Events;
 
     public class Startup
     {
@@ -98,8 +98,7 @@
         }
 
         public IConfiguration Configuration { get; }
-        public ILoggerFactory LoggerFactory { get; private set; }
-        public ConcurrentDictionary<string, Microsoft.Extensions.Logging.ILogger> Loggers { get; } = new ConcurrentDictionary<string, Microsoft.Extensions.Logging.ILogger>();
+        public ConcurrentDictionary<string, Serilog.ILogger> Loggers { get; } = new ConcurrentDictionary<string, Serilog.ILogger>();
 
         public void ConfigureServices(IServiceCollection services)
         {
@@ -179,15 +178,12 @@
         public void Configure(
             IApplicationBuilder app, 
             IWebHostEnvironment env,
-            ILoggerFactory loggerFactory,
             IApiVersionDescriptionProvider provider, 
             ITransferTracker tracker, 
             IBrowseTracker browseTracker, 
             IConversationTracker conversationTracker,
             IRoomTracker roomTracker)
         {
-            LoggerFactory = loggerFactory;
-
             if (!env.IsDevelopment())
             {
                 app.UseHsts();
@@ -290,17 +286,18 @@
             // isn't bound the minimumDiagnosticLevel should be set to None.
             Client.DiagnosticGenerated += (e, args) =>
             {
-                static LogLevel TranslateLogLevel(DiagnosticLevel diagnosticLevel) => diagnosticLevel switch
+                static LogEventLevel TranslateLogLevel(DiagnosticLevel diagnosticLevel) => diagnosticLevel switch
                 {
-                    DiagnosticLevel.Debug => LogLevel.Debug,
-                    DiagnosticLevel.Info => LogLevel.Information,
-                    DiagnosticLevel.Warning => LogLevel.Warning,
-                    DiagnosticLevel.None => LogLevel.None,
+                    DiagnosticLevel.Debug => LogEventLevel.Debug,
+                    DiagnosticLevel.Info => LogEventLevel.Information,
+                    DiagnosticLevel.Warning => LogEventLevel.Warning,
+                    DiagnosticLevel.None => default,
                     _ => default
                 };
 
-                var logger = Loggers.GetOrAdd(e.GetType().FullName, LoggerFactory.CreateLogger(e.GetType().FullName));
-                logger.Log(TranslateLogLevel(args.Level), "{@Message}", args.Message);
+                var logger = Loggers.GetOrAdd(e.GetType().FullName, Log.ForContext("SourceContext", "Soulseek").ForContext("SoulseekContext", e.GetType().FullName));
+                
+                logger.Write(TranslateLogLevel(args.Level), "{@Message}", args.Message);
             };
 
             // bind transfer events.  see TransferStateChangedEventArgs and TransferProgressEventArgs.
