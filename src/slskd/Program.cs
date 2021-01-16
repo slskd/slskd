@@ -14,12 +14,14 @@
     public class Program
     {
         public static bool Debug { get; private set; }
+        public static string InstanceName { get; private set; }
         public static bool EnableLoki { get; private set; }
         public static string LokiUrl { get; private set; }
 
         public static void Main(string[] args)
         {
             var runId = Guid.NewGuid();
+            var processId = Environment.ProcessId;
 
             var assembly = Assembly.GetExecutingAssembly();
             var assemblyVersion = assembly.GetName().Version;
@@ -42,6 +44,8 @@
                 || args.Any(a => a == "--debug" || a == "-d") 
                 || Environment.GetEnvironmentVariable("SLSKD_DEBUG") != null;
 
+            InstanceName = Environment.GetEnvironmentVariable("SLSKD_INSTANCE_NAME") ?? "default";
+
             LokiUrl = Environment.GetEnvironmentVariable("SLSKD_LOKI_URL");
             EnableLoki = !string.IsNullOrWhiteSpace(LokiUrl) && Environment.GetEnvironmentVariable("SLSKD_ENABLE_LOKI") != null;
 
@@ -50,6 +54,7 @@
                 Log.Logger = new LoggerConfiguration()
                     .MinimumLevel.Debug()
                     .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
+                    .Enrich.WithProperty("ProcessId", processId)
                     .Enrich.WithProperty("RunId", runId)
                     .Enrich.FromLogContext()
                     .WriteTo.Console(
@@ -72,6 +77,8 @@
                     .MinimumLevel.Information()
                     .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
                     .MinimumLevel.Override("slskd.Security.PassthroughAuthenticationHandler", LogEventLevel.Information)
+                    .Enrich.WithProperty("InstanceName", InstanceName)
+                    .Enrich.WithProperty("ProcessId", processId)
                     .Enrich.WithProperty("RunId", runId)
                     .Enrich.FromLogContext()
                     .WriteTo.Console(
@@ -92,7 +99,9 @@
             PrintBanner(version);
 
             var logger = Log.ForContext<Program>();
-                        
+
+            logger.Information("Instance Name: {InstanceName}", InstanceName);
+            logger.Information("Process ID: {ProcessId}", processId);
             logger.Information("Run ID: {RunId}", runId);
 
             if (EnableLoki)
