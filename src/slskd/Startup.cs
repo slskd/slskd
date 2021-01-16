@@ -27,6 +27,8 @@
     using slskd.Security;
     using slskd.Trackers;
     using Microsoft.Extensions.Logging;
+    using System.Collections.Concurrent;
+    using Serilog;
 
     public class Startup
     {
@@ -89,11 +91,15 @@
             BasePath ??= "/";
             BasePath = BasePath.StartsWith("/") ? BasePath : $"/{BasePath}";
 
-            Console.WriteLine($"Serving static content from {WebRoot}");
-            Console.WriteLine($"Using base request path {BasePath}");
+            var logger = Log.ForContext<Startup>();
+
+            logger.Information("Serving static content from {WebRoot}", WebRoot);
+            logger.Information("Using base request path {BasePath}", BasePath);
         }
 
         public IConfiguration Configuration { get; }
+        public ILoggerFactory LoggerFactory { get; private set; }
+        public ConcurrentDictionary<string, Microsoft.Extensions.Logging.ILogger> Loggers { get; } = new ConcurrentDictionary<string, Microsoft.Extensions.Logging.ILogger>();
 
         public void ConfigureServices(IServiceCollection services)
         {
@@ -180,6 +186,8 @@
             IConversationTracker conversationTracker,
             IRoomTracker roomTracker)
         {
+            LoggerFactory = loggerFactory;
+
             if (!env.IsDevelopment())
             {
                 app.UseHsts();
@@ -187,6 +195,9 @@
 
             app.UseCors("AllowAll");
             app.UseAuthentication();
+
+            app.UseSerilogRequestLogging();
+
             app.UseRouting();
             app.UsePathBase(BasePath);
 
@@ -248,8 +259,6 @@
             // begin SoulseekClient implementation
             // ---------------------------------------------------------------------------------------------------------------------------------------------
 
-            var logger = loggerFactory.CreateLogger<Startup>();
-
             var connectionOptions = new ConnectionOptions(
                 readBufferSize: ReadBufferSize,
                 writeBufferSize: WriteBufferSize,
@@ -287,17 +296,11 @@
                     DiagnosticLevel.Info => LogLevel.Information,
                     DiagnosticLevel.Warning => LogLevel.Warning,
                     DiagnosticLevel.None => LogLevel.None,
-                    _ => LogLevel.None
+                    _ => default
                 };
 
-                if (args.Level == DiagnosticLevel.Debug)
-                {
-                    logger.Log(TranslateLogLevel(args.Level), "[DIAG] {@Message} (source: {@source})", args.Message, e.GetType().Name);
-                }
-                else
-                {
-                    logger.Log(TranslateLogLevel(args.Level), "[DIAG] {@Message}", args.Message);             
-                }
+                var logger = Loggers.GetOrAdd(e.GetType().FullName, LoggerFactory.CreateLogger(e.GetType().FullName));
+                logger.Log(TranslateLogLevel(args.Level), "{@Message}", args.Message);
             };
 
             // bind transfer events.  see TransferStateChangedEventArgs and TransferProgressEventArgs.
