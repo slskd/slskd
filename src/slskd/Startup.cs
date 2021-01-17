@@ -26,6 +26,10 @@
     using slskd.Entities;
     using slskd.Security;
     using slskd.Trackers;
+    using System.Collections.Concurrent;
+    using Serilog;
+    using Serilog.Events;
+    using Microsoft.Extensions.Logging;
 
     public class Startup
     {
@@ -88,11 +92,14 @@
             BasePath ??= "/";
             BasePath = BasePath.StartsWith("/") ? BasePath : $"/{BasePath}";
 
-            Console.WriteLine($"Serving static content from {WebRoot}");
-            Console.WriteLine($"Using base request path {BasePath}");
+            var logger = Log.ForContext<Startup>();
+
+            logger.Information("Serving static content from {WebRoot}", WebRoot);
+            logger.Information("Using base request path {BasePath}", BasePath);
         }
 
         public IConfiguration Configuration { get; }
+        public ConcurrentDictionary<string, Serilog.ILogger> Loggers { get; } = new ConcurrentDictionary<string, Serilog.ILogger>();
 
         public void ConfigureServices(IServiceCollection services)
         {
@@ -171,7 +178,8 @@
 
         public void Configure(
             IApplicationBuilder app, 
-            IWebHostEnvironment env, 
+            IWebHostEnvironment env,
+            ILoggerFactory loggerFactory,
             IApiVersionDescriptionProvider provider, 
             ITransferTracker tracker, 
             IBrowseTracker browseTracker, 
@@ -185,6 +193,9 @@
 
             app.UseCors("AllowAll");
             app.UseAuthentication();
+
+            app.UseSerilogRequestLogging();
+
             app.UseRouting();
             app.UsePathBase(BasePath);
 
@@ -246,6 +257,8 @@
             // begin SoulseekClient implementation
             // ---------------------------------------------------------------------------------------------------------------------------------------------
 
+            var logger = loggerFactory.CreateLogger<Startup>();
+
             var connectionOptions = new ConnectionOptions(
                 readBufferSize: ReadBufferSize,
                 writeBufferSize: WriteBufferSize,
@@ -277,14 +290,18 @@
             // isn't bound the minimumDiagnosticLevel should be set to None.
             Client.DiagnosticGenerated += (e, args) =>
             {
-                lock (ConsoleSyncRoot)
+                static LogEventLevel TranslateLogLevel(DiagnosticLevel diagnosticLevel) => diagnosticLevel switch
                 {
-                    if (args.Level == DiagnosticLevel.Debug) Console.ForegroundColor = ConsoleColor.DarkGray;
-                    if (args.Level == DiagnosticLevel.Warning) Console.ForegroundColor = ConsoleColor.Yellow;
+                    DiagnosticLevel.Debug => LogEventLevel.Debug,
+                    DiagnosticLevel.Info => LogEventLevel.Information,
+                    DiagnosticLevel.Warning => LogEventLevel.Warning,
+                    DiagnosticLevel.None => default,
+                    _ => default
+                };
 
-                    Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] [DIAGNOSTIC:{e.GetType().Name}] [{args.Level}] {args.Message}");
-                    Console.ResetColor();
-                }
+                var logger = Loggers.GetOrAdd(e.GetType().FullName, Log.ForContext("SourceContext", "Soulseek").ForContext("SoulseekContext", e.GetType().FullName));
+                
+                logger.Write(TranslateLogLevel(args.Level), "{@Message}", args.Message);
             };
 
             // bind transfer events.  see TransferStateChangedEventArgs and TransferProgressEventArgs.
@@ -356,14 +373,14 @@
 
             Client.Disconnected += async (e, args) =>
             {
-                Console.WriteLine($"Disconnected from Soulseek server: {args.Message}");
+                logger.LogWarning("Disconnected from Soulseek server: {Message}", args.Message, args.Exception);
 
                 // don't reconnect if the disconnecting Exception is either of these types.
                 // if KickedFromServerException, another client was most likely signed in, and retrying will cause a connect loop.
                 // if ObjectDisposedException, the client is shutting down.
                 if (!(args.Exception is KickedFromServerException || args.Exception is ObjectDisposedException))
                 {
-                    Console.WriteLine($"Attepting to reconnect...");
+                    logger.LogWarning("Attepting to reconnect...");
                     await Client.ConnectAsync(Username, Password);
                 }
             };
@@ -373,7 +390,7 @@
                 await Client.ConnectAsync(Username, Password);
             }).GetAwaiter().GetResult();
 
-            Console.WriteLine($"Connected and logged in.");
+            logger.LogInformation("Connected and logged in as {Username}", Username);
         }
 
         /// <summary>
