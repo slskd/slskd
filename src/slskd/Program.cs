@@ -3,6 +3,7 @@
     using Microsoft.AspNetCore;
     using Microsoft.AspNetCore.Hosting;
     using Microsoft.Extensions.Configuration;
+    using Prometheus.DotNetRuntime;
     using Serilog;
     using Serilog.Events;
     using Serilog.Sinks.Grafana.Loki;
@@ -147,6 +148,7 @@
 
             try
             {
+                using var runtimeMetrics = DotNetRuntimeStatsBuilder.Default().StartCollecting();
                 CreateWebHostBuilder(args).Build().Run();
             }
             catch (Exception ex)

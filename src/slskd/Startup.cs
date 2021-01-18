@@ -30,6 +30,8 @@
     using Serilog;
     using Serilog.Events;
     using Microsoft.Extensions.Logging;
+    using Prometheus;
+    using Prometheus.SystemMetrics;
 
     public class Startup
     {
@@ -168,6 +170,8 @@
                 });
             }
 
+            services.AddSystemMetrics();
+
             services.AddSingleton<ISoulseekClient, SoulseekClient>(serviceProvider => Client);
             services.AddSingleton<ITransferTracker, TransferTracker>();
             services.AddSingleton<ISearchTracker, SearchTracker>();
@@ -197,6 +201,7 @@
             app.UseSerilogRequestLogging();
 
             app.UseRouting();
+            app.UseHttpMetrics();
             app.UsePathBase(BasePath);
 
             // remove any errant double forward slashes which may have been introduced
@@ -227,6 +232,7 @@
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapControllers();
+                endpoints.MapMetrics();
             });
 
             if (EnableSwagger)
