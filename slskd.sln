@@ -37,6 +37,11 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "slskd.Tests.Unit", "tests\s
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "slskd.Tests.Integration", "tests\slskd.Tests.Integration\slskd.Tests.Integration.csproj", "{6BF0549C-F88D-43F9-85EE-388BA5FC38D0}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "configuration", "configuration", "{CFC23637-4439-4C7B-ACF4-AF04B2E65315}"
+	ProjectSection(SolutionItems) = preProject
+		.github\configuration\changelog.json = .github\configuration\changelog.json
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -64,6 +69,7 @@ Global
 		{ED2A1CCD-9C47-4AB5-AF00-84EF507E2402} = {6186A99C-FE43-4C97-8A6A-F27432F44282}
 		{2777623C-3DBE-4EB4-A092-DFEA7BD8EA3A} = {137724E1-1613-4EFC-BD67-399A620AEABF}
 		{6BF0549C-F88D-43F9-85EE-388BA5FC38D0} = {137724E1-1613-4EFC-BD67-399A620AEABF}
+		{CFC23637-4439-4C7B-ACF4-AF04B2E65315} = {6186A99C-FE43-4C97-8A6A-F27432F44282}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {A793ED59-76F4-4874-846B-2A199C92A48E}

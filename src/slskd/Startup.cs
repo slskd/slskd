@@ -48,12 +48,10 @@
         internal static DiagnosticLevel DiagnosticLevel { get; set; }
         internal static int ConnectTimeout { get; set; }
         internal static int InactivityTimeout { get; set; }
-        internal static bool EnableSecurity { get; set; }
         internal static int SecurityTokenTTL { get; set; }
         internal static int RoomMessageLimit { get; set; }
         internal static int ReadBufferSize { get; set; }
         internal static int WriteBufferSize { get; set; }
-        internal static bool EnableSwagger { get; set; }
         internal static string XmlDocFile { get; set; }
 
         internal static SymmetricSecurityKey JwtSigningKey { get; set; }
@@ -79,12 +77,10 @@
             DiagnosticLevel = Configuration.GetValue<DiagnosticLevel>("DIAGNOSTIC", DiagnosticLevel.Info);
             ConnectTimeout = Configuration.GetValue<int>("CONNECT_TIMEOUT", 5000);
             InactivityTimeout = Configuration.GetValue<int>("INACTIVITY_TIMEOUT", 15000);
-            EnableSecurity = Configuration.GetValue<bool>("ENABLE_SECURITY", true);
             SecurityTokenTTL = Configuration.GetValue<int>("SECURITY_TOKEN_TTL", 604800000); // 7 days
             RoomMessageLimit = Configuration.GetValue<int>("ROOM_MESSAGE_LIMIT", 250);
             ReadBufferSize = Configuration.GetValue<int>("READ_BUFFER_SIZE", 16384);
             WriteBufferSize = Configuration.GetValue<int>("WRITE_BUFFER_SIZE", 16384);
-            EnableSwagger = Configuration.GetValue<bool>("ENABLE_SWAGGER", true);
             XmlDocFile = Configuration.GetValue<string>("XML_DOC_FILE", Path.Combine(AppContext.BaseDirectory, typeof(Startup).GetTypeInfo().Assembly.GetName().Name + ".xml"));
 
             JwtSigningKey = new SymmetricSecurityKey(PBKDF2.GetKey(Password));
@@ -107,7 +103,7 @@
         {
             services.AddCors(options => options.AddPolicy("AllowAll", builder => builder.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader()));
 
-            if (EnableSecurity)
+            if (!Program.DisableAuthentication)
             {
                 services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                     .AddJwtBearer(options =>
@@ -143,34 +139,34 @@
                 options.JsonSerializerOptions.IgnoreNullValues = true;
             });
 
-            if (EnableSwagger)
+            services.AddApiVersioning(options => options.ReportApiVersions = true);
+            services.AddVersionedApiExplorer(options =>
             {
-                services.AddApiVersioning(options => options.ReportApiVersions = true);
-                services.AddVersionedApiExplorer(options =>
-                {
-                    options.GroupNameFormat = "'v'VVV";
-                    options.SubstituteApiVersionInUrl = true;
-                });
+                options.GroupNameFormat = "'v'VVV";
+                options.SubstituteApiVersionInUrl = true;
+            });
 
-                services.AddSwaggerGen(options =>
-                {
-                    options.DescribeAllParametersInCamelCase();
-                    options.SwaggerDoc("v0",
-                        new OpenApiInfo
-                        {
-                            Title = "slskd",
-                            Version = "v0"
-                        }
-                     );
-
-                    if (System.IO.File.Exists(XmlDocFile))
+            services.AddSwaggerGen(options =>
+            {
+                options.DescribeAllParametersInCamelCase();
+                options.SwaggerDoc("v0",
+                    new OpenApiInfo
                     {
-                        options.IncludeXmlComments(XmlDocFile);
+                        Title = "slskd",
+                        Version = "v0"
                     }
-                });
-            }
+                    );
 
-            services.AddSystemMetrics();
+                if (System.IO.File.Exists(XmlDocFile))
+                {
+                    options.IncludeXmlComments(XmlDocFile);
+                }
+            });
+
+            if (Program.EnablePrometheus)
+            {
+                services.AddSystemMetrics();
+            }
 
             services.AddSingleton<ISoulseekClient, SoulseekClient>(serviceProvider => Client);
             services.AddSingleton<ITransferTracker, TransferTracker>();
@@ -223,7 +219,11 @@
             app.UseFileServer(fileServerOptions);
 
             app.UseSerilogRequestLogging();
-            app.UseHttpMetrics();
+
+            if (Program.EnablePrometheus)
+            {
+                app.UseHttpMetrics();
+            }
             
             app.UseAuthentication();
 
@@ -232,10 +232,14 @@
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapControllers();
-                endpoints.MapMetrics();
+
+                if (Program.EnablePrometheus)
+                {
+                    endpoints.MapMetrics();
+                }
             });
 
-            if (EnableSwagger)
+            if (Program.EnableSwagger)
             {
                 app.UseSwagger();
                 app.UseSwaggerUI(options => provider.ApiVersionDescriptions.ToList()
