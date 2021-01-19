@@ -196,17 +196,11 @@
             }
 
             app.UseCors("AllowAll");
-            app.UseAuthentication();
-
-            app.UseSerilogRequestLogging();
-
-            app.UseRouting();
-            app.UseHttpMetrics();
             app.UsePathBase(BasePath);
 
             // remove any errant double forward slashes which may have been introduced
             // by a reverse proxy or having the base path removed
-            app.Use(async (context, next) => 
+            app.Use(async (context, next) =>
             {
                 var path = context.Request.Path.ToString();
 
@@ -228,6 +222,12 @@
 
             app.UseFileServer(fileServerOptions);
 
+            app.UseSerilogRequestLogging();
+            app.UseHttpMetrics();
+            
+            app.UseAuthentication();
+
+            app.UseRouting();
             app.UseAuthorization();
             app.UseEndpoints(endpoints =>
             {
