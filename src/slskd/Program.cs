@@ -25,11 +25,20 @@
         public static bool Debug { get; private set; }
 
         [Argument('n', "no-logo", "suppress logo on startup")]
-        public static bool NoLogo { get; private set; }
+        public static bool DisableLogo { get; private set; }
         
+        [Argument('x', "no-auth", "disable authentication for web requests")]
+        public static bool DisableAuthentication { get; private set; }
+
         [Argument('i', "instance-name", "optional; a unique name for this instance")]
         public static string InstanceName { get; private set; }
-        
+
+        [Argument('p', "prometheus", "enable collection and publish of prometheus metrics")]
+        public static bool EnablePrometheus { get; private set; }
+
+        [Argument('s', "swagger", "enable swagger documentation")]
+        public static bool EnableSwagger { get; private set; }
+
         [Argument(default, "loki", "the url to a Grafana Loki instance to log to")]
         public static string LoggerLokiUrl { get; private set; }
 
@@ -65,16 +74,26 @@
 
             if (ShowHelp)
             {
-                if (!NoLogo) PrintBanner(Version);
+                if (!DisableLogo)
+                {
+                    PrintBanner(Version);
+                }
+
                 PrintHelp();
                 return;
             }
 
-            Debug = Debugger.IsAttached 
-                || Debug 
-                || Environment.GetEnvironmentVariable("SLSKD_DEBUG") != null;
+            static bool IsSet(string envar) 
+                => (Environment.GetEnvironmentVariable(envar)?.Equals("true", StringComparison.InvariantCultureIgnoreCase) ?? false);
+
+            Debug = Debugger.IsAttached || Debug || IsSet("SLSKD_DEBUG");
+            DisableLogo = DisableLogo || IsSet("SLSKD_NO_LOGO");
+            DisableAuthentication = DisableAuthentication || IsSet("SLSKD_NO_AUTH");
 
             InstanceName ??= Environment.GetEnvironmentVariable("SLSKD_INSTANCE_NAME") ?? "default";
+
+            EnableSwagger = EnableSwagger || IsSet("SLSKD_SWAGGER");
+            EnablePrometheus = EnablePrometheus || IsSet("SLSKD_PROMETHEUS");
 
             LoggerLokiUrl ??= Environment.GetEnvironmentVariable("SLSKD_LOGGER_LOKI_URL");
             LoggerLokiEnabled = !string.IsNullOrEmpty(LoggerLokiUrl);
@@ -129,7 +148,7 @@
                     .CreateLogger();
             }
 
-            if (!NoLogo)
+            if (!DisableLogo)
             {
                 PrintBanner(Version);
             }
@@ -141,6 +160,21 @@
             logger.Information("Invocation ID: {InvocationId}", InvocationId);
             logger.Information("Process ID: {ProcessId}", ProcessId);
 
+            if (DisableAuthentication)
+            {
+                logger.Warning("Authentication of web requests is DISABLED");
+            }
+
+            if (EnablePrometheus)
+            {
+                logger.Information("Publishing Prometheus metrics to /metrics");
+            }
+
+            if (EnableSwagger)
+            {
+                logger.Information("Publishing Swagger documentation to /swagger");
+            }
+
             if (LoggerLokiEnabled)
             {
                 logger.Information("Logging to Loki instance at {LoggerLokiUrl}", LoggerLokiUrl);
@@ -148,7 +182,11 @@
 
             try
             {
-                using var runtimeMetrics = DotNetRuntimeStatsBuilder.Default().StartCollecting();
+                if (EnablePrometheus)
+                {
+                    using var runtimeMetrics = DotNetRuntimeStatsBuilder.Default().StartCollecting();
+                }
+
                 CreateWebHostBuilder(args).Build().Run();
             }
             catch (Exception ex)

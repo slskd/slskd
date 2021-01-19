@@ -34,7 +34,7 @@
         [ProducesResponseType(typeof(bool), 200)]
         public IActionResult Enabled()
         {
-            return Ok(Startup.EnableSecurity);
+            return Ok(!Program.DisableAuthentication);
         }
 
         /// <summary>
