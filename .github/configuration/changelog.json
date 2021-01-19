@@ -5,12 +5,20 @@
             "labels": ["feature"]
         },
         {
+            "title": "### Enhancements",
+            "labels": ["enhancement"]
+        },
+        {
             "title": "### Bug Fixes",
-            "labels": ["fix"]
+            "labels": ["bug", "fix"]
         },
         {
             "title": "### Refactoring",
             "labels": ["refactor"]
+        },
+        {
+            "title": "### Documentation",
+            "labels": ["documentation"]
         },
         {
             "title": "### Tests",
