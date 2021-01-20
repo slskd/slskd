@@ -12,6 +12,7 @@
     using System.Linq;
     using System.Reflection;
     using Utility.CommandLine;
+    using Utility.EnvironmentVariables;
 
     public class Program
     {
@@ -22,27 +23,34 @@
         public static bool ShowVersion { get; private set; }
 
         [Argument('d', "debug", "run in debug mode")]
+        [EnvironmentVariable("SLSKD_DEBUG")]
         public static bool Debug { get; private set; }
 
         [Argument('n', "no-logo", "suppress logo on startup")]
+        [EnvironmentVariable("SLSKD_NO_LOGO")]
         public static bool DisableLogo { get; private set; }
         
         [Argument('x', "no-auth", "disable authentication for web requests")]
+        [EnvironmentVariable("SLSKD_NO_AUTH")]
         public static bool DisableAuthentication { get; private set; }
 
         [Argument('i', "instance-name", "optional; a unique name for this instance")]
-        public static string InstanceName { get; private set; }
+        [EnvironmentVariable("SLSKD_INSTANCE_NAME")]
+        public static string InstanceName { get; private set; } = "default";
 
         [Argument('p', "prometheus", "enable collection and publish of prometheus metrics")]
+        [EnvironmentVariable("SLSKD_PROMETHEUS")]
         public static bool EnablePrometheus { get; private set; }
 
         [Argument('s', "swagger", "enable swagger documentation")]
+        [EnvironmentVariable("SLSKD_SWAGGER")]
         public static bool EnableSwagger { get; private set; }
 
-        [Argument(default, "loki", "the url to a Grafana Loki instance to log to")]
-        public static string LoggerLokiUrl { get; private set; }
+        [Argument(default, "loki", "the url to a Grafana Loki instance to which to log")]
+        [EnvironmentVariable("SLSKD_LOKI")]
+        public static string LokiUrl { get; private set; }
 
-        public static bool LoggerLokiEnabled { get; private set; }
+        public static bool EnableLoki { get; private set; }
         public static string Version { get; private set; }
         public static Guid InvocationId { get; private set; }
         public static int ProcessId { get; private set; }
@@ -51,7 +59,16 @@
         {
             try
             {
-                Arguments.Populate();
+                EnvironmentVariables.Populate();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error parsing environment variables: {ex.Message}");
+            }
+
+            try
+            {
+                Arguments.Populate(clearExistingValues: false);
             }
             catch (Exception ex)
             {
@@ -83,20 +100,8 @@
                 return;
             }
 
-            static bool IsSet(string envar) 
-                => (Environment.GetEnvironmentVariable(envar)?.Equals("true", StringComparison.InvariantCultureIgnoreCase) ?? false);
-
-            Debug = Debugger.IsAttached || Debug || IsSet("SLSKD_DEBUG");
-            DisableLogo = DisableLogo || IsSet("SLSKD_NO_LOGO");
-            DisableAuthentication = DisableAuthentication || IsSet("SLSKD_NO_AUTH");
-
-            InstanceName ??= Environment.GetEnvironmentVariable("SLSKD_INSTANCE_NAME") ?? "default";
-
-            EnableSwagger = EnableSwagger || IsSet("SLSKD_SWAGGER");
-            EnablePrometheus = EnablePrometheus || IsSet("SLSKD_PROMETHEUS");
-
-            LoggerLokiUrl ??= Environment.GetEnvironmentVariable("SLSKD_LOGGER_LOKI_URL");
-            LoggerLokiEnabled = !string.IsNullOrEmpty(LoggerLokiUrl);
+            Debug = Debugger.IsAttached || Debug;
+            EnableLoki = !string.IsNullOrEmpty(LokiUrl);
             
             if (Debug)
             {
@@ -116,9 +121,9 @@
                             outputTemplate: "[{SourceContext}] [{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}",
                             rollingInterval: RollingInterval.Day))
                     .WriteTo.Conditional(
-                        e => LoggerLokiEnabled,
+                        e => EnableLoki,
                         config => config.GrafanaLoki(
-                            LoggerLokiUrl ?? string.Empty, 
+                            LokiUrl ?? string.Empty, 
                             outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}"))
                     .CreateLogger();
             }
@@ -141,9 +146,9 @@
                             outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}",
                             rollingInterval: RollingInterval.Day))
                     .WriteTo.Conditional(
-                        e => LoggerLokiEnabled, 
+                        e => EnableLoki, 
                         config => config.GrafanaLoki(
-                            LoggerLokiUrl ?? string.Empty,
+                            LokiUrl ?? string.Empty,
                             outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}"))
                     .CreateLogger();
             }
@@ -175,9 +180,9 @@
                 logger.Information("Publishing Swagger documentation to /swagger");
             }
 
-            if (LoggerLokiEnabled)
+            if (EnableLoki)
             {
-                logger.Information("Logging to Loki instance at {LoggerLokiUrl}", LoggerLokiUrl);
+                logger.Information("Logging to Loki instance at {LoggerLokiUrl}", LokiUrl);
             }
 
             try
@@ -234,6 +239,12 @@
 
         public static void PrintHelp()
         {
+            PrintArguments();
+            PrintEnvironmentVariables();
+        }
+
+        public static void PrintArguments()
+        {
             static string GetLongName(ArgumentInfo info)
                 => info.Property.PropertyType == typeof(bool) ? info.LongName : $"{info.LongName} <{info.Property.PropertyType.Name.ToLowerInvariant()}>";
 
@@ -243,11 +254,37 @@
             var arguments = Arguments.GetArgumentInfo(typeof(Program));
             var longestName = arguments.Select(a => GetLongName(a)).Max(n => n.Length);
 
-            Console.WriteLine("\nusage: slskd [options]\n");
-            Console.WriteLine("options:");
+            Console.WriteLine("\nusage: slskd [arguments]\n");
+            Console.WriteLine("arguments:\n");
             foreach (var info in arguments)
             {
-                var result = $" {GetShortName(info)}--{GetLongName(info).PadRight(longestName + 3)}{info.HelpText}";
+                var envar = info.Property.CustomAttributes
+                    ?.Where(a => a.AttributeType == typeof(EnvironmentVariableAttribute)).FirstOrDefault()
+                    ?.ConstructorArguments.FirstOrDefault().Value;
+
+                var result = $"  {GetShortName(info)}--{GetLongName(info).PadRight(longestName + 3)}{info.HelpText}";
+                Console.WriteLine(result);
+            }
+        }
+
+        public static void PrintEnvironmentVariables()
+        {
+            static string GetEnvironmentVariableName(ArgumentInfo info, bool includeType = false)
+                => info.Property.CustomAttributes
+                    ?.Where(a => a.AttributeType == typeof(EnvironmentVariableAttribute)).FirstOrDefault()
+                    ?.ConstructorArguments.FirstOrDefault().Value?.ToString() + (includeType ? $" <{info.Property.PropertyType.Name.ToLowerInvariant()}>" : "");
+
+            var arguments = Arguments.GetArgumentInfo(typeof(Program));
+            var longestName = arguments.Select(a => GetEnvironmentVariableName(a, includeType: true)).Where(a => a !=null).Max(n => n.Length);
+
+            Console.WriteLine("\nenvironment variables (arguments have precedence):\n");
+            foreach (var info in arguments)
+            {
+                var envar = GetEnvironmentVariableName(info, includeType: false);
+
+                if (string.IsNullOrEmpty(envar)) continue;
+
+                var result = $"  {GetEnvironmentVariableName(info, includeType: true).PadRight(longestName + 3)}{info.HelpText}";
                 Console.WriteLine(result);
             }
         }
