@@ -13,6 +13,7 @@
     using System.Reflection;
     using Utility.CommandLine;
     using Utility.EnvironmentVariables;
+    using Utility.Extensions.Configuration.Yaml;
 
     public class Program
     {
@@ -93,7 +94,7 @@
             {
                 if (!DisableLogo)
                 {
-                    PrintBanner(Version);
+                    PrintLogo(Version);
                 }
 
                 PrintHelp();
@@ -155,7 +156,7 @@
 
             if (!DisableLogo)
             {
-                PrintBanner(Version);
+                PrintLogo(Version);
             }
 
             var logger = Log.ForContext<Program>();
@@ -209,12 +210,12 @@
                 .ConfigureAppConfiguration((hostingContext, config) =>
                 {
                     config.AddEnvironmentVariables(prefix: "SLSK_");
-                    config.AddJsonFile("config.json", optional: true, reloadOnChange: false);
+                    config.AddYamlFile("config.yml", optional: true, reloadOnChange: true);
                 })
                 .UseSerilog()
                 .UseStartup<Startup>();
 
-        public static void PrintBanner(string version)
+        private static void PrintLogo(string version)
         {
             var padding = 56 - version.Length;
             var paddingLeft = padding / 2;
@@ -237,13 +238,13 @@
             Console.WriteLine(banner);
         }
 
-        public static void PrintHelp()
+        private static void PrintHelp()
         {
             PrintArguments();
             PrintEnvironmentVariables();
         }
 
-        public static void PrintArguments()
+        private static void PrintArguments()
         {
             static string GetLongName(ArgumentInfo info)
                 => info.Property.PropertyType == typeof(bool) ? info.LongName : $"{info.LongName} <{info.Property.PropertyType.Name.ToLowerInvariant()}>";
@@ -267,7 +268,7 @@
             }
         }
 
-        public static void PrintEnvironmentVariables()
+        private static void PrintEnvironmentVariables()
         {
             static string GetEnvironmentVariableName(ArgumentInfo info, bool includeType = false)
                 => info.Property.CustomAttributes

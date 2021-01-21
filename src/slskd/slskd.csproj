@@ -23,6 +23,14 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="config.yml" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="config.yml" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="5.0.2" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Versioning.ApiExplorer" Version="4.2.0" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="5.0.2" />
@@ -43,6 +51,8 @@
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="6.8.0" />
     <PackageReference Include="Utility.CommandLine.Arguments" Version="5.0.0" />
     <PackageReference Include="Utility.EnvironmentVariables" Version="1.0.3" />
+    <PackageReference Include="Utility.Extensions.Configuration.Yaml" Version="1.0.0" />
+    <PackageReference Include="YamlDotNet" Version="9.1.4" />
   </ItemGroup>
 
   <ItemGroup>

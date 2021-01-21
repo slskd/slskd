@@ -1,0 +1,25 @@
+soulseek:
+  credentials:
+    username: foo
+    password: bar
+  listenPort: 500
+  distributedNetwork:
+    enable: true
+    childLimit: 100
+users:
+- username: admin
+  passwordHash: abc
+  role: Administrators
+- username: user
+  passwordHash: xyz
+  role: User
+apiKeys:
+- key: '1234567890'
+  role: ReadOnly
+sparse:
+  - ~
+  - 2nd entry
+  -
+  - 4th entry
+  - Null
+  - tests

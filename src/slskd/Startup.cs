@@ -32,6 +32,7 @@
     using Microsoft.Extensions.Logging;
     using Prometheus;
     using Prometheus.SystemMetrics;
+    using Microsoft.Extensions.Options;
 
     public class Startup
     {
@@ -101,6 +102,20 @@
 
         public void ConfigureServices(IServiceCollection services)
         {
+            services.AddOptions<Options.Soulseek>()
+                .Bind(Configuration.GetSection("soulseek"));
+
+            services.PostConfigure<List<Options.User>>(slskd =>
+            {
+                Console.WriteLine($"config updated");
+                Console.WriteLine(JsonSerializer.Serialize(slskd));
+            });
+
+            services.AddOptions<List<string>>().Bind(Configuration.GetSection("sparse"));
+            services.PostConfigure<List<string>>(s => Console.WriteLine(JsonSerializer.Serialize(s)));
+
+            services.AddOptions<List<Options.User>>().Bind(Configuration.GetSection("users"));
+
             services.AddCors(options => options.AddPolicy("AllowAll", builder => builder.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader()));
 
             if (!Program.DisableAuthentication)
@@ -184,12 +199,23 @@
             ITransferTracker tracker, 
             IBrowseTracker browseTracker, 
             IConversationTracker conversationTracker,
+            IOptionsMonitor<Options.Soulseek> optionsAccessor,
+            IOptionsMonitor<List<Options.User>> users,
+            IOptionsMonitor<List<string>> sparse,
             IRoomTracker roomTracker)
         {
             if (!env.IsDevelopment())
             {
                 app.UseHsts();
             }
+
+            optionsAccessor.OnChange(options =>
+            {
+                Console.WriteLine(JsonSerializer.Serialize(optionsAccessor));
+            });
+
+            sparse.OnChange(v => Console.WriteLine(JsonSerializer.Serialize(v)));
+            users.OnChange(users => Console.WriteLine(JsonSerializer.Serialize(users)));
 
             app.UseCors("AllowAll");
             app.UsePathBase(BasePath);
@@ -395,10 +421,10 @@
                 }
             };
 
-            Task.Run(async () =>
-            {
-                await Client.ConnectAsync(Username, Password);
-            }).GetAwaiter().GetResult();
+            //Task.Run(async () =>
+            //{
+            //    await Client.ConnectAsync(Username, Password);
+            //}).GetAwaiter().GetResult();
 
             logger.LogInformation("Connected and logged in as {Username}", Username);
         }
