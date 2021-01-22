@@ -22,9 +22,9 @@
 
     public static class Configuration
     {
-        public static void Populate(this IConfiguration configuration, [CallerMemberName] string caller = default(string))
+        public static void Populate(this IConfiguration configuration, Type targetType = null, [CallerMemberName] string caller = default(string))
         {
-            var type = GetCallingType(caller);
+            var type = targetType ?? GetCallingType(caller);
             var targetProperties = GetTargetProperties(type);
 
             foreach (var property in targetProperties)
@@ -32,11 +32,9 @@
                 var propertyType = property.Value.PropertyType;
 
                 string value = configuration.GetValue<string>(property.Key);
-                Console.WriteLine($"key {property.Key} value {value}");
 
                 if (string.IsNullOrEmpty(value))
                 {
-                    Console.WriteLine("skip");
                     continue;
                 }
 

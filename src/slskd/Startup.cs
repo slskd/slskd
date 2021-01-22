@@ -10,28 +10,28 @@
     using System.Text.Json.Serialization;
     using System.Threading;
     using System.Threading.Tasks;
-    using Microsoft.AspNetCore.Authentication.JwtBearer;
     using Microsoft.AspNetCore.Builder;
     using Microsoft.AspNetCore.Hosting;
     using Microsoft.AspNetCore.Mvc.ApiExplorer;
     using Microsoft.Extensions.Caching.Memory;
     using Microsoft.Extensions.Configuration;
     using Microsoft.Extensions.DependencyInjection;
-    using Microsoft.Extensions.FileProviders;
-    using Microsoft.Extensions.Hosting;
-    using Microsoft.IdentityModel.Tokens;
     using Microsoft.OpenApi.Models;
     using Soulseek;
     using Soulseek.Diagnostics;
-    using slskd.Entities;
-    using slskd.Security;
     using slskd.Trackers;
     using System.Collections.Concurrent;
-    using Serilog;
-    using Serilog.Events;
-    using Prometheus;
+    using Microsoft.IdentityModel.Tokens;
+    using slskd.Security;
+    using Microsoft.AspNetCore.Authentication.JwtBearer;
     using Prometheus.SystemMetrics;
     using Microsoft.Extensions.Options;
+    using Serilog;
+    using Microsoft.Extensions.Hosting;
+    using Prometheus;
+    using Microsoft.Extensions.FileProviders;
+    using Serilog.Events;
+    using slskd.Entities;
 
     public class Startup
     {
@@ -41,7 +41,6 @@
         internal static DiagnosticLevel DiagnosticLevel { get; set; }
         internal static int RoomMessageLimit { get; set; }
         internal static string XmlDocFile { get; set; }
-
 
         private SoulseekClient Client { get; set; }
         private object ConsoleSyncRoot { get; } = new object();
@@ -57,7 +56,6 @@
             DiagnosticLevel = Configuration.GetValue<DiagnosticLevel>("DIAGNOSTIC", DiagnosticLevel.Info);
             RoomMessageLimit = Configuration.GetValue<int>("ROOM_MESSAGE_LIMIT", 250);
             XmlDocFile = Configuration.GetValue<string>("XML_DOC_FILE", Path.Combine(AppContext.BaseDirectory, typeof(Startup).GetTypeInfo().Assembly.GetName().Name + ".xml"));
-
             
             SharedFileCache = new SharedFileCache(SharedDirectory, SharedCacheTTL);
         }
@@ -75,9 +73,9 @@
 
             services.AddCors(options => options.AddPolicy("AllowAll", builder => builder.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader()));
 
-            if (!Program.DisableAuthentication)
+            if (!InstanceOptions.DisableAuthentication)
             {
-                var jwtSigningKey = new SymmetricSecurityKey(PBKDF2.GetKey(Program.JwtKey));
+                var jwtSigningKey = new SymmetricSecurityKey(PBKDF2.GetKey(InstanceOptions.JwtKey));
 
                 services.AddSingleton(jwtSigningKey);
 
@@ -139,7 +137,7 @@
                 }
             });
 
-            if (Program.EnablePrometheus)
+            if (InstanceOptions.EnablePrometheus)
             {
                 services.AddSystemMetrics();
             }
@@ -176,8 +174,8 @@
 
             app.UseCors("AllowAll");
 
-            app.UsePathBase(Program.UrlBase);
-            logger.Information("Using base url {UrlBase}", Program.UrlBase);
+            app.UsePathBase(InstanceOptions.UrlBase);
+            logger.Information("Using base url {UrlBase}", InstanceOptions.UrlBase);
 
             // remove any errant double forward slashes which may have been introduced
             // by a reverse proxy or having the base path removed
@@ -195,31 +193,31 @@
 
             FileServerOptions fileServerOptions = default;
 
-            if (!System.IO.Directory.Exists(Program.ContentPath))
+            if (!System.IO.Directory.Exists(InstanceOptions.ContentPath))
             {
-                logger.Warning($"Static content disabled; cannot find content path '{Program.ContentPath}'");
+                logger.Warning($"Static content disabled; cannot find content path '{InstanceOptions.ContentPath}'");
             }
             else
             {
                 fileServerOptions = new FileServerOptions
                 {
-                    FileProvider = new PhysicalFileProvider(Program.ContentPath),
+                    FileProvider = new PhysicalFileProvider(InstanceOptions.ContentPath),
                     RequestPath = "",
                     EnableDirectoryBrowsing = false,
                     EnableDefaultFiles = true
                 };
 
                 app.UseFileServer(fileServerOptions);
-                logger.Information("Serving static content from {ContentPath}", Program.ContentPath);
+                logger.Information("Serving static content from {ContentPath}", InstanceOptions.ContentPath);
             }
 
             app.UseSerilogRequestLogging();
 
-            if (Program.EnablePrometheus)
+            if (InstanceOptions.EnablePrometheus)
             {
                 app.UseHttpMetrics();
             }
-            
+
             app.UseAuthentication();
 
             app.UseRouting();
@@ -228,13 +226,13 @@
             {
                 endpoints.MapControllers();
 
-                if (Program.EnablePrometheus)
+                if (InstanceOptions.EnablePrometheus)
                 {
                     endpoints.MapMetrics();
                 }
             });
 
-            if (Program.EnableSwagger)
+            if (InstanceOptions.EnableSwagger)
             {
                 app.UseSwagger();
                 app.UseSwaggerUI(options => provider.ApiVersionDescriptions.ToList()
@@ -256,7 +254,7 @@
 
             // finally, hit the fileserver again.  if the path was modified to return the index above, the index document will be returned
             // otherwise it will throw a final 404 back to the client.
-            if (System.IO.Directory.Exists(Program.ContentPath))
+            if (System.IO.Directory.Exists(InstanceOptions.ContentPath))
             {
                 app.UseFileServer(fileServerOptions);
             }
@@ -290,8 +288,8 @@
                 enqueueDownloadAction: (username, endpoint, filename) => EnqueueDownloadAction(username, endpoint, filename, tracker),
                 searchResponseResolver: SearchResponseResolver);
 
-            var username = soulseekOptions.CurrentValue.Username ?? Program.Username;
-            var password = soulseekOptions.CurrentValue.Password ?? Program.Password;
+            var username = soulseekOptions.CurrentValue.Username ?? InstanceOptions.Username;
+            var password = soulseekOptions.CurrentValue.Password ?? InstanceOptions.Password;
 
             Client = new SoulseekClient(options: clientOptions);
 
@@ -309,7 +307,7 @@
                 };
 
                 var logger = Loggers.GetOrAdd(e.GetType().FullName, Log.ForContext("SourceContext", "Soulseek").ForContext("SoulseekContext", e.GetType().FullName));
-                
+
                 logger.Write(TranslateLogLevel(args.Level), "{@Message}", args.Message);
             };
 

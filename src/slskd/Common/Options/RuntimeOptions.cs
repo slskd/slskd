@@ -1,14 +1,13 @@
 ﻿namespace slskd
 {
     using System.Collections.Generic;
-    using System.Linq;
 
     public class RuntimeOptions
     {
         public class Soulseek
         {
-            public string Username { get; set; } = Program.Username;
-            public string Password { get; set; } = Program.Password;
+            public string Username { get; set; } = InstanceOptions.Username;
+            public string Password { get; set; } = InstanceOptions.Password;
             public int ListenPort { get; set; } = 50000;
             public DistributedNetworkOptions DistributedNetwork { get; set; }
             public ConnectionOptions Connection { get; set; }

@@ -46,7 +46,7 @@
         [ProducesResponseType(typeof(bool), 200)]
         public IActionResult Enabled()
         {
-            return Ok(!Program.DisableAuthentication);
+            return Ok(!InstanceOptions.DisableAuthentication);
         }
 
         /// <summary>
@@ -83,7 +83,7 @@
         [ProducesResponseType(400)]
         [ProducesResponseType(401)]
         [ProducesResponseType(typeof(string), 500)]
-        public IActionResult Login([FromBody]LoginRequest login)
+        public IActionResult Login([FromBody] LoginRequest login)
         {
             if (login == default)
             {
@@ -115,7 +115,7 @@
         private JwtSecurityToken GetJwtSecurityToken(string username, Role role)
         {
             var issuedUtc = DateTime.UtcNow;
-            var expiresUtc = DateTime.UtcNow.AddMilliseconds(Program.JwtTTL);
+            var expiresUtc = DateTime.UtcNow.AddMilliseconds(InstanceOptions.JwtTTL);
 
             var claims = new List<Claim>()
             {
