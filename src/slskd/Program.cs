@@ -9,6 +9,7 @@
     using Serilog.Sinks.Grafana.Loki;
     using System;
     using System.Diagnostics;
+    using System.IO;
     using System.Linq;
     using System.Reflection;
     using Utility.CommandLine;
@@ -23,38 +24,47 @@
         [Argument('v', "version", "display version information")]
         public static bool ShowVersion { get; private set; }
 
-        [Argument('d', "debug", "run in debug mode")]
         [EnvironmentVariable("SLSKD_DEBUG")]
+        [Configuration("slskd:debug")]
+        [Argument('d', "debug", "run in debug mode")]
         public static bool Debug { get; private set; }
 
-        [Argument('n', "no-logo", "suppress logo on startup")]
         [EnvironmentVariable("SLSKD_NO_LOGO")]
+        [Configuration("slskd:noLogo")]
+        [Argument('n', "no-logo", "suppress logo on startup")]
         public static bool DisableLogo { get; private set; }
         
-        [Argument('x', "no-auth", "disable authentication for web requests")]
         [EnvironmentVariable("SLSKD_NO_AUTH")]
+        [Configuration("slskd:noAuth")]
+        [Argument('x', "no-auth", "disable authentication for web requests")]
         public static bool DisableAuthentication { get; private set; }
 
-        [Argument('i', "instance-name", "optional; a unique name for this instance")]
         [EnvironmentVariable("SLSKD_INSTANCE_NAME")]
+        [Configuration("slskd:instanceName")]
+        [Argument('i', "instance-name", "optional; a unique name for this instance")]
         public static string InstanceName { get; private set; } = "default";
 
-        [Argument('p', "prometheus", "enable collection and publish of prometheus metrics")]
         [EnvironmentVariable("SLSKD_PROMETHEUS")]
+        [Configuration("slskd:prometheus")]
+        [Argument('p', "prometheus", "enable collection and publish of prometheus metrics")]
         public static bool EnablePrometheus { get; private set; }
 
-        [Argument('s', "swagger", "enable swagger documentation")]
         [EnvironmentVariable("SLSKD_SWAGGER")]
+        [Configuration("slskd:swagger")]
+        [Argument('s', "swagger", "enable swagger documentation")]
         public static bool EnableSwagger { get; private set; }
 
-        [Argument(default, "loki", "the url to a Grafana Loki instance to which to log")]
         [EnvironmentVariable("SLSKD_LOKI")]
+        [Configuration("slskd:loki")]
+        [Argument(default, "loki", "the url to a Grafana Loki instance to which to log")]
         public static string LokiUrl { get; private set; }
 
         public static bool EnableLoki { get; private set; }
         public static string Version { get; private set; }
         public static Guid InvocationId { get; private set; }
         public static int ProcessId { get; private set; }
+
+        public static readonly string ConfigurationFile = "config.yml";
 
         public static void Main(string[] args)
         {
@@ -65,6 +75,22 @@
             catch (Exception ex)
             {
                 Console.WriteLine($"Error parsing environment variables: {ex.Message}");
+                return;
+            }
+
+            try
+            {
+                var config = new ConfigurationBuilder()
+                    .SetBasePath(Directory.GetCurrentDirectory())
+                    .AddYamlFile(ConfigurationFile, optional: true, reloadOnChange: false)
+                    .Build();
+
+                config.Populate();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error parsing configuration file '{ConfigurationFile}': {ex.Message}");
+                return;
             }
 
             try
@@ -73,16 +99,13 @@
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error parsing input: {ex.Message}");
+                Console.WriteLine($"Error parsing command line input: {ex.Message}");
+                return;
             }
 
-            InvocationId = Guid.NewGuid();
-            ProcessId = Environment.ProcessId;
+            Console.WriteLine(LokiUrl);
 
-            var assembly = Assembly.GetExecutingAssembly();
-            var assemblyVersion = assembly.GetName().Version;
-            var informationVersion = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>().InformationalVersion;
-            Version = $"{assemblyVersion} ({informationVersion})";
+            Version = ComputeVersion();
 
             if (ShowVersion)
             {
@@ -101,58 +124,12 @@
                 return;
             }
 
+            InvocationId = Guid.NewGuid();
+            ProcessId = Environment.ProcessId;
             Debug = Debugger.IsAttached || Debug;
             EnableLoki = !string.IsNullOrEmpty(LokiUrl);
-            
-            if (Debug)
-            {
-                Log.Logger = new LoggerConfiguration()
-                    .MinimumLevel.Debug()
-                    .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
-                    .Enrich.WithProperty("Version", Version)
-                    .Enrich.WithProperty("InstanceName", InstanceName)
-                    .Enrich.WithProperty("InvocationId", InvocationId)
-                    .Enrich.WithProperty("ProcessId", ProcessId)
-                    .Enrich.FromLogContext()
-                    .WriteTo.Console(
-                        outputTemplate: "[{SourceContext}] [{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
-                    .WriteTo.Async(config => 
-                        config.File(
-                            "logs/slskd-.log", 
-                            outputTemplate: "[{SourceContext}] [{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}",
-                            rollingInterval: RollingInterval.Day))
-                    .WriteTo.Conditional(
-                        e => EnableLoki,
-                        config => config.GrafanaLoki(
-                            LokiUrl ?? string.Empty, 
-                            outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}"))
-                    .CreateLogger();
-            }
-            else
-            {
-                Log.Logger = new LoggerConfiguration()
-                    .MinimumLevel.Information()
-                    .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
-                    .MinimumLevel.Override("slskd.Security.PassthroughAuthenticationHandler", LogEventLevel.Information)
-                    .Enrich.WithProperty("Version", Version)
-                    .Enrich.WithProperty("InstanceName", InstanceName)
-                    .Enrich.WithProperty("InvocationId", InvocationId)
-                    .Enrich.WithProperty("ProcessId", ProcessId)
-                    .Enrich.FromLogContext()
-                    .WriteTo.Console(
-                        outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
-                    .WriteTo.Async(config => 
-                        config.File(
-                            "logs/slskd-.log", 
-                            outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}",
-                            rollingInterval: RollingInterval.Day))
-                    .WriteTo.Conditional(
-                        e => EnableLoki, 
-                        config => config.GrafanaLoki(
-                            LokiUrl ?? string.Empty,
-                            outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}"))
-                    .CreateLogger();
-            }
+
+            ConfigureLogger();
 
             if (!DisableLogo)
             {
@@ -210,10 +187,71 @@
                 .ConfigureAppConfiguration((hostingContext, config) =>
                 {
                     config.AddEnvironmentVariables(prefix: "SLSK_");
-                    config.AddYamlFile("config.yml", optional: true, reloadOnChange: true);
+                    config.AddYamlFile(ConfigurationFile, optional: true, reloadOnChange: true);
                 })
                 .UseSerilog()
                 .UseStartup<Startup>();
+
+        private static string ComputeVersion()
+        {
+            var assembly = Assembly.GetExecutingAssembly();
+            var assemblyVersion = assembly.GetName().Version;
+            var informationVersion = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>().InformationalVersion;
+            return $"{assemblyVersion} ({informationVersion})";
+        }
+
+        private static void ConfigureLogger()
+        {
+            if (Debug)
+            {
+                Log.Logger = new LoggerConfiguration()
+                    .MinimumLevel.Debug()
+                    .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
+                    .Enrich.WithProperty("Version", Version)
+                    .Enrich.WithProperty("InstanceName", InstanceName)
+                    .Enrich.WithProperty("InvocationId", InvocationId)
+                    .Enrich.WithProperty("ProcessId", ProcessId)
+                    .Enrich.FromLogContext()
+                    .WriteTo.Console(
+                        outputTemplate: "[{SourceContext}] [{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
+                    .WriteTo.Async(config =>
+                        config.File(
+                            "logs/slskd-.log",
+                            outputTemplate: "[{SourceContext}] [{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}",
+                            rollingInterval: RollingInterval.Day))
+                    .WriteTo.Conditional(
+                        e => EnableLoki,
+                        config => config.GrafanaLoki(
+                            LokiUrl ?? string.Empty,
+                            outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}"))
+                    .CreateLogger();
+            }
+            else
+            {
+                Log.Logger = new LoggerConfiguration()
+                    .MinimumLevel.Information()
+                    .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+                    .MinimumLevel.Override("slskd.Security.PassthroughAuthenticationHandler", LogEventLevel.Information)
+                    .Enrich.WithProperty("Version", Version)
+                    .Enrich.WithProperty("InstanceName", InstanceName)
+                    .Enrich.WithProperty("InvocationId", InvocationId)
+                    .Enrich.WithProperty("ProcessId", ProcessId)
+                    .Enrich.FromLogContext()
+                    .WriteTo.Console(
+                        outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
+                    .WriteTo.Async(config =>
+                        config.File(
+                            "logs/slskd-.log",
+                            outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}",
+                            rollingInterval: RollingInterval.Day))
+                    .WriteTo.Conditional(
+                        e => EnableLoki,
+                        config => config.GrafanaLoki(
+                            LokiUrl ?? string.Empty,
+                            outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}"))
+                    .CreateLogger();
+            }
+        }
 
         private static void PrintLogo(string version)
         {
