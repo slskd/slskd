@@ -14,7 +14,6 @@
     using System.Reflection;
     using Utility.CommandLine;
     using Utility.EnvironmentVariables;
-    using Utility.Extensions.Configuration.Yaml;
 
     public class Program
     {
@@ -25,39 +24,69 @@
         public static bool ShowVersion { get; private set; }
 
         [EnvironmentVariable("SLSKD_DEBUG")]
-        [Configuration("slskd:debug")]
+        [Configuration("slskd:options:debug")]
         [Argument('d', "debug", "run in debug mode")]
         public static bool Debug { get; private set; }
 
         [EnvironmentVariable("SLSKD_NO_LOGO")]
-        [Configuration("slskd:noLogo")]
+        [Configuration("slskd:options:no_logo")]
         [Argument('n', "no-logo", "suppress logo on startup")]
         public static bool DisableLogo { get; private set; }
         
         [EnvironmentVariable("SLSKD_NO_AUTH")]
-        [Configuration("slskd:noAuth")]
+        [Configuration("slskd:options:no_auth")]
         [Argument('x', "no-auth", "disable authentication for web requests")]
         public static bool DisableAuthentication { get; private set; }
 
         [EnvironmentVariable("SLSKD_INSTANCE_NAME")]
-        [Configuration("slskd:instanceName")]
+        [Configuration("slskd:options:instance_name")]
         [Argument('i', "instance-name", "optional; a unique name for this instance")]
         public static string InstanceName { get; private set; } = "default";
 
         [EnvironmentVariable("SLSKD_PROMETHEUS")]
-        [Configuration("slskd:prometheus")]
-        [Argument('p', "prometheus", "enable collection and publish of prometheus metrics")]
+        [Configuration("slskd:options:prometheus")]
+        [Argument('m', "prometheus", "enable collection and publish of prometheus metrics")]
         public static bool EnablePrometheus { get; private set; }
 
         [EnvironmentVariable("SLSKD_SWAGGER")]
-        [Configuration("slskd:swagger")]
+        [Configuration("slskd:options:swagger")]
         [Argument('s', "swagger", "enable swagger documentation")]
         public static bool EnableSwagger { get; private set; }
 
         [EnvironmentVariable("SLSKD_LOKI")]
-        [Configuration("slskd:loki")]
-        [Argument(default, "loki", "the url to a Grafana Loki instance to which to log")]
+        [Configuration("slskd:logger:loki")]
+        [Argument(default, "loki", "optional; the url to a Grafana Loki instance to which to log")]
         public static string LokiUrl { get; private set; }
+
+        [EnvironmentVariable("SLSKD_URL_BASE")]
+        [Configuration("slskd:web:url_base")]
+        [Argument('b', "url-base", "base url for web requests")]
+        public static string UrlBase { get; private set; } = "/";
+
+        [EnvironmentVariable("SLSKD_CONTENT_PATH")]
+        [Configuration("slskd:web:content_path")]
+        [Argument('c', "content-path", "path to static web content")]
+        public static string ContentPath { get; private set; } = Path.Combine(Path.GetDirectoryName(new Uri(AppContext.BaseDirectory).AbsolutePath), "wwwroot");
+
+        [EnvironmentVariable("SLSKD_JWT_KEY")]
+        [Configuration("slskd:web:jwt:key")]
+        [Argument(default, "jwt-key", "optional; the key with which to sign JWTs")]
+        public static string JwtKey { get; private set; } = Guid.NewGuid().ToString();
+
+        [EnvironmentVariable("SLSKD_JWT_TTL")]
+        [Configuration("slskd:web:jwt:ttl")]
+        [Argument(default, "jwt-ttl", "optional; the TTL for JWTs")]
+        public static int JwtTTL { get; private set; } = 604800000;
+
+        [EnvironmentVariable("SLSKD_USERNAME")]
+        [Configuration("soulseek:username")]
+        [Argument('u', "username", "the username for the Soulseek network")]
+        public static string Username { get; private set; }
+
+        [EnvironmentVariable("SLSKD_PASSWORD")]
+        [Configuration("soulseek:password")]
+        [Argument('p', "password", "the password for the Soulseek network")]
+        public static string Password { get; private set; }
 
         public static bool EnableLoki { get; private set; }
         public static string Version { get; private set; }
@@ -103,8 +132,6 @@
                 return;
             }
 
-            Console.WriteLine(LokiUrl);
-
             Version = ComputeVersion();
 
             if (ShowVersion)
@@ -128,14 +155,15 @@
             ProcessId = Environment.ProcessId;
             Debug = Debugger.IsAttached || Debug;
             EnableLoki = !string.IsNullOrEmpty(LokiUrl);
-
-            ConfigureLogger();
+            UrlBase = UrlBase.StartsWith("/") ? UrlBase : "/" + UrlBase;
+            ContentPath = Path.GetFullPath(ContentPath);
 
             if (!DisableLogo)
             {
                 PrintLogo(Version);
             }
 
+            ConfigureLogger();
             var logger = Log.ForContext<Program>();
 
             logger.Information("Version: {Version}", Version);
