@@ -8,6 +8,8 @@
     using System.IdentityModel.Tokens.Jwt;
     using System.Security.Claims;
     using slskd.DTO;
+    using Microsoft.Extensions.Options;
+    using System.Linq;
 
     /// <summary>
     ///     Session
@@ -19,8 +21,18 @@
     [Consumes("application/json")]
     public class SessionController : ControllerBase
     {
-        public SessionController()
+        private IOptionsSnapshot<RuntimeOptions.Soulseek> SoulseekOptions { get; set; }
+        private IOptionsSnapshot<RuntimeOptions.Authentication> AuthenticationOptions { get; set; }
+        private SymmetricSecurityKey JwtSigningKey { get; set; }
+
+        public SessionController(
+            IOptionsSnapshot<RuntimeOptions.Soulseek> soulseekOptions,
+            IOptionsSnapshot<RuntimeOptions.Authentication> authenticationOptions,
+            SymmetricSecurityKey jwtSigningKey)
         {
+            SoulseekOptions = soulseekOptions;
+            AuthenticationOptions = authenticationOptions;
+            JwtSigningKey = jwtSigningKey;
         }
 
         /// <summary>
@@ -83,29 +95,38 @@
                 return BadRequest("Username and/or Password missing or invalid");
             }
 
-            if (login.Username == Startup.Username && login.Password == Startup.Password)
+            var user = AuthenticationOptions.Value.Users
+                .Where(u => u.Name == login.Username)
+                .FirstOrDefault();
+
+            if (user == default)
             {
-                return Ok(new TokenResponse(GetJwtSecurityToken()));
+                return Unauthorized();
+            }
+
+            if (login.Password == user.Password)
+            {
+                return Ok(new TokenResponse(GetJwtSecurityToken(user.Name, user.Role)));
             }
 
             return Unauthorized();
         }
 
-        private JwtSecurityToken GetJwtSecurityToken()
+        private JwtSecurityToken GetJwtSecurityToken(string username, Role role)
         {
             var issuedUtc = DateTime.UtcNow;
-            var expiresUtc = DateTime.UtcNow.AddMilliseconds(Startup.SecurityTokenTTL);
+            var expiresUtc = DateTime.UtcNow.AddMilliseconds(Program.JwtTTL);
 
             var claims = new List<Claim>()
             {
-                new Claim(ClaimTypes.Name, Startup.Username),
+                new Claim(ClaimTypes.Name, username),
                 new Claim(ClaimTypes.NameIdentifier, Guid.NewGuid().ToString()),
-                new Claim(ClaimTypes.Role, "User"),
-                new Claim("name", Startup.Username),
+                new Claim(ClaimTypes.Role, role.ToString()),
+                new Claim("name", username),
                 new Claim("iat", ((DateTimeOffset)issuedUtc).ToUnixTimeSeconds().ToString())
             };
 
-            var credentials = new SigningCredentials(Startup.JwtSigningKey, SecurityAlgorithms.HmacSha256);
+            var credentials = new SigningCredentials(JwtSigningKey, SecurityAlgorithms.HmacSha256);
 
             var token = new JwtSecurityToken(
                 issuer: "slskd",
