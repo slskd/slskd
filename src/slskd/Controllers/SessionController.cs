@@ -10,6 +10,7 @@
     using slskd.DTO;
     using Microsoft.Extensions.Options;
     using System.Linq;
+    using slskd;
 
     /// <summary>
     ///     Session
@@ -21,13 +22,13 @@
     [Consumes("application/json")]
     public class SessionController : ControllerBase
     {
-        private IOptionsSnapshot<RuntimeOptions.Soulseek> SoulseekOptions { get; set; }
-        private IOptionsSnapshot<RuntimeOptions.Authentication> AuthenticationOptions { get; set; }
+        private IOptionsSnapshot<slskd.Configuration.Soulseek> SoulseekOptions { get; set; }
+        private IOptionsSnapshot<slskd.Configuration.Authentication> AuthenticationOptions { get; set; }
         private SymmetricSecurityKey JwtSigningKey { get; set; }
 
         public SessionController(
-            IOptionsSnapshot<RuntimeOptions.Soulseek> soulseekOptions,
-            IOptionsSnapshot<RuntimeOptions.Authentication> authenticationOptions,
+            IOptionsSnapshot<slskd.Configuration.Soulseek> soulseekOptions,
+            IOptionsSnapshot<slskd.Configuration.Authentication> authenticationOptions,
             SymmetricSecurityKey jwtSigningKey)
         {
             SoulseekOptions = soulseekOptions;
@@ -46,7 +47,7 @@
         [ProducesResponseType(typeof(bool), 200)]
         public IActionResult Enabled()
         {
-            return Ok(!InstanceOptions.DisableAuthentication);
+            return base.Ok((object)!Program.Options.NoAuth);
         }
 
         /// <summary>
@@ -115,7 +116,7 @@
         private JwtSecurityToken GetJwtSecurityToken(string username, Role role)
         {
             var issuedUtc = DateTime.UtcNow;
-            var expiresUtc = DateTime.UtcNow.AddMilliseconds(InstanceOptions.JwtTTL);
+            var expiresUtc = DateTime.UtcNow.AddMilliseconds((double)Program.Options.Web.Jwt.TTL);
 
             var claims = new List<Claim>()
             {

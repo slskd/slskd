@@ -61,21 +61,21 @@
         }
 
         public IConfiguration Configuration { get; }
-        public ConcurrentDictionary<string, Serilog.ILogger> Loggers { get; } = new ConcurrentDictionary<string, Serilog.ILogger>();
+        public ConcurrentDictionary<string, ILogger> Loggers { get; } = new ConcurrentDictionary<string, ILogger>();
 
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddOptions<RuntimeOptions.Soulseek>()
+            services.AddOptions<Configuration.Soulseek>()
                 .Bind(Configuration.GetSection("soulseek"));
 
-            services.AddOptions<RuntimeOptions.Authentication>()
+            services.AddOptions<Configuration.Authentication>()
                 .Bind(Configuration.GetSection("authentication"));
 
             services.AddCors(options => options.AddPolicy("AllowAll", builder => builder.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader()));
 
-            if (!InstanceOptions.DisableAuthentication)
+            if (!Program.Options.NoAuth)
             {
-                var jwtSigningKey = new SymmetricSecurityKey(PBKDF2.GetKey(InstanceOptions.JwtKey));
+                var jwtSigningKey = new SymmetricSecurityKey(PBKDF2.GetKey(Program.Options.Web.Jwt.Key));
 
                 services.AddSingleton(jwtSigningKey);
 
@@ -137,7 +137,7 @@
                 }
             });
 
-            if (InstanceOptions.EnablePrometheus)
+            if (Program.Options.Feature.Prometheus)
             {
                 services.AddSystemMetrics();
             }
@@ -157,8 +157,8 @@
             ITransferTracker tracker, 
             IBrowseTracker browseTracker, 
             IConversationTracker conversationTracker,
-            IOptionsMonitor<RuntimeOptions.Soulseek> soulseekOptions,
-            IOptionsMonitor<RuntimeOptions.Authentication> authenticationOptions,
+            IOptionsMonitor<Configuration.Soulseek> soulseekOptions,
+            IOptionsMonitor<Configuration.Authentication> authenticationOptions,
             IRoomTracker roomTracker)
         {
             var logger = Log.ForContext<Startup>();
@@ -174,8 +174,8 @@
 
             app.UseCors("AllowAll");
 
-            app.UsePathBase(InstanceOptions.UrlBase);
-            logger.Information("Using base url {UrlBase}", InstanceOptions.UrlBase);
+            app.UsePathBase(Program.Options.Web.UrlBase);
+            logger.Information("Using base url {UrlBase}", Program.Options.Web.UrlBase);
 
             // remove any errant double forward slashes which may have been introduced
             // by a reverse proxy or having the base path removed
@@ -193,27 +193,27 @@
 
             FileServerOptions fileServerOptions = default;
 
-            if (!System.IO.Directory.Exists(InstanceOptions.ContentPath))
+            if (!System.IO.Directory.Exists(Program.Options.Web.ContentPath))
             {
-                logger.Warning($"Static content disabled; cannot find content path '{InstanceOptions.ContentPath}'");
+                logger.Warning($"Static content disabled; cannot find content path '{Program.Options.Web.ContentPath}'");
             }
             else
             {
                 fileServerOptions = new FileServerOptions
                 {
-                    FileProvider = new PhysicalFileProvider(InstanceOptions.ContentPath),
+                    FileProvider = new PhysicalFileProvider(Program.Options.Web.ContentPath),
                     RequestPath = "",
                     EnableDirectoryBrowsing = false,
                     EnableDefaultFiles = true
                 };
 
                 app.UseFileServer(fileServerOptions);
-                logger.Information("Serving static content from {ContentPath}", InstanceOptions.ContentPath);
+                logger.Information("Serving static content from {ContentPath}", Program.Options.Web.ContentPath);
             }
 
             app.UseSerilogRequestLogging();
 
-            if (InstanceOptions.EnablePrometheus)
+            if (Program.Options.Feature.Prometheus)
             {
                 app.UseHttpMetrics();
             }
@@ -226,13 +226,13 @@
             {
                 endpoints.MapControllers();
 
-                if (InstanceOptions.EnablePrometheus)
+                if (Program.Options.Feature.Prometheus)
                 {
                     endpoints.MapMetrics();
                 }
             });
 
-            if (InstanceOptions.EnableSwagger)
+            if (Program.Options.Feature.Swagger)
             {
                 app.UseSwagger();
                 app.UseSwaggerUI(options => provider.ApiVersionDescriptions.ToList()
@@ -254,7 +254,7 @@
 
             // finally, hit the fileserver again.  if the path was modified to return the index above, the index document will be returned
             // otherwise it will throw a final 404 back to the client.
-            if (System.IO.Directory.Exists(InstanceOptions.ContentPath))
+            if (System.IO.Directory.Exists(Program.Options.Web.ContentPath))
             {
                 app.UseFileServer(fileServerOptions);
             }
@@ -288,8 +288,8 @@
                 enqueueDownloadAction: (username, endpoint, filename) => EnqueueDownloadAction(username, endpoint, filename, tracker),
                 searchResponseResolver: SearchResponseResolver);
 
-            var username = soulseekOptions.CurrentValue.Username ?? InstanceOptions.Username;
-            var password = soulseekOptions.CurrentValue.Password ?? InstanceOptions.Password;
+            var username = soulseekOptions.CurrentValue.Username;
+            var password = soulseekOptions.CurrentValue.Password;
 
             Client = new SoulseekClient(options: clientOptions);
 
