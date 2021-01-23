@@ -1,9 +1,9 @@
 slskd:
-  options:
-    debug: false
-    no_logo: false
-    no_auth: false
-    instance_name: FromYAML
+  debug: false
+  no_logo: false
+  no_auth: false
+  instance_name: FromYAML
+  feature:
     prometheus: true
     swagger: true
   logger:

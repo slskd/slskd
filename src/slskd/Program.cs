@@ -9,8 +9,9 @@
     using Serilog.Sinks.Grafana.Loki;
     using System;
     using System.Diagnostics;
+    using System.IO;
     using System.Reflection;
-    using Utility.Extensions.Configuration.Yaml;
+    using System.Text.Json;
 
     public class Program
     {
@@ -20,22 +21,30 @@
 
         public static readonly string ConfigurationFile = "config.yml";
 
+        private static Action<BinderOptions> BinderOptions = (o) => { o.BindNonPublicProperties = true; };
+        public static RuntimeOptions.slskd Options { get; private set; } = new();
+
+
         public static void Main(string[] args)
         {
-            InstanceOptions.Populate(argumentsOnly: true);
+            new ConfigurationBuilder()
+                .MapCommandLineArguments(RuntimeOptions.ArgumentMap, Environment.CommandLine)
+                .Build()
+                .GetSection("slskd")
+                .Bind(Options, BinderOptions);
 
             var assembly = Assembly.GetExecutingAssembly();
             var assemblyVersion = assembly.GetName().Version;
             var informationVersion = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>().InformationalVersion;
             Version = $"{assemblyVersion} ({informationVersion})";
 
-            if (InstanceOptions.ShowVersion)
+            if (Options.ShowVersion)
             {
                 Console.WriteLine(Version);
                 return;
             }
 
-            if (InstanceOptions.ShowHelp)
+            if (Options.ShowHelp)
             {
                 if (!InstanceOptions.DisableLogo)
                 {
@@ -46,7 +55,18 @@
                 return;
             }
 
-            InstanceOptions.Populate(ConfigurationFile, argumentsOnly: false);
+            new ConfigurationBuilder()
+                .MapEnvironmentVariables(RuntimeOptions.EnvironmentVariableMap)
+                .SetBasePath(Directory.GetCurrentDirectory())
+                .AddYamlFile(ConfigurationFile, optional: true, reloadOnChange: false)
+                .MapCommandLineArguments(RuntimeOptions.ArgumentMap, Environment.CommandLine)
+                .Build()
+                .GetSection("slskd")
+                .Bind(Options, BinderOptions);
+
+            Console.WriteLine(JsonSerializer.Serialize(Options));
+
+            return;
 
             InvocationId = Guid.NewGuid();
             ProcessId = Environment.ProcessId;

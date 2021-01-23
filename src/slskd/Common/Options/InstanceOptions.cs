@@ -6,7 +6,6 @@
     using System.Linq;
     using Utility.CommandLine;
     using Utility.EnvironmentVariables;
-    using Utility.Extensions.Configuration.Yaml;
 
     public class InstanceOptions
     {
@@ -17,32 +16,32 @@
         public static bool ShowVersion { get; private set; }
 
         [EnvironmentVariable("SLSKD_DEBUG")]
-        [Configuration("slskd:options:debug")]
+        [Configuration("slskd:debug")]
         [Argument('d', "debug", "run in debug mode")]
         public static bool Debug { get; private set; }
 
         [EnvironmentVariable("SLSKD_NO_LOGO")]
-        [Configuration("slskd:options:no_logo")]
+        [Configuration("slskd:no_logo")]
         [Argument('n', "no-logo", "suppress logo on startup")]
         public static bool DisableLogo { get; private set; }
 
         [EnvironmentVariable("SLSKD_NO_AUTH")]
-        [Configuration("slskd:options:no_auth")]
+        [Configuration("slskd:no_auth")]
         [Argument('x', "no-auth", "disable authentication for web requests")]
         public static bool DisableAuthentication { get; private set; }
 
         [EnvironmentVariable("SLSKD_INSTANCE_NAME")]
-        [Configuration("slskd:options:instance_name")]
+        [Configuration("slskd:instance_name")]
         [Argument('i', "instance-name", "optional; a unique name for this instance")]
         public static string InstanceName { get; private set; } = "default";
 
-        [EnvironmentVariable("SLSKD_PROMETHEUS")]
-        [Configuration("slskd:options:prometheus")]
+        [EnvironmentVariable("SLSKD_FEATURE_PROMETHEUS")]
+        [Configuration("slskd:feature:prometheus")]
         [Argument('m', "prometheus", "enable collection and publish of prometheus metrics")]
         public static bool EnablePrometheus { get; private set; }
 
-        [EnvironmentVariable("SLSKD_SWAGGER")]
-        [Configuration("slskd:options:swagger")]
+        [EnvironmentVariable("SLSKD_FEATURE_SWAGGER")]
+        [Configuration("slskd:feature:swagger")]
         [Argument('s', "swagger", "enable swagger documentation")]
         public static bool EnableSwagger { get; private set; }
 
@@ -83,52 +82,68 @@
 
         public static bool EnableLoki { get; private set; }
 
-        public static void Populate(string configurationFile = null, bool argumentsOnly = false)
-        {
-            if (!argumentsOnly)
-            {
-                try
-                {
-                    EnvironmentVariables.Populate(typeof(InstanceOptions));
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Error parsing environment variables: {ex.Message}");
-                    return;
-                }
+        //public static void Populate(string configurationFile = null, bool argumentsOnly = false)
+        //{
+        //    if (!argumentsOnly)
+        //    {
+        //        try
+        //        {
+        //            EnvironmentVariables.Populate(typeof(InstanceOptions));
+        //        }
+        //        catch (Exception ex)
+        //        {
+        //            Console.WriteLine($"Error parsing environment variables: {ex.Message}");
+        //            return;
+        //        }
 
-                try
-                {
-                    var config = new ConfigurationBuilder()
-                        .SetBasePath(Directory.GetCurrentDirectory())
-                        .AddYamlFile(configurationFile, optional: true, reloadOnChange: false)
-                        .Build();
+        //        try
+        //        {
+        //            var config = new ConfigurationBuilder()
+        //                .SetBasePath(Directory.GetCurrentDirectory())
+        //                .AddMapping(new[] 
+        //                {
+        //                    new OptionMap {
+        //                        Description = "run in debug mode",
+        //                        EnvironmentVariable = "SLSK_DEBUG",
+        //                        ShortName = 'd',
+        //                        LongName = "debug",
+        //                        Key = "slskd:debug"
+        //                    },
+        //                    new OptionMap {
+        //                        Description = "optional; a unique name for this instance",
+        //                        EnvironmentVariable = "SLSK_INSTANCE_NAME",
+        //                        ShortName = 'i',
+        //                        LongName = "instance-name",
+        //                        Key = "slskd:instancename"
+        //                    }
+        //                }, Environment.CommandLine, configurationFile, optional: true, reloadOnChange: false)
+        //                .Build();
 
-                    Console.WriteLine(config.GetDebugView());
+        //            Console.WriteLine(config.GetDebugView());
 
-                    config.Populate(typeof(InstanceOptions));
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Error parsing configuration file '{configurationFile}': {ex.Message}");
-                    return;
-                }
-            }
+        //            config.Populate(typeof(InstanceOptions));
+        //        }
+        //        catch (Exception ex)
+        //        {
+        //            Console.WriteLine($"Error parsing configuration file '{configurationFile}': {ex.Message}");
+        //            return;
+        //        }
+        //    }
 
-            try
-            {
-                Arguments.Populate(typeof(InstanceOptions), clearExistingValues: false);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error parsing command line input: {ex.Message}");
-                return;
-            }
+        //    try
+        //    {
+        //        Arguments.Populate(typeof(InstanceOptions), clearExistingValues: false);
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        Console.WriteLine($"Error parsing command line input: {ex.Message}");
+        //        return;
+        //    }
 
-            EnableLoki = !string.IsNullOrEmpty(LokiUrl);
-            UrlBase = UrlBase.StartsWith("/") ? UrlBase : "/" + UrlBase;
-            ContentPath = Path.GetFullPath(ContentPath);
-        }
+        //    EnableLoki = !string.IsNullOrEmpty(LokiUrl);
+        //    UrlBase = UrlBase.StartsWith("/") ? UrlBase : "/" + UrlBase;
+        //    ContentPath = Path.GetFullPath(ContentPath);
+        //}
 
         public static void PrintHelp()
         {
