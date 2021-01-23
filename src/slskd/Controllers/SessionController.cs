@@ -22,13 +22,13 @@
     [Consumes("application/json")]
     public class SessionController : ControllerBase
     {
-        private IOptionsSnapshot<slskd.Configuration.Soulseek> SoulseekOptions { get; set; }
-        private IOptionsSnapshot<slskd.Configuration.Authentication> AuthenticationOptions { get; set; }
+        private IOptionsSnapshot<Configuration.Soulseek> SoulseekOptions { get; set; }
+        private IOptionsSnapshot<Configuration.Authentication> AuthenticationOptions { get; set; }
         private SymmetricSecurityKey JwtSigningKey { get; set; }
 
         public SessionController(
-            IOptionsSnapshot<slskd.Configuration.Soulseek> soulseekOptions,
-            IOptionsSnapshot<slskd.Configuration.Authentication> authenticationOptions,
+            IOptionsSnapshot<Configuration.Soulseek> soulseekOptions,
+            IOptionsSnapshot<Configuration.Authentication> authenticationOptions,
             SymmetricSecurityKey jwtSigningKey)
         {
             SoulseekOptions = soulseekOptions;
@@ -100,6 +100,7 @@
                 .Where(u => u.Name == login.Username)
                 .FirstOrDefault();
 
+            // todo: allow login with root creds
             if (user == default)
             {
                 return Unauthorized();
