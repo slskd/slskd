@@ -28,7 +28,14 @@
                 EnvironmentVariable: null,
                 Type: typeof(bool),
                 Key: null,
-                Description: "print usage"),
+                Description: "display command line usage"),
+            new(
+                ShortName: 'e',
+                LongName: "envars",
+                EnvironmentVariable: null,
+                Type: typeof(bool),
+                Key: null,
+                Description: "display environment variables"),
             new(
                 ShortName: 'd',
                 LongName: "debug",
@@ -122,10 +129,8 @@
                 Description: "the password for the Soulseek network")
         };
 
-        public class slskd
+        public class Program
         {
-            public bool ShowHelp { get; private set; } = false;
-            public bool ShowVersion { get; private set; } = false;
             public bool Debug { get; private set; } = false;
             public bool NoLogo { get; private set; } = false;
             public bool NoAuth { get; private set; } = false;
