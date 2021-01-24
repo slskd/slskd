@@ -22,12 +22,12 @@
     [Consumes("application/json")]
     public class SessionController : ControllerBase
     {
-        private IOptionsSnapshot<Configuration.Soulseek> SoulseekOptions { get; set; }
+        private IOptionsSnapshot<Configuration.Program> SoulseekOptions { get; set; }
         private IOptionsSnapshot<Configuration.Authentication> AuthenticationOptions { get; set; }
         private SymmetricSecurityKey JwtSigningKey { get; set; }
 
         public SessionController(
-            IOptionsSnapshot<Configuration.Soulseek> soulseekOptions,
+            IOptionsSnapshot<Configuration.Program> soulseekOptions,
             IOptionsSnapshot<Configuration.Authentication> authenticationOptions,
             SymmetricSecurityKey jwtSigningKey)
         {

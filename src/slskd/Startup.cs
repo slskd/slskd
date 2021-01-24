@@ -68,7 +68,7 @@
 
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddOptions<Configuration.Soulseek>()
+            services.AddOptions<Configuration.Program>()
                 .Bind(Configuration.GetSection("soulseek"));
 
             services.AddOptions<Configuration.Authentication>()
@@ -165,7 +165,7 @@
             ITransferTracker tracker, 
             IBrowseTracker browseTracker, 
             IConversationTracker conversationTracker,
-            IOptionsMonitor<Configuration.Soulseek> soulseekOptions,
+            IOptionsMonitor<Configuration.Program> soulseekOptions,
             IOptionsMonitor<Configuration.Authentication> authenticationOptions,
             IRoomTracker roomTracker)
         {
@@ -272,18 +272,18 @@
             // ---------------------------------------------------------------------------------------------------------------------------------------------
 
             var connectionOptions = new ConnectionOptions(
-                readBufferSize: soulseekOptions.CurrentValue.Connection.Buffer.Read,
-                writeBufferSize: soulseekOptions.CurrentValue.Connection.Buffer.Write,
-                connectTimeout: soulseekOptions.CurrentValue.Connection.Timeout.Connect,
-                inactivityTimeout: soulseekOptions.CurrentValue.Connection.Timeout.Inactivity);
+                readBufferSize: soulseekOptions.CurrentValue.Soulseek.Connection.Buffer.Read,
+                writeBufferSize: soulseekOptions.CurrentValue.Soulseek.Connection.Buffer.Write,
+                connectTimeout: soulseekOptions.CurrentValue.Soulseek.Connection.Timeout.Connect,
+                inactivityTimeout: soulseekOptions.CurrentValue.Soulseek.Connection.Timeout.Inactivity);
 
             // create options for the client.
             // see the implementation of Func<> and Action<> options for detailed info.
             var clientOptions = new SoulseekClientOptions(
-                listenPort: soulseekOptions.CurrentValue.ListenPort,
+                listenPort: soulseekOptions.CurrentValue.Soulseek.ListenPort,
                 userEndPointCache: new UserEndPointCache(),
-                distributedChildLimit: soulseekOptions.CurrentValue.DistributedNetwork.ChildLimit,
-                enableDistributedNetwork: soulseekOptions.CurrentValue.DistributedNetwork.Enabled,
+                distributedChildLimit: soulseekOptions.CurrentValue.Soulseek.DistributedNetwork.ChildLimit,
+                enableDistributedNetwork: soulseekOptions.CurrentValue.Soulseek.DistributedNetwork.Enabled,
                 minimumDiagnosticLevel: DiagnosticLevel,
                 autoAcknowledgePrivateMessages: false,
                 acceptPrivateRoomInvitations: true,
@@ -296,8 +296,8 @@
                 enqueueDownloadAction: (username, endpoint, filename) => EnqueueDownloadAction(username, endpoint, filename, tracker),
                 searchResponseResolver: SearchResponseResolver);
 
-            var username = soulseekOptions.CurrentValue.Username;
-            var password = soulseekOptions.CurrentValue.Password;
+            var username = soulseekOptions.CurrentValue.Soulseek.Username;
+            var password = soulseekOptions.CurrentValue.Soulseek.Password;
 
             Client = new SoulseekClient(options: clientOptions);
 

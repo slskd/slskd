@@ -240,7 +240,7 @@
                     continue;
                 }
 
-                var result = $"  {shortName}|--{GetLongName(longName, type).PadRight(longestName + 3)}{description}";
+                var result = $"  {shortName}{(shortName == default ? string.Empty : "|")}--{GetLongName(longName, type).PadRight(longestName + 3)}{description}";
                 Console.WriteLine(result);
             }
         }

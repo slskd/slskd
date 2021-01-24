@@ -14,28 +14,17 @@ slskd:
     jwt:
       ttl: 604800000
       key: ~
-soulseek:
-  username: ~
-  password: ~
-  listen_port: 50000
-  distributed_network:
-    enabled: true
-    child_limit: 10
-  connection:
-    timeout:
-      connect: 5000
-      inactivity: 15000
-    buffer:
-      read: 16384
-      write: 16384
-authentication:
-  users:
-  - name: admin
-    password: admin
-    role: Administrator
-  - name: user
-    password: user
-    role: User
-  api_keys:
-  - key: 1234567890
-    role: ReadOnly
+  soulseek:
+    username: ~
+    password: ~
+    listen_port: 50000
+    distributed_network:
+      enabled: true
+      child_limit: 10
+    connection:
+      timeout:
+        connect: 5000
+        inactivity: 15000
+      buffer:
+        read: 16384
+        write: 16384

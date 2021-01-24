@@ -65,27 +65,6 @@
                 Key: "slskd:instancename",
                 Description: "optional; a unique name for this instance"),
             new(
-                ShortName: 'm',
-                LongName: "prometheus",
-                EnvironmentVariable: "PROMETHEUS",
-                Type: typeof(bool),
-                Key:  "slskd:feature:prometheus",
-                Description: "enable collection and publishing of prometheus metrics"),
-            new(
-                ShortName: 's',
-                LongName: "swagger",
-                EnvironmentVariable: "SWAGGER",
-                Type: typeof(bool),
-                Key: "slskd:feature:swagger",
-                Description: "enable swagger documentation and UI"),
-            new(
-                ShortName: 'l',
-                LongName: "loki",
-                EnvironmentVariable: "LOKI",
-                Type: typeof(string),
-                Key: "slskd:logger:loki",
-                Description: "optional; the url to a Grafana Loki instance to which to log"),
-            new(
                 ShortName: 'b',
                 LongName: "url-base",
                 EnvironmentVariable: "URL_BASE",
@@ -118,15 +97,57 @@
                 LongName: "username", 
                 EnvironmentVariable: "USERNAME",
                 Type: typeof(string), 
-                Key: "soulseek:username", 
+                Key: "slskd:soulseek:username", 
                 Description: "the username for the Soulseek network"),
             new(
                 ShortName: 'p', 
                 LongName: "password", 
                 EnvironmentVariable: "PASSWORD",
                 Type: typeof(string), 
-                Key: "soulseek:password", 
-                Description: "the password for the Soulseek network")
+                Key: "slskd:soulseek:password", 
+                Description: "the password for the Soulseek network"),
+            new(
+                ShortName: 'l',
+                LongName: "listen-port",
+                EnvironmentVariable: "LISTEN_PORT",
+                Type: typeof(int),
+                Key: "slskd:soulseek:listenport",
+                Description: "the port on which to listen"),
+            new(
+                ShortName: 'n',
+                LongName: "distributed-network",
+                EnvironmentVariable: "DNET",
+                Type: typeof(bool),
+                Key: "slskd:soulseek:distributednetwork:enabled",
+                Description: "enables the distributed network"),
+            new(
+                ShortName: 'c',
+                LongName: "child-limit",
+                EnvironmentVariable: "DNET_CHILDREN",
+                Type: typeof(int),
+                Key: "slskd:soulseek:distributednetwork:childlimit",
+                Description: "sets the limit for the number of distributed children"),
+            new(
+                ShortName: default,
+                LongName: "prometheus",
+                EnvironmentVariable: "PROMETHEUS",
+                Type: typeof(bool),
+                Key:  "slskd:feature:prometheus",
+                Description: "enable collection and publishing of prometheus metrics"),
+            new(
+                ShortName: default,
+                LongName: "swagger",
+                EnvironmentVariable: "SWAGGER",
+                Type: typeof(bool),
+                Key: "slskd:feature:swagger",
+                Description: "enable swagger documentation and UI"),
+            new(
+                ShortName: default,
+                LongName: "loki",
+                EnvironmentVariable: "LOKI",
+                Type: typeof(string),
+                Key: "slskd:logger:loki",
+                Description: "optional; the url to a Grafana Loki instance to which to log"),
         };
 
         public class Program
@@ -138,6 +159,7 @@
             public FeatureOptions Feature { get; private set; } = new FeatureOptions();
             public LoggerOptions Logger { get; private set; } = new LoggerOptions();
             public WebOptions Web { get; private set; } = new WebOptions();
+            public SoulseekOptions Soulseek { get; private set; } = new SoulseekOptions();
 
             public class FeatureOptions
             {
@@ -162,37 +184,38 @@
                     public string Key { get; private set; } = Guid.NewGuid().ToString();
                 }
             }
-        }
 
-        public class Soulseek
-        {
-            public string Username { get; set; }
-            public string Password { get; set; }
-            public int ListenPort { get; set; } = 50000;
-            public DistributedNetworkOptions DistributedNetwork { get; set; }
-            public ConnectionOptions Connection { get; set; }
 
-            public class DistributedNetworkOptions
+            public class SoulseekOptions
             {
-                public bool Enabled { get; set; } = true;
-                public int ChildLimit { get; set; } = 10;
-            }
+                public string Username { get; set; }
+                public string Password { get; set; }
+                public int ListenPort { get; set; } = 50000;
+                public DistributedNetworkOptions DistributedNetwork { get; set; }
+                public ConnectionOptions Connection { get; set; }
 
-            public class ConnectionOptions
-            {
-                public TimeoutOptions Timeout { get; set; }
-                public BufferOptions Buffer { get; set; }
-
-                public class TimeoutOptions
+                public class DistributedNetworkOptions
                 {
-                    public int Connect { get; set; } = 5000;
-                    public int Inactivity { get; set; } = 15000;
+                    public bool Enabled { get; set; } = true;
+                    public int ChildLimit { get; set; } = 10;
                 }
 
-                public class BufferOptions
+                public class ConnectionOptions
                 {
-                    public int Read { get; set; } = 16384;
-                    public int Write { get; set; } = 16384;
+                    public TimeoutOptions Timeout { get; set; }
+                    public BufferOptions Buffer { get; set; }
+
+                    public class TimeoutOptions
+                    {
+                        public int Connect { get; set; } = 5000;
+                        public int Inactivity { get; set; } = 15000;
+                    }
+
+                    public class BufferOptions
+                    {
+                        public int Read { get; set; } = 16384;
+                        public int Write { get; set; } = 16384;
+                    }
                 }
             }
         }
