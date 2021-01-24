@@ -108,7 +108,7 @@
 
                 if (NormalizeKey)
                 {
-                    key = key.Replace("_", string.Empty).Replace("-", string.Empty).ToLowerInvariant();
+                    key = key?.Replace("_", string.Empty).Replace("-", string.Empty).ToLowerInvariant();
                 }
 
                 if (string.IsNullOrEmpty(key) || string.IsNullOrEmpty(name))

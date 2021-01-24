@@ -109,7 +109,7 @@
 
                 if (NormalizeKey)
                 {
-                    key = key.Replace("-", string.Empty).Replace("_", string.Empty).ToLowerInvariant();
+                    key = key?.Replace("-", string.Empty).Replace("_", string.Empty).ToLowerInvariant();
                 }
 
                 if (string.IsNullOrEmpty(key))
