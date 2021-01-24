@@ -25,6 +25,9 @@
         [CommandLineArgument('e', "envars", "display environment variables")]
         public static bool ShowEnvironmentVariables { get; private set; }
 
+        [CommandLineArgument('n', "no-logo", "suppress logo on startup")]
+        public static bool NoLogo { get; private set; }
+
         public static string Version { get; private set; }
         public static Guid InvocationId { get; private set; }
         public static int ProcessId { get; private set; }
@@ -49,17 +52,11 @@
                 return;
             }
 
-            if (ShowHelp)
+            if (ShowHelp || ShowEnvironmentVariables)
             {
-                PrintLogo(Version);                
-                PrintCommandLineArguments();
-                return;
-            }
-
-            if (ShowEnvironmentVariables)
-            {
-                PrintLogo(Version);
-                PrintEnvironmentVariables();
+                if (!NoLogo) PrintLogo(Version);
+                if (ShowHelp) PrintCommandLineArguments();
+                if (ShowEnvironmentVariables) PrintEnvironmentVariables(EnvironmentVariablePrefix);
                 return;
             }
 
@@ -233,6 +230,7 @@
 
             Console.WriteLine("\nusage: slskd [arguments]\n");
             Console.WriteLine("arguments:\n");
+
             foreach (Option option in Configuration.Map)
             {
                 var (shortName, longName, _, type, key, description) = option;
@@ -247,13 +245,14 @@
             }
         }
 
-        public static void PrintEnvironmentVariables()
+        public static void PrintEnvironmentVariables(string prefix)
         {
             static string GetName(string name, Type type) => $"{name} <{type.Name.ToLowerInvariant()}>";
 
             var longestName = Configuration.Map.Select(a => GetName(a.EnvironmentVariable, a.Type)).Max(n => n.Length);
 
             Console.WriteLine("\nenvironment variables (arguments and config.yml have precedence):\n");
+
             foreach (Option option in Configuration.Map)
             {
                 var (_, _, environmentVariable, type, key, description) = option;
