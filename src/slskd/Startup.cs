@@ -45,6 +45,9 @@
         private SoulseekClient Client { get; set; }
         private object ConsoleSyncRoot { get; } = new object();
         private ISharedFileCache SharedFileCache { get; set; }
+        private string UrlBase { get; set; }
+        private string ContentPath { get; set; }
+        private SymmetricSecurityKey JwtSigningKey { get; set; }
 
         public Startup(IConfiguration configuration)
         {
@@ -71,14 +74,19 @@
             services.AddOptions<Configuration.Authentication>()
                 .Bind(Configuration.GetSection("authentication"));
 
+            UrlBase = Program.Options.Web.UrlBase;
+            UrlBase = UrlBase.StartsWith("/") ? UrlBase : "/" + UrlBase;
+            
+            ContentPath = Path.GetFullPath(Program.Options.Web.ContentPath);
+
+            JwtSigningKey = new SymmetricSecurityKey(PBKDF2.GetKey(Program.Options.Web.Jwt.Key));
+
             services.AddCors(options => options.AddPolicy("AllowAll", builder => builder.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader()));
+
+            services.AddSingleton(JwtSigningKey);
 
             if (!Program.Options.NoAuth)
             {
-                var jwtSigningKey = new SymmetricSecurityKey(PBKDF2.GetKey(Program.Options.Web.Jwt.Key));
-
-                services.AddSingleton(jwtSigningKey);
-
                 services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                     .AddJwtBearer(options =>
                     {
@@ -91,7 +99,7 @@
                             ValidIssuer = "slskd",
                             ValidateIssuer = true,
                             ValidateAudience = false,
-                            IssuerSigningKey = jwtSigningKey,
+                            IssuerSigningKey = JwtSigningKey,
                             ValidateIssuerSigningKey = true,
                         };
                     });
@@ -193,22 +201,22 @@
 
             FileServerOptions fileServerOptions = default;
 
-            if (!System.IO.Directory.Exists(Program.Options.Web.ContentPath))
+            if (!System.IO.Directory.Exists(ContentPath))
             {
-                logger.Warning($"Static content disabled; cannot find content path '{Program.Options.Web.ContentPath}'");
+                logger.Warning($"Static content disabled; cannot find content path '{ContentPath}'");
             }
             else
             {
                 fileServerOptions = new FileServerOptions
                 {
-                    FileProvider = new PhysicalFileProvider(Program.Options.Web.ContentPath),
+                    FileProvider = new PhysicalFileProvider(ContentPath),
                     RequestPath = "",
                     EnableDirectoryBrowsing = false,
                     EnableDefaultFiles = true
                 };
 
                 app.UseFileServer(fileServerOptions);
-                logger.Information("Serving static content from {ContentPath}", Program.Options.Web.ContentPath);
+                logger.Information("Serving static content from {ContentPath}", ContentPath);
             }
 
             app.UseSerilogRequestLogging();
@@ -254,7 +262,7 @@
 
             // finally, hit the fileserver again.  if the path was modified to return the index above, the index document will be returned
             // otherwise it will throw a final 404 back to the client.
-            if (System.IO.Directory.Exists(Program.Options.Web.ContentPath))
+            if (System.IO.Directory.Exists(ContentPath))
             {
                 app.UseFileServer(fileServerOptions);
             }
