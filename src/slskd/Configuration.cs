@@ -2,7 +2,8 @@
 {
     using System;
     using System.Collections.Generic;
-    
+    using System.Linq;
+
     public record Option(char ShortName, string LongName, string EnvironmentVariable, Type Type, string Key, string Description = null);
 
     public static class Configuration
@@ -190,9 +191,9 @@
             {
                 public string Username { get; set; }
                 public string Password { get; set; }
-                public int ListenPort { get; set; } = 50000;
-                public DistributedNetworkOptions DistributedNetwork { get; set; }
-                public ConnectionOptions Connection { get; set; }
+                public int? ListenPort { get; set; } = 50000;
+                public DistributedNetworkOptions DistributedNetwork { get; set; } = new DistributedNetworkOptions();
+                public ConnectionOptions Connection { get; set; } = new ConnectionOptions();
 
                 public class DistributedNetworkOptions
                 {
@@ -202,8 +203,8 @@
 
                 public class ConnectionOptions
                 {
-                    public TimeoutOptions Timeout { get; set; }
-                    public BufferOptions Buffer { get; set; }
+                    public TimeoutOptions Timeout { get; set; } = new TimeoutOptions();
+                    public BufferOptions Buffer { get; set; } = new BufferOptions();
 
                     public class TimeoutOptions
                     {
@@ -222,8 +223,8 @@
 
         public class Authentication
         {
-            public IEnumerable<User> Users { get; set; }
-            public IEnumerable<ApiKey> ApiKeys { get; set; }
+            public IEnumerable<User> Users { get; set; } = Enumerable.Empty<User>();
+            public IEnumerable<ApiKey> ApiKeys { get; set; } = Enumerable.Empty<ApiKey>();
 
             public class User
             {
