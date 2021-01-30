@@ -1,5 +1,6 @@
 ﻿namespace slskd.DTO
 {
+    using slskd.Entities;
     using System.Collections.Generic;
     using System.Linq;
 
