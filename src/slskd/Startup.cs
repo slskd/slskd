@@ -25,13 +25,13 @@
     using slskd.Security;
     using Microsoft.AspNetCore.Authentication.JwtBearer;
     using Prometheus.SystemMetrics;
-    using Microsoft.Extensions.Options;
     using Serilog;
     using Microsoft.Extensions.Hosting;
     using Prometheus;
     using Microsoft.Extensions.FileProviders;
     using Serilog.Events;
     using slskd.Entities;
+    using Microsoft.Extensions.Options;
 
     public class Startup
     {
@@ -43,7 +43,6 @@
         internal static string XmlDocFile { get; set; }
 
         private SoulseekClient Client { get; set; }
-        private object ConsoleSyncRoot { get; } = new object();
         private ISharedFileCache SharedFileCache { get; set; }
         private string UrlBase { get; set; }
         private string ContentPath { get; set; }
@@ -52,6 +51,12 @@
         public Startup(IConfiguration configuration)
         {
             Configuration = configuration;
+
+            Options = new Options();
+            Configuration.GetSection("slskd").Bind(Options, (o) =>
+            {
+                o.BindNonPublicProperties = true;
+            });
 
             OutputDirectory = Configuration.GetValue<string>("OUTPUT_DIR");
             SharedDirectory = Configuration.GetValue<string>("SHARED_DIR");
@@ -63,29 +68,29 @@
             SharedFileCache = new SharedFileCache(SharedDirectory, SharedCacheTTL);
         }
 
-        public IConfiguration Configuration { get; }
-        public ConcurrentDictionary<string, ILogger> Loggers { get; } = new ConcurrentDictionary<string, ILogger>();
+        private IConfiguration Configuration { get; }
+        private Options Options { get; }
+        private ConcurrentDictionary<string, ILogger> Loggers { get; } = new ConcurrentDictionary<string, ILogger>();
 
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddOptions<Configuration.Program>()
-                .Bind(Configuration.GetSection("soulseek"));
+            var logger = Log.ForContext<Startup>();
 
-            services.AddOptions<Configuration.Authentication>()
-                .Bind(Configuration.GetSection("authentication"));
+            services.AddOptions<Options>()
+                .Bind(Configuration.GetSection("slskd"), o => { o.BindNonPublicProperties = true; });
 
-            UrlBase = Program.Options.Web.UrlBase;
+            UrlBase = Options.Web.UrlBase;
             UrlBase = UrlBase.StartsWith("/") ? UrlBase : "/" + UrlBase;
             
-            ContentPath = Path.GetFullPath(Program.Options.Web.ContentPath);
+            ContentPath = Path.GetFullPath(Options.Web.ContentPath);
 
-            JwtSigningKey = new SymmetricSecurityKey(PBKDF2.GetKey(Program.Options.Web.Jwt.Key));
+            JwtSigningKey = new SymmetricSecurityKey(PBKDF2.GetKey(Options.Web.Jwt.Key));
 
             services.AddCors(options => options.AddPolicy("AllowAll", builder => builder.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader()));
 
             services.AddSingleton(JwtSigningKey);
 
-            if (!Program.Options.NoAuth)
+            if (!Options.Web.NoAuth)
             {
                 services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                     .AddJwtBearer(options =>
@@ -106,6 +111,8 @@
             }
             else
             {
+                logger.Warning("Authentication of web requests is DISABLED");
+                
                 services.AddAuthentication(PassthroughAuthentication.AuthenticationScheme)
                     .AddScheme<PassthroughAuthenticationOptions, PassthroughAuthenticationHandler>(PassthroughAuthentication.AuthenticationScheme, options =>
                     {
@@ -145,7 +152,7 @@
                 }
             });
 
-            if (Program.Options.Feature.Prometheus)
+            if (Options.Feature.Prometheus)
             {
                 services.AddSystemMetrics();
             }
@@ -165,10 +172,13 @@
             ITransferTracker tracker, 
             IBrowseTracker browseTracker, 
             IConversationTracker conversationTracker,
-            IOptionsMonitor<Configuration.Program> soulseekOptions,
-            IOptionsMonitor<Configuration.Authentication> authenticationOptions,
+            IOptionsMonitor<Options> optionsMonitor,
             IRoomTracker roomTracker)
         {
+            Console.WriteLine("--------------------------------------");
+            Console.WriteLine(JsonSerializer.Serialize(optionsMonitor.CurrentValue));
+            Console.WriteLine("--------------------------------------");
+
             var logger = Log.ForContext<Startup>();
 
             if (!env.IsDevelopment())
@@ -176,14 +186,10 @@
                 app.UseHsts();
             }
 
-            Console.WriteLine(JsonSerializer.Serialize(authenticationOptions.CurrentValue));
-
-            authenticationOptions.OnChange(o => Console.WriteLine(JsonSerializer.Serialize(o)));
-
             app.UseCors("AllowAll");
 
-            app.UsePathBase(Program.Options.Web.UrlBase);
-            logger.Information("Using base url {UrlBase}", Program.Options.Web.UrlBase);
+            app.UsePathBase(UrlBase);
+            logger.Information("Using base url {UrlBase}", UrlBase);
 
             // remove any errant double forward slashes which may have been introduced
             // by a reverse proxy or having the base path removed
@@ -221,8 +227,10 @@
 
             app.UseSerilogRequestLogging();
 
-            if (Program.Options.Feature.Prometheus)
+            if (Options.Feature.Prometheus)
             {
+                logger.Information("Publishing Prometheus metrics to /metrics");
+
                 app.UseHttpMetrics();
             }
 
@@ -234,14 +242,16 @@
             {
                 endpoints.MapControllers();
 
-                if (Program.Options.Feature.Prometheus)
+                if (Options.Feature.Prometheus)
                 {
                     endpoints.MapMetrics();
                 }
             });
 
-            if (Program.Options.Feature.Swagger)
+            if (Options.Feature.Swagger)
             {
+                logger.Information("Publishing Swagger documentation to /swagger");
+
                 app.UseSwagger();
                 app.UseSwaggerUI(options => provider.ApiVersionDescriptions.ToList()
                     .ForEach(description => options.SwaggerEndpoint($"/swagger/{description.GroupName}/swagger.json", description.GroupName)));
@@ -270,20 +280,22 @@
             // ---------------------------------------------------------------------------------------------------------------------------------------------
             // begin SoulseekClient implementation
             // ---------------------------------------------------------------------------------------------------------------------------------------------
-
             var connectionOptions = new ConnectionOptions(
-                readBufferSize: soulseekOptions.CurrentValue.Soulseek.Connection.Buffer.Read,
-                writeBufferSize: soulseekOptions.CurrentValue.Soulseek.Connection.Buffer.Write,
-                connectTimeout: soulseekOptions.CurrentValue.Soulseek.Connection.Timeout.Connect,
-                inactivityTimeout: soulseekOptions.CurrentValue.Soulseek.Connection.Timeout.Inactivity);
+                readBufferSize: Options.Soulseek.Connection.Buffer.Read,
+                writeBufferSize: Options.Soulseek.Connection.Buffer.Write,
+                connectTimeout: Options.Soulseek.Connection.Timeout.Connect,
+                inactivityTimeout: Options.Soulseek.Connection.Timeout.Inactivity);
+
+            var defaults = new SoulseekClientOptions();
 
             // create options for the client.
             // see the implementation of Func<> and Action<> options for detailed info.
             var clientOptions = new SoulseekClientOptions(
-                listenPort: soulseekOptions.CurrentValue.Soulseek.ListenPort,
+                listenPort: Options.Soulseek.ListenPort ?? defaults.ListenPort,
+                enableListener: Options.Soulseek.ListenPort.HasValue,
                 userEndPointCache: new UserEndPointCache(),
-                distributedChildLimit: soulseekOptions.CurrentValue.Soulseek.DistributedNetwork.ChildLimit,
-                enableDistributedNetwork: soulseekOptions.CurrentValue.Soulseek.DistributedNetwork.Enabled,
+                distributedChildLimit: Options.Soulseek.DistributedNetwork.ChildLimit,
+                enableDistributedNetwork: Options.Soulseek.DistributedNetwork.Enabled,
                 minimumDiagnosticLevel: DiagnosticLevel,
                 autoAcknowledgePrivateMessages: false,
                 acceptPrivateRoomInvitations: true,
@@ -296,8 +308,8 @@
                 enqueueDownloadAction: (username, endpoint, filename) => EnqueueDownloadAction(username, endpoint, filename, tracker),
                 searchResponseResolver: SearchResponseResolver);
 
-            var username = soulseekOptions.CurrentValue.Soulseek.Username;
-            var password = soulseekOptions.CurrentValue.Soulseek.Password;
+            var username = Options.Username;
+            var password = Options.Password;
 
             Client = new SoulseekClient(options: clientOptions);
 
@@ -390,20 +402,20 @@
             {
                 logger.Warning("Disconnected from Soulseek server: {Message}", args.Message, args.Exception);
 
-                // don't reconnect if the disconnecting Exception is either of these types.
-                // if KickedFromServerException, another client was most likely signed in, and retrying will cause a connect loop.
-                // if ObjectDisposedException, the client is shutting down.
-                if (!(args.Exception is KickedFromServerException || args.Exception is ObjectDisposedException))
-                {
-                    logger.Warning("Attepting to reconnect...");
-                    await Client.ConnectAsync(username, password);
-                }
+                //// don't reconnect if the disconnecting Exception is either of these types.
+                //// if KickedFromServerException, another client was most likely signed in, and retrying will cause a connect loop.
+                //// if ObjectDisposedException, the client is shutting down.
+                //if (!(args.Exception is KickedFromServerException || args.Exception is ObjectDisposedException))
+                //{
+                //    logger.Warning("Attepting to reconnect...");
+                //    await Client.ConnectAsync(username, password);
+                //}
             };
 
-            //Task.Run(async () =>
-            //{
-            //    await Client.ConnectAsync(Username, Password);
-            //}).GetAwaiter().GetResult();
+            Task.Run(async () =>
+            {
+                // await Client.ConnectAsync("vps2.slsknet.org", 2242, "praetor-2", "Jyi98uas");
+            }).GetAwaiter().GetResult();
 
             logger.Information("Connected and logged in as {Username}", username);
         }
