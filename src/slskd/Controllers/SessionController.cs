@@ -9,8 +9,8 @@
     using System.Security.Claims;
     using slskd.DTO;
     using Microsoft.Extensions.Options;
-    using System.Linq;
     using slskd;
+    using System.Text.Json;
 
     /// <summary>
     ///     Session
@@ -22,17 +22,15 @@
     [Consumes("application/json")]
     public class SessionController : ControllerBase
     {
-        private IOptionsSnapshot<Configuration.Program> SoulseekOptions { get; set; }
-        private IOptionsSnapshot<Configuration.Authentication> AuthenticationOptions { get; set; }
+        private slskd.Options Options { get; set; }
         private SymmetricSecurityKey JwtSigningKey { get; set; }
 
         public SessionController(
-            IOptionsSnapshot<Configuration.Program> soulseekOptions,
-            IOptionsSnapshot<Configuration.Authentication> authenticationOptions,
+            IOptionsSnapshot<slskd.Options> optionsSnapshot,
             SymmetricSecurityKey jwtSigningKey)
         {
-            SoulseekOptions = soulseekOptions;
-            AuthenticationOptions = authenticationOptions;
+            Options = optionsSnapshot.Value;
+            Console.WriteLine(JsonSerializer.Serialize(Options));
             JwtSigningKey = jwtSigningKey;
         }
 
@@ -47,7 +45,7 @@
         [ProducesResponseType(typeof(bool), 200)]
         public IActionResult Enabled()
         {
-            return base.Ok((object)!Program.Options.NoAuth);
+            return base.Ok(!Options.Web.NoAuth);
         }
 
         /// <summary>
@@ -96,19 +94,10 @@
                 return BadRequest("Username and/or Password missing or invalid");
             }
 
-            var user = AuthenticationOptions.Value.Users
-                .Where(u => u.Name == login.Username)
-                .FirstOrDefault();
-
-            // todo: allow login with root creds
-            if (user == default)
+            // only admin login for now
+            if (Options.Username == login.Username && Options.Password == login.Password)
             {
-                return Unauthorized();
-            }
-
-            if (login.Password == user.Password)
-            {
-                return Ok(new TokenResponse(GetJwtSecurityToken(user.Name, user.Role)));
+                return Ok(new TokenResponse(GetJwtSecurityToken(login.Username, Role.Administrator)));
             }
 
             return Unauthorized();
@@ -117,7 +106,7 @@
         private JwtSecurityToken GetJwtSecurityToken(string username, Role role)
         {
             var issuedUtc = DateTime.UtcNow;
-            var expiresUtc = DateTime.UtcNow.AddMilliseconds((double)Program.Options.Web.Jwt.TTL);
+            var expiresUtc = DateTime.UtcNow.AddMilliseconds(Options.Web.Jwt.Ttl);
 
             var claims = new List<Claim>()
             {
