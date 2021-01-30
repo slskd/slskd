@@ -8,43 +8,53 @@
     using Serilog.Events;
     using Serilog.Sinks.Grafana.Loki;
     using System;
-    using System.Diagnostics;
     using System.IO;
     using System.Linq;
     using System.Reflection;
     using System.Text.Json;
-    
+
+    public static class ProgramExtensions
+    {
+        public static IConfigurationBuilder AddConfigurationProviders(this IConfigurationBuilder builder, string environmentVariablePrefix, string configurationFile)
+        {
+            return builder
+                .AddEnvironmentVariables(
+                    prefix: environmentVariablePrefix,
+                    map: Options.Map.Select(o => o.ToEnvironmentVariable()))
+                .SetBasePath(Directory.GetCurrentDirectory())
+                .AddYamlFile(Path.Combine(AppContext.BaseDirectory, configurationFile), optional: true, reloadOnChange: false)
+                .AddCommandLine(
+                    commandLine: Environment.CommandLine,
+                    map: Options.Map.Select(o => o.ToCommandLineArgument()));
+        }
+    }
+
     public class Program
     {
-        [CommandLineArgument('v', "version", "display version information")]
-        public static bool ShowVersion { get; private set; }
+        private static readonly string ConfigurationFile = "slskd.yml";
+        private static readonly string EnvironmentVariablePrefix = "SLSKD_";
 
-        [CommandLineArgument('h', "help", "display command line usage")]
-        public static bool ShowHelp { get; private set; }
-
-        [CommandLineArgument('e', "envars", "display environment variables")]
-        public static bool ShowEnvironmentVariables { get; private set; }
+        public static Guid InvocationId { get; } = Guid.NewGuid();
+        public static int ProcessId { get; } = Environment.ProcessId;
+        public static Version AssemblyVersion { get; } = Assembly.GetExecutingAssembly().GetName().Version;
+        public static string InformationalVersion { get; } = Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>().InformationalVersion;
+        public static string Version { get; } = $"{AssemblyVersion} ({InformationalVersion})";
 
         [CommandLineArgument('n', "no-logo", "suppress logo on startup")]
-        public static bool NoLogo { get; private set; }
+        private static bool NoLogo { get; set; }
 
-        public static string Version { get; private set; }
-        public static Guid InvocationId { get; private set; }
-        public static int ProcessId { get; private set; }
+        [CommandLineArgument('e', "envars", "display environment variables")]
+        private static bool ShowEnvironmentVariables { get; set; }
 
-        public static readonly string ConfigurationFile = "config.yml";
-        public static readonly string EnvironmentVariablePrefix = "SLSKD_";
+        [CommandLineArgument('h', "help", "display command line usage")]
+        private static bool ShowHelp { get; set; }
 
-        public static Configuration.Program Options { get; private set; } = new Configuration.Program();
+        [CommandLineArgument('v', "version", "display version information")]
+        private static bool ShowVersion { get; set; }
 
         public static void Main(string[] args)
         {
             CommandLineArguments.Populate();
-
-            var assembly = Assembly.GetExecutingAssembly();
-            var assemblyVersion = assembly.GetName().Version;
-            var informationVersion = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>().InformationalVersion;
-            Version = $"{assemblyVersion} ({informationVersion})";
 
             if (ShowVersion)
             {
@@ -61,44 +71,28 @@
             }
 
             var configuration = new ConfigurationBuilder()
-                .AddEnvironmentVariables(
-                    prefix: EnvironmentVariablePrefix,
-                    map: Configuration.Map.Select(o => o.ToEnvironmentVariable()))
-                .SetBasePath(Directory.GetCurrentDirectory())
-                .AddYamlFile(ConfigurationFile, optional: true, reloadOnChange: false)
-                .AddCommandLine(
-                    commandLine: Environment.CommandLine,
-                    map: Configuration.Map.Select(o => o.ToCommandLineArgument()))
+                .AddConfigurationProviders(EnvironmentVariablePrefix, ConfigurationFile)
                 .Build();
 
-            configuration
-                .GetSection("slskd")
-                .Bind(Options, (o) => 
-                { 
-                    o.BindNonPublicProperties = true; 
-                });
+            var options = new Options();
 
-            if (Options.Debug)
-            {
-                Console.WriteLine(configuration.GetDebugView());
-                Console.WriteLine(JsonSerializer.Serialize(Options));
-            }
+            configuration.GetSection("slskd").Bind(options, (o) => { o.BindNonPublicProperties = true; });
 
-            InvocationId = Guid.NewGuid();
-            ProcessId = Environment.ProcessId;
-
-            if (!Options.NoLogo)
+            if (!options.NoLogo)
             {
                 PrintLogo(Version);
             }
 
-            if (Options.Debug || Debugger.IsAttached)
+            if (options.Debug)
             {
+                Console.WriteLine(configuration.GetDebugView());
+                Console.WriteLine(JsonSerializer.Serialize(options, new JsonSerializerOptions() { WriteIndented = true }));
+
                 Log.Logger = new LoggerConfiguration()
                     .MinimumLevel.Debug()
                     .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
                     .Enrich.WithProperty("Version", Version)
-                    .Enrich.WithProperty("InstanceName", Options.InstanceName)
+                    .Enrich.WithProperty("InstanceName", options.InstanceName)
                     .Enrich.WithProperty("InvocationId", InvocationId)
                     .Enrich.WithProperty("ProcessId", ProcessId)
                     .Enrich.FromLogContext()
@@ -110,9 +104,9 @@
                             outputTemplate: "[{SourceContext}] [{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}",
                             rollingInterval: RollingInterval.Day))
                     .WriteTo.Conditional(
-                        e => !string.IsNullOrEmpty(Options.Logger.Loki),
+                        e => !string.IsNullOrEmpty(options.Logger.Loki),
                         config => config.GrafanaLoki(
-                            Options.Logger.Loki ?? string.Empty,
+                            options.Logger.Loki ?? string.Empty,
                             outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}"))
                     .CreateLogger();
             }
@@ -123,7 +117,7 @@
                     .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
                     .MinimumLevel.Override("slskd.Security.PassthroughAuthenticationHandler", LogEventLevel.Information)
                     .Enrich.WithProperty("Version", Version)
-                    .Enrich.WithProperty("InstanceName", Options.InstanceName)
+                    .Enrich.WithProperty("InstanceName", options.InstanceName)
                     .Enrich.WithProperty("InvocationId", InvocationId)
                     .Enrich.WithProperty("ProcessId", ProcessId)
                     .Enrich.FromLogContext()
@@ -135,9 +129,9 @@
                             outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}",
                             rollingInterval: RollingInterval.Day))
                     .WriteTo.Conditional(
-                        e => !string.IsNullOrEmpty(Options.Logger.Loki),
+                        e => !string.IsNullOrEmpty(options.Logger.Loki),
                         config => config.GrafanaLoki(
-                            Options.Logger.Loki ?? string.Empty,
+                            options.Logger.Loki ?? string.Empty,
                             outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}"))
                     .CreateLogger();
             }
@@ -145,38 +139,33 @@
             var logger = Log.ForContext<Program>();
 
             logger.Information("Version: {Version}", Version);
-            logger.Information("Instance Name: {InstanceName}", Options.InstanceName);
+            logger.Information("Instance Name: {InstanceName}", options.InstanceName);
             logger.Information("Invocation ID: {InvocationId}", InvocationId);
             logger.Information("Process ID: {ProcessId}", ProcessId);
 
-            if (Options.NoAuth)
+            if (!string.IsNullOrEmpty(options.Logger.Loki))
             {
-                logger.Warning("Authentication of web requests is DISABLED");
-            }
-
-            if (Options.Feature.Prometheus)
-            {
-                logger.Information("Publishing Prometheus metrics to /metrics");
-            }
-
-            if (Options.Feature.Swagger)
-            {
-                logger.Information("Publishing Swagger documentation to /swagger");
-            }
-
-            if (!string.IsNullOrEmpty(Options.Logger.Loki))
-            {
-                logger.Information("Logging to Loki instance at {LoggerLokiUrl}", Options.Logger.Loki);
+                logger.Information("Forwarding logs to Grafana Loki instance at {LoggerLokiUrl}", options.Logger.Loki);
             }
 
             try
             {
-                if (Options.Feature.Prometheus)
+                if (options.Feature.Prometheus)
                 {
                     using var runtimeMetrics = DotNetRuntimeStatsBuilder.Default().StartCollecting();
                 }
 
-                CreateWebHostBuilder(args).Build().Run();
+                WebHost.CreateDefaultBuilder(args)
+                    .ConfigureAppConfiguration((hostingContext, builder) =>
+                    {
+                        builder.Sources.Clear();
+                        builder.AddConfigurationProviders(EnvironmentVariablePrefix, ConfigurationFile);
+                    })
+                    .UseSerilog()
+                    .UseStartup<Startup>()
+                    .UseUrls("http://0.0.0.0:5000", "https://0.0.0.0:5001")
+                    .Build()
+                    .Run();
             }
             catch (Exception ex)
             {
@@ -188,15 +177,51 @@
             }
         }
 
-        public static IWebHostBuilder CreateWebHostBuilder(string[] args) =>
-            WebHost.CreateDefaultBuilder(args)
-                .ConfigureAppConfiguration((hostingContext, config) =>
+        public static void PrintCommandLineArguments()
+        {
+            static string GetLongName(string longName, Type type)
+                => type == typeof(bool) ? longName : $"{longName} <{type.Name.ToLowerInvariant()}>";
+
+            var longestName = Options.Map.Select(a => GetLongName(a.LongName, a.Type)).Max(n => n.Length);
+
+            Console.WriteLine("\nusage: slskd [arguments]\n");
+            Console.WriteLine("arguments:\n");
+
+            foreach (Option item in Options.Map)
+            {
+                var (shortName, longName, _, type, key, description) = item;
+
+                if (shortName == default && string.IsNullOrEmpty(longName))
                 {
-                    config.AddEnvironmentVariables(prefix: "SLSK_");
-                    config.AddYamlFile(ConfigurationFile, optional: true, reloadOnChange: true);
-                })
-                .UseSerilog()
-                .UseStartup<Startup>();
+                    continue;
+                }
+
+                var result = $"  {shortName}{(shortName == default ? string.Empty : "|")}--{GetLongName(longName, type).PadRight(longestName + 3)}{description}";
+                Console.WriteLine(result);
+            }
+        }
+
+        public static void PrintEnvironmentVariables(string prefix)
+        {
+            static string GetName(string name, Type type) => $"{name} <{type.Name.ToLowerInvariant()}>";
+
+            var longestName = Options.Map.Select(a => GetName(a.EnvironmentVariable, a.Type)).Max(n => n.Length);
+
+            Console.WriteLine("\nenvironment variables (arguments and config.yml have precedence):\n");
+
+            foreach (Option item in Options.Map)
+            {
+                var (_, _, environmentVariable, type, key, description) = item;
+
+                if (string.IsNullOrEmpty(environmentVariable) || string.IsNullOrEmpty(key))
+                {
+                    continue;
+                }
+
+                var result = $"  {prefix}{GetName(environmentVariable, type).PadRight(longestName + 3)}{description}";
+                Console.WriteLine(result);
+            }
+        }
 
         private static void PrintLogo(string version)
         {
@@ -219,52 +244,6 @@
 └────────────────────────────────────────────────────────┘";
 
             Console.WriteLine(banner);
-        }
-
-        public static void PrintCommandLineArguments()
-        {
-            static string GetLongName(string longName, Type type)
-                => type == typeof(bool) ? longName : $"{longName} <{type.Name.ToLowerInvariant()}>";
-
-            var longestName = Configuration.Map.Select(a => GetLongName(a.LongName, a.Type)).Max(n => n.Length);
-
-            Console.WriteLine("\nusage: slskd [arguments]\n");
-            Console.WriteLine("arguments:\n");
-
-            foreach (Option option in Configuration.Map)
-            {
-                var (shortName, longName, _, type, key, description) = option;
-
-                if (shortName == default && string.IsNullOrEmpty(longName))
-                {
-                    continue;
-                }
-
-                var result = $"  {shortName}{(shortName == default ? string.Empty : "|")}--{GetLongName(longName, type).PadRight(longestName + 3)}{description}";
-                Console.WriteLine(result);
-            }
-        }
-
-        public static void PrintEnvironmentVariables(string prefix)
-        {
-            static string GetName(string name, Type type) => $"{name} <{type.Name.ToLowerInvariant()}>";
-
-            var longestName = Configuration.Map.Select(a => GetName(a.EnvironmentVariable, a.Type)).Max(n => n.Length);
-
-            Console.WriteLine("\nenvironment variables (arguments and config.yml have precedence):\n");
-
-            foreach (Option option in Configuration.Map)
-            {
-                var (_, _, environmentVariable, type, key, description) = option;
-
-                if (string.IsNullOrEmpty(environmentVariable) || string.IsNullOrEmpty(key))
-                {
-                    continue;
-                }
-
-                var result = $"  {EnvironmentVariablePrefix}{GetName(environmentVariable, type).PadRight(longestName + 3)}{description}";
-                Console.WriteLine(result);
-            }
         }
     }
 }
