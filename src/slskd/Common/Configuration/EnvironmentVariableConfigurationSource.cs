@@ -91,11 +91,13 @@
         public EnvironmentVariableConfigurationProvider(EnvironmentVariableConfigurationSource source) 
         {
             Map = source.Map;
+            Prefix = source.Prefix;
             NormalizeKey = source.NormalizeKey;
         }
 
         private IEnumerable<EnvironmentVariable> Map { get; set; }
         private bool NormalizeKey { get; set; }
+        private string Prefix { get; set; }
 
         /// <summary>
         ///     Loads environment variables and maps them to the specified keys.
@@ -116,7 +118,7 @@
                     continue;
                 }
 
-                var value = Environment.GetEnvironmentVariable(name);
+                var value = Environment.GetEnvironmentVariable(Prefix + name);
 
                 if (string.IsNullOrEmpty(value))
                 {
