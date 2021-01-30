@@ -1,0 +1,32 @@
+slskd:
+  username: slskd
+  password: slskd
+  debug: false
+  no_logo: false
+  instance_name: default
+  feature:
+    prometheus: true
+    swagger: true
+  logger:
+    loki: ~
+  web:
+    url_base: /
+    content_path: wwwroot
+    no_auth: false
+    jwt:
+      ttl: 604800000
+      key: ~
+  soulseek:
+    username: ~
+    password: ~
+    listen_port: 50000
+    distributed_network:
+      enabled: true
+      child_limit: 10
+    connection:
+      timeout:
+        connect: 5000
+        inactivity: 15000
+      buffer:
+        read: 16384
+        write: 16384
