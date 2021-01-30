@@ -23,11 +23,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Remove="config.yml" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Content Include="config.yml" />
+    <Content Include="slskd.yml">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 
   <ItemGroup>
