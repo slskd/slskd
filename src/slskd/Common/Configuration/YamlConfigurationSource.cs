@@ -148,7 +148,7 @@
             }
             else if (root is YamlSequenceNode sequence)
             {
-                for (int i = 0; i < sequence.Children.Count(); i++)
+                for (int i = 0; i < sequence.Children.Count; i++)
                 {
                     Traverse(sequence.Children[i], ConfigurationPath.Combine(path, i.ToString()));
                 }
