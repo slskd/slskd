@@ -18,11 +18,15 @@
         public static IConfigurationBuilder AddConfigurationProviders(this IConfigurationBuilder builder, string environmentVariablePrefix, string configurationFile)
         {
             return builder
+                .AddDefaultValues(
+                    map: Options.Map.Select(o => o.ToDefaultValue()))
                 .AddEnvironmentVariables(
                     prefix: environmentVariablePrefix,
                     map: Options.Map.Select(o => o.ToEnvironmentVariable()))
-                .SetBasePath(Directory.GetCurrentDirectory())
-                .AddYamlFile(Path.Combine(AppContext.BaseDirectory, configurationFile), optional: true, reloadOnChange: false)
+                .AddYamlFile(
+                    path: Path.Combine(Directory.GetCurrentDirectory(), configurationFile), 
+                    optional: true, 
+                    reloadOnChange: false)
                 .AddCommandLine(
                     commandLine: Environment.CommandLine,
                     map: Options.Map.Select(o => o.ToCommandLineArgument()));
@@ -163,7 +167,9 @@
                     })
                     .UseSerilog()
                     .UseStartup<Startup>()
-                    .UseUrls("http://0.0.0.0:5000", "https://0.0.0.0:5001")
+                    .UseUrls(
+                        $"http://0.0.0.0:{options.Web.Port}", 
+                        $"https://0.0.0.0:{options.Web.Https.Port}")
                     .Build()
                     .Run();
             }
@@ -182,21 +188,22 @@
             static string GetLongName(string longName, Type type)
                 => type == typeof(bool) ? longName : $"{longName} <{type.Name.ToLowerInvariant()}>";
 
-            var longestName = Options.Map.Select(a => GetLongName(a.LongName, a.Type)).Max(n => n.Length);
+            var longestName = Options.Map.Where(a => !string.IsNullOrEmpty(a.LongName)).Select(a => GetLongName(a.LongName, a.Type)).Max(n => n.Length);
 
             Console.WriteLine("\nusage: slskd [arguments]\n");
             Console.WriteLine("arguments:\n");
 
             foreach (Option item in Options.Map)
             {
-                var (shortName, longName, _, type, key, description) = item;
+                var (shortName, longName, _, key, type, defaultValue, description) = item;
 
                 if (shortName == default && string.IsNullOrEmpty(longName))
                 {
                     continue;
                 }
 
-                var result = $"  {shortName}{(shortName == default ? string.Empty : "|")}--{GetLongName(longName, type).PadRight(longestName + 3)}{description}";
+                var suffix = type == typeof(bool) ? string.Empty : $" (default: {defaultValue ?? "<null>"})";
+                var result = $"  {shortName}{(shortName == default ? " " : "|")}--{GetLongName(longName, type).PadRight(longestName + 3)}{description}{suffix}";
                 Console.WriteLine(result);
             }
         }
@@ -211,14 +218,15 @@
 
             foreach (Option item in Options.Map)
             {
-                var (_, _, environmentVariable, type, key, description) = item;
+                var (_, _, environmentVariable, key, type, defaultValue, description) = item;
 
                 if (string.IsNullOrEmpty(environmentVariable) || string.IsNullOrEmpty(key))
                 {
                     continue;
                 }
 
-                var result = $"  {prefix}{GetName(environmentVariable, type).PadRight(longestName + 3)}{description}";
+                var suffix = type == typeof(bool) ? string.Empty : $" (default: {defaultValue ?? "<null>"})";
+                var result = $"  {prefix}{GetName(environmentVariable, type).PadRight(longestName + 3)}{description}{suffix}";
                 Console.WriteLine(result);
             }
         }
