@@ -45,7 +45,7 @@
         [ProducesResponseType(typeof(bool), 200)]
         public IActionResult Enabled()
         {
-            return base.Ok(!Options.Web.NoAuth);
+            return base.Ok(!Options.Web.Authentication.Disable);
         }
 
         /// <summary>
@@ -95,7 +95,7 @@
             }
 
             // only admin login for now
-            if (Options.Username == login.Username && Options.Password == login.Password)
+            if (Options.Web.Authentication.Username == login.Username && Options.Web.Authentication.Password == login.Password)
             {
                 return Ok(new TokenResponse(GetJwtSecurityToken(login.Username, Role.Administrator)));
             }
