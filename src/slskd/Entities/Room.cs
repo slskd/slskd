@@ -1,9 +1,8 @@
-﻿namespace slskd
+﻿namespace slskd.Entities
 {
     using Soulseek;
     using System.Collections.Generic;
     using System.Linq;
-    using slskd.Entities;
 
     public class Room
     {

@@ -56,12 +56,6 @@
                 return Ok();
             }
 
-            if (addr && port && !un && !pw)
-            {
-                await Client.ConnectAsync(req.Address, req.Port.Value);
-                return Ok();
-            }
-
             if (!addr && !port && un && pw)
             {
                 await Client.ConnectAsync(req.Username, req.Password);

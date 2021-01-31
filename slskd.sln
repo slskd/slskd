@@ -8,7 +8,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "bin", "bin", "{6C7C4DA1-0F1
 		bin\build = bin\build
 		bin\publish = bin\publish
 		bin\run = bin\run
-		bin\start = bin\start
+		bin\watch = bin\watch
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{5478DBA0-A595-4273-9F9D-3D5E11A8ECE8}"

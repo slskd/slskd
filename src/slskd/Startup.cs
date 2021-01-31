@@ -10,100 +10,89 @@
     using System.Text.Json.Serialization;
     using System.Threading;
     using System.Threading.Tasks;
-    using Microsoft.AspNetCore.Authentication.JwtBearer;
     using Microsoft.AspNetCore.Builder;
     using Microsoft.AspNetCore.Hosting;
     using Microsoft.AspNetCore.Mvc.ApiExplorer;
     using Microsoft.Extensions.Caching.Memory;
     using Microsoft.Extensions.Configuration;
     using Microsoft.Extensions.DependencyInjection;
-    using Microsoft.Extensions.FileProviders;
-    using Microsoft.Extensions.Hosting;
-    using Microsoft.IdentityModel.Tokens;
     using Microsoft.OpenApi.Models;
     using Soulseek;
     using Soulseek.Diagnostics;
-    using slskd.Entities;
-    using slskd.Security;
     using slskd.Trackers;
     using System.Collections.Concurrent;
-    using Serilog;
-    using Serilog.Events;
-    using Microsoft.Extensions.Logging;
-    using Prometheus;
+    using Microsoft.IdentityModel.Tokens;
+    using slskd.Security;
+    using Microsoft.AspNetCore.Authentication.JwtBearer;
     using Prometheus.SystemMetrics;
+    using Serilog;
+    using Prometheus;
+    using Microsoft.Extensions.FileProviders;
+    using Serilog.Events;
+    using slskd.Entities;
+    using Microsoft.Extensions.Options;
 
     public class Startup
     {
-        internal static string Username { get; set; }
-        internal static string Password { get; set; }
-        internal static string BasePath { get; set; }
-        internal static string WebRoot { get; set; }
-        internal static int ListenPort { get; set; }
+        private readonly int MaxReconnectAttempts = 3;
+        private int CurrentReconnectAttempts = 0;
+
         internal static string OutputDirectory { get; set; }
         internal static string SharedDirectory { get; set; }
         internal static long SharedCacheTTL { get; set; }
-        internal static bool EnableDistributedNetwork { get; set; }
-        internal static int DistributedChildLimit { get; set; }
         internal static DiagnosticLevel DiagnosticLevel { get; set; }
-        internal static int ConnectTimeout { get; set; }
-        internal static int InactivityTimeout { get; set; }
-        internal static int SecurityTokenTTL { get; set; }
         internal static int RoomMessageLimit { get; set; }
-        internal static int ReadBufferSize { get; set; }
-        internal static int WriteBufferSize { get; set; }
         internal static string XmlDocFile { get; set; }
 
-        internal static SymmetricSecurityKey JwtSigningKey { get; set; }
-
         private SoulseekClient Client { get; set; }
-        private object ConsoleSyncRoot { get; } = new object();
         private ISharedFileCache SharedFileCache { get; set; }
+        private string UrlBase { get; set; }
+        private string ContentPath { get; set; }
+        private SymmetricSecurityKey JwtSigningKey { get; set; }
 
         public Startup(IConfiguration configuration)
         {
             Configuration = configuration;
 
-            Username = Configuration.GetValue<string>("USERNAME");
-            Password = Configuration.GetValue<string>("PASSWORD");
-            BasePath = Configuration.GetValue<string>("BASE_PATH");
-            WebRoot = Configuration.GetValue<string>("WEB_ROOT", Path.Combine(Path.GetDirectoryName(new Uri(AppContext.BaseDirectory).AbsolutePath), "wwwroot"));
-            ListenPort = Configuration.GetValue<int>("LISTEN_PORT", 50000);
+            Options = new Options();
+            Configuration.GetSection("slskd").Bind(Options, (o) =>
+            {
+                o.BindNonPublicProperties = true;
+            });
+
             OutputDirectory = Configuration.GetValue<string>("OUTPUT_DIR");
             SharedDirectory = Configuration.GetValue<string>("SHARED_DIR");
             SharedCacheTTL = Configuration.GetValue<long>("SHARED_CACHE_TTL", 3600000); // 1 hour
-            EnableDistributedNetwork = Configuration.GetValue<bool>("ENABLE_DNET", true);
-            DistributedChildLimit = Configuration.GetValue<int>("DNET_CHILD_LIMIT", 10);
             DiagnosticLevel = Configuration.GetValue<DiagnosticLevel>("DIAGNOSTIC", DiagnosticLevel.Info);
-            ConnectTimeout = Configuration.GetValue<int>("CONNECT_TIMEOUT", 5000);
-            InactivityTimeout = Configuration.GetValue<int>("INACTIVITY_TIMEOUT", 15000);
-            SecurityTokenTTL = Configuration.GetValue<int>("SECURITY_TOKEN_TTL", 604800000); // 7 days
             RoomMessageLimit = Configuration.GetValue<int>("ROOM_MESSAGE_LIMIT", 250);
-            ReadBufferSize = Configuration.GetValue<int>("READ_BUFFER_SIZE", 16384);
-            WriteBufferSize = Configuration.GetValue<int>("WRITE_BUFFER_SIZE", 16384);
             XmlDocFile = Configuration.GetValue<string>("XML_DOC_FILE", Path.Combine(AppContext.BaseDirectory, typeof(Startup).GetTypeInfo().Assembly.GetName().Name + ".xml"));
-
-            JwtSigningKey = new SymmetricSecurityKey(PBKDF2.GetKey(Password));
-
+            
             SharedFileCache = new SharedFileCache(SharedDirectory, SharedCacheTTL);
-
-            BasePath ??= "/";
-            BasePath = BasePath.StartsWith("/") ? BasePath : $"/{BasePath}";
-
-            var logger = Log.ForContext<Startup>();
-
-            logger.Information("Serving static content from {WebRoot}", WebRoot);
-            logger.Information("Using base request path {BasePath}", BasePath);
         }
 
-        public IConfiguration Configuration { get; }
-        public ConcurrentDictionary<string, Serilog.ILogger> Loggers { get; } = new ConcurrentDictionary<string, Serilog.ILogger>();
+        private IConfiguration Configuration { get; }
+        private Options Options { get; }
+        private ConcurrentDictionary<string, ILogger> Loggers { get; } = new ConcurrentDictionary<string, ILogger>();
 
         public void ConfigureServices(IServiceCollection services)
         {
+            var logger = Log.ForContext<Startup>();
+
+            services.AddOptions<Options>()
+                .Bind(Configuration.GetSection("slskd"), o => { o.BindNonPublicProperties = true; });
+
+            UrlBase = Options.Web.UrlBase;
+            UrlBase = UrlBase.StartsWith("/") ? UrlBase : "/" + UrlBase;
+            
+            ContentPath = Path.GetFullPath(Options.Web.ContentPath);
+
+            JwtSigningKey = new SymmetricSecurityKey(PBKDF2.GetKey(Options.Web.Jwt.Key));
+
             services.AddCors(options => options.AddPolicy("AllowAll", builder => builder.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader()));
 
-            if (!Program.DisableAuthentication)
+            services.AddSingleton(JwtSigningKey);
+
+            if (!Options.Web.Authentication.Disable)
             {
                 services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                     .AddJwtBearer(options =>
@@ -124,10 +113,12 @@
             }
             else
             {
+                logger.Warning("Authentication of web requests is DISABLED");
+                
                 services.AddAuthentication(PassthroughAuthentication.AuthenticationScheme)
                     .AddScheme<PassthroughAuthenticationOptions, PassthroughAuthenticationHandler>(PassthroughAuthentication.AuthenticationScheme, options =>
                     {
-                        options.Username = Username;
+                        options.Username = "n/a";
                     });
             }
 
@@ -163,7 +154,7 @@
                 }
             });
 
-            if (Program.EnablePrometheus)
+            if (Options.Feature.Prometheus)
             {
                 services.AddSystemMetrics();
             }
@@ -179,20 +170,27 @@
         public void Configure(
             IApplicationBuilder app, 
             IWebHostEnvironment env,
-            ILoggerFactory loggerFactory,
             IApiVersionDescriptionProvider provider, 
             ITransferTracker tracker, 
             IBrowseTracker browseTracker, 
             IConversationTracker conversationTracker,
+            IOptionsMonitor<Options> optionsMonitor,
             IRoomTracker roomTracker)
         {
-            if (!env.IsDevelopment())
-            {
-                app.UseHsts();
-            }
+            var logger = Log.ForContext<Startup>();
 
             app.UseCors("AllowAll");
-            app.UsePathBase(BasePath);
+
+            if (Options.Web.Https.Force)
+            {
+                app.UseHttpsRedirection();
+                app.UseHsts();
+
+                logger.Information($"Forcing HTTP requests to HTTPS");
+            }
+
+            app.UsePathBase(UrlBase);
+            logger.Information("Using base url {UrlBase}", UrlBase);
 
             // remove any errant double forward slashes which may have been introduced
             // by a reverse proxy or having the base path removed
@@ -208,23 +206,34 @@
                 await next();
             });
 
-            var fileServerOptions = new FileServerOptions
-            {
-                FileProvider = new PhysicalFileProvider(WebRoot),
-                RequestPath = "",
-                EnableDirectoryBrowsing = false,
-                EnableDefaultFiles = true
-            };
+            FileServerOptions fileServerOptions = default;
 
-            app.UseFileServer(fileServerOptions);
+            if (!System.IO.Directory.Exists(ContentPath))
+            {
+                logger.Warning($"Static content disabled; cannot find content path '{ContentPath}'");
+            }
+            else
+            {
+                fileServerOptions = new FileServerOptions
+                {
+                    FileProvider = new PhysicalFileProvider(ContentPath),
+                    RequestPath = "",
+                    EnableDirectoryBrowsing = false,
+                    EnableDefaultFiles = true
+                };
+
+                app.UseFileServer(fileServerOptions);
+                logger.Information("Serving static content from {ContentPath}", ContentPath);
+            }
 
             app.UseSerilogRequestLogging();
 
-            if (Program.EnablePrometheus)
+            if (Options.Feature.Prometheus)
             {
                 app.UseHttpMetrics();
+                logger.Information("Publishing Prometheus metrics to /metrics");
             }
-            
+
             app.UseAuthentication();
 
             app.UseRouting();
@@ -233,17 +242,19 @@
             {
                 endpoints.MapControllers();
 
-                if (Program.EnablePrometheus)
+                if (Options.Feature.Prometheus)
                 {
                     endpoints.MapMetrics();
                 }
             });
 
-            if (Program.EnableSwagger)
+            if (Options.Feature.Swagger)
             {
                 app.UseSwagger();
                 app.UseSwaggerUI(options => provider.ApiVersionDescriptions.ToList()
                     .ForEach(description => options.SwaggerEndpoint($"/swagger/{description.GroupName}/swagger.json", description.GroupName)));
+
+                logger.Information("Publishing Swagger documentation to /swagger");
             }
 
             // if we made it this far and the route still wasn't matched, return the index unless it's an api route
@@ -261,27 +272,30 @@
 
             // finally, hit the fileserver again.  if the path was modified to return the index above, the index document will be returned
             // otherwise it will throw a final 404 back to the client.
-            app.UseFileServer(fileServerOptions);
+            if (System.IO.Directory.Exists(ContentPath))
+            {
+                app.UseFileServer(fileServerOptions);
+            }
 
             // ---------------------------------------------------------------------------------------------------------------------------------------------
             // begin SoulseekClient implementation
             // ---------------------------------------------------------------------------------------------------------------------------------------------
-
-            var logger = loggerFactory.CreateLogger<Startup>();
-
             var connectionOptions = new ConnectionOptions(
-                readBufferSize: ReadBufferSize,
-                writeBufferSize: WriteBufferSize,
-                connectTimeout: ConnectTimeout,
-                inactivityTimeout: InactivityTimeout);
+                readBufferSize: Options.Soulseek.Connection.Buffer.Read,
+                writeBufferSize: Options.Soulseek.Connection.Buffer.Write,
+                connectTimeout: Options.Soulseek.Connection.Timeout.Connect,
+                inactivityTimeout: Options.Soulseek.Connection.Timeout.Inactivity);
+
+            var defaults = new SoulseekClientOptions();
 
             // create options for the client.
             // see the implementation of Func<> and Action<> options for detailed info.
             var clientOptions = new SoulseekClientOptions(
-                listenPort: ListenPort,
+                listenPort: Options.Soulseek.ListenPort ?? defaults.ListenPort,
+                enableListener: Options.Soulseek.ListenPort.HasValue,
                 userEndPointCache: new UserEndPointCache(),
-                distributedChildLimit: DistributedChildLimit,
-                enableDistributedNetwork: EnableDistributedNetwork,
+                distributedChildLimit: Options.Soulseek.DistributedNetwork.ChildLimit,
+                enableDistributedNetwork: !Options.Soulseek.DistributedNetwork.Disabled,
                 minimumDiagnosticLevel: DiagnosticLevel,
                 autoAcknowledgePrivateMessages: false,
                 acceptPrivateRoomInvitations: true,
@@ -293,6 +307,14 @@
                 directoryContentsResponseResolver: DirectoryContentsResponseResolver,
                 enqueueDownloadAction: (username, endpoint, filename) => EnqueueDownloadAction(username, endpoint, filename, tracker),
                 searchResponseResolver: SearchResponseResolver);
+
+            var username = Options.Soulseek.Username;
+            var password = Options.Soulseek.Password;
+
+            if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
+            {
+                throw new ArgumentException("Soulseek credentials are not configured");
+            }
 
             Client = new SoulseekClient(options: clientOptions);
 
@@ -310,7 +332,7 @@
                 };
 
                 var logger = Loggers.GetOrAdd(e.GetType().FullName, Log.ForContext("SourceContext", "Soulseek").ForContext("SoulseekContext", e.GetType().FullName));
-                
+
                 logger.Write(TranslateLogLevel(args.Level), "{@Message}", args.Message);
             };
 
@@ -370,7 +392,7 @@
 
             Client.RoomJoined += (e, args) =>
             {
-                if (args.Username != Username) // this will fire when we join a room; track that through the join operation.
+                if (args.Username != username) // this will fire when we join a room; track that through the join operation.
                 {
                     roomTracker.TryAddUser(args.RoomName, args.UserData);
                 }
@@ -383,24 +405,37 @@
 
             Client.Disconnected += async (e, args) =>
             {
-                logger.LogWarning("Disconnected from Soulseek server: {Message}", args.Message, args.Exception);
+                Console.WriteLine($"Disconnected from Soulseek server: {args.Message}");
 
                 // don't reconnect if the disconnecting Exception is either of these types.
                 // if KickedFromServerException, another client was most likely signed in, and retrying will cause a connect loop.
                 // if ObjectDisposedException, the client is shutting down.
                 if (!(args.Exception is KickedFromServerException || args.Exception is ObjectDisposedException))
                 {
-                    logger.LogWarning("Attepting to reconnect...");
-                    await Client.ConnectAsync(Username, Password);
+                    Interlocked.Increment(ref CurrentReconnectAttempts);
+
+                    if (CurrentReconnectAttempts <= MaxReconnectAttempts)
+                    {
+                        var wait = CurrentReconnectAttempts ^ 3;
+                        Console.WriteLine($"Waiting {wait} second(s) before reconnect...");
+                        await Task.Delay(wait);
+
+                        Console.WriteLine($"Attepting to reconnect...");
+                        await Client.ConnectAsync(Options.Soulseek.Username, Options.Soulseek.Password);
+                    }
+                    else
+                    {
+                        Console.WriteLine($"Unable to reconnect after {CurrentReconnectAttempts} tries.");
+                    }
                 }
             };
 
             Task.Run(async () =>
             {
-                await Client.ConnectAsync(Username, Password);
+                await Client.ConnectAsync(Options.Soulseek.Username, Options.Soulseek.Password);
             }).GetAwaiter().GetResult();
 
-            logger.LogInformation("Connected and logged in as {Username}", Username);
+            logger.Information("Connected and logged in as {Username}", username);
         }
 
         /// <summary>
@@ -533,7 +568,7 @@
                 Console.WriteLine($"[SENDING SEARCH RESULTS]: {results.Count()} records to {username} for query {query.SearchText}");
 
                 return Task.FromResult(new SearchResponse(
-                    Username,
+                    username,
                     token,
                     freeUploadSlots: 1,
                     uploadSpeed: 0,

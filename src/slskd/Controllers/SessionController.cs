@@ -8,6 +8,9 @@
     using System.IdentityModel.Tokens.Jwt;
     using System.Security.Claims;
     using slskd.DTO;
+    using Microsoft.Extensions.Options;
+    using slskd;
+    using System.Text.Json;
 
     /// <summary>
     ///     Session
@@ -19,8 +22,16 @@
     [Consumes("application/json")]
     public class SessionController : ControllerBase
     {
-        public SessionController()
+        private slskd.Options Options { get; set; }
+        private SymmetricSecurityKey JwtSigningKey { get; set; }
+
+        public SessionController(
+            IOptionsSnapshot<slskd.Options> optionsSnapshot,
+            SymmetricSecurityKey jwtSigningKey)
         {
+            Options = optionsSnapshot.Value;
+            Console.WriteLine(JsonSerializer.Serialize(Options));
+            JwtSigningKey = jwtSigningKey;
         }
 
         /// <summary>
@@ -34,7 +45,7 @@
         [ProducesResponseType(typeof(bool), 200)]
         public IActionResult Enabled()
         {
-            return Ok(!Program.DisableAuthentication);
+            return base.Ok(!Options.Web.Authentication.Disable);
         }
 
         /// <summary>
@@ -71,7 +82,7 @@
         [ProducesResponseType(400)]
         [ProducesResponseType(401)]
         [ProducesResponseType(typeof(string), 500)]
-        public IActionResult Login([FromBody]LoginRequest login)
+        public IActionResult Login([FromBody] LoginRequest login)
         {
             if (login == default)
             {
@@ -83,29 +94,30 @@
                 return BadRequest("Username and/or Password missing or invalid");
             }
 
-            if (login.Username == Startup.Username && login.Password == Startup.Password)
+            // only admin login for now
+            if (Options.Web.Authentication.Username == login.Username && Options.Web.Authentication.Password == login.Password)
             {
-                return Ok(new TokenResponse(GetJwtSecurityToken()));
+                return Ok(new TokenResponse(GetJwtSecurityToken(login.Username, Role.Administrator)));
             }
 
             return Unauthorized();
         }
 
-        private JwtSecurityToken GetJwtSecurityToken()
+        private JwtSecurityToken GetJwtSecurityToken(string username, Role role)
         {
             var issuedUtc = DateTime.UtcNow;
-            var expiresUtc = DateTime.UtcNow.AddMilliseconds(Startup.SecurityTokenTTL);
+            var expiresUtc = DateTime.UtcNow.AddMilliseconds(Options.Web.Jwt.Ttl);
 
             var claims = new List<Claim>()
             {
-                new Claim(ClaimTypes.Name, Startup.Username),
+                new Claim(ClaimTypes.Name, username),
                 new Claim(ClaimTypes.NameIdentifier, Guid.NewGuid().ToString()),
-                new Claim(ClaimTypes.Role, "User"),
-                new Claim("name", Startup.Username),
+                new Claim(ClaimTypes.Role, role.ToString()),
+                new Claim("name", username),
                 new Claim("iat", ((DateTimeOffset)issuedUtc).ToUnixTimeSeconds().ToString())
             };
 
-            var credentials = new SigningCredentials(Startup.JwtSigningKey, SecurityAlgorithms.HmacSha256);
+            var credentials = new SigningCredentials(JwtSigningKey, SecurityAlgorithms.HmacSha256);
 
             var token = new JwtSecurityToken(
                 issuer: "slskd",
