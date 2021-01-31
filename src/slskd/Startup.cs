@@ -35,6 +35,9 @@
 
     public class Startup
     {
+        private readonly int MaxReconnectAttempts = 3;
+        private int CurrentReconnectAttempts = 0;
+
         internal static string OutputDirectory { get; set; }
         internal static string SharedDirectory { get; set; }
         internal static long SharedCacheTTL { get; set; }
@@ -407,21 +410,34 @@
 
             Client.Disconnected += async (e, args) =>
             {
-                logger.Warning("Disconnected from Soulseek server: {Message}", args.Message, args.Exception);
+                Console.WriteLine($"Disconnected from Soulseek server: {args.Message}");
 
-                //// don't reconnect if the disconnecting Exception is either of these types.
-                //// if KickedFromServerException, another client was most likely signed in, and retrying will cause a connect loop.
-                //// if ObjectDisposedException, the client is shutting down.
-                //if (!(args.Exception is KickedFromServerException || args.Exception is ObjectDisposedException))
-                //{
-                //    logger.Warning("Attepting to reconnect...");
-                //    await Client.ConnectAsync(username, password);
-                //}
+                // don't reconnect if the disconnecting Exception is either of these types.
+                // if KickedFromServerException, another client was most likely signed in, and retrying will cause a connect loop.
+                // if ObjectDisposedException, the client is shutting down.
+                if (!(args.Exception is KickedFromServerException || args.Exception is ObjectDisposedException))
+                {
+                    Interlocked.Increment(ref CurrentReconnectAttempts);
+
+                    if (CurrentReconnectAttempts <= MaxReconnectAttempts)
+                    {
+                        var wait = CurrentReconnectAttempts ^ 3;
+                        Console.WriteLine($"Waiting {wait} second(s) before reconnect...");
+                        await Task.Delay(wait);
+
+                        Console.WriteLine($"Attepting to reconnect...");
+                        await Client.ConnectAsync(Options.Soulseek.Username, Options.Soulseek.Password);
+                    }
+                    else
+                    {
+                        Console.WriteLine($"Unable to reconnect after {CurrentReconnectAttempts} tries.");
+                    }
+                }
             };
 
             Task.Run(async () =>
             {
-                // await Client.ConnectAsync("vps2.slsknet.org", 2242, "praetor-2", "Jyi98uas");
+                await Client.ConnectAsync(Options.Soulseek.Username, Options.Soulseek.Password);
             }).GetAwaiter().GetResult();
 
             logger.Information("Connected and logged in as {Username}", username);
