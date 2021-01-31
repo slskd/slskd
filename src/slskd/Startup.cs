@@ -90,7 +90,7 @@
 
             services.AddSingleton(JwtSigningKey);
 
-            if (!Options.Web.NoAuth)
+            if (!Options.Web.Authentication.Disable)
             {
                 services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                     .AddJwtBearer(options =>
@@ -181,12 +181,15 @@
 
             var logger = Log.ForContext<Startup>();
 
-            if (!env.IsDevelopment())
-            {
-                app.UseHsts();
-            }
-
             app.UseCors("AllowAll");
+
+            if (Options.Web.Https.Force)
+            {
+                app.UseHttpsRedirection();
+                app.UseHsts();
+
+                logger.Information($"Forcing HTTP requests to HTTPS");
+            }
 
             app.UsePathBase(UrlBase);
             logger.Information("Using base url {UrlBase}", UrlBase);
@@ -229,9 +232,8 @@
 
             if (Options.Feature.Prometheus)
             {
-                logger.Information("Publishing Prometheus metrics to /metrics");
-
                 app.UseHttpMetrics();
+                logger.Information("Publishing Prometheus metrics to /metrics");
             }
 
             app.UseAuthentication();
@@ -250,11 +252,11 @@
 
             if (Options.Feature.Swagger)
             {
-                logger.Information("Publishing Swagger documentation to /swagger");
-
                 app.UseSwagger();
                 app.UseSwaggerUI(options => provider.ApiVersionDescriptions.ToList()
                     .ForEach(description => options.SwaggerEndpoint($"/swagger/{description.GroupName}/swagger.json", description.GroupName)));
+
+                logger.Information("Publishing Swagger documentation to /swagger");
             }
 
             // if we made it this far and the route still wasn't matched, return the index unless it's an api route
@@ -295,7 +297,7 @@
                 enableListener: Options.Soulseek.ListenPort.HasValue,
                 userEndPointCache: new UserEndPointCache(),
                 distributedChildLimit: Options.Soulseek.DistributedNetwork.ChildLimit,
-                enableDistributedNetwork: Options.Soulseek.DistributedNetwork.Enabled,
+                enableDistributedNetwork: !Options.Soulseek.DistributedNetwork.Disabled,
                 minimumDiagnosticLevel: DiagnosticLevel,
                 autoAcknowledgePrivateMessages: false,
                 acceptPrivateRoomInvitations: true,
@@ -308,8 +310,13 @@
                 enqueueDownloadAction: (username, endpoint, filename) => EnqueueDownloadAction(username, endpoint, filename, tracker),
                 searchResponseResolver: SearchResponseResolver);
 
-            var username = Options.Username;
-            var password = Options.Password;
+            var username = Options.Soulseek.Username;
+            var password = Options.Soulseek.Password;
+
+            if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
+            {
+                throw new ArgumentException("Soulseek credentials are not configured");
+            }
 
             Client = new SoulseekClient(options: clientOptions);
 
