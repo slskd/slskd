@@ -5,13 +5,16 @@
     using System.Diagnostics;
     using YamlDotNet.Serialization;
 
-    public record Option(char ShortName, string LongName, string EnvironmentVariable, Type Type, string Key, string Description = null)
+    public record Option(char ShortName, string LongName, string EnvironmentVariable, string Key, Type Type, object Default = null, string Description = null)
     {
         public CommandLineArgument ToCommandLineArgument()
-            => new CommandLineArgument(ShortName, LongName, Type, Key, Description);
+            => new (ShortName, LongName, Type, Key, Description);
 
         public EnvironmentVariable ToEnvironmentVariable()
-            => new EnvironmentVariable(EnvironmentVariable, Type, Key, Description);
+            => new (EnvironmentVariable, Type, Key, Description);
+
+        public DefaultValue ToDefaultValue()
+            => new (Key, Type, Default);
     }
 
     public class Options
@@ -22,156 +25,232 @@
                 ShortName: 'v',
                 LongName: "version",
                 EnvironmentVariable: null,
-                Type: typeof(bool),
                 Key: null,
+                Type: typeof(bool),
+                Default: false,
                 Description: "display version information"),
             new(
                 ShortName: 'h',
                 LongName: "help",
                 EnvironmentVariable: null,
-                Type: typeof(bool),
                 Key: null,
+                Type: typeof(bool),
+                Default: false,
                 Description: "display command line usage"),
             new(
                 ShortName: 'e',
                 LongName: "envars",
                 EnvironmentVariable: null,
-                Type: typeof(bool),
                 Key: null,
+                Type: typeof(bool),
+                Default: false,
                 Description: "display environment variables"),
             new(
                 ShortName: 'd',
                 LongName: "debug",
                 EnvironmentVariable: "DEBUG",
-                Type: typeof(bool),
                 Key: "slskd:debug",
+                Type: typeof(bool),
+                Default: Debugger.IsAttached,
                 Description: "run in debug mode"),
             new(
                 ShortName: 'n',
                 LongName: "no-logo",
                 EnvironmentVariable: "NO_LOGO",
-                Type: typeof(bool),
                 Key: "slskd:nologo",
-                Description: "suppress logo on startup"),
-            new(
-                ShortName: 'x',
-                LongName: "no-auth",
-                EnvironmentVariable: "NO_AUTH",
                 Type: typeof(bool),
-                Key: "slskd:web:noauth",
-                Description: "disable authentication for web requests"),
+                Default: false,
+                Description: "suppress logo on startup"),
             new(
                 ShortName: 'i',
                 LongName: "instance-name",
                 EnvironmentVariable: "INSTANCE_NAME",
-                Type: typeof(string),
                 Key: "slskd:instancename",
+                Type: typeof(string),
+                Default: "default",
                 Description: "optional; a unique name for this instance"),
             new(
-                ShortName: 'o',
-                LongName: "port",
-                EnvironmentVariable: "PORT",
-                Type: typeof(string),
+                ShortName: 'l',
+                LongName: "http-port",
+                EnvironmentVariable: "HTTP_PORT",
                 Key: "slskd:web:port",
-                Description: "listen port for web server"),
+                Type: typeof(int),
+                Default: 5000,
+                Description: "HTTP listen port for web server"),
             new(
-                ShortName: 'b',
+                ShortName: 'L',
+                LongName: "https-port",
+                EnvironmentVariable: "HTTPS_PORT",
+                Key: "slskd:web:https:port",
+                Type: typeof(int),
+                Default: 5000,
+                Description: "HTTPS listen port for web server"),
+            new(
+                ShortName: 'f',
+                LongName: "force-https",
+                EnvironmentVariable: "HTTPS_FORCE",
+                Key: "slskd:web:https:force",
+                Type: typeof(bool),
+                Default: false,
+                Description: "redirect HTTP to HTTPS"),
+            new(
+                ShortName: default,
                 LongName: "url-base",
                 EnvironmentVariable: "URL_BASE",
-                Type: typeof(string),
                 Key: "slskd:web:urlbase",
+                Type: typeof(string),
+                Default: "/",
                 Description: "base url for web requests"),
             new(
-                ShortName: 'c',
+                ShortName: default,
                 LongName: "content-path",
                 EnvironmentVariable: "CONTENT_PATH",
-                Type: typeof(string),
                 Key: "slskd:web:contentpath",
+                Type: typeof(string),
+                Default: "wwwroot",
                 Description: "path to static web content"),
             new(
-                ShortName: 'k',
-                LongName: "jwt-key",
-                EnvironmentVariable: "JWT_KEY",
-                Type: typeof(string),
-                Key: "slskd:web:jwt:key",
-                Description: "the key with which to sign JWTs"),
-            new(
-                ShortName: 't',
-                LongName: "jwt-ttl",
-                EnvironmentVariable: "JWT_TTL",
-                Type: typeof(int),
-                Key: "slskd:web:jwt:ttl",
-                Description: "the TTL for JWTs"),
+                ShortName: 'x',
+                LongName: "no-auth",
+                EnvironmentVariable: "NO_AUTH",
+                Key: "slskd:web:authentication:disable",
+                Type: typeof(bool),
+                Default: false,
+                Description: "disable authentication for web requests"),
             new(
                 ShortName: 'u',
                 LongName: "username",
                 EnvironmentVariable: "USERNAME",
+                Key: "slskd:web:authentication:username",
                 Type: typeof(string),
-                Key: "slskd:soulseek:username",
-                Description: "the username for the Soulseek network"),
+                Default: "slskd",
+                Description: "the username for the web UI"),
             new(
                 ShortName: 'p',
                 LongName: "password",
                 EnvironmentVariable: "PASSWORD",
+                Key: "slskd:web:authentication:password",
                 Type: typeof(string),
-                Key: "slskd:soulseek:password",
-                Description: "the password for the Soulseek network"),
+                Default: "slskd",
+                Description: "the password for web UI"),
             new(
-                ShortName: 'l',
-                LongName: "listen-port",
-                EnvironmentVariable: "LISTEN_PORT",
+                ShortName: default,
+                LongName: "jwt-key",
+                EnvironmentVariable: "JWT_KEY",
+                Key: "slskd:web:jwt:key",
+                Type: typeof(string),
+                Default: Guid.NewGuid(),
+                Description: "the key with which to sign JWTs"),
+            new(
+                ShortName: default,
+                LongName: "jwt-ttl",
+                EnvironmentVariable: "JWT_TTL",
+                Key: "slskd:web:jwt:ttl",
                 Type: typeof(int),
-                Key: "slskd:soulseek:listenport",
-                Description: "the port on which to listen"),
-            new(
-                ShortName: 'n',
-                LongName: "distributed-network",
-                EnvironmentVariable: "DNET",
-                Type: typeof(bool),
-                Key: "slskd:soulseek:distributednetwork:enabled",
-                Description: "enables the distributed network"),
-            new(
-                ShortName: 'c',
-                LongName: "child-limit",
-                EnvironmentVariable: "DNET_CHILDREN",
-                Type: typeof(int),
-                Key: "slskd:soulseek:distributednetwork:childlimit",
-                Description: "sets the limit for the number of distributed children"),
+                Default: 604800000,
+                Description: "the TTL for JWTs"),
             new(
                 ShortName: default,
                 LongName: "prometheus",
                 EnvironmentVariable: "PROMETHEUS",
-                Type: typeof(bool),
                 Key:  "slskd:feature:prometheus",
+                Type: typeof(bool),
+                Default: false,
                 Description: "enable collection and publishing of prometheus metrics"),
             new(
                 ShortName: default,
                 LongName: "swagger",
                 EnvironmentVariable: "SWAGGER",
-                Type: typeof(bool),
                 Key: "slskd:feature:swagger",
+                Type: typeof(bool),
+                Default: false,
                 Description: "enable swagger documentation and UI"),
             new(
                 ShortName: default,
                 LongName: "loki",
                 EnvironmentVariable: "LOKI",
-                Type: typeof(string),
                 Key: "slskd:logger:loki",
+                Type: typeof(string),
                 Description: "optional; the url to a Grafana Loki instance to which to log"),
+            new(
+                ShortName: default,
+                LongName: "soulseek-username",
+                EnvironmentVariable: "SOULSEEK_USERNAME",
+                Key: "slskd:soulseek:username",
+                Type: typeof(string),
+                Description: "the username for the Soulseek network"),
+            new(
+                ShortName: default,
+                LongName: "soulseek-password",
+                EnvironmentVariable: "SOULSEEK_PASSWORD",
+                Key: "slskd:soulseek:password",
+                Type: typeof(string),
+                Description: "the password for the Soulseek network"),
+            new(
+                ShortName: default,
+                LongName: "soulseek-listen-port",
+                EnvironmentVariable: "SOULSEEK_LISTEN_PORT",
+                Key: "slskd:soulseek:listenport",
+                Type: typeof(int),
+                Default: 50000,
+                Description: "the port on which to listen for incoming connections"),
+            new(
+                ShortName: default,
+                LongName: "soulseek-no-dnet",
+                EnvironmentVariable: "SOULSEEK_NO_DNET",
+                Key: "slskd:soulseek:distributednetwork:disabled",
+                Type: typeof(bool),
+                Default: false,
+                Description: "disables the distributed network"),
+            new(
+                ShortName: default,
+                LongName: "soulseek-dnet-children",
+                EnvironmentVariable: "SOULSEEK_DNET_CHILDREN",
+                Key: "slskd:soulseek:distributednetwork:childlimit",
+                Type: typeof(int),
+                Default: 25,
+                Description: "sets the limit for the number of distributed children"),
+            new(
+                ShortName: default,
+                LongName: "soulseek-connection-timeout",
+                EnvironmentVariable: "SOULSEEK_CONNECTION_TIMEOUT",
+                Key: "slskd:soulseek:connection:timeout:connect",
+                Type: typeof(int),
+                Default: 5000,
+                Description: "sets the connection timeout, in miliseconds"),
+            new(
+                ShortName: default,
+                LongName: "soulseek-inactivity-timeout",
+                EnvironmentVariable: "SOULSEEK_INACTIVITY_TIMEOUT",
+                Key: "slskd:soulseek:connection:timeout:inactivity",
+                Type: typeof(int),
+                Default: 15000,
+                Description: "sets the connection inactivity timeout, in miliseconds"),
+            new(
+                ShortName: default,
+                LongName: "soulseek-read-buffer",
+                EnvironmentVariable: "SOULSEEK_READ_BUFFER",
+                Key: "slskd:soulseek:connection:buffer:read",
+                Type: typeof(int),
+                Default: 16384,
+                Description: "sets the read buffer size for connections"),
+            new(
+                ShortName: default,
+                LongName: "soulseek-write-buffer",
+                EnvironmentVariable: "SOULSEEK_WRITE_BUFFER",
+                Key: "slskd:soulseek:connection:buffer:write",
+                Type: typeof(int),
+                Default: 16384,
+                Description: "sets the write buffer size for connections"),
         };
 
-        [YamlIgnore]
-        public bool IsUsingDefaultCredentials => Username == Password && Password == "slskd";
-
-        public string Username { get; private set; } = "slskd";
-        public string Password { get; private set; } = "slskd";
-        public string InstanceName { get; private set; } = "default";
         public bool Debug { get; private set; } = Debugger.IsAttached;
         public bool NoLogo { get; private set; } = false;
+        public string InstanceName { get; private set; } = "default";
         public WebOptions Web { get; private set; } = new WebOptions();
-        public SoulseekOptions Soulseek { get; private set; } = new SoulseekOptions();
-        public FeatureOptions Feature { get; private set; } = new FeatureOptions();
         public LoggerOptions Logger { get; private set; } = new LoggerOptions();
+        public FeatureOptions Feature { get; private set; } = new FeatureOptions();
+        public SoulseekOptions Soulseek { get; private set; } = new SoulseekOptions();
 
         public class FeatureOptions
         {
@@ -186,11 +265,11 @@
 
         public class SoulseekOptions
         {
-            public ConnectionOptions Connection { get; set; } = new ConnectionOptions();
-            public DistributedNetworkOptions DistributedNetwork { get; set; } = new DistributedNetworkOptions();
-            public int? ListenPort { get; set; } = 50000;
             public string Password { get; set; }
             public string Username { get; set; }
+            public int? ListenPort { get; set; } = 50000;
+            public DistributedNetworkOptions DistributedNetwork { get; set; } = new DistributedNetworkOptions();
+            public ConnectionOptions Connection { get; set; } = new ConnectionOptions();
 
             public class ConnectionOptions
             {
@@ -212,22 +291,37 @@
 
             public class DistributedNetworkOptions
             {
-                public bool Enabled { get; set; } = true;
-                public int ChildLimit { get; set; } = 10;
+                public bool Disabled { get; set; } = false;
+                public int ChildLimit { get; set; } = 25;
             }
         }
 
         public class WebOptions
         {
-            public bool NoAuth { get; private set; } = false;
+            public int Port { get; private set; } = 5000;
+            public HttpsOptions Https { get; private set; } = new HttpsOptions();
             public string UrlBase { get; private set; } = "/";
             public string ContentPath { get; private set; } = "wwwroot";
+            public AuthenticationOptions Authentication { get; private set; } = new AuthenticationOptions();
             public JwtOptions Jwt { get; private set; } = new JwtOptions();
+
+            public class AuthenticationOptions
+            {
+                public bool Disable { get; private set; } = false;
+                public string Username { get; private set; } = "slskd";
+                public string Password { get; private set; } = "slskd";
+            }
 
             public class JwtOptions
             {
                 public string Key { get; private set; } = Guid.NewGuid().ToString();
                 public int Ttl { get; private set; } = 604800000;
+            }
+
+            public class HttpsOptions
+            {
+                public int Port { get; private set; } = 5001;
+                public bool Force { get; private set; } = false;
             }
         }
     }
