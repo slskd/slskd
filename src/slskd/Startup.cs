@@ -26,7 +26,6 @@
     using Microsoft.AspNetCore.Authentication.JwtBearer;
     using Prometheus.SystemMetrics;
     using Serilog;
-    using Microsoft.Extensions.Hosting;
     using Prometheus;
     using Microsoft.Extensions.FileProviders;
     using Serilog.Events;
@@ -178,10 +177,6 @@
             IOptionsMonitor<Options> optionsMonitor,
             IRoomTracker roomTracker)
         {
-            Console.WriteLine("--------------------------------------");
-            Console.WriteLine(JsonSerializer.Serialize(optionsMonitor.CurrentValue));
-            Console.WriteLine("--------------------------------------");
-
             var logger = Log.ForContext<Startup>();
 
             app.UseCors("AllowAll");
