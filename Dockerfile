@@ -44,16 +44,14 @@ ARG VERSION=0.0.1.65535-local
 WORKDIR /slskd
 COPY --from=publish /slskd/dist/linux-musl-x64 .
 
-RUN mkdir /var/slsk
-RUN mkdir /var/slsk/shared
-RUN mkdir /var/slsk/download
+RUN mkdir /var/slskd
+RUN mkdir /var/slskd/shared
+RUN mkdir /var/slskd/downloads
 
-ENV SLSK_OUTPUT_DIR=/var/slsk/download
-ENV SLSK_SHARED_DIR=/var/slsk/shared
+ENV SLSKD_SHARED_DIR=/var/slskd/shared
+ENV SLSKD_DOWNLOADS_DIR=/var/slskd/downloads
 
-ENV SLSK_DOCKER_VERSION=${VERSION}
-ENV SLSK_DOCKER_SHA=${SHA}
-
-ENV ASPNETCORE_URLS=http://+:5000
+ENV SLSKD_DOCKER_VERSION=${VERSION}
+ENV SLSKD_DOCKER_SHA=${SHA}
 
 ENTRYPOINT ["./slskd"]
