@@ -167,9 +167,10 @@
                     })
                     .UseSerilog()
                     .UseStartup<Startup>()
-                    .UseUrls(
-                        $"http://0.0.0.0:{options.Web.Port}", 
-                        $"https://0.0.0.0:{options.Web.Https.Port}")
+                    //.UseUrls(
+                    //    $"http://0.0.0.0:{options.Web.Port}", 
+                    //    $"https://0.0.0.0:{options.Web.Https.Port}")
+                    .UseUrls($"http://0.0.0.0:{options.Web.Port}")
                     .Build()
                     .Run();
             }
