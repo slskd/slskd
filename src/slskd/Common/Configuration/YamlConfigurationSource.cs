@@ -110,9 +110,11 @@
                 var yaml = new YamlStream();
                 yaml.Load(reader);
 
-                var rootNode = (YamlMappingNode)yaml.Documents[0].RootNode;
-
-                Traverse(rootNode);
+                if (yaml.Documents.Count > 0)
+                {
+                    var rootNode = (YamlMappingNode)yaml.Documents[0].RootNode;
+                    Traverse(rootNode);
+                }
             }
             catch (YamlException e)
             {
