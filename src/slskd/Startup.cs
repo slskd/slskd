@@ -36,13 +36,7 @@
     {
         private readonly int MaxReconnectAttempts = 3;
         private int CurrentReconnectAttempts = 0;
-
-        internal static string OutputDirectory { get; set; }
-        internal static string SharedDirectory { get; set; }
-        internal static long SharedCacheTTL { get; set; }
-        internal static DiagnosticLevel DiagnosticLevel { get; set; }
-        internal static int RoomMessageLimit { get; set; }
-        internal static string XmlDocFile { get; set; }
+        private static readonly string XmlDocFile = Path.Combine(AppContext.BaseDirectory, typeof(Startup).GetTypeInfo().Assembly.GetName().Name + ".xml");
 
         private SoulseekClient Client { get; set; }
         private ISharedFileCache SharedFileCache { get; set; }
@@ -60,14 +54,14 @@
                 o.BindNonPublicProperties = true;
             });
 
-            OutputDirectory = Configuration.GetValue<string>("OUTPUT_DIR");
-            SharedDirectory = Configuration.GetValue<string>("SHARED_DIR");
-            SharedCacheTTL = Configuration.GetValue<long>("SHARED_CACHE_TTL", 3600000); // 1 hour
-            DiagnosticLevel = Configuration.GetValue<DiagnosticLevel>("DIAGNOSTIC", DiagnosticLevel.Info);
-            RoomMessageLimit = Configuration.GetValue<int>("ROOM_MESSAGE_LIMIT", 250);
-            XmlDocFile = Configuration.GetValue<string>("XML_DOC_FILE", Path.Combine(AppContext.BaseDirectory, typeof(Startup).GetTypeInfo().Assembly.GetName().Name + ".xml"));
-            
-            SharedFileCache = new SharedFileCache(SharedDirectory, SharedCacheTTL);
+            SharedFileCache = new SharedFileCache(Options.Directories.Shared, 3600000);
+
+            UrlBase = Options.Web.UrlBase;
+            UrlBase = UrlBase.StartsWith("/") ? UrlBase : "/" + UrlBase;
+
+            ContentPath = Path.GetFullPath(Options.Web.ContentPath);
+
+            JwtSigningKey = new SymmetricSecurityKey(PBKDF2.GetKey(Options.Web.Jwt.Key));
         }
 
         private IConfiguration Configuration { get; }
@@ -80,13 +74,6 @@
 
             services.AddOptions<Options>()
                 .Bind(Configuration.GetSection("slskd"), o => { o.BindNonPublicProperties = true; });
-
-            UrlBase = Options.Web.UrlBase;
-            UrlBase = UrlBase.StartsWith("/") ? UrlBase : "/" + UrlBase;
-            
-            ContentPath = Path.GetFullPath(Options.Web.ContentPath);
-
-            JwtSigningKey = new SymmetricSecurityKey(PBKDF2.GetKey(Options.Web.Jwt.Key));
 
             services.AddCors(options => options.AddPolicy("AllowAll", builder => builder.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader()));
 
@@ -164,7 +151,7 @@
             services.AddSingleton<ISearchTracker, SearchTracker>();
             services.AddSingleton<IBrowseTracker, BrowseTracker>();
             services.AddSingleton<IConversationTracker, ConversationTracker>();
-            services.AddSingleton<IRoomTracker, RoomTracker>(_ => new RoomTracker(messageLimit: RoomMessageLimit));
+            services.AddSingleton<IRoomTracker, RoomTracker>(_ => new RoomTracker(messageLimit: 250));
         }
 
         public void Configure(
@@ -296,7 +283,7 @@
                 userEndPointCache: new UserEndPointCache(),
                 distributedChildLimit: Options.Soulseek.DistributedNetwork.ChildLimit,
                 enableDistributedNetwork: !Options.Soulseek.DistributedNetwork.Disabled,
-                minimumDiagnosticLevel: DiagnosticLevel,
+                minimumDiagnosticLevel: Options.Soulseek.DiagnosticLevel,
                 autoAcknowledgePrivateMessages: false,
                 acceptPrivateRoomInvitations: true,
                 serverConnectionOptions: connectionOptions,
@@ -465,7 +452,7 @@
         private Task<BrowseResponse> BrowseResponseResolver(string username, IPEndPoint endpoint)
         {
             var directories = System.IO.Directory
-                .GetDirectories(SharedDirectory, "*", SearchOption.AllDirectories)
+                .GetDirectories(Options.Directories.Shared, "*", SearchOption.AllDirectories)
                 .Select(dir => new Soulseek.Directory(dir, System.IO.Directory.GetFiles(dir)
                     .Select(f => new Soulseek.File(1, Path.GetFileName(f), new FileInfo(f).Length, Path.GetExtension(f)))));
 
