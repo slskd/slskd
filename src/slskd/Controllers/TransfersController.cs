@@ -12,6 +12,7 @@
     using System.Threading.Tasks;
     using slskd.DTO;
     using slskd.Trackers;
+    using Microsoft.Extensions.Options;
 
     /// <summary>
     ///     Transfers
@@ -26,12 +27,12 @@
         /// <summary>
         ///     Initializes a new instance of the <see cref="TransfersController"/> class.
         /// </summary>
-        /// <param name="configuration"></param>
+        /// <param name="options"></param>
         /// <param name="client"></param>
         /// <param name="tracker"></param>
-        public TransfersController(IConfiguration configuration, ISoulseekClient client, ITransferTracker tracker)
+        public TransfersController(IOptionsSnapshot<slskd.Options> options, ISoulseekClient client, ITransferTracker tracker)
         {
-            OutputDirectory = configuration.GetValue<string>("OUTPUT_DIR");
+            OutputDirectory = options.Value.Directories.Downloads;
             Client = client;
             Tracker = tracker;
         }

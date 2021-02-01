@@ -1,9 +1,9 @@
 ﻿namespace slskd
 {
+    using Soulseek.Diagnostics;
     using System;
     using System.Collections.Generic;
     using System.Diagnostics;
-    using YamlDotNet.Serialization;
 
     public record Option(char ShortName, string LongName, string EnvironmentVariable, string Key, Type Type, object Default = null, string Description = null)
     {
@@ -70,6 +70,22 @@
                 Default: "default",
                 Description: "optional; a unique name for this instance"),
             new(
+                ShortName: 'o',
+                LongName: "downloads",
+                EnvironmentVariable: "DOWNLOADS_DIR",
+                Key: "slskd:directories:downloads",
+                Type: typeof(string),
+                Default: null,
+                Description: "the path where downloaded files are saved"),
+            new(
+                ShortName: 's',
+                LongName: "shared",
+                EnvironmentVariable: "SHARED_DIR",
+                Key: "slskd:directories:shared",
+                Type: typeof(string),
+                Default: null,
+                Description: "the path to shared files"),
+            new(
                 ShortName: 'l',
                 LongName: "http-port",
                 EnvironmentVariable: "HTTP_PORT",
@@ -83,7 +99,7 @@
                 EnvironmentVariable: "HTTPS_PORT",
                 Key: "slskd:web:https:port",
                 Type: typeof(int),
-                Default: 5000,
+                Default: 5001,
                 Description: "HTTPS listen port for web server"),
             new(
                 ShortName: 'f',
@@ -196,6 +212,14 @@
                 Description: "the port on which to listen for incoming connections"),
             new(
                 ShortName: default,
+                LongName: "soulseek-diagnostic-level",
+                EnvironmentVariable: "SOULSEEK_DIAGNOSTIC_LEVEL",
+                Key: "slskd:soulseek:diagnosticlevel",
+                Type: typeof(DiagnosticLevel),
+                Default: DiagnosticLevel.Info,
+                Description: "the minimum diagnostic level (None, Warning, Info, Debug)"),
+            new(
+                ShortName: default,
                 LongName: "soulseek-no-dnet",
                 EnvironmentVariable: "SOULSEEK_NO_DNET",
                 Key: "slskd:soulseek:distributednetwork:disabled",
@@ -247,10 +271,17 @@
         public bool Debug { get; private set; } = Debugger.IsAttached;
         public bool NoLogo { get; private set; } = false;
         public string InstanceName { get; private set; } = "default";
+        public DirectoriesOptions Directories { get; private set; } = new DirectoriesOptions();
         public WebOptions Web { get; private set; } = new WebOptions();
         public LoggerOptions Logger { get; private set; } = new LoggerOptions();
         public FeatureOptions Feature { get; private set; } = new FeatureOptions();
         public SoulseekOptions Soulseek { get; private set; } = new SoulseekOptions();
+
+        public class DirectoriesOptions
+        {
+            public string Shared { get; private set; }
+            public string Downloads { get; private set; }
+        }
 
         public class FeatureOptions
         {
@@ -265,34 +296,35 @@
 
         public class SoulseekOptions
         {
-            public string Password { get; set; }
-            public string Username { get; set; }
-            public int? ListenPort { get; set; } = 50000;
-            public DistributedNetworkOptions DistributedNetwork { get; set; } = new DistributedNetworkOptions();
-            public ConnectionOptions Connection { get; set; } = new ConnectionOptions();
+            public string Password { get; private set; }
+            public string Username { get; private set; }
+            public int? ListenPort { get; private set; } = 50000;
+            public DiagnosticLevel DiagnosticLevel { get; private set; } = DiagnosticLevel.Info;
+            public DistributedNetworkOptions DistributedNetwork { get; private set; } = new DistributedNetworkOptions();
+            public ConnectionOptions Connection { get; private set; } = new ConnectionOptions();
 
             public class ConnectionOptions
             {
-                public TimeoutOptions Timeout { get; set; } = new TimeoutOptions();
-                public BufferOptions Buffer { get; set; } = new BufferOptions();
+                public TimeoutOptions Timeout { get; private set; } = new TimeoutOptions();
+                public BufferOptions Buffer { get; private set; } = new BufferOptions();
 
                 public class BufferOptions
                 {
-                    public int Read { get; set; } = 16384;
-                    public int Write { get; set; } = 16384;
+                    public int Read { get; private set; } = 16384;
+                    public int Write { get; private set; } = 16384;
                 }
 
                 public class TimeoutOptions
                 {
-                    public int Connect { get; set; } = 5000;
-                    public int Inactivity { get; set; } = 15000;
+                    public int Connect { get; private set; } = 5000;
+                    public int Inactivity { get; private set; } = 15000;
                 }
             }
 
             public class DistributedNetworkOptions
             {
-                public bool Disabled { get; set; } = false;
-                public int ChildLimit { get; set; } = 25;
+                public bool Disabled { get; private set; } = false;
+                public int ChildLimit { get; private set; } = 25;
             }
         }
 

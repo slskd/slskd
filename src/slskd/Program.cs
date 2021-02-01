@@ -24,7 +24,7 @@
                     prefix: environmentVariablePrefix,
                     map: Options.Map.Select(o => o.ToEnvironmentVariable()))
                 .AddYamlFile(
-                    path: Path.Combine(Directory.GetCurrentDirectory(), configurationFile), 
+                    path: Path.Combine(AppContext.BaseDirectory, configurationFile), 
                     optional: true, 
                     reloadOnChange: false)
                 .AddCommandLine(
@@ -37,7 +37,7 @@
     {
         private static readonly string ConfigurationFile = "slskd.yml";
         private static readonly string EnvironmentVariablePrefix = "SLSKD_";
-
+        
         public static Guid InvocationId { get; } = Guid.NewGuid();
         public static int ProcessId { get; } = Environment.ProcessId;
         public static Version AssemblyVersion { get; } = Assembly.GetExecutingAssembly().GetName().Version;
