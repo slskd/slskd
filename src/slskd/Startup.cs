@@ -117,6 +117,8 @@
                 options.JsonSerializerOptions.IgnoreNullValues = true;
             });
 
+            services.AddHealthChecks();
+
             services.AddApiVersioning(options => options.ReportApiVersions = true);
             services.AddVersionedApiExplorer(options =>
             {
@@ -228,6 +230,7 @@
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapControllers();
+                endpoints.MapHealthChecks("/health");
 
                 if (Options.Feature.Prometheus)
                 {
