@@ -48,10 +48,12 @@ RUN mkdir /var/slskd
 RUN mkdir /var/slskd/shared
 RUN mkdir /var/slskd/downloads
 
+ENV SLSKD_HTTP_PORT=5000
 ENV SLSKD_SHARED_DIR=/var/slskd/shared
 ENV SLSKD_DOWNLOADS_DIR=/var/slskd/downloads
 
 ENV SLSKD_DOCKER_VERSION=${VERSION}
-ENV SLSKD_DOCKER_SHA=${SHA}
+
+HEALTHCHECK --interval=60s --timeout=10s --start-period=60s --retries=3 CMD "curl --fail http://localhost:5000/health || exit"
 
 ENTRYPOINT ["./slskd"]
