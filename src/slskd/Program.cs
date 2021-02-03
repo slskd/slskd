@@ -7,12 +7,14 @@
     using Serilog;
     using Serilog.Events;
     using Serilog.Sinks.Grafana.Loki;
+    using slskd.Configuration;
+    using slskd.Validation;
     using System;
+    using System.Collections.Generic;
     using System.IO;
     using System.Linq;
     using System.Reflection;
-    using System.Text.Json;
-
+    
     public static class ProgramExtensions
     {
         public static IConfigurationBuilder AddConfigurationProviders(this IConfigurationBuilder builder, string environmentVariablePrefix, string configurationFile)
@@ -69,8 +71,8 @@
             if (ShowHelp || ShowEnvironmentVariables)
             {
                 if (!NoLogo) PrintLogo(Version);
-                if (ShowHelp) PrintCommandLineArguments();
-                if (ShowEnvironmentVariables) PrintEnvironmentVariables(EnvironmentVariablePrefix);
+                if (ShowHelp) PrintCommandLineArguments(Options.Map);
+                if (ShowEnvironmentVariables) PrintEnvironmentVariables(Options.Map, EnvironmentVariablePrefix);
                 return;
             }
 
@@ -80,7 +82,22 @@
 
             var options = new Options();
 
-            configuration.GetSection("slskd").Bind(options, (o) => { o.BindNonPublicProperties = true; });
+            try
+            {
+                configuration.GetSection("slskd")
+                    .Bind(options, (o) => { o.BindNonPublicProperties = true; });
+
+                if (!options.TryValidate(out var result))
+                {
+                    Console.WriteLine(result.GetResultView());
+                    return;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Invalid configuration: {ex.Message}");
+                return;
+            }
 
             if (!options.NoLogo)
             {
@@ -90,7 +107,6 @@
             if (options.Debug)
             {
                 Console.WriteLine(configuration.GetDebugView());
-                Console.WriteLine(JsonSerializer.Serialize(options, new JsonSerializerOptions() { WriteIndented = true }));
 
                 Log.Logger = new LoggerConfiguration()
                     .MinimumLevel.Debug()
@@ -184,17 +200,17 @@
             }
         }
 
-        public static void PrintCommandLineArguments()
+        public static void PrintCommandLineArguments(IEnumerable<Option> map)
         {
             static string GetLongName(string longName, Type type)
                 => type == typeof(bool) ? longName : $"{longName} <{type.Name.ToLowerInvariant()}>";
 
-            var longestName = Options.Map.Where(a => !string.IsNullOrEmpty(a.LongName)).Select(a => GetLongName(a.LongName, a.Type)).Max(n => n.Length);
+            var longestName = map.Where(a => !string.IsNullOrEmpty(a.LongName)).Select(a => GetLongName(a.LongName, a.Type)).Max(n => n.Length);
 
             Console.WriteLine("\nusage: slskd [arguments]\n");
             Console.WriteLine("arguments:\n");
 
-            foreach (Option item in Options.Map)
+            foreach (Option item in map)
             {
                 var (shortName, longName, _, key, type, defaultValue, description) = item;
 
@@ -209,15 +225,15 @@
             }
         }
 
-        public static void PrintEnvironmentVariables(string prefix)
+        public static void PrintEnvironmentVariables(IEnumerable<Option> map, string prefix)
         {
             static string GetName(string name, Type type) => $"{name} <{type.Name.ToLowerInvariant()}>";
 
-            var longestName = Options.Map.Select(a => GetName(a.EnvironmentVariable, a.Type)).Max(n => n.Length);
+            var longestName = map.Select(a => GetName(a.EnvironmentVariable, a.Type)).Max(n => n.Length);
 
             Console.WriteLine("\nenvironment variables (arguments and config.yml have precedence):\n");
 
-            foreach (Option item in Options.Map)
+            foreach (Option item in map)
             {
                 var (_, _, environmentVariable, key, type, defaultValue, description) = item;
 
