@@ -1,5 +1,5 @@
 FROM node:lts-alpine3.12 AS web
-ARG VERSION=0.0.1.65535-local
+ARG VERSION=0.0.1.65534-local
 
 WORKDIR /slskd
 
@@ -11,7 +11,7 @@ RUN sh ./bin/build --web-only --version $VERSION
 #
 
 FROM mcr.microsoft.com/dotnet/sdk:5.0 AS build
-ARG VERSION=0.0.1.65535-local
+ARG VERSION=0.0.1.65534-local
 
 WORKDIR /slskd
 
@@ -25,7 +25,7 @@ RUN bash ./bin/build --dotnet-only --version $VERSION
 #
 
 FROM mcr.microsoft.com/dotnet/sdk:5.0 AS publish
-ARG VERSION=0.0.1.65535-local
+ARG VERSION=0.0.1.65534-local
 
 WORKDIR /slskd
 
@@ -39,7 +39,7 @@ RUN bash ./bin/publish --no-prebuild --runtime linux-musl-x64 --version $VERSION
 #
 
 FROM mcr.microsoft.com/dotnet/runtime-deps:5.0-alpine AS slskd
-ARG VERSION=0.0.1.65535-local
+ARG VERSION=0.0.1.65534-local
 
 WORKDIR /slskd
 COPY --from=publish /slskd/dist/linux-musl-x64 .
@@ -54,6 +54,6 @@ ENV SLSKD_DOWNLOADS_DIR=/var/slskd/downloads
 
 ENV SLSKD_DOCKER_VERSION=${VERSION}
 
-HEALTHCHECK --interval=60s --timeout=5s --start-period=60s --retries=3 CMD "wget -nv -t1 --spider 'http://localhost:5000/health || exit 1"
+HEALTHCHECK --interval=60s --timeout=5s --start-period=60s --retries=3 CMD "wget -nv -t1 --spider 'http://localhost:5000/health' || exit 1"
 
 ENTRYPOINT ["./slskd"]
