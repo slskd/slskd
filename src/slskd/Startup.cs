@@ -11,7 +11,6 @@
     using System.Threading;
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.Builder;
-    using Microsoft.AspNetCore.Hosting;
     using Microsoft.AspNetCore.Mvc.ApiExplorer;
     using Microsoft.Extensions.Caching.Memory;
     using Microsoft.Extensions.Configuration;
@@ -30,7 +29,7 @@
     using Microsoft.Extensions.FileProviders;
     using Serilog.Events;
     using slskd.Entities;
-    using Microsoft.Extensions.Options;
+    using slskd.Configuration;
 
     public class Startup
     {
@@ -61,7 +60,7 @@
 
             ContentPath = Path.GetFullPath(Options.Web.ContentPath);
 
-            JwtSigningKey = new SymmetricSecurityKey(PBKDF2.GetKey(Options.Web.Jwt.Key));
+            JwtSigningKey = new SymmetricSecurityKey(PBKDF2.GetKey(Options.Web.Authentication.Jwt.Key));
         }
 
         private IConfiguration Configuration { get; }
@@ -158,12 +157,10 @@
 
         public void Configure(
             IApplicationBuilder app, 
-            IWebHostEnvironment env,
             IApiVersionDescriptionProvider provider, 
             ITransferTracker tracker, 
             IBrowseTracker browseTracker, 
             IConversationTracker conversationTracker,
-            IOptionsMonitor<Options> optionsMonitor,
             IRoomTracker roomTracker)
         {
             var logger = Log.ForContext<Startup>();
