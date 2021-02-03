@@ -1,8 +1,9 @@
-﻿namespace slskd.Controllers
+﻿using Microsoft.Extensions.Options;
+
+namespace slskd.Controllers
 {
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
-    using Microsoft.Extensions.Configuration;
     using Soulseek;
     using System;
     using System.ComponentModel.DataAnnotations;
@@ -12,7 +13,7 @@
     using System.Threading.Tasks;
     using slskd.DTO;
     using slskd.Trackers;
-    using Microsoft.Extensions.Options;
+    using slskd.Configuration;
 
     /// <summary>
     ///     Transfers
@@ -30,7 +31,7 @@
         /// <param name="options"></param>
         /// <param name="client"></param>
         /// <param name="tracker"></param>
-        public TransfersController(IOptionsSnapshot<slskd.Options> options, ISoulseekClient client, ITransferTracker tracker)
+        public TransfersController(IOptionsSnapshot<Options> options, ISoulseekClient client, ITransferTracker tracker)
         {
             OutputDirectory = options.Value.Directories.Downloads;
             Client = client;

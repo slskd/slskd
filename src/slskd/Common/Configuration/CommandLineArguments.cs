@@ -1,4 +1,4 @@
-﻿namespace slskd
+﻿namespace slskd.Configuration
 {
     using System;
     using System.Collections;

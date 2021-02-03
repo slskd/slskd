@@ -1,4 +1,4 @@
-﻿namespace slskd
+﻿namespace slskd.Configuration
 {
     using Microsoft.Extensions.Configuration;
     using System;

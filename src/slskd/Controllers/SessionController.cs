@@ -1,4 +1,6 @@
-﻿namespace slskd.Controllers
+﻿using Microsoft.Extensions.Options;
+
+namespace slskd.Controllers
 {
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
@@ -8,9 +10,9 @@
     using System.IdentityModel.Tokens.Jwt;
     using System.Security.Claims;
     using slskd.DTO;
-    using Microsoft.Extensions.Options;
     using slskd;
     using System.Text.Json;
+    using slskd.Configuration;
 
     /// <summary>
     ///     Session
@@ -22,11 +24,11 @@
     [Consumes("application/json")]
     public class SessionController : ControllerBase
     {
-        private slskd.Options Options { get; set; }
+        private Options Options { get; set; }
         private SymmetricSecurityKey JwtSigningKey { get; set; }
 
         public SessionController(
-            IOptionsSnapshot<slskd.Options> optionsSnapshot,
+            IOptionsSnapshot<Options> optionsSnapshot,
             SymmetricSecurityKey jwtSigningKey)
         {
             Options = optionsSnapshot.Value;
@@ -106,7 +108,7 @@
         private JwtSecurityToken GetJwtSecurityToken(string username, Role role)
         {
             var issuedUtc = DateTime.UtcNow;
-            var expiresUtc = DateTime.UtcNow.AddMilliseconds(Options.Web.Jwt.Ttl);
+            var expiresUtc = DateTime.UtcNow.AddMilliseconds(Options.Web.Authentication.Jwt.Ttl);
 
             var claims = new List<Claim>()
             {
