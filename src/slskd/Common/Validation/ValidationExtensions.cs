@@ -7,12 +7,19 @@
 
     public static class ValidationExtensions
     {
-        public static string GetResultView(this ValidationResult result)
+        public static string GetResultView(this ValidationResult result, string message)
         {
-            return string.Join("\n", result.GetResultView(0));
+            var view = result.GetResultView(0).ToList();
+            
+            if (view.Count() > 0 && !string.IsNullOrEmpty(message))
+            {
+                view[0] = message;
+            }
+
+            return string.Join("\n", view);
         }
 
-        public static IEnumerable<string> GetResultView(this ValidationResult result, int depth = 0)
+        private static IEnumerable<string> GetResultView(this ValidationResult result, int depth = 0)
         {
             var indent = new string(' ', depth * 2);
 

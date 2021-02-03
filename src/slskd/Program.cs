@@ -58,6 +58,9 @@
         [CommandLineArgument('v', "version", "display version information")]
         private static bool ShowVersion { get; set; }
 
+        private static Options Options { get; } = new Options();
+        private static IConfigurationRoot Configuration { get; set;  }
+
         public static void Main(string[] args)
         {
             CommandLineArguments.Populate();
@@ -76,20 +79,18 @@
                 return;
             }
 
-            var configuration = new ConfigurationBuilder()
-                .AddConfigurationProviders(EnvironmentVariablePrefix, ConfigurationFile)
-                .Build();
-
-            var options = new Options();
-
             try
             {
-                configuration.GetSection("slskd")
-                    .Bind(options, (o) => { o.BindNonPublicProperties = true; });
+                Configuration = new ConfigurationBuilder()
+                    .AddConfigurationProviders(EnvironmentVariablePrefix, ConfigurationFile)
+                    .Build();
 
-                if (!options.TryValidate(out var result))
+                Configuration.GetSection("slskd")
+                    .Bind(Options, (o) => { o.BindNonPublicProperties = true; });
+
+                if (!Options.TryValidate(out var result))
                 {
-                    Console.WriteLine(result.GetResultView());
+                    Console.WriteLine(result.GetResultView("Invalid configuration:"));
                     return;
                 }
             }
@@ -99,20 +100,21 @@
                 return;
             }
 
-            if (!options.NoLogo)
+            if (!Options.NoLogo)
             {
                 PrintLogo(Version);
             }
 
-            if (options.Debug)
+            if (Options.Debug)
             {
-                Console.WriteLine(configuration.GetDebugView());
+                Console.WriteLine("Configuration:");
+                Console.WriteLine(Configuration.GetDebugView());
 
                 Log.Logger = new LoggerConfiguration()
                     .MinimumLevel.Debug()
                     .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
                     .Enrich.WithProperty("Version", Version)
-                    .Enrich.WithProperty("InstanceName", options.InstanceName)
+                    .Enrich.WithProperty("InstanceName", Options.InstanceName)
                     .Enrich.WithProperty("InvocationId", InvocationId)
                     .Enrich.WithProperty("ProcessId", ProcessId)
                     .Enrich.FromLogContext()
@@ -124,9 +126,9 @@
                             outputTemplate: "[{SourceContext}] [{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}",
                             rollingInterval: RollingInterval.Day))
                     .WriteTo.Conditional(
-                        e => !string.IsNullOrEmpty(options.Logger.Loki),
+                        e => !string.IsNullOrEmpty(Options.Logger.Loki),
                         config => config.GrafanaLoki(
-                            options.Logger.Loki ?? string.Empty,
+                            Options.Logger.Loki ?? string.Empty,
                             outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}"))
                     .CreateLogger();
             }
@@ -137,7 +139,7 @@
                     .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
                     .MinimumLevel.Override("slskd.Security.PassthroughAuthenticationHandler", LogEventLevel.Information)
                     .Enrich.WithProperty("Version", Version)
-                    .Enrich.WithProperty("InstanceName", options.InstanceName)
+                    .Enrich.WithProperty("InstanceName", Options.InstanceName)
                     .Enrich.WithProperty("InvocationId", InvocationId)
                     .Enrich.WithProperty("ProcessId", ProcessId)
                     .Enrich.FromLogContext()
@@ -149,9 +151,9 @@
                             outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}",
                             rollingInterval: RollingInterval.Day))
                     .WriteTo.Conditional(
-                        e => !string.IsNullOrEmpty(options.Logger.Loki),
+                        e => !string.IsNullOrEmpty(Options.Logger.Loki),
                         config => config.GrafanaLoki(
-                            options.Logger.Loki ?? string.Empty,
+                            Options.Logger.Loki ?? string.Empty,
                             outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}"))
                     .CreateLogger();
             }
@@ -159,18 +161,18 @@
             var logger = Log.ForContext<Program>();
 
             logger.Information("Version: {Version}", Version);
-            logger.Information("Instance Name: {InstanceName}", options.InstanceName);
+            logger.Information("Instance Name: {InstanceName}", Options.InstanceName);
             logger.Information("Invocation ID: {InvocationId}", InvocationId);
             logger.Information("Process ID: {ProcessId}", ProcessId);
 
-            if (!string.IsNullOrEmpty(options.Logger.Loki))
+            if (!string.IsNullOrEmpty(Options.Logger.Loki))
             {
-                logger.Information("Forwarding logs to Grafana Loki instance at {LoggerLokiUrl}", options.Logger.Loki);
+                logger.Information("Forwarding logs to Grafana Loki instance at {LoggerLokiUrl}", Options.Logger.Loki);
             }
 
             try
             {
-                if (options.Feature.Prometheus)
+                if (Options.Feature.Prometheus)
                 {
                     using var runtimeMetrics = DotNetRuntimeStatsBuilder.Default().StartCollecting();
                 }
@@ -186,7 +188,7 @@
                     //.UseUrls(
                     //    $"http://0.0.0.0:{options.Web.Port}", 
                     //    $"https://0.0.0.0:{options.Web.Https.Port}")
-                    .UseUrls($"http://0.0.0.0:{options.Web.Port}")
+                    .UseUrls($"http://0.0.0.0:{Options.Web.Port}")
                     .Build()
                     .Run();
             }
