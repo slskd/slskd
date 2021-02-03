@@ -13,9 +13,9 @@
 #       disable: false
 #       username: slskd
 #       password: slskd
-#     jwt:
-#       key: ~
-#       ttl: 604800000
+#       jwt:
+#         key: ~
+#         ttl: 604800000
 #   directories:
 #     shared: ~
 #     downloads: ~
