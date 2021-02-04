@@ -54,6 +54,6 @@ ENV SLSKD_DOWNLOADS_DIR=/var/slskd/downloads
 
 ENV SLSKD_DOCKER_VERSION=${VERSION}
 
-HEALTHCHECK --interval=60s --timeout=3s --start-period=5s --retries=3 CMD wget -q -O - http://localhost:80/health
+HEALTHCHECK --interval=60s --timeout=3s --start-period=5s --retries=3 CMD wget -q -O - http://localhost:5000/health
 
 ENTRYPOINT ["./slskd"]
