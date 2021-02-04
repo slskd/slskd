@@ -11,7 +11,6 @@ namespace slskd.Controllers
     using System.Security.Claims;
     using slskd.DTO;
     using slskd;
-    using System.Text.Json;
     using slskd.Configuration;
 
     /// <summary>
@@ -32,7 +31,6 @@ namespace slskd.Controllers
             SymmetricSecurityKey jwtSigningKey)
         {
             Options = optionsSnapshot.Value;
-            Console.WriteLine(JsonSerializer.Serialize(Options));
             JwtSigningKey = jwtSigningKey;
         }
 
