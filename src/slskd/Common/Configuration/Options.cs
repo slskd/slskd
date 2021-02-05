@@ -128,6 +128,13 @@
                 [Range(1, 65535)]
                 public int Port { get; private set; } = 5001;
                 public bool Force { get; private set; } = false;
+                public CertificateOptions Certificate { get; private set; } = new CertificateOptions();
+
+                public class CertificateOptions
+                {
+                    public string Pfx { get; private set; }
+                    public string Password { get; private set; }
+                }
             }
         }
 
@@ -229,6 +236,22 @@
                 Type: typeof(bool),
                 Default: Defaults.Web.Https.Force,
                 Description: "redirect HTTP to HTTPS"),
+            new(
+                ShortName: default,
+                LongName: "https-cert-pfx",
+                EnvironmentVariable: "HTTPS_CERT_PFX",
+                Key: "slskd:web:https:certificate:pfx",
+                Type: typeof(string),
+                Default: null,
+                Description: "path to certificate .pfx"),
+            new(
+                ShortName: default,
+                LongName: "https-cert-password",
+                EnvironmentVariable: "HTTPS_CERT_PASSWORD",
+                Key: "slskd:web:https:certificate:password",
+                Type: typeof(string),
+                Default: null,
+                Description: "certificate password"),
             new(
                 ShortName: default,
                 LongName: "url-base",
