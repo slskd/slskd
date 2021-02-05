@@ -7,6 +7,9 @@
 #     https:
 #       port: 5001
 #       force: false
+#       certificate:
+#         pfx: ~
+#         password: ~
 #     url_base: /
 #     content_path: wwwroot
 #     authentication:
