@@ -62,7 +62,7 @@
         [CommandLineArgument('v', "version", "display version information")]
         private static bool ShowVersion { get; set; }
 
-        [CommandLineArgument('g', "generate-certificate", "generate X509 certificate and password for HTTPs")]
+        [CommandLineArgument('g', "generate-cert", "generate X509 certificate and password for HTTPs")]
         private static bool GenerateCertificate { get; set; }
 
         private static Options Options { get; } = new Options();
@@ -207,8 +207,18 @@
                         logger.Information($"Listening for HTTPS requests at https://{IPAddress.Any}:{Options.Web.Https.Port}/");
                         options.Listen(IPAddress.Any, Options.Web.Https.Port, listenOptions =>
                         {
-                            logger.Information($"Using randomly generated self-signed certificate");
-                            listenOptions.UseHttps(X509.Generate(subject: AppName, password: Guid.NewGuid().ToString(), X509KeyStorageFlags.MachineKeySet));
+                            var cert = Options.Web.Https.Certificate;
+
+                            if (!string.IsNullOrEmpty(cert.Pfx))
+                            {
+                                logger.Information($"Using certificate from {cert.Pfx}");
+                                listenOptions.UseHttps(cert.Pfx, cert.Password);
+                            }
+                            else
+                            {
+                                logger.Information($"Using randomly generated self-signed certificate");
+                                listenOptions.UseHttps(X509.Generate(subject: AppName, password: Guid.NewGuid().ToString(), X509KeyStorageFlags.MachineKeySet));
+                            }
                         });
                     })
                     .UseStartup<Startup>()
