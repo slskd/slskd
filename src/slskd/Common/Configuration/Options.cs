@@ -158,6 +158,14 @@
                 Default: false,
                 Description: "display environment variables"),
             new(
+                ShortName: 'g',
+                LongName: "generate-certificate",
+                EnvironmentVariable: null,
+                Key: null,
+                Type: typeof(bool),
+                Default: false,
+                Description: "generate X509 certificate and password for HTTPs"),
+            new(
                 ShortName: 'd',
                 LongName: "debug",
                 EnvironmentVariable: "DEBUG",
