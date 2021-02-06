@@ -106,6 +106,14 @@
                     Console.WriteLine(result.GetResultView("Invalid configuration:"));
                     return;
                 }
+
+                var cert = Options.Web.Https.Certificate;
+
+                if (!string.IsNullOrEmpty(cert.Pfx) && !X509.TryValidate(cert.Pfx, cert.Password, out var certResult))
+                {
+                    Console.WriteLine($"Invalid HTTPs certificate: {certResult}");
+                    return;
+                }
             }
             catch (Exception ex)
             {
@@ -217,7 +225,7 @@
                             else
                             {
                                 logger.Information($"Using randomly generated self-signed certificate");
-                                listenOptions.UseHttps(X509.Generate(subject: AppName, password: Guid.NewGuid().ToString(), X509KeyStorageFlags.MachineKeySet));
+                                listenOptions.UseHttps(X509.Generate(subject: AppName));
                             }
                         });
                     })
@@ -278,7 +286,7 @@
 
             var longestName = map.Select(a => GetName(a.EnvironmentVariable, a.Type)).Max(n => n.Length);
 
-            Console.WriteLine("\nenvironment variables (arguments and config.yml have precedence):\n");
+            Console.WriteLine("\nenvironment variables (arguments and config file have precedence):\n");
 
             foreach (Option item in map)
             {
