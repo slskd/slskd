@@ -128,6 +128,7 @@
                 [Range(1, 65535)]
                 public int Port { get; private set; } = 5001;
                 public bool Force { get; private set; } = false;
+                [X509Certificate]
                 public CertificateOptions Certificate { get; private set; } = new CertificateOptions();
 
                 public class CertificateOptions
