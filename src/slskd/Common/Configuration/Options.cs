@@ -166,7 +166,7 @@
                 Description: "display environment variables"),
             new(
                 ShortName: 'g',
-                LongName: "generate-certificate",
+                LongName: "generate-cert",
                 EnvironmentVariable: null,
                 Key: null,
                 Type: typeof(bool),
@@ -243,7 +243,7 @@
                 Key: "slskd:web:https:certificate:pfx",
                 Type: typeof(string),
                 Default: null,
-                Description: "path to certificate .pfx"),
+                Description: "path to X509 certificate .pfx"),
             new(
                 ShortName: default,
                 LongName: "https-cert-password",
@@ -251,7 +251,7 @@
                 Key: "slskd:web:https:certificate:password",
                 Type: typeof(string),
                 Default: null,
-                Description: "certificate password"),
+                Description: "X509 certificate password"),
             new(
                 ShortName: default,
                 LongName: "url-base",
