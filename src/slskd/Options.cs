@@ -128,11 +128,12 @@
                 [Range(1, 65535)]
                 public int Port { get; private set; } = 5001;
                 public bool Force { get; private set; } = false;
-                [X509Certificate]
+                [Validate]
                 public CertificateOptions Certificate { get; private set; } = new CertificateOptions();
 
                 public class CertificateOptions
                 {
+                    [FileExists]
                     public string Pfx { get; private set; }
                     public string Password { get; private set; }
                 }
