@@ -3,7 +3,6 @@
     using System.Collections.Generic;
     using System.ComponentModel.DataAnnotations;
     using System.Linq;
-    using slskd.Configuration;
 
     public static class ValidationExtensions
     {
@@ -38,20 +37,6 @@
             {
                 return new[] { indent + result };
             }
-        }
-
-        public static bool TryValidate(this Options options, out CompositeValidationResult result)
-        {
-            result = null;
-            var results = new List<ValidationResult>();
-
-            if (!Validator.TryValidateObject(options, new ValidationContext(options), results, true))
-            {
-                result = new CompositeValidationResult("Invalid configuration", results);
-                return false;
-            }
-
-            return true;
         }
     }
 }

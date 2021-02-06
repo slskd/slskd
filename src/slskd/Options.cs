@@ -1,4 +1,4 @@
-﻿namespace slskd.Configuration
+﻿namespace slskd
 {
     using slskd.Validation;
     using Soulseek.Diagnostics;
@@ -128,7 +128,30 @@
                 [Range(1, 65535)]
                 public int Port { get; private set; } = 5001;
                 public bool Force { get; private set; } = false;
+                [Validate]
+                public CertificateOptions Certificate { get; private set; } = new CertificateOptions();
+
+                public class CertificateOptions
+                {
+                    [FileExists]
+                    public string Pfx { get; private set; }
+                    public string Password { get; private set; }
+                }
             }
+        }
+
+        public bool TryValidate(out CompositeValidationResult result)
+        {
+            result = null;
+            var results = new List<ValidationResult>();
+
+            if (!Validator.TryValidateObject(this, new ValidationContext(this), results, true))
+            {
+                result = new CompositeValidationResult("Invalid configuration", results);
+                return false;
+            }
+
+            return true;
         }
 
         public static IEnumerable<Option> Map => new Option[]
@@ -157,6 +180,14 @@
                 Type: typeof(bool),
                 Default: false,
                 Description: "display environment variables"),
+            new(
+                ShortName: 'g',
+                LongName: "generate-cert",
+                EnvironmentVariable: null,
+                Key: null,
+                Type: typeof(bool),
+                Default: false,
+                Description: "generate X509 certificate and password for HTTPs"),
             new(
                 ShortName: 'd',
                 LongName: "debug",
@@ -221,6 +252,22 @@
                 Type: typeof(bool),
                 Default: Defaults.Web.Https.Force,
                 Description: "redirect HTTP to HTTPS"),
+            new(
+                ShortName: default,
+                LongName: "https-cert-pfx",
+                EnvironmentVariable: "HTTPS_CERT_PFX",
+                Key: "slskd:web:https:certificate:pfx",
+                Type: typeof(string),
+                Default: null,
+                Description: "path to X509 certificate .pfx"),
+            new(
+                ShortName: default,
+                LongName: "https-cert-password",
+                EnvironmentVariable: "HTTPS_CERT_PASSWORD",
+                Key: "slskd:web:https:certificate:password",
+                Type: typeof(string),
+                Default: null,
+                Description: "X509 certificate password"),
             new(
                 ShortName: default,
                 LongName: "url-base",

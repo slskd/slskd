@@ -18,11 +18,9 @@
             byte[] salt = new byte[16];
             int iterations = 1000;
 
-            using (var rng = RandomNumberGenerator.Create())
-            {
-                rng.GetBytes(salt);
-                return KeyDerivation.Pbkdf2(password, salt, KeyDerivationPrf.HMACSHA256, iterations, 32);
-            }
+            using var rng = RandomNumberGenerator.Create();
+            rng.GetBytes(salt);
+            return KeyDerivation.Pbkdf2(password, salt, KeyDerivationPrf.HMACSHA256, iterations, 32);
         }
     }
 }

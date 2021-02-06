@@ -7,14 +7,17 @@
     using Serilog;
     using Serilog.Events;
     using Serilog.Sinks.Grafana.Loki;
+    using slskd.Common.Cryptography;
     using slskd.Configuration;
     using slskd.Validation;
     using System;
     using System.Collections.Generic;
     using System.IO;
     using System.Linq;
+    using System.Net;
     using System.Reflection;
-    
+    using System.Security.Cryptography.X509Certificates;
+
     public static class ProgramExtensions
     {
         public static IConfigurationBuilder AddConfigurationProviders(this IConfigurationBuilder builder, string environmentVariablePrefix, string configurationFile)
@@ -37,8 +40,9 @@
 
     public class Program
     {
-        private static readonly string ConfigurationFile = "slskd.yml";
-        private static readonly string EnvironmentVariablePrefix = "SLSKD_";
+        private static readonly string AppName = "slskd";
+        private static readonly string ConfigurationFile = $"{AppName}.yml";
+        private static readonly string EnvironmentVariablePrefix = $"{AppName.ToUpperInvariant()}_";
         
         public static Guid InvocationId { get; } = Guid.NewGuid();
         public static int ProcessId { get; } = Environment.ProcessId;
@@ -57,6 +61,9 @@
 
         [CommandLineArgument('v', "version", "display version information")]
         private static bool ShowVersion { get; set; }
+
+        [CommandLineArgument('g', "generate-cert", "generate X509 certificate and password for HTTPs")]
+        private static bool GenerateCertificate { get; set; }
 
         private static Options Options { get; } = new Options();
         private static IConfigurationRoot Configuration { get; set;  }
@@ -79,6 +86,12 @@
                 return;
             }
 
+            if (GenerateCertificate)
+            {
+                GenerateX509Certificate(password: Guid.NewGuid().ToString(), filename: $"{AppName}.pfx");
+                return;
+            }
+
             try
             {
                 Configuration = new ConfigurationBuilder()
@@ -91,6 +104,14 @@
                 if (!Options.TryValidate(out var result))
                 {
                     Console.WriteLine(result.GetResultView("Invalid configuration:"));
+                    return;
+                }
+
+                var cert = Options.Web.Https.Certificate;
+
+                if (!string.IsNullOrEmpty(cert.Pfx) && !X509.TryValidate(cert.Pfx, cert.Password, out var certResult))
+                {
+                    Console.WriteLine($"Invalid HTTPs certificate: {certResult}");
                     return;
                 }
             }
@@ -178,17 +199,37 @@
                 }
 
                 WebHost.CreateDefaultBuilder(args)
+                    .SuppressStatusMessages(true)
                     .ConfigureAppConfiguration((hostingContext, builder) =>
                     {
                         builder.Sources.Clear();
                         builder.AddConfigurationProviders(EnvironmentVariablePrefix, ConfigurationFile);
                     })
                     .UseSerilog()
+                    .UseUrls()
+                    .UseKestrel(options =>
+                    {
+                        logger.Information($"Listening for HTTP requests at http://{IPAddress.Any}:{Options.Web.Port}/");
+                        options.Listen(IPAddress.Any, Options.Web.Port);
+
+                        logger.Information($"Listening for HTTPS requests at https://{IPAddress.Any}:{Options.Web.Https.Port}/");
+                        options.Listen(IPAddress.Any, Options.Web.Https.Port, listenOptions =>
+                        {
+                            var cert = Options.Web.Https.Certificate;
+
+                            if (!string.IsNullOrEmpty(cert.Pfx))
+                            {
+                                logger.Information($"Using certificate from {cert.Pfx}");
+                                listenOptions.UseHttps(cert.Pfx, cert.Password);
+                            }
+                            else
+                            {
+                                logger.Information($"Using randomly generated self-signed certificate");
+                                listenOptions.UseHttps(X509.Generate(subject: AppName));
+                            }
+                        });
+                    })
                     .UseStartup<Startup>()
-                    //.UseUrls(
-                    //    $"http://+:{options.Web.Port}", 
-                    //    $"https://+:{options.Web.Https.Port}")
-                    .UseUrls($"http://+:{Options.Web.Port}")
                     .Build()
                     .Run();
             }
@@ -200,6 +241,18 @@
             {
                 Log.CloseAndFlush();
             }
+        }
+
+        public static void GenerateX509Certificate(string password, string filename)
+        {
+            Console.WriteLine("Generating X509 certificate...");
+            filename = Path.Combine(AppContext.BaseDirectory, filename);
+
+            var cert = X509.Generate(subject: AppName, password, X509KeyStorageFlags.Exportable);
+            File.WriteAllBytes(filename, cert.Export(X509ContentType.Pkcs12, password));
+
+            Console.WriteLine($"Password: {password}");
+            Console.WriteLine($"Certificate exported to {filename}");
         }
 
         public static void PrintCommandLineArguments(IEnumerable<Option> map)
@@ -233,7 +286,7 @@
 
             var longestName = map.Select(a => GetName(a.EnvironmentVariable, a.Type)).Max(n => n.Length);
 
-            Console.WriteLine("\nenvironment variables (arguments and config.yml have precedence):\n");
+            Console.WriteLine("\nenvironment variables (arguments and config file have precedence):\n");
 
             foreach (Option item in map)
             {
