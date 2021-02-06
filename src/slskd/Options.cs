@@ -1,4 +1,4 @@
-﻿namespace slskd.Configuration
+﻿namespace slskd
 {
     using slskd.Validation;
     using Soulseek.Diagnostics;
@@ -137,6 +137,20 @@
                     public string Password { get; private set; }
                 }
             }
+        }
+
+        public bool TryValidate(out CompositeValidationResult result)
+        {
+            result = null;
+            var results = new List<ValidationResult>();
+
+            if (!Validator.TryValidateObject(this, new ValidationContext(this), results, true))
+            {
+                result = new CompositeValidationResult("Invalid configuration", results);
+                return false;
+            }
+
+            return true;
         }
 
         public static IEnumerable<Option> Map => new Option[]
