@@ -238,7 +238,7 @@
         public static void GenerateX509Certificate(string password, string filename)
         {
             Console.WriteLine("Generating X509 certificate...");
-            filename = Path.Combine(AppContext.BaseDirectory, $"{AppName}.pfx");
+            filename = Path.Combine(AppContext.BaseDirectory, filename);
 
             var cert = X509.Generate(subject: AppName, password, X509KeyStorageFlags.Exportable);
             File.WriteAllBytes(filename, cert.Export(X509ContentType.Pkcs12, password));
