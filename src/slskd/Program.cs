@@ -189,6 +189,11 @@ namespace slskd
 
             var logger = Log.ForContext<Program>();
 
+            if (ConfigurationFile != DefaultConfigurationFile && !File.Exists(ConfigurationFile))
+            {
+                logger.Warning($"Specified configuration file '{ConfigurationFile}' could not be found and was not loaded.");
+            }
+
             logger.Information("Version: {Version}", Version);
             logger.Information("Instance Name: {InstanceName}", Options.InstanceName);
             logger.Information("Invocation ID: {InvocationId}", InvocationId);
