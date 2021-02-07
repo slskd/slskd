@@ -1,8 +1,10 @@
-namespace slskd
+﻿namespace slskd
 {
     using Microsoft.AspNetCore;
     using Microsoft.AspNetCore.Hosting;
     using Microsoft.Extensions.Configuration;
+    using Microsoft.Extensions.FileProviders;
+    using Microsoft.Extensions.FileProviders.Physical;
     using Prometheus.DotNetRuntime;
     using Serilog;
     using Serilog.Events;
@@ -305,7 +307,7 @@ namespace slskd
             {
                 var (_, _, environmentVariable, key, type, defaultValue, description) = item;
 
-                if (string.IsNullOrEmpty(environmentVariable) || string.IsNullOrEmpty(key))
+                if (string.IsNullOrEmpty(environmentVariable))
                 {
                     continue;
                 }
