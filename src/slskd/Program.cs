@@ -125,7 +125,7 @@ namespace slskd
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Invalid configuration: {ex.Message}");
+                Console.WriteLine($"Invalid configuration: {(Options.Debug ? ex : ex.Message)}");
                 return;
             }
 
