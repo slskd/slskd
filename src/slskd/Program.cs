@@ -68,12 +68,17 @@ namespace slskd
         [CommandLineArgument('g', "generate-cert", "generate X509 certificate and password for HTTPs")]
         private static bool GenerateCertificate { get; set; }
 
+        [EnvironmentVariable("CONFIG")]
+        [CommandLineArgument('c', "config", "path to configuration file")]
+        private static string ConfigurationFile { get; set; } = DefaultConfigurationFile;
+
         private static Options Options { get; } = new Options();
-        private static IConfigurationRoot Configuration { get; set;  }
+        private static IConfigurationRoot Configuration { get; set; }
 
         public static void Main(string[] args)
         {
-            CommandLineArguments.Populate();
+            EnvironmentVariables.Populate(prefix: EnvironmentVariablePrefix);
+            CommandLineArguments.Populate(clearExistingValues: false);
 
             if (ShowVersion)
             {
