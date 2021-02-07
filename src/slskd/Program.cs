@@ -43,9 +43,9 @@ namespace slskd
 
     public class Program
     {
-        private static readonly string AppName = "slskd";
-        private static readonly string ConfigurationFile = $"{AppName}.yml";
-        private static readonly string EnvironmentVariablePrefix = $"{AppName.ToUpperInvariant()}_";
+        public static readonly string AppName = "slskd";
+        public static readonly string DefaultConfigurationFile = $"{AppName}.yml";
+        public static readonly string EnvironmentVariablePrefix = $"{AppName.ToUpperInvariant()}_";
         
         public static Guid InvocationId { get; } = Guid.NewGuid();
         public static int ProcessId { get; } = Environment.ProcessId;
