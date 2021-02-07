@@ -1,4 +1,4 @@
-﻿namespace slskd
+namespace slskd
 {
     using Microsoft.AspNetCore;
     using Microsoft.AspNetCore.Hosting;
@@ -22,6 +22,8 @@
     {
         public static IConfigurationBuilder AddConfigurationProviders(this IConfigurationBuilder builder, string environmentVariablePrefix, string configurationFile)
         {
+            configurationFile = Path.GetFullPath(configurationFile);
+
             return builder
                 .AddDefaultValues(
                     map: Options.Map.Select(o => o.ToDefaultValue()))
@@ -29,9 +31,10 @@
                     prefix: environmentVariablePrefix,
                     map: Options.Map.Select(o => o.ToEnvironmentVariable()))
                 .AddYamlFile(
-                    path: Path.Combine(AppContext.BaseDirectory, configurationFile), 
+                    path: Path.GetFileName(configurationFile), 
                     optional: true, 
-                    reloadOnChange: false)
+                    reloadOnChange: false,
+                    provider: new PhysicalFileProvider(Path.GetDirectoryName(configurationFile), ExclusionFilters.None))
                 .AddCommandLine(
                     commandLine: Environment.CommandLine,
                     map: Options.Map.Select(o => o.ToCommandLineArgument()));
