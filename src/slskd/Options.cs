@@ -15,7 +15,7 @@
 
         public bool Debug { get; private set; } = Debugger.IsAttached;
         public bool NoLogo { get; private set; } = false;
-        public string InstanceName { get; private set; } = "default";        
+        public string InstanceName { get; private set; } = "default";
         [Validate]
         public DirectoriesOptions Directories { get; private set; } = new DirectoriesOptions();        
         [Validate]
@@ -205,6 +205,14 @@
                 Default: Defaults.NoLogo,
                 Description: "suppress logo on startup"),
             new(
+                ShortName: 'c',
+                LongName: "config",
+                EnvironmentVariable: "CONFIG",
+                Key: null,
+                Type: typeof(string),
+                Default: Program.DefaultConfigurationFile,
+                Description: "path to configuration file"),
+            new(
                 ShortName: 'i',
                 LongName: "instance-name",
                 EnvironmentVariable: "INSTANCE_NAME",
@@ -219,7 +227,7 @@
                 Key: "slskd:directories:downloads",
                 Type: typeof(string),
                 Default: Defaults.Directories.Downloads,
-                Description: "the path where downloaded files are saved"),
+                Description: "path where downloaded files are saved"),
             new(
                 ShortName: 's',
                 LongName: "shared",
@@ -227,7 +235,7 @@
                 Key: "slskd:directories:shared",
                 Type: typeof(string),
                 Default: Defaults.Directories.Shared,
-                Description: "the path to shared files"),
+                Description: "path to shared files"),
             new(
                 ShortName: 'l',
                 LongName: "http-port",
@@ -258,7 +266,7 @@
                 EnvironmentVariable: "HTTPS_CERT_PFX",
                 Key: "slskd:web:https:certificate:pfx",
                 Type: typeof(string),
-                Default: null,
+                Default: Defaults.Web.Https.Certificate.Pfx,
                 Description: "path to X509 certificate .pfx"),
             new(
                 ShortName: default,
@@ -266,7 +274,7 @@
                 EnvironmentVariable: "HTTPS_CERT_PASSWORD",
                 Key: "slskd:web:https:certificate:password",
                 Type: typeof(string),
-                Default: null,
+                Default: Defaults.Web.Https.Certificate.Password,
                 Description: "X509 certificate password"),
             new(
                 ShortName: default,
@@ -299,7 +307,7 @@
                 Key: "slskd:web:authentication:username",
                 Type: typeof(string),
                 Default: Defaults.Web.Authentication.Username,
-                Description: "the username for the web UI"),
+                Description: "the username for web UI"),
             new(
                 ShortName: 'p',
                 LongName: "password",
@@ -315,7 +323,7 @@
                 Key: "slskd:web:authentication:jwt:key",
                 Type: typeof(string),
                 Default: Defaults.Web.Authentication.Jwt.Key,
-                Description: "the key with which to sign JWTs"),
+                Description: "JWT signing key"),
             new(
                 ShortName: default,
                 LongName: "jwt-ttl",
@@ -323,7 +331,7 @@
                 Key: "slskd:web:authentication:jwt:ttl",
                 Type: typeof(int),
                 Default: Defaults.Web.Authentication.Jwt.Ttl,
-                Description: "the TTL for JWTs"),
+                Description: "TTL for JWTs"),
             new(
                 ShortName: default,
                 LongName: "prometheus",
@@ -347,7 +355,7 @@
                 Key: "slskd:logger:loki",
                 Type: typeof(string),
                 Default: Defaults.Logger.Loki,
-                Description: "optional; the url to a Grafana Loki instance to which to log"),
+                Description: "optional; url to a Grafana Loki instance to which to log"),
             new(
                 ShortName: default,
                 LongName: "slsk-username",
@@ -355,7 +363,7 @@
                 Key: "slskd:soulseek:username",
                 Type: typeof(string),
                 Default: Defaults.Soulseek.Username,
-                Description: "the username for the Soulseek network"),
+                Description: "username for the Soulseek network"),
             new(
                 ShortName: default,
                 LongName: "slsk-password",
@@ -363,7 +371,7 @@
                 Key: "slskd:soulseek:password",
                 Type: typeof(string),
                 Default: Defaults.Soulseek.Password,
-                Description: "the password for the Soulseek network"),
+                Description: "password for the Soulseek network"),
             new(
                 ShortName: default,
                 LongName: "slsk-listen-port",
@@ -371,7 +379,7 @@
                 Key: "slskd:soulseek:listenport",
                 Type: typeof(int),
                 Default: Defaults.Soulseek.ListenPort,
-                Description: "the port on which to listen for incoming connections"),
+                Description: "port on which to listen for incoming connections"),
             new(
                 ShortName: default,
                 LongName: "slsk-diag-level",
@@ -379,7 +387,7 @@
                 Key: "slskd:soulseek:diagnosticlevel",
                 Type: typeof(DiagnosticLevel),
                 Default: Defaults.Soulseek.DiagnosticLevel,
-                Description: "the minimum diagnostic level (None, Warning, Info, Debug)"),
+                Description: "minimum diagnostic level (None, Warning, Info, Debug)"),
             new(
                 ShortName: default,
                 LongName: "slsk-no-dnet",
@@ -387,7 +395,7 @@
                 Key: "slskd:soulseek:distributednetwork:disabled",
                 Type: typeof(bool),
                 Default: Defaults.Soulseek.DistributedNetwork.Disabled,
-                Description: "disables the distributed network"),
+                Description: "disable the distributed network"),
             new(
                 ShortName: default,
                 LongName: "slsk-dnet-children",
@@ -395,7 +403,7 @@
                 Key: "slskd:soulseek:distributednetwork:childlimit",
                 Type: typeof(int),
                 Default: Defaults.Soulseek.DistributedNetwork.ChildLimit,
-                Description: "the limit for the number of distributed children"),
+                Description: "max number of distributed children"),
             new(
                 ShortName: default,
                 LongName: "slsk-connection-timeout",
@@ -403,7 +411,7 @@
                 Key: "slskd:soulseek:connection:timeout:connect",
                 Type: typeof(int),
                 Default: Defaults.Soulseek.Connection.Timeout.Connect,
-                Description: "the connection timeout, in miliseconds"),
+                Description: "connection timeout, in miliseconds"),
             new(
                 ShortName: default,
                 LongName: "slsk-inactivity-timeout",
@@ -411,7 +419,7 @@
                 Key: "slskd:soulseek:connection:timeout:inactivity",
                 Type: typeof(int),
                 Default: Defaults.Soulseek.Connection.Timeout.Inactivity,
-                Description: "the connection inactivity timeout, in miliseconds"),
+                Description: "connection inactivity timeout, in miliseconds"),
             new(
                 ShortName: default,
                 LongName: "slsk-read-buffer",
@@ -419,7 +427,7 @@
                 Key: "slskd:soulseek:connection:buffer:read",
                 Type: typeof(int),
                 Default: Defaults.Soulseek.Connection.Buffer.Read,
-                Description: "the read buffer size for connections"),
+                Description: "read buffer size for connections"),
             new(
                 ShortName: default,
                 LongName: "slsk-write-buffer",
@@ -427,7 +435,7 @@
                 Key: "slskd:soulseek:connection:buffer:write",
                 Type: typeof(int),
                 Default: Defaults.Soulseek.Connection.Buffer.Write,
-                Description: "the write buffer size for connections"),
+                Description: "write buffer size for connections"),
         };
     }
 }

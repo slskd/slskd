@@ -7,11 +7,14 @@
     {
         protected override ValidationResult IsValid(object value, ValidationContext validationContext)
         {
-            var file = Path.GetFullPath(value.ToString());
-
-            if (!string.IsNullOrEmpty(file) && !File.Exists(file))
+            if (value != null)
             {
-                return new ValidationResult($"The {validationContext.DisplayName} field specifies a non-existent file '{file}'.");
+                var file = Path.GetFullPath(value?.ToString());
+
+                if (!string.IsNullOrEmpty(file) && !File.Exists(file))
+                {
+                    return new ValidationResult($"The {validationContext.DisplayName} field specifies a non-existent file '{file}'.");
+                }
             }
 
             return ValidationResult.Success;

@@ -3,6 +3,8 @@
     using Microsoft.AspNetCore;
     using Microsoft.AspNetCore.Hosting;
     using Microsoft.Extensions.Configuration;
+    using Microsoft.Extensions.FileProviders;
+    using Microsoft.Extensions.FileProviders.Physical;
     using Prometheus.DotNetRuntime;
     using Serilog;
     using Serilog.Events;
@@ -22,6 +24,8 @@
     {
         public static IConfigurationBuilder AddConfigurationProviders(this IConfigurationBuilder builder, string environmentVariablePrefix, string configurationFile)
         {
+            configurationFile = Path.GetFullPath(configurationFile);
+
             return builder
                 .AddDefaultValues(
                     map: Options.Map.Select(o => o.ToDefaultValue()))
@@ -29,9 +33,10 @@
                     prefix: environmentVariablePrefix,
                     map: Options.Map.Select(o => o.ToEnvironmentVariable()))
                 .AddYamlFile(
-                    path: Path.Combine(AppContext.BaseDirectory, configurationFile), 
+                    path: Path.GetFileName(configurationFile), 
                     optional: true, 
-                    reloadOnChange: false)
+                    reloadOnChange: false,
+                    provider: new PhysicalFileProvider(Path.GetDirectoryName(configurationFile), ExclusionFilters.None))
                 .AddCommandLine(
                     commandLine: Environment.CommandLine,
                     map: Options.Map.Select(o => o.ToCommandLineArgument()));
@@ -40,9 +45,9 @@
 
     public class Program
     {
-        private static readonly string AppName = "slskd";
-        private static readonly string ConfigurationFile = $"{AppName}.yml";
-        private static readonly string EnvironmentVariablePrefix = $"{AppName.ToUpperInvariant()}_";
+        public static readonly string AppName = "slskd";
+        public static readonly string DefaultConfigurationFile = $"{AppName}.yml";
+        public static readonly string EnvironmentVariablePrefix = $"{AppName.ToUpperInvariant()}_";
         
         public static Guid InvocationId { get; } = Guid.NewGuid();
         public static int ProcessId { get; } = Environment.ProcessId;
@@ -65,12 +70,17 @@
         [CommandLineArgument('g', "generate-cert", "generate X509 certificate and password for HTTPs")]
         private static bool GenerateCertificate { get; set; }
 
+        [EnvironmentVariable("CONFIG")]
+        [CommandLineArgument('c', "config", "path to configuration file")]
+        private static string ConfigurationFile { get; set; } = DefaultConfigurationFile;
+
         private static Options Options { get; } = new Options();
-        private static IConfigurationRoot Configuration { get; set;  }
+        private static IConfigurationRoot Configuration { get; set; }
 
         public static void Main(string[] args)
         {
-            CommandLineArguments.Populate();
+            EnvironmentVariables.Populate(prefix: EnvironmentVariablePrefix);
+            CommandLineArguments.Populate(clearExistingValues: false);
 
             if (ShowVersion)
             {
@@ -117,7 +127,7 @@
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Invalid configuration: {ex.Message}");
+                Console.WriteLine($"Invalid configuration: {(Options.Debug ? ex : ex.Message)}");
                 return;
             }
 
@@ -180,6 +190,11 @@
             }
 
             var logger = Log.ForContext<Program>();
+
+            if (ConfigurationFile != DefaultConfigurationFile && !File.Exists(ConfigurationFile))
+            {
+                logger.Warning($"Specified configuration file '{ConfigurationFile}' could not be found and was not loaded.");
+            }
 
             logger.Information("Version: {Version}", Version);
             logger.Information("Instance Name: {InstanceName}", Options.InstanceName);
@@ -292,7 +307,7 @@
             {
                 var (_, _, environmentVariable, key, type, defaultValue, description) = item;
 
-                if (string.IsNullOrEmpty(environmentVariable) || string.IsNullOrEmpty(key))
+                if (string.IsNullOrEmpty(environmentVariable))
                 {
                     continue;
                 }
