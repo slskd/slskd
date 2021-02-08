@@ -189,6 +189,14 @@
                 Default: false,
                 Description: "generate X509 certificate and password for HTTPs"),
             new(
+                ShortName: 'c',
+                LongName: "config",
+                EnvironmentVariable: "CONFIG",
+                Key: null,
+                Type: typeof(string),
+                Default: Program.DefaultConfigurationFile,
+                Description: "path to configuration file"),
+            new(
                 ShortName: 'd',
                 LongName: "debug",
                 EnvironmentVariable: "DEBUG",
@@ -204,14 +212,6 @@
                 Type: typeof(bool),
                 Default: Defaults.NoLogo,
                 Description: "suppress logo on startup"),
-            new(
-                ShortName: 'c',
-                LongName: "config",
-                EnvironmentVariable: "CONFIG",
-                Key: null,
-                Type: typeof(string),
-                Default: Program.DefaultConfigurationFile,
-                Description: "path to configuration file"),
             new(
                 ShortName: 'i',
                 LongName: "instance-name",
