@@ -1,5 +1,29 @@
-﻿namespace slskd
+﻿// <copyright file="Program.cs" company="slskd Team">
+//     Copyright (c) slskd Team. All rights reserved.
+//
+//     This program is free software: you can redistribute it and/or modify
+//     it under the terms of the GNU Affero General Public License as published
+//     by the Free Software Foundation, either version 3 of the License, or
+//     (at your option) any later version.
+//
+//     This program is distributed in the hope that it will be useful,
+//     but WITHOUT ANY WARRANTY; without even the implied warranty of
+//     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//     GNU Affero General Public License for more details.
+//
+//     You should have received a copy of the GNU Affero General Public License
+//     along with this program.  If not, see https://www.gnu.org/licenses/.
+// </copyright>
+
+namespace slskd
 {
+    using System;
+    using System.Collections.Generic;
+    using System.IO;
+    using System.Linq;
+    using System.Net;
+    using System.Reflection;
+    using System.Security.Cryptography.X509Certificates;
     using Microsoft.AspNetCore;
     using Microsoft.AspNetCore.Hosting;
     using Microsoft.Extensions.Configuration;
@@ -12,13 +36,6 @@
     using slskd.Common.Cryptography;
     using slskd.Configuration;
     using slskd.Validation;
-    using System;
-    using System.Collections.Generic;
-    using System.IO;
-    using System.Linq;
-    using System.Net;
-    using System.Reflection;
-    using System.Security.Cryptography.X509Certificates;
 
     public static class ProgramExtensions
     {
@@ -90,9 +107,21 @@
 
             if (ShowHelp || ShowEnvironmentVariables)
             {
-                if (!NoLogo) PrintLogo(Version);
-                if (ShowHelp) PrintCommandLineArguments(Options.Map);
-                if (ShowEnvironmentVariables) PrintEnvironmentVariables(Options.Map, EnvironmentVariablePrefix);
+                if (!NoLogo)
+                {
+                    PrintLogo(Version);
+                }
+
+                if (ShowHelp)
+                {
+                    PrintCommandLineArguments(Options.Map);
+                }
+
+                if (ShowEnvironmentVariables)
+                {
+                    PrintEnvironmentVariables(Options.Map, EnvironmentVariablePrefix);
+                }
+
                 return;
             }
 

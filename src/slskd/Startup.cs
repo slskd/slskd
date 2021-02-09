@@ -1,41 +1,56 @@
-﻿namespace slskd
+﻿// <copyright file="Startup.cs" company="slskd Team">
+//     Copyright (c) slskd Team. All rights reserved.
+//
+//     This program is free software: you can redistribute it and/or modify
+//     it under the terms of the GNU Affero General Public License as published
+//     by the Free Software Foundation, either version 3 of the License, or
+//     (at your option) any later version.
+//
+//     This program is distributed in the hope that it will be useful,
+//     but WITHOUT ANY WARRANTY; without even the implied warranty of
+//     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//     GNU Affero General Public License for more details.
+//
+//     You should have received a copy of the GNU Affero General Public License
+//     along with this program.  If not, see https://www.gnu.org/licenses/.
+// </copyright>
+
+namespace slskd
 {
     using System;
+    using System.Collections.Concurrent;
     using System.Collections.Generic;
     using System.IO;
     using System.Linq;
     using System.Net;
-    using System.Reflection;
     using System.Text.Json;
     using System.Text.Json.Serialization;
     using System.Threading;
     using System.Threading.Tasks;
+    using Microsoft.AspNetCore.Authentication.JwtBearer;
     using Microsoft.AspNetCore.Builder;
     using Microsoft.AspNetCore.Mvc.ApiExplorer;
     using Microsoft.Extensions.Caching.Memory;
     using Microsoft.Extensions.Configuration;
     using Microsoft.Extensions.DependencyInjection;
-    using Microsoft.OpenApi.Models;
-    using Soulseek;
-    using Soulseek.Diagnostics;
-    using slskd.Trackers;
-    using System.Collections.Concurrent;
+    using Microsoft.Extensions.FileProviders;
     using Microsoft.IdentityModel.Tokens;
-    using slskd.Security;
-    using Microsoft.AspNetCore.Authentication.JwtBearer;
+    using Microsoft.OpenApi.Models;
+    using Prometheus;
     using Prometheus.SystemMetrics;
     using Serilog;
-    using Prometheus;
-    using Microsoft.Extensions.FileProviders;
     using Serilog.Events;
     using slskd.Entities;
-    using slskd.Configuration;
+    using slskd.Security;
+    using slskd.Trackers;
+    using Soulseek;
+    using Soulseek.Diagnostics;
 
     public class Startup
     {
         private readonly int MaxReconnectAttempts = 3;
         private int CurrentReconnectAttempts = 0;
-        private static readonly string XmlDocFile = Path.Combine(AppContext.BaseDirectory, typeof(Startup).GetTypeInfo().Assembly.GetName().Name + ".xml");
+        private static readonly string XmlDocFile = Path.Combine(AppContext.BaseDirectory, Program.AppName + ".xml");
 
         private SoulseekClient Client { get; set; }
         private ISharedFileCache SharedFileCache { get; set; }
@@ -125,22 +140,29 @@
                 options.SubstituteApiVersionInUrl = true;
             });
 
-            services.AddSwaggerGen(options =>
+            if (Options.Feature.Swagger)
             {
-                options.DescribeAllParametersInCamelCase();
-                options.SwaggerDoc("v0",
-                    new OpenApiInfo
-                    {
-                        Title = "slskd",
-                        Version = "v0"
-                    }
-                    );
-
-                if (System.IO.File.Exists(XmlDocFile))
+                services.AddSwaggerGen(options =>
                 {
-                    options.IncludeXmlComments(XmlDocFile);
-                }
-            });
+                    options.DescribeAllParametersInCamelCase();
+                    options.SwaggerDoc("v0",
+                        new OpenApiInfo
+                        {
+                            Title = "slskd",
+                            Version = "v0"
+                        }
+                        );
+
+                    if (System.IO.File.Exists(XmlDocFile))
+                    {
+                        options.IncludeXmlComments(XmlDocFile);
+                    }
+                    else
+                    {
+                        logger.Warning($"Unable to find XML documentation in {XmlDocFile}, Swagger will not include metadata");
+                    }
+                });
+            }
 
             if (Options.Feature.Prometheus)
             {
