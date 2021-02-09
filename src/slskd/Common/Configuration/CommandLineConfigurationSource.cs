@@ -4,6 +4,7 @@
     using System;
     using System.Collections.Generic;
     using System.Linq;
+    using Utility.CommandLine;
 
     /// <summary>
     ///     Defines a command line argument mapping.
@@ -86,7 +87,7 @@
         private bool NormalizeKey { get; set; }
 
         /// <summary>
-        ///     Initializes a new instance with the specified source.
+        ///     Initializes a new instance of the <see cref="CommandLineConfigurationProvider"/> class.
         /// </summary>
         /// <param name="source">The source settings.</param>
         public CommandLineConfigurationProvider(CommandLineConfigurationSource source) 
@@ -101,7 +102,7 @@
         /// </summary>
         public override void Load()
         {
-            var dictionary = CommandLineArguments.Parse(CommandLine).ArgumentDictionary;
+            var dictionary = Arguments.Parse(CommandLine).ArgumentDictionary;
 
             foreach (CommandLineArgument item in Map)
             {

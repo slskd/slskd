@@ -36,6 +36,8 @@ namespace slskd
     using slskd.Common.Cryptography;
     using slskd.Configuration;
     using slskd.Validation;
+    using Utility.CommandLine;
+    using Utility.EnvironmentVariables;
 
     public static class ProgramExtensions
     {
@@ -50,8 +52,8 @@ namespace slskd
                     prefix: environmentVariablePrefix,
                     map: Options.Map.Select(o => o.ToEnvironmentVariable()))
                 .AddYamlFile(
-                    path: Path.GetFileName(configurationFile), 
-                    optional: true, 
+                    path: Path.GetFileName(configurationFile),
+                    optional: true,
                     reloadOnChange: false,
                     provider: new PhysicalFileProvider(Path.GetDirectoryName(configurationFile), ExclusionFilters.None))
                 .AddCommandLine(
@@ -65,30 +67,30 @@ namespace slskd
         public static readonly string AppName = "slskd";
         public static readonly string DefaultConfigurationFile = $"{AppName}.yml";
         public static readonly string EnvironmentVariablePrefix = $"{AppName.ToUpperInvariant()}_";
-        
+
         public static Guid InvocationId { get; } = Guid.NewGuid();
         public static int ProcessId { get; } = Environment.ProcessId;
         public static Version AssemblyVersion { get; } = Assembly.GetExecutingAssembly().GetName().Version;
         public static string InformationalVersion { get; } = Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>().InformationalVersion;
         public static string Version { get; } = $"{AssemblyVersion} ({InformationalVersion})";
 
-        [CommandLineArgument('n', "no-logo", "suppress logo on startup")]
+        [Argument('n', "no-logo", "suppress logo on startup")]
         private static bool NoLogo { get; set; }
 
-        [CommandLineArgument('e', "envars", "display environment variables")]
+        [Argument('e', "envars", "display environment variables")]
         private static bool ShowEnvironmentVariables { get; set; }
 
-        [CommandLineArgument('h', "help", "display command line usage")]
+        [Argument('h', "help", "display command line usage")]
         private static bool ShowHelp { get; set; }
 
-        [CommandLineArgument('v', "version", "display version information")]
+        [Argument('v', "version", "display version information")]
         private static bool ShowVersion { get; set; }
 
-        [CommandLineArgument('g', "generate-cert", "generate X509 certificate and password for HTTPs")]
+        [Argument('g', "generate-cert", "generate X509 certificate and password for HTTPs")]
         private static bool GenerateCertificate { get; set; }
 
         [EnvironmentVariable("CONFIG")]
-        [CommandLineArgument('c', "config", "path to configuration file")]
+        [Argument('c', "config", "path to configuration file")]
         private static string ConfigurationFile { get; set; } = DefaultConfigurationFile;
 
         private static Options Options { get; } = new Options();
@@ -97,7 +99,7 @@ namespace slskd
         public static void Main(string[] args)
         {
             EnvironmentVariables.Populate(prefix: EnvironmentVariablePrefix);
-            CommandLineArguments.Populate(clearExistingValues: false);
+            Arguments.Populate(clearExistingValues: false);
 
             if (ShowVersion)
             {
