@@ -15,7 +15,6 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-#pragma warning disable SA1649 // File name should match first type name
 namespace slskd.Configuration
 {
     using System;
@@ -32,7 +31,7 @@ namespace slskd.Configuration
     /// <summary>
     ///     Extension methods for adding <see cref="CommandLineConfigurationProvider"/>.
     /// </summary>
-    public static class CommandLineExtensions
+    public static class CommandLineConfigurationExtensions
     {
         /// <summary>
         ///     Adds a command line argument configuration soruce to <paramref name="builder"/>.
@@ -40,11 +39,8 @@ namespace slskd.Configuration
         /// <param name="builder">The <see cref="IConfigurationBuilder"/> to which to add.</param>
         /// <param name="map">A list of command line argument mappings.</param>
         /// <param name="commandLine">The command line string from which to parse arguments.</param>
-        /// <param name="normalizeKey">
-        ///     A value indicating whether configuration keys should be normalized (_, - removed, changed to lowercase).
-        /// </param>
         /// <returns>The updated <see cref="IConfigurationBuilder"/>.</returns>
-        public static IConfigurationBuilder AddCommandLine(this IConfigurationBuilder builder, IEnumerable<CommandLineArgument> map, string commandLine = null, bool normalizeKey = true)
+        public static IConfigurationBuilder AddCommandLine(this IConfigurationBuilder builder, IEnumerable<CommandLineArgument> map, string commandLine = null)
         {
             if (builder == null)
             {
@@ -55,7 +51,6 @@ namespace slskd.Configuration
             {
                 s.Map = map;
                 s.CommandLine = commandLine ?? Environment.CommandLine;
-                s.NormalizeKey = normalizeKey;
             });
         }
 
@@ -82,12 +77,10 @@ namespace slskd.Configuration
         {
             Map = source.Map;
             CommandLine = source.CommandLine;
-            NormalizeKey = source.NormalizeKey;
         }
 
         private string CommandLine { get; set; }
         private IEnumerable<CommandLineArgument> Map { get; set; }
-        private bool NormalizeKey { get; set; }
 
         /// <summary>
         ///     Parses command line arguments from the specified string and maps them to the specified keys.
@@ -99,11 +92,6 @@ namespace slskd.Configuration
             foreach (CommandLineArgument item in Map)
             {
                 var (shortName, longName, type, key, _) = item;
-
-                if (NormalizeKey)
-                {
-                    key = key?.Replace("-", string.Empty).Replace("_", string.Empty).ToLowerInvariant();
-                }
 
                 if (string.IsNullOrEmpty(key))
                 {
@@ -146,11 +134,6 @@ namespace slskd.Configuration
         public IEnumerable<CommandLineArgument> Map { get; set; }
 
         /// <summary>
-        ///     Gets or sets a value indicating whether configuration keys should be normalized (_, - removed, changed to lowercase).
-        /// </summary>
-        public bool NormalizeKey { get; set; }
-
-        /// <summary>
         ///     Builds the <see cref="CommandLineConfigurationProvider"/> for this source.
         /// </summary>
         /// <param name="builder">The <see cref="IConfigurationBuilder"/>.</param>
@@ -158,4 +141,3 @@ namespace slskd.Configuration
         public IConfigurationProvider Build(IConfigurationBuilder builder) => new CommandLineConfigurationProvider(this);
     }
 }
-#pragma warning restore SA1649 // File name should match first type name

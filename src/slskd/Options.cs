@@ -1,12 +1,32 @@
-﻿namespace slskd
+﻿// <copyright file="Options.cs" company="slskd Team">
+//     Copyright (c) slskd Team. All rights reserved.
+//
+//     This program is free software: you can redistribute it and/or modify
+//     it under the terms of the GNU Affero General Public License as published
+//     by the Free Software Foundation, either version 3 of the License, or
+//     (at your option) any later version.
+//
+//     This program is distributed in the hope that it will be useful,
+//     but WITHOUT ANY WARRANTY; without even the implied warranty of
+//     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//     GNU Affero General Public License for more details.
+//
+//     You should have received a copy of the GNU Affero General Public License
+//     along with this program.  If not, see https://www.gnu.org/licenses/.
+// </copyright>
+
+namespace slskd
 {
-    using slskd.Validation;
-    using Soulseek.Diagnostics;
     using System;
     using System.Collections.Generic;
     using System.ComponentModel.DataAnnotations;
     using System.Diagnostics;
+    using slskd.Validation;
+    using Soulseek.Diagnostics;
 
+    /// <summary>
+    ///     Defines an option mapping.
+    /// </summary>
     public record Option(char ShortName, string LongName, string EnvironmentVariable, string Key, Type Type, object Default = null, string Description = null);
 
     public class Options
@@ -17,11 +37,11 @@
         public bool NoLogo { get; private set; } = false;
         public string InstanceName { get; private set; } = "default";
         [Validate]
-        public DirectoriesOptions Directories { get; private set; } = new DirectoriesOptions();        
+        public DirectoriesOptions Directories { get; private set; } = new DirectoriesOptions();
         [Validate]
-        public WebOptions Web { get; private set; } = new WebOptions();        
+        public WebOptions Web { get; private set; } = new WebOptions();
         [Validate]
-        public LoggerOptions Logger { get; private set; } = new LoggerOptions();        
+        public LoggerOptions Logger { get; private set; } = new LoggerOptions();
         [Validate]
         public FeatureOptions Feature { get; private set; } = new FeatureOptions();
         [Validate]
@@ -336,7 +356,7 @@
                 ShortName: default,
                 LongName: "prometheus",
                 EnvironmentVariable: "PROMETHEUS",
-                Key:  "slskd:feature:prometheus",
+                Key: "slskd:feature:prometheus",
                 Type: typeof(bool),
                 Default: Defaults.Feature.Prometheus,
                 Description: "enable collection and publishing of prometheus metrics"),

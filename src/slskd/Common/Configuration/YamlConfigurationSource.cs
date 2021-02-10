@@ -15,7 +15,6 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-#pragma warning disable SA1649 // File name should match first type name
 namespace slskd.Configuration
 {
     using System;
@@ -34,7 +33,7 @@ namespace slskd.Configuration
         /// <summary>
         ///     Adds a YAML configuration source to <paramref name="builder"/>.
         /// </summary>
-        /// <param name="builder">The <see cref="IConfigurationBuilder"/> to add to.</param>
+        /// <param name="builder">The <see cref="IConfigurationBuilder"/> to which to add .</param>
         /// <param name="path">
         ///     Path relative to the base path stored in <see cref="IConfigurationBuilder.Properties"/> of <paramref name="builder"/>.
         /// </param>
@@ -43,7 +42,7 @@ namespace slskd.Configuration
         /// <param name="normalizeKeys">
         ///     A value indicating whether configuration keys should be normalized (_, - removed, changed to lowercase).
         /// </param>
-        /// <param name="provider">The <see cref="IFileProvider"/> to use to access the file.</param>
+        /// <param name="provider">The updated <see cref="IFileProvider"/> to use to access the file.</param>
         /// <returns>The <see cref="IConfigurationBuilder"/>.</returns>
         public static IConfigurationBuilder AddYamlFile(this IConfigurationBuilder builder, string path, bool optional = true, bool reloadOnChange = false, bool normalizeKeys = true, IFileProvider provider = null)
         {
@@ -71,9 +70,9 @@ namespace slskd.Configuration
         /// <summary>
         ///     Adds a YAML configuration source to <paramref name="builder"/>.
         /// </summary>
-        /// <param name="builder">The <see cref="IConfigurationBuilder"/> to add to.</param>
+        /// <param name="builder">The <see cref="IConfigurationBuilder"/> to which to add.</param>
         /// <param name="configureSource">Configures the source.</param>
-        /// <returns>The <see cref="IConfigurationBuilder"/>.</returns>
+        /// <returns>The updated <see cref="IConfigurationBuilder"/>.</returns>
         public static IConfigurationBuilder AddYamlFile(this IConfigurationBuilder builder, Action<YamlConfigurationSource> configureSource)
             => builder.Add(configureSource);
     }
@@ -179,4 +178,3 @@ namespace slskd.Configuration
         }
     }
 }
-#pragma warning restore SA1649 // File name should match first type name

@@ -15,7 +15,6 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-#pragma warning disable SA1649 // File name should match first type name
 namespace slskd.Configuration
 {
     using System;
@@ -39,11 +38,8 @@ namespace slskd.Configuration
         /// <param name="builder">The <see cref="IConfigurationBuilder"/> to which to add.</param>
         /// <param name="map">A list of environment variable mappings.</param>
         /// <param name="prefix">A prefix to prepend to all variable names.</param>
-        /// <param name="normalizeKey">
-        ///     A value indicating whether configuration keys should be normalized (_, - removed, changed to lowercase).
-        /// </param>
         /// <returns>The updated <see cref="IConfigurationBuilder"/>.</returns>
-        public static IConfigurationBuilder AddEnvironmentVariables(this IConfigurationBuilder builder, IEnumerable<EnvironmentVariable> map, string prefix = null, bool normalizeKey = true)
+        public static IConfigurationBuilder AddEnvironmentVariables(this IConfigurationBuilder builder, IEnumerable<EnvironmentVariable> map, string prefix = null)
         {
             if (builder == null)
             {
@@ -54,7 +50,6 @@ namespace slskd.Configuration
             {
                 s.Map = map ?? Enumerable.Empty<EnvironmentVariable>();
                 s.Prefix = prefix ?? string.Empty;
-                s.NormalizeKey = normalizeKey;
             });
         }
 
@@ -81,11 +76,9 @@ namespace slskd.Configuration
         {
             Map = source.Map;
             Prefix = source.Prefix;
-            NormalizeKey = source.NormalizeKey;
         }
 
         private IEnumerable<EnvironmentVariable> Map { get; set; }
-        private bool NormalizeKey { get; set; }
         private string Prefix { get; set; }
 
         /// <summary>
@@ -96,11 +89,6 @@ namespace slskd.Configuration
             foreach (var item in Map)
             {
                 var (name, type, key, _) = item;
-
-                if (NormalizeKey)
-                {
-                    key = key?.Replace("_", string.Empty).Replace("-", string.Empty).ToLowerInvariant();
-                }
 
                 if (string.IsNullOrEmpty(key) || string.IsNullOrEmpty(name))
                 {
@@ -155,4 +143,3 @@ namespace slskd.Configuration
         }
     }
 }
-#pragma warning restore SA1649 // File name should match first type name

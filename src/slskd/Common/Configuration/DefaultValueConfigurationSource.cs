@@ -15,7 +15,6 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-#pragma warning disable SA1649 // File name should match first type name
 namespace slskd.Configuration
 {
     using System;
@@ -24,7 +23,7 @@ namespace slskd.Configuration
     using Microsoft.Extensions.Configuration;
 
     /// <summary>
-    ///     Defines an default value mapping.
+    ///     Defines a default value mapping.
     /// </summary>
     public record DefaultValue(string Key, Type Type, object Default);
 
@@ -38,11 +37,8 @@ namespace slskd.Configuration
         /// </summary>
         /// <param name="builder">The <see cref="IConfigurationBuilder"/> to which to add.</param>
         /// <param name="map">A list of default value mappings.</param>
-        /// <param name="normalizeKey">
-        ///     A value indicating whether configuration keys should be normalized (_, - removed, changed to lowercase).
-        /// </param>
         /// <returns>The updated <see cref="IConfigurationBuilder"/>.</returns>
-        public static IConfigurationBuilder AddDefaultValues(this IConfigurationBuilder builder, IEnumerable<DefaultValue> map, bool normalizeKey = true)
+        public static IConfigurationBuilder AddDefaultValues(this IConfigurationBuilder builder, IEnumerable<DefaultValue> map)
         {
             if (builder == null)
             {
@@ -52,7 +48,6 @@ namespace slskd.Configuration
             return builder.AddDefaultValues(s =>
             {
                 s.Map = map ?? Enumerable.Empty<DefaultValue>();
-                s.NormalizeKey = normalizeKey;
             });
         }
 
@@ -78,11 +73,9 @@ namespace slskd.Configuration
         public DefaultValueConfigurationProvider(DefaultValueConfigurationSource source)
         {
             Map = source.Map;
-            NormalizeKey = source.NormalizeKey;
         }
 
         private IEnumerable<DefaultValue> Map { get; set; }
-        private bool NormalizeKey { get; set; }
 
         /// <summary>
         ///     Sets the keys specified in the map to the specified default values.
@@ -93,17 +86,7 @@ namespace slskd.Configuration
             {
                 var (key, _, value) = item;
 
-                if (NormalizeKey)
-                {
-                    key = key?.Replace("_", string.Empty).Replace("-", string.Empty).ToLowerInvariant();
-                }
-
-                if (string.IsNullOrEmpty(key))
-                {
-                    continue;
-                }
-
-                if (value == null)
+                if (string.IsNullOrEmpty(key) || value == null)
                 {
                     continue;
                 }
@@ -124,11 +107,6 @@ namespace slskd.Configuration
         public IEnumerable<DefaultValue> Map { get; set; }
 
         /// <summary>
-        ///     Gets or sets a value indicating whether configuration keys should be normalized (_, - removed, changed to lowercase).
-        /// </summary>
-        public bool NormalizeKey { get; set; }
-
-        /// <summary>
         ///     Builds the <see cref="DefaultValueConfigurationProvider"/> for this source.
         /// </summary>
         /// <param name="builder">The <see cref="IConfigurationBuilder"/>.</param>
@@ -139,4 +117,3 @@ namespace slskd.Configuration
         }
     }
 }
-#pragma warning restore SA1649 // File name should match first type name
