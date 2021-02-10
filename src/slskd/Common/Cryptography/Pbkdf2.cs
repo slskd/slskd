@@ -23,7 +23,7 @@ namespace slskd.Security
     /// <summary>
     ///     PBKDF2/RFC 2898 utility methods.
     /// </summary>
-    public static class PBKDF21
+    public static class Pbkdf2
     {
         /// <summary>
         ///     Gets a 256 bit (32 byte) key derived from the specified <paramref name="password"/> using PBKDF2/RFC 2898.
