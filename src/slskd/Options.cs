@@ -23,157 +23,57 @@ namespace slskd
     using System.Diagnostics;
     using slskd.Validation;
     using Soulseek.Diagnostics;
+    using Utility.CommandLine;
+    using Utility.EnvironmentVariables;
 
     /// <summary>
     ///     Defines an option mapping.
     /// </summary>
     public record Option(char ShortName, string LongName, string EnvironmentVariable, string Key, Type Type, object Default = null, string Description = null);
 
+    /// <summary>
+    ///     Application options (immutable options required at startup).
+    /// </summary>
     public class Options
     {
+        /// <summary>
+        ///     Gets the default options.
+        /// </summary>
         public static Options Defaults { get; } = new Options();
 
-        public bool Debug { get; private set; } = Debugger.IsAttached;
-        public bool NoLogo { get; private set; } = false;
-        public string InstanceName { get; private set; } = "default";
-        [Validate]
-        public DirectoriesOptions Directories { get; private set; } = new DirectoriesOptions();
-        [Validate]
-        public WebOptions Web { get; private set; } = new WebOptions();
-        [Validate]
-        public LoggerOptions Logger { get; private set; } = new LoggerOptions();
-        [Validate]
-        public FeatureOptions Feature { get; private set; } = new FeatureOptions();
-        [Validate]
-        public SoulseekOptions Soulseek { get; private set; } = new SoulseekOptions();
-
-        public class DirectoriesOptions
-        {
-            [Required]
-            public string Shared { get; private set; }
-            [Required]
-            public string Downloads { get; private set; }
-        }
-
-        public class FeatureOptions
-        {
-            public bool Prometheus { get; private set; } = false;
-            public bool Swagger { get; private set; } = false;
-        }
-
-        public class LoggerOptions
-        {
-            public string Loki { get; private set; } = null;
-        }
-
-        public class SoulseekOptions
-        {
-            [Required]
-            public string Password { get; private set; }
-            [Required]
-            public string Username { get; private set; }
-            [Range(1024, 65535)]
-            public int? ListenPort { get; private set; } = 50000;
-            public DiagnosticLevel DiagnosticLevel { get; private set; } = DiagnosticLevel.Info;
-            [Validate]
-            public DistributedNetworkOptions DistributedNetwork { get; private set; } = new DistributedNetworkOptions();
-            [Validate]
-            public ConnectionOptions Connection { get; private set; } = new ConnectionOptions();
-
-            public class ConnectionOptions
-            {
-                [Validate]
-                public TimeoutOptions Timeout { get; private set; } = new TimeoutOptions();
-                [Validate]
-                public BufferOptions Buffer { get; private set; } = new BufferOptions();
-
-                public class BufferOptions
-                {
-                    [Range(1024, int.MaxValue)]
-                    public int Read { get; private set; } = 16384;
-                    [Range(1024, int.MaxValue)]
-                    public int Write { get; private set; } = 16384;
-                }
-
-                public class TimeoutOptions
-                {
-                    [Range(1000, int.MaxValue)]
-                    public int Connect { get; private set; } = 5000;
-                    [Range(1000, int.MaxValue)]
-                    public int Inactivity { get; private set; } = 15000;
-                }
-            }
-
-            public class DistributedNetworkOptions
-            {
-                public bool Disabled { get; private set; } = false;
-                [Range(1, int.MaxValue)]
-                public int ChildLimit { get; private set; } = 25;
-            }
-        }
-
-        public class WebOptions
-        {
-            [Range(1, 65535)]
-            public int Port { get; private set; } = 5000;
-            [Validate]
-            public HttpsOptions Https { get; private set; } = new HttpsOptions();
-            public string UrlBase { get; private set; } = "/";
-            [Required(ErrorMessage = "A content root is required")]
-            public string ContentPath { get; private set; } = "wwwroot";
-            [Validate]
-            public AuthenticationOptions Authentication { get; private set; } = new AuthenticationOptions();
-
-            public class AuthenticationOptions
-            {
-                public bool Disable { get; private set; } = false;
-                [Required]
-                public string Username { get; private set; } = "slskd";
-                [Required]
-                public string Password { get; private set; } = "slskd";
-                [Validate]
-                public JwtOptions Jwt { get; private set; } = new JwtOptions();
-
-                public class JwtOptions
-                {
-                    [Required]
-                    public string Key { get; private set; } = Guid.NewGuid().ToString();
-                    [Range(3600, int.MaxValue)]
-                    public int Ttl { get; private set; } = 604800000;
-                }
-            }
-
-            public class HttpsOptions
-            {
-                [Range(1, 65535)]
-                public int Port { get; private set; } = 5001;
-                public bool Force { get; private set; } = false;
-                [Validate]
-                public CertificateOptions Certificate { get; private set; } = new CertificateOptions();
-
-                public class CertificateOptions
-                {
-                    [FileExists]
-                    public string Pfx { get; private set; }
-                    public string Password { get; private set; }
-                }
-            }
-        }
-
-        public bool TryValidate(out CompositeValidationResult result)
-        {
-            result = null;
-            var results = new List<ValidationResult>();
-
-            if (!Validator.TryValidateObject(this, new ValidationContext(this), results, true))
-            {
-                result = new CompositeValidationResult("Invalid configuration", results);
-                return false;
-            }
-
-            return true;
-        }
-
+        /// <summary>
+        ///     Gets the list of option mappings.
+        /// </summary>
+        /// <remarks>
+        ///     <para>
+        ///         This array lists all application options. Each element in the list is a mapping object that dictates inputs
+        ///         (command line, envar, config file) for the option, a default value, description, and most importantly, the
+        ///         configuration key which will ultimately contain the derived value.
+        ///     </para>
+        ///     <para>
+        ///         Configuration keys are a construct of the <see cref="Microsoft.Extensions.Configuration"/> namespace and, in a
+        ///         nutshell, represent an object map as a series of key-value pairs with nested properties represented as
+        ///         colon-separated strings. Acceptable 'Key' values in this array must either be null (the value will not be
+        ///         mapped to anything in Options), or a colon-separated string corresponding to a property somewhere inside Options.
+        ///     </para>
+        ///     <para>
+        ///         This mapping exists so that disparate configuration keys from various configuration sources can be overridden
+        ///         by subsequent sources; for example, --foo (cli), FOOBAR (envar) and foo.bar (yaml) would result in three
+        ///         distinct keys.  With this mapping all three can be made to map to the same key and the application can
+        ///         dictate order of precedence.
+        ///     </para>
+        ///     <para>
+        ///         Some options, specifically those lacking a 'Key', are derived prior to the configuration file being loaded and
+        ///         their values are not needed in Options.  This approach should be reserved for flags that may result in the
+        ///         application carrying out a command, and then exiting.  For example, --help, --version.  These options are
+        ///         generally properties in <see cref="Program"/> and are marked with <see cref="ArgumentAttribute"/> and
+        ///         potentially <see cref="EnvironmentVariableAttribute"/> to allow for mapping by other means.
+        ///     </para>
+        ///     <para>
+        ///         The order in which mappings appear in the array dictate the order in which they appear when listed in --help
+        ///         and --envars.
+        ///     </para>
+        /// </remarks>
         public static IEnumerable<Option> Map => new Option[]
         {
             new(
@@ -457,5 +357,146 @@ namespace slskd
                 Default: Defaults.Soulseek.Connection.Buffer.Write,
                 Description: "write buffer size for connections"),
         };
+
+        public bool Debug { get; private set; } = Debugger.IsAttached;
+        public bool NoLogo { get; private set; } = false;
+        public string InstanceName { get; private set; } = "default";
+        [Validate]
+        public DirectoriesOptions Directories { get; private set; } = new DirectoriesOptions();
+        [Validate]
+        public WebOptions Web { get; private set; } = new WebOptions();
+        [Validate]
+        public LoggerOptions Logger { get; private set; } = new LoggerOptions();
+        [Validate]
+        public FeatureOptions Feature { get; private set; } = new FeatureOptions();
+        [Validate]
+        public SoulseekOptions Soulseek { get; private set; } = new SoulseekOptions();
+
+        public bool TryValidate(out CompositeValidationResult result)
+        {
+            result = null;
+            var results = new List<ValidationResult>();
+
+            if (!Validator.TryValidateObject(this, new ValidationContext(this), results, true))
+            {
+                result = new CompositeValidationResult("Invalid configuration", results);
+                return false;
+            }
+
+            return true;
+        }
+
+        public class DirectoriesOptions
+        {
+            [Required]
+            public string Shared { get; private set; }
+            [Required]
+            public string Downloads { get; private set; }
+        }
+
+        public class FeatureOptions
+        {
+            public bool Prometheus { get; private set; } = false;
+            public bool Swagger { get; private set; } = false;
+        }
+
+        public class LoggerOptions
+        {
+            public string Loki { get; private set; } = null;
+        }
+
+        public class SoulseekOptions
+        {
+            [Required]
+            public string Password { get; private set; }
+            [Required]
+            public string Username { get; private set; }
+            [Range(1024, 65535)]
+            public int? ListenPort { get; private set; } = 50000;
+            public DiagnosticLevel DiagnosticLevel { get; private set; } = DiagnosticLevel.Info;
+            [Validate]
+            public DistributedNetworkOptions DistributedNetwork { get; private set; } = new DistributedNetworkOptions();
+            [Validate]
+            public ConnectionOptions Connection { get; private set; } = new ConnectionOptions();
+
+            public class ConnectionOptions
+            {
+                [Validate]
+                public TimeoutOptions Timeout { get; private set; } = new TimeoutOptions();
+                [Validate]
+                public BufferOptions Buffer { get; private set; } = new BufferOptions();
+
+                public class BufferOptions
+                {
+                    [Range(1024, int.MaxValue)]
+                    public int Read { get; private set; } = 16384;
+                    [Range(1024, int.MaxValue)]
+                    public int Write { get; private set; } = 16384;
+                }
+
+                public class TimeoutOptions
+                {
+                    [Range(1000, int.MaxValue)]
+                    public int Connect { get; private set; } = 5000;
+                    [Range(1000, int.MaxValue)]
+                    public int Inactivity { get; private set; } = 15000;
+                }
+            }
+
+            public class DistributedNetworkOptions
+            {
+                public bool Disabled { get; private set; } = false;
+                [Range(1, int.MaxValue)]
+                public int ChildLimit { get; private set; } = 25;
+            }
+        }
+
+        public class WebOptions
+        {
+            [Range(1, 65535)]
+            public int Port { get; private set; } = 5000;
+            [Validate]
+            public HttpsOptions Https { get; private set; } = new HttpsOptions();
+            public string UrlBase { get; private set; } = "/";
+            [Required(ErrorMessage = "A content root is required")]
+            public string ContentPath { get; private set; } = "wwwroot";
+            [Validate]
+            public AuthenticationOptions Authentication { get; private set; } = new AuthenticationOptions();
+
+            public class AuthenticationOptions
+            {
+                public bool Disable { get; private set; } = false;
+                [Required]
+                public string Username { get; private set; } = "slskd";
+                [Required]
+                public string Password { get; private set; } = "slskd";
+                [Validate]
+                public JwtOptions Jwt { get; private set; } = new JwtOptions();
+
+                public class JwtOptions
+                {
+                    [Required]
+                    public string Key { get; private set; } = Guid.NewGuid().ToString();
+                    [Range(3600, int.MaxValue)]
+                    public int Ttl { get; private set; } = 604800000;
+                }
+            }
+
+            public class HttpsOptions
+            {
+                [Range(1, 65535)]
+                public int Port { get; private set; } = 5001;
+                public bool Force { get; private set; } = false;
+                [Validate]
+                public CertificateOptions Certificate { get; private set; } = new CertificateOptions();
+
+                public class CertificateOptions
+                {
+                    [FileExists]
+                    public string Pfx { get; private set; }
+                    public string Password { get; private set; }
+                }
+            }
+        }
     }
 }
