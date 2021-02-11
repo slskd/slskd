@@ -23,11 +23,6 @@ namespace slskd.Configuration
     using Microsoft.Extensions.Configuration;
 
     /// <summary>
-    ///     Defines an environment variable mapping.
-    /// </summary>
-    public record EnvironmentVariable(string Name, Type Type, string Key, string Description = null);
-
-    /// <summary>
     ///     Extension methods for adding <see cref="EnvironmentVariableConfigurationProvider"/>.
     /// </summary>
     public static class EnvironmentVariableConfigurationExtensions
@@ -39,7 +34,7 @@ namespace slskd.Configuration
         /// <param name="map">A list of environment variable mappings.</param>
         /// <param name="prefix">A prefix to prepend to all variable names.</param>
         /// <returns>The updated <see cref="IConfigurationBuilder"/>.</returns>
-        public static IConfigurationBuilder AddEnvironmentVariables(this IConfigurationBuilder builder, IEnumerable<EnvironmentVariable> map, string prefix = null)
+        public static IConfigurationBuilder AddEnvironmentVariables(this IConfigurationBuilder builder, IEnumerable<Option> map, string prefix = null)
         {
             if (builder == null)
             {
@@ -48,7 +43,7 @@ namespace slskd.Configuration
 
             return builder.AddEnvironmentVariables(s =>
             {
-                s.Map = map ?? Enumerable.Empty<EnvironmentVariable>();
+                s.Map = map ?? Enumerable.Empty<Option>();
                 s.Prefix = prefix ?? string.Empty;
             });
         }
@@ -78,7 +73,7 @@ namespace slskd.Configuration
             Prefix = source.Prefix;
         }
 
-        private IEnumerable<EnvironmentVariable> Map { get; set; }
+        private IEnumerable<Option> Map { get; set; }
         private string Prefix { get; set; }
 
         /// <summary>
@@ -88,21 +83,19 @@ namespace slskd.Configuration
         {
             foreach (var item in Map)
             {
-                var (name, type, key, _) = item;
-
-                if (string.IsNullOrEmpty(key) || string.IsNullOrEmpty(name))
+                if (string.IsNullOrEmpty(item.Key) || string.IsNullOrEmpty(item.EnvironmentVariable))
                 {
                     continue;
                 }
 
-                var value = Environment.GetEnvironmentVariable(Prefix + name);
+                var value = Environment.GetEnvironmentVariable(Prefix + item.EnvironmentVariable);
 
                 if (string.IsNullOrEmpty(value))
                 {
                     continue;
                 }
 
-                if (type == typeof(bool))
+                if (item.Type == typeof(bool))
                 {
                     value = value.Equals("true", StringComparison.InvariantCultureIgnoreCase) ? value : "false";
                 }
@@ -120,7 +113,7 @@ namespace slskd.Configuration
         /// <summary>
         ///     Gets or sets a list of enviroment variable mappings.
         /// </summary>
-        public IEnumerable<EnvironmentVariable> Map { get; set; }
+        public IEnumerable<Option> Map { get; set; }
 
         /// <summary>
         ///     Gets or sets a value indicating whether configuration keys should be normalized (_, - removed, changed to lowercase).

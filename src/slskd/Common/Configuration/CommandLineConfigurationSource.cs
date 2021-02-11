@@ -24,11 +24,6 @@ namespace slskd.Configuration
     using Utility.CommandLine;
 
     /// <summary>
-    ///     Defines a command line argument mapping.
-    /// </summary>
-    public record CommandLineArgument(char ShortName, string LongName, Type Type, string Key, string Description = null);
-
-    /// <summary>
     ///     Extension methods for adding <see cref="CommandLineConfigurationProvider"/>.
     /// </summary>
     public static class CommandLineConfigurationExtensions
@@ -40,7 +35,7 @@ namespace slskd.Configuration
         /// <param name="map">A list of command line argument mappings.</param>
         /// <param name="commandLine">The command line string from which to parse arguments.</param>
         /// <returns>The updated <see cref="IConfigurationBuilder"/>.</returns>
-        public static IConfigurationBuilder AddCommandLine(this IConfigurationBuilder builder, IEnumerable<CommandLineArgument> map, string commandLine = null)
+        public static IConfigurationBuilder AddCommandLine(this IConfigurationBuilder builder, IEnumerable<Option> map, string commandLine = null)
         {
             if (builder == null)
             {
@@ -80,7 +75,7 @@ namespace slskd.Configuration
         }
 
         private string CommandLine { get; set; }
-        private IEnumerable<CommandLineArgument> Map { get; set; }
+        private IEnumerable<Option> Map { get; set; }
 
         /// <summary>
         ///     Parses command line arguments from the specified string and maps them to the specified keys.
@@ -89,16 +84,14 @@ namespace slskd.Configuration
         {
             var dictionary = Arguments.Parse(CommandLine).ArgumentDictionary;
 
-            foreach (CommandLineArgument item in Map)
+            foreach (Option item in Map)
             {
-                var (shortName, longName, type, key, _) = item;
-
-                if (string.IsNullOrEmpty(key))
+                if (string.IsNullOrEmpty(item.Key))
                 {
                     continue;
                 }
 
-                var arguments = new[] { shortName.ToString(), longName }.Where(i => !string.IsNullOrEmpty(i));
+                var arguments = new[] { item.ShortName.ToString(), item.LongName }.Where(i => !string.IsNullOrEmpty(i));
 
                 foreach (var argument in arguments)
                 {
@@ -106,7 +99,7 @@ namespace slskd.Configuration
                     {
                         var value = dictionary[argument].ToString();
 
-                        if (type == typeof(bool) && string.IsNullOrEmpty(value))
+                        if (item.Type == typeof(bool) && string.IsNullOrEmpty(value))
                         {
                             value = "true";
                         }
@@ -131,7 +124,7 @@ namespace slskd.Configuration
         /// <summary>
         ///     Gets or sets a list of command line argument mappings.
         /// </summary>
-        public IEnumerable<CommandLineArgument> Map { get; set; }
+        public IEnumerable<Option> Map { get; set; }
 
         /// <summary>
         ///     Builds the <see cref="CommandLineConfigurationProvider"/> for this source.

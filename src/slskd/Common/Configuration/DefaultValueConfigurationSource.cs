@@ -23,11 +23,6 @@ namespace slskd.Configuration
     using Microsoft.Extensions.Configuration;
 
     /// <summary>
-    ///     Defines a default value mapping.
-    /// </summary>
-    public record DefaultValue(string Key, Type Type, object Default);
-
-    /// <summary>
     ///     Extension methods for adding <see cref="DefaultValueConfigurationProvider"/>.
     /// </summary>
     public static class DefaultValueConfigurationExtensions
@@ -38,7 +33,7 @@ namespace slskd.Configuration
         /// <param name="builder">The <see cref="IConfigurationBuilder"/> to which to add.</param>
         /// <param name="map">A list of default value mappings.</param>
         /// <returns>The updated <see cref="IConfigurationBuilder"/>.</returns>
-        public static IConfigurationBuilder AddDefaultValues(this IConfigurationBuilder builder, IEnumerable<DefaultValue> map)
+        public static IConfigurationBuilder AddDefaultValues(this IConfigurationBuilder builder, IEnumerable<Option> map)
         {
             if (builder == null)
             {
@@ -47,7 +42,7 @@ namespace slskd.Configuration
 
             return builder.AddDefaultValues(s =>
             {
-                s.Map = map ?? Enumerable.Empty<DefaultValue>();
+                s.Map = map ?? Enumerable.Empty<Option>();
             });
         }
 
@@ -75,7 +70,7 @@ namespace slskd.Configuration
             Map = source.Map;
         }
 
-        private IEnumerable<DefaultValue> Map { get; set; }
+        private IEnumerable<Option> Map { get; set; }
 
         /// <summary>
         ///     Sets the keys specified in the map to the specified default values.
@@ -84,14 +79,12 @@ namespace slskd.Configuration
         {
             foreach (var item in Map)
             {
-                var (key, _, value) = item;
-
-                if (string.IsNullOrEmpty(key) || value == null)
+                if (string.IsNullOrEmpty(item.Key) || item.Default == null)
                 {
                     continue;
                 }
 
-                Data[item.Key] = value.ToString();
+                Data[item.Key] = item.Default.ToString();
             }
         }
     }
@@ -104,7 +97,7 @@ namespace slskd.Configuration
         /// <summary>
         ///     Gets or sets a list of default value mappings.
         /// </summary>
-        public IEnumerable<DefaultValue> Map { get; set; }
+        public IEnumerable<Option> Map { get; set; }
 
         /// <summary>
         ///     Builds the <see cref="DefaultValueConfigurationProvider"/> for this source.

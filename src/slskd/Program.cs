@@ -161,7 +161,7 @@ namespace slskd
                         outputTemplate: "[{SourceContext}] [{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
                     .WriteTo.Async(config =>
                         config.File(
-                            "logs/slskd-.log",
+                            $"logs/{AppName}-.log",
                             outputTemplate: "[{SourceContext}] [{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}",
                             rollingInterval: RollingInterval.Day))
                     .WriteTo.Conditional(
@@ -186,7 +186,7 @@ namespace slskd
                         outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
                     .WriteTo.Async(config =>
                         config.File(
-                            "logs/slskd-.log",
+                            $"logs/{AppName}-.log",
                             outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}",
                             rollingInterval: RollingInterval.Day))
                     .WriteTo.Conditional(
@@ -272,10 +272,10 @@ namespace slskd
 
             return builder
                 .AddDefaultValues(
-                    map: Options.Map.Select(o => o.ToDefaultValue()))
+                    map: Options.Map)
                 .AddEnvironmentVariables(
                     prefix: environmentVariablePrefix,
-                    map: Options.Map.Select(o => o.ToEnvironmentVariable()))
+                    map: Options.Map)
                 .AddYamlFile(
                     path: Path.GetFileName(configurationFile),
                     optional: true,
@@ -283,7 +283,7 @@ namespace slskd
                     provider: new PhysicalFileProvider(Path.GetDirectoryName(configurationFile), ExclusionFilters.None))
                 .AddCommandLine(
                     commandLine: Environment.CommandLine,
-                    map: Options.Map.Select(o => o.ToCommandLineArgument()));
+                    map: Options.Map);
         }
 
         private static void GenerateX509Certificate(string password, string filename)
