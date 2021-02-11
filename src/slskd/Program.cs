@@ -39,40 +39,27 @@ namespace slskd
     using Utility.CommandLine;
     using Utility.EnvironmentVariables;
 
-    public static class ProgramExtensions
-    {
-        public static IConfigurationBuilder AddConfigurationProviders(this IConfigurationBuilder builder, string environmentVariablePrefix, string configurationFile)
-        {
-            configurationFile = Path.GetFullPath(configurationFile);
-
-            return builder
-                .AddDefaultValues(
-                    map: Options.Map.Select(o => o.ToDefaultValue()))
-                .AddEnvironmentVariables(
-                    prefix: environmentVariablePrefix,
-                    map: Options.Map.Select(o => o.ToEnvironmentVariable()))
-                .AddYamlFile(
-                    path: Path.GetFileName(configurationFile),
-                    optional: true,
-                    reloadOnChange: false,
-                    provider: new PhysicalFileProvider(Path.GetDirectoryName(configurationFile), ExclusionFilters.None))
-                .AddCommandLine(
-                    commandLine: Environment.CommandLine,
-                    map: Options.Map.Select(o => o.ToCommandLineArgument()));
-        }
-    }
-
-    public class Program
+    public static class Program
     {
         public static readonly string AppName = "slskd";
         public static readonly string DefaultConfigurationFile = $"{AppName}.yml";
         public static readonly string EnvironmentVariablePrefix = $"{AppName.ToUpperInvariant()}_";
 
-        public static Guid InvocationId { get; } = Guid.NewGuid();
-        public static int ProcessId { get; } = Environment.ProcessId;
         public static Version AssemblyVersion { get; } = Assembly.GetExecutingAssembly().GetName().Version;
         public static string InformationalVersion { get; } = Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>().InformationalVersion;
+        public static Guid InvocationId { get; } = Guid.NewGuid();
+        public static int ProcessId { get; } = Environment.ProcessId;
         public static string Version { get; } = $"{AssemblyVersion} ({InformationalVersion})";
+
+        private static IConfigurationRoot Configuration { get; set; }
+        private static Options Options { get; } = new Options();
+
+        [EnvironmentVariable("CONFIG")]
+        [Argument('c', "config", "path to configuration file")]
+        private static string ConfigurationFile { get; set; } = DefaultConfigurationFile;
+
+        [Argument('g', "generate-cert", "generate X509 certificate and password for HTTPs")]
+        private static bool GenerateCertificate { get; set; }
 
         [Argument('n', "no-logo", "suppress logo on startup")]
         private static bool NoLogo { get; set; }
@@ -85,16 +72,6 @@ namespace slskd
 
         [Argument('v', "version", "display version information")]
         private static bool ShowVersion { get; set; }
-
-        [Argument('g', "generate-cert", "generate X509 certificate and password for HTTPs")]
-        private static bool GenerateCertificate { get; set; }
-
-        [EnvironmentVariable("CONFIG")]
-        [Argument('c', "config", "path to configuration file")]
-        private static string ConfigurationFile { get; set; } = DefaultConfigurationFile;
-
-        private static Options Options { get; } = new Options();
-        private static IConfigurationRoot Configuration { get; set; }
 
         public static void Main(string[] args)
         {
@@ -220,7 +197,7 @@ namespace slskd
                     .CreateLogger();
             }
 
-            var logger = Log.ForContext<Program>();
+            var logger = Log.ForContext(typeof(Program));
 
             if (ConfigurationFile != DefaultConfigurationFile && !File.Exists(ConfigurationFile))
             {
@@ -289,7 +266,27 @@ namespace slskd
             }
         }
 
-        public static void GenerateX509Certificate(string password, string filename)
+        private static IConfigurationBuilder AddConfigurationProviders(this IConfigurationBuilder builder, string environmentVariablePrefix, string configurationFile)
+        {
+            configurationFile = Path.GetFullPath(configurationFile);
+
+            return builder
+                .AddDefaultValues(
+                    map: Options.Map.Select(o => o.ToDefaultValue()))
+                .AddEnvironmentVariables(
+                    prefix: environmentVariablePrefix,
+                    map: Options.Map.Select(o => o.ToEnvironmentVariable()))
+                .AddYamlFile(
+                    path: Path.GetFileName(configurationFile),
+                    optional: true,
+                    reloadOnChange: false,
+                    provider: new PhysicalFileProvider(Path.GetDirectoryName(configurationFile), ExclusionFilters.None))
+                .AddCommandLine(
+                    commandLine: Environment.CommandLine,
+                    map: Options.Map.Select(o => o.ToCommandLineArgument()));
+        }
+
+        private static void GenerateX509Certificate(string password, string filename)
         {
             Console.WriteLine("Generating X509 certificate...");
             filename = Path.Combine(AppContext.BaseDirectory, filename);
@@ -301,7 +298,7 @@ namespace slskd
             Console.WriteLine($"Certificate exported to {filename}");
         }
 
-        public static void PrintCommandLineArguments(IEnumerable<Option> map)
+        private static void PrintCommandLineArguments(IEnumerable<Option> map)
         {
             static string GetLongName(string longName, Type type)
                 => type == typeof(bool) ? longName : $"{longName} <{type.Name.ToLowerInvariant()}>";
@@ -326,7 +323,7 @@ namespace slskd
             }
         }
 
-        public static void PrintEnvironmentVariables(IEnumerable<Option> map, string prefix)
+        private static void PrintEnvironmentVariables(IEnumerable<Option> map, string prefix)
         {
             static string GetName(string name, Type type) => $"{name} <{type.Name.ToLowerInvariant()}>";
 
