@@ -21,6 +21,9 @@ namespace slskd
     using System.Collections.Generic;
     using System.ComponentModel.DataAnnotations;
     using System.Diagnostics;
+    using System.Linq;
+    using System.Reflection;
+    using slskd.Common.Configuration;
     using slskd.Validation;
     using Soulseek.Diagnostics;
     using Utility.CommandLine;
@@ -40,6 +43,47 @@ namespace slskd
         ///     Gets the default options.
         /// </summary>
         public static Options Defaults { get; } = new Options();
+
+        public static IEnumerable<Option> ToMap()
+        {
+            var map = new List<Option>();
+
+            void GetArgumentProperties(Type type, string path)
+            {
+                var defaults = Activator.CreateInstance(type);
+                var props = type.GetProperties(BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
+
+                foreach (PropertyInfo property in props)
+                {
+                    CustomAttributeData attribute = property.CustomAttributes.FirstOrDefault(a => a.AttributeType.Name == typeof(OptionAttribute).Name);
+
+                    if (attribute != default(CustomAttributeData))
+                    {
+                        char shortName = (char)attribute.ConstructorArguments[0].Value;
+                        string longName = (string)attribute.ConstructorArguments[1].Value;
+                        string environmentVariable = (string)attribute.ConstructorArguments[2].Value;
+                        string description = (string)attribute.ConstructorArguments[3].Value;
+
+                        map.Add(new(
+                            shortName,
+                            longName,
+                            environmentVariable,
+                            path + ":" + property.Name.ToLowerInvariant(),
+                            property.PropertyType,
+                            property.GetValue(defaults),
+                            description));
+                    }
+
+                    if (!new[] { typeof(string), typeof(bool), typeof(int) }.Contains(property.PropertyType))
+                    {
+                        GetArgumentProperties(property.PropertyType, path + ":" + property.Name.ToLowerInvariant());
+                    }
+                }
+            }
+
+            GetArgumentProperties(typeof(Options), "slskd");
+            return map;
+        }
 
         /// <summary>
         ///     Gets the list of option mappings.
@@ -358,17 +402,51 @@ namespace slskd
                 Description: "write buffer size for connections"),
         };
 
+        /// <summary>
+        ///     Gets a value indicating whether the application should run in debug mode.
+        /// </summary>
+        [Option('d', "debug", "DEBUG", "run in debug mode")]
         public bool Debug { get; private set; } = Debugger.IsAttached;
+
+        /// <summary>
+        ///     Gets a value indicating whether the logo should be suppressed on startup.
+        /// </summary>
+        [Option('n', "no-logo", "NO_LOGO", "suppress logo on startup")]
         public bool NoLogo { get; private set; } = false;
+
+        /// <summary>
+        ///     Gets the unique name for this instance.
+        /// </summary>
+        [Option('i', "instance-name", "INSTANCE_NAME", "optional; a unique name for this instance")]
         public string InstanceName { get; private set; } = "default";
+
+        /// <summary>
+        ///     Gets directory options.
+        /// </summary>
         [Validate]
         public DirectoriesOptions Directories { get; private set; } = new DirectoriesOptions();
+
+        /// <summary>
+        ///     Gets options for the web UI.
+        /// </summary>
         [Validate]
         public WebOptions Web { get; private set; } = new WebOptions();
+
+        /// <summary>
+        ///     Gets logger options.
+        /// </summary>
         [Validate]
         public LoggerOptions Logger { get; private set; } = new LoggerOptions();
+
+        /// <summary>
+        ///     Gets feature options.
+        /// </summary>
         [Validate]
         public FeatureOptions Feature { get; private set; } = new FeatureOptions();
+
+        /// <summary>
+        ///     Gets options for the Soulseek client.
+        /// </summary>
         [Validate]
         public SoulseekOptions Soulseek { get; private set; } = new SoulseekOptions();
 
@@ -386,30 +464,61 @@ namespace slskd
             return true;
         }
 
+        /// <summary>
+        ///     Directory options.
+        /// </summary>
         public class DirectoriesOptions
         {
+            /// <summary>
+            ///     Gets the path to shared files.
+            /// </summary>
+            [Option(shortName: 's', longName: "shared", environmentVariable: "SHARED_DIR", description: "path to shared files")]
             [Required]
             public string Shared { get; private set; }
+
+            /// <summary>
+            ///     Gets the path where downloaded files are saved.
+            /// </summary>
+            [Option(shortName: 'o', longName: "downloads", environmentVariable: "DOWNLOADS_DIR", description: "path where downloaded files are saved")]
             [Required]
             public string Downloads { get; private set; }
         }
 
+        /// <summary>
+        ///     Feature options.
+        /// </summary>
         public class FeatureOptions
         {
+            /// <summary>
+            ///     Gets a value indicating whether prometheus metrics should be collected and published.
+            /// </summary>
+            [Option(default, "prometheus", "PROMETHEUS", "enable collection and publishing of prometheus metrics")]
             public bool Prometheus { get; private set; } = false;
+
+            /// <summary>
+            ///     Gets a value indicating whether swagger documentation and UI should be enabled.
+            /// </summary>
+            [Option(default, "swagger", "SWAGGER", "enable swagger documentation and UI")]
             public bool Swagger { get; private set; } = false;
         }
 
+        /// <summary>
+        ///     Logger options.
+        /// </summary>
         public class LoggerOptions
         {
+            /// <summary>
+            ///     Gets the URL to a Grafana Loki instance to which to log.
+            /// </summary>
+            [Option(default, "loki", "LOKI", "optional; url to a Grafana Loki instance to which to log")]
             public string Loki { get; private set; } = null;
         }
 
         public class SoulseekOptions
         {
-            [Required]
+            //[Required]
             public string Password { get; private set; }
-            [Required]
+            //[Required]
             public string Username { get; private set; }
             [Range(1024, 65535)]
             public int? ListenPort { get; private set; } = 50000;
@@ -446,6 +555,7 @@ namespace slskd
             public class DistributedNetworkOptions
             {
                 public bool Disabled { get; private set; } = false;
+
                 [Range(1, int.MaxValue)]
                 public int ChildLimit { get; private set; } = 25;
             }
@@ -453,30 +563,46 @@ namespace slskd
 
         public class WebOptions
         {
+            [Option('l', "http-port", "HTTP_PORT", "HTTP listen port for web UI")]
             [Range(1, 65535)]
             public int Port { get; private set; } = 5000;
+
             [Validate]
             public HttpsOptions Https { get; private set; } = new HttpsOptions();
+
+            [Option(default, "url-base", "URL_BASE", "base url for web requests")]
             public string UrlBase { get; private set; } = "/";
-            [Required(ErrorMessage = "A content root is required")]
+
+            [Option(default, "content-path", "CONTENT_PATH", "path to static web content")]
+            [Required]
             public string ContentPath { get; private set; } = "wwwroot";
+
             [Validate]
             public AuthenticationOptions Authentication { get; private set; } = new AuthenticationOptions();
 
             public class AuthenticationOptions
             {
+                [Option('x', "no-auth", "NO_AUTH", "disable authentication for web requests")]
                 public bool Disable { get; private set; } = false;
+
+                [Option('u', "username", "USERNAME", "username for web UI")]
                 [Required]
                 public string Username { get; private set; } = "slskd";
+
+                [Option('p', "password", "PASSWORD", "password for web UI")]
                 [Required]
                 public string Password { get; private set; } = "slskd";
+
                 [Validate]
                 public JwtOptions Jwt { get; private set; } = new JwtOptions();
 
                 public class JwtOptions
                 {
+                    [Option(default, "jwt-key", "JWT_KEY", "JWT signing key")]
                     [Required]
                     public string Key { get; private set; } = Guid.NewGuid().ToString();
+
+                    [Option(default, "jwt-ttl", "JWT_TTL", "TTL for JWTs")]
                     [Range(3600, int.MaxValue)]
                     public int Ttl { get; private set; } = 604800000;
                 }
@@ -484,16 +610,23 @@ namespace slskd
 
             public class HttpsOptions
             {
+                [Option('L', "https-port", "HTTPS_PORT", "HTTPS listen port for web UI")]
                 [Range(1, 65535)]
                 public int Port { get; private set; } = 5001;
+
+                [Option('f', "force-https", "HTTPS_FORCE", "redirect HTTP to HTTPS")]
                 public bool Force { get; private set; } = false;
+
                 [Validate]
                 public CertificateOptions Certificate { get; private set; } = new CertificateOptions();
 
                 public class CertificateOptions
                 {
+                    [Option(default, "https-cert-pfx", "HTTPS_CERT_PFX", "path to X509 certificate .pfx")]
                     [FileExists]
                     public string Pfx { get; private set; }
+
+                    [Option(default, "https-cert-password", "HTTPS_CERT_PASSWORD", "X509 certificate password")]
                     public string Password { get; private set; }
                 }
             }

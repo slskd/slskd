@@ -93,7 +93,7 @@ namespace slskd
 
                 if (ShowHelp)
                 {
-                    PrintCommandLineArguments(Options.Map);
+                    PrintCommandLineArguments(Options.ToMap());
                 }
 
                 if (ShowEnvironmentVariables)
@@ -209,6 +209,8 @@ namespace slskd
             logger.Information("Invocation ID: {InvocationId}", InvocationId);
             logger.Information("Process ID: {ProcessId}", ProcessId);
 
+            return;
+
             if (!string.IsNullOrEmpty(Options.Logger.Loki))
             {
                 logger.Information("Forwarding logs to Grafana Loki instance at {LoggerLokiUrl}", Options.Logger.Loki);
@@ -272,7 +274,7 @@ namespace slskd
 
             return builder
                 .AddDefaultValues(
-                    map: Options.Map)
+                    map: Options.ToMap())
                 .AddEnvironmentVariables(
                     prefix: environmentVariablePrefix,
                     map: Options.Map)
