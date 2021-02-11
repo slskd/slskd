@@ -69,7 +69,7 @@ namespace slskd
 
             ContentPath = Path.GetFullPath(Options.Web.ContentPath);
 
-            JwtSigningKey = new SymmetricSecurityKey(PBKDF2.GetKey(Options.Web.Authentication.Jwt.Key));
+            JwtSigningKey = new SymmetricSecurityKey(Pbkdf2.GetKey(Options.Web.Authentication.Jwt.Key));
         }
 
         private SoulseekClient Client { get; set; }
