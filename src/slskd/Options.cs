@@ -18,344 +18,54 @@
 namespace slskd
 {
     using System;
-    using System.Collections.Generic;
     using System.ComponentModel;
     using System.ComponentModel.DataAnnotations;
     using System.Diagnostics;
-    using System.Linq;
-    using System.Reflection;
-    using slskd.Common.Configuration;
     using slskd.Validation;
     using Soulseek.Diagnostics;
     using Utility.CommandLine;
     using Utility.EnvironmentVariables;
 
     /// <summary>
-    ///     Defines an option mapping.
-    /// </summary>
-    public record Option(char ShortName, string LongName, string EnvironmentVariable, string Key, Type Type, object Default = null, string Description = null);
-
-    /// <summary>
-    ///     Application options (immutable options required at startup).
+    ///     Application options.
     /// </summary>
     public class Options
     {
-        ///// <summary>
-        /////     Gets the list of option mappings.
-        ///// </summary>
-        ///// <remarks>
-        /////     <para>
-        /////         This array lists all application options. Each element in the list is a mapping object that dictates inputs
-        /////         (command line, envar, config file) for the option, a default value, description, and most importantly, the
-        /////         configuration key which will ultimately contain the derived value.
-        /////     </para>
-        /////     <para>
-        /////         Configuration keys are a construct of the <see cref="Microsoft.Extensions.Configuration"/> namespace and, in a
-        /////         nutshell, represent an object map as a series of key-value pairs with nested properties represented as
-        /////         colon-separated strings. Acceptable 'Key' values in this array must either be null (the value will not be
-        /////         mapped to anything in Options), or a colon-separated string corresponding to a property somewhere inside Options.
-        /////     </para>
-        /////     <para>
-        /////         This mapping exists so that disparate configuration keys from various configuration sources can be overridden
-        /////         by subsequent sources; for example, --foo (cli), FOOBAR (envar) and foo.bar (yaml) would result in three
-        /////         distinct keys.  With this mapping all three can be made to map to the same key and the application can
-        /////         dictate order of precedence.
-        /////     </para>
-        /////     <para>
-        /////         Some options, specifically those lacking a 'Key', are derived prior to the configuration file being loaded and
-        /////         their values are not needed in Options.  This approach should be reserved for flags that may result in the
-        /////         application carrying out a command, and then exiting.  For example, --help, --version.  These options are
-        /////         generally properties in <see cref="Program"/> and are marked with <see cref="ArgumentAttribute"/> and
-        /////         potentially <see cref="EnvironmentVariableAttribute"/> to allow for mapping by other means.
-        /////     </para>
-        /////     <para>
-        /////         The order in which mappings appear in the array dictate the order in which they appear when listed in --help
-        /////         and --envars.
-        /////     </para>
-        ///// </remarks>
-        //public static IEnumerable<Option> Map => new Option[]
-        //{
-        //    new(
-        //        ShortName: 'v',
-        //        LongName: "version",
-        //        EnvironmentVariable: null,
-        //        Key: null,
-        //        Type: typeof(bool),
-        //        Default: false,
-        //        Description: "display version information"),
-        //    new(
-        //        ShortName: 'h',
-        //        LongName: "help",
-        //        EnvironmentVariable: null,
-        //        Key: null,
-        //        Type: typeof(bool),
-        //        Default: false,
-        //        Description: "display command line usage"),
-        //    new(
-        //        ShortName: 'e',
-        //        LongName: "envars",
-        //        EnvironmentVariable: null,
-        //        Key: null,
-        //        Type: typeof(bool),
-        //        Default: false,
-        //        Description: "display environment variables"),
-        //    new(
-        //        ShortName: 'g',
-        //        LongName: "generate-cert",
-        //        EnvironmentVariable: null,
-        //        Key: null,
-        //        Type: typeof(bool),
-        //        Default: false,
-        //        Description: "generate X509 certificate and password for HTTPs"),
-        //    new(
-        //        ShortName: 'c',
-        //        LongName: "config",
-        //        EnvironmentVariable: "CONFIG",
-        //        Key: null,
-        //        Type: typeof(string),
-        //        Default: Program.DefaultConfigurationFile,
-        //        Description: "path to configuration file"),
-        //    new(
-        //        ShortName: 'd',
-        //        LongName: "debug",
-        //        EnvironmentVariable: "DEBUG",
-        //        Key: "slskd:debug",
-        //        Type: typeof(bool),
-        //        Default: Defaults.Debug,
-        //        Description: "run in debug mode"),
-        //    new(
-        //        ShortName: 'n',
-        //        LongName: "no-logo",
-        //        EnvironmentVariable: "NO_LOGO",
-        //        Key: "slskd:nologo",
-        //        Type: typeof(bool),
-        //        Default: Defaults.NoLogo,
-        //        Description: "suppress logo on startup"),
-        //    new(
-        //        ShortName: 'i',
-        //        LongName: "instance-name",
-        //        EnvironmentVariable: "INSTANCE_NAME",
-        //        Key: "slskd:instancename",
-        //        Type: typeof(string),
-        //        Default: Defaults.InstanceName,
-        //        Description: "optional; a unique name for this instance"),
-        //    new(
-        //        ShortName: 'o',
-        //        LongName: "downloads",
-        //        EnvironmentVariable: "DOWNLOADS_DIR",
-        //        Key: "slskd:directories:downloads",
-        //        Type: typeof(string),
-        //        Default: Defaults.Directories.Downloads,
-        //        Description: "path where downloaded files are saved"),
-        //    new(
-        //        ShortName: 's',
-        //        LongName: "shared",
-        //        EnvironmentVariable: "SHARED_DIR",
-        //        Key: "slskd:directories:shared",
-        //        Type: typeof(string),
-        //        Default: Defaults.Directories.Shared,
-        //        Description: "path to shared files"),
-        //    new(
-        //        ShortName: 'l',
-        //        LongName: "http-port",
-        //        EnvironmentVariable: "HTTP_PORT",
-        //        Key: "slskd:web:port",
-        //        Type: typeof(int),
-        //        Default: Defaults.Web.Port,
-        //        Description: "HTTP listen port for web server"),
-        //    new(
-        //        ShortName: 'L',
-        //        LongName: "https-port",
-        //        EnvironmentVariable: "HTTPS_PORT",
-        //        Key: "slskd:web:https:port",
-        //        Type: typeof(int),
-        //        Default: Defaults.Web.Https.Port,
-        //        Description: "HTTPS listen port for web server"),
-        //    new(
-        //        ShortName: 'f',
-        //        LongName: "force-https",
-        //        EnvironmentVariable: "HTTPS_FORCE",
-        //        Key: "slskd:web:https:force",
-        //        Type: typeof(bool),
-        //        Default: Defaults.Web.Https.Force,
-        //        Description: "redirect HTTP to HTTPS"),
-        //    new(
-        //        ShortName: default,
-        //        LongName: "https-cert-pfx",
-        //        EnvironmentVariable: "HTTPS_CERT_PFX",
-        //        Key: "slskd:web:https:certificate:pfx",
-        //        Type: typeof(string),
-        //        Default: Defaults.Web.Https.Certificate.Pfx,
-        //        Description: "path to X509 certificate .pfx"),
-        //    new(
-        //        ShortName: default,
-        //        LongName: "https-cert-password",
-        //        EnvironmentVariable: "HTTPS_CERT_PASSWORD",
-        //        Key: "slskd:web:https:certificate:password",
-        //        Type: typeof(string),
-        //        Default: Defaults.Web.Https.Certificate.Password,
-        //        Description: "X509 certificate password"),
-        //    new(
-        //        ShortName: default,
-        //        LongName: "url-base",
-        //        EnvironmentVariable: "URL_BASE",
-        //        Key: "slskd:web:urlbase",
-        //        Type: typeof(string),
-        //        Default: Defaults.Web.UrlBase,
-        //        Description: "base url for web requests"),
-        //    new(
-        //        ShortName: default,
-        //        LongName: "content-path",
-        //        EnvironmentVariable: "CONTENT_PATH",
-        //        Key: "slskd:web:contentpath",
-        //        Type: typeof(string),
-        //        Default: Defaults.Web.ContentPath,
-        //        Description: "path to static web content"),
-        //    new(
-        //        ShortName: 'x',
-        //        LongName: "no-auth",
-        //        EnvironmentVariable: "NO_AUTH",
-        //        Key: "slskd:web:authentication:disable",
-        //        Type: typeof(bool),
-        //        Default: Defaults.Web.Authentication.Disable,
-        //        Description: "disable authentication for web requests"),
-        //    new(
-        //        ShortName: 'u',
-        //        LongName: "username",
-        //        EnvironmentVariable: "USERNAME",
-        //        Key: "slskd:web:authentication:username",
-        //        Type: typeof(string),
-        //        Default: Defaults.Web.Authentication.Username,
-        //        Description: "the username for web UI"),
-        //    new(
-        //        ShortName: 'p',
-        //        LongName: "password",
-        //        EnvironmentVariable: "PASSWORD",
-        //        Key: "slskd:web:authentication:password",
-        //        Type: typeof(string),
-        //        Default: Defaults.Web.Authentication.Password,
-        //        Description: "the password for web UI"),
-        //    new(
-        //        ShortName: default,
-        //        LongName: "jwt-key",
-        //        EnvironmentVariable: "JWT_KEY",
-        //        Key: "slskd:web:authentication:jwt:key",
-        //        Type: typeof(string),
-        //        Default: Defaults.Web.Authentication.Jwt.Key,
-        //        Description: "JWT signing key"),
-        //    new(
-        //        ShortName: default,
-        //        LongName: "jwt-ttl",
-        //        EnvironmentVariable: "JWT_TTL",
-        //        Key: "slskd:web:authentication:jwt:ttl",
-        //        Type: typeof(int),
-        //        Default: Defaults.Web.Authentication.Jwt.Ttl,
-        //        Description: "TTL for JWTs"),
-        //    new(
-        //        ShortName: default,
-        //        LongName: "prometheus",
-        //        EnvironmentVariable: "PROMETHEUS",
-        //        Key: "slskd:feature:prometheus",
-        //        Type: typeof(bool),
-        //        Default: Defaults.Feature.Prometheus,
-        //        Description: "enable collection and publishing of prometheus metrics"),
-        //    new(
-        //        ShortName: default,
-        //        LongName: "swagger",
-        //        EnvironmentVariable: "SWAGGER",
-        //        Key: "slskd:feature:swagger",
-        //        Type: typeof(bool),
-        //        Default: Defaults.Feature.Swagger,
-        //        Description: "enable swagger documentation and UI"),
-        //    new(
-        //        ShortName: default,
-        //        LongName: "loki",
-        //        EnvironmentVariable: "LOKI",
-        //        Key: "slskd:logger:loki",
-        //        Type: typeof(string),
-        //        Default: Defaults.Logger.Loki,
-        //        Description: "optional; url to a Grafana Loki instance to which to log"),
-        //    new(
-        //        ShortName: default,
-        //        LongName: "slsk-username",
-        //        EnvironmentVariable: "SLSK_USERNAME",
-        //        Key: "slskd:soulseek:username",
-        //        Type: typeof(string),
-        //        Default: Defaults.Soulseek.Username,
-        //        Description: "username for the Soulseek network"),
-        //    new(
-        //        ShortName: default,
-        //        LongName: "slsk-password",
-        //        EnvironmentVariable: "SLSK_PASSWORD",
-        //        Key: "slskd:soulseek:password",
-        //        Type: typeof(string),
-        //        Default: Defaults.Soulseek.Password,
-        //        Description: "password for the Soulseek network"),
-        //    new(
-        //        ShortName: default,
-        //        LongName: "slsk-listen-port",
-        //        EnvironmentVariable: "SLSK_LISTEN_PORT",
-        //        Key: "slskd:soulseek:listenport",
-        //        Type: typeof(int),
-        //        Default: Defaults.Soulseek.ListenPort,
-        //        Description: "port on which to listen for incoming connections"),
-        //    new(
-        //        ShortName: default,
-        //        LongName: "slsk-diag-level",
-        //        EnvironmentVariable: "SLSK_DIAG_LEVEL",
-        //        Key: "slskd:soulseek:diagnosticlevel",
-        //        Type: typeof(DiagnosticLevel),
-        //        Default: Defaults.Soulseek.DiagnosticLevel,
-        //        Description: "minimum diagnostic level (None, Warning, Info, Debug)"),
-        //    new(
-        //        ShortName: default,
-        //        LongName: "slsk-no-dnet",
-        //        EnvironmentVariable: "SLSK_NO_DNET",
-        //        Key: "slskd:soulseek:distributednetwork:disabled",
-        //        Type: typeof(bool),
-        //        Default: Defaults.Soulseek.DistributedNetwork.Disabled,
-        //        Description: "disable the distributed network"),
-        //    new(
-        //        ShortName: default,
-        //        LongName: "slsk-dnet-children",
-        //        EnvironmentVariable: "SLSK_DNET_CHILDREN",
-        //        Key: "slskd:soulseek:distributednetwork:childlimit",
-        //        Type: typeof(int),
-        //        Default: Defaults.Soulseek.DistributedNetwork.ChildLimit,
-        //        Description: "max number of distributed children"),
-        //    new(
-        //        ShortName: default,
-        //        LongName: "slsk-connection-timeout",
-        //        EnvironmentVariable: "SLSK_CONNECTION_TIMEOUT",
-        //        Key: "slskd:soulseek:connection:timeout:connect",
-        //        Type: typeof(int),
-        //        Default: Defaults.Soulseek.Connection.Timeout.Connect,
-        //        Description: "connection timeout, in miliseconds"),
-        //    new(
-        //        ShortName: default,
-        //        LongName: "slsk-inactivity-timeout",
-        //        EnvironmentVariable: "SLSK_INACTIVITY_TIMEOUT",
-        //        Key: "slskd:soulseek:connection:timeout:inactivity",
-        //        Type: typeof(int),
-        //        Default: Defaults.Soulseek.Connection.Timeout.Inactivity,
-        //        Description: "connection inactivity timeout, in miliseconds"),
-        //    new(
-        //        ShortName: default,
-        //        LongName: "slsk-read-buffer",
-        //        EnvironmentVariable: "SLSK_READ_BUFFER",
-        //        Key: "slskd:soulseek:connection:buffer:read",
-        //        Type: typeof(int),
-        //        Default: Defaults.Soulseek.Connection.Buffer.Read,
-        //        Description: "read buffer size for connections"),
-        //    new(
-        //        ShortName: default,
-        //        LongName: "slsk-write-buffer",
-        //        EnvironmentVariable: "SLSK_WRITE_BUFFER",
-        //        Key: "slskd:soulseek:connection:buffer:write",
-        //        Type: typeof(int),
-        //        Default: Defaults.Soulseek.Connection.Buffer.Write,
-        //        Description: "write buffer size for connections"),
-        //};
+        /// <summary>
+        ///     Gets a value indicating whether to display the application version.
+        /// </summary>
+        [Argument('v', "version")]
+        [Description("display version information")]
+        public bool ShowVersion { get; private set; } = false;
+
+        /// <summary>
+        ///     Gets a value indicating whether to display a list of command line arguments.
+        /// </summary>
+        [Argument('h', "help")]
+        [Description("display command line usage")]
+        public bool ShowHelp { get; private set; } = false;
+
+        /// <summary>
+        ///     Gets a value indicating whether to display a list of configuration environment variables.
+        /// </summary>
+        [Argument('e', "envars")]
+        [Description("display environment variables")]
+        public bool ShowEnvironmentVariables { get; private set; } = false;
+
+        /// <summary>
+        ///     Gets a value indicating whether to generate an X509 certificate and password.
+        /// </summary>
+        [Argument('g', "generate-cert")]
+        [Description("generate X509 certificate and password for HTTPs")]
+        public bool GenerateCertificate { get; private set; } = false;
+
+        /// <summary>
+        ///     Gets the path to the application configuration file.
+        /// </summary>
+        [Argument('c', "config")]
+        [EnvironmentVariable("CONFIG")]
+        [Description("path to configuration file")]
+        public string ConfigurationFile { get; private set; } = Program.DefaultConfigurationFile;
 
         /// <summary>
         ///     Gets a value indicating whether the application should run in debug mode.
@@ -364,27 +74,6 @@ namespace slskd
         [EnvironmentVariable("DEBUG")]
         [Description("run in debug mode")]
         public bool Debug { get; private set; } = Debugger.IsAttached;
-
-        [Argument('e', "envars")]
-        [Description("display environment variables")]
-        public bool ShowEnvironmentVariables { get; private set; } = false;
-
-        [Argument('h', "help")]
-        [Description("display command line usage")]
-        public bool ShowHelp { get; private set; } = false;
-
-        [Argument('v', "version")]
-        [Description("display version information")]
-        public bool ShowVersion { get; private set; } = false;
-
-        [Argument('c', "config")]
-        [EnvironmentVariable("CONFIG")]
-        [Description("path to configuration file")]
-        public string ConfigurationFile { get; private set; } = Program.DefaultConfigurationFile;
-
-        [Argument('g', "generate-cert")]
-        [Description("generate X509 certificate and password for HTTPs")]
-        public bool GenerateCertificate { get; private set; } = false;
 
         /// <summary>
         ///     Gets a value indicating whether the logo should be suppressed on startup.
@@ -431,20 +120,6 @@ namespace slskd
         /// </summary>
         [Validate]
         public SoulseekOptions Soulseek { get; private set; } = new SoulseekOptions();
-
-        public bool TryValidate(out CompositeValidationResult result)
-        {
-            result = null;
-            var results = new List<ValidationResult>();
-
-            if (!Validator.TryValidateObject(this, new ValidationContext(this), results, true))
-            {
-                result = new CompositeValidationResult("Invalid configuration", results);
-                return false;
-            }
-
-            return true;
-        }
 
         /// <summary>
         ///     Directory options.
@@ -506,173 +181,301 @@ namespace slskd
             public string Loki { get; private set; } = null;
         }
 
+        /// <summary>
+        ///     Soulseek client options.
+        /// </summary>
         public class SoulseekOptions
         {
+            /// <summary>
+            ///     Gets the password for the Soulseek network.
+            /// </summary>
             [Argument(default, "slsk-password")]
             [EnvironmentVariable("SLSK_PASSWORD")]
             [Description("password for the Soulseek network")]
             [Required]
             public string Password { get; private set; } = null;
 
+            /// <summary>
+            ///     Gets the username for the Soulseek network.
+            /// </summary>
             [Argument(default, "slsk-username")]
             [EnvironmentVariable("SLSK_USERNAME")]
             [Description("username for the Soulseek network")]
             [Required]
             public string Username { get; private set; } = null;
 
+            /// <summary>
+            ///     Gets the port on which to listen for incoming connections.
+            /// </summary>
             [Argument(default, "slsk-listen-port")]
             [EnvironmentVariable("SLSK_LISTEN_PORT")]
+            [Description("port on which to listen for incoming connections")]
             [Range(1024, 65535)]
             public int ListenPort { get; private set; } = 50000;
 
+            /// <summary>
+            ///     Gets the minimum diagnostic level.
+            /// </summary>
             [Argument(default, "slsk-diag-level")]
             [EnvironmentVariable("SLSK_DIAG_LEVEL")]
+            [Description("minimum diagnostic level (None, Warning, Info, Debug)")]
             public DiagnosticLevel DiagnosticLevel { get; private set; } = DiagnosticLevel.Info;
 
+            /// <summary>
+            ///     Gets options for the distributed network.
+            /// </summary>
             [Validate]
             public DistributedNetworkOptions DistributedNetwork { get; private set; } = new DistributedNetworkOptions();
 
+            /// <summary>
+            ///     Gets connection options.
+            /// </summary>
             [Validate]
             public ConnectionOptions Connection { get; private set; } = new ConnectionOptions();
 
+            /// <summary>
+            ///     Connection options.
+            /// </summary>
             public class ConnectionOptions
             {
+                /// <summary>
+                ///     Gets connection timeout options.
+                /// </summary>
                 [Validate]
                 public TimeoutOptions Timeout { get; private set; } = new TimeoutOptions();
 
+                /// <summary>
+                ///     Gets connection buffer options.
+                /// </summary>
                 [Validate]
                 public BufferOptions Buffer { get; private set; } = new BufferOptions();
 
+                /// <summary>
+                ///     Connection buffer options.
+                /// </summary>
                 public class BufferOptions
                 {
+                    /// <summary>
+                    ///     Gets the connection read buffer size.
+                    /// </summary>
                     [Argument(default, "slsk-read-buffer")]
                     [EnvironmentVariable("SLSK_READ_BUFFER")]
+                    [Description("read buffer size for connections")]
                     [Range(1024, int.MaxValue)]
                     public int Read { get; private set; } = 16384;
 
+                    /// <summary>
+                    ///     Gets the connection write buffer size.
+                    /// </summary>
                     [Argument(default, "slsk-write-buffer")]
                     [EnvironmentVariable("SLSK_WRITE_BUFFER")]
+                    [Description("write buffer size for connections")]
                     [Range(1024, int.MaxValue)]
                     public int Write { get; private set; } = 16384;
                 }
 
+                /// <summary>
+                ///     Connection timeout options.
+                /// </summary>
                 public class TimeoutOptions
                 {
+                    /// <summary>
+                    ///     Gets the connection timeout value, in milliseconds.
+                    /// </summary>
                     [Argument(default, "slsk-connection-timeout")]
                     [EnvironmentVariable("SLSK_CONNECTION_TIMEOUT")]
+                    [Description("connection timeout, in milliseconds")]
                     [Range(1000, int.MaxValue)]
                     public int Connect { get; private set; } = 5000;
 
+                    /// <summary>
+                    ///     Gets the connection inactivity timeout, in milliseconds.
+                    /// </summary>
                     [Argument(default, "slsk-inactivity-timeout")]
                     [EnvironmentVariable("SLSK_INACTIVITY_TIMEOUT")]
+                    [Description("connection inactivity timeout, in milliseconds")]
                     [Range(1000, int.MaxValue)]
                     public int Inactivity { get; private set; } = 15000;
                 }
             }
 
+            /// <summary>
+            ///     Distributed network options.
+            /// </summary>
             public class DistributedNetworkOptions
             {
+                /// <summary>
+                ///     Gets a value indicating whether the distributed network should be disabled.
+                /// </summary>
                 [Argument(default, "slsk-no-dnet")]
                 [EnvironmentVariable("SLSK_NO_DNET")]
+                [Description("disable the distributed network")]
                 public bool Disabled { get; private set; } = false;
 
+                /// <summary>
+                ///     Gets the distributed child connection limit.
+                /// </summary>
                 [Argument(default, "slsk-dnet-children")]
                 [EnvironmentVariable("SLSK_DNET_CHILDREN")]
+                [Description("max number of distributed children")]
                 [Range(1, int.MaxValue)]
                 public int ChildLimit { get; private set; } = 25;
             }
         }
 
+        /// <summary>
+        ///     Web server options.
+        /// </summary>
         public class WebOptions
         {
+            /// <summary>
+            ///     Gets the HTTP listen port.
+            /// </summary>
             [Argument('l', "http-port")]
             [EnvironmentVariable("HTTP_PORT")]
-            [Option('l', "http-port", "HTTP_PORT", "HTTP listen port for web UI")]
+            [Description("HTTP listen port for web UI")]
             [Range(1, 65535)]
             public int Port { get; private set; } = 5000;
 
+            /// <summary>
+            ///     Gets HTTPS options.
+            /// </summary>
             [Validate]
             public HttpsOptions Https { get; private set; } = new HttpsOptions();
 
+            /// <summary>
+            ///     Gets the base url for web requests.
+            /// </summary>
             [Argument(default, "url-base")]
             [EnvironmentVariable("URL_BASE")]
-            [Option(default, "url-base", "URL_BASE", "base url for web requests")]
+            [Description("base url for web requests")]
             public string UrlBase { get; private set; } = "/";
 
+            /// <summary>
+            ///     Gets the path to static web content.
+            /// </summary>
             [Argument(default, "content-path")]
             [EnvironmentVariable("CONTENT_PATH")]
-            [Option(default, "content-path", "CONTENT_PATH", "path to static web content")]
+            [Description("path to static web content")]
             [Required]
             public string ContentPath { get; private set; } = "wwwroot";
 
+            /// <summary>
+            ///     Gets authentication options.
+            /// </summary>
             [Validate]
             public AuthenticationOptions Authentication { get; private set; } = new AuthenticationOptions();
 
+            /// <summary>
+            ///     Authentication options.
+            /// </summary>
             public class AuthenticationOptions
             {
+                /// <summary>
+                ///     Gets a value indicating whether authentication should be disabled.
+                /// </summary>
                 [Argument('x', "no-auth")]
                 [EnvironmentVariable("NO_AUTH")]
-                [Option('x', "no-auth", "NO_AUTH", "disable authentication for web requests")]
+                [Description("disable authentication for web requests")]
                 public bool Disable { get; private set; } = false;
 
+                /// <summary>
+                ///     Gets the username for the web UI.
+                /// </summary>
                 [Argument('u', "username")]
                 [EnvironmentVariable("USERNAME")]
-                [Option('u', "username", "USERNAME", "username for web UI")]
+                [Description("username for web UI")]
                 [Required]
                 public string Username { get; private set; } = "slskd";
 
+                /// <summary>
+                ///     Gets the password for the web UI.
+                /// </summary>
                 [Argument('p', "password")]
                 [EnvironmentVariable("PASSWORD")]
-                [Option('p', "password", "PASSWORD", "password for web UI")]
+                [Description("password for web UI")]
                 [Required]
                 public string Password { get; private set; } = "slskd";
 
+                /// <summary>
+                ///     Gets JWT options.
+                /// </summary>
                 [Validate]
                 public JwtOptions Jwt { get; private set; } = new JwtOptions();
 
+                /// <summary>
+                ///     JWT options.
+                /// </summary>
                 public class JwtOptions
                 {
+                    /// <summary>
+                    ///     Gets the key with which to sign JWTs.
+                    /// </summary>
                     [Argument(default, "jwt-key")]
                     [EnvironmentVariable("JWT_KEY")]
-                    [Option(default, "jwt-key", "JWT_KEY", "JWT signing key")]
+                    [Description("JWT signing key")]
                     [Required]
                     public string Key { get; private set; } = Guid.NewGuid().ToString();
 
+                    /// <summary>
+                    ///     Gets the TTL for JWTs.
+                    /// </summary>
                     [Argument(default, "jwt-ttl")]
                     [EnvironmentVariable("JWT_TTL")]
-                    [Option(default, "jwt-ttl", "JWT_TTL", "TTL for JWTs")]
+                    [Description("TTL for JWTs")]
                     [Range(3600, int.MaxValue)]
                     public int Ttl { get; private set; } = 604800000;
                 }
             }
 
+            /// <summary>
+            ///     HTTPS options.
+            /// </summary>
             public class HttpsOptions
             {
+                /// <summary>
+                ///     Gets the HTTPS listen port.
+                /// </summary>
                 [Argument('L', "https-port")]
                 [EnvironmentVariable("HTTPS_PORT")]
-                [Option('L', "https-port", "HTTPS_PORT", "HTTPS listen port for web UI")]
+                [Description("HTTPS listen port for web UI")]
                 [Range(1, 65535)]
                 public int Port { get; private set; } = 5001;
 
+                /// <summary>
+                ///     Gets a value indicating whether HTTP requests should be redirected to HTTPS.
+                /// </summary>
                 [Argument('f', "force-https")]
                 [EnvironmentVariable("HTTPS_FORCE")]
-                [Option('f', "force-https", "HTTPS_FORCE", "redirect HTTP to HTTPS")]
+                [Description("redirect HTTP to HTTPS")]
                 public bool Force { get; private set; } = false;
 
+                /// <summary>
+                ///     Gets certificate options.
+                /// </summary>
                 [Validate]
                 public CertificateOptions Certificate { get; private set; } = new CertificateOptions();
 
+                /// <summary>
+                ///     Certificate options.
+                /// </summary>
                 public class CertificateOptions
                 {
+                    /// <summary>
+                    ///     Gets the path to the the X509 certificate .pfx file.
+                    /// </summary>
                     [Argument(default, "https-cert-pfx")]
                     [EnvironmentVariable("HTTPS_CERT_PFX")]
-                    [Option(default, "https-cert-pfx", "HTTPS_CERT_PFX", "path to X509 certificate .pfx")]
+                    [Description("path to X509 certificate .pfx")]
                     [FileExists]
                     public string Pfx { get; private set; }
 
+                    /// <summary>
+                    ///     Gets the password for the X509 certificate.
+                    /// </summary>
                     [Argument(default, "https-cert-password")]
                     [EnvironmentVariable("HTTPS_CERT_PASSWORD")]
-                    [Option(default, "https-cert-password", "HTTPS_CERT_PASSWORD", "X509 certificate password")]
+                    [Description("X509 certificate password")]
                     public string Password { get; private set; }
                 }
             }
