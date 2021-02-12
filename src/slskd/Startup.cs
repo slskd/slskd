@@ -201,8 +201,8 @@ namespace slskd
 
             // create options for the client. see the implementation of Func<> and Action<> options for detailed info.
             var clientOptions = new SoulseekClientOptions(
-                listenPort: Options.Soulseek.ListenPort ?? defaults.ListenPort,
-                enableListener: Options.Soulseek.ListenPort.HasValue,
+                listenPort: Options.Soulseek.ListenPort,
+                enableListener: true,
                 userEndPointCache: new UserEndPointCache(),
                 distributedChildLimit: Options.Soulseek.DistributedNetwork.ChildLimit,
                 enableDistributedNetwork: !Options.Soulseek.DistributedNetwork.Disabled,
@@ -343,7 +343,7 @@ namespace slskd
 
             Task.Run(async () =>
             {
-                await Client.ConnectAsync(Options.Soulseek.Username, Options.Soulseek.Password);
+                //await Client.ConnectAsync(Options.Soulseek.Username, Options.Soulseek.Password);
             }).GetAwaiter().GetResult();
 
             logger.Information("Connected and logged in as {Username}", username);
