@@ -40,16 +40,55 @@ namespace slskd
     using Utility.CommandLine;
     using Utility.EnvironmentVariables;
 
+    /// <summary>
+    ///     Bootstraps configuration and handles primitive command-line instructions.
+    /// </summary>
     public static class Program
     {
+        /// <summary>
+        ///     The name of the application.
+        /// </summary>
         public static readonly string AppName = "slskd";
+
+        /// <summary>
+        ///     The default configuration filename.
+        /// </summary>
         public static readonly string DefaultConfigurationFile = $"{AppName}.yml";
+
+        /// <summary>
+        ///     The global prefix for environment variables.
+        /// </summary>
         public static readonly string EnvironmentVariablePrefix = $"{AppName.ToUpperInvariant()}_";
 
+        /// <summary>
+        ///     Gets the assembly version of the application.
+        /// </summary>
+        /// <remarks>
+        ///     Inaccurate when running locally.
+        /// </remarks>
         public static Version AssemblyVersion { get; } = Assembly.GetExecutingAssembly().GetName().Version;
+
+        /// <summary>
+        ///     Gets the informational version of the application, including the git sha at the latest commit.
+        /// </summary>
+        /// <remarks>
+        ///     Inaccurate when running locally.
+        /// </remarks>
         public static string InformationalVersion { get; } = Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>().InformationalVersion;
+
+        /// <summary>
+        ///     Gets the unique Id of this application invocation.
+        /// </summary>
         public static Guid InvocationId { get; } = Guid.NewGuid();
+
+        /// <summary>
+        ///     Gets the Id of the current application process.
+        /// </summary>
         public static int ProcessId { get; } = Environment.ProcessId;
+
+        /// <summary>
+        ///     Gets the full application version, including both assembly and informational versions.
+        /// </summary>
         public static string Version { get; } = $"{AssemblyVersion} ({InformationalVersion})";
 
         private static IConfigurationRoot Configuration { get; set; }
@@ -74,8 +113,14 @@ namespace slskd
         [Argument('v', "version", "display version information")]
         private static bool ShowVersion { get; set; }
 
+        /// <summary>
+        ///     Entrypoint.
+        /// </summary>
+        /// <param name="args">Command line arguments.</param>
         public static void Main(string[] args)
         {
+            // populate the properties above so that we can override the default config file if needed, and to
+            // check if the application is being run in command mode (run task and quit).
             EnvironmentVariables.Populate(prefix: EnvironmentVariablePrefix);
             Arguments.Populate(clearExistingValues: false);
 
@@ -111,13 +156,15 @@ namespace slskd
                 return;
             }
 
+            // the application isn't bein run in command mode. load all configuration values and proceed
+            // with bootstrapping.
             try
             {
                 Configuration = new ConfigurationBuilder()
                     .AddConfigurationProviders(EnvironmentVariablePrefix, ConfigurationFile)
                     .Build();
 
-                Configuration.GetSection("slskd")
+                Configuration.GetSection(AppName)
                     .Bind(Options, (o) => { o.BindNonPublicProperties = true; });
 
                 if (!Options.TryValidate(out var result))
@@ -210,8 +257,6 @@ namespace slskd
             logger.Information("Invocation ID: {InvocationId}", InvocationId);
             logger.Information("Process ID: {ProcessId}", ProcessId);
 
-            return;
-
             if (!string.IsNullOrEmpty(Options.Logger.Loki))
             {
                 logger.Information("Forwarding logs to Grafana Loki instance at {LoggerLokiUrl}", Options.Logger.Loki);
@@ -283,7 +328,7 @@ namespace slskd
                     path: Path.GetFileName(configurationFile),
                     optional: true,
                     reloadOnChange: false,
-                    provider: new PhysicalFileProvider(Path.GetDirectoryName(configurationFile), ExclusionFilters.None))
+                    provider: new PhysicalFileProvider(Path.GetDirectoryName(configurationFile), ExclusionFilters.None)) // required for locations outside of the app directory
                 .AddCommandLine(
                     targetType: typeof(Options),
                     commandLine: Environment.CommandLine);

@@ -46,18 +46,25 @@ namespace slskd
     using Soulseek;
     using Soulseek.Diagnostics;
 
+    /// <summary>
+    ///     ASP.NET Startup.
+    /// </summary>
     public class Startup
     {
         private static readonly string XmlDocFile = Path.Combine(AppContext.BaseDirectory, Program.AppName + ".xml");
         private static readonly int MaxReconnectAttempts = 3;
-        private static int CurrentReconnectAttempts = 0;
+        private static int currentReconnectAttempts = 0;
 
+        /// <summary>
+        ///     Initializes a new instance of the <see cref="Startup"/> class.
+        /// </summary>
+        /// <param name="configuration">The application configuration.</param>
         public Startup(IConfiguration configuration)
         {
             Configuration = configuration;
 
             Options = new Options();
-            Configuration.GetSection("slskd").Bind(Options, (o) =>
+            Configuration.GetSection(Program.AppName).Bind(Options, (o) =>
             {
                 o.BindNonPublicProperties = true;
             });
@@ -81,6 +88,114 @@ namespace slskd
         private ISharedFileCache SharedFileCache { get; set; }
         private string UrlBase { get; set; }
 
+        /// <summary>
+        ///     Configure services.
+        /// </summary>
+        /// <param name="services">The service collection.</param>
+        public void ConfigureServices(IServiceCollection services)
+        {
+            var logger = Log.ForContext<Startup>();
+
+            services.AddOptions<Options>()
+                .Bind(Configuration.GetSection(Program.AppName), o => { o.BindNonPublicProperties = true; });
+
+            services.AddCors(options => options.AddPolicy("AllowAll", builder => builder.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader()));
+
+            services.AddSingleton(JwtSigningKey);
+
+            if (!Options.Web.Authentication.Disable)
+            {
+                services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+                    .AddJwtBearer(options =>
+                    {
+                        options.TokenValidationParameters = new TokenValidationParameters
+                        {
+                            ClockSkew = TimeSpan.FromMinutes(5),
+                            RequireSignedTokens = true,
+                            RequireExpirationTime = true,
+                            ValidateLifetime = true,
+                            ValidIssuer = Program.AppName,
+                            ValidateIssuer = true,
+                            ValidateAudience = false,
+                            IssuerSigningKey = JwtSigningKey,
+                            ValidateIssuerSigningKey = true,
+                        };
+                    });
+            }
+            else
+            {
+                logger.Warning("Authentication of web requests is DISABLED");
+
+                services.AddAuthentication(PassthroughAuthentication.AuthenticationScheme)
+                    .AddScheme<PassthroughAuthenticationOptions, PassthroughAuthenticationHandler>(PassthroughAuthentication.AuthenticationScheme, options =>
+                    {
+                        options.Username = "n/a";
+                    });
+            }
+
+            services.AddRouting(options => options.LowercaseUrls = true);
+            services.AddControllers().AddJsonOptions(options =>
+            {
+                options.JsonSerializerOptions.Converters.Add(new IPAddressConverter());
+                options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+                options.JsonSerializerOptions.IgnoreNullValues = true;
+            });
+
+            services.AddHealthChecks();
+
+            services.AddApiVersioning(options => options.ReportApiVersions = true);
+            services.AddVersionedApiExplorer(options =>
+            {
+                options.GroupNameFormat = "'v'VVV";
+                options.SubstituteApiVersionInUrl = true;
+            });
+
+            if (Options.Feature.Swagger)
+            {
+                services.AddSwaggerGen(options =>
+                {
+                    options.DescribeAllParametersInCamelCase();
+                    options.SwaggerDoc(
+                        "v0",
+                        new OpenApiInfo
+                        {
+                            Title = Program.AppName,
+                            Version = "v0",
+                        });
+
+                    if (System.IO.File.Exists(XmlDocFile))
+                    {
+                        options.IncludeXmlComments(XmlDocFile);
+                    }
+                    else
+                    {
+                        logger.Warning($"Unable to find XML documentation in {XmlDocFile}, Swagger will not include metadata");
+                    }
+                });
+            }
+
+            if (Options.Feature.Prometheus)
+            {
+                services.AddSystemMetrics();
+            }
+
+            services.AddSingleton<ISoulseekClient, SoulseekClient>(serviceProvider => Client);
+            services.AddSingleton<ITransferTracker, TransferTracker>();
+            services.AddSingleton<ISearchTracker, SearchTracker>();
+            services.AddSingleton<IBrowseTracker, BrowseTracker>();
+            services.AddSingleton<IConversationTracker, ConversationTracker>();
+            services.AddSingleton<IRoomTracker, RoomTracker>(_ => new RoomTracker(messageLimit: 250));
+        }
+
+        /// <summary>
+        ///     Configure middleware.
+        /// </summary>
+        /// <param name="app">The application builder.</param>
+        /// <param name="provider">The api version description provider.</param>
+        /// <param name="tracker">The transfer tracker.</param>
+        /// <param name="browseTracker">The browse tracker.</param>
+        /// <param name="conversationTracker">The conversation tracker.</param>
+        /// <param name="roomTracker">The room tracker.</param>
         public void Configure(
             IApplicationBuilder app,
             IApiVersionDescriptionProvider provider,
@@ -101,10 +216,11 @@ namespace slskd
                 logger.Information($"Forcing HTTP requests to HTTPS");
             }
 
+            // allow users to specify a custom path base, for use behind a reverse proxy
             app.UsePathBase(UrlBase);
             logger.Information("Using base url {UrlBase}", UrlBase);
 
-            // remove any errant double forward slashes which may have been introduced by a reverse proxy or having the base path removed
+            // remove any errant double forward slashes which may have been introduced by manipulating the path base
             app.Use(async (context, next) =>
             {
                 var path = context.Request.Path.ToString();
@@ -169,7 +285,7 @@ namespace slskd
                 logger.Information("Publishing Swagger documentation to /swagger");
             }
 
-            // if we made it this far and the route still wasn't matched, return the index unless it's an api route this is
+            // if we made it this far and the route still wasn't matched, return the index unless it's an api route. this is
             // required so that SPA routing (React Router, etc) can work properly
             app.Use(async (context, next) =>
             {
@@ -183,14 +299,15 @@ namespace slskd
             });
 
             // finally, hit the fileserver again. if the path was modified to return the index above, the index document will be
-            // returned otherwise it will throw a final 404 back to the client.
+            // returned. otherwise it will throw a final 404 back to the client.
             if (System.IO.Directory.Exists(ContentPath))
             {
                 app.UseFileServer(fileServerOptions);
             }
 
             // ---------------------------------------------------------------------------------------------------------------------------------------------
-            // begin SoulseekClient implementation ---------------------------------------------------------------------------------------------------------------------------------------------
+            // begin SoulseekClient implementation
+            // ---------------------------------------------------------------------------------------------------------------------------------------------
             var connectionOptions = new ConnectionOptions(
                 readBufferSize: Options.Soulseek.Connection.Buffer.Read,
                 writeBufferSize: Options.Soulseek.Connection.Buffer.Write,
@@ -323,11 +440,11 @@ namespace slskd
                 // client is shutting down.
                 if (!(args.Exception is KickedFromServerException || args.Exception is ObjectDisposedException))
                 {
-                    Interlocked.Increment(ref CurrentReconnectAttempts);
+                    Interlocked.Increment(ref currentReconnectAttempts);
 
-                    if (CurrentReconnectAttempts <= MaxReconnectAttempts)
+                    if (currentReconnectAttempts <= MaxReconnectAttempts)
                     {
-                        var wait = CurrentReconnectAttempts ^ 3;
+                        var wait = currentReconnectAttempts ^ 3;
                         Console.WriteLine($"Waiting {wait} second(s) before reconnect...");
                         await Task.Delay(wait);
 
@@ -336,7 +453,7 @@ namespace slskd
                     }
                     else
                     {
-                        Console.WriteLine($"Unable to reconnect after {CurrentReconnectAttempts} tries.");
+                        Console.WriteLine($"Unable to reconnect after {currentReconnectAttempts} tries.");
                     }
                 }
             };
@@ -347,101 +464,6 @@ namespace slskd
             }).GetAwaiter().GetResult();
 
             logger.Information("Connected and logged in as {Username}", username);
-        }
-
-        public void ConfigureServices(IServiceCollection services)
-        {
-            var logger = Log.ForContext<Startup>();
-
-            services.AddOptions<Options>()
-                .Bind(Configuration.GetSection("slskd"), o => { o.BindNonPublicProperties = true; });
-
-            services.AddCors(options => options.AddPolicy("AllowAll", builder => builder.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader()));
-
-            services.AddSingleton(JwtSigningKey);
-
-            if (!Options.Web.Authentication.Disable)
-            {
-                services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-                    .AddJwtBearer(options =>
-                    {
-                        options.TokenValidationParameters = new TokenValidationParameters
-                        {
-                            ClockSkew = TimeSpan.FromMinutes(5),
-                            RequireSignedTokens = true,
-                            RequireExpirationTime = true,
-                            ValidateLifetime = true,
-                            ValidIssuer = "slskd",
-                            ValidateIssuer = true,
-                            ValidateAudience = false,
-                            IssuerSigningKey = JwtSigningKey,
-                            ValidateIssuerSigningKey = true,
-                        };
-                    });
-            }
-            else
-            {
-                logger.Warning("Authentication of web requests is DISABLED");
-
-                services.AddAuthentication(PassthroughAuthentication.AuthenticationScheme)
-                    .AddScheme<PassthroughAuthenticationOptions, PassthroughAuthenticationHandler>(PassthroughAuthentication.AuthenticationScheme, options =>
-                    {
-                        options.Username = "n/a";
-                    });
-            }
-
-            services.AddRouting(options => options.LowercaseUrls = true);
-            services.AddControllers().AddJsonOptions(options =>
-            {
-                options.JsonSerializerOptions.Converters.Add(new IPAddressConverter());
-                options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
-                options.JsonSerializerOptions.IgnoreNullValues = true;
-            });
-
-            services.AddHealthChecks();
-
-            services.AddApiVersioning(options => options.ReportApiVersions = true);
-            services.AddVersionedApiExplorer(options =>
-            {
-                options.GroupNameFormat = "'v'VVV";
-                options.SubstituteApiVersionInUrl = true;
-            });
-
-            if (Options.Feature.Swagger)
-            {
-                services.AddSwaggerGen(options =>
-                {
-                    options.DescribeAllParametersInCamelCase();
-                    options.SwaggerDoc(
-                        "v0",
-                        new OpenApiInfo
-                        {
-                            Title = "slskd",
-                            Version = "v0",
-                        });
-
-                    if (System.IO.File.Exists(XmlDocFile))
-                    {
-                        options.IncludeXmlComments(XmlDocFile);
-                    }
-                    else
-                    {
-                        logger.Warning($"Unable to find XML documentation in {XmlDocFile}, Swagger will not include metadata");
-                    }
-                });
-            }
-
-            if (Options.Feature.Prometheus)
-            {
-                services.AddSystemMetrics();
-            }
-
-            services.AddSingleton<ISoulseekClient, SoulseekClient>(serviceProvider => Client);
-            services.AddSingleton<ITransferTracker, TransferTracker>();
-            services.AddSingleton<ISearchTracker, SearchTracker>();
-            services.AddSingleton<IBrowseTracker, BrowseTracker>();
-            services.AddSingleton<IConversationTracker, ConversationTracker>();
-            services.AddSingleton<IRoomTracker, RoomTracker>(_ => new RoomTracker(messageLimit: 250));
         }
 
         /// <summary>
@@ -593,7 +615,7 @@ namespace slskd
 
         private class IPAddressConverter : JsonConverter<IPAddress>
         {
-            public override bool CanConvert(Type objectType) => (objectType == typeof(IPAddress));
+            public override bool CanConvert(Type objectType) => objectType == typeof(IPAddress);
 
             public override IPAddress Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) => IPAddress.Parse(reader.GetString());
 
