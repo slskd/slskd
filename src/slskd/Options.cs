@@ -386,7 +386,7 @@ namespace slskd
                 [EnvironmentVariable("USERNAME")]
                 [Description("username for web UI")]
                 [Required]
-                public string Username { get; private set; } = "slskd";
+                public string Username { get; private set; } = Program.AppName;
 
                 /// <summary>
                 ///     Gets the password for the web UI.
@@ -395,7 +395,7 @@ namespace slskd
                 [EnvironmentVariable("PASSWORD")]
                 [Description("password for web UI")]
                 [Required]
-                public string Password { get; private set; } = "slskd";
+                public string Password { get; private set; } = Program.AppName;
 
                 /// <summary>
                 ///     Gets JWT options.

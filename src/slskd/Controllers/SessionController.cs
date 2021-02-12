@@ -120,7 +120,7 @@ namespace slskd.Controllers
             var credentials = new SigningCredentials(JwtSigningKey, SecurityAlgorithms.HmacSha256);
 
             var token = new JwtSecurityToken(
-                issuer: "slskd",
+                issuer: Program.AppName,
                 claims: claims,
                 notBefore: issuedUtc,
                 expires: expiresUtc,
