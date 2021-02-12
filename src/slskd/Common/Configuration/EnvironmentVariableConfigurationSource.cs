@@ -18,10 +18,8 @@
 namespace slskd.Configuration
 {
     using System;
-    using System.Collections.Generic;
     using System.Linq;
     using System.Reflection;
-    using System.Text.Json;
     using Microsoft.Extensions.Configuration;
     using Utility.EnvironmentVariables;
 
@@ -34,7 +32,7 @@ namespace slskd.Configuration
         ///     Adds an environment variable configuration source to <paramref name="builder"/>.
         /// </summary>
         /// <param name="builder">The <see cref="IConfigurationBuilder"/> to which to add.</param>
-        /// <param name="targetType">The type from which to map property values.</param>
+        /// <param name="targetType">The type from which to map properties.</param>
         /// <param name="prefix">A prefix to prepend to all variable names.</param>
         /// <returns>The updated <see cref="IConfigurationBuilder"/>.</returns>
         public static IConfigurationBuilder AddEnvironmentVariables(this IConfigurationBuilder builder, Type targetType, string prefix = null)
@@ -87,7 +85,7 @@ namespace slskd.Configuration
         private string Prefix { get; set; }
 
         /// <summary>
-        ///     Loads environment variables and maps them to the specified keys.
+        ///     Loads environment variables and maps them to the corresponding keys.
         /// </summary>
         public override void Load()
         {

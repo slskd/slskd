@@ -80,7 +80,7 @@ namespace slskd.Configuration
         private Type TargetType { get; set; }
 
         /// <summary>
-        ///     Sets loads default values from the specified <see cref="TargetType"/>.
+        ///     Loads default values from the specified <see cref="TargetType"/> and maps them to the corresponding keys.
         /// </summary>
         public override void Load()
         {

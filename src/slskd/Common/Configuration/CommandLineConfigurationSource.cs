@@ -32,7 +32,7 @@ namespace slskd.Configuration
         ///     Adds a command line argument configuration soruce to <paramref name="builder"/>.
         /// </summary>
         /// <param name="builder">The <see cref="IConfigurationBuilder"/> to which to add.</param>
-        /// <param name="targetType">The type from which to map property values.</param>
+        /// <param name="targetType">The type from which to map properties.</param>
         /// <param name="commandLine">The command line string from which to parse arguments.</param>
         /// <returns>The updated <see cref="IConfigurationBuilder"/>.</returns>
         public static IConfigurationBuilder AddCommandLine(this IConfigurationBuilder builder, Type targetType, string commandLine = null)
@@ -85,7 +85,7 @@ namespace slskd.Configuration
         private Type TargetType { get; set; }
 
         /// <summary>
-        ///     Parses command line arguments from the specified string and maps them to the specified keys.
+        ///     Parses command line arguments from the specified string and maps them to the corresponding keys.
         /// </summary>
         public override void Load()
         {
@@ -142,6 +142,9 @@ namespace slskd.Configuration
         /// </summary>
         public string CommandLine { get; set; }
 
+        /// <summary>
+        ///     Gets or sets the type from which to map properties.
+        /// </summary>
         public Type TargetType { get; set; }
 
         /// <summary>
