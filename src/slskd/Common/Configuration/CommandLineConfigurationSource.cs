@@ -18,8 +18,8 @@
 namespace slskd.Configuration
 {
     using System;
-    using System.Collections.Generic;
     using System.Linq;
+    using System.Reflection;
     using Microsoft.Extensions.Configuration;
     using Utility.CommandLine;
 
@@ -32,19 +32,24 @@ namespace slskd.Configuration
         ///     Adds a command line argument configuration soruce to <paramref name="builder"/>.
         /// </summary>
         /// <param name="builder">The <see cref="IConfigurationBuilder"/> to which to add.</param>
-        /// <param name="map">A list of command line argument mappings.</param>
+        /// <param name="targetType">The type from which to map property values.</param>
         /// <param name="commandLine">The command line string from which to parse arguments.</param>
         /// <returns>The updated <see cref="IConfigurationBuilder"/>.</returns>
-        public static IConfigurationBuilder AddCommandLine(this IConfigurationBuilder builder, IEnumerable<Option> map, string commandLine = null)
+        public static IConfigurationBuilder AddCommandLine(this IConfigurationBuilder builder, Type targetType, string commandLine = null)
         {
             if (builder == null)
             {
                 throw new ArgumentNullException(nameof(builder));
             }
 
+            if (targetType == null)
+            {
+                throw new ArgumentNullException(nameof(targetType));
+            }
+
             return builder.AddCommandLine(s =>
             {
-                s.Map = map;
+                s.TargetType = targetType;
                 s.CommandLine = commandLine ?? Environment.CommandLine;
             });
         }
@@ -70,12 +75,14 @@ namespace slskd.Configuration
         /// <param name="source">The source settings.</param>
         public CommandLineConfigurationProvider(CommandLineConfigurationSource source)
         {
-            Map = source.Map;
+            TargetType = source.TargetType;
+            Namespace = TargetType.Namespace.Split('.').First();
             CommandLine = source.CommandLine;
         }
 
         private string CommandLine { get; set; }
-        private IEnumerable<Option> Map { get; set; }
+        private string Namespace { get; set; }
+        private Type TargetType { get; set; }
 
         /// <summary>
         ///     Parses command line arguments from the specified string and maps them to the specified keys.
@@ -84,30 +91,44 @@ namespace slskd.Configuration
         {
             var dictionary = Arguments.Parse(CommandLine).ArgumentDictionary;
 
-            foreach (Option item in Map)
+            void Map(Type type, string path)
             {
-                if (string.IsNullOrEmpty(item.Key))
-                {
-                    continue;
-                }
+                var props = type.GetProperties(BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
 
-                var arguments = new[] { item.ShortName.ToString(), item.LongName }.Where(i => !string.IsNullOrEmpty(i));
-
-                foreach (var argument in arguments)
+                foreach (PropertyInfo property in props)
                 {
-                    if (dictionary.ContainsKey(argument))
+                    var attribute = property.CustomAttributes.FirstOrDefault(a => a.AttributeType == typeof(ArgumentAttribute));
+                    var key = ConfigurationPath.Combine(path, property.Name.ToLowerInvariant());
+
+                    if (attribute != default)
                     {
-                        var value = dictionary[argument].ToString();
+                        var shortName = ((char)attribute.ConstructorArguments[0].Value).ToString();
+                        var longName = (string)attribute.ConstructorArguments[1].Value;
+                        var arguments = new[] { shortName, longName }.Where(i => !string.IsNullOrEmpty(i));
 
-                        if (item.Type == typeof(bool) && string.IsNullOrEmpty(value))
+                        foreach (var argument in arguments)
                         {
-                            value = "true";
-                        }
+                            if (dictionary.ContainsKey(argument))
+                            {
+                                var value = dictionary[argument].ToString();
 
-                        Data[item.Key] = value;
+                                if (property.PropertyType == typeof(bool) && string.IsNullOrEmpty(value))
+                                {
+                                    value = "true";
+                                }
+
+                                Data[key] = value;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        Map(property.PropertyType, key);
                     }
                 }
             }
+
+            Map(TargetType, Namespace);
         }
     }
 
@@ -121,10 +142,7 @@ namespace slskd.Configuration
         /// </summary>
         public string CommandLine { get; set; }
 
-        /// <summary>
-        ///     Gets or sets a list of command line argument mappings.
-        /// </summary>
-        public IEnumerable<Option> Map { get; set; }
+        public Type TargetType { get; set; }
 
         /// <summary>
         ///     Builds the <see cref="CommandLineConfigurationProvider"/> for this source.

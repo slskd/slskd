@@ -18,8 +18,8 @@
 namespace slskd.Configuration
 {
     using System;
-    using System.Collections.Generic;
     using System.Linq;
+    using System.Reflection;
     using Microsoft.Extensions.Configuration;
 
     /// <summary>
@@ -31,18 +31,23 @@ namespace slskd.Configuration
         ///     Adds a default value configuration source to <paramref name="builder"/>.
         /// </summary>
         /// <param name="builder">The <see cref="IConfigurationBuilder"/> to which to add.</param>
-        /// <param name="map">A list of default value mappings.</param>
+        /// <param name="targetType">The type from which to load default values.</param>
         /// <returns>The updated <see cref="IConfigurationBuilder"/>.</returns>
-        public static IConfigurationBuilder AddDefaultValues(this IConfigurationBuilder builder, IEnumerable<Option> map)
+        public static IConfigurationBuilder AddDefaultValues(this IConfigurationBuilder builder, Type targetType)
         {
             if (builder == null)
             {
                 throw new ArgumentNullException(nameof(builder));
             }
 
+            if (targetType == null)
+            {
+                throw new ArgumentNullException(nameof(targetType));
+            }
+
             return builder.AddDefaultValues(s =>
             {
-                s.Map = map ?? Enumerable.Empty<Option>();
+                s.TargetType = targetType;
             });
         }
 
@@ -67,25 +72,44 @@ namespace slskd.Configuration
         /// <param name="source">The source settings.</param>
         public DefaultValueConfigurationProvider(DefaultValueConfigurationSource source)
         {
-            Map = source.Map;
+            TargetType = source.TargetType;
+            Namespace = TargetType.Namespace.Split('.').First();
         }
 
-        private IEnumerable<Option> Map { get; set; }
+        private string Namespace { get; set; }
+        private Type TargetType { get; set; }
 
         /// <summary>
-        ///     Sets the keys specified in the map to the specified default values.
+        ///     Sets loads default values from the specified <see cref="TargetType"/>.
         /// </summary>
         public override void Load()
         {
-            foreach (var item in Map)
+            void Map(Type type, string path)
             {
-                if (string.IsNullOrEmpty(item.Key) || item.Default == null)
-                {
-                    continue;
-                }
+                var defaults = Activator.CreateInstance(type);
+                var props = type.GetProperties(BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
 
-                Data[item.Key] = item.Default.ToString();
+                foreach (PropertyInfo property in props)
+                {
+                    var key = ConfigurationPath.Combine(path, property.Name.ToLowerInvariant());
+
+                    if (property.PropertyType.Namespace.StartsWith(Namespace))
+                    {
+                        Map(property.PropertyType, key);
+                    }
+                    else
+                    {
+                        var value = property.GetValue(defaults);
+
+                        if (value != null)
+                        {
+                            Data[key] = value.ToString();
+                        }
+                    }
+                }
             }
+
+            Map(TargetType, Namespace);
         }
     }
 
@@ -95,9 +119,9 @@ namespace slskd.Configuration
     public class DefaultValueConfigurationSource : IConfigurationSource
     {
         /// <summary>
-        ///     Gets or sets a list of default value mappings.
+        ///     Gets or sets the type from which to map properties.
         /// </summary>
-        public IEnumerable<Option> Map { get; set; }
+        public Type TargetType { get; set; }
 
         /// <summary>
         ///     Builds the <see cref="DefaultValueConfigurationProvider"/> for this source.

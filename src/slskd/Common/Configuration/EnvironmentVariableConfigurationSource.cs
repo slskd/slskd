@@ -20,7 +20,10 @@ namespace slskd.Configuration
     using System;
     using System.Collections.Generic;
     using System.Linq;
+    using System.Reflection;
+    using System.Text.Json;
     using Microsoft.Extensions.Configuration;
+    using Utility.EnvironmentVariables;
 
     /// <summary>
     ///     Extension methods for adding <see cref="EnvironmentVariableConfigurationProvider"/>.
@@ -31,19 +34,24 @@ namespace slskd.Configuration
         ///     Adds an environment variable configuration source to <paramref name="builder"/>.
         /// </summary>
         /// <param name="builder">The <see cref="IConfigurationBuilder"/> to which to add.</param>
-        /// <param name="map">A list of environment variable mappings.</param>
+        /// <param name="targetType">The type from which to map property values.</param>
         /// <param name="prefix">A prefix to prepend to all variable names.</param>
         /// <returns>The updated <see cref="IConfigurationBuilder"/>.</returns>
-        public static IConfigurationBuilder AddEnvironmentVariables(this IConfigurationBuilder builder, IEnumerable<Option> map, string prefix = null)
+        public static IConfigurationBuilder AddEnvironmentVariables(this IConfigurationBuilder builder, Type targetType, string prefix = null)
         {
             if (builder == null)
             {
                 throw new ArgumentNullException(nameof(builder));
             }
 
+            if (targetType == null)
+            {
+                throw new ArgumentNullException(nameof(targetType));
+            }
+
             return builder.AddEnvironmentVariables(s =>
             {
-                s.Map = map ?? Enumerable.Empty<Option>();
+                s.TargetType = targetType;
                 s.Prefix = prefix ?? string.Empty;
             });
         }
@@ -69,11 +77,13 @@ namespace slskd.Configuration
         /// <param name="source">The source settings.</param>
         public EnvironmentVariableConfigurationProvider(EnvironmentVariableConfigurationSource source)
         {
-            Map = source.Map;
+            TargetType = source.TargetType;
+            Namespace = TargetType.Namespace.Split('.').First();
             Prefix = source.Prefix;
         }
 
-        private IEnumerable<Option> Map { get; set; }
+        private Type TargetType { get; set; }
+        private string Namespace { get; set; }
         private string Prefix { get; set; }
 
         /// <summary>
@@ -81,27 +91,37 @@ namespace slskd.Configuration
         /// </summary>
         public override void Load()
         {
-            foreach (var item in Map)
+            void Map(Type type, string path)
             {
-                if (string.IsNullOrEmpty(item.Key) || string.IsNullOrEmpty(item.EnvironmentVariable))
+                var props = type.GetProperties(BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
+
+                foreach (PropertyInfo property in props)
                 {
-                    continue;
+                    var attribute = property.CustomAttributes.FirstOrDefault(a => a.AttributeType == typeof(EnvironmentVariableAttribute));
+                    var key = ConfigurationPath.Combine(path, property.Name.ToLowerInvariant());
+
+                    if (attribute != default)
+                    {
+                        var name = (string)attribute.ConstructorArguments[0].Value;
+
+                        if (!string.IsNullOrEmpty(name))
+                        {
+                            var value = Environment.GetEnvironmentVariable(Prefix + name);
+
+                            if (value != null)
+                            {
+                                Data[key] = value.ToString();
+                            }
+                        }
+                    }
+                    else
+                    {
+                        Map(property.PropertyType, key);
+                    }
                 }
-
-                var value = Environment.GetEnvironmentVariable(Prefix + item.EnvironmentVariable);
-
-                if (string.IsNullOrEmpty(value))
-                {
-                    continue;
-                }
-
-                if (item.Type == typeof(bool))
-                {
-                    value = value.Equals("true", StringComparison.InvariantCultureIgnoreCase) ? value : "false";
-                }
-
-                Data[item.Key] = value;
             }
+
+            Map(TargetType, Namespace);
         }
     }
 
@@ -111,14 +131,9 @@ namespace slskd.Configuration
     public class EnvironmentVariableConfigurationSource : IConfigurationSource
     {
         /// <summary>
-        ///     Gets or sets a list of enviroment variable mappings.
+        ///     Gets or sets the type from which to map properties.
         /// </summary>
-        public IEnumerable<Option> Map { get; set; }
-
-        /// <summary>
-        ///     Gets or sets a value indicating whether configuration keys should be normalized (_, - removed, changed to lowercase).
-        /// </summary>
-        public bool NormalizeKey { get; set; }
+        public Type TargetType { get; set; }
 
         /// <summary>
         ///     Gets or sets a prefix to prepend to all variable names.
