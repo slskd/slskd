@@ -19,6 +19,7 @@ namespace slskd
 {
     using System;
     using System.Collections.Generic;
+    using System.ComponentModel;
     using System.IO;
     using System.Linq;
     using System.Net;
@@ -93,12 +94,12 @@ namespace slskd
 
                 if (ShowHelp)
                 {
-                    PrintCommandLineArguments(Options.ToMap());
+                    PrintCommandLineArguments(typeof(Options));
                 }
 
                 if (ShowEnvironmentVariables)
                 {
-                    PrintEnvironmentVariables(Options.Map, EnvironmentVariablePrefix);
+                    PrintEnvironmentVariables(typeof(Options), EnvironmentVariablePrefix);
                 }
 
                 return;
@@ -135,7 +136,7 @@ namespace slskd
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Invalid configuration: {(Options.Debug ? ex : ex.Message)}");
+                Console.WriteLine($"Invalid configuration: {(!Options.Debug ? ex : ex.Message)}");
                 return;
             }
 
@@ -274,18 +275,18 @@ namespace slskd
 
             return builder
                 .AddDefaultValues(
-                    map: Options.ToMap())
+                    targetType: typeof(Options))
                 .AddEnvironmentVariables(
-                    prefix: environmentVariablePrefix,
-                    map: Options.Map)
+                    targetType: typeof(Options),
+                    prefix: environmentVariablePrefix)
                 .AddYamlFile(
                     path: Path.GetFileName(configurationFile),
                     optional: true,
                     reloadOnChange: false,
                     provider: new PhysicalFileProvider(Path.GetDirectoryName(configurationFile), ExclusionFilters.None))
                 .AddCommandLine(
-                    commandLine: Environment.CommandLine,
-                    map: Options.Map);
+                    targetType: typeof(Options),
+                    commandLine: Environment.CommandLine);
         }
 
         private static void GenerateX509Certificate(string password, string filename)
@@ -300,51 +301,96 @@ namespace slskd
             Console.WriteLine($"Certificate exported to {filename}");
         }
 
-        private static void PrintCommandLineArguments(IEnumerable<Option> map)
+        private static void PrintCommandLineArguments(Type targetType)
         {
             static string GetLongName(string longName, Type type)
                 => type == typeof(bool) ? longName : $"{longName} <{type.Name.ToLowerInvariant()}>";
 
-            var longestName = map.Where(a => !string.IsNullOrEmpty(a.LongName)).Select(a => GetLongName(a.LongName, a.Type)).Max(n => n.Length);
+            var lines = new List<(string Item, string Description)>();
+
+            void Map(Type type)
+            {
+                var defaults = Activator.CreateInstance(type);
+                var props = type.GetProperties(BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
+
+                foreach (PropertyInfo property in props)
+                {
+                    var attribute = property.CustomAttributes.FirstOrDefault(a => a.AttributeType == typeof(ArgumentAttribute));
+                    var descriptionAttribute = property.CustomAttributes.FirstOrDefault(a => a.AttributeType == typeof(DescriptionAttribute));
+
+                    if (attribute != default)
+                    {
+                        var shortName = (char)attribute.ConstructorArguments[0].Value;
+                        var longName = (string)attribute.ConstructorArguments[1].Value;
+                        var description = descriptionAttribute?.ConstructorArguments[0].Value;
+
+                        var suffix = property.PropertyType == typeof(bool) ? string.Empty : $" (default: {property.GetValue(defaults) ?? "<null>"})";
+                        var item = $"{shortName}{(shortName == default ? " " : "|")}--{GetLongName(longName, property.PropertyType)}";
+                        var desc = $"{description}{suffix}";
+                        lines.Add(new(item, desc));
+                    }
+                    else
+                    {
+                        Map(property.PropertyType);
+                    }
+                }
+            }
+
+            Map(targetType);
+
+            var longestItem = lines.Max(l => l.Item.Length);
 
             Console.WriteLine("\nusage: slskd [arguments]\n");
             Console.WriteLine("arguments:\n");
 
-            foreach (Option item in map)
+            foreach (var line in lines)
             {
-                var (shortName, longName, _, key, type, defaultValue, description) = item;
-
-                if (shortName == default && string.IsNullOrEmpty(longName))
-                {
-                    continue;
-                }
-
-                var suffix = type == typeof(bool) ? string.Empty : $" (default: {defaultValue ?? "<null>"})";
-                var result = $"  {shortName}{(shortName == default ? " " : "|")}--{GetLongName(longName, type).PadRight(longestName + 3)}{description}{suffix}";
-                Console.WriteLine(result);
+                Console.WriteLine($"  {line.Item.PadRight(longestItem)}   {line.Description}");
             }
         }
 
-        private static void PrintEnvironmentVariables(IEnumerable<Option> map, string prefix)
+        private static void PrintEnvironmentVariables(Type targetType, string prefix)
         {
             static string GetName(string name, Type type) => $"{name} <{type.Name.ToLowerInvariant()}>";
 
-            var longestName = map.Select(a => GetName(a.EnvironmentVariable, a.Type)).Max(n => n.Length);
+            var lines = new List<(string Item, string Description)>();
+
+            void Map(Type type)
+            {
+                var defaults = Activator.CreateInstance(type);
+                var props = type.GetProperties(BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
+
+                foreach (PropertyInfo property in props)
+                {
+                    var attribute = property.CustomAttributes.FirstOrDefault(a => a.AttributeType == typeof(EnvironmentVariableAttribute));
+                    var descriptionAttribute = property.CustomAttributes.FirstOrDefault(a => a.AttributeType == typeof(DescriptionAttribute));
+
+                    if (attribute != default)
+                    {
+                        var name = (string)attribute.ConstructorArguments[0].Value;
+                        var description = descriptionAttribute?.ConstructorArguments[0].Value;
+
+                        var suffix = type == typeof(bool) ? string.Empty : $" (default: {property.GetValue(defaults) ?? "<null>"})";
+                        var item = $"{prefix}{GetName(name, property.PropertyType)}";
+                        var desc = $"{description}{suffix}";
+                        lines.Add(new(item, desc));
+                    }
+                    else
+                    {
+                        Map(property.PropertyType);
+                    }
+                }
+            }
+
+            Map(targetType);
+
+            var longestItem = lines.Max(l => l.Item.Length);
 
             Console.WriteLine("\nenvironment variables (arguments and config file have precedence):\n");
 
-            foreach (Option item in map)
+            foreach (var line in lines)
             {
-                var (_, _, environmentVariable, key, type, defaultValue, description) = item;
-
-                if (string.IsNullOrEmpty(environmentVariable))
-                {
-                    continue;
-                }
-
-                var suffix = type == typeof(bool) ? string.Empty : $" (default: {defaultValue ?? "<null>"})";
-                var result = $"  {prefix}{GetName(environmentVariable, type).PadRight(longestName + 3)}{description}{suffix}";
-                Console.WriteLine(result);
+                Console.WriteLine($"  {line.Item.PadRight(longestItem)}   {line.Description}");
             }
         }
 
