@@ -1,4 +1,4 @@
-﻿namespace slskd.DTO
+﻿namespace slskd.API.DTO
 {
     using Soulseek;
     using System;

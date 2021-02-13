@@ -1,4 +1,4 @@
-﻿namespace slskd.Controllers
+﻿namespace slskd.API.Controllers
 {
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;

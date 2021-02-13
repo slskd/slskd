@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.Options;
 
-namespace slskd.Controllers
+namespace slskd.API.Controllers
 {
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
@@ -9,7 +9,7 @@ namespace slskd.Controllers
     using System.Collections.Generic;
     using System.IdentityModel.Tokens.Jwt;
     using System.Security.Claims;
-    using slskd.DTO;
+    using slskd.API.DTO;
     using slskd;
     using slskd.Configuration;
 

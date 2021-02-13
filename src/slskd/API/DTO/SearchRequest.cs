@@ -1,7 +1,7 @@
 ﻿using Soulseek;
 using System;
 
-namespace slskd.DTO
+namespace slskd.API.DTO
 {
     /// <summary>
     ///     A search request.

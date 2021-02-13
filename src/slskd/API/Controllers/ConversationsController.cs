@@ -1,4 +1,4 @@
-﻿namespace slskd.Controllers
+﻿namespace slskd.API.Controllers
 {
     using System;
     using System.Collections.Generic;
@@ -7,7 +7,7 @@
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
     using Soulseek;
-    using slskd.DTO;
+    using slskd.API.DTO;
     using slskd.Entities;
     using slskd.Trackers;
 

@@ -1,4 +1,4 @@
-﻿namespace slskd.DTO
+﻿namespace slskd.API.DTO
 {
     /// <summary>
     ///     A user's IP address and port.

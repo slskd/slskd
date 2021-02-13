@@ -1,4 +1,4 @@
-﻿namespace slskd.Controllers
+﻿namespace slskd.API.Controllers
 {
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Http;
@@ -8,7 +8,7 @@
     using System.Collections.Generic;
     using System.Linq;
     using System.Threading.Tasks;
-    using slskd.DTO;
+    using slskd.API.DTO;
     using slskd.Entities;
     using slskd.Trackers;
 

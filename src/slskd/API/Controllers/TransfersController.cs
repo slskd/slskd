@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.Options;
 
-namespace slskd.Controllers
+namespace slskd.API.Controllers
 {
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
@@ -11,7 +11,7 @@ namespace slskd.Controllers
     using System.Linq;
     using System.Threading;
     using System.Threading.Tasks;
-    using slskd.DTO;
+    using slskd.API.DTO;
     using slskd.Trackers;
     using slskd.Configuration;
 

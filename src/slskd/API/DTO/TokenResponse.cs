@@ -1,4 +1,4 @@
-﻿namespace slskd.DTO
+﻿namespace slskd.API.DTO
 {
     using System;
     using System.IdentityModel.Tokens.Jwt;

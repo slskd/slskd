@@ -1,10 +1,10 @@
-﻿namespace slskd.Controllers
+﻿namespace slskd.API.Controllers
 {
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
     using Soulseek;
     using System.Threading.Tasks;
-    using slskd.DTO;
+    using slskd.API.DTO;
 
     /// <summary>
     ///     Server
