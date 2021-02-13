@@ -40,6 +40,7 @@ namespace slskd
     using Prometheus.SystemMetrics;
     using Serilog;
     using Serilog.Events;
+    using slskd.API.Authentication;
     using slskd.Entities;
     using slskd.Security;
     using slskd.Trackers;
@@ -129,7 +130,8 @@ namespace slskd
                 services.AddAuthentication(PassthroughAuthentication.AuthenticationScheme)
                     .AddScheme<PassthroughAuthenticationOptions, PassthroughAuthenticationHandler>(PassthroughAuthentication.AuthenticationScheme, options =>
                     {
-                        options.Username = "n/a";
+                        options.Username = "Anonymous";
+                        options.Role = Role.Administrator;
                     });
             }
 
