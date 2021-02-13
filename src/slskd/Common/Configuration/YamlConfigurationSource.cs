@@ -1,10 +1,27 @@
-﻿namespace slskd.Configuration
+﻿// <copyright file="YamlConfigurationSource.cs" company="slskd Team">
+//     Copyright (c) slskd Team. All rights reserved.
+//
+//     This program is free software: you can redistribute it and/or modify
+//     it under the terms of the GNU Affero General Public License as published
+//     by the Free Software Foundation, either version 3 of the License, or
+//     (at your option) any later version.
+//
+//     This program is distributed in the hope that it will be useful,
+//     but WITHOUT ANY WARRANTY; without even the implied warranty of
+//     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//     GNU Affero General Public License for more details.
+//
+//     You should have received a copy of the GNU Affero General Public License
+//     along with this program.  If not, see https://www.gnu.org/licenses/.
+// </copyright>
+
+namespace slskd.Configuration
 {
-    using Microsoft.Extensions.Configuration;
-    using Microsoft.Extensions.FileProviders;
     using System;
     using System.IO;
     using System.Linq;
+    using Microsoft.Extensions.Configuration;
+    using Microsoft.Extensions.FileProviders;
     using YamlDotNet.Core;
     using YamlDotNet.RepresentationModel;
 
@@ -16,13 +33,16 @@
         /// <summary>
         ///     Adds a YAML configuration source to <paramref name="builder"/>.
         /// </summary>
-        /// <param name="builder">The <see cref="IConfigurationBuilder"/> to add to.</param>
-        /// <param name="path">Path relative to the base path stored in
-        /// <see cref="IConfigurationBuilder.Properties"/> of <paramref name="builder"/>.</param>
+        /// <param name="builder">The <see cref="IConfigurationBuilder"/> to which to add .</param>
+        /// <param name="path">
+        ///     Path relative to the base path stored in <see cref="IConfigurationBuilder.Properties"/> of <paramref name="builder"/>.
+        /// </param>
         /// <param name="optional">Whether the file is optional.</param>
         /// <param name="reloadOnChange">Whether the configuration should be reloaded if the file changes.</param>
-        /// <param name="normalizeKeys">A value indicating whether configuration keys should be normalized (_, - removed, changed to lowercase).</param>
-        /// <param name="provider">The <see cref="IFileProvider"/> to use to access the file.</param>
+        /// <param name="normalizeKeys">
+        ///     A value indicating whether configuration keys should be normalized (_, - removed, changed to lowercase).
+        /// </param>
+        /// <param name="provider">The updated <see cref="IFileProvider"/> to use to access the file.</param>
         /// <returns>The <see cref="IConfigurationBuilder"/>.</returns>
         public static IConfigurationBuilder AddYamlFile(this IConfigurationBuilder builder, string path, bool optional = true, bool reloadOnChange = false, bool normalizeKeys = true, IFileProvider provider = null)
         {
@@ -50,33 +70,11 @@
         /// <summary>
         ///     Adds a YAML configuration source to <paramref name="builder"/>.
         /// </summary>
-        /// <param name="builder">The <see cref="IConfigurationBuilder"/> to add to.</param>
+        /// <param name="builder">The <see cref="IConfigurationBuilder"/> to which to add.</param>
         /// <param name="configureSource">Configures the source.</param>
-        /// <returns>The <see cref="IConfigurationBuilder"/>.</returns>
+        /// <returns>The updated <see cref="IConfigurationBuilder"/>.</returns>
         public static IConfigurationBuilder AddYamlFile(this IConfigurationBuilder builder, Action<YamlConfigurationSource> configureSource)
             => builder.Add(configureSource);
-    }
-
-    /// <summary>
-    ///     Represents a YAML file as an <see cref="IConfigurationSource"/>.
-    /// </summary>
-    public class YamlConfigurationSource : FileConfigurationSource
-    {
-        /// <summary>
-        /// Builds the <see cref="YamlConfigurationProvider"/> for this source.
-        /// </summary>
-        /// <param name="builder">The <see cref="IConfigurationBuilder"/>.</param>
-        /// <returns>A <see cref="YamlConfigurationProvider"/></returns>
-        public override IConfigurationProvider Build(IConfigurationBuilder builder)
-        {
-            EnsureDefaults(builder);
-            return new YamlConfigurationProvider(this);
-        }
-
-        /// <summary>
-        ///     Gets or sets a value indicating whether configuration keys should be normalized (_, - removed, changed to lowercase).
-        /// </summary>
-        public bool NormalizeKeys { get; set; }
     }
 
     /// <summary>
@@ -85,17 +83,17 @@
     public class YamlConfigurationProvider : FileConfigurationProvider
     {
         /// <summary>
-        ///     Initializes a new instance with the specified source.
+        ///     Initializes a new instance of the <see cref="YamlConfigurationProvider"/> class.
         /// </summary>
         /// <param name="source">The source settings.</param>
-        public YamlConfigurationProvider(YamlConfigurationSource source) 
-            : base(source) 
+        public YamlConfigurationProvider(YamlConfigurationSource source)
+            : base(source)
         {
             NormalizeKeys = source.NormalizeKeys;
         }
 
         private bool NormalizeKeys { get; set; }
-        private string[] NullValues { get; } = new[] { "~", "null", "" };
+        private string[] NullValues { get; } = new[] { "~", "null", string.Empty };
 
         /// <summary>
         ///     Loads the YAML data from a stream.
@@ -155,6 +153,28 @@
                     Traverse(sequence.Children[i], ConfigurationPath.Combine(path, i.ToString()));
                 }
             }
+        }
+    }
+
+    /// <summary>
+    ///     Represents a YAML file as an <see cref="IConfigurationSource"/>.
+    /// </summary>
+    public class YamlConfigurationSource : FileConfigurationSource
+    {
+        /// <summary>
+        ///     Gets or sets a value indicating whether configuration keys should be normalized (_, - removed, changed to lowercase).
+        /// </summary>
+        public bool NormalizeKeys { get; set; }
+
+        /// <summary>
+        ///     Builds the <see cref="YamlConfigurationProvider"/> for this source.
+        /// </summary>
+        /// <param name="builder">The <see cref="IConfigurationBuilder"/>.</param>
+        /// <returns>A <see cref="YamlConfigurationProvider"/>.</returns>
+        public override IConfigurationProvider Build(IConfigurationBuilder builder)
+        {
+            EnsureDefaults(builder);
+            return new YamlConfigurationProvider(this);
         }
     }
 }

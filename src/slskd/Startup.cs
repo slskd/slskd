@@ -1,54 +1,71 @@
-﻿namespace slskd
+﻿// <copyright file="Startup.cs" company="slskd Team">
+//     Copyright (c) slskd Team. All rights reserved.
+//
+//     This program is free software: you can redistribute it and/or modify
+//     it under the terms of the GNU Affero General Public License as published
+//     by the Free Software Foundation, either version 3 of the License, or
+//     (at your option) any later version.
+//
+//     This program is distributed in the hope that it will be useful,
+//     but WITHOUT ANY WARRANTY; without even the implied warranty of
+//     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//     GNU Affero General Public License for more details.
+//
+//     You should have received a copy of the GNU Affero General Public License
+//     along with this program.  If not, see https://www.gnu.org/licenses/.
+// </copyright>
+
+namespace slskd
 {
     using System;
+    using System.Collections.Concurrent;
     using System.Collections.Generic;
     using System.IO;
     using System.Linq;
     using System.Net;
-    using System.Reflection;
     using System.Text.Json;
     using System.Text.Json.Serialization;
     using System.Threading;
     using System.Threading.Tasks;
+    using Microsoft.AspNetCore.Authentication.JwtBearer;
     using Microsoft.AspNetCore.Builder;
     using Microsoft.AspNetCore.Mvc.ApiExplorer;
     using Microsoft.Extensions.Caching.Memory;
     using Microsoft.Extensions.Configuration;
     using Microsoft.Extensions.DependencyInjection;
-    using Microsoft.OpenApi.Models;
-    using Soulseek;
-    using Soulseek.Diagnostics;
-    using slskd.Trackers;
-    using System.Collections.Concurrent;
+    using Microsoft.Extensions.FileProviders;
     using Microsoft.IdentityModel.Tokens;
-    using slskd.Security;
-    using Microsoft.AspNetCore.Authentication.JwtBearer;
+    using Microsoft.OpenApi.Models;
+    using Prometheus;
     using Prometheus.SystemMetrics;
     using Serilog;
-    using Prometheus;
-    using Microsoft.Extensions.FileProviders;
     using Serilog.Events;
+    using slskd.API.Authentication;
     using slskd.Entities;
-    using slskd.Configuration;
+    using slskd.Security;
+    using slskd.Trackers;
+    using Soulseek;
+    using Soulseek.Diagnostics;
 
+    /// <summary>
+    ///     ASP.NET Startup.
+    /// </summary>
     public class Startup
     {
-        private readonly int MaxReconnectAttempts = 3;
-        private int CurrentReconnectAttempts = 0;
-        private static readonly string XmlDocFile = Path.Combine(AppContext.BaseDirectory, typeof(Startup).GetTypeInfo().Assembly.GetName().Name + ".xml");
+        private static readonly string XmlDocFile = Path.Combine(AppContext.BaseDirectory, Program.AppName + ".xml");
+        private static readonly int MaxReconnectAttempts = 3;
+        private static int currentReconnectAttempts = 0;
 
-        private SoulseekClient Client { get; set; }
-        private ISharedFileCache SharedFileCache { get; set; }
-        private string UrlBase { get; set; }
-        private string ContentPath { get; set; }
-        private SymmetricSecurityKey JwtSigningKey { get; set; }
-
+        /// <summary>
+        ///     Initializes a new instance of the <see cref="Startup"/> class.
+        /// </summary>
+        /// <param name="configuration">The application configuration.</param>
         public Startup(IConfiguration configuration)
         {
             Configuration = configuration;
 
             Options = new Options();
-            Configuration.GetSection("slskd").Bind(Options, (o) =>
+            Configuration.GetSection(Program.AppName).Bind(Options, (o) =>
             {
                 o.BindNonPublicProperties = true;
             });
@@ -60,19 +77,28 @@
 
             ContentPath = Path.GetFullPath(Options.Web.ContentPath);
 
-            JwtSigningKey = new SymmetricSecurityKey(PBKDF2.GetKey(Options.Web.Authentication.Jwt.Key));
+            JwtSigningKey = new SymmetricSecurityKey(Pbkdf2.GetKey(Options.Web.Authentication.Jwt.Key));
         }
 
+        private SoulseekClient Client { get; set; }
         private IConfiguration Configuration { get; }
-        private Options Options { get; }
+        private string ContentPath { get; set; }
+        private SymmetricSecurityKey JwtSigningKey { get; set; }
         private ConcurrentDictionary<string, ILogger> Loggers { get; } = new ConcurrentDictionary<string, ILogger>();
+        private Options Options { get; }
+        private ISharedFileCache SharedFileCache { get; set; }
+        private string UrlBase { get; set; }
 
+        /// <summary>
+        ///     Configure services.
+        /// </summary>
+        /// <param name="services">The service collection.</param>
         public void ConfigureServices(IServiceCollection services)
         {
             var logger = Log.ForContext<Startup>();
 
             services.AddOptions<Options>()
-                .Bind(Configuration.GetSection("slskd"), o => { o.BindNonPublicProperties = true; });
+                .Bind(Configuration.GetSection(Program.AppName), o => { o.BindNonPublicProperties = true; });
 
             services.AddCors(options => options.AddPolicy("AllowAll", builder => builder.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader()));
 
@@ -89,7 +115,7 @@
                             RequireSignedTokens = true,
                             RequireExpirationTime = true,
                             ValidateLifetime = true,
-                            ValidIssuer = "slskd",
+                            ValidIssuer = Program.AppName,
                             ValidateIssuer = true,
                             ValidateAudience = false,
                             IssuerSigningKey = JwtSigningKey,
@@ -100,11 +126,12 @@
             else
             {
                 logger.Warning("Authentication of web requests is DISABLED");
-                
+
                 services.AddAuthentication(PassthroughAuthentication.AuthenticationScheme)
                     .AddScheme<PassthroughAuthenticationOptions, PassthroughAuthenticationHandler>(PassthroughAuthentication.AuthenticationScheme, options =>
                     {
-                        options.Username = "n/a";
+                        options.Username = "Anonymous";
+                        options.Role = Role.Administrator;
                     });
             }
 
@@ -125,22 +152,29 @@
                 options.SubstituteApiVersionInUrl = true;
             });
 
-            services.AddSwaggerGen(options =>
+            if (Options.Feature.Swagger)
             {
-                options.DescribeAllParametersInCamelCase();
-                options.SwaggerDoc("v0",
-                    new OpenApiInfo
-                    {
-                        Title = "slskd",
-                        Version = "v0"
-                    }
-                    );
-
-                if (System.IO.File.Exists(XmlDocFile))
+                services.AddSwaggerGen(options =>
                 {
-                    options.IncludeXmlComments(XmlDocFile);
-                }
-            });
+                    options.DescribeAllParametersInCamelCase();
+                    options.SwaggerDoc(
+                        "v0",
+                        new OpenApiInfo
+                        {
+                            Title = Program.AppName,
+                            Version = "v0",
+                        });
+
+                    if (System.IO.File.Exists(XmlDocFile))
+                    {
+                        options.IncludeXmlComments(XmlDocFile);
+                    }
+                    else
+                    {
+                        logger.Warning($"Unable to find XML documentation in {XmlDocFile}, Swagger will not include metadata");
+                    }
+                });
+            }
 
             if (Options.Feature.Prometheus)
             {
@@ -155,11 +189,20 @@
             services.AddSingleton<IRoomTracker, RoomTracker>(_ => new RoomTracker(messageLimit: 250));
         }
 
+        /// <summary>
+        ///     Configure middleware.
+        /// </summary>
+        /// <param name="app">The application builder.</param>
+        /// <param name="provider">The api version description provider.</param>
+        /// <param name="tracker">The transfer tracker.</param>
+        /// <param name="browseTracker">The browse tracker.</param>
+        /// <param name="conversationTracker">The conversation tracker.</param>
+        /// <param name="roomTracker">The room tracker.</param>
         public void Configure(
-            IApplicationBuilder app, 
-            IApiVersionDescriptionProvider provider, 
-            ITransferTracker tracker, 
-            IBrowseTracker browseTracker, 
+            IApplicationBuilder app,
+            IApiVersionDescriptionProvider provider,
+            ITransferTracker tracker,
+            IBrowseTracker browseTracker,
             IConversationTracker conversationTracker,
             IRoomTracker roomTracker)
         {
@@ -175,11 +218,11 @@
                 logger.Information($"Forcing HTTP requests to HTTPS");
             }
 
+            // allow users to specify a custom path base, for use behind a reverse proxy
             app.UsePathBase(UrlBase);
             logger.Information("Using base url {UrlBase}", UrlBase);
 
-            // remove any errant double forward slashes which may have been introduced
-            // by a reverse proxy or having the base path removed
+            // remove any errant double forward slashes which may have been introduced by manipulating the path base
             app.Use(async (context, next) =>
             {
                 var path = context.Request.Path.ToString();
@@ -203,9 +246,9 @@
                 fileServerOptions = new FileServerOptions
                 {
                     FileProvider = new PhysicalFileProvider(ContentPath),
-                    RequestPath = "",
+                    RequestPath = string.Empty,
                     EnableDirectoryBrowsing = false,
-                    EnableDefaultFiles = true
+                    EnableDefaultFiles = true,
                 };
 
                 app.UseFileServer(fileServerOptions);
@@ -244,8 +287,8 @@
                 logger.Information("Publishing Swagger documentation to /swagger");
             }
 
-            // if we made it this far and the route still wasn't matched, return the index unless it's an api route
-            // this is required so that SPA routing (React Router, etc) can work properly
+            // if we made it this far and the route still wasn't matched, return the index unless it's an api route. this is
+            // required so that SPA routing (React Router, etc) can work properly
             app.Use(async (context, next) =>
             {
                 // exclude API routes which are not matched or return a 404
@@ -257,8 +300,8 @@
                 await next();
             });
 
-            // finally, hit the fileserver again.  if the path was modified to return the index above, the index document will be returned
-            // otherwise it will throw a final 404 back to the client.
+            // finally, hit the fileserver again. if the path was modified to return the index above, the index document will be
+            // returned. otherwise it will throw a final 404 back to the client.
             if (System.IO.Directory.Exists(ContentPath))
             {
                 app.UseFileServer(fileServerOptions);
@@ -275,11 +318,10 @@
 
             var defaults = new SoulseekClientOptions();
 
-            // create options for the client.
-            // see the implementation of Func<> and Action<> options for detailed info.
+            // create options for the client. see the implementation of Func<> and Action<> options for detailed info.
             var clientOptions = new SoulseekClientOptions(
-                listenPort: Options.Soulseek.ListenPort ?? defaults.ListenPort,
-                enableListener: Options.Soulseek.ListenPort.HasValue,
+                listenPort: Options.Soulseek.ListenPort,
+                enableListener: true,
                 userEndPointCache: new UserEndPointCache(),
                 distributedChildLimit: Options.Soulseek.DistributedNetwork.ChildLimit,
                 enableDistributedNetwork: !Options.Soulseek.DistributedNetwork.Disabled,
@@ -305,8 +347,8 @@
 
             Client = new SoulseekClient(options: clientOptions);
 
-            // bind the DiagnosticGenerated event so we can trap and display diagnostic messages.  this is optional, and if the event 
-            // isn't bound the minimumDiagnosticLevel should be set to None.
+            // bind the DiagnosticGenerated event so we can trap and display diagnostic messages. this is optional, and if the
+            // event isn't bound the minimumDiagnosticLevel should be set to None.
             Client.DiagnosticGenerated += (e, args) =>
             {
                 static LogEventLevel TranslateLogLevel(DiagnosticLevel diagnosticLevel) => diagnosticLevel switch
@@ -323,7 +365,7 @@
                 logger.Write(TranslateLogLevel(args.Level), "{@Message}", args.Message);
             };
 
-            // bind transfer events.  see TransferStateChangedEventArgs and TransferProgressEventArgs.
+            // bind transfer events. see TransferStateChangedEventArgs and TransferProgressEventArgs.
             Client.TransferStateChanged += (e, args) =>
             {
                 var direction = args.Transfer.Direction.ToString().ToUpper();
@@ -339,12 +381,13 @@
 
             Client.TransferProgressUpdated += (e, args) =>
             {
-                // this is really verbose.
-                // Console.WriteLine($"[{args.Transfer.Direction.ToString().ToUpper()}] [{args.Transfer.Username}/{Path.GetFileName(args.Transfer.Filename)}] {args.Transfer.BytesTransferred}/{args.Transfer.Size} {args.Transfer.PercentComplete}% {args.Transfer.AverageSpeed}kb/s");
+                // this is really verbose. Console.WriteLine($"[{args.Transfer.Direction.ToString().ToUpper()}]
+                // [{args.Transfer.Username}/{Path.GetFileName(args.Transfer.Filename)}]
+                // {args.Transfer.BytesTransferred}/{args.Transfer.Size} {args.Transfer.PercentComplete}% {args.Transfer.AverageSpeed}kb/s");
             };
 
-            // bind BrowseProgressUpdated to track progress of browse response payload transfers.  
-            // these can take a while depending on number of files shared.
+            // bind BrowseProgressUpdated to track progress of browse response payload transfers. these can take a while depending
+            // on number of files shared.
             Client.BrowseProgressUpdated += (e, args) =>
             {
                 browseTracker.AddOrUpdate(args.Username, args);
@@ -394,16 +437,16 @@
             {
                 Console.WriteLine($"Disconnected from Soulseek server: {args.Message}");
 
-                // don't reconnect if the disconnecting Exception is either of these types.
-                // if KickedFromServerException, another client was most likely signed in, and retrying will cause a connect loop.
-                // if ObjectDisposedException, the client is shutting down.
+                // don't reconnect if the disconnecting Exception is either of these types. if KickedFromServerException, another
+                // client was most likely signed in, and retrying will cause a connect loop. if ObjectDisposedException, the
+                // client is shutting down.
                 if (!(args.Exception is KickedFromServerException || args.Exception is ObjectDisposedException))
                 {
-                    Interlocked.Increment(ref CurrentReconnectAttempts);
+                    Interlocked.Increment(ref currentReconnectAttempts);
 
-                    if (CurrentReconnectAttempts <= MaxReconnectAttempts)
+                    if (currentReconnectAttempts <= MaxReconnectAttempts)
                     {
-                        var wait = CurrentReconnectAttempts ^ 3;
+                        var wait = currentReconnectAttempts ^ 3;
                         Console.WriteLine($"Waiting {wait} second(s) before reconnect...");
                         await Task.Delay(wait);
 
@@ -412,7 +455,7 @@
                     }
                     else
                     {
-                        Console.WriteLine($"Unable to reconnect after {CurrentReconnectAttempts} tries.");
+                        Console.WriteLine($"Unable to reconnect after {currentReconnectAttempts} tries.");
                     }
                 }
             };
@@ -423,24 +466,6 @@
             }).GetAwaiter().GetResult();
 
             logger.Information("Connected and logged in as {Username}", username);
-        }
-
-        /// <summary>
-        ///     Creates and returns a <see cref="UserInfo"/> object in response to a remote request.
-        /// </summary>
-        /// <param name="username">The username of the requesting user.</param>
-        /// <param name="endpoint">The IP endpoint of the requesting user.</param>
-        /// <returns>A Task resolving the UserInfo instance.</returns>
-        private Task<UserInfo> UserInfoResponseResolver(string username, IPEndPoint endpoint)
-        {
-            var info = new UserInfo(
-                description: $"Soulseek.NET Web Example! also, your username is {username}, and IP endpoint is {endpoint}",
-                picture: System.IO.File.ReadAllBytes(@"slsk_bird.jpg"),
-                uploadSlots: 1,
-                queueLength: 0,
-                hasFreeUploadSlot: false);
-
-            return Task.FromResult(info);
         }
 
         /// <summary>
@@ -476,15 +501,20 @@
         }
 
         /// <summary>
-        ///     Invoked upon a remote request to download a file.  
+        ///     Invoked upon a remote request to download a file.
         /// </summary>
         /// <param name="username">The username of the requesting user.</param>
         /// <param name="endpoint">The IP endpoint of the requesting user.</param>
         /// <param name="filename">The filename of the requested file.</param>
         /// <param name="tracker">(for example purposes) the ITransferTracker used to track progress.</param>
         /// <returns>A Task representing the asynchronous operation.</returns>
-        /// <exception cref="DownloadEnqueueException">Thrown when the download is rejected.  The Exception message will be passed to the remote user.</exception>
-        /// <exception cref="Exception">Thrown on any other Exception other than a rejection.  A generic message will be passed to the remote user for security reasons.</exception>
+        /// <exception cref="DownloadEnqueueException">
+        ///     Thrown when the download is rejected. The Exception message will be passed to the remote user.
+        /// </exception>
+        /// <exception cref="Exception">
+        ///     Thrown on any other Exception other than a rejection. A generic message will be passed to the remote user for
+        ///     security reasons.
+        /// </exception>
         private Task EnqueueDownloadAction(string username, IPEndPoint endpoint, string filename, ITransferTracker tracker)
         {
             _ = endpoint;
@@ -499,8 +529,7 @@
 
             if (tracker.TryGet(TransferDirection.Upload, username, filename, out _))
             {
-                // in this case, a re-requested file is a no-op.  normally we'd want to respond with a 
-                // PlaceInQueueResponse
+                // in this case, a re-requested file is a no-op. normally we'd want to respond with a PlaceInQueueResponse
                 Console.WriteLine($"[UPLOAD RE-REQUESTED] [{username}/{filename}]");
                 return Task.CompletedTask;
             }
@@ -509,8 +538,8 @@
             var cts = new CancellationTokenSource();
             var topts = new TransferOptions(stateChanged: (e) => tracker.AddOrUpdate(e, cts), progressUpdated: (e) => tracker.AddOrUpdate(e, cts), governor: (t, c) => Task.Delay(1, c));
 
-            // accept all download requests, and begin the upload immediately.
-            // normally there would be an internal queue, and uploads would be handled separately.
+            // accept all download requests, and begin the upload immediately. normally there would be an internal queue, and
+            // uploads would be handled separately.
             Task.Run(async () =>
             {
                 using var stream = new FileStream(fileInfo.FullName, FileMode.Open, FileAccess.Read);
@@ -535,14 +564,14 @@
         {
             var defaultResponse = Task.FromResult<SearchResponse>(null);
 
-            // some bots continually query for very common strings.  blacklist known names here.
+            // some bots continually query for very common strings. blacklist known names here.
             var blacklist = new[] { "Lola45", "Lolo51", "rajah" };
             if (blacklist.Contains(username))
             {
                 return defaultResponse;
             }
 
-            // some bots and perhaps users search for very short terms.  only respond to queries >= 3 characters.  sorry, U2 fans.
+            // some bots and perhaps users search for very short terms. only respond to queries >= 3 characters. sorry, U2 fans.
             if (query.Query.Length < 3)
             {
                 return defaultResponse;
@@ -563,21 +592,39 @@
                     fileList: results));
             }
 
-            // if no results, either return null or an instance of SearchResponse with a fileList of length 0
-            // in either case, no response will be sent to the requestor.
+            // if no results, either return null or an instance of SearchResponse with a fileList of length 0 in either case, no
+            // response will be sent to the requestor.
             return Task.FromResult<SearchResponse>(null);
         }
 
-        class IPAddressConverter : JsonConverter<IPAddress>
+        /// <summary>
+        ///     Creates and returns a <see cref="UserInfo"/> object in response to a remote request.
+        /// </summary>
+        /// <param name="username">The username of the requesting user.</param>
+        /// <param name="endpoint">The IP endpoint of the requesting user.</param>
+        /// <returns>A Task resolving the UserInfo instance.</returns>
+        private Task<UserInfo> UserInfoResponseResolver(string username, IPEndPoint endpoint)
         {
-            public override bool CanConvert(Type objectType) => (objectType == typeof(IPAddress));
+            var info = new UserInfo(
+                description: $"Soulseek.NET Web Example! also, your username is {username}, and IP endpoint is {endpoint}",
+                picture: System.IO.File.ReadAllBytes(@"slsk_bird.jpg"),
+                uploadSlots: 1,
+                queueLength: 0,
+                hasFreeUploadSlot: false);
+
+            return Task.FromResult(info);
+        }
+
+        private class IPAddressConverter : JsonConverter<IPAddress>
+        {
+            public override bool CanConvert(Type objectType) => objectType == typeof(IPAddress);
 
             public override IPAddress Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) => IPAddress.Parse(reader.GetString());
 
             public override void Write(Utf8JsonWriter writer, IPAddress value, JsonSerializerOptions options) => writer.WriteStringValue(value.ToString());
         }
 
-        class UserEndPointCache : IUserEndPointCache
+        private class UserEndPointCache : IUserEndPointCache
         {
             public UserEndPointCache()
             {

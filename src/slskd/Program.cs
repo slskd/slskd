@@ -1,5 +1,30 @@
-﻿namespace slskd
+﻿// <copyright file="Program.cs" company="slskd Team">
+//     Copyright (c) slskd Team. All rights reserved.
+//
+//     This program is free software: you can redistribute it and/or modify
+//     it under the terms of the GNU Affero General Public License as published
+//     by the Free Software Foundation, either version 3 of the License, or
+//     (at your option) any later version.
+//
+//     This program is distributed in the hope that it will be useful,
+//     but WITHOUT ANY WARRANTY; without even the implied warranty of
+//     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//     GNU Affero General Public License for more details.
+//
+//     You should have received a copy of the GNU Affero General Public License
+//     along with this program.  If not, see https://www.gnu.org/licenses/.
+// </copyright>
+
+namespace slskd
 {
+    using System;
+    using System.Collections.Generic;
+    using System.ComponentModel;
+    using System.IO;
+    using System.Linq;
+    using System.Net;
+    using System.Reflection;
+    using System.Security.Cryptography.X509Certificates;
     using Microsoft.AspNetCore;
     using Microsoft.AspNetCore.Hosting;
     using Microsoft.Extensions.Configuration;
@@ -12,75 +37,92 @@
     using slskd.Common.Cryptography;
     using slskd.Configuration;
     using slskd.Validation;
-    using System;
-    using System.Collections.Generic;
-    using System.IO;
-    using System.Linq;
-    using System.Net;
-    using System.Reflection;
-    using System.Security.Cryptography.X509Certificates;
+    using Utility.CommandLine;
+    using Utility.EnvironmentVariables;
 
-    public static class ProgramExtensions
+    /// <summary>
+    ///     Bootstraps configuration and handles primitive command-line instructions.
+    /// </summary>
+    public static class Program
     {
-        public static IConfigurationBuilder AddConfigurationProviders(this IConfigurationBuilder builder, string environmentVariablePrefix, string configurationFile)
-        {
-            configurationFile = Path.GetFullPath(configurationFile);
-
-            return builder
-                .AddDefaultValues(
-                    map: Options.Map.Select(o => o.ToDefaultValue()))
-                .AddEnvironmentVariables(
-                    prefix: environmentVariablePrefix,
-                    map: Options.Map.Select(o => o.ToEnvironmentVariable()))
-                .AddYamlFile(
-                    path: Path.GetFileName(configurationFile), 
-                    optional: true, 
-                    reloadOnChange: false,
-                    provider: new PhysicalFileProvider(Path.GetDirectoryName(configurationFile), ExclusionFilters.None))
-                .AddCommandLine(
-                    commandLine: Environment.CommandLine,
-                    map: Options.Map.Select(o => o.ToCommandLineArgument()));
-        }
-    }
-
-    public class Program
-    {
+        /// <summary>
+        ///     The name of the application.
+        /// </summary>
         public static readonly string AppName = "slskd";
+
+        /// <summary>
+        ///     The default configuration filename.
+        /// </summary>
         public static readonly string DefaultConfigurationFile = $"{AppName}.yml";
+
+        /// <summary>
+        ///     The global prefix for environment variables.
+        /// </summary>
         public static readonly string EnvironmentVariablePrefix = $"{AppName.ToUpperInvariant()}_";
-        
-        public static Guid InvocationId { get; } = Guid.NewGuid();
-        public static int ProcessId { get; } = Environment.ProcessId;
+
+        /// <summary>
+        ///     Gets the assembly version of the application.
+        /// </summary>
+        /// <remarks>
+        ///     Inaccurate when running locally.
+        /// </remarks>
         public static Version AssemblyVersion { get; } = Assembly.GetExecutingAssembly().GetName().Version;
+
+        /// <summary>
+        ///     Gets the informational version of the application, including the git sha at the latest commit.
+        /// </summary>
+        /// <remarks>
+        ///     Inaccurate when running locally.
+        /// </remarks>
         public static string InformationalVersion { get; } = Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>().InformationalVersion;
+
+        /// <summary>
+        ///     Gets the unique Id of this application invocation.
+        /// </summary>
+        public static Guid InvocationId { get; } = Guid.NewGuid();
+
+        /// <summary>
+        ///     Gets the Id of the current application process.
+        /// </summary>
+        public static int ProcessId { get; } = Environment.ProcessId;
+
+        /// <summary>
+        ///     Gets the full application version, including both assembly and informational versions.
+        /// </summary>
         public static string Version { get; } = $"{AssemblyVersion} ({InformationalVersion})";
 
-        [CommandLineArgument('n', "no-logo", "suppress logo on startup")]
-        private static bool NoLogo { get; set; }
-
-        [CommandLineArgument('e', "envars", "display environment variables")]
-        private static bool ShowEnvironmentVariables { get; set; }
-
-        [CommandLineArgument('h', "help", "display command line usage")]
-        private static bool ShowHelp { get; set; }
-
-        [CommandLineArgument('v', "version", "display version information")]
-        private static bool ShowVersion { get; set; }
-
-        [CommandLineArgument('g', "generate-cert", "generate X509 certificate and password for HTTPs")]
-        private static bool GenerateCertificate { get; set; }
+        private static IConfigurationRoot Configuration { get; set; }
+        private static Options Options { get; } = new Options();
 
         [EnvironmentVariable("CONFIG")]
-        [CommandLineArgument('c', "config", "path to configuration file")]
+        [Argument('c', "config", "path to configuration file")]
         private static string ConfigurationFile { get; set; } = DefaultConfigurationFile;
 
-        private static Options Options { get; } = new Options();
-        private static IConfigurationRoot Configuration { get; set; }
+        [Argument('g', "generate-cert", "generate X509 certificate and password for HTTPs")]
+        private static bool GenerateCertificate { get; set; }
 
+        [Argument('n', "no-logo", "suppress logo on startup")]
+        private static bool NoLogo { get; set; }
+
+        [Argument('e', "envars", "display environment variables")]
+        private static bool ShowEnvironmentVariables { get; set; }
+
+        [Argument('h', "help", "display command line usage")]
+        private static bool ShowHelp { get; set; }
+
+        [Argument('v', "version", "display version information")]
+        private static bool ShowVersion { get; set; }
+
+        /// <summary>
+        ///     Entrypoint.
+        /// </summary>
+        /// <param name="args">Command line arguments.</param>
         public static void Main(string[] args)
         {
+            // populate the properties above so that we can override the default config file if needed, and to
+            // check if the application is being run in command mode (run task and quit).
             EnvironmentVariables.Populate(prefix: EnvironmentVariablePrefix);
-            CommandLineArguments.Populate(clearExistingValues: false);
+            Arguments.Populate(clearExistingValues: false);
 
             if (ShowVersion)
             {
@@ -90,9 +132,21 @@
 
             if (ShowHelp || ShowEnvironmentVariables)
             {
-                if (!NoLogo) PrintLogo(Version);
-                if (ShowHelp) PrintCommandLineArguments(Options.Map);
-                if (ShowEnvironmentVariables) PrintEnvironmentVariables(Options.Map, EnvironmentVariablePrefix);
+                if (!NoLogo)
+                {
+                    PrintLogo(Version);
+                }
+
+                if (ShowHelp)
+                {
+                    PrintCommandLineArguments(typeof(Options));
+                }
+
+                if (ShowEnvironmentVariables)
+                {
+                    PrintEnvironmentVariables(typeof(Options), EnvironmentVariablePrefix);
+                }
+
                 return;
             }
 
@@ -102,13 +156,15 @@
                 return;
             }
 
+            // the application isn't bein run in command mode. load all configuration values and proceed
+            // with bootstrapping.
             try
             {
                 Configuration = new ConfigurationBuilder()
                     .AddConfigurationProviders(EnvironmentVariablePrefix, ConfigurationFile)
                     .Build();
 
-                Configuration.GetSection("slskd")
+                Configuration.GetSection(AppName)
                     .Bind(Options, (o) => { o.BindNonPublicProperties = true; });
 
                 if (!Options.TryValidate(out var result))
@@ -127,7 +183,7 @@
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Invalid configuration: {(Options.Debug ? ex : ex.Message)}");
+                Console.WriteLine($"Invalid configuration: {(!Options.Debug ? ex : ex.Message)}");
                 return;
             }
 
@@ -153,7 +209,7 @@
                         outputTemplate: "[{SourceContext}] [{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
                     .WriteTo.Async(config =>
                         config.File(
-                            "logs/slskd-.log",
+                            $"logs/{AppName}-.log",
                             outputTemplate: "[{SourceContext}] [{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}",
                             rollingInterval: RollingInterval.Day))
                     .WriteTo.Conditional(
@@ -178,7 +234,7 @@
                         outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
                     .WriteTo.Async(config =>
                         config.File(
-                            "logs/slskd-.log",
+                            $"logs/{AppName}-.log",
                             outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}",
                             rollingInterval: RollingInterval.Day))
                     .WriteTo.Conditional(
@@ -189,7 +245,7 @@
                     .CreateLogger();
             }
 
-            var logger = Log.ForContext<Program>();
+            var logger = Log.ForContext(typeof(Program));
 
             if (ConfigurationFile != DefaultConfigurationFile && !File.Exists(ConfigurationFile))
             {
@@ -258,7 +314,27 @@
             }
         }
 
-        public static void GenerateX509Certificate(string password, string filename)
+        private static IConfigurationBuilder AddConfigurationProviders(this IConfigurationBuilder builder, string environmentVariablePrefix, string configurationFile)
+        {
+            configurationFile = Path.GetFullPath(configurationFile);
+
+            return builder
+                .AddDefaultValues(
+                    targetType: typeof(Options))
+                .AddEnvironmentVariables(
+                    targetType: typeof(Options),
+                    prefix: environmentVariablePrefix)
+                .AddYamlFile(
+                    path: Path.GetFileName(configurationFile),
+                    optional: true,
+                    reloadOnChange: false,
+                    provider: new PhysicalFileProvider(Path.GetDirectoryName(configurationFile), ExclusionFilters.None)) // required for locations outside of the app directory
+                .AddCommandLine(
+                    targetType: typeof(Options),
+                    commandLine: Environment.CommandLine);
+        }
+
+        private static void GenerateX509Certificate(string password, string filename)
         {
             Console.WriteLine("Generating X509 certificate...");
             filename = Path.Combine(AppContext.BaseDirectory, filename);
@@ -270,51 +346,96 @@
             Console.WriteLine($"Certificate exported to {filename}");
         }
 
-        public static void PrintCommandLineArguments(IEnumerable<Option> map)
+        private static void PrintCommandLineArguments(Type targetType)
         {
             static string GetLongName(string longName, Type type)
                 => type == typeof(bool) ? longName : $"{longName} <{type.Name.ToLowerInvariant()}>";
 
-            var longestName = map.Where(a => !string.IsNullOrEmpty(a.LongName)).Select(a => GetLongName(a.LongName, a.Type)).Max(n => n.Length);
+            var lines = new List<(string Item, string Description)>();
+
+            void Map(Type type)
+            {
+                var defaults = Activator.CreateInstance(type);
+                var props = type.GetProperties(BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
+
+                foreach (PropertyInfo property in props)
+                {
+                    var attribute = property.CustomAttributes.FirstOrDefault(a => a.AttributeType == typeof(ArgumentAttribute));
+                    var descriptionAttribute = property.CustomAttributes.FirstOrDefault(a => a.AttributeType == typeof(DescriptionAttribute));
+
+                    if (attribute != default)
+                    {
+                        var shortName = (char)attribute.ConstructorArguments[0].Value;
+                        var longName = (string)attribute.ConstructorArguments[1].Value;
+                        var description = descriptionAttribute?.ConstructorArguments[0].Value;
+
+                        var suffix = property.PropertyType == typeof(bool) ? string.Empty : $" (default: {property.GetValue(defaults) ?? "<null>"})";
+                        var item = $"{shortName}{(shortName == default ? " " : "|")}--{GetLongName(longName, property.PropertyType)}";
+                        var desc = $"{description}{suffix}";
+                        lines.Add(new(item, desc));
+                    }
+                    else
+                    {
+                        Map(property.PropertyType);
+                    }
+                }
+            }
+
+            Map(targetType);
+
+            var longestItem = lines.Max(l => l.Item.Length);
 
             Console.WriteLine("\nusage: slskd [arguments]\n");
             Console.WriteLine("arguments:\n");
 
-            foreach (Option item in map)
+            foreach (var line in lines)
             {
-                var (shortName, longName, _, key, type, defaultValue, description) = item;
-
-                if (shortName == default && string.IsNullOrEmpty(longName))
-                {
-                    continue;
-                }
-
-                var suffix = type == typeof(bool) ? string.Empty : $" (default: {defaultValue ?? "<null>"})";
-                var result = $"  {shortName}{(shortName == default ? " " : "|")}--{GetLongName(longName, type).PadRight(longestName + 3)}{description}{suffix}";
-                Console.WriteLine(result);
+                Console.WriteLine($"  {line.Item.PadRight(longestItem)}   {line.Description}");
             }
         }
 
-        public static void PrintEnvironmentVariables(IEnumerable<Option> map, string prefix)
+        private static void PrintEnvironmentVariables(Type targetType, string prefix)
         {
             static string GetName(string name, Type type) => $"{name} <{type.Name.ToLowerInvariant()}>";
 
-            var longestName = map.Select(a => GetName(a.EnvironmentVariable, a.Type)).Max(n => n.Length);
+            var lines = new List<(string Item, string Description)>();
+
+            void Map(Type type)
+            {
+                var defaults = Activator.CreateInstance(type);
+                var props = type.GetProperties(BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
+
+                foreach (PropertyInfo property in props)
+                {
+                    var attribute = property.CustomAttributes.FirstOrDefault(a => a.AttributeType == typeof(EnvironmentVariableAttribute));
+                    var descriptionAttribute = property.CustomAttributes.FirstOrDefault(a => a.AttributeType == typeof(DescriptionAttribute));
+
+                    if (attribute != default)
+                    {
+                        var name = (string)attribute.ConstructorArguments[0].Value;
+                        var description = descriptionAttribute?.ConstructorArguments[0].Value;
+
+                        var suffix = type == typeof(bool) ? string.Empty : $" (default: {property.GetValue(defaults) ?? "<null>"})";
+                        var item = $"{prefix}{GetName(name, property.PropertyType)}";
+                        var desc = $"{description}{suffix}";
+                        lines.Add(new(item, desc));
+                    }
+                    else
+                    {
+                        Map(property.PropertyType);
+                    }
+                }
+            }
+
+            Map(targetType);
+
+            var longestItem = lines.Max(l => l.Item.Length);
 
             Console.WriteLine("\nenvironment variables (arguments and config file have precedence):\n");
 
-            foreach (Option item in map)
+            foreach (var line in lines)
             {
-                var (_, _, environmentVariable, key, type, defaultValue, description) = item;
-
-                if (string.IsNullOrEmpty(environmentVariable))
-                {
-                    continue;
-                }
-
-                var suffix = type == typeof(bool) ? string.Empty : $" (default: {defaultValue ?? "<null>"})";
-                var result = $"  {prefix}{GetName(environmentVariable, type).PadRight(longestName + 3)}{description}{suffix}";
-                Console.WriteLine(result);
+                Console.WriteLine($"  {line.Item.PadRight(longestItem)}   {line.Description}");
             }
         }
 
