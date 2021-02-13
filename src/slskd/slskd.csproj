@@ -4,6 +4,7 @@
     <PackageProjectUrl>https://slskd.org</PackageProjectUrl>
     <Authors>slskd Team</Authors>
     <Copyright>Copyright (c) slskd Team</Copyright>
+    <PackageLicenseFile>LICENSE</PackageLicenseFile>
   </PropertyGroup>
   
   <PropertyGroup>
@@ -12,7 +13,7 @@
     <CodeAnalysisRuleSet>Properties\analysis.ruleset</CodeAnalysisRuleSet>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <ServerGarbageCollection>false</ServerGarbageCollection>
-    <PackageLicenseFile>LICENSE</PackageLicenseFile>    
+    <IsTransformWebConfigDisabled>true</IsTransformWebConfigDisabled>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
@@ -24,18 +25,19 @@
 
   <ItemGroup>
     <AdditionalFiles Include="Properties\stylecop.json" />
-    <Content Include="slskd.yml">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
     <Content Update="wwwroot\**\*.*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <None Include="..\..\LICENSE">
-      <Pack>True</Pack>
-      <PackagePath></PackagePath>
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
   </ItemGroup>
+
+  <Target Name="CopyAfterBuild" AfterTargets="AfterBuild">
+    <Copy SourceFiles="..\..\LICENSE" DestinationFolder="$(OutDir)" />
+    <Copy SourceFiles="Properties\slskd.yml" DestinationFolder="$(OutDir)" />
+  </Target>
+  <Target Name="CopyOnPublish" AfterTargets="Publish">
+    <Copy SourceFiles="..\..\LICENSE" DestinationFolder="$(PublishDir)" />
+    <Copy SourceFiles="Properties\slskd.yml" DestinationFolder="$(PublishDir)" />
+  </Target>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="5.0.3" />

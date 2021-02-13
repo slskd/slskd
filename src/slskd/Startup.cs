@@ -462,7 +462,7 @@ namespace slskd
 
             Task.Run(async () =>
             {
-                //await Client.ConnectAsync(Options.Soulseek.Username, Options.Soulseek.Password);
+                await Client.ConnectAsync(Options.Soulseek.Username, Options.Soulseek.Password);
             }).GetAwaiter().GetResult();
 
             logger.Information("Connected and logged in as {Username}", username);
