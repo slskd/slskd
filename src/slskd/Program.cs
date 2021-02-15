@@ -209,7 +209,7 @@ namespace slskd
                         outputTemplate: "[{SourceContext}] [{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
                     .WriteTo.Async(config =>
                         config.File(
-                            $"logs/{AppName}-.log",
+                            Path.Combine(AppContext.BaseDirectory, "logs", $"{AppName}-.log"),
                             outputTemplate: "[{SourceContext}] [{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}",
                             rollingInterval: RollingInterval.Day))
                     .WriteTo.Conditional(
@@ -234,7 +234,7 @@ namespace slskd
                         outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
                     .WriteTo.Async(config =>
                         config.File(
-                            $"logs/{AppName}-.log",
+                            Path.Combine(AppContext.BaseDirectory, "logs", $"{AppName}-.log"),
                             outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}",
                             rollingInterval: RollingInterval.Day))
                     .WriteTo.Conditional(
