@@ -32,11 +32,13 @@
 
   <Target Name="CopyAfterBuild" AfterTargets="AfterBuild">
     <Copy SourceFiles="..\..\LICENSE" DestinationFolder="$(OutDir)" />
-    <Copy SourceFiles="Properties\slskd.yml" DestinationFolder="$(OutDir)" />
+    <Copy SourceFiles="Properties\slskd.yml" DestinationFolder="$(OutDir)\config" />
+    <Copy SourceFiles="$(OutDir)\slskd.xml" DestinationFolder="$(OutDir)\etc" />
   </Target>
   <Target Name="CopyOnPublish" AfterTargets="Publish">
     <Copy SourceFiles="..\..\LICENSE" DestinationFolder="$(PublishDir)" />
-    <Copy SourceFiles="Properties\slskd.yml" DestinationFolder="$(PublishDir)" />
+    <Copy SourceFiles="Properties\slskd.yml" DestinationFolder="$(PublishDir)\config" />
+    <Move SourceFiles="$(PublishDir)\slskd.xml" DestinationFolder="$(PublishDir)\etc" />
   </Target>
 
   <ItemGroup>

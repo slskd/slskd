@@ -51,9 +51,19 @@ namespace slskd
         public static readonly string AppName = "slskd";
 
         /// <summary>
+        ///     The default database filename.
+        /// </summary>
+        public static readonly string DefaultDatabaseFile = Path.Combine(AppContext.BaseDirectory, "data", $"{AppName}.db");
+
+        /// <summary>
         ///     The default configuration filename.
         /// </summary>
-        public static readonly string DefaultConfigurationFile = $"{AppName}.yml";
+        public static readonly string DefaultConfigurationFile = Path.Combine(AppContext.BaseDirectory, "config", $"{AppName}.yml");
+
+        /// <summary>
+        ///     The default XML documentation filename.
+        /// </summary>
+        public static readonly string DefaultXmlDocumentaitonFile =  Path.Combine(AppContext.BaseDirectory, "etc", $"{AppName}.xml");
 
         /// <summary>
         ///     The global prefix for environment variables.
@@ -209,7 +219,7 @@ namespace slskd
                         outputTemplate: "[{SourceContext}] [{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
                     .WriteTo.Async(config =>
                         config.File(
-                            $"logs/{AppName}-.log",
+                            Path.Combine(AppContext.BaseDirectory, "logs", $"{AppName}-.log"),
                             outputTemplate: "[{SourceContext}] [{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}",
                             rollingInterval: RollingInterval.Day))
                     .WriteTo.Conditional(
@@ -234,7 +244,7 @@ namespace slskd
                         outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
                     .WriteTo.Async(config =>
                         config.File(
-                            $"logs/{AppName}-.log",
+                            Path.Combine(AppContext.BaseDirectory, "logs", $"{AppName}-.log"),
                             outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}",
                             rollingInterval: RollingInterval.Day))
                     .WriteTo.Conditional(
