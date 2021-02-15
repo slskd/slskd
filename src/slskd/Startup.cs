@@ -52,7 +52,6 @@ namespace slskd
     /// </summary>
     public class Startup
     {
-        private static readonly string XmlDocFile = Path.Combine(AppContext.BaseDirectory, Program.AppName + ".xml");
         private static readonly int MaxReconnectAttempts = 3;
         private static int currentReconnectAttempts = 0;
 
@@ -165,13 +164,13 @@ namespace slskd
                             Version = "v0",
                         });
 
-                    if (System.IO.File.Exists(XmlDocFile))
+                    if (System.IO.File.Exists(Program.DefaultXmlDocumentaitonFile))
                     {
-                        options.IncludeXmlComments(XmlDocFile);
+                        options.IncludeXmlComments(Program.DefaultXmlDocumentaitonFile);
                     }
                     else
                     {
-                        logger.Warning($"Unable to find XML documentation in {XmlDocFile}, Swagger will not include metadata");
+                        logger.Warning($"Unable to find XML documentation in {Program.DefaultXmlDocumentaitonFile}, Swagger will not include metadata");
                     }
                 });
             }
