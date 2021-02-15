@@ -53,7 +53,12 @@ namespace slskd
         /// <summary>
         ///     The default configuration filename.
         /// </summary>
-        public static readonly string DefaultConfigurationFile = $"{AppName}.yml";
+        public static readonly string DefaultConfigurationFile = Path.Combine(AppContext.BaseDirectory, "config", $"{AppName}.yml");
+
+        /// <summary>
+        ///     The default XML documentation filename.
+        /// </summary>
+        public static readonly string DefaultXmlDocumentaitonFile =  Path.Combine(AppContext.BaseDirectory, "etc", $"{AppName}.xml");
 
         /// <summary>
         ///     The global prefix for environment variables.
