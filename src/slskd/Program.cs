@@ -51,6 +51,11 @@ namespace slskd
         public static readonly string AppName = "slskd";
 
         /// <summary>
+        ///     The default database filename.
+        /// </summary>
+        public static readonly string DefaultDatabaseFile = Path.Combine(AppContext.BaseDirectory, "data", $"{AppName}.db");
+
+        /// <summary>
         ///     The default configuration filename.
         /// </summary>
         public static readonly string DefaultConfigurationFile = Path.Combine(AppContext.BaseDirectory, "config", $"{AppName}.yml");
