@@ -64,7 +64,7 @@ namespace slskd
         /// <summary>
         ///     The default XML documentation filename.
         /// </summary>
-        public static readonly string DefaultXmlDocumentaitonFile =  Path.Combine(AppContext.BaseDirectory, "etc", $"{AppName}.xml");
+        public static readonly string DefaultXmlDocumentaitonFile = Path.Combine(AppContext.BaseDirectory, "etc", $"{AppName}.xml");
 
         /// <summary>
         ///     The global prefix for environment variables.
