@@ -1,4 +1,4 @@
-﻿// <copyright file="ISharedFileCache.cs" company="slskd Team">
+﻿// <copyright file="IPAddressConverter.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -18,17 +18,19 @@
 namespace slskd
 {
     using System;
-    using System.Collections.Generic;
-    using Soulseek;
+    using System.Net;
+    using System.Text.Json;
+    using System.Text.Json.Serialization;
 
-    public interface ISharedFileCache
+    /// <summary>
+    ///     Serializes IPAddress instances.
+    /// </summary>
+    public class IPAddressConverter : JsonConverter<IPAddress>
     {
-        string Directory { get; }
-        DateTime? LastFill { get; }
-        long TTL { get; }
+        public override bool CanConvert(Type typeToConvert) => typeToConvert == typeof(IPAddress);
 
-        void Fill();
+        public override IPAddress Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) => IPAddress.Parse(reader.GetString());
 
-        IEnumerable<Soulseek.File> Search(SearchQuery query);
+        public override void Write(Utf8JsonWriter writer, IPAddress value, JsonSerializerOptions options) => writer.WriteStringValue(value.ToString());
     }
 }
