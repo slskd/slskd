@@ -28,6 +28,7 @@ namespace slskd
     using Microsoft.AspNetCore;
     using Microsoft.AspNetCore.Hosting;
     using Microsoft.Extensions.Configuration;
+    using Microsoft.Extensions.DependencyInjection;
     using Microsoft.Extensions.FileProviders;
     using Microsoft.Extensions.FileProviders.Physical;
     using Prometheus.DotNetRuntime;
@@ -63,7 +64,7 @@ namespace slskd
         /// <summary>
         ///     The default XML documentation filename.
         /// </summary>
-        public static readonly string DefaultXmlDocumentaitonFile =  Path.Combine(AppContext.BaseDirectory, "etc", $"{AppName}.xml");
+        public static readonly string DefaultXmlDocumentaitonFile = Path.Combine(AppContext.BaseDirectory, "etc", $"{AppName}.xml");
 
         /// <summary>
         ///     The global prefix for environment variables.
@@ -209,7 +210,8 @@ namespace slskd
 
                 Log.Logger = new LoggerConfiguration()
                     .MinimumLevel.Debug()
-                    .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
+                    .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+                    .MinimumLevel.Override("slskd.API.Authentication.PassthroughAuthenticationHandler", LogEventLevel.Information)
                     .Enrich.WithProperty("Version", Version)
                     .Enrich.WithProperty("InstanceName", Options.InstanceName)
                     .Enrich.WithProperty("InvocationId", InvocationId)
@@ -234,7 +236,7 @@ namespace slskd
                 Log.Logger = new LoggerConfiguration()
                     .MinimumLevel.Information()
                     .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
-                    .MinimumLevel.Override("slskd.Security.PassthroughAuthenticationHandler", LogEventLevel.Information)
+                    .MinimumLevel.Override("slskd.API.Authentication.PassthroughAuthenticationHandler", LogEventLevel.Information)
                     .Enrich.WithProperty("Version", Version)
                     .Enrich.WithProperty("InstanceName", Options.InstanceName)
                     .Enrich.WithProperty("InvocationId", InvocationId)
