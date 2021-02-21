@@ -119,6 +119,8 @@ jobs:
           tags: |
             slskd/slskd:${{ env.VERSION }}
             slskd/slskd:canary
+            ghcr.io/slskd/slskd:${{ env.VERSION }}
+            ghcr.io/slskd/slskd:canary
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache
 
@@ -135,6 +137,10 @@ jobs:
             slskd/slskd:${{ env.LATEST_TAG }}
             slskd/slskd:canary
             slskd/slskd:latest
+            ghcr.io/slskd/slskd:${{ env.VERSION }}
+            ghcr.io/slskd/slskd:${{ env.LATEST_TAG }}
+            ghcr.io/slskd/slskd:canary
+            ghcr.io/slskd/slskd:latest
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache
 
