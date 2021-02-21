@@ -6,21 +6,21 @@ WORKDIR /slskd
 COPY bin bin/.
 COPY src/web src/web/.
 
-RUN sh ./bin/build --web-only --skip-tests --version $VERSION
+RUN sh ./bin/build --web-only --version $VERSION
 
 #
 
-# FROM mcr.microsoft.com/dotnet/sdk:5.0 AS build
-# ARG VERSION=0.0.1.65534-local
+FROM mcr.microsoft.com/dotnet/sdk:5.0 AS build
+ARG VERSION=0.0.1.65534-local
 
-# WORKDIR /slskd
+WORKDIR /slskd
 
-# COPY LICENSE .
-# COPY bin bin/.
-# COPY src/slskd src/slskd/.
-# COPY tests tests/.
+COPY LICENSE .
+COPY bin bin/.
+COPY src/slskd src/slskd/.
+COPY tests tests/.
 
-# RUN bash ./bin/build --dotnet-only --version $VERSION
+RUN bash ./bin/build --dotnet-only --version $VERSION
 
 #
 
