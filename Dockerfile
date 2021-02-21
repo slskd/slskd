@@ -6,7 +6,7 @@ WORKDIR /slskd
 COPY bin bin/.
 COPY src/web src/web/.
 
-RUN sh ./bin/build --web-only --version $VERSION
+# RUN sh ./bin/build --web-only --version $VERSION
 
 #
 
@@ -20,7 +20,7 @@ COPY bin bin/.
 COPY src/slskd src/slskd/.
 COPY tests tests/.
 
-RUN bash ./bin/build --dotnet-only --version $VERSION
+# RUN bash ./bin/build --dotnet-only --version $VERSION
 
 #
 
@@ -34,7 +34,7 @@ COPY bin bin/.
 COPY src/slskd src/slskd/.
 COPY --from=web /slskd/src/web/build /slskd/src/slskd/wwwroot/.
 
-RUN bash ./bin/publish --no-prebuild --runtime linux-musl-x64 --version $VERSION
+# RUN bash ./bin/publish --no-prebuild --runtime linux-musl-x64 --version $VERSION
 
 #
 
