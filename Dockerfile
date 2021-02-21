@@ -1,12 +1,12 @@
-# FROM node:lts-alpine3.12 AS web
-# ARG VERSION=0.0.1.65534-local
+FROM node:lts-alpine3.12 AS web
+ARG VERSION=0.0.1.65534-local
 
-# WORKDIR /slskd
+WORKDIR /slskd
 
-# COPY bin bin/.
-# COPY src/web src/web/.
+COPY bin bin/.
+COPY src/web src/web/.
 
-# RUN sh ./bin/build --web-only --version $VERSION
+RUN sh ./bin/build --web-only --skip-tests --version $VERSION
 
 #
 
@@ -24,17 +24,17 @@
 
 #
 
-# FROM mcr.microsoft.com/dotnet/sdk:5.0 AS publish
-# ARG VERSION=0.0.1.65534-local
+FROM mcr.microsoft.com/dotnet/sdk:5.0 AS publish
+ARG VERSION=0.0.1.65534-local
 
-# WORKDIR /slskd
+WORKDIR /slskd
 
-# COPY LICENSE .
-# COPY bin bin/.
-# COPY src/slskd src/slskd/.
-# COPY --from=web /slskd/src/web/build /slskd/src/slskd/wwwroot/.
+COPY LICENSE .
+COPY bin bin/.
+COPY src/slskd src/slskd/.
+COPY --from=web /slskd/src/web/build /slskd/src/slskd/wwwroot/.
 
-# RUN bash ./bin/publish --no-prebuild --runtime linux-musl-x64 --version $VERSION
+RUN bash ./bin/publish --no-prebuild --runtime linux-musl-x64 --version $VERSION
 
 #
 
@@ -42,9 +42,11 @@ FROM mcr.microsoft.com/dotnet/runtime-deps:5.0-alpine AS slskd
 ARG VERSION=0.0.1.65534-local
 
 LABEL org.opencontainers.image.source=https://github.com/slskd/slskd
+LABEL org.opencontainers.image.licsense=AGPL-3.0
+LABEL org.opencontainers.image.version=${VERSION}
 
 WORKDIR /slskd
-# COPY --from=publish /slskd/dist/linux-musl-x64 .
+COPY --from=publish /slskd/dist/linux-musl-x64 .
 
 RUN mkdir /var/slskd
 RUN mkdir /var/slskd/shared
