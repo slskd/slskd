@@ -41,6 +41,8 @@
 FROM mcr.microsoft.com/dotnet/runtime-deps:5.0-alpine AS slskd
 ARG VERSION=0.0.1.65534-local
 
+LABEL org.opencontainers.image.source=https://github.com/slskd/slskd
+
 WORKDIR /slskd
 # COPY --from=publish /slskd/dist/linux-musl-x64 .
 
