@@ -1,38 +1,38 @@
-FROM node:lts-alpine3.12 AS web
-ARG VERSION=0.0.1.65534-local
+# FROM node:lts-alpine3.12 AS web
+# ARG VERSION=0.0.1.65534-local
 
-WORKDIR /slskd
+# WORKDIR /slskd
 
-COPY bin bin/.
-COPY src/web src/web/.
+# COPY bin bin/.
+# COPY src/web src/web/.
 
 # RUN sh ./bin/build --web-only --version $VERSION
 
 #
 
-FROM mcr.microsoft.com/dotnet/sdk:5.0 AS build
-ARG VERSION=0.0.1.65534-local
+# FROM mcr.microsoft.com/dotnet/sdk:5.0 AS build
+# ARG VERSION=0.0.1.65534-local
 
-WORKDIR /slskd
+# WORKDIR /slskd
 
-COPY LICENSE .
-COPY bin bin/.
-COPY src/slskd src/slskd/.
-COPY tests tests/.
+# COPY LICENSE .
+# COPY bin bin/.
+# COPY src/slskd src/slskd/.
+# COPY tests tests/.
 
 # RUN bash ./bin/build --dotnet-only --version $VERSION
 
 #
 
-FROM mcr.microsoft.com/dotnet/sdk:5.0 AS publish
-ARG VERSION=0.0.1.65534-local
+# FROM mcr.microsoft.com/dotnet/sdk:5.0 AS publish
+# ARG VERSION=0.0.1.65534-local
 
-WORKDIR /slskd
+# WORKDIR /slskd
 
-COPY LICENSE .
-COPY bin bin/.
-COPY src/slskd src/slskd/.
-COPY --from=web /slskd/src/web/build /slskd/src/slskd/wwwroot/.
+# COPY LICENSE .
+# COPY bin bin/.
+# COPY src/slskd src/slskd/.
+# COPY --from=web /slskd/src/web/build /slskd/src/slskd/wwwroot/.
 
 # RUN bash ./bin/publish --no-prebuild --runtime linux-musl-x64 --version $VERSION
 
@@ -42,7 +42,7 @@ FROM mcr.microsoft.com/dotnet/runtime-deps:5.0-alpine AS slskd
 ARG VERSION=0.0.1.65534-local
 
 WORKDIR /slskd
-COPY --from=publish /slskd/dist/linux-musl-x64 .
+# COPY --from=publish /slskd/dist/linux-musl-x64 .
 
 RUN mkdir /var/slskd
 RUN mkdir /var/slskd/shared
