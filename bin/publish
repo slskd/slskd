@@ -9,8 +9,10 @@ while test $# -gt 0; do
       echo 'options:'
       echo '-h, --help          show help'
       echo '--no-prebuild       skip build and test'
+      echo '--platform          overrides runtime; one of: linux/amd64, linux/arm64, linux/arm/v7'
       echo '--runtime           a valid RID (https://docs.microsoft.com/en-us/dotnet/core/rid-catalog)'
       echo '--version           version for the binary. defaults to current git tag-SHA'
+      echo '--output            the output directory.  defaults to ../../dist/<runtime>'
       exit 0
       ;;
     --no-prebuild)
@@ -22,9 +24,19 @@ while test $# -gt 0; do
       runtime=$1
       shift
       ;;
+    --platform*)
+      shift
+      platform=$1
+      shift
+      ;;
     --version)
       shift
       version=$1
+      shift
+      ;;
+    --output)
+      shift
+      output=$1
       shift
       ;;
     *)
@@ -32,6 +44,27 @@ while test $# -gt 0; do
       ;;
   esac
 done
+
+if [ ! -z "$platform" ]; then
+  case "$platform" in
+    linux/amd64)
+      runtime="linux-musl-x64"
+      ;;
+    linux/arm64)
+      runtime="linux-musl-arm64"
+      ;;
+    linux/arm/v7)
+      runtime="linux-musl-arm"
+      ;;
+    *)
+      echo "💥  error: platform must be one of: linux/amd64, linux/arm64, linux/arm/v7"
+      exit 1
+      ;;
+  esac
+
+  echo $'\n\tℹ️  runtime overridden by platform option '$platform$', using '$runtime$'\n'
+fi
+
 
 if [ -z "$version" ]; then 
   tag=$(git describe --tags --abbrev=0)
@@ -44,6 +77,10 @@ if [ -z "$runtime" ]; then
     exit 1
 fi
 
+if [ -z "$output" ]; then
+  output=$'../../dist/'$runtime
+fi
+
 if [ "$prebuild" == true ]; then
     echo $'\n\t🛠️  bin/build --version '$version$'\n'
     bin/build
@@ -54,7 +91,7 @@ fi
 cd src/slskd
 echo $'\n\t📍  '$(pwd)$'\n'
 
-echo $'\n\t🛠️  dotnet publish ... --runtime '$runtime$' -p:Version '$version$'\n'
+echo $'\n\t🛠️  dotnet publish ... --runtime '$runtime$' -p:Version '$version$' --output '$output$'\n'
 rm -rf dist/$runtime/*
 
 dotnet publish \
@@ -67,9 +104,9 @@ dotnet publish \
     -p:Version=$version \
     --self-contained \
     --runtime $runtime \
-    --output ../../dist/$runtime
+    --output $output
 
-cd ../../dist/$runtime
+cd $output
 echo $'\n\t📍  '$(pwd)$'\n'
 
 echo $'\n\t📦  artifacts:\n'
