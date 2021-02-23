@@ -25,6 +25,7 @@ RUN bash ./bin/build --dotnet-only --version $VERSION
 #
 
 FROM mcr.microsoft.com/dotnet/sdk:5.0 AS publish
+ARG TARGETPLATFORM
 ARG VERSION=0.0.1.65534-local
 
 WORKDIR /slskd
@@ -34,11 +35,12 @@ COPY bin bin/.
 COPY src/slskd src/slskd/.
 COPY --from=web /slskd/src/web/build /slskd/src/slskd/wwwroot/.
 
-RUN bash ./bin/publish --no-prebuild --runtime linux-musl-x64 --version $VERSION
+RUN bash ./bin/publish --no-prebuild --platform $TARGETPLATFORM --version $VERSION --output ../../dist/${TARGETPLATFORM}
 
 #
 
 FROM mcr.microsoft.com/dotnet/runtime-deps:5.0-alpine AS slskd
+ARG TARGETPLATFORM
 ARG VERSION=0.0.1.65534-local
 
 LABEL org.opencontainers.image.source=https://github.com/slskd/slskd
@@ -46,7 +48,7 @@ LABEL org.opencontainers.image.licsense=AGPL-3.0
 LABEL org.opencontainers.image.version=${VERSION}
 
 WORKDIR /slskd
-COPY --from=publish /slskd/dist/linux-musl-x64 .
+COPY --from=publish /slskd/dist/${TARGETPLATFORM} .
 
 RUN mkdir /var/slskd
 RUN mkdir /var/slskd/shared
