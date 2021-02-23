@@ -25,7 +25,7 @@ RUN bash ./bin/build --dotnet-only --version $VERSION
 #
 
 FROM mcr.microsoft.com/dotnet/sdk:5.0 AS publish
-ARG TARGETPLATFORM=linux/amd64
+ARG TARGETPLATFORM
 ARG VERSION=0.0.1.65534-local
 
 WORKDIR /slskd
@@ -40,7 +40,7 @@ RUN bash ./bin/publish --no-prebuild --platform $TARGETPLATFORM --version $VERSI
 #
 
 FROM mcr.microsoft.com/dotnet/runtime-deps:5.0-alpine AS slskd
-ARG TARGETPLATFORM=linux/amd64
+ARG TARGETPLATFORM
 ARG VERSION=0.0.1.65534-local
 
 LABEL org.opencontainers.image.source=https://github.com/slskd/slskd
