@@ -24,7 +24,7 @@ RUN bash ./bin/build --dotnet-only --version $VERSION
 
 #
 
-FROM mcr.microsoft.com/dotnet/sdk:5.0 AS publish
+FROM mcr.microsoft.com/dotnet/sdk:5.0.103-alpine3.13-amd64 AS publish
 ARG TARGETPLATFORM
 ARG VERSION=0.0.1.65534-local
 
