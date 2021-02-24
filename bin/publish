@@ -9,8 +9,8 @@ while test $# -gt 0; do
       echo 'options:'
       echo '-h, --help          show help'
       echo '--no-prebuild       skip build and test'
-      echo '--platform          overrides runtime; one of: linux/amd64, linux/arm64, linux/arm/v7'
       echo '--runtime           a valid RID (https://docs.microsoft.com/en-us/dotnet/core/rid-catalog)'
+      echo '--platform          one of: linux/amd64, linux/arm64, linux/arm/v7.  overrides runtime.'
       echo '--version           version for the binary. defaults to current git tag-SHA'
       echo '--output            the output directory.  defaults to ../../dist/<runtime>'
       exit 0
