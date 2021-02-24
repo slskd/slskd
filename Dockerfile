@@ -24,7 +24,8 @@ RUN bash ./bin/build --dotnet-only --version $VERSION
 
 #
 
-FROM mcr.microsoft.com/dotnet/sdk:5.0.103-focal-amd64 AS publish
+# note: this needs to be pinned to an amd64 image
+FROM mcr.microsoft.com/dotnet/sdk:5.0-focal-amd64 AS publish
 ARG TARGETPLATFORM
 ARG VERSION=0.0.1.65534-local
 
@@ -39,7 +40,7 @@ RUN bash ./bin/publish --no-prebuild --platform $TARGETPLATFORM --version $VERSI
 
 #
 
-FROM ubuntu AS slskd
+FROM mcr.microsoft.com/dotnet/runtime-deps:5.0-focal AS slskd
 ARG TARGETPLATFORM
 ARG VERSION=0.0.1.65534-local
 

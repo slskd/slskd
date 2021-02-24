@@ -48,13 +48,13 @@ done
 if [ ! -z "$platform" ]; then
   case "$platform" in
     linux/amd64)
-      runtime="linux-musl-x64"
+      runtime="linux-x64"
       ;;
     linux/arm64)
-      runtime="linux-musl-arm64"
+      runtime="linux-arm64"
       ;;
     linux/arm/v7)
-      runtime="linux-musl-arm"
+      runtime="linux-arm"
       ;;
     *)
       echo "💥  error: platform must be one of: linux/amd64, linux/arm64, linux/arm/v7"
