@@ -10,7 +10,7 @@ RUN sh ./bin/build --web-only --version $VERSION
 
 # note: this needs to be pinned to an amd64 image in order to publish armv7 binaries
 # https://github.com/dotnet/dotnet-docker/issues/1537#issuecomment-615269150
-FROM mcr.microsoft.com/dotnet/sdk:5.0-focal-amd64 AS publish
+FROM mcr.microsoft.com/dotnet/sdk:5.0-buster-slim-amd64 AS publish
 ARG TARGETPLATFORM
 ARG VERSION=0.0.1.65534-local
 
@@ -29,7 +29,7 @@ RUN bash ./bin/publish --no-prebuild --platform $TARGETPLATFORM --version $VERSI
 
 #
 
-FROM mcr.microsoft.com/dotnet/runtime-deps:5.0-focal AS slskd
+FROM mcr.microsoft.com/dotnet/runtime-deps:5.0-buster-slim AS slskd
 ARG TARGETPLATFORM
 ARG VERSION=0.0.1.65534-local
 
