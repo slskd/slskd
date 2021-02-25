@@ -211,36 +211,6 @@ jobs:
           cd dist/linux-arm64
           zip -r ../../slskd-${{ env.LATEST_TAG }}-linux-arm64.zip .
 
-      - name: Download linux-musl-x64 Binaries
-        uses: actions/download-artifact@v2
-        with:
-          name: slskd-${{ env.VERSION }}-linux-musl-x64
-          path: dist/linux-musl-x64
-      - name: Zip linux-musl-x64 Binaries
-        run: |
-          cd dist/linux-musl-x64
-          zip -r ../../slskd-${{ env.LATEST_TAG }}-linux-musl-x64.zip .
-
-      - name: Download linux-musl-arm Binaries
-        uses: actions/download-artifact@v2
-        with:
-          name: slskd-${{ env.VERSION }}-linux-musl-arm
-          path: dist/linux-musl-arm
-      - name: Zip linux-musl-arm Binaries
-        run: |
-          cd dist/linux-musl-arm
-          zip -r ../../slskd-${{ env.LATEST_TAG }}-linux-musl-arm.zip .
-
-      - name: Download linux-musl-arm64 Binaries
-        uses: actions/download-artifact@v2
-        with:
-          name: slskd-${{ env.VERSION }}-linux-musl-arm64
-          path: dist/linux-musl-arm64
-      - name: Zip linux-musl-arm64 Binaries
-        run: |
-          cd dist/linux-musl-arm64
-          zip -r ../../slskd-${{ env.LATEST_TAG }}-linux-musl-arm64.zip .
-
       - name: Download osx-x64 Binaries
         uses: actions/download-artifact@v2
         with:
@@ -267,7 +237,6 @@ jobs:
           files: |
             slskd-${{ env.LATEST_TAG }}-win-x64.zip
             slskd-${{ env.LATEST_TAG }}-linux-x64.zip
-            slskd-${{ env.LATEST_TAG }}-linux-musl-x64.zip
             slskd-${{ env.LATEST_TAG }}-linux-arm.zip
             slskd-${{ env.LATEST_TAG }}-linux-arm64.zip
             slskd-${{ env.LATEST_TAG }}-osx-x64.zip
