@@ -44,7 +44,7 @@ jobs:
     if: github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/')
     strategy:
       matrix:
-        runtime: ["win-x64", "linux-x64", "linux-arm", "linux-arm64", "linux-musl-x64", "linux-musl-arm", "linux-musl-arm64", "osx-x64"]
+        runtime: ["win-x64", "linux-x64", "linux-arm", "linux-arm64", "osx-x64"]
     steps:
       - name: Checkout
         uses: actions/checkout@v2
