@@ -353,7 +353,7 @@ namespace slskd
                 Console.WriteLine($"[SENDING SEARCH RESULTS]: {results.Count()} records to {username} for query {query.SearchText}");
 
                 return Task.FromResult(new SearchResponse(
-                    username,
+                    SoulseekClient.Username,
                     token,
                     freeUploadSlots: 1,
                     uploadSpeed: 0,
