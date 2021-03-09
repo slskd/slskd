@@ -287,18 +287,19 @@ namespace slskd
         private Task EnqueueDownloadAction(string username, IPEndPoint endpoint, string filename, ITransferTracker tracker)
         {
             _ = endpoint;
-            filename = filename.ToLocalOSPath();
-            var fileInfo = new FileInfo(filename);
+            var localFilename = filename.ToLocalOSPath();
+            var fileInfo = new FileInfo(localFilename);
 
             if (!fileInfo.Exists)
             {
-                Console.WriteLine($"[UPLOAD REJECTED] File {filename} not found.");
+                Console.WriteLine($"[UPLOAD REJECTED] File {localFilename} not found.");
                 throw new DownloadEnqueueException($"File not found.");
             }
 
             if (tracker.TryGet(TransferDirection.Upload, username, filename, out _))
             {
-                // in this case, a re-requested file is a no-op. normally we'd want to respond with a PlaceInQueueResponse
+                // in this case, a re-requested file is a no-op.  normally we'd want to respond with a 
+                // PlaceInQueueResponse
                 Console.WriteLine($"[UPLOAD RE-REQUESTED] [{username}/{filename}]");
                 return Task.CompletedTask;
             }
@@ -307,12 +308,12 @@ namespace slskd
             var cts = new CancellationTokenSource();
             var topts = new TransferOptions(stateChanged: (e) => tracker.AddOrUpdate(e, cts), progressUpdated: (e) => tracker.AddOrUpdate(e, cts), governor: (t, c) => Task.Delay(1, c));
 
-            // accept all download requests, and begin the upload immediately. normally there would be an internal queue, and
-            // uploads would be handled separately.
+            // accept all download requests, and begin the upload immediately.
+            // normally there would be an internal queue, and uploads would be handled separately.
             Task.Run(async () =>
             {
                 using var stream = new FileStream(fileInfo.FullName, FileMode.Open, FileAccess.Read);
-                await Client.UploadAsync(username, fileInfo.FullName, fileInfo.Length, stream, options: topts, cancellationToken: cts.Token);
+                await Client.UploadAsync(username, filename, fileInfo.Length, stream, options: topts, cancellationToken: cts.Token);
             }).ContinueWith(t =>
             {
                 Console.WriteLine($"[UPLOAD FAILED] {t.Exception}");
