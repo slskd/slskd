@@ -66,7 +66,7 @@ namespace slskd
                 CreateTable();
 
                 Files = System.IO.Directory.GetFiles(Directory, "*", SearchOption.AllDirectories)
-                    .Select(f => new Soulseek.File(1, f, new FileInfo(f).Length, Path.GetExtension(f)))
+                    .Select(f => new Soulseek.File(1, f.Replace("/", @"\"), new FileInfo(f).Length, Path.GetExtension(f)))
                     .ToDictionary(f => f.Filename, f => f);
 
                 // potentially optimize with multi-valued insert
