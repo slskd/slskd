@@ -145,7 +145,7 @@ namespace slskd
         {
             var directories = System.IO.Directory
                 .GetDirectories(Options.Directories.Shared, "*", SearchOption.AllDirectories)
-                .Select(dir => new Soulseek.Directory(dir, System.IO.Directory.GetFiles(dir)
+                .Select(dir => new Soulseek.Directory(dir.Replace("/", @"\"), System.IO.Directory.GetFiles(dir)
                     .Select(f => new Soulseek.File(1, Path.GetFileName(f), new FileInfo(f).Length, Path.GetExtension(f)))));
 
             return Task.FromResult(new BrowseResponse(directories));
@@ -263,7 +263,7 @@ namespace slskd
         /// <returns>A Task resolving an instance of Soulseek.Directory containing the contents of the requested directory.</returns>
         private Task<Soulseek.Directory> DirectoryContentsResponseResolver(string username, IPEndPoint endpoint, int token, string directory)
         {
-            var result = new Soulseek.Directory(directory, System.IO.Directory.GetFiles(directory)
+            var result = new Soulseek.Directory(directory.Replace("/", @"\"), System.IO.Directory.GetFiles(directory)
                     .Select(f => new Soulseek.File(1, Path.GetFileName(f), new FileInfo(f).Length, Path.GetExtension(f))));
 
             return Task.FromResult(result);
