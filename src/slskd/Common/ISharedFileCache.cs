@@ -23,6 +23,8 @@ namespace slskd
 
     public interface ISharedFileCache
     {
+        event EventHandler<(int Directories, int Files)> Refreshed;
+
         string Directory { get; }
         DateTime? LastFill { get; }
         long TTL { get; }

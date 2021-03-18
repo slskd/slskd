@@ -42,6 +42,8 @@ namespace slskd
             TTL = ttl;
         }
 
+        public event EventHandler<(int Directories, int Files)> Refreshed;
+
         public string Directory { get; }
         private Dictionary<string, Soulseek.File> Files { get; set; }
         public DateTime? LastFill { get; set; }
@@ -65,6 +67,8 @@ namespace slskd
             {
                 CreateTable();
 
+                var directories = System.IO.Directory.GetDirectories(Directory, "*", SearchOption.AllDirectories);
+
                 Files = System.IO.Directory.GetFiles(Directory, "*", SearchOption.AllDirectories)
                     .Select(f => new Soulseek.File(1, f.Replace("/", @"\"), new FileInfo(f).Length, Path.GetExtension(f)))
                     .ToDictionary(f => f.Filename, f => f);
@@ -75,6 +79,8 @@ namespace slskd
                 {
                     InsertFilename(file.Key);
                 }
+
+                Refreshed?.Invoke(this, (directories.Length, Files.Count));
             }
             finally
             {
