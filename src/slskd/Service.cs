@@ -37,6 +37,7 @@ namespace slskd
     {
         private static readonly int MaxReconnectAttempts = 3;
         private static int currentReconnectAttempts = 0;
+        private static (int Directories, int Files) sharedCounts = (0, 0);
 
         public Service(
             IOptions<Options> options,
@@ -105,15 +106,16 @@ namespace slskd
             Client.Disconnected += Client_Disconnected;
 
             SoulseekClient = Client;
+
+            SharedFileCache.Refreshed += SharedFileCache_Refreshed;
         }
 
         public static ISoulseekClient SoulseekClient { get; private set; }
-
-        private ISoulseekClient Client { get; set; }
         private IBrowseTracker BrowseTracker { get; set; }
+        private ISoulseekClient Client { get; set; }
         private IConversationTracker ConversationTracker { get; set; }
-        private ConcurrentDictionary<string, ILogger> Loggers { get; } = new ConcurrentDictionary<string, ILogger>();
         private ILogger Logger { get; set; } = Log.ForContext<Service>();
+        private ConcurrentDictionary<string, ILogger> Loggers { get; } = new ConcurrentDictionary<string, ILogger>();
         private Options Options { get; set; }
         private IRoomTracker RoomTracker { get; set; }
         private ISharedFileCache SharedFileCache { get; set; }
@@ -135,6 +137,15 @@ namespace slskd
             return Task.CompletedTask;
         }
 
+        private static void SharedFileCache_Refreshed(object sender, (int Directories, int Files) e)
+        {
+            if (sharedCounts != e)
+            {
+                _ = SoulseekClient.SetSharedCountsAsync(e.Directories, e.Files);
+                sharedCounts = e;
+            }
+        }
+
         /// <summary>
         ///     Creates and returns an <see cref="IEnumerable{T}"/> of <see cref="Soulseek.Directory"/> in response to a remote request.
         /// </summary>
@@ -149,6 +160,11 @@ namespace slskd
                     .Select(f => new Soulseek.File(1, Path.GetFileName(f), new FileInfo(f).Length, Path.GetExtension(f)))));
 
             return Task.FromResult(new BrowseResponse(directories));
+        }
+
+        private void Client_BrowseProgressUpdated(object sender, BrowseProgressUpdatedEventArgs args)
+        {
+            BrowseTracker.AddOrUpdate(args.Username, args);
         }
 
         private void Client_DiagnosticGenerated(object sender, DiagnosticEventArgs args)
@@ -167,72 +183,13 @@ namespace slskd
             logger.Write(TranslateLogLevel(args.Level), "{@Message}", args.Message);
         }
 
-        private void Client_TransferStateChanged(object sender, TransferStateChangedEventArgs args)
-        {
-            var direction = args.Transfer.Direction.ToString().ToUpper();
-            var user = args.Transfer.Username;
-            var file = Path.GetFileName(args.Transfer.Filename);
-            var oldState = args.PreviousState;
-            var state = args.Transfer.State;
-
-            var completed = args.Transfer.State.HasFlag(TransferStates.Completed);
-
-            Console.WriteLine($"[{direction}] [{user}/{file}] {oldState} => {state}{(completed ? $" ({args.Transfer.BytesTransferred}/{args.Transfer.Size} = {args.Transfer.PercentComplete}%) @ {args.Transfer.AverageSpeed.SizeSuffix()}/s" : string.Empty)}");
-        }
-
-        private void Client_TransferProgressUpdated(object sender, TransferProgressUpdatedEventArgs args)
-        {
-            // this is really verbose. Console.WriteLine($"[{args.Transfer.Direction.ToString().ToUpper()}]
-            // [{args.Transfer.Username}/{Path.GetFileName(args.Transfer.Filename)}]
-            // {args.Transfer.BytesTransferred}/{args.Transfer.Size} {args.Transfer.PercentComplete}% {args.Transfer.AverageSpeed}kb/s");
-        }
-
-        private void Client_BrowseProgressUpdated(object sender, BrowseProgressUpdatedEventArgs args)
-        {
-            BrowseTracker.AddOrUpdate(args.Username, args);
-        }
-
-        private void Client_UserStatusChanged(object sender, UserStatusChangedEventArgs args)
-        {
-            // Console.WriteLine($"[USER] {args.Username}: {args.Status}");
-        }
-
-        private void Client_PrivateMessageRecieved(object sender, PrivateMessageReceivedEventArgs args)
-        {
-            ConversationTracker.AddOrUpdate(args.Username, PrivateMessage.FromEventArgs(args));
-        }
-
-        private void Client_PublicChatMessageReceived(object sender, PublicChatMessageReceivedEventArgs args)
-        {
-            Console.WriteLine($"[PUBLIC CHAT] [{args.RoomName}] [{args.Username}]: {args.Message}");
-        }
-
-        private void Client_RoomMessageReceived(object sender, RoomMessageReceivedEventArgs args)
-        {
-            var message = RoomMessage.FromEventArgs(args, DateTime.UtcNow);
-            RoomTracker.AddOrUpdateMessage(args.RoomName, message);
-        }
-
-        private void Client_RoomJoined(object sender, RoomJoinedEventArgs args)
-        {
-            if (args.Username != Options.Soulseek.Username) // this will fire when we join a room; track that through the join operation.
-            {
-                RoomTracker.TryAddUser(args.RoomName, args.UserData);
-            }
-        }
-
-        private void Client_RoomLeft(object sender, RoomLeftEventArgs args)
-        {
-            RoomTracker.TryRemoveUser(args.RoomName, args.Username);
-        }
-
         private async void Client_Disconnected(object sender, SoulseekClientDisconnectedEventArgs args)
         {
             Console.WriteLine($"Disconnected from Soulseek server: {args.Message}");
 
             // don't reconnect if the disconnecting Exception is either of these types. if KickedFromServerException, another
-            // client was most likely signed in, and retrying will cause a connect loop. if ObjectDisposedException, the
-            // client is shutting down.
+            // client was most likely signed in, and retrying will cause a connect loop. if ObjectDisposedException, the client is
+            // shutting down.
             if (!(args.Exception is KickedFromServerException || args.Exception is ObjectDisposedException))
             {
                 Interlocked.Increment(ref currentReconnectAttempts);
@@ -251,6 +208,60 @@ namespace slskd
                     Console.WriteLine($"Unable to reconnect after {currentReconnectAttempts} tries.");
                 }
             }
+        }
+
+        private void Client_PrivateMessageRecieved(object sender, PrivateMessageReceivedEventArgs args)
+        {
+            ConversationTracker.AddOrUpdate(args.Username, PrivateMessage.FromEventArgs(args));
+        }
+
+        private void Client_PublicChatMessageReceived(object sender, PublicChatMessageReceivedEventArgs args)
+        {
+            Console.WriteLine($"[PUBLIC CHAT] [{args.RoomName}] [{args.Username}]: {args.Message}");
+        }
+
+        private void Client_RoomJoined(object sender, RoomJoinedEventArgs args)
+        {
+            if (args.Username != Options.Soulseek.Username) // this will fire when we join a room; track that through the join operation.
+            {
+                RoomTracker.TryAddUser(args.RoomName, args.UserData);
+            }
+        }
+
+        private void Client_RoomLeft(object sender, RoomLeftEventArgs args)
+        {
+            RoomTracker.TryRemoveUser(args.RoomName, args.Username);
+        }
+
+        private void Client_RoomMessageReceived(object sender, RoomMessageReceivedEventArgs args)
+        {
+            var message = RoomMessage.FromEventArgs(args, DateTime.UtcNow);
+            RoomTracker.AddOrUpdateMessage(args.RoomName, message);
+        }
+
+        private void Client_TransferProgressUpdated(object sender, TransferProgressUpdatedEventArgs args)
+        {
+            // this is really verbose. Console.WriteLine($"[{args.Transfer.Direction.ToString().ToUpper()}]
+            // [{args.Transfer.Username}/{Path.GetFileName(args.Transfer.Filename)}]
+            // {args.Transfer.BytesTransferred}/{args.Transfer.Size} {args.Transfer.PercentComplete}% {args.Transfer.AverageSpeed}kb/s");
+        }
+
+        private void Client_TransferStateChanged(object sender, TransferStateChangedEventArgs args)
+        {
+            var direction = args.Transfer.Direction.ToString().ToUpper();
+            var user = args.Transfer.Username;
+            var file = Path.GetFileName(args.Transfer.Filename);
+            var oldState = args.PreviousState;
+            var state = args.Transfer.State;
+
+            var completed = args.Transfer.State.HasFlag(TransferStates.Completed);
+
+            Console.WriteLine($"[{direction}] [{user}/{file}] {oldState} => {state}{(completed ? $" ({args.Transfer.BytesTransferred}/{args.Transfer.Size} = {args.Transfer.PercentComplete}%) @ {args.Transfer.AverageSpeed.SizeSuffix()}/s" : string.Empty)}");
+        }
+
+        private void Client_UserStatusChanged(object sender, UserStatusChangedEventArgs args)
+        {
+            // Console.WriteLine($"[USER] {args.Username}: {args.Status}");
         }
 
         /// <summary>
@@ -298,8 +309,7 @@ namespace slskd
 
             if (tracker.TryGet(TransferDirection.Upload, username, filename, out _))
             {
-                // in this case, a re-requested file is a no-op.  normally we'd want to respond with a 
-                // PlaceInQueueResponse
+                // in this case, a re-requested file is a no-op. normally we'd want to respond with a PlaceInQueueResponse
                 Console.WriteLine($"[UPLOAD RE-REQUESTED] [{username}/{filename}]");
                 return Task.CompletedTask;
             }
@@ -308,8 +318,8 @@ namespace slskd
             var cts = new CancellationTokenSource();
             var topts = new TransferOptions(stateChanged: (e) => tracker.AddOrUpdate(e, cts), progressUpdated: (e) => tracker.AddOrUpdate(e, cts), governor: (t, c) => Task.Delay(1, c));
 
-            // accept all download requests, and begin the upload immediately.
-            // normally there would be an internal queue, and uploads would be handled separately.
+            // accept all download requests, and begin the upload immediately. normally there would be an internal queue, and
+            // uploads would be handled separately.
             Task.Run(async () =>
             {
                 using var stream = new FileStream(fileInfo.FullName, FileMode.Open, FileAccess.Read);
