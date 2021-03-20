@@ -257,6 +257,11 @@ namespace slskd
             var completed = args.Transfer.State.HasFlag(TransferStates.Completed);
 
             Console.WriteLine($"[{direction}] [{user}/{file}] {oldState} => {state}{(completed ? $" ({args.Transfer.BytesTransferred}/{args.Transfer.Size} = {args.Transfer.PercentComplete}%) @ {args.Transfer.AverageSpeed.SizeSuffix()}/s" : string.Empty)}");
+
+            if (args.Transfer.State.HasFlag(TransferStates.Succeeded) && args.Transfer.Direction == TransferDirection.Upload)
+            {
+                _ = Client.SendUploadSpeedAsync((int)args.Transfer.AverageSpeed);
+            }
         }
 
         private void Client_UserStatusChanged(object sender, UserStatusChangedEventArgs args)
