@@ -1,4 +1,6 @@
 # slskd
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fslskd%2Fslskd.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fslskd%2Fslskd?ref=badge_shield)
+
 
 slskd is a modern client-server application for the Soulseek file sharing network.
 
@@ -37,3 +39,7 @@ A full list of the environment variables and command line arguments supported by
 ```
 
 An example of the yaml configuration file can be reviewed [here](https://github.com/slskd/slskd/blob/master/src/slskd/slskd.yml).
+
+
+## License
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fslskd%2Fslskd.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fslskd%2Fslskd?ref=badge_large)
