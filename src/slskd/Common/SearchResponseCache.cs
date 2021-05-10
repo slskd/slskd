@@ -26,6 +26,9 @@ namespace slskd
     /// </summary>
     public class SearchResponseCache : ISearchResponseCache
     {
+        /// <summary>
+        ///     Initializes a new instance of the <see cref="SearchResponseCache"/> class.
+        /// </summary>
         public SearchResponseCache()
         {
             Cache = new MemoryCache(new MemoryCacheOptions());
@@ -62,8 +65,6 @@ namespace slskd
         /// <returns>A value indicating whether a response for the specified responseToken was removed.</returns>
         public bool TryRemove(int responseToken, out (string Username, int Token, string Query, SearchResponse SearchResponse) response)
         {
-            response = default;
-
             if (Cache.TryGetValue(responseToken, out response))
             {
                 Cache.Remove(responseToken);
