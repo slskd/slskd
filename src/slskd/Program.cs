@@ -64,7 +64,21 @@ namespace slskd
         /// <summary>
         ///     The default XML documentation filename.
         /// </summary>
-        public static readonly string DefaultXmlDocumentaitonFile = Path.Combine(AppContext.BaseDirectory, "etc", $"{AppName}.xml");
+
+        /// <summary>
+        ///     The default incomplete download directory.
+        /// </summary>
+        public static readonly string DefaultIncompleteDirectory = Path.Combine(DefaultAppDirectory, "incomplete");
+
+        /// <summary>
+        ///     The default downloads directory.
+        /// </summary>
+        public static readonly string DefaultDownloadsDirectory = Path.Combine(DefaultAppDirectory, "downloads");
+
+        /// <summary>
+        ///     The default shared directory.
+        /// </summary>
+        public static readonly string DefaultSharedDirectory = Path.Combine(DefaultAppDirectory, "shared");
 
         /// <summary>
         ///     The global prefix for environment variables.
