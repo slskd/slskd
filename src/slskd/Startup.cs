@@ -145,13 +145,13 @@ namespace slskd
                             Version = "v0",
                         });
 
-                    if (File.Exists(Program.DefaultXmlDocumentaitonFile))
+                    if (File.Exists(Program.DefaultXmlDocumentationFile))
                     {
-                        options.IncludeXmlComments(Program.DefaultXmlDocumentaitonFile);
+                        options.IncludeXmlComments(Program.DefaultXmlDocumentationFile);
                     }
                     else
                     {
-                        logger.Warning($"Unable to find XML documentation in {Program.DefaultXmlDocumentaitonFile}, Swagger will not include metadata");
+                        logger.Warning($"Unable to find XML documentation in {Program.DefaultXmlDocumentationFile}, Swagger will not include metadata");
                     }
                 });
             }

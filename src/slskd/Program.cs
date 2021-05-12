@@ -1,4 +1,4 @@
-// <copyright file="Program.cs" company="slskd Team">
+﻿// <copyright file="Program.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
