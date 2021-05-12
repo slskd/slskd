@@ -127,13 +127,20 @@ namespace slskd
         public class DirectoriesOptions
         {
             /// <summary>
-            ///     Gets the path to shared files.
+            ///     Gets the path where application data is saved.
             /// </summary>
-            [Argument('s', "shared")]
-            [EnvironmentVariable("SHARED_DIR")]
-            [Description("path to shared files")]
-            [Required]
-            public string Shared { get; private set; } = null;
+            [Argument(default, "app")]
+            [EnvironmentVariable("APP_DIR")]
+            [Description("path where application data is saved")]
+            public string App { get; private set; } = Program.DefaultAppDirectory;
+
+            /// <summary>
+            ///     Gets the path where incomplete downloads are saved.
+            /// </summary>
+            [Argument(default, "incomplete")]
+            [EnvironmentVariable("INCOMPLETE_DIR")]
+            [Description("path where incomplete downloads are saved")]
+            public string Incomplete { get; private set; } = Program.DefaultIncompleteDirectory;
 
             /// <summary>
             ///     Gets the path where downloaded files are saved.
@@ -141,8 +148,15 @@ namespace slskd
             [Argument('o', "downloads")]
             [EnvironmentVariable("DOWNLOADS_DIR")]
             [Description("path where downloaded files are saved")]
-            [Required]
-            public string Downloads { get; private set; } = null;
+            public string Downloads { get; private set; } = Program.DefaultDownloadsDirectory;
+
+            /// <summary>
+            ///     Gets the path to shared files.
+            /// </summary>
+            [Argument('s', "shared")]
+            [EnvironmentVariable("SHARED_DIR")]
+            [Description("path to shared files")]
+            public string Shared { get; private set; } = Program.DefaultSharedDirectory;
         }
 
         /// <summary>
