@@ -127,6 +127,7 @@ namespace slskd
             await Client.ConnectAsync(Options.Soulseek.Username, Options.Soulseek.Password).ConfigureAwait(false);
 
             Logger.Information("Connected and logged in as {Username}", Options.Soulseek.Username);
+            Logger.Information("Listening on port {Port}", Options.Soulseek.ListenPort);
             Logger.Information("Client started");
         }
 
