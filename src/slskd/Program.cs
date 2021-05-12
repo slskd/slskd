@@ -213,6 +213,37 @@ namespace slskd
                 return;
             }
 
+            // ensure the application directory exists and is writeable. the most comprehensive way to test this is to try
+            // to write a file to it.
+            try
+            {
+                if (!Directory.Exists(Options.Directories.App))
+                {
+                    Directory.CreateDirectory(Options.Directories.App);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"App directory {Options.Directories.App} does not exist, and could not be created: {ex.Message}");
+            }
+
+            try
+            {
+                if (!Directory.Exists(Options.Directories.App))
+                {
+                    Directory.CreateDirectory(Options.Directories.App);
+                }
+
+                var probe = Path.Combine(Options.Directories.App, "probe");
+                File.WriteAllText(Path.Combine(Options.Directories.App, "probe"), string.Empty);
+                File.Delete(probe);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"App directory {Options.Directories.App} is not writeable: {ex.Message}");
+                return;
+            }
+
             if (!Options.NoLogo)
             {
                 PrintLogo(Version);
