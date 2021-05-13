@@ -87,6 +87,41 @@ namespace slskd
         }
 
         /// <summary>
+        ///     Converts a fully qualified remote filename to a local filename, swapping directory characters for those specific
+        ///     to the local OS, removing any characters that are invalid for the local OS, and making the path relative to the
+        ///     remote store (including the filename and the parent folder).
+        /// </summary>
+        /// <param name="remoteFilename">The fully qualified remote filename to convert.</param>
+        /// <returns>The converted filename.</returns>
+        public static string ToLocalRelativeFilename(this string remoteFilename)
+        {
+            var localFilename = remoteFilename.ToLocalOSPath();
+            var path = $"{Path.GetDirectoryName(localFilename).Replace(Path.GetDirectoryName(Path.GetDirectoryName(localFilename)), string.Empty)}";
+
+            var sanitizedFilename = Path.GetFileName(localFilename);
+
+            foreach (var c in Path.GetInvalidFileNameChars())
+            {
+                sanitizedFilename = sanitizedFilename.Replace(c, '_');
+            }
+
+            return Path.Combine(path, sanitizedFilename).TrimStart('\\');
+        }
+
+        /// <summary>
+        ///     Converts a fully qualified remote filename to a local filename based in the provided <paramref name="baseDirectory"/>, swapping directory characters for those specific
+        ///     to the local OS, removing any characters that are invalid for the local OS, and making the path relative to the
+        ///     remote store (including the filename and the parent folder).
+        /// </summary>
+        /// <param name="remoteFilename">The fully qualified remote filename to convert.</param>
+        /// <param name="baseDirectory">The base directory for the local filename.</param>
+        /// <returns>The converted filename.</returns>
+        public static string ToLocalFilename(this string remoteFilename, string baseDirectory)
+        {
+            return Path.Combine(baseDirectory, remoteFilename.ToLocalRelativeFilename());
+        }
+
+        /// <summary>
         ///     Converts the given path to the local format (normalizes path separators).
         /// </summary>
         /// <param name="path">The path to convert.</param>
