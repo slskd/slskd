@@ -71,7 +71,7 @@ namespace slskd.Trackers
             directedTransfers.TryGetValue(username, out var transfers);
             return transfers ?? new ConcurrentDictionary<string, (API.DTO.Transfer Transfer, CancellationTokenSource CancellationTokenSource)>();
         }
-        
+
         /// <summary>
         ///     Maps a Transfer collection to a serializable object.
         /// </summary>
