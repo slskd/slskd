@@ -250,17 +250,18 @@ namespace slskd
 
         private void Client_TransferStateChanged(object sender, TransferStateChangedEventArgs args)
         {
-            var direction = args.Transfer.Direction.ToString().ToUpper();
-            var user = args.Transfer.Username;
-            var file = Path.GetFileName(args.Transfer.Filename);
+            var xfer = args.Transfer;
+            var direction = xfer.Direction.ToString().ToUpper();
+            var user = xfer.Username;
+            var file = Path.GetFileName(xfer.Filename);
             var oldState = args.PreviousState;
-            var state = args.Transfer.State;
+            var state = xfer.State;
 
-            var completed = args.Transfer.State.HasFlag(TransferStates.Completed);
+            var completed = xfer.State.HasFlag(TransferStates.Completed);
 
-            Console.WriteLine($"[{direction}] [{user}/{file}] {oldState} => {state}{(completed ? $" ({args.Transfer.BytesTransferred}/{args.Transfer.Size} = {args.Transfer.PercentComplete}%) @ {args.Transfer.AverageSpeed.SizeSuffix()}/s" : string.Empty)}");
+            Console.WriteLine($"[{direction}] [{user}/{file}] {oldState} => {state}{(completed ? $" ({xfer.BytesTransferred}/{xfer.Size} = {xfer.PercentComplete}%) @ {xfer.AverageSpeed.SizeSuffix()}/s" : string.Empty)}");
 
-            if (args.Transfer.State.HasFlag(TransferStates.Succeeded) && args.Transfer.Direction == TransferDirection.Upload)
+            if (xfer.Direction == TransferDirection.Upload && xfer.State.HasFlag(TransferStates.Completed | TransferStates.Succeeded))
             {
                 _ = Client.SendUploadSpeedAsync((int)args.Transfer.AverageSpeed);
             }
