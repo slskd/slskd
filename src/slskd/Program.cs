@@ -20,6 +20,7 @@ namespace slskd
     using System;
     using System.Collections.Generic;
     using System.ComponentModel;
+    using System.ComponentModel.DataAnnotations;
     using System.IO;
     using System.Linq;
     using System.Net;
@@ -420,6 +421,7 @@ namespace slskd
                 {
                     var attribute = property.CustomAttributes.FirstOrDefault(a => a.AttributeType == typeof(ArgumentAttribute));
                     var descriptionAttribute = property.CustomAttributes.FirstOrDefault(a => a.AttributeType == typeof(DescriptionAttribute));
+                    var isRequired = property.CustomAttributes.Any(a => a.AttributeType == typeof(RequiredAttribute));
 
                     if (attribute != default)
                     {
@@ -427,9 +429,9 @@ namespace slskd
                         var longName = (string)attribute.ConstructorArguments[1].Value;
                         var description = descriptionAttribute?.ConstructorArguments[0].Value;
 
-                        var suffix = property.PropertyType == typeof(bool) ? string.Empty : $" (default: {property.GetValue(defaults) ?? "<null>"})";
-                        var item = $"{shortName}{(shortName == default ? " " : "|")}--{GetLongName(longName, property.PropertyType)}";
-                        var desc = $"{description}{suffix}";
+                        var suffix = isRequired ? " (required)" : $" (default: {property.GetValue(defaults) ?? "<null>"})";
+                        var item = $"{(shortName == default ? "  " : $"{shortName}|")}--{GetLongName(longName, property.PropertyType)}";
+                        var desc = $"{description}{(property.PropertyType == typeof(bool) ? string.Empty : suffix)}";
                         lines.Add(new(item, desc));
                     }
                     else
@@ -467,15 +469,16 @@ namespace slskd
                 {
                     var attribute = property.CustomAttributes.FirstOrDefault(a => a.AttributeType == typeof(EnvironmentVariableAttribute));
                     var descriptionAttribute = property.CustomAttributes.FirstOrDefault(a => a.AttributeType == typeof(DescriptionAttribute));
+                    var isRequired = property.CustomAttributes.Any(a => a.AttributeType == typeof(RequiredAttribute));
 
                     if (attribute != default)
                     {
                         var name = (string)attribute.ConstructorArguments[0].Value;
                         var description = descriptionAttribute?.ConstructorArguments[0].Value;
 
-                        var suffix = type == typeof(bool) ? string.Empty : $" (default: {property.GetValue(defaults) ?? "<null>"})";
+                        var suffix = isRequired ? " (required)" : $" (default: {property.GetValue(defaults) ?? "<null>"})";
                         var item = $"{prefix}{GetName(name, property.PropertyType)}";
-                        var desc = $"{description}{suffix}";
+                        var desc = $"{description} {(type == typeof(bool) ? string.Empty : suffix)}";
                         lines.Add(new(item, desc));
                     }
                     else
