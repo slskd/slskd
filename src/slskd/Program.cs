@@ -478,7 +478,7 @@ namespace slskd
 
                         var suffix = isRequired ? " (required)" : $" (default: {property.GetValue(defaults) ?? "<null>"})";
                         var item = $"{prefix}{GetName(name, property.PropertyType)}";
-                        var desc = $"{description} {(type == typeof(bool) ? string.Empty : suffix)}";
+                        var desc = $"{description}{(type == typeof(bool) ? string.Empty : suffix)}";
                         lines.Add(new(item, desc));
                     }
                     else
