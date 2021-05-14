@@ -105,7 +105,7 @@ namespace slskd
                 sanitizedFilename = sanitizedFilename.Replace(c, '_');
             }
 
-            return Path.Combine(path, sanitizedFilename).TrimStart('\\');
+            return Path.Combine(path, sanitizedFilename).TrimStart('\\').TrimStart('/');
         }
 
         /// <summary>
