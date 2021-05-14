@@ -20,8 +20,10 @@
 #         key: ~
 #         ttl: 604800000
 #   directories:
-#     shared: ~
+#     app: ~
+#     incomplete: ~
 #     downloads: ~
+#     shared: ~
 #   logger:
 #     loki: ~
 #   feature:

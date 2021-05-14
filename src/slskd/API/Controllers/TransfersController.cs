@@ -2,18 +2,17 @@
 
 namespace slskd.API.Controllers
 {
-    using Microsoft.AspNetCore.Authorization;
-    using Microsoft.AspNetCore.Mvc;
-    using Soulseek;
     using System;
     using System.ComponentModel.DataAnnotations;
     using System.IO;
     using System.Linq;
     using System.Threading;
     using System.Threading.Tasks;
+    using Microsoft.AspNetCore.Authorization;
+    using Microsoft.AspNetCore.Mvc;
     using slskd.API.DTO;
     using slskd.Trackers;
-    using slskd.Configuration;
+    using Soulseek;
 
     /// <summary>
     ///     Transfers
@@ -33,13 +32,13 @@ namespace slskd.API.Controllers
         /// <param name="tracker"></param>
         public TransfersController(IOptionsSnapshot<Options> options, ISoulseekClient client, ITransferTracker tracker)
         {
-            OutputDirectory = options.Value.Directories.Downloads;
             Client = client;
             Tracker = tracker;
+            Options = options.Value;
         }
 
+        private Options Options { get; }
         private ISoulseekClient Client { get; }
-        private string OutputDirectory { get; }
         private ITransferTracker Tracker { get; }
 
         /// <summary>
@@ -97,19 +96,24 @@ namespace slskd.API.Controllers
             try
             {
                 var waitUntilEnqueue = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-                var stream = GetLocalFileStream(request.Filename, OutputDirectory);
+                var stream = GetLocalFileStream(request.Filename, Options.Directories.Incomplete);
 
                 var cts = new CancellationTokenSource();
 
-                var downloadTask = Client.DownloadAsync(username, request.Filename, stream, request.Size, 0, request.Token, new TransferOptions(disposeOutputStreamOnCompletion: true, stateChanged: (e) =>
+                var downloadTask = Task.Run(async () =>
                 {
-                    Tracker.AddOrUpdate(e, cts);
-
-                    if (e.Transfer.State == TransferStates.Queued || e.Transfer.State == TransferStates.Initializing)
+                    await Client.DownloadAsync(username, request.Filename, stream, request.Size, 0, request.Token, new TransferOptions(disposeOutputStreamOnCompletion: true, stateChanged: (e) =>
                     {
-                        waitUntilEnqueue.TrySetResult(true);
-                    }
-                }, progressUpdated: (e) => Tracker.AddOrUpdate(e, cts)), cts.Token);
+                        Tracker.AddOrUpdate(e, cts);
+
+                        if (e.Transfer.State == TransferStates.Queued || e.Transfer.State == TransferStates.Initializing)
+                        {
+                            waitUntilEnqueue.TrySetResult(true);
+                        }
+                    }, progressUpdated: (e) => Tracker.AddOrUpdate(e, cts)), cts.Token);
+
+                    MoveFile(request.Filename, Options.Directories.Incomplete, Options.Directories.Downloads);
+                });
 
                 // wait until either the waitUntilEnqueue task completes because the download was successfully queued, or the
                 // downloadTask throws due to an error prior to successfully queueing.
@@ -246,24 +250,35 @@ namespace slskd.API.Controllers
 
         private static FileStream GetLocalFileStream(string remoteFilename, string saveDirectory)
         {
-            var localFilename = remoteFilename.ToLocalOSPath();
-            var path = $"{saveDirectory}{Path.DirectorySeparatorChar}{Path.GetDirectoryName(localFilename).Replace(Path.GetDirectoryName(Path.GetDirectoryName(localFilename)), "")}";
+            var localFilename = remoteFilename.ToLocalFilename(baseDirectory: saveDirectory);
+            var path = Path.GetDirectoryName(localFilename);
 
             if (!System.IO.Directory.Exists(path))
             {
                 System.IO.Directory.CreateDirectory(path);
             }
 
-            var sanitizedFilename = Path.GetFileName(localFilename);
+            return new FileStream(localFilename, FileMode.Create);
+        }
 
-            foreach (var c in Path.GetInvalidFileNameChars())
+        private static void MoveFile(string filename, string sourceDirectory, string destinationDirectory)
+        {
+            var sourceFilename = filename.ToLocalFilename(sourceDirectory);
+            var destinationFilename = filename.ToLocalFilename(destinationDirectory);
+
+            var destinationPath = Path.GetDirectoryName(destinationFilename);
+
+            if (!System.IO.Directory.Exists(destinationPath))
             {
-                sanitizedFilename = sanitizedFilename.Replace(c, '_');
+                System.IO.Directory.CreateDirectory(destinationPath);
             }
 
-            localFilename = Path.Combine(path, sanitizedFilename);
+            System.IO.File.Move(sourceFilename, destinationFilename, overwrite: true);
 
-            return new FileStream(localFilename, FileMode.Create);
+            if (!System.IO.Directory.EnumerateFileSystemEntries(Path.GetDirectoryName(sourceFilename)).Any())
+            {
+                System.IO.Directory.Delete(Path.GetDirectoryName(sourceFilename));
+            }
         }
 
         private IActionResult CancelTransfer(TransferDirection direction, string username, string id, bool remove = false)

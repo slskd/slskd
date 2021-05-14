@@ -127,13 +127,20 @@ namespace slskd
         public class DirectoriesOptions
         {
             /// <summary>
-            ///     Gets the path to shared files.
+            ///     Gets the path where application data is saved.
             /// </summary>
-            [Argument('s', "shared")]
-            [EnvironmentVariable("SHARED_DIR")]
-            [Description("path to shared files")]
-            [Required]
-            public string Shared { get; private set; } = null;
+            [Argument(default, "app")]
+            [EnvironmentVariable("APP_DIR")]
+            [Description("path where application data is saved")]
+            public string App { get; private set; } = Program.DefaultAppDirectory;
+
+            /// <summary>
+            ///     Gets the path where incomplete downloads are saved.
+            /// </summary>
+            [Argument(default, "incomplete")]
+            [EnvironmentVariable("INCOMPLETE_DIR")]
+            [Description("path where incomplete downloads are saved")]
+            public string Incomplete { get; private set; } = Program.DefaultIncompleteDirectory;
 
             /// <summary>
             ///     Gets the path where downloaded files are saved.
@@ -141,8 +148,15 @@ namespace slskd
             [Argument('o', "downloads")]
             [EnvironmentVariable("DOWNLOADS_DIR")]
             [Description("path where downloaded files are saved")]
-            [Required]
-            public string Downloads { get; private set; } = null;
+            public string Downloads { get; private set; } = Program.DefaultDownloadsDirectory;
+
+            /// <summary>
+            ///     Gets the path to shared files.
+            /// </summary>
+            [Argument('s', "shared")]
+            [EnvironmentVariable("SHARED_DIR")]
+            [Description("path to shared files")]
+            public string Shared { get; private set; } = Program.DefaultSharedDirectory;
         }
 
         /// <summary>
@@ -357,7 +371,7 @@ namespace slskd
             [Argument(default, "content-path")]
             [EnvironmentVariable("CONTENT_PATH")]
             [Description("path to static web content")]
-            [Required]
+            [StringLength(255, MinimumLength = 1)]
             public string ContentPath { get; private set; } = "wwwroot";
 
             /// <summary>
@@ -385,7 +399,7 @@ namespace slskd
                 [Argument('u', "username")]
                 [EnvironmentVariable("USERNAME")]
                 [Description("username for web UI")]
-                [Required]
+                [StringLength(255, MinimumLength = 1)]
                 public string Username { get; private set; } = Program.AppName;
 
                 /// <summary>
@@ -394,7 +408,7 @@ namespace slskd
                 [Argument('p', "password")]
                 [EnvironmentVariable("PASSWORD")]
                 [Description("password for web UI")]
-                [Required]
+                [StringLength(255, MinimumLength = 1)]
                 public string Password { get; private set; } = Program.AppName;
 
                 /// <summary>
@@ -414,7 +428,7 @@ namespace slskd
                     [Argument(default, "jwt-key")]
                     [EnvironmentVariable("JWT_KEY")]
                     [Description("JWT signing key")]
-                    [Required]
+                    [StringLength(255, MinimumLength = 1)]
                     public string Key { get; private set; } = Guid.NewGuid().ToString();
 
                     /// <summary>

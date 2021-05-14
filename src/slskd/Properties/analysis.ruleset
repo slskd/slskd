@@ -18,7 +18,7 @@
     <Rule Id="CA1805" Action="None" />
     <Rule Id="CA1819" Action="None" />
     <Rule Id="CA1822" Action="None" />
-    <Rule Id="CA2007" Action="Warning" />
+    <Rule Id="CA2007" Action="None" />
     <Rule Id="CA2200" Action="Warning" />
     <Rule Id="CA2214" Action="Warning" />
     <Rule Id="CA2231" Action="Warning" />
@@ -32,12 +32,14 @@
   </Rules>
   <Rules AnalyzerId="SonarAnalyzer.CSharp" RuleNamespace="SonarAnalyzer.CSharp">
     <Rule Id="S2589" Action="None" />
+    <Rule Id="S3011" Action="None" />
     <Rule Id="S3427" Action="Info" />
   </Rules>
   <Rules AnalyzerId="StyleCop.Analyzers" RuleNamespace="StyleCop.Analyzers">
     <Rule Id="SA1008" Action="None" />
     <Rule Id="SA1009" Action="None" />
     <Rule Id="SA1101" Action="None" />
+    <Rule Id="SA1117" Action="None" />
     <Rule Id="SA1124" Action="None" />
     <Rule Id="SA1300" Action="None" />
     <Rule Id="SA1402" Action="None" />

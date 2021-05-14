@@ -20,6 +20,7 @@ namespace slskd
     using System;
     using System.Collections.Generic;
     using System.ComponentModel;
+    using System.ComponentModel.DataAnnotations;
     using System.IO;
     using System.Linq;
     using System.Net;
@@ -52,9 +53,9 @@ namespace slskd
         public static readonly string AppName = "slskd";
 
         /// <summary>
-        ///     The default database filename.
+        ///     The default application data directory.
         /// </summary>
-        public static readonly string DefaultDatabaseFile = Path.Combine(AppContext.BaseDirectory, "data", $"{AppName}.db");
+        public static readonly string DefaultAppDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), AppName);
 
         /// <summary>
         ///     The default configuration filename.
@@ -64,7 +65,22 @@ namespace slskd
         /// <summary>
         ///     The default XML documentation filename.
         /// </summary>
-        public static readonly string DefaultXmlDocumentaitonFile = Path.Combine(AppContext.BaseDirectory, "etc", $"{AppName}.xml");
+        public static readonly string DefaultXmlDocumentationFile = Path.Combine(AppContext.BaseDirectory, "etc", $"{AppName}.xml");
+
+        /// <summary>
+        ///     The default incomplete download directory.
+        /// </summary>
+        public static readonly string DefaultIncompleteDirectory = Path.Combine(DefaultAppDirectory, "incomplete");
+
+        /// <summary>
+        ///     The default downloads directory.
+        /// </summary>
+        public static readonly string DefaultDownloadsDirectory = Path.Combine(DefaultAppDirectory, "downloads");
+
+        /// <summary>
+        ///     The default shared directory.
+        /// </summary>
+        public static readonly string DefaultSharedDirectory = Path.Combine(DefaultAppDirectory, "shared");
 
         /// <summary>
         ///     The global prefix for environment variables.
@@ -195,6 +211,37 @@ namespace slskd
             catch (Exception ex)
             {
                 Console.WriteLine($"Invalid configuration: {(!Options.Debug ? ex : ex.Message)}");
+                return;
+            }
+
+            // ensure the application directory exists and is writeable. the most comprehensive way to test this is to try
+            // to write a file to it.
+            try
+            {
+                if (!Directory.Exists(Options.Directories.App))
+                {
+                    Directory.CreateDirectory(Options.Directories.App);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"App directory {Options.Directories.App} does not exist, and could not be created: {ex.Message}");
+            }
+
+            try
+            {
+                if (!Directory.Exists(Options.Directories.App))
+                {
+                    Directory.CreateDirectory(Options.Directories.App);
+                }
+
+                var probe = Path.Combine(Options.Directories.App, "probe");
+                File.WriteAllText(Path.Combine(Options.Directories.App, "probe"), string.Empty);
+                File.Delete(probe);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"App directory {Options.Directories.App} is not writeable: {ex.Message}");
                 return;
             }
 
@@ -374,6 +421,7 @@ namespace slskd
                 {
                     var attribute = property.CustomAttributes.FirstOrDefault(a => a.AttributeType == typeof(ArgumentAttribute));
                     var descriptionAttribute = property.CustomAttributes.FirstOrDefault(a => a.AttributeType == typeof(DescriptionAttribute));
+                    var isRequired = property.CustomAttributes.Any(a => a.AttributeType == typeof(RequiredAttribute));
 
                     if (attribute != default)
                     {
@@ -381,9 +429,9 @@ namespace slskd
                         var longName = (string)attribute.ConstructorArguments[1].Value;
                         var description = descriptionAttribute?.ConstructorArguments[0].Value;
 
-                        var suffix = property.PropertyType == typeof(bool) ? string.Empty : $" (default: {property.GetValue(defaults) ?? "<null>"})";
-                        var item = $"{shortName}{(shortName == default ? " " : "|")}--{GetLongName(longName, property.PropertyType)}";
-                        var desc = $"{description}{suffix}";
+                        var suffix = isRequired ? " (required)" : $" (default: {property.GetValue(defaults) ?? "<null>"})";
+                        var item = $"{(shortName == default ? "  " : $"{shortName}|")}--{GetLongName(longName, property.PropertyType)}";
+                        var desc = $"{description}{(property.PropertyType == typeof(bool) ? string.Empty : suffix)}";
                         lines.Add(new(item, desc));
                     }
                     else
@@ -421,15 +469,16 @@ namespace slskd
                 {
                     var attribute = property.CustomAttributes.FirstOrDefault(a => a.AttributeType == typeof(EnvironmentVariableAttribute));
                     var descriptionAttribute = property.CustomAttributes.FirstOrDefault(a => a.AttributeType == typeof(DescriptionAttribute));
+                    var isRequired = property.CustomAttributes.Any(a => a.AttributeType == typeof(RequiredAttribute));
 
                     if (attribute != default)
                     {
                         var name = (string)attribute.ConstructorArguments[0].Value;
                         var description = descriptionAttribute?.ConstructorArguments[0].Value;
 
-                        var suffix = type == typeof(bool) ? string.Empty : $" (default: {property.GetValue(defaults) ?? "<null>"})";
+                        var suffix = isRequired ? " (required)" : $" (default: {property.GetValue(defaults) ?? "<null>"})";
                         var item = $"{prefix}{GetName(name, property.PropertyType)}";
-                        var desc = $"{description}{suffix}";
+                        var desc = $"{description}{(type == typeof(bool) ? string.Empty : suffix)}";
                         lines.Add(new(item, desc));
                     }
                     else
