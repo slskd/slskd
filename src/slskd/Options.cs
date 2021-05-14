@@ -371,7 +371,7 @@ namespace slskd
             [Argument(default, "content-path")]
             [EnvironmentVariable("CONTENT_PATH")]
             [Description("path to static web content")]
-            [Required]
+            [StringLength(255, MinimumLength = 1)]
             public string ContentPath { get; private set; } = "wwwroot";
 
             /// <summary>
@@ -399,7 +399,7 @@ namespace slskd
                 [Argument('u', "username")]
                 [EnvironmentVariable("USERNAME")]
                 [Description("username for web UI")]
-                [Required]
+                [StringLength(255, MinimumLength = 1)]
                 public string Username { get; private set; } = Program.AppName;
 
                 /// <summary>
@@ -408,7 +408,7 @@ namespace slskd
                 [Argument('p', "password")]
                 [EnvironmentVariable("PASSWORD")]
                 [Description("password for web UI")]
-                [Required]
+                [StringLength(255, MinimumLength = 1)]
                 public string Password { get; private set; } = Program.AppName;
 
                 /// <summary>
@@ -428,7 +428,7 @@ namespace slskd
                     [Argument(default, "jwt-key")]
                     [EnvironmentVariable("JWT_KEY")]
                     [Description("JWT signing key")]
-                    [Required]
+                    [StringLength(255, MinimumLength = 1)]
                     public string Key { get; private set; } = Guid.NewGuid().ToString();
 
                     /// <summary>
