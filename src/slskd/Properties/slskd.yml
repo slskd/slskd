@@ -39,8 +39,13 @@
 #       child_limit: 25
 #     connection:
 #       timeout:
-#         connect: 5000
+#         connect: 10000
 #         inactivity: 15000
 #       buffer:
 #         read: 16384
 #         write: 16384
+#       proxy:
+#         address: ~
+#         port: ~
+#         username: ~
+#         password: ~
