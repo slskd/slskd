@@ -54,11 +54,18 @@ namespace slskd
             RoomTracker = roomTracker;
             SharedFileCache = sharedFileCache;
 
+            var proxyOptions = new ProxyOptions(
+                address: Options.Soulseek.Connection.Proxy.Address,
+                port: Options.Soulseek.Connection.Proxy.Port,
+                username: Options.Soulseek.Connection.Proxy.Username,
+                password: Options.Soulseek.Connection.Proxy.Password);
+
             var connectionOptions = new ConnectionOptions(
                 readBufferSize: Options.Soulseek.Connection.Buffer.Read,
                 writeBufferSize: Options.Soulseek.Connection.Buffer.Write,
                 connectTimeout: Options.Soulseek.Connection.Timeout.Connect,
-                inactivityTimeout: Options.Soulseek.Connection.Timeout.Inactivity);
+                inactivityTimeout: Options.Soulseek.Connection.Timeout.Inactivity,
+                proxyOptions: proxyOptions);
 
             var clientOptions = new SoulseekClientOptions(
                 listenPort: Options.Soulseek.ListenPort,
@@ -72,6 +79,7 @@ namespace slskd
                 serverConnectionOptions: connectionOptions,
                 peerConnectionOptions: connectionOptions,
                 transferConnectionOptions: connectionOptions,
+                distributedConnectionOptions: connectionOptions,
                 userInfoResponseResolver: UserInfoResponseResolver,
                 browseResponseResolver: BrowseResponseResolver,
                 directoryContentsResponseResolver: DirectoryContentsResponseResolver,
