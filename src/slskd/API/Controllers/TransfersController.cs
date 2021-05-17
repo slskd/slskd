@@ -15,7 +15,7 @@ namespace slskd.API.Controllers
     using Soulseek;
 
     /// <summary>
-    ///     Transfers
+    ///     Transfers.
     /// </summary>
     [Route("api/v{version:apiVersion}/[controller]")]
     [ApiVersion("0")]
@@ -119,13 +119,15 @@ namespace slskd.API.Controllers
                 // downloadTask throws due to an error prior to successfully queueing.
                 var task = await Task.WhenAny(waitUntilEnqueue.Task, downloadTask);
 
-                if (task == downloadTask && downloadTask.Exception is AggregateException)
+                if (task == downloadTask)
                 {
-                    var rejected = downloadTask.Exception?.InnerExceptions.Where(e => e is TransferRejectedException) ?? Enumerable.Empty<Exception>();
-
-                    if (rejected.Any())
+                    if (downloadTask.Exception is AggregateException)
                     {
-                        return StatusCode(403, rejected.First().Message);
+                        var rejected = downloadTask.Exception?.InnerExceptions.Where(e => e is TransferRejectedException) ?? Enumerable.Empty<Exception>();
+                        if (rejected.Any())
+                        {
+                            return StatusCode(403, rejected.First().Message);
+                        }
                     }
 
                     return StatusCode(500, downloadTask.Exception.Message);
@@ -173,7 +175,7 @@ namespace slskd.API.Controllers
         }
 
         /// <summary>
-        ///     Gets the downlaod for the specified username matching the specified filename, and requests 
+        ///     Gets the downlaod for the specified username matching the specified filename, and requests
         ///     the current place in the remote queue of the specified download.
         /// </summary>
         /// <param name="username">The username of the download source.</param>
@@ -188,12 +190,12 @@ namespace slskd.API.Controllers
         public async Task<IActionResult> GetPlaceInQueue([FromRoute, Required]string username, [FromRoute, Required]string id)
         {
             var record = Tracker.Transfers.WithDirection(TransferDirection.Download).FromUser(username).WithId(id);
-            
+
             if (record == default)
             {
                 return NotFound();
             }
-            
+
             record.Transfer.PlaceInQueue = await Client.GetDownloadPlaceInQueueAsync(username, record.Transfer.Filename);
             return Ok(record.Transfer);
         }

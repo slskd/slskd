@@ -50,7 +50,7 @@
                 Message = privateMessage.Message,
                 Acknowledged = privateMessage.Acknowledged,
                 Replayed = privateMessage.Replayed,
-                Self = self ? self: (bool?)null
+                Self = self ? self: (bool?)null,
             };
         }
     }

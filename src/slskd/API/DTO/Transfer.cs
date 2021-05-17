@@ -124,7 +124,7 @@
                 StartTime = transfer.StartTime,
                 State = transfer.State,
                 Token = transfer.Token,
-                Username = transfer.Username
+                Username = transfer.Username,
             };
         }
     }

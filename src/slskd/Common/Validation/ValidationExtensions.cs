@@ -9,8 +9,8 @@
         public static string GetResultView(this ValidationResult result, string message)
         {
             var view = result.GetResultView(0).ToList();
-            
-            if (view.Count() > 0 && !string.IsNullOrEmpty(message))
+
+            if (view.Count > 0 && !string.IsNullOrEmpty(message))
             {
                 view[0] = message;
             }

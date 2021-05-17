@@ -38,7 +38,7 @@
                 Username = roomMessage.Username,
                 Message = roomMessage.Message,
                 RoomName = roomMessage.RoomName,
-                Self = self ? self : (bool?)null
+                Self = self ? self : (bool?)null,
             };
         }
     }

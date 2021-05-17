@@ -51,7 +51,7 @@
                 Operators = roomData.Operators?.ToList(),
                 Owner = roomData.Owner,
                 Users = roomData.Users?.ToList(),
-                Messages = new List<RoomMessage>()
+                Messages = new List<RoomMessage>(),
             };
         }
     }

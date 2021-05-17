@@ -61,7 +61,7 @@
                 SlotsFree = userData.SlotsFree,
                 Status = userData.Status,
                 Username = userData.Username,
-                Self = self ? self : (bool?)null
+                Self = self ? self : (bool?)null,
             };
         }
     }

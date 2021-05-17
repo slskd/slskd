@@ -54,7 +54,7 @@ namespace slskd.Trackers
                 Username = u.Key,
                 Directories = u.Value.Values
                      .GroupBy(f => f.Transfer.Filename.DirectoryName())
-                     .Select(d => new { Directory = d.Key, Files = d.Select(r => r.Transfer)})
+                     .Select(d => new { Directory = d.Key, Files = d.Select(r => r.Transfer) }),
             });
         }
 
@@ -81,7 +81,7 @@ namespace slskd.Trackers
         {
             return userTransfers.Values
                 .GroupBy(f => f.Transfer.Filename.DirectoryName())
-                .Select(d => new { Directory = d.Key, Files = d.Select(r => r.Transfer)});
+                .Select(d => new { Directory = d.Key, Files = d.Select(r => r.Transfer) });
         }
 
         /// <summary>
@@ -105,7 +105,7 @@ namespace slskd.Trackers
     public class TransferTracker : ITransferTracker
     {
         /// <summary>
-        ///     Tracked transfers.
+        ///     Gets tracked transfers.
         /// </summary>
         public ConcurrentDictionary<TransferDirection, ConcurrentDictionary<string, ConcurrentDictionary<string, (API.DTO.Transfer Transfer, CancellationTokenSource CancellationTokenSource)>>> Transfers { get; private set; } =
             new ConcurrentDictionary<TransferDirection, ConcurrentDictionary<string, ConcurrentDictionary<string, (API.DTO.Transfer, CancellationTokenSource)>>>();
@@ -172,15 +172,9 @@ namespace slskd.Trackers
         {
             transfer = default;
 
-            if (Transfers.TryGetValue(direction, out var transfers))
+            if (Transfers.TryGetValue(direction, out var transfers) && transfers.TryGetValue(username, out var user) && user.TryGetValue(id, out transfer))
             {
-                if (transfers.TryGetValue(username, out var user))
-                {
-                    if (user.TryGetValue(id, out transfer))
-                    {
-                        return true;
-                    }
-                }
+                return true;
             }
 
             return false;

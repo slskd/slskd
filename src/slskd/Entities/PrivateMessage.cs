@@ -47,7 +47,7 @@
                 Username = eventArgs.Username,
                 Message = eventArgs.Message,
                 Acknowledged = false,
-                Replayed = eventArgs.Replayed
+                Replayed = eventArgs.Replayed,
             };
         }
     }

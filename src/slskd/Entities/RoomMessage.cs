@@ -35,7 +35,7 @@
                 Timestamp = timestamp ?? DateTime.UtcNow,
                 Username = eventArgs.Username,
                 Message = eventArgs.Message,
-                RoomName = eventArgs.RoomName
+                RoomName = eventArgs.RoomName,
             };
         }
     }

@@ -36,7 +36,7 @@
                 Name = info.Name,
                 UserCount = info.UserCount,
                 IsPrivate = isPrivate,
-                IsOwned = isOwned
+                IsOwned = isOwned,
             };
         }
     }
