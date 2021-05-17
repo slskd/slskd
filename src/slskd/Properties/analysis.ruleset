@@ -31,6 +31,7 @@
     <Rule Id="CA2008" Action="None" />
   </Rules>
   <Rules AnalyzerId="SonarAnalyzer.CSharp" RuleNamespace="SonarAnalyzer.CSharp">
+    <Rule Id="S2219" Action="None" />
     <Rule Id="S2589" Action="None" />
     <Rule Id="S3011" Action="None" />
     <Rule Id="S3427" Action="Info" />
@@ -39,12 +40,17 @@
     <Rule Id="SA1008" Action="None" />
     <Rule Id="SA1009" Action="None" />
     <Rule Id="SA1101" Action="None" />
+    <Rule Id="SA1116" Action="None" />
     <Rule Id="SA1117" Action="None" />
     <Rule Id="SA1124" Action="None" />
     <Rule Id="SA1300" Action="None" />
     <Rule Id="SA1402" Action="None" />
     <Rule Id="SA1516" Action="None" />
     <Rule Id="SA1600" Action="Info" />
+    <Rule Id="SA1611" Action="Info" />
+    <Rule Id="SA1614" Action="Info" />
+    <Rule Id="SA1616" Action="Info" />
+    <Rule Id="SA1623" Action="Info" />
     <Rule Id="SA1649" Action="None" />
   </Rules>
 </RuleSet>
