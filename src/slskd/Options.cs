@@ -265,6 +265,12 @@ namespace slskd
                 public BufferOptions Buffer { get; private set; } = new BufferOptions();
 
                 /// <summary>
+                ///     Gets connection proxy options.
+                /// </summary>
+                [Validate]
+                public ProxyOptions Proxy { get; private set; } = new ProxyOptions();
+
+                /// <summary>
                 ///     Connection buffer options.
                 /// </summary>
                 public class BufferOptions
@@ -300,7 +306,7 @@ namespace slskd
                     [EnvironmentVariable("SLSK_CONNECTION_TIMEOUT")]
                     [Description("connection timeout, in milliseconds")]
                     [Range(1000, int.MaxValue)]
-                    public int Connect { get; private set; } = 5000;
+                    public int Connect { get; private set; } = 10000;
 
                     /// <summary>
                     ///     Gets the connection inactivity timeout, in milliseconds.
@@ -310,6 +316,48 @@ namespace slskd
                     [Description("connection inactivity timeout, in milliseconds")]
                     [Range(1000, int.MaxValue)]
                     public int Inactivity { get; private set; } = 15000;
+                }
+
+                /// <summary>
+                ///     Connection proxy options.
+                /// </summary>
+                public class ProxyOptions
+                {
+                    /// <summary>
+                    ///     Gets the proxy address.
+                    /// </summary>
+                    [Argument(default, "slsk-proxy-address")]
+                    [EnvironmentVariable("SLSK_PROXY_ADDRESS")]
+                    [Description("connection proxy address")]
+                    [StringLength(255, MinimumLength = 1)]
+                    public string Address { get; private set; }
+
+                    /// <summary>
+                    ///     Gets the proxy port.
+                    /// </summary>
+                    [Argument(default, "slsk-proxy-port")]
+                    [EnvironmentVariable("SLSK_PROXY_PORT")]
+                    [Description("connection proxy port")]
+                    [Range(1, 65535)]
+                    public int? Port { get; private set; }
+
+                    /// <summary>
+                    ///     Gets the proxy username, if applicable.
+                    /// </summary>
+                    [Argument(default, "slsk-proxy-username")]
+                    [EnvironmentVariable("SLSK_PROXY_USERNAME")]
+                    [Description("connection proxy username")]
+                    [StringLength(255, MinimumLength = 1)]
+                    public string Username { get; private set; }
+
+                    /// <summary>
+                    ///     Gets the proxy password, if applicable.
+                    /// </summary>
+                    [Argument(default, "slsk-proxy-password")]
+                    [EnvironmentVariable("SLSK_PROXY_PASSWORD")]
+                    [Description("connection proxy password")]
+                    [StringLength(255, MinimumLength = 1)]
+                    public string Password { get; private set; }
                 }
             }
 

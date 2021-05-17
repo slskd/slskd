@@ -408,7 +408,7 @@ namespace slskd
         private static void PrintCommandLineArguments(Type targetType)
         {
             static string GetLongName(string longName, Type type)
-                => type == typeof(bool) ? longName : $"{longName} <{type.Name.ToLowerInvariant()}>";
+                => type == typeof(bool) ? longName : $"{longName} <{type.ToColloquialString().ToLowerInvariant()}>";
 
             var lines = new List<(string Item, string Description)>();
 
@@ -456,7 +456,7 @@ namespace slskd
 
         private static void PrintEnvironmentVariables(Type targetType, string prefix)
         {
-            static string GetName(string name, Type type) => $"{name} <{type.Name.ToLowerInvariant()}>";
+            static string GetName(string name, Type type) => $"{name} <{type.ToColloquialString().ToLowerInvariant()}>";
 
             var lines = new List<(string Item, string Description)>();
 

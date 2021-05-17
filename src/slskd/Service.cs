@@ -54,11 +54,23 @@ namespace slskd
             RoomTracker = roomTracker;
             SharedFileCache = sharedFileCache;
 
+            ProxyOptions proxyOptions = default;
+
+            if (UsingProxy)
+            {
+                proxyOptions = new ProxyOptions(
+                    address: Options.Soulseek.Connection.Proxy.Address,
+                    port: Options.Soulseek.Connection.Proxy.Port.Value,
+                    username: Options.Soulseek.Connection.Proxy.Username,
+                    password: Options.Soulseek.Connection.Proxy.Password);
+            }
+
             var connectionOptions = new ConnectionOptions(
                 readBufferSize: Options.Soulseek.Connection.Buffer.Read,
                 writeBufferSize: Options.Soulseek.Connection.Buffer.Write,
                 connectTimeout: Options.Soulseek.Connection.Timeout.Connect,
-                inactivityTimeout: Options.Soulseek.Connection.Timeout.Inactivity);
+                inactivityTimeout: Options.Soulseek.Connection.Timeout.Inactivity,
+                proxyOptions: proxyOptions);
 
             var clientOptions = new SoulseekClientOptions(
                 listenPort: Options.Soulseek.ListenPort,
@@ -72,6 +84,7 @@ namespace slskd
                 serverConnectionOptions: connectionOptions,
                 peerConnectionOptions: connectionOptions,
                 transferConnectionOptions: connectionOptions,
+                distributedConnectionOptions: connectionOptions,
                 userInfoResponseResolver: UserInfoResponseResolver,
                 browseResponseResolver: BrowseResponseResolver,
                 directoryContentsResponseResolver: DirectoryContentsResponseResolver,
@@ -121,10 +134,16 @@ namespace slskd
         private IRoomTracker RoomTracker { get; set; }
         private ISharedFileCache SharedFileCache { get; set; }
         private ITransferTracker TransferTracker { get; set; }
+        private bool UsingProxy => !string.IsNullOrWhiteSpace(Options.Soulseek.Connection.Proxy.Address) && Options.Soulseek.Connection.Proxy.Port.HasValue;
 
         public async Task StartAsync(CancellationToken cancellationToken)
         {
             await Client.ConnectAsync(Options.Soulseek.Username, Options.Soulseek.Password).ConfigureAwait(false);
+
+            if (UsingProxy)
+            {
+                Logger.Information($"Using Proxy {Options.Soulseek.Connection.Proxy.Address}:{Options.Soulseek.Connection.Proxy.Port}");
+            }
 
             Logger.Information("Connected and logged in as {Username}", Options.Soulseek.Username);
             Logger.Information("Listening on port {Port}", Options.Soulseek.ListenPort);
@@ -395,7 +414,7 @@ namespace slskd
         {
             var info = new UserInfo(
                 description: $"Soulseek.NET Web Example! also, your username is {username}, and IP endpoint is {endpoint}",
-                picture: System.IO.File.ReadAllBytes(@"slsk_bird.jpg"),
+                picture: Array.Empty<byte>(),
                 uploadSlots: 1,
                 queueLength: 0,
                 hasFreeUploadSlot: false);
