@@ -339,7 +339,7 @@ namespace slskd
                     [EnvironmentVariable("SLSK_PROXY_PORT")]
                     [Description("connection proxy port")]
                     [Range(1, 65535)]
-                    public int Port { get; private set; }
+                    public int? Port { get; private set; }
 
                     /// <summary>
                     ///     Gets the proxy username, if applicable.
