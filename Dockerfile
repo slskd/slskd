@@ -45,12 +45,15 @@ WORKDIR /slskd
 COPY --from=publish /slskd/dist/${TARGETPLATFORM} .
 
 RUN mkdir /var/slskd
-RUN mkdir /var/slskd/shared
+RUN mkdir /var/slskd/incomplete
 RUN mkdir /var/slskd/downloads
+RUN mkdir /var/slskd/shared
 
 ENV SLSKD_HTTP_PORT=5000
-ENV SLSKD_SHARED_DIR=/var/slskd/shared
+ENV SLSKD_APP_DIR=/var/slskd
+ENV SLSKD_INCOMPLETE_DIR=/var/slskd/incomplete
 ENV SLSKD_DOWNLOADS_DIR=/var/slskd/downloads
+ENV SLSKD_SHARED_DIR=/var/slskd/shared
 
 ENV SLSKD_DOCKER_VERSION=${VERSION}
 
