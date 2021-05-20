@@ -521,6 +521,7 @@ namespace slskd
                 /// <summary>
                 ///     Certificate options.
                 /// </summary>
+                [X509Certificate]
                 public class CertificateOptions
                 {
                     /// <summary>
