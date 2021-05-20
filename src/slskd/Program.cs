@@ -232,15 +232,11 @@ namespace slskd
             catch (Exception ex)
             {
                 Console.WriteLine($"App directory {Options.Directories.App} does not exist, and could not be created: {ex.Message}");
+                return;
             }
 
             try
             {
-                if (!Directory.Exists(Options.Directories.App))
-                {
-                    Directory.CreateDirectory(Options.Directories.App);
-                }
-
                 var probe = Path.Combine(Options.Directories.App, "probe");
                 File.WriteAllText(Path.Combine(Options.Directories.App, "probe"), string.Empty);
                 File.Delete(probe);
