@@ -183,7 +183,7 @@ namespace slskd
                 return;
             }
 
-            // the application isn't bein run in command mode. load all configuration values and proceed
+            // the application isn't being run in command mode. load all configuration values and proceed
             // with bootstrapping.
             try
             {
@@ -199,20 +199,6 @@ namespace slskd
                     Console.WriteLine(result.GetResultView("Invalid configuration:"));
                     return;
                 }
-
-                var cert = Options.Web.Https.Certificate;
-
-                if (!string.IsNullOrEmpty(cert.Pfx) && !X509.TryValidate(cert.Pfx, cert.Password, out var certResult))
-                {
-                    Console.WriteLine($"Invalid HTTPs certificate: {certResult}");
-                    return;
-                }
-
-                if (Options.Debug)
-                {
-                    Console.WriteLine("Configuration:");
-                    Console.WriteLine(Configuration.GetDebugView());
-                }
             }
             catch (Exception ex)
             {
@@ -220,30 +206,21 @@ namespace slskd
                 return;
             }
 
-            // ensure the application directory exists and is writeable. the most comprehensive way to test this is to try
-            // to write a file to it.
-            try
+            if (Options.Debug)
             {
-                if (!Directory.Exists(Options.Directories.App))
-                {
-                    Directory.CreateDirectory(Options.Directories.App);
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"App directory {Options.Directories.App} does not exist, and could not be created: {ex.Message}");
-                return;
+                Console.WriteLine($"Configuration:\n{Configuration.GetDebugView()}");
             }
 
             try
             {
-                var probe = Path.Combine(Options.Directories.App, "probe");
-                File.WriteAllText(Path.Combine(Options.Directories.App, "probe"), string.Empty);
-                File.Delete(probe);
+                VerifyOrCreateDirectory(Options.Directories.App);
+                VerifyOrCreateDirectory(Options.Directories.Incomplete);
+                VerifyOrCreateDirectory(Options.Directories.Downloads);
+                VerifyOrCreateDirectory(Options.Directories.Shared, verifyWriteable: false);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"App directory {Options.Directories.App} is not writeable: {ex.Message}");
+                Console.WriteLine($"Filesystem exception: {ex.Message}");
                 return;
             }
 
@@ -491,6 +468,36 @@ namespace slskd
 └────────────────────────────────────────────────────────┘";
 
             Console.WriteLine(banner);
+        }
+
+        private static void VerifyOrCreateDirectory(string directory, bool verifyWriteable = true)
+        {
+            try
+            {
+                if (!Directory.Exists(directory))
+                {
+                    Directory.CreateDirectory(directory);
+                }
+            }
+            catch (Exception ex)
+            {
+                throw new IOException($"Directory {directory} does not exist, and could not be created: {ex.Message}", ex);
+            }
+
+            if (verifyWriteable)
+            {
+                try
+                {
+                    var file = Guid.NewGuid().ToString();
+                    var probe = Path.Combine(directory, file);
+                    File.WriteAllText(probe, string.Empty);
+                    File.Delete(probe);
+                }
+                catch (Exception ex)
+                {
+                    throw new IOException($"Directory {directory} is not writeable: {ex.Message}", ex);
+                }
+            }
         }
     }
 }
