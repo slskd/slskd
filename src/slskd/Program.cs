@@ -1,4 +1,4 @@
-﻿// <copyright file="Program.cs" company="slskd Team">
+// <copyright file="Program.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -55,7 +55,7 @@ namespace slskd
         /// <summary>
         ///     The default application data directory.
         /// </summary>
-        public static readonly string DefaultAppDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), AppName);
+        public static readonly string DefaultAppDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData, Environment.SpecialFolderOption.DoNotVerify), AppName);
 
         /// <summary>
         ///     The default configuration filename.
