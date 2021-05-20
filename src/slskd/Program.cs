@@ -1,4 +1,4 @@
-// <copyright file="Program.cs" company="slskd Team">
+﻿// <copyright file="Program.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -252,59 +252,27 @@ namespace slskd
                 PrintLogo(Version);
             }
 
-            if (Options.Debug)
-            {
-                Console.WriteLine("Configuration:");
-                Console.WriteLine(Configuration.GetDebugView());
-
-                Log.Logger = new LoggerConfiguration()
-                    .MinimumLevel.Debug()
-                    .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
-                    .MinimumLevel.Override("slskd.API.Authentication.PassthroughAuthenticationHandler", LogEventLevel.Information)
-                    .Enrich.WithProperty("Version", Version)
-                    .Enrich.WithProperty("InstanceName", Options.InstanceName)
-                    .Enrich.WithProperty("InvocationId", InvocationId)
-                    .Enrich.WithProperty("ProcessId", ProcessId)
-                    .Enrich.FromLogContext()
-                    .WriteTo.Console(
-                        outputTemplate: "[{SourceContext}] [{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
-                    .WriteTo.Async(config =>
-                        config.File(
-                            Path.Combine(AppContext.BaseDirectory, "logs", $"{AppName}-.log"),
-                            outputTemplate: "[{SourceContext}] [{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}",
-                            rollingInterval: RollingInterval.Day))
-                    .WriteTo.Conditional(
-                        e => !string.IsNullOrEmpty(Options.Logger.Loki),
-                        config => config.GrafanaLoki(
-                            Options.Logger.Loki ?? string.Empty,
-                            outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}"))
-                    .CreateLogger();
-            }
-            else
-            {
-                Log.Logger = new LoggerConfiguration()
-                    .MinimumLevel.Information()
-                    .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
-                    .MinimumLevel.Override("slskd.API.Authentication.PassthroughAuthenticationHandler", LogEventLevel.Information)
-                    .Enrich.WithProperty("Version", Version)
-                    .Enrich.WithProperty("InstanceName", Options.InstanceName)
-                    .Enrich.WithProperty("InvocationId", InvocationId)
-                    .Enrich.WithProperty("ProcessId", ProcessId)
-                    .Enrich.FromLogContext()
-                    .WriteTo.Console(
-                        outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
-                    .WriteTo.Async(config =>
-                        config.File(
-                            Path.Combine(AppContext.BaseDirectory, "logs", $"{AppName}-.log"),
-                            outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}",
-                            rollingInterval: RollingInterval.Day))
-                    .WriteTo.Conditional(
-                        e => !string.IsNullOrEmpty(Options.Logger.Loki),
-                        config => config.GrafanaLoki(
-                            Options.Logger.Loki ?? string.Empty,
-                            outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}"))
-                    .CreateLogger();
-            }
+            Log.Logger = (Options.Debug ? new LoggerConfiguration().MinimumLevel.Debug() : new LoggerConfiguration().MinimumLevel.Information())
+                .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+                .MinimumLevel.Override("slskd.API.Authentication.PassthroughAuthenticationHandler", LogEventLevel.Information)
+                .Enrich.WithProperty("Version", Version)
+                .Enrich.WithProperty("InstanceName", Options.InstanceName)
+                .Enrich.WithProperty("InvocationId", InvocationId)
+                .Enrich.WithProperty("ProcessId", ProcessId)
+                .Enrich.FromLogContext()
+                .WriteTo.Console(
+                    outputTemplate: (Options.Debug ? "[{SourceContext}] [{SoulseekContext}] " : string.Empty) + "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
+                .WriteTo.Async(config =>
+                    config.File(
+                        Path.Combine(AppContext.BaseDirectory, "logs", $"{AppName}-.log"),
+                        outputTemplate: (Options.Debug ? "[{SourceContext}] " : string.Empty) + "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}",
+                        rollingInterval: RollingInterval.Day))
+                .WriteTo.Conditional(
+                    e => !string.IsNullOrEmpty(Options.Logger.Loki),
+                    config => config.GrafanaLoki(
+                        Options.Logger.Loki ?? string.Empty,
+                        outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}"))
+                .CreateLogger();
 
             var logger = Log.ForContext(typeof(Program));
 
