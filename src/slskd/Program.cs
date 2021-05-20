@@ -207,6 +207,12 @@ namespace slskd
                     Console.WriteLine($"Invalid HTTPs certificate: {certResult}");
                     return;
                 }
+
+                if (Options.Debug)
+                {
+                    Console.WriteLine("Configuration:");
+                    Console.WriteLine(Configuration.GetDebugView());
+                }
             }
             catch (Exception ex)
             {
