@@ -224,11 +224,6 @@ namespace slskd
                 return;
             }
 
-            if (!Options.NoLogo)
-            {
-                PrintLogo(Version);
-            }
-
             Log.Logger = (Options.Debug ? new LoggerConfiguration().MinimumLevel.Debug() : new LoggerConfiguration().MinimumLevel.Information())
                 .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
                 .MinimumLevel.Override("slskd.API.Authentication.PassthroughAuthenticationHandler", LogEventLevel.Information)
@@ -252,6 +247,11 @@ namespace slskd
                 .CreateLogger();
 
             var logger = Log.ForContext(typeof(Program));
+
+            if (!Options.NoLogo)
+            {
+                PrintLogo(Version);
+            }
 
             if (ConfigurationFile != DefaultConfigurationFile && !File.Exists(ConfigurationFile))
             {
@@ -455,11 +455,24 @@ namespace slskd
 
             var centeredVersion = new string(' ', paddingLeft) + version + new string(' ', paddingRight);
 
-            var banner = @$"
+            var logos = new[]
+            {
+                $@"
                 ▄▄▄▄               ▄▄▄▄          ▄▄▄▄
      ▄▄▄▄▄▄▄    █  █    ▄▄▄▄▄▄▄    █  █▄▄▄    ▄▄▄█  █
      █__ --█    █  █    █__ --█    █    ◄█    █  -  █
-     █▄▄▄▄▄█    █▄▄█    █▄▄▄▄▄█    █▄▄█▄▄█    █▄▄▄▄▄█
+     █▄▄▄▄▄█    █▄▄█    █▄▄▄▄▄█    █▄▄█▄▄█    █▄▄▄▄▄█",
+                @$"
+                     ▄▄▄▄     ▄▄▄▄     ▄▄▄▄
+               ▄▄▄▄▄▄█  █▄▄▄▄▄█  █▄▄▄▄▄█  █
+               █__ --█  █__ --█    ◄█  -  █
+               █▄▄▄▄▄█▄▄█▄▄▄▄▄█▄▄█▄▄█▄▄▄▄▄█",
+            };
+
+            var logo = logos[new Random().Next(0, logos.Length)];
+
+            var banner = @$"
+{logo}
 ╒════════════════════════════════════════════════════════╕
 │           GNU AFFERO GENERAL PUBLIC LICENSE            │
 │                   https://slskd.org                    │
