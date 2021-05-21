@@ -28,17 +28,17 @@ namespace slskd.Trackers
     public static class TransferTrackerExtensions
     {
         /// <summary>
-        ///     Filters a Transfer collection by direction.
+        ///     Filters a Transfer collection by user.
         /// </summary>
-        /// <param name="allTransfers"></param>
-        /// <param name="direction"></param>
+        /// <param name="directedTransfers"></param>
+        /// <param name="username"></param>
         /// <returns></returns>
-        public static ConcurrentDictionary<string, ConcurrentDictionary<string, (API.DTO.Transfer Transfer, CancellationTokenSource CancellationTokenSource)>> WithDirection(
-            this ConcurrentDictionary<TransferDirection, ConcurrentDictionary<string, ConcurrentDictionary<string, (API.DTO.Transfer Transfer, CancellationTokenSource CancellationTokenSource)>>> allTransfers,
-            TransferDirection direction)
+        public static ConcurrentDictionary<string, (API.DTO.Transfer Transfer, CancellationTokenSource CancellationTokenSource)> FromUser(
+            this ConcurrentDictionary<string, ConcurrentDictionary<string, (API.DTO.Transfer Transfer, CancellationTokenSource CancellationTokenSource)>> directedTransfers,
+            string username)
         {
-            allTransfers.TryGetValue(direction, out var transfers);
-            return transfers ?? new ConcurrentDictionary<string, ConcurrentDictionary<string, (API.DTO.Transfer Transfer, CancellationTokenSource CancellationTokenSource)>>();
+            directedTransfers.TryGetValue(username, out var transfers);
+            return transfers ?? new ConcurrentDictionary<string, (API.DTO.Transfer Transfer, CancellationTokenSource CancellationTokenSource)>();
         }
 
         /// <summary>
@@ -59,29 +59,30 @@ namespace slskd.Trackers
         }
 
         /// <summary>
-        ///     Filters a Transfer collection by user.
-        /// </summary>
-        /// <param name="directedTransfers"></param>
-        /// <param name="username"></param>
-        /// <returns></returns>
-        public static ConcurrentDictionary<string, (API.DTO.Transfer Transfer, CancellationTokenSource CancellationTokenSource)> FromUser(
-            this ConcurrentDictionary<string, ConcurrentDictionary<string, (API.DTO.Transfer Transfer, CancellationTokenSource CancellationTokenSource)>> directedTransfers,
-            string username)
-        {
-            directedTransfers.TryGetValue(username, out var transfers);
-            return transfers ?? new ConcurrentDictionary<string, (API.DTO.Transfer Transfer, CancellationTokenSource CancellationTokenSource)>();
-        }
-
-        /// <summary>
         ///     Maps a Transfer collection to a serializable object.
         /// </summary>
         /// <param name="userTransfers"></param>
+        /// <returns></returns>
         public static object ToMap(
             this ConcurrentDictionary<string, (API.DTO.Transfer Transfer, CancellationTokenSource CancellationTokenSource)> userTransfers)
         {
             return userTransfers.Values
                 .GroupBy(f => f.Transfer.Filename.DirectoryName())
                 .Select(d => new { Directory = d.Key, Files = d.Select(r => r.Transfer) });
+        }
+
+        /// <summary>
+        ///     Filters a Transfer collection by direction.
+        /// </summary>
+        /// <param name="allTransfers"></param>
+        /// <param name="direction"></param>
+        /// <returns></returns>
+        public static ConcurrentDictionary<string, ConcurrentDictionary<string, (API.DTO.Transfer Transfer, CancellationTokenSource CancellationTokenSource)>> WithDirection(
+            this ConcurrentDictionary<TransferDirection, ConcurrentDictionary<string, ConcurrentDictionary<string, (API.DTO.Transfer Transfer, CancellationTokenSource CancellationTokenSource)>>> allTransfers,
+            TransferDirection direction)
+        {
+            allTransfers.TryGetValue(direction, out var transfers);
+            return transfers ?? new ConcurrentDictionary<string, ConcurrentDictionary<string, (API.DTO.Transfer Transfer, CancellationTokenSource CancellationTokenSource)>>();
         }
 
         /// <summary>
@@ -137,6 +138,26 @@ namespace slskd.Trackers
         }
 
         /// <summary>
+        ///     Gets the specified transfer.
+        /// </summary>
+        /// <param name="direction"></param>
+        /// <param name="username"></param>
+        /// <param name="id"></param>
+        /// <param name="transfer"></param>
+        /// <returns></returns>
+        public bool TryGet(TransferDirection direction, string username, string id, out (API.DTO.Transfer Transfer, CancellationTokenSource CancellationTokenSource) transfer)
+        {
+            transfer = default;
+
+            if (Transfers.TryGetValue(direction, out var transfers) && transfers.TryGetValue(username, out var user) && user.TryGetValue(id, out transfer))
+            {
+                return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
         ///     Removes a tracked transfer.
         /// </summary>
         /// <remarks>Omitting an id will remove ALL transfers associated with the specified username.</remarks>
@@ -158,26 +179,6 @@ namespace slskd.Trackers
                     directionDict.TryRemove(username, out _);
                 }
             }
-        }
-
-        /// <summary>
-        ///     Gets the specified transfer.
-        /// </summary>
-        /// <param name="direction"></param>
-        /// <param name="username"></param>
-        /// <param name="id"></param>
-        /// <param name="transfer"></param>
-        /// <returns></returns>
-        public bool TryGet(TransferDirection direction, string username, string id, out (API.DTO.Transfer Transfer, CancellationTokenSource CancellationTokenSource) transfer)
-        {
-            transfer = default;
-
-            if (Transfers.TryGetValue(direction, out var transfers) && transfers.TryGetValue(username, out var user) && user.TryGetValue(id, out transfer))
-            {
-                return true;
-            }
-
-            return false;
         }
 
         private ConcurrentDictionary<string, (API.DTO.Transfer Transfer, CancellationTokenSource CancellationTokenSource)> GetNewDictionaryForUser(TransferEventArgs args, CancellationTokenSource cancellationTokenSource)

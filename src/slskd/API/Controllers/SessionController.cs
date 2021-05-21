@@ -15,8 +15,6 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-using Microsoft.Extensions.Options;
-
 namespace slskd.API.Controllers
 {
     using System;
@@ -40,7 +38,7 @@ namespace slskd.API.Controllers
     public class SessionController : ControllerBase
     {
         public SessionController(
-            IOptionsSnapshot<Options> optionsSnapshot,
+            Microsoft.Extensions.Options.IOptionsSnapshot<Options> optionsSnapshot,
             SymmetricSecurityKey jwtSigningKey)
         {
             Options = optionsSnapshot.Value;

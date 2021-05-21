@@ -88,6 +88,7 @@ namespace slskd.Trackers
         /// </summary>
         /// <param name="roomName"></param>
         /// <param name="room"></param>
+        /// <returns></returns>
         public bool TryGet(string roomName, out Room room) => Rooms.TryGetValue(roomName, out room);
 
         /// <summary>

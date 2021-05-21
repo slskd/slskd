@@ -15,8 +15,6 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-using Microsoft.Extensions.Options;
-
 namespace slskd.API.Controllers
 {
     using System;
@@ -47,7 +45,10 @@ namespace slskd.API.Controllers
         /// <param name="options"></param>
         /// <param name="client"></param>
         /// <param name="tracker"></param>
-        public TransfersController(IOptionsSnapshot<Options> options, ISoulseekClient client, ITransferTracker tracker)
+        public TransfersController(
+            Microsoft.Extensions.Options.IOptionsSnapshot<Options> options,
+            ISoulseekClient client,
+            ITransferTracker tracker)
         {
             Client = client;
             Tracker = tracker;
