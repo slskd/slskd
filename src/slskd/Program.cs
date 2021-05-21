@@ -55,7 +55,7 @@ namespace slskd
         /// <summary>
         ///     The default application data directory.
         /// </summary>
-        public static readonly string DefaultAppDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), AppName);
+        public static readonly string DefaultAppDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData, Environment.SpecialFolderOption.DoNotVerify), AppName);
 
         /// <summary>
         ///     The default configuration filename.
@@ -183,7 +183,7 @@ namespace slskd
                 return;
             }
 
-            // the application isn't bein run in command mode. load all configuration values and proceed
+            // the application isn't being run in command mode. load all configuration values and proceed
             // with bootstrapping.
             try
             {
@@ -199,14 +199,6 @@ namespace slskd
                     Console.WriteLine(result.GetResultView());
                     return;
                 }
-
-                var cert = Options.Web.Https.Certificate;
-
-                if (!string.IsNullOrEmpty(cert.Pfx) && !X509.TryValidate(cert.Pfx, cert.Password, out var certResult))
-                {
-                    Console.WriteLine($"Invalid HTTPs certificate: {certResult}");
-                    return;
-                }
             }
             catch (Exception ex)
             {
@@ -214,97 +206,52 @@ namespace slskd
                 return;
             }
 
-            // ensure the application directory exists and is writeable. the most comprehensive way to test this is to try
-            // to write a file to it.
-            try
+            if (Options.Debug)
             {
-                if (!Directory.Exists(Options.Directories.App))
-                {
-                    Directory.CreateDirectory(Options.Directories.App);
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"App directory {Options.Directories.App} does not exist, and could not be created: {ex.Message}");
+                Console.WriteLine($"Configuration:\n{Configuration.GetDebugView()}");
             }
 
             try
             {
-                if (!Directory.Exists(Options.Directories.App))
-                {
-                    Directory.CreateDirectory(Options.Directories.App);
-                }
-
-                var probe = Path.Combine(Options.Directories.App, "probe");
-                File.WriteAllText(Path.Combine(Options.Directories.App, "probe"), string.Empty);
-                File.Delete(probe);
+                VerifyOrCreateDirectory(Options.Directories.App);
+                VerifyOrCreateDirectory(Options.Directories.Incomplete);
+                VerifyOrCreateDirectory(Options.Directories.Downloads);
+                VerifyOrCreateDirectory(Options.Directories.Shared, verifyWriteable: false);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"App directory {Options.Directories.App} is not writeable: {ex.Message}");
+                Console.WriteLine($"Filesystem exception: {ex.Message}");
                 return;
             }
+
+            Log.Logger = (Options.Debug ? new LoggerConfiguration().MinimumLevel.Debug() : new LoggerConfiguration().MinimumLevel.Information())
+                .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+                .MinimumLevel.Override("slskd.API.Authentication.PassthroughAuthenticationHandler", LogEventLevel.Information)
+                .Enrich.WithProperty("Version", Version)
+                .Enrich.WithProperty("InstanceName", Options.InstanceName)
+                .Enrich.WithProperty("InvocationId", InvocationId)
+                .Enrich.WithProperty("ProcessId", ProcessId)
+                .Enrich.FromLogContext()
+                .WriteTo.Console(
+                    outputTemplate: (Options.Debug ? "[{SourceContext}] [{SoulseekContext}] " : string.Empty) + "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
+                .WriteTo.Async(config =>
+                    config.File(
+                        Path.Combine(AppContext.BaseDirectory, "logs", $"{AppName}-.log"),
+                        outputTemplate: (Options.Debug ? "[{SourceContext}] " : string.Empty) + "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}",
+                        rollingInterval: RollingInterval.Day))
+                .WriteTo.Conditional(
+                    e => !string.IsNullOrEmpty(Options.Logger.Loki),
+                    config => config.GrafanaLoki(
+                        Options.Logger.Loki ?? string.Empty,
+                        outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}"))
+                .CreateLogger();
+
+            var logger = Log.ForContext(typeof(Program));
 
             if (!Options.NoLogo)
             {
                 PrintLogo(Version);
             }
-
-            if (Options.Debug)
-            {
-                Console.WriteLine("Configuration:");
-                Console.WriteLine(Configuration.GetDebugView());
-
-                Log.Logger = new LoggerConfiguration()
-                    .MinimumLevel.Debug()
-                    .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
-                    .MinimumLevel.Override("slskd.API.Authentication.PassthroughAuthenticationHandler", LogEventLevel.Information)
-                    .Enrich.WithProperty("Version", Version)
-                    .Enrich.WithProperty("InstanceName", Options.InstanceName)
-                    .Enrich.WithProperty("InvocationId", InvocationId)
-                    .Enrich.WithProperty("ProcessId", ProcessId)
-                    .Enrich.FromLogContext()
-                    .WriteTo.Console(
-                        outputTemplate: "[{SourceContext}] [{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
-                    .WriteTo.Async(config =>
-                        config.File(
-                            Path.Combine(AppContext.BaseDirectory, "logs", $"{AppName}-.log"),
-                            outputTemplate: "[{SourceContext}] [{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}",
-                            rollingInterval: RollingInterval.Day))
-                    .WriteTo.Conditional(
-                        e => !string.IsNullOrEmpty(Options.Logger.Loki),
-                        config => config.GrafanaLoki(
-                            Options.Logger.Loki ?? string.Empty,
-                            outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}"))
-                    .CreateLogger();
-            }
-            else
-            {
-                Log.Logger = new LoggerConfiguration()
-                    .MinimumLevel.Information()
-                    .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
-                    .MinimumLevel.Override("slskd.API.Authentication.PassthroughAuthenticationHandler", LogEventLevel.Information)
-                    .Enrich.WithProperty("Version", Version)
-                    .Enrich.WithProperty("InstanceName", Options.InstanceName)
-                    .Enrich.WithProperty("InvocationId", InvocationId)
-                    .Enrich.WithProperty("ProcessId", ProcessId)
-                    .Enrich.FromLogContext()
-                    .WriteTo.Console(
-                        outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
-                    .WriteTo.Async(config =>
-                        config.File(
-                            Path.Combine(AppContext.BaseDirectory, "logs", $"{AppName}-.log"),
-                            outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}",
-                            rollingInterval: RollingInterval.Day))
-                    .WriteTo.Conditional(
-                        e => !string.IsNullOrEmpty(Options.Logger.Loki),
-                        config => config.GrafanaLoki(
-                            Options.Logger.Loki ?? string.Empty,
-                            outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}"))
-                    .CreateLogger();
-            }
-
-            var logger = Log.ForContext(typeof(Program));
 
             if (ConfigurationFile != DefaultConfigurationFile && !File.Exists(ConfigurationFile))
             {
@@ -508,11 +455,24 @@ namespace slskd
 
             var centeredVersion = new string(' ', paddingLeft) + version + new string(' ', paddingRight);
 
-            var banner = @$"
+            var logos = new[]
+            {
+                $@"
                 ▄▄▄▄               ▄▄▄▄          ▄▄▄▄
      ▄▄▄▄▄▄▄    █  █    ▄▄▄▄▄▄▄    █  █▄▄▄    ▄▄▄█  █
      █__ --█    █  █    █__ --█    █    ◄█    █  -  █
-     █▄▄▄▄▄█    █▄▄█    █▄▄▄▄▄█    █▄▄█▄▄█    █▄▄▄▄▄█
+     █▄▄▄▄▄█    █▄▄█    █▄▄▄▄▄█    █▄▄█▄▄█    █▄▄▄▄▄█",
+                @$"
+                     ▄▄▄▄     ▄▄▄▄     ▄▄▄▄
+               ▄▄▄▄▄▄█  █▄▄▄▄▄█  █▄▄▄▄▄█  █
+               █__ --█  █__ --█    ◄█  -  █
+               █▄▄▄▄▄█▄▄█▄▄▄▄▄█▄▄█▄▄█▄▄▄▄▄█",
+            };
+
+            var logo = logos[new Random().Next(0, logos.Length)];
+
+            var banner = @$"
+{logo}
 ╒════════════════════════════════════════════════════════╕
 │           GNU AFFERO GENERAL PUBLIC LICENSE            │
 │                   https://slskd.org                    │
@@ -521,6 +481,36 @@ namespace slskd
 └────────────────────────────────────────────────────────┘";
 
             Console.WriteLine(banner);
+        }
+
+        private static void VerifyOrCreateDirectory(string directory, bool verifyWriteable = true)
+        {
+            try
+            {
+                if (!Directory.Exists(directory))
+                {
+                    Directory.CreateDirectory(directory);
+                }
+            }
+            catch (Exception ex)
+            {
+                throw new IOException($"Directory {directory} does not exist, and could not be created: {ex.Message}", ex);
+            }
+
+            if (verifyWriteable)
+            {
+                try
+                {
+                    var file = Guid.NewGuid().ToString();
+                    var probe = Path.Combine(directory, file);
+                    File.WriteAllText(probe, string.Empty);
+                    File.Delete(probe);
+                }
+                catch (Exception ex)
+                {
+                    throw new IOException($"Directory {directory} is not writeable: {ex.Message}", ex);
+                }
+            }
         }
     }
 }
