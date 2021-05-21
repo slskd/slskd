@@ -27,7 +27,7 @@ namespace slskd.API.Controllers
     using Soulseek;
 
     /// <summary>
-    ///     Users
+    ///     Users.
     /// </summary>
     [Route("api/v{version:apiVersion}/[controller]")]
     [ApiVersion("0")]

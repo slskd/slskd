@@ -26,7 +26,7 @@ namespace slskd.API.DTO
     public class SearchRequest
     {
         /// <summary>
-        ///     Gets or sets the unique search identifier
+        ///     Gets or sets the unique search identifier.
         /// </summary>
         public Guid? Id { get; set; }
 

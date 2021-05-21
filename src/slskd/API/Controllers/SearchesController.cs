@@ -29,7 +29,7 @@ namespace slskd.API.Controllers
     using Soulseek;
 
     /// <summary>
-    ///     Search
+    ///     Search.
     /// </summary>
     [Route("api/v{version:apiVersion}/[controller]")]
     [ApiVersion("0")]
@@ -38,9 +38,6 @@ namespace slskd.API.Controllers
     [Consumes("application/json")]
     public class SearchesController : ControllerBase
     {
-        private ISoulseekClient Client { get; }
-        private ISearchTracker Tracker { get; }
-
         /// <summary>
         ///     Initializes a new instance of the <see cref="SearchesController"/> class.
         /// </summary>
@@ -51,6 +48,9 @@ namespace slskd.API.Controllers
             Client = client;
             Tracker = tracker;
         }
+
+        private ISoulseekClient Client { get; }
+        private ISearchTracker Tracker { get; }
 
         /// <summary>
         ///     Performs a search for the specified <paramref name="request"/>.

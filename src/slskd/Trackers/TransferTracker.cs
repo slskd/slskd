@@ -105,12 +105,6 @@ namespace slskd.Trackers
     public class TransferTracker : ITransferTracker
     {
         /// <summary>
-        ///     Gets tracked transfers.
-        /// </summary>
-        public ConcurrentDictionary<TransferDirection, ConcurrentDictionary<string, ConcurrentDictionary<string, (API.DTO.Transfer Transfer, CancellationTokenSource CancellationTokenSource)>>> Transfers { get; private set; } =
-            new ConcurrentDictionary<TransferDirection, ConcurrentDictionary<string, ConcurrentDictionary<string, (API.DTO.Transfer, CancellationTokenSource)>>>();
-
-        /// <summary>
         ///     Initializes a new instance of the <see cref="TransferTracker"/> class.
         /// </summary>
         public TransferTracker()
@@ -118,6 +112,12 @@ namespace slskd.Trackers
             Transfers.TryAdd(TransferDirection.Download, new ConcurrentDictionary<string, ConcurrentDictionary<string, (API.DTO.Transfer Transfer, CancellationTokenSource CancellationTokenSource)>>());
             Transfers.TryAdd(TransferDirection.Upload, new ConcurrentDictionary<string, ConcurrentDictionary<string, (API.DTO.Transfer Transfer, CancellationTokenSource CancellationTokenSource)>>());
         }
+
+        /// <summary>
+        ///     Gets tracked transfers.
+        /// </summary>
+        public ConcurrentDictionary<TransferDirection, ConcurrentDictionary<string, ConcurrentDictionary<string, (API.DTO.Transfer Transfer, CancellationTokenSource CancellationTokenSource)>>> Transfers { get; private set; } =
+            new ConcurrentDictionary<TransferDirection, ConcurrentDictionary<string, ConcurrentDictionary<string, (API.DTO.Transfer, CancellationTokenSource)>>>();
 
         /// <summary>
         ///     Adds or updates a tracked transfer.

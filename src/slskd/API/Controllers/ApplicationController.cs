@@ -25,7 +25,7 @@ namespace slskd.API.Controllers
     using Soulseek;
 
     /// <summary>
-    ///     Application
+    ///     Application.
     /// </summary>
     [Route("api/v{version:apiVersion}/[controller]")]
     [ApiVersion("0")]
@@ -34,14 +34,14 @@ namespace slskd.API.Controllers
     [Consumes("application/json")]
     public class ApplicationController : ControllerBase
     {
-        private ISoulseekClient Client { get; }
-        private IHostApplicationLifetime Lifetime { get; }
-
         public ApplicationController(ISoulseekClient client, IHostApplicationLifetime lifetime)
         {
             Client = client;
             Lifetime = lifetime;
         }
+
+        private ISoulseekClient Client { get; }
+        private IHostApplicationLifetime Lifetime { get; }
 
         /// <summary>
         ///     Stops the application.

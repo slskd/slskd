@@ -142,7 +142,7 @@ namespace slskd.API.Controllers
         [ProducesResponseType(404)]
         public async Task<IActionResult> AddRoomMember([FromRoute]string roomName, [FromBody]string username)
         {
-            if (Tracker.TryGet(roomName, out  var _))
+            if (Tracker.TryGet(roomName, out var _))
             {
                 await Client.AddPrivateRoomMemberAsync(roomName, username);
                 return StatusCode(StatusCodes.Status201Created);

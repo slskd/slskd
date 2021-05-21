@@ -147,7 +147,7 @@ namespace slskd.API.Controllers
         public IActionResult GetAll()
         {
             var response = Tracker.Conversations.ToDictionary(
-                entry => entry.Key, 
+                entry => entry.Key,
                 entry => entry.Value
                     .Select(pm => PrivateMessageResponse.FromPrivateMessage(pm, self: pm.Username == Client.Username))
                     .OrderBy(m => m.Timestamp));
@@ -167,7 +167,7 @@ namespace slskd.API.Controllers
         [ProducesResponseType(typeof(List<PrivateMessageResponse>), 200)]
         [ProducesResponseType(404)]
         public IActionResult GetByUsername([FromRoute]string username)
-        {            
+        {
             if (Tracker.TryGet(username, out var conversation))
             {
                 var response = conversation

@@ -78,7 +78,7 @@ namespace slskd.API.Controllers
         [ProducesResponseType(typeof(bool), 200)]
         public IActionResult Enabled()
         {
-            return base.Ok(!Options.Web.Authentication.Disable);
+            return Ok(!Options.Web.Authentication.Disable);
         }
 
         /// <summary>

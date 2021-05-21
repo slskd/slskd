@@ -243,7 +243,8 @@ namespace slskd
 
         private void Client_RoomJoined(object sender, RoomJoinedEventArgs args)
         {
-            if (args.Username != Options.Soulseek.Username) // this will fire when we join a room; track that through the join operation.
+            // this will fire when we join a room; track that through the join operation.
+            if (args.Username != Options.Soulseek.Username)
             {
                 RoomTracker.TryAddUser(args.RoomName, args.UserData);
             }

@@ -24,7 +24,7 @@ namespace slskd.API.Controllers
     using Soulseek;
 
     /// <summary>
-    ///     Server
+    ///     Server.
     /// </summary>
     [Route("api/v{version:apiVersion}/[controller]")]
     [ApiVersion("0")]
@@ -33,12 +33,12 @@ namespace slskd.API.Controllers
     [Consumes("application/json")]
     public class PublicChatController : ControllerBase
     {
-        private ISoulseekClient Client { get; }
-
         public PublicChatController(ISoulseekClient client)
         {
             Client = client;
         }
+
+        private ISoulseekClient Client { get; }
 
         /// <summary>
         ///     Starts public chat.

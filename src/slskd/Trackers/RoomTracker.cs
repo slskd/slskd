@@ -64,7 +64,7 @@ namespace slskd.Trackers
         }
 
         /// <summary>
-        ///     Adds the specified room to the tracker
+        ///     Adds the specified room to the tracker.
         /// </summary>
         /// <param name="roomName"></param>
         /// <param name="room"></param>
