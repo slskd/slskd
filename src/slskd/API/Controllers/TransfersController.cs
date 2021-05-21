@@ -1,4 +1,19 @@
-﻿using Microsoft.Extensions.Options;
+﻿// <copyright file="TransfersController.cs" company="slskd Team">
+//     Copyright (c) slskd Team. All rights reserved.
+//
+//     This program is free software: you can redistribute it and/or modify
+//     it under the terms of the GNU Affero General Public License as published
+//     by the Free Software Foundation, either version 3 of the License, or
+//     (at your option) any later version.
+//
+//     This program is distributed in the hope that it will be useful,
+//     but WITHOUT ANY WARRANTY; without even the implied warranty of
+//     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//     GNU Affero General Public License for more details.
+//
+//     You should have received a copy of the GNU Affero General Public License
+//     along with this program.  If not, see https://www.gnu.org/licenses/.
+// </copyright>
 
 namespace slskd.API.Controllers
 {
@@ -15,7 +30,7 @@ namespace slskd.API.Controllers
     using Soulseek;
 
     /// <summary>
-    ///     Transfers
+    ///     Transfers.
     /// </summary>
     [Route("api/v{version:apiVersion}/[controller]")]
     [ApiVersion("0")]
@@ -30,7 +45,10 @@ namespace slskd.API.Controllers
         /// <param name="options"></param>
         /// <param name="client"></param>
         /// <param name="tracker"></param>
-        public TransfersController(IOptionsSnapshot<Options> options, ISoulseekClient client, ITransferTracker tracker)
+        public TransfersController(
+            Microsoft.Extensions.Options.IOptionsSnapshot<Options> options,
+            ISoulseekClient client,
+            ITransferTracker tracker)
         {
             Client = client;
             Tracker = tracker;
@@ -119,13 +137,15 @@ namespace slskd.API.Controllers
                 // downloadTask throws due to an error prior to successfully queueing.
                 var task = await Task.WhenAny(waitUntilEnqueue.Task, downloadTask);
 
-                if (task == downloadTask && downloadTask.Exception is AggregateException)
+                if (task == downloadTask)
                 {
-                    var rejected = downloadTask.Exception?.InnerExceptions.Where(e => e is TransferRejectedException) ?? Enumerable.Empty<Exception>();
-
-                    if (rejected.Any())
+                    if (downloadTask.Exception is AggregateException)
                     {
-                        return StatusCode(403, rejected.First().Message);
+                        var rejected = downloadTask.Exception?.InnerExceptions.Where(e => e is TransferRejectedException) ?? Enumerable.Empty<Exception>();
+                        if (rejected.Any())
+                        {
+                            return StatusCode(403, rejected.First().Message);
+                        }
                     }
 
                     return StatusCode(500, downloadTask.Exception.Message);
@@ -173,7 +193,7 @@ namespace slskd.API.Controllers
         }
 
         /// <summary>
-        ///     Gets the downlaod for the specified username matching the specified filename, and requests 
+        ///     Gets the downlaod for the specified username matching the specified filename, and requests
         ///     the current place in the remote queue of the specified download.
         /// </summary>
         /// <param name="username">The username of the download source.</param>
@@ -188,12 +208,12 @@ namespace slskd.API.Controllers
         public async Task<IActionResult> GetPlaceInQueue([FromRoute, Required]string username, [FromRoute, Required]string id)
         {
             var record = Tracker.Transfers.WithDirection(TransferDirection.Download).FromUser(username).WithId(id);
-            
+
             if (record == default)
             {
                 return NotFound();
             }
-            
+
             record.Transfer.PlaceInQueue = await Client.GetDownloadPlaceInQueueAsync(username, record.Transfer.Filename);
             return Ok(record.Transfer);
         }

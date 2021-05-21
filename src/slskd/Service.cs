@@ -168,7 +168,7 @@ namespace slskd
         }
 
         /// <summary>
-        ///     Creates and returns an <see cref="IEnumerable{T}"/> of <see cref="Soulseek.Directory"/> in response to a remote request.
+        ///     Creates and returns an instances of <see cref="BrowseResponse"/> in response to a remote request.
         /// </summary>
         /// <param name="username">The username of the requesting user.</param>
         /// <param name="endpoint">The IP endpoint of the requesting user.</param>
@@ -217,7 +217,7 @@ namespace slskd
 
                 if (currentReconnectAttempts <= MaxReconnectAttempts)
                 {
-                    var wait = currentReconnectAttempts ^ 3;
+                    var wait = (int)Math.Pow(currentReconnectAttempts, 3);
                     Console.WriteLine($"Waiting {wait} second(s) before reconnect...");
                     await Task.Delay(wait);
 
@@ -243,7 +243,8 @@ namespace slskd
 
         private void Client_RoomJoined(object sender, RoomJoinedEventArgs args)
         {
-            if (args.Username != Options.Soulseek.Username) // this will fire when we join a room; track that through the join operation.
+            // this will fire when we join a room; track that through the join operation.
+            if (args.Username != Options.Soulseek.Username)
             {
                 RoomTracker.TryAddUser(args.RoomName, args.UserData);
             }
@@ -288,7 +289,7 @@ namespace slskd
 
         private void Client_UserStatusChanged(object sender, UserStatusChangedEventArgs args)
         {
-            // Console.WriteLine($"[USER] {args.Username}: {args.Status}");
+            Console.WriteLine($"[USER] {args.Username}: {args.Status}");
         }
 
         /// <summary>

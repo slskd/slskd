@@ -1,4 +1,4 @@
-﻿// <copyright file="ValidateAttribute.cs" company="slskd Team">
+﻿// <copyright file="DirectoryExistsAttributes.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -17,27 +17,24 @@
 
 namespace slskd.Validation
 {
-    using System.Collections.Generic;
     using System.ComponentModel.DataAnnotations;
+    using System.IO;
 
     /// <summary>
-    ///     Indicates that attributed properties should be recursively validated.
+    ///     Validates that the directory at the specified path exists.
     /// </summary>
-    public class ValidateAttribute : ValidationAttribute
+    public class DirectoryExistsAttribute : ValidationAttribute
     {
         protected override ValidationResult IsValid(object value, ValidationContext validationContext)
         {
-            var results = new List<ValidationResult>();
-            var context = new ValidationContext(value, null, null);
-
-            Validator.TryValidateObject(value, context, results, true);
-
-            if (results.Count != 0)
+            if (value != null)
             {
-                var compositeResults = new CompositeValidationResult(validationContext.DisplayName);
-                results.ForEach(compositeResults.AddResult);
+                var dir = Path.GetFullPath(value?.ToString());
 
-                return compositeResults;
+                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                {
+                    return new ValidationResult($"The {validationContext.DisplayName} field specifies a non-existent directory '{dir}'.");
+                }
             }
 
             return ValidationResult.Success;

@@ -1,20 +1,34 @@
-﻿using Microsoft.Extensions.Options;
+﻿// <copyright file="SessionController.cs" company="slskd Team">
+//     Copyright (c) slskd Team. All rights reserved.
+//
+//     This program is free software: you can redistribute it and/or modify
+//     it under the terms of the GNU Affero General Public License as published
+//     by the Free Software Foundation, either version 3 of the License, or
+//     (at your option) any later version.
+//
+//     This program is distributed in the hope that it will be useful,
+//     but WITHOUT ANY WARRANTY; without even the implied warranty of
+//     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//     GNU Affero General Public License for more details.
+//
+//     You should have received a copy of the GNU Affero General Public License
+//     along with this program.  If not, see https://www.gnu.org/licenses/.
+// </copyright>
 
 namespace slskd.API.Controllers
 {
-    using Microsoft.AspNetCore.Authorization;
-    using Microsoft.AspNetCore.Mvc;
-    using Microsoft.IdentityModel.Tokens;
     using System;
     using System.Collections.Generic;
     using System.IdentityModel.Tokens.Jwt;
     using System.Security.Claims;
-    using slskd.API.DTO;
+    using Microsoft.AspNetCore.Authorization;
+    using Microsoft.AspNetCore.Mvc;
+    using Microsoft.IdentityModel.Tokens;
     using slskd;
-    using slskd.Configuration;
+    using slskd.API.DTO;
 
     /// <summary>
-    ///     Session
+    ///     Session.
     /// </summary>
     [Route("api/v{version:apiVersion}/[controller]")]
     [ApiVersion("0")]
@@ -23,15 +37,32 @@ namespace slskd.API.Controllers
     [Consumes("application/json")]
     public class SessionController : ControllerBase
     {
-        private Options Options { get; set; }
-        private SymmetricSecurityKey JwtSigningKey { get; set; }
-
         public SessionController(
-            IOptionsSnapshot<Options> optionsSnapshot,
+            Microsoft.Extensions.Options.IOptionsSnapshot<Options> optionsSnapshot,
             SymmetricSecurityKey jwtSigningKey)
         {
             Options = optionsSnapshot.Value;
             JwtSigningKey = jwtSigningKey;
+        }
+
+        private SymmetricSecurityKey JwtSigningKey { get; set; }
+        private Options Options { get; set; }
+
+        /// <summary>
+        ///     Checks whether the provided authentication is valid.
+        /// </summary>
+        /// <remarks>This is a no-op provided so that the application can test for an expired token on load.</remarks>
+        /// <returns></returns>
+        /// <response code="200">The authentication is valid.</response>
+        /// <response code="403">The authentication is is invalid.</response>
+        [HttpGet]
+        [Route("")]
+        [Authorize]
+        [ProducesResponseType(200)]
+        [ProducesResponseType(401)]
+        public IActionResult Check()
+        {
+            return Ok();
         }
 
         /// <summary>
@@ -45,26 +76,7 @@ namespace slskd.API.Controllers
         [ProducesResponseType(typeof(bool), 200)]
         public IActionResult Enabled()
         {
-            return base.Ok(!Options.Web.Authentication.Disable);
-        }
-
-        /// <summary>
-        ///     Checks whether the provided authentication is valid.
-        /// </summary>
-        /// <remarks>
-        ///     This is a no-op provided so that the application can test for an expired token on load.
-        /// </remarks>
-        /// <returns></returns>
-        /// <response code="200">The authentication is valid.</response>
-        /// <response code="403">The authentication is is invalid.</response>
-        [HttpGet]
-        [Route("")]
-        [Authorize]
-        [ProducesResponseType(200)]
-        [ProducesResponseType(401)]
-        public IActionResult Check()
-        {
-            return Ok();
+            return Ok(!Options.Web.Authentication.Disable);
         }
 
         /// <summary>
@@ -114,7 +126,7 @@ namespace slskd.API.Controllers
                 new Claim(ClaimTypes.NameIdentifier, Guid.NewGuid().ToString()),
                 new Claim(ClaimTypes.Role, role.ToString()),
                 new Claim("name", username),
-                new Claim("iat", ((DateTimeOffset)issuedUtc).ToUnixTimeSeconds().ToString())
+                new Claim("iat", ((DateTimeOffset)issuedUtc).ToUnixTimeSeconds().ToString()),
             };
 
             var credentials = new SigningCredentials(JwtSigningKey, SecurityAlgorithms.HmacSha256);

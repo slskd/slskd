@@ -1,4 +1,21 @@
-﻿namespace slskd.API.Controllers
+﻿// <copyright file="ConversationsController.cs" company="slskd Team">
+//     Copyright (c) slskd Team. All rights reserved.
+//
+//     This program is free software: you can redistribute it and/or modify
+//     it under the terms of the GNU Affero General Public License as published
+//     by the Free Software Foundation, either version 3 of the License, or
+//     (at your option) any later version.
+//
+//     This program is distributed in the hope that it will be useful,
+//     but WITHOUT ANY WARRANTY; without even the implied warranty of
+//     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//     GNU Affero General Public License for more details.
+//
+//     You should have received a copy of the GNU Affero General Public License
+//     along with this program.  If not, see https://www.gnu.org/licenses/.
+// </copyright>
+
+namespace slskd.API.Controllers
 {
     using System;
     using System.Collections.Generic;
@@ -6,13 +23,13 @@
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
-    using Soulseek;
     using slskd.API.DTO;
     using slskd.Entities;
     using slskd.Trackers;
+    using Soulseek;
 
     /// <summary>
-    ///     Conversations
+    ///     Conversations.
     /// </summary>
     [Route("api/v{version:apiVersion}/[controller]")]
     [ApiVersion("0")]
@@ -130,7 +147,7 @@
         public IActionResult GetAll()
         {
             var response = Tracker.Conversations.ToDictionary(
-                entry => entry.Key, 
+                entry => entry.Key,
                 entry => entry.Value
                     .Select(pm => PrivateMessageResponse.FromPrivateMessage(pm, self: pm.Username == Client.Username))
                     .OrderBy(m => m.Timestamp));
@@ -150,7 +167,7 @@
         [ProducesResponseType(typeof(List<PrivateMessageResponse>), 200)]
         [ProducesResponseType(404)]
         public IActionResult GetByUsername([FromRoute]string username)
-        {            
+        {
             if (Tracker.TryGet(username, out var conversation))
             {
                 var response = conversation
@@ -189,7 +206,7 @@
                 Username = Client.Username,
                 Timestamp = DateTime.UtcNow,
                 Message = message,
-                Acknowledged = true
+                Acknowledged = true,
             });
 
             return StatusCode(201);

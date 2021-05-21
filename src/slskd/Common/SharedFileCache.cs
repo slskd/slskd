@@ -45,11 +45,12 @@ namespace slskd
         public event EventHandler<(int Directories, int Files)> Refreshed;
 
         public string Directory { get; }
-        private Dictionary<string, Soulseek.File> Files { get; set; }
         public DateTime? LastFill { get; set; }
+        public long TTL { get; }
+
+        private Dictionary<string, Soulseek.File> Files { get; set; }
         private SqliteConnection SQLite { get; set; }
         private ReaderWriterLockSlim SyncRoot { get; } = new ReaderWriterLockSlim();
-        public long TTL { get; }
 
         /// <summary>
         ///     Scans the configured <see cref="Directory"/> and fills the cache.

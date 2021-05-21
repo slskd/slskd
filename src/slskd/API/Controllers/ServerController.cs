@@ -1,13 +1,30 @@
-﻿namespace slskd.API.Controllers
+﻿// <copyright file="ServerController.cs" company="slskd Team">
+//     Copyright (c) slskd Team. All rights reserved.
+//
+//     This program is free software: you can redistribute it and/or modify
+//     it under the terms of the GNU Affero General Public License as published
+//     by the Free Software Foundation, either version 3 of the License, or
+//     (at your option) any later version.
+//
+//     This program is distributed in the hope that it will be useful,
+//     but WITHOUT ANY WARRANTY; without even the implied warranty of
+//     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//     GNU Affero General Public License for more details.
+//
+//     You should have received a copy of the GNU Affero General Public License
+//     along with this program.  If not, see https://www.gnu.org/licenses/.
+// </copyright>
+
+namespace slskd.API.Controllers
 {
+    using System.Threading.Tasks;
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
-    using Soulseek;
-    using System.Threading.Tasks;
     using slskd.API.DTO;
+    using Soulseek;
 
     /// <summary>
-    ///     Server
+    ///     Server.
     /// </summary>
     [Route("api/v{version:apiVersion}/[controller]")]
     [ApiVersion("0")]
@@ -16,25 +33,12 @@
     [Consumes("application/json")]
     public class ServerController : ControllerBase
     {
-        private ISoulseekClient Client { get; }
-
         public ServerController(ISoulseekClient client)
         {
             Client = client;
         }
 
-        /// <summary>
-        ///     Disconnects the client.
-        /// </summary>
-        /// <param name="message"></param>
-        /// <returns></returns>
-        [HttpDelete]
-        [Authorize]
-        public IActionResult Disconnect([FromBody]string message)
-        {
-            Client.Disconnect(message);
-            return NoContent();
-        }
+        private ISoulseekClient Client { get; }
 
         /// <summary>
         ///     Connects the client.
@@ -43,7 +47,7 @@
         /// <returns></returns>
         [HttpPost]
         [Authorize]
-        public async Task<IActionResult> Connect([FromBody]ConnectRequest req)
+        public async Task<IActionResult> Connect([FromBody] ConnectRequest req)
         {
             var addr = !string.IsNullOrEmpty(req.Address);
             var port = req.Port.HasValue;
@@ -63,6 +67,19 @@
             }
 
             return BadRequest("Provide one of the following: address and port, username and password, or address, port, username and password");
+        }
+
+        /// <summary>
+        ///     Disconnects the client.
+        /// </summary>
+        /// <param name="message"></param>
+        /// <returns></returns>
+        [HttpDelete]
+        [Authorize]
+        public IActionResult Disconnect([FromBody] string message)
+        {
+            Client.Disconnect(message);
+            return NoContent();
         }
     }
 }

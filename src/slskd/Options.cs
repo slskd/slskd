@@ -132,6 +132,7 @@ namespace slskd
             [Argument(default, "app")]
             [EnvironmentVariable("APP_DIR")]
             [Description("path where application data is saved")]
+            [DirectoryExists]
             public string App { get; private set; } = Program.DefaultAppDirectory;
 
             /// <summary>
@@ -140,6 +141,7 @@ namespace slskd
             [Argument(default, "incomplete")]
             [EnvironmentVariable("INCOMPLETE_DIR")]
             [Description("path where incomplete downloads are saved")]
+            [DirectoryExists]
             public string Incomplete { get; private set; } = Program.DefaultIncompleteDirectory;
 
             /// <summary>
@@ -148,6 +150,7 @@ namespace slskd
             [Argument('o', "downloads")]
             [EnvironmentVariable("DOWNLOADS_DIR")]
             [Description("path where downloaded files are saved")]
+            [DirectoryExists]
             public string Downloads { get; private set; } = Program.DefaultDownloadsDirectory;
 
             /// <summary>
@@ -156,6 +159,7 @@ namespace slskd
             [Argument('s', "shared")]
             [EnvironmentVariable("SHARED_DIR")]
             [Description("path to shared files")]
+            [DirectoryExists]
             public string Shared { get; private set; } = Program.DefaultSharedDirectory;
         }
 

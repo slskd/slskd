@@ -196,7 +196,7 @@ namespace slskd
 
                 if (!Options.TryValidate(out var result))
                 {
-                    Console.WriteLine(result.GetResultView("Invalid configuration:"));
+                    Console.WriteLine(result.GetResultView());
                     return;
                 }
             }
