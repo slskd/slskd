@@ -61,11 +61,11 @@
     <PackageReference Include="Serilog.Sinks.File" Version="4.1.0" />
     <PackageReference Include="Serilog.Sinks.Grafana.Loki" Version="5.1.3" />
     <PackageReference Include="Serilog.Sinks.Http" Version="7.2.0" />
-    <PackageReference Include="SonarAnalyzer.CSharp" Version="8.22.0.31243">
+    <PackageReference Include="SonarAnalyzer.CSharp" Version="8.23.0.32424">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Soulseek" Version="2.3.7" />
+    <PackageReference Include="Soulseek" Version="2.3.8" />
     <PackageReference Include="StyleCop.Analyzers" Version="1.2.0-beta.321">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
