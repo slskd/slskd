@@ -1,4 +1,4 @@
-﻿// <copyright file="ConversationTracker.cs" company="slskd Team">
+﻿// <copyright file="IConversationTracker.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -15,21 +15,20 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-namespace slskd.Trackers
+namespace slskd.Messaging
 {
     using System.Collections.Concurrent;
     using System.Collections.Generic;
-    using slskd.Entities;
 
     /// <summary>
     ///     Tracks private message conversations.
     /// </summary>
-    public class ConversationTracker : IConversationTracker
+    public interface IConversationTracker
     {
         /// <summary>
         ///     Tracked private message conversations.
         /// </summary>
-        public ConcurrentDictionary<string, IList<PrivateMessage>> Conversations { get; } = new ConcurrentDictionary<string, IList<PrivateMessage>>();
+        ConcurrentDictionary<string, IList<PrivateMessage>> Conversations { get; }
 
         /// <summary>
         ///     Adds a private message conversation and appends the specified <paramref name="message"/>, or just appends the
@@ -37,14 +36,7 @@ namespace slskd.Trackers
         /// </summary>
         /// <param name="username"></param>
         /// <param name="message"></param>
-        public void AddOrUpdate(string username, PrivateMessage message)
-        {
-            Conversations.AddOrUpdate(username, new List<PrivateMessage>() { message }, (_, messageList) =>
-            {
-                messageList.Add(message);
-                return messageList;
-            });
-        }
+        void AddOrUpdate(string username, PrivateMessage message);
 
         /// <summary>
         ///     Returns the list of private messages for the specified <paramref name="username"/>, if any exist.
@@ -52,12 +44,12 @@ namespace slskd.Trackers
         /// <param name="username"></param>
         /// <param name="messages"></param>
         /// <returns></returns>
-        public bool TryGet(string username, out IList<PrivateMessage> messages) => Conversations.TryGetValue(username, out messages);
+        bool TryGet(string username, out IList<PrivateMessage> messages);
 
         /// <summary>
         ///     Removes a tracked private message conversation for the specified user.
         /// </summary>
         /// <param name="username"></param>
-        public void TryRemove(string username) => Conversations.TryRemove(username, out _);
+        void TryRemove(string username);
     }
 }

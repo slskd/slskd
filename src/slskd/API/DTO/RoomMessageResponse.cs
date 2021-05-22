@@ -17,8 +17,8 @@
 
 namespace slskd.API.DTO
 {
+    using slskd.Messaging;
     using System;
-    using slskd.Entities;
 
     public class RoomMessageResponse
     {

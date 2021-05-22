@@ -33,8 +33,12 @@ namespace slskd
     using Prometheus.SystemMetrics;
     using Serilog;
     using slskd.API.Authentication;
+    using slskd.Local;
+    using slskd.Messaging;
+    using slskd.Peer;
+    using slskd.Search;
     using slskd.Security;
-    using slskd.Trackers;
+    using slskd.Transfer;
 
     /// <summary>
     ///     ASP.NET Startup.

@@ -17,9 +17,9 @@
 
 namespace slskd.API.DTO
 {
+    using slskd.Messaging;
     using System.Collections.Generic;
     using System.Linq;
-    using slskd.Entities;
 
     public class RoomResponse
     {
