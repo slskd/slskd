@@ -1,4 +1,4 @@
-﻿// <copyright file="RoomMessage.cs" company="slskd Team">
+﻿// <copyright file="PrivateMessage.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -15,18 +15,38 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-namespace slskd.Entities
+namespace slskd.Messaging
 {
     using System;
     using Soulseek;
 
     /// <summary>
-    ///     A message sent to a room.
+    ///     A private message.
     /// </summary>
-    public class RoomMessage
+    public class PrivateMessage
     {
         /// <summary>
-        ///     The timestamp of the message.
+        ///     A value indicating whether the message has been acknowledged.
+        /// </summary>
+        public bool Acknowledged { get; set; } = false;
+
+        /// <summary>
+        ///     The unique message id, used to acknowledge receipt.
+        /// </summary>
+        public int Id { get; set; }
+
+        /// <summary>
+        ///     The message.
+        /// </summary>
+        public string Message { get; set; }
+
+        /// <summary>
+        ///     A value indicating whether the message was replayed.
+        /// </summary>
+        public bool Replayed { get; set; }
+
+        /// <summary>
+        ///     The UTC timestamp of the message.
         /// </summary>
         public DateTime Timestamp { get; set; } = DateTime.UtcNow;
 
@@ -35,24 +55,16 @@ namespace slskd.Entities
         /// </summary>
         public string Username { get; set; }
 
-        /// <summary>
-        ///     The message.
-        /// </summary>
-        public string Message { get; set; }
-
-        /// <summary>
-        ///     The room to which the message pertains.
-        /// </summary>
-        public string RoomName { get; set; }
-
-        public static RoomMessage FromEventArgs(RoomMessageReceivedEventArgs eventArgs, DateTime? timestamp = null)
+        public static PrivateMessage FromEventArgs(PrivateMessageReceivedEventArgs eventArgs)
         {
-            return new RoomMessage()
+            return new PrivateMessage()
             {
-                Timestamp = timestamp ?? DateTime.UtcNow,
+                Id = eventArgs.Id,
+                Timestamp = eventArgs.Timestamp,
                 Username = eventArgs.Username,
                 Message = eventArgs.Message,
-                RoomName = eventArgs.RoomName,
+                Acknowledged = false,
+                Replayed = eventArgs.Replayed,
             };
         }
     }

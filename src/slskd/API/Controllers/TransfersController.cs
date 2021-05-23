@@ -26,7 +26,7 @@ namespace slskd.API.Controllers
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
     using slskd.API.DTO;
-    using slskd.Trackers;
+    using slskd.Transfer;
     using Soulseek;
 
     /// <summary>

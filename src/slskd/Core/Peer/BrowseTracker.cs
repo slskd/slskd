@@ -15,7 +15,7 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-namespace slskd.Trackers
+namespace slskd.Peer
 {
     using System.Collections.Concurrent;
     using Soulseek;

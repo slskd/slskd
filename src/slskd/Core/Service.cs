@@ -28,8 +28,11 @@ namespace slskd
     using Microsoft.Extensions.Options;
     using Serilog;
     using Serilog.Events;
-    using slskd.Entities;
-    using slskd.Trackers;
+    using slskd.Local;
+    using slskd.Messaging;
+    using slskd.Peer;
+    using slskd.Search;
+    using slskd.Transfer;
     using Soulseek;
     using Soulseek.Diagnostics;
 

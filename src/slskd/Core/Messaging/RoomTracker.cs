@@ -15,12 +15,11 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-namespace slskd.Trackers
+namespace slskd.Messaging
 {
     using System.Collections.Concurrent;
     using System.Collections.Generic;
     using System.Linq;
-    using slskd.Entities;
     using Soulseek;
 
     /// <summary>

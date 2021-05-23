@@ -1,4 +1,4 @@
-﻿// <copyright file="ISearchTracker.cs" company="slskd Team">
+﻿// <copyright file="RoomMessage.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -15,38 +15,45 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-namespace slskd.Trackers
+namespace slskd.Messaging
 {
     using System;
-    using System.Collections.Concurrent;
     using Soulseek;
 
     /// <summary>
-    ///     Tracks active searches.
+    ///     A message sent to a room.
     /// </summary>
-    public interface ISearchTracker
+    public class RoomMessage
     {
         /// <summary>
-        ///     Gets active searches.
+        ///     The timestamp of the message.
         /// </summary>
-        ConcurrentDictionary<Guid, Search> Searches { get; }
+        public DateTime Timestamp { get; set; } = DateTime.UtcNow;
 
         /// <summary>
-        ///     Adds or updates a tracked search.
+        ///     The username of the user who sent the message.
         /// </summary>
-        /// <param name="id"></param>
-        /// <param name="args"></param>
-        void AddOrUpdate(Guid id, SearchEventArgs args);
+        public string Username { get; set; }
 
         /// <summary>
-        ///     Removes all tracked searches.
+        ///     The message.
         /// </summary>
-        void Clear();
+        public string Message { get; set; }
 
         /// <summary>
-        ///     Removes a tracked search.
+        ///     The room to which the message pertains.
         /// </summary>
-        /// <param name="id"></param>
-        void TryRemove(Guid id);
+        public string RoomName { get; set; }
+
+        public static RoomMessage FromEventArgs(RoomMessageReceivedEventArgs eventArgs, DateTime? timestamp = null)
+        {
+            return new RoomMessage()
+            {
+                Timestamp = timestamp ?? DateTime.UtcNow,
+                Username = eventArgs.Username,
+                Message = eventArgs.Message,
+                RoomName = eventArgs.RoomName,
+            };
+        }
     }
 }

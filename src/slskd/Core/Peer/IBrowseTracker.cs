@@ -1,4 +1,4 @@
-﻿// <copyright file="SearchTracker.cs" company="slskd Team">
+﻿// <copyright file="IBrowseTracker.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -15,48 +15,40 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-namespace slskd.Trackers
+namespace slskd.Peer
 {
-    using System;
     using System.Collections.Concurrent;
     using Soulseek;
 
     /// <summary>
-    ///     Tracks active searches.
+    ///     Tracks browse operations.
     /// </summary>
-    public class SearchTracker : ISearchTracker
+    public interface IBrowseTracker
     {
         /// <summary>
-        ///     Gets active searches.
+        ///     Tracked browse operations.
         /// </summary>
-        public ConcurrentDictionary<Guid, Search> Searches { get; private set; } =
-            new ConcurrentDictionary<Guid, Search>();
+        ConcurrentDictionary<string, BrowseProgressUpdatedEventArgs> Browses { get; }
 
         /// <summary>
-        ///     Adds or updates a tracked search.
+        ///     Adds or updates a tracked browse operation.
         /// </summary>
-        /// <param name="id"></param>
-        /// <param name="args"></param>
-        public void AddOrUpdate(Guid id, SearchEventArgs args)
-        {
-            Searches.AddOrUpdate(id, args.Search, (token, search) => args.Search);
-        }
+        /// <param name="username"></param>
+        /// <param name="progress"></param>
+        void AddOrUpdate(string username, BrowseProgressUpdatedEventArgs progress);
 
         /// <summary>
-        ///     Removes all tracked searches.
+        ///     Gets the browse progress for the specified user.
         /// </summary>
-        public void Clear()
-        {
-            Searches.Clear();
-        }
+        /// <param name="username"></param>
+        /// <param name="progress"></param>
+        /// <returns></returns>
+        bool TryGet(string username, out BrowseProgressUpdatedEventArgs progress);
 
         /// <summary>
-        ///     Removes a tracked search.
+        ///     Removes a tracked browse operation for the specified user.
         /// </summary>
-        /// <param name="id"></param>
-        public void TryRemove(Guid id)
-        {
-            Searches.TryRemove(id, out _);
-        }
+        /// <param name="username"></param>
+        void TryRemove(string username);
     }
 }

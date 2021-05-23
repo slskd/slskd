@@ -1,4 +1,4 @@
-﻿// <copyright file="IBrowseTracker.cs" company="slskd Team">
+﻿// <copyright file="ISearchTracker.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -15,40 +15,38 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-namespace slskd.Trackers
+namespace slskd.Search
 {
+    using System;
     using System.Collections.Concurrent;
     using Soulseek;
 
     /// <summary>
-    ///     Tracks browse operations.
+    ///     Tracks active searches.
     /// </summary>
-    public interface IBrowseTracker
+    public interface ISearchTracker
     {
         /// <summary>
-        ///     Tracked browse operations.
+        ///     Gets active searches.
         /// </summary>
-        ConcurrentDictionary<string, BrowseProgressUpdatedEventArgs> Browses { get; }
+        ConcurrentDictionary<Guid, Search> Searches { get; }
 
         /// <summary>
-        ///     Adds or updates a tracked browse operation.
+        ///     Adds or updates a tracked search.
         /// </summary>
-        /// <param name="username"></param>
-        /// <param name="progress"></param>
-        void AddOrUpdate(string username, BrowseProgressUpdatedEventArgs progress);
+        /// <param name="id"></param>
+        /// <param name="args"></param>
+        void AddOrUpdate(Guid id, SearchEventArgs args);
 
         /// <summary>
-        ///     Gets the browse progress for the specified user.
+        ///     Removes all tracked searches.
         /// </summary>
-        /// <param name="username"></param>
-        /// <param name="progress"></param>
-        /// <returns></returns>
-        bool TryGet(string username, out BrowseProgressUpdatedEventArgs progress);
+        void Clear();
 
         /// <summary>
-        ///     Removes a tracked browse operation for the specified user.
+        ///     Removes a tracked search.
         /// </summary>
-        /// <param name="username"></param>
-        void TryRemove(string username);
+        /// <param name="id"></param>
+        void TryRemove(Guid id);
     }
 }
