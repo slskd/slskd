@@ -24,6 +24,7 @@ namespace slskd
     using Microsoft.AspNetCore.Authentication.JwtBearer;
     using Microsoft.AspNetCore.Builder;
     using Microsoft.AspNetCore.Mvc.ApiExplorer;
+    using Microsoft.EntityFrameworkCore;
     using Microsoft.Extensions.Configuration;
     using Microsoft.Extensions.DependencyInjection;
     using Microsoft.Extensions.FileProviders;
@@ -149,13 +150,13 @@ namespace slskd
                             Version = "v0",
                         });
 
-                    if (File.Exists(Program.DefaultXmlDocumentationFile))
+                    if (File.Exists(Program.XmlDocumentationFile))
                     {
-                        options.IncludeXmlComments(Program.DefaultXmlDocumentationFile);
+                        options.IncludeXmlComments(Program.XmlDocumentationFile);
                     }
                     else
                     {
-                        logger.Warning($"Unable to find XML documentation in {Program.DefaultXmlDocumentationFile}, Swagger will not include metadata");
+                        logger.Warning($"Unable to find XML documentation in {Program.XmlDocumentationFile}, Swagger will not include metadata");
                     }
                 });
             }
@@ -164,6 +165,13 @@ namespace slskd
             {
                 services.AddSystemMetrics();
             }
+
+            services.AddDbContextFactory<SearchDbContext>(options =>
+            {
+                options.UseSqlite($"Data Source={Path.Combine(Options.Directories.App, "search.db")}");
+            });
+
+            services.AddTransient(p => p.GetRequiredService<IDbContextFactory<SearchDbContext>>().CreateDbContext());
 
             services.AddSingleton<ITransferTracker, TransferTracker>();
             services.AddSingleton<ISearchTracker, SearchTracker>();

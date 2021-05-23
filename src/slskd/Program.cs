@@ -63,11 +63,6 @@ namespace slskd
         public static readonly string DefaultConfigurationFile = Path.Combine(AppContext.BaseDirectory, "config", $"{AppName}.yml");
 
         /// <summary>
-        ///     The default XML documentation filename.
-        /// </summary>
-        public static readonly string DefaultXmlDocumentationFile = Path.Combine(AppContext.BaseDirectory, "etc", $"{AppName}.xml");
-
-        /// <summary>
         ///     The default incomplete download directory.
         /// </summary>
         public static readonly string DefaultIncompleteDirectory = Path.Combine(DefaultAppDirectory, "incomplete");
@@ -86,6 +81,11 @@ namespace slskd
         ///     The global prefix for environment variables.
         /// </summary>
         public static readonly string EnvironmentVariablePrefix = $"{AppName.ToUpperInvariant()}_";
+
+        /// <summary>
+        ///     The default XML documentation filename.
+        /// </summary>
+        public static readonly string XmlDocumentationFile = Path.Combine(AppContext.BaseDirectory, "etc", $"{AppName}.xml");
 
         /// <summary>
         ///     Gets the assembly version of the application.

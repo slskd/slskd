@@ -1,4 +1,4 @@
-// <copyright file="DbContext.cs" company="slskd Team">
+// <copyright file="SearchDbContext.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -15,18 +15,17 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-namespace slskd
+namespace slskd.Search
 {
     using Microsoft.EntityFrameworkCore;
-    using slskd.Search;
 
-    public class AppDbContext : DbContext
+    public class SearchDbContext : DbContext
     {
-        public AppDbContext(DbContextOptions<AppDbContext> options)
+        public SearchDbContext(DbContextOptions<SearchDbContext> options)
             : base(options)
         {
         }
 
-        public DbSet<Search.Search> Searches { get; set; }
+        public DbSet<Search> Searches { get; set; }
     }
 }
