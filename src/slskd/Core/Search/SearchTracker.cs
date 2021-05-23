@@ -29,8 +29,8 @@ namespace slskd.Search
         /// <summary>
         ///     Gets active searches.
         /// </summary>
-        public ConcurrentDictionary<Guid, Search> Searches { get; private set; } =
-            new ConcurrentDictionary<Guid, Search>();
+        public ConcurrentDictionary<Guid, Soulseek.Search> Searches { get; private set; } =
+            new ConcurrentDictionary<Guid, Soulseek.Search>();
 
         /// <summary>
         ///     Adds or updates a tracked search.

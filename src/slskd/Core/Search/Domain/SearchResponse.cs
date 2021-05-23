@@ -1,4 +1,4 @@
-﻿// <copyright file="ISearchTracker.cs" company="slskd Team">
+// <copyright file="SearchResponse.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -18,35 +18,16 @@
 namespace slskd.Search
 {
     using System;
-    using System.Collections.Concurrent;
-    using Soulseek;
+    using System.Text.Json;
 
     /// <summary>
-    ///     Tracks active searches.
+    ///     A response to a file search.
     /// </summary>
-    public interface ISearchTracker
+    public class SearchResponseRecord
     {
-        /// <summary>
-        ///     Gets active searches.
-        /// </summary>
-        ConcurrentDictionary<Guid, Soulseek.Search> Searches { get; }
+        public Guid SearchId { get; init; }
 
-        /// <summary>
-        ///     Adds or updates a tracked search.
-        /// </summary>
-        /// <param name="id"></param>
-        /// <param name="args"></param>
-        void AddOrUpdate(Guid id, SearchEventArgs args);
-
-        /// <summary>
-        ///     Removes all tracked searches.
-        /// </summary>
-        void Clear();
-
-        /// <summary>
-        ///     Removes a tracked search.
-        /// </summary>
-        /// <param name="id"></param>
-        void TryRemove(Guid id);
+        public string ResponseJson { get; set; }
+        public Soulseek.SearchResponse Response => new Lazy<Soulseek.SearchResponse>(() => JsonSerializer.Deserialize<Soulseek.SearchResponse>(ResponseJson)).Value;
     }
 }
