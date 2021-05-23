@@ -31,7 +31,7 @@ namespace slskd.Validation
             {
                 var dir = Path.GetFullPath(value?.ToString());
 
-                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                if (!dir.StartsWith(Program.DefaultAppDirectory) && !string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
                 {
                     return new ValidationResult($"The {validationContext.DisplayName} field specifies a non-existent directory '{dir}'.");
                 }
