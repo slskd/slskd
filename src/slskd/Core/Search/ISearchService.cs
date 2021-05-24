@@ -1,4 +1,4 @@
-// <copyright file="Search.cs" company="slskd Team">
+﻿// <copyright file="ISearchService.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -18,28 +18,13 @@
 namespace slskd.Search
 {
     using System;
+    using System.Threading.Tasks;
     using Soulseek;
 
-    public class Search
+    public interface ISearchService
     {
-        public Guid Id { get; init; } = Guid.NewGuid();
-
-        public DateTime StartedAt { get; init; } = DateTime.UtcNow;
-        public DateTime? EndedAt { get; set; }
-
-        /// <summary>
-        ///     Gets the text for which to search.
-        /// </summary>
-        public string SearchText { get; set; }
-
-        /// <summary>
-        ///     Gets the state of the search.
-        /// </summary>
-        public SearchStates State { get; set; }
-
-        /// <summary>
-        ///     Gets the unique identifier for the search.
-        /// </summary>
-        public int Token { get; set; }
+        Task<Guid> BeginAsync(SearchQuery query, SearchScope scope = null, SearchOptions options = null);
+        bool TryCancel(Guid id);
+        Task<Search> FindAsync(Guid id);
     }
 }
