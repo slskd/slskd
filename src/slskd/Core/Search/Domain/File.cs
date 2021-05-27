@@ -26,10 +26,10 @@ namespace slskd.Search
     {
         [ForeignKey("SearchResponse")]
         [JsonIgnore]
-        public Guid SearchResponseId { get; set; }
+        public Guid SearchResponseId { get; init; }
 
         [Key]
-        public Guid Id { get; set; }
+        public Guid Id { get; init; }
         public int? BitDepth { get; init; }
         public int? BitRate { get; init; }
         public int Code { get; init; }

@@ -28,7 +28,7 @@ namespace slskd.Search
     {
         [ForeignKey("Search")]
         [JsonIgnore]
-        public Guid SearchId { get; set; }
+        public Guid SearchId { get; init; }
 
         [Key]
         public Guid Id { get; init; } = Guid.NewGuid();
