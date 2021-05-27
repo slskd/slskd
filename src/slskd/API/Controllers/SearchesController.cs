@@ -43,12 +43,14 @@ namespace slskd.API.Controllers
         /// </summary>
         /// <param name="client"></param>
         /// <param name="tracker"></param>
-        public SearchesController(ISoulseekClient client, ISearchTracker tracker)
+        public SearchesController(ISoulseekClient client, ISearchTracker tracker, ISearchService searchService)
         {
             Client = client;
             Tracker = tracker;
+            SearchService = searchService;
         }
 
+        private ISearchService SearchService { get; }
         private ISoulseekClient Client { get; }
         private ISearchTracker Tracker { get; }
 
@@ -62,7 +64,7 @@ namespace slskd.API.Controllers
         /// <response code="500">The search terminated abnormally.</response>
         [HttpPost("")]
         [Authorize]
-        [ProducesResponseType(typeof(IEnumerable<SearchResponse>), 200)]
+        [ProducesResponseType(typeof(IEnumerable<Soulseek.SearchResponse>), 200)]
         [ProducesResponseType(400)]
         [ProducesResponseType(typeof(string), 500)]
         public async Task<IActionResult> Post([FromBody]SearchRequest request)
@@ -73,13 +75,16 @@ namespace slskd.API.Controllers
                 responseReceived: (e) => Tracker.AddOrUpdate(id, e),
                 stateChanged: (e) => Tracker.AddOrUpdate(id, e));
 
-            var results = new ConcurrentBag<SearchResponse>();
+            var results = new ConcurrentBag<Soulseek.SearchResponse>();
 
             var searchText = string.Join(' ', request.SearchText.Split(' ').Where(term => term.Length > 1));
 
             try
             {
-                await Client.SearchAsync(SearchQuery.FromText(searchText), (r) => results.Add(r), SearchScope.Network, request.Token, options);
+                //await Client.SearchAsync(SearchQuery.FromText(searchText), (r) => results.Add(r), SearchScope.Network, request.Token, options);
+                var (guid, completed) = await SearchService.BeginAsync(SearchQuery.FromText(searchText), SearchScope.Network, id: id);
+                await completed;
+
                 return Ok(results);
             }
             catch (Exception ex)
@@ -102,14 +107,15 @@ namespace slskd.API.Controllers
         /// <response code="404">A matching search was not found.</response>
         [HttpGet("{id}")]
         [Authorize]
-        [ProducesResponseType(typeof(Soulseek.Search), 200)]
+        [ProducesResponseType(typeof(slskd.Search.Search), 200)]
         [ProducesResponseType(404)]
-        public IActionResult GetById([FromRoute]Guid id)
+        public async Task<IActionResult> GetById([FromRoute]Guid id)
         {
-            Tracker.Searches.TryGetValue(id, out var search);
+            var search = await SearchService.FindAsync(search => search.Id == id);
 
             if (search == default)
             {
+                Console.WriteLine($"Search: {id} not found");
                 return NotFound();
             }
 

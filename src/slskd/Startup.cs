@@ -150,7 +150,7 @@ namespace slskd
                             Version = "v0",
                         });
 
-                    if (File.Exists(Program.XmlDocumentationFile))
+                    if (System.IO.File.Exists(Program.XmlDocumentationFile))
                     {
                         options.IncludeXmlComments(Program.XmlDocumentationFile);
                     }
@@ -180,6 +180,8 @@ namespace slskd
             services.AddSingleton<IRoomTracker, RoomTracker>(_ => new RoomTracker(messageLimit: 250));
             services.AddSingleton<ISharedFileCache>(_ =>
                 new SharedFileCache(Options.Directories.Shared, 3600000));
+
+            services.AddSingleton<ISearchService, SearchService>();
 
             services.AddHostedService<Service>();
             services.AddSingleton(_ => Service.SoulseekClient);
