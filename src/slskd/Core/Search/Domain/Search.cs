@@ -18,10 +18,13 @@
 namespace slskd.Search
 {
     using System;
+    using System.Collections.Generic;
+    using System.ComponentModel.DataAnnotations;
     using Soulseek;
 
     public class Search
     {
+        [Key]
         public Guid Id { get; init; } = Guid.NewGuid();
 
         public DateTime StartedAt { get; init; } = DateTime.UtcNow;
@@ -41,5 +44,7 @@ namespace slskd.Search
         ///     Gets the unique identifier for the search.
         /// </summary>
         public int Token { get; set; }
+
+        public ICollection<SearchResponse> Responses { get; set; } = new List<SearchResponse>();
     }
 }

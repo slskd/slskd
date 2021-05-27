@@ -18,16 +18,49 @@
 namespace slskd.Search
 {
     using System;
-    using System.Text.Json;
+    using System.Collections.Generic;
+    using System.ComponentModel.DataAnnotations;
+    using System.ComponentModel.DataAnnotations.Schema;
+    using System.Linq;
+    using System.Text.Json.Serialization;
 
-    /// <summary>
-    ///     A response to a file search.
-    /// </summary>
-    public class SearchResponseRecord
+    public class SearchResponse
     {
-        public Guid SearchId { get; init; }
+        [ForeignKey("Search")]
+        [JsonIgnore]
+        public Guid SearchId { get; set; }
 
-        public string ResponseJson { get; set; }
-        public Soulseek.SearchResponse Response => new Lazy<Soulseek.SearchResponse>(() => JsonSerializer.Deserialize<Soulseek.SearchResponse>(ResponseJson)).Value;
+        [Key]
+        public Guid Id { get; init; } = Guid.NewGuid();
+        public int FileCount { get; init; }
+        public ICollection<File> Files { get; init; } = new List<File>();
+        public int FreeUploadSlots { get; init; }
+        public int LockedFileCount { get; init; }
+        public long QueueLength { get; init; }
+        public int Token { get; init; }
+        public int UploadSpeed { get; init; }
+        public string Username { get; init; }
+
+        public static SearchResponse FromSoulseekSearchResponse(Soulseek.SearchResponse searchResponse, Guid searchId)
+        {
+            var id = Guid.NewGuid();
+
+            var files = searchResponse.Files.Select(file => File.FromSoulseekFile(file, id, isLocked: false)).ToList();
+            files.AddRange(searchResponse.LockedFiles.Select(file => File.FromSoulseekFile(file, id, isLocked: true)));
+
+            return new SearchResponse()
+            {
+                SearchId = searchId,
+                Id = id,
+                FileCount = searchResponse.FileCount,
+                Files = files,
+                FreeUploadSlots = searchResponse.FreeUploadSlots,
+                LockedFileCount = searchResponse.LockedFileCount,
+                QueueLength = searchResponse.QueueLength,
+                Token = searchResponse.Token,
+                UploadSpeed = searchResponse.UploadSpeed,
+                Username = searchResponse.Username,
+            };
+        }
     }
 }
