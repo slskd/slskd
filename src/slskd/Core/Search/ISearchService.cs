@@ -24,7 +24,7 @@ namespace slskd.Search
 
     public interface ISearchService
     {
-        Task<(Guid Id, Task<Soulseek.Search> Completed)> BeginAsync(SearchQuery query, SearchScope scope = null, SearchOptions options = null, Guid? id = null);
+        Task<(Guid Id, Task<Search> Completed)> BeginAsync(SearchQuery query, SearchScope scope = null, SearchOptions options = null, Guid? id = null);
         bool TryCancel(Guid id);
         Task<Search> FindAsync(Expression<Func<Search, bool>> expression, bool includeResponses = false);
     }

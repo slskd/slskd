@@ -20,34 +20,39 @@ namespace slskd.Search
     using System;
     using System.Collections.Concurrent;
     using System.Linq.Expressions;
-    using System.Text.Json;
     using System.Threading;
     using System.Threading.Tasks;
     using Microsoft.EntityFrameworkCore;
+    using Microsoft.Extensions.Logging;
     using Soulseek;
 
     public class SearchService : ISearchService
     {
-        public SearchService(IDbContextFactory<SearchDbContext> contextFactory, ISoulseekClient client)
+        public SearchService(
+            IDbContextFactory<SearchDbContext> contextFactory,
+            ILogger<SearchService> log,
+            ISoulseekClient client)
         {
             ContextFactory = contextFactory;
+            Log = log;
             Client = client;
         }
 
         private IDbContextFactory<SearchDbContext> ContextFactory { get; }
+        private ILogger<SearchService> Log { get; set; }
         private ISoulseekClient Client { get; }
-        private ConcurrentDictionary<Guid, int> Lookup { get; }
-            = new ConcurrentDictionary<Guid, int>();
-        private ConcurrentDictionary<int, CancellationTokenSource> InProgress { get; }
-            = new ConcurrentDictionary<int, CancellationTokenSource>();
 
-        public async Task<(Guid Id, Task<Soulseek.Search> Completed)> BeginAsync(SearchQuery query, SearchScope scope = null, SearchOptions options = null, Guid? id = null)
+        private ConcurrentDictionary<Guid, CancellationTokenSource> InProgress { get; }
+            = new ConcurrentDictionary<Guid, CancellationTokenSource>();
+
+        public async Task<(Guid Id, Task<Search> Completed)> BeginAsync(SearchQuery query, SearchScope scope = null, SearchOptions options = null, Guid? id = null)
         {
-            scope = scope ?? SearchScope.Network;
-            var token = Client.GetNextToken();
-            id = id ?? Guid.NewGuid();
+            scope ??= SearchScope.Network;
+            options ??= new SearchOptions();
+            id ??= Guid.NewGuid();
 
-            var cts = new CancellationTokenSource();
+            var token = Client.GetNextToken();
+            var cancellationTokenSource = new CancellationTokenSource();
 
             var record = new Search()
             {
@@ -58,20 +63,33 @@ namespace slskd.Search
                 StartedAt = DateTime.UtcNow,
             };
 
-            options = options ?? new SearchOptions(stateChanged: (args) =>
+            options = options.WithActions(stateChanged: (args) => UpdateState(record, args), (args) => UpdateState(record, args));
+
+            try
             {
-                record.State = args.Search.State;
-                ContextFactory.CreateDbContext().Update(record);
+                using var context = ContextFactory.CreateDbContext();
+                context.Add(record);
+                await context.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                Log.LogError(ex, "Failed to save search: {Message}", ex.Message);
+            }
+
+            InProgress.TryAdd(id.Value, cancellationTokenSource);
+
+            var task = Task.Run(async () =>
+            {
+                var completedSearch = await Client.SearchAsync(
+                    query,
+                    responseReceived: (response) => AddResponse(id.Value, response),
+                    scope,
+                    token,
+                    options,
+                    cancellationToken: cancellationTokenSource.Token);
+
+                return Search.FromSoulseekSearch(completedSearch);
             });
-
-            using var context = ContextFactory.CreateDbContext();
-            context.Add(record);
-            context.SaveChanges();
-
-            InProgress.TryAdd(token, cts);
-            Lookup.TryAdd(id.Value, token);
-
-            var task = Client.SearchAsync(query, responseReceived: (response) => AddResponse(id.Value, response), scope, token, options, cancellationToken: cts.Token);
 
             _ = task.ContinueWith(async task =>
             {
@@ -87,14 +105,13 @@ namespace slskd.Search
 
                     using var context = ContextFactory.CreateDbContext();
                     context.Update(record);
-                    context.SaveChanges();
+                    await context.SaveChangesAsync();
 
                     Console.WriteLine($"Saved");
                 }
                 finally
                 {
-                    InProgress.TryRemove(token, out _);
-                    Lookup.TryRemove(id.Value, out _);
+                    InProgress.TryRemove(id.Value, out _);
                 }
             });
 
@@ -103,7 +120,7 @@ namespace slskd.Search
 
         public bool TryCancel(Guid id)
         {
-            if (Lookup.TryGetValue(id, out var token) && InProgress.TryGetValue(token, out var cts))
+            if (InProgress.TryGetValue(id, out var cts))
             {
                 cts.Cancel();
                 return true;
@@ -118,7 +135,7 @@ namespace slskd.Search
             var search = await context
                 .Searches
                 .Include(s => s.Responses)
-                .ThenInclude(r => r.Files)
+                .ThenInclude(r => r.Files).AsSplitQuery()
                 .FirstOrDefaultAsync(expression);
 
             //if (search == default)
@@ -134,11 +151,28 @@ namespace slskd.Search
             return search;
         }
 
-        private void AddResponse(Guid searchId, Soulseek.SearchResponse soulseekResponse)
+        private void AddResponse(Guid searchId, Soulseek.SearchResponse response)
         {
-            using var context = ContextFactory.CreateDbContext();
-            context.Add(SearchResponse.FromSoulseekSearchResponse(soulseekResponse, searchId));
-            context.SaveChanges();
+            _ = Task.Run(async () =>
+            {
+                using var context = ContextFactory.CreateDbContext();
+                context.Add(SearchResponse.FromSoulseekSearchResponse(response, searchId));
+                await context.SaveChangesAsync();
+            }).ContinueWith(task =>
+                Log.LogError(task.Exception, "Failed to save search response for {SearchId} from {Username}", searchId, response.Username),
+                TaskContinuationOptions.OnlyOnFaulted);
+        }
+
+        private void UpdateState(Search search, SearchEventArgs args)
+        {
+            _ = Task.Run(async () =>
+            {
+                var context = ContextFactory.CreateDbContext();
+                context.Update(search.WithSoulseekSearch(args.Search));
+                await context.SaveChangesAsync();
+            }).ContinueWith(task =>
+                Log.LogError(task.Exception, "Failed to update state of {SearchId}", search.Id),
+                TaskContinuationOptions.OnlyOnFaulted);
         }
     }
 }
