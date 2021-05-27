@@ -28,23 +28,67 @@ namespace slskd.Search
         public Guid Id { get; init; } = Guid.NewGuid();
 
         public DateTime StartedAt { get; init; } = DateTime.UtcNow;
-        public DateTime? EndedAt { get; set; }
+        public DateTime? EndedAt { get; init; }
+
+        /// <summary>
+        ///     Gets the total number of files contained within received responses.
+        /// </summary>
+        public int FileCount { get; init; }
+
+        /// <summary>
+        ///     Gets the total number of locked files contained within received responses.
+        /// </summary>
+        public int LockedFileCount { get; init; }
+
+        /// <summary>
+        ///     Gets the current number of responses received.
+        /// </summary>
+        public int ResponseCount { get; init; }
 
         /// <summary>
         ///     Gets the text for which to search.
         /// </summary>
-        public string SearchText { get; set; }
+        public string SearchText { get; init; }
 
         /// <summary>
         ///     Gets the state of the search.
         /// </summary>
-        public SearchStates State { get; set; }
+        public SearchStates State { get; init; }
 
         /// <summary>
         ///     Gets the unique identifier for the search.
         /// </summary>
-        public int Token { get; set; }
+        public int Token { get; init; }
 
-        public ICollection<SearchResponse> Responses { get; set; } = new List<SearchResponse>();
+        public ICollection<SearchResponse> Responses { get; init; } = new List<SearchResponse>();
+
+        public static Search FromSoulseekSearch(Soulseek.Search search)
+        {
+            return new Search()
+            {
+                FileCount = search.FileCount,
+                LockedFileCount = search.LockedFileCount,
+                ResponseCount = search.ResponseCount,
+                SearchText = search.SearchText,
+                State = search.State,
+                Token = search.Token,
+            };
+        }
+
+        public Search WithSoulseekSearch(Soulseek.Search search)
+        {
+            return new Search()
+            {
+                Id = Id,
+                StartedAt = StartedAt,
+                EndedAt = EndedAt,
+                FileCount = search.FileCount,
+                LockedFileCount = search.LockedFileCount,
+                ResponseCount = search.ResponseCount,
+                SearchText = SearchText,
+                State = search.State,
+                Token = Token,
+            };
+        }
     }
 }
