@@ -28,7 +28,7 @@ namespace slskd.Search
         public Guid Id { get; init; } = Guid.NewGuid();
 
         public DateTime StartedAt { get; init; } = DateTime.UtcNow;
-        public DateTime? EndedAt { get; init; }
+        public DateTime? EndedAt { get; set; }
 
         /// <summary>
         ///     Gets the total number of files contained within received responses.
@@ -53,7 +53,7 @@ namespace slskd.Search
         /// <summary>
         ///     Gets the state of the search.
         /// </summary>
-        public SearchStates State { get; init; }
+        public SearchStates State { get; set; }
 
         /// <summary>
         ///     Gets the unique identifier for the search.
