@@ -371,9 +371,9 @@ namespace slskd
         /// <param name="token">The search token.</param>
         /// <param name="query">The search query.</param>
         /// <returns>A Task resolving a SearchResponse, or null.</returns>
-        private Task<SearchResponse> SearchResponseResolver(string username, int token, SearchQuery query)
+        private Task<Soulseek.SearchResponse> SearchResponseResolver(string username, int token, SearchQuery query)
         {
-            var defaultResponse = Task.FromResult<SearchResponse>(null);
+            var defaultResponse = Task.FromResult<Soulseek.SearchResponse>(null);
 
             // some bots continually query for very common strings. blacklist known names here.
             var blacklist = new[] { "Lola45", "Lolo51", "rajah" };
@@ -394,7 +394,7 @@ namespace slskd
             {
                 Console.WriteLine($"[SENDING SEARCH RESULTS]: {results.Count()} records to {username} for query {query.SearchText}");
 
-                return Task.FromResult(new SearchResponse(
+                return Task.FromResult(new Soulseek.SearchResponse(
                     SoulseekClient.Username,
                     token,
                     freeUploadSlots: 1,
@@ -405,7 +405,7 @@ namespace slskd
 
             // if no results, either return null or an instance of SearchResponse with a fileList of length 0 in either case, no
             // response will be sent to the requestor.
-            return Task.FromResult<SearchResponse>(null);
+            return Task.FromResult<Soulseek.SearchResponse>(null);
         }
 
         /// <summary>
