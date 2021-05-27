@@ -41,7 +41,7 @@ namespace slskd.Search
         /// </summary>
         /// <param name="responseToken">The token for which the response is to be added or updated.</param>
         /// <param name="response">The response and context to cache.</param>
-        public void AddOrUpdate(int responseToken, (string Username, int Token, string Query, SearchResponse SearchResponse) response)
+        public void AddOrUpdate(int responseToken, (string Username, int Token, string Query, Soulseek.SearchResponse SearchResponse) response)
         {
             Cache.Set(responseToken, response, TimeSpan.FromMinutes(3));
         }
@@ -52,7 +52,7 @@ namespace slskd.Search
         /// <param name="responseToken">The token for the cached response.</param>
         /// <param name="response">The cached response and context, if present.</param>
         /// <returns>A value indicating whether a response for the specified responseToken is cached.</returns>
-        public bool TryGet(int responseToken, out (string Username, int Token, string Query, SearchResponse SearchResponse) response)
+        public bool TryGet(int responseToken, out (string Username, int Token, string Query, Soulseek.SearchResponse SearchResponse) response)
         {
             return Cache.TryGetValue(responseToken, out response);
         }
@@ -63,7 +63,7 @@ namespace slskd.Search
         /// <param name="responseToken">The token for the cached response.</param>
         /// <param name="response">The cached response and context, if present.</param>
         /// <returns>A value indicating whether a response for the specified responseToken was removed.</returns>
-        public bool TryRemove(int responseToken, out (string Username, int Token, string Query, SearchResponse SearchResponse) response)
+        public bool TryRemove(int responseToken, out (string Username, int Token, string Query, Soulseek.SearchResponse SearchResponse) response)
         {
             if (Cache.TryGetValue(responseToken, out response))
             {
