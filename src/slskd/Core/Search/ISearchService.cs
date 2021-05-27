@@ -18,13 +18,14 @@
 namespace slskd.Search
 {
     using System;
+    using System.Linq.Expressions;
     using System.Threading.Tasks;
     using Soulseek;
 
     public interface ISearchService
     {
-        Task<Guid> BeginAsync(SearchQuery query, SearchScope scope = null, SearchOptions options = null);
+        Task<(Guid Id, Task<Soulseek.Search> Completed)> BeginAsync(SearchQuery query, SearchScope scope = null, SearchOptions options = null, Guid? id = null);
         bool TryCancel(Guid id);
-        Task<Search> FindAsync(Guid id);
+        Task<Search> FindAsync(Expression<Func<Search, bool>> expression, bool includeResponses = false);
     }
 }

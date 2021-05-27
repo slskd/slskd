@@ -19,76 +19,86 @@ namespace slskd.Search
 {
     using System;
     using System.Collections.Concurrent;
+    using System.Linq.Expressions;
+    using System.Text.Json;
     using System.Threading;
     using System.Threading.Tasks;
+    using Microsoft.EntityFrameworkCore;
     using Soulseek;
 
     public class SearchService : ISearchService
     {
-        public SearchService(SearchDbContext context, ISoulseekClient client)
+        public SearchService(IDbContextFactory<SearchDbContext> contextFactory, ISoulseekClient client)
         {
-            Context = context;
+            ContextFactory = contextFactory;
             Client = client;
-
-            Client.SearchStateChanged += Client_SearchStateChanged;
-            Client.SearchRequestReceived += Client_SearchRequestReceived;
         }
 
-        private void Client_SearchRequestReceived(object sender, SearchRequestEventArgs e)
-        {
-            throw new NotImplementedException();
-        }
-
-        private void Client_SearchStateChanged(object sender, SearchStateChangedEventArgs e)
-        {
-            throw new NotImplementedException();
-        }
-
-        private SearchDbContext Context { get; }
+        private IDbContextFactory<SearchDbContext> ContextFactory { get; }
         private ISoulseekClient Client { get; }
         private ConcurrentDictionary<Guid, int> Lookup { get; }
             = new ConcurrentDictionary<Guid, int>();
         private ConcurrentDictionary<int, CancellationTokenSource> InProgress { get; }
             = new ConcurrentDictionary<int, CancellationTokenSource>();
 
-        public async Task<Guid> BeginAsync(SearchQuery query, SearchScope scope = null, SearchOptions options = null)
+        public async Task<(Guid Id, Task<Soulseek.Search> Completed)> BeginAsync(SearchQuery query, SearchScope scope = null, SearchOptions options = null, Guid? id = null)
         {
             scope = scope ?? SearchScope.Network;
             var token = Client.GetNextToken();
-            options = options ?? new SearchOptions();
+            id = id ?? Guid.NewGuid();
+
             var cts = new CancellationTokenSource();
-            var id = Guid.NewGuid();
 
             var record = new Search()
             {
                 SearchText = query.SearchText,
                 Token = token,
-                Id = id,
+                Id = id.Value,
                 State = SearchStates.Requested,
+                StartedAt = DateTime.UtcNow,
             };
 
-            Context.Add(record);
-            await Context.SaveChangesAsync();
+            options = options ?? new SearchOptions(stateChanged: (args) =>
+            {
+                record.State = args.Search.State;
+                ContextFactory.CreateDbContext().Update(record);
+            });
+
+            using var context = ContextFactory.CreateDbContext();
+            context.Add(record);
+            context.SaveChanges();
 
             InProgress.TryAdd(token, cts);
-            Lookup.TryAdd(id, token);
+            Lookup.TryAdd(id.Value, token);
 
-            _ = Client.SearchAsync(query, scope, token, options, cancellationToken: cts.Token).ContinueWith(async task =>
+            var task = Client.SearchAsync(query, responseReceived: (response) => AddResponse(id.Value, response), scope, token, options, cancellationToken: cts.Token);
+
+            _ = task.ContinueWith(async task =>
             {
+                Console.WriteLine($"Continued...");
+
                 try
                 {
-                    var result = await task;
+                    var search = await task;
+                    record.State = search.State;
+                    record.EndedAt = DateTime.UtcNow;
 
-                    // todo: update db with status and end time
+                    Console.WriteLine($"Saving with state {record.State}");
+
+                    using var context = ContextFactory.CreateDbContext();
+                    context.Update(record);
+                    context.SaveChanges();
+
+                    Console.WriteLine($"Saved");
                 }
                 finally
                 {
                     InProgress.TryRemove(token, out _);
-                    Lookup.TryRemove(id, out _);
+                    Lookup.TryRemove(id.Value, out _);
                 }
             });
 
-            return id;
+            return (id.Value, task);
         }
 
         public bool TryCancel(Guid id)
@@ -102,9 +112,33 @@ namespace slskd.Search
             return false;
         }
 
-        public Task<Search> FindAsync(Guid id)
+        public async Task<Search> FindAsync(Expression<Func<Search, bool>> expression, bool includeResponses = true)
         {
-            return Context.Searches.FindAsync(id).AsTask();
+            using var context = ContextFactory.CreateDbContext();
+            var search = await context
+                .Searches
+                .Include(s => s.Responses)
+                .ThenInclude(r => r.Files)
+                .FirstOrDefaultAsync(expression);
+
+            //if (search == default)
+            //{
+            //    return default;
+            //}
+
+            //if (includeResponses)
+            //{
+            //    await context.Entry(search).Collection(s => s.Responses).LoadAsync();
+            //}
+
+            return search;
+        }
+
+        private void AddResponse(Guid searchId, Soulseek.SearchResponse soulseekResponse)
+        {
+            using var context = ContextFactory.CreateDbContext();
+            context.Add(SearchResponse.FromSoulseekSearchResponse(soulseekResponse, searchId));
+            context.SaveChanges();
         }
     }
 }
