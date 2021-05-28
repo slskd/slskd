@@ -107,7 +107,6 @@ namespace slskd.Search
             using var context = ContextFactory.CreateDbContext();
             var search = await context
                 .Searches
-                .Select(search => search.)
                 .FirstOrDefaultAsync(expression);
 
             if (!includeResponses)

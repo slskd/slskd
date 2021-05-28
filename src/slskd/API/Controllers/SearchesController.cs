@@ -43,16 +43,14 @@ namespace slskd.API.Controllers
         /// </summary>
         /// <param name="client"></param>
         /// <param name="tracker"></param>
-        public SearchesController(ISoulseekClient client, ISearchTracker tracker, ISearchService searchService)
+        public SearchesController(ISoulseekClient client, ISearchService searchService)
         {
             Client = client;
-            Tracker = tracker;
             SearchService = searchService;
         }
 
         private ISearchService SearchService { get; }
         private ISoulseekClient Client { get; }
-        private ISearchTracker Tracker { get; }
 
         /// <summary>
         ///     Performs a search for the specified <paramref name="request"/>.

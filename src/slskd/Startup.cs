@@ -174,7 +174,6 @@ namespace slskd
             services.AddTransient(p => p.GetRequiredService<IDbContextFactory<SearchDbContext>>().CreateDbContext());
 
             services.AddSingleton<ITransferTracker, TransferTracker>();
-            services.AddSingleton<ISearchTracker, SearchTracker>();
             services.AddSingleton<IBrowseTracker, BrowseTracker>();
             services.AddSingleton<IConversationTracker, ConversationTracker>();
             services.AddSingleton<IRoomTracker, RoomTracker>(_ => new RoomTracker(messageLimit: 250));
