@@ -15,8 +15,10 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-namespace slskd.Search
+namespace slskd
 {
+    using SoulseekFile = Soulseek.File;
+
     public class File
     {
         public int? BitDepth { get; init; }
@@ -30,7 +32,7 @@ namespace slskd.Search
         public long Size { get; init; }
         public bool IsLocked { get; init; }
 
-        public static File FromSoulseekFile(Soulseek.File file)
+        public static File FromSoulseekFile(SoulseekFile file)
         {
             return new File()
             {
