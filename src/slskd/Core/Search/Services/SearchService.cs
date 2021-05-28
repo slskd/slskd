@@ -114,6 +114,7 @@ namespace slskd.Search
                 search.LockedFileCount = soulseekSearch.LockedFileCount;
                 search.ResponseCount = soulseekSearch.ResponseCount;
                 search.State = soulseekSearch.State;
+                search.EndedAt = DateTime.UtcNow;
 
                 if (includeResponses)
                 {
