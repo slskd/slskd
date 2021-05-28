@@ -18,10 +18,18 @@
 namespace slskd.Search
 {
     using System;
+    using System.Linq;
     using Soulseek;
 
     public static class Extensions
     {
+        /// <summary>
+        ///     Returns a copy of the specified <paramref name="options"/> with the specified actions bound, while retaining the existing actions.
+        /// </summary>
+        /// <param name="options"></param>
+        /// <param name="stateChanged"></param>
+        /// <param name="responseReceived"></param>
+        /// <returns></returns>
         public static SearchOptions WithActions(
             this SearchOptions options,
             Action<SearchStateChangedEventArgs> stateChanged = null,
@@ -60,6 +68,27 @@ namespace slskd.Search
 
                     responseReceived(args);
                 });
+        }
+
+        /// <summary>
+        ///     Creates a projection over the specified <paramref name="query"/> which omits responses.
+        /// </summary>
+        /// <param name="query"></param>
+        /// <returns></returns>
+        public static IQueryable<Search> WithoutResponses(this IQueryable<Search> query)
+        {
+            return query.Select(s => new Search()
+            {
+                Id = s.Id,
+                StartedAt = s.StartedAt,
+                EndedAt = s.EndedAt,
+                FileCount = s.FileCount,
+                LockedFileCount = s.LockedFileCount,
+                ResponseCount = s.ResponseCount,
+                SearchText = s.SearchText,
+                State = s.State,
+                Token = s.Token,
+            });
         }
     }
 }
