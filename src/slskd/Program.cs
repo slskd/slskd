@@ -41,6 +41,7 @@ namespace slskd
     using slskd.Validation;
     using Utility.CommandLine;
     using Utility.EnvironmentVariables;
+    using IOFile = System.IO.File;
 
     /// <summary>
     ///     Bootstraps configuration and handles primitive command-line instructions.
@@ -253,7 +254,7 @@ namespace slskd
                 PrintLogo(Version);
             }
 
-            if (ConfigurationFile != DefaultConfigurationFile && !File.Exists(ConfigurationFile))
+            if (ConfigurationFile != DefaultConfigurationFile && !IOFile.Exists(ConfigurationFile))
             {
                 logger.Warning($"Specified configuration file '{ConfigurationFile}' could not be found and was not loaded.");
             }
@@ -346,7 +347,7 @@ namespace slskd
             filename = Path.Combine(AppContext.BaseDirectory, filename);
 
             var cert = X509.Generate(subject: AppName, password, X509KeyStorageFlags.Exportable);
-            File.WriteAllBytes(filename, cert.Export(X509ContentType.Pkcs12, password));
+            IOFile.WriteAllBytes(filename, cert.Export(X509ContentType.Pkcs12, password));
 
             Console.WriteLine($"Password: {password}");
             Console.WriteLine($"Certificate exported to {filename}");
@@ -503,8 +504,8 @@ namespace slskd
                 {
                     var file = Guid.NewGuid().ToString();
                     var probe = Path.Combine(directory, file);
-                    File.WriteAllText(probe, string.Empty);
-                    File.Delete(probe);
+                    IOFile.WriteAllText(probe, string.Empty);
+                    IOFile.Delete(probe);
                 }
                 catch (Exception ex)
                 {
