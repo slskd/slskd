@@ -32,35 +32,11 @@ namespace slskd.Search
 
         public DateTime StartedAt { get; init; } = DateTime.UtcNow;
         public DateTime? EndedAt { get; set; }
-
-        /// <summary>
-        ///     Gets the total number of files contained within received responses.
-        /// </summary>
         public int FileCount { get; set; }
-
-        /// <summary>
-        ///     Gets the total number of locked files contained within received responses.
-        /// </summary>
         public int LockedFileCount { get; set; }
-
-        /// <summary>
-        ///     Gets the current number of responses received.
-        /// </summary>
         public int ResponseCount { get; set; }
-
-        /// <summary>
-        ///     Gets the text for which to search.
-        /// </summary>
         public string SearchText { get; init; }
-
-        /// <summary>
-        ///     Gets the state of the search.
-        /// </summary>
         public SearchStates State { get; set; }
-
-        /// <summary>
-        ///     Gets the unique identifier for the search.
-        /// </summary>
         public int Token { get; init; }
 
         [JsonIgnore]
