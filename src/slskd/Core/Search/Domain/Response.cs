@@ -17,45 +17,30 @@
 
 namespace slskd.Search
 {
-    using System;
     using System.Collections.Generic;
-    using System.ComponentModel.DataAnnotations;
-    using System.ComponentModel.DataAnnotations.Schema;
     using System.Linq;
-    using System.Text.Json.Serialization;
 
-    public class SearchResponse
+    public class Response
     {
-        [ForeignKey("Search")]
-        [JsonIgnore]
-        public Guid SearchId { get; init; }
-
-        [Key]
-        public Guid Id { get; init; } = Guid.NewGuid();
         public int FileCount { get; init; }
         public ICollection<File> Files { get; init; } = new List<File>();
         public int FreeUploadSlots { get; init; }
         public int LockedFileCount { get; init; }
+        public ICollection<File> LockedFiles { get; init; } = new List<File>();
         public long QueueLength { get; init; }
         public int Token { get; init; }
         public int UploadSpeed { get; init; }
         public string Username { get; init; }
 
-        public static SearchResponse FromSoulseekSearchResponse(Soulseek.SearchResponse searchResponse, Guid searchId)
+        public static Response FromSoulseekSearchResponse(Soulseek.SearchResponse searchResponse)
         {
-            var id = Guid.NewGuid();
-
-            var files = searchResponse.Files.Select(file => File.FromSoulseekFile(file, id, isLocked: false)).ToList();
-            files.AddRange(searchResponse.LockedFiles.Select(file => File.FromSoulseekFile(file, id, isLocked: true)));
-
-            return new SearchResponse()
+            return new Response()
             {
-                SearchId = searchId,
-                Id = id,
                 FileCount = searchResponse.FileCount,
-                Files = files,
+                Files = searchResponse.Files.Select(file => File.FromSoulseekFile(file)).ToList(),
                 FreeUploadSlots = searchResponse.FreeUploadSlots,
                 LockedFileCount = searchResponse.LockedFileCount,
+                LockedFiles = searchResponse.LockedFiles.Select(file => File.FromSoulseekFile(file)).ToList(),
                 QueueLength = searchResponse.QueueLength,
                 Token = searchResponse.Token,
                 UploadSpeed = searchResponse.UploadSpeed,

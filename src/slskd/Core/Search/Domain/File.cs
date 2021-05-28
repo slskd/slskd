@@ -17,19 +17,8 @@
 
 namespace slskd.Search
 {
-    using System;
-    using System.ComponentModel.DataAnnotations;
-    using System.ComponentModel.DataAnnotations.Schema;
-    using System.Text.Json.Serialization;
-
     public class File
     {
-        [ForeignKey("SearchResponse")]
-        [JsonIgnore]
-        public Guid SearchResponseId { get; init; }
-
-        [Key]
-        public Guid Id { get; init; }
         public int? BitDepth { get; init; }
         public int? BitRate { get; init; }
         public int Code { get; init; }
@@ -41,12 +30,10 @@ namespace slskd.Search
         public long Size { get; init; }
         public bool IsLocked { get; init; }
 
-        public static File FromSoulseekFile(Soulseek.File file, Guid searchResponseId, bool isLocked = false)
+        public static File FromSoulseekFile(Soulseek.File file)
         {
             return new File()
             {
-                SearchResponseId = searchResponseId,
-                Id = Guid.NewGuid(),
                 BitDepth = file.BitDepth,
                 BitRate = file.BitRate,
                 Code = file.Code,
@@ -56,7 +43,6 @@ namespace slskd.Search
                 Length = file.Length,
                 SampleRate = file.SampleRate,
                 Size = file.Size,
-                IsLocked = isLocked,
             };
         }
     }

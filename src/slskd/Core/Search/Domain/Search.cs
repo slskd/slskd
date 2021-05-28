@@ -20,12 +20,15 @@ namespace slskd.Search
     using System;
     using System.Collections.Generic;
     using System.ComponentModel.DataAnnotations;
+    using System.ComponentModel.DataAnnotations.Schema;
+    using System.Text.Json;
+    using System.Text.Json.Serialization;
     using Soulseek;
 
     public class Search
     {
         [Key]
-        public Guid Id { get; init; } = Guid.NewGuid();
+        public Guid Id { get; init; }
 
         public DateTime StartedAt { get; init; } = DateTime.UtcNow;
         public DateTime? EndedAt { get; set; }
@@ -33,17 +36,17 @@ namespace slskd.Search
         /// <summary>
         ///     Gets the total number of files contained within received responses.
         /// </summary>
-        public int FileCount { get; init; }
+        public int FileCount { get; set; }
 
         /// <summary>
         ///     Gets the total number of locked files contained within received responses.
         /// </summary>
-        public int LockedFileCount { get; init; }
+        public int LockedFileCount { get; set; }
 
         /// <summary>
         ///     Gets the current number of responses received.
         /// </summary>
-        public int ResponseCount { get; init; }
+        public int ResponseCount { get; set; }
 
         /// <summary>
         ///     Gets the text for which to search.
@@ -60,35 +63,32 @@ namespace slskd.Search
         /// </summary>
         public int Token { get; init; }
 
-        public ICollection<SearchResponse> Responses { get; init; } = new List<SearchResponse>();
-
-        public static Search FromSoulseekSearch(Soulseek.Search search)
+        [JsonIgnore]
+        public string ResponsesJson
         {
-            return new Search()
+            get => JsonSerializer.Serialize(Responses);
+            set
             {
-                FileCount = search.FileCount,
-                LockedFileCount = search.LockedFileCount,
-                ResponseCount = search.ResponseCount,
-                SearchText = search.SearchText,
-                State = search.State,
-                Token = search.Token,
-            };
+                Responses = JsonSerializer.Deserialize<IEnumerable<Response>>(value);
+            }
         }
 
-        public Search WithSoulseekSearch(Soulseek.Search search)
+        [NotMapped]
+        public IEnumerable<Response> Responses { get; set; } = new List<Response>();
+
+        public Search UpdateFromSoulseekSearch(Soulseek.Search search)
         {
-            return new Search()
-            {
-                Id = Id,
-                StartedAt = StartedAt,
-                EndedAt = EndedAt,
-                FileCount = search.FileCount,
-                LockedFileCount = search.LockedFileCount,
-                ResponseCount = search.ResponseCount,
-                SearchText = SearchText,
-                State = search.State,
-                Token = Token,
-            };
+            FileCount = search.FileCount;
+            LockedFileCount = search.LockedFileCount;
+            ResponseCount = search.ResponseCount;
+            State = search.State;
+            return this;
+        }
+
+        public Search AddResponses(List<Response> responses)
+        {
+            Responses = responses;
+            return this;
         }
     }
 }
