@@ -365,7 +365,7 @@ namespace slskd
         }
 
         /// <summary>
-        ///     Creates and returns a <see cref="SearchResponse"/> in response to the given <paramref name="query"/>.
+        ///     Creates and returns a <see cref="Response"/> in response to the given <paramref name="query"/>.
         /// </summary>
         /// <param name="username">The username of the requesting user.</param>
         /// <param name="token">The search token.</param>
