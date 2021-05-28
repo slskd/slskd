@@ -70,22 +70,14 @@ namespace slskd.API.Controllers
         public async Task<IActionResult> Post([FromBody]SearchRequest request)
         {
             var id = request.Id ?? Guid.NewGuid();
-
-            var options = request.ToSearchOptions(
-                responseReceived: (e) => Tracker.AddOrUpdate(id, e),
-                stateChanged: (e) => Tracker.AddOrUpdate(id, e));
-
-            var results = new ConcurrentBag<Soulseek.SearchResponse>();
-
             var searchText = string.Join(' ', request.SearchText.Split(' ').Where(term => term.Length > 1));
+
+            slskd.Search.Search search = null;
 
             try
             {
-                //await Client.SearchAsync(SearchQuery.FromText(searchText), (r) => results.Add(r), SearchScope.Network, request.Token, options);
-                var (guid, completed) = await SearchService.BeginAsync(SearchQuery.FromText(searchText), SearchScope.Network, id: id);
-                await completed;
-
-                return Ok(results);
+                search = await SearchService.SearchAsync(id, SearchQuery.FromText(searchText), SearchScope.Network);
+                return Ok(search.Responses);
             }
             catch (Exception ex)
             {
@@ -93,8 +85,7 @@ namespace slskd.API.Controllers
             }
             finally
             {
-                results = null;
-                Tracker.TryRemove(id);
+                search = null;
             }
         }
 
