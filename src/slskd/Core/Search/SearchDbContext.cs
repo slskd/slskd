@@ -28,7 +28,5 @@ namespace slskd.Search
         }
 
         public DbSet<Search> Searches { get; set; }
-        public DbSet<SearchResponse> SearchResponses { get; set; }
-        public DbSet<File> Files { get; set; }
     }
 }
