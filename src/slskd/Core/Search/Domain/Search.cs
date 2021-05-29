@@ -27,17 +27,17 @@ namespace slskd.Search
 
     public class Search
     {
+        public DateTime? EndedAt { get; set; }
+        public int FileCount { get; set; }
+
         [Key]
         public Guid Id { get; init; }
 
-        public DateTime StartedAt { get; init; } = DateTime.UtcNow;
-        public DateTime? EndedAt { get; set; }
-        public int FileCount { get; set; }
         public int LockedFileCount { get; set; }
         public int ResponseCount { get; set; }
-        public string SearchText { get; init; }
-        public SearchStates State { get; set; }
-        public int Token { get; init; }
+
+        [NotMapped]
+        public IEnumerable<Response> Responses { get; set; } = new List<Response>();
 
         [JsonIgnore]
         public string ResponsesJson
@@ -49,22 +49,9 @@ namespace slskd.Search
             }
         }
 
-        [NotMapped]
-        public IEnumerable<Response> Responses { get; set; } = new List<Response>();
-
-        public Search UpdateFromSoulseekSearch(Soulseek.Search search)
-        {
-            FileCount = search.FileCount;
-            LockedFileCount = search.LockedFileCount;
-            ResponseCount = search.ResponseCount;
-            State = search.State;
-            return this;
-        }
-
-        public Search AddResponses(List<Response> responses)
-        {
-            Responses = responses;
-            return this;
-        }
+        public string SearchText { get; init; }
+        public DateTime StartedAt { get; init; } = DateTime.UtcNow;
+        public SearchStates State { get; set; }
+        public int Token { get; init; }
     }
 }
