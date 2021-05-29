@@ -216,7 +216,7 @@ class Search extends Component {
                         size='big'
                     >
                         {searchState === 'pending' ? <span>Found {searchStatus.fileCount} files {searchStatus.lockedFileCount > 0 ? `(plus ${searchStatus.lockedFileCount} locked) ` : ''}from {searchStatus.responseCount} users</span>
-                        : 'Fetching results'}
+                        : 'Loading results...'}
                     </Loader>
                 :
                     <div>
