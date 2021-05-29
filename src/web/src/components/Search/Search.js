@@ -79,7 +79,8 @@ class Search extends Component {
     }
 
     loadState = () => {
-        this.setState(JSON.parse(localStorage.getItem('soulseek-example-search-state')) || initialState);
+        return new Promise((resolve) => 
+            this.setState(JSON.parse(localStorage.getItem('soulseek-example-search-state')) || initialState, resolve));
     }
 
     componentDidMount = () => {
