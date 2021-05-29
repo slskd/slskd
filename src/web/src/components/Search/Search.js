@@ -50,13 +50,9 @@ class Search extends Component {
         const searchPhrase = this.inputtext.inputRef.current.value;
         const searchId = uuidv4();
 
-        this.setState({ searchPhrase, searchId, searchState: 'pending' }, () => {
-            search.search({ id: searchId, searchText: searchPhrase })
-            .then(response => this.setState({ results: response.data }))
-            .then(() => this.setState({ searchState: 'complete' }, () => {
-                this.saveState();
-                this.setSearchText();
-            }))
+        this.setState({ searchPhrase, searchId, searchState: 'pending' }, async () => {
+            this.saveState();
+            search.search({ id: searchId, searchText: searchPhrase });
         });
     }
 
