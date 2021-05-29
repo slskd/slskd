@@ -9,5 +9,5 @@ export const getStatus = async ({ id, includeResponses = false }) => {
 };
 
 export const getResponses = async ({ id }) => {
-  return (await api.get(`/searches/${encodeURIComponent(id)}`)).data;
+  return (await api.get(`/searches/${encodeURIComponent(id)}/responses`)).data;
 };
