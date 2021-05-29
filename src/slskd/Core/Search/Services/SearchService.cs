@@ -70,7 +70,7 @@ namespace slskd.Search
         /// <param name="options">Search options.</param>
         /// <param name="includeResponses">A value indicating whether to include search responses in the result.</param>
         /// <returns>The completed search.</returns>
-        public async Task<Search> CreateAsync(Guid id, SearchQuery query, SearchScope scope, SearchOptions options = null, bool includeResponses = true)
+        public async Task<Search> CreateAsync(Guid id, SearchQuery query, SearchScope scope, SearchOptions options = null)
         {
             var token = Client.GetNextToken();
             var cancellationTokenSource = new CancellationTokenSource();
@@ -110,16 +110,15 @@ namespace slskd.Search
                     options,
                     cancellationToken: cancellationTokenSource.Token);
 
+                CancellationTokens.TryRemove(id, out _);
+
                 search.FileCount = soulseekSearch.FileCount;
                 search.LockedFileCount = soulseekSearch.LockedFileCount;
                 search.ResponseCount = soulseekSearch.ResponseCount;
                 search.State = soulseekSearch.State;
                 search.EndedAt = DateTime.UtcNow;
-
-                if (includeResponses)
-                {
-                    search.Responses = responses;
-                }
+                search.Responses = responses;
+                SaveSearchState(search);
 
                 return search;
             }
@@ -185,20 +184,22 @@ namespace slskd.Search
 
         private void UpdateSearchState(Search search, SoulseekSearch soulseekSearch)
         {
-            _ = Task.Run(async () =>
+            if (CancellationTokens.ContainsKey(search.Id))
             {
                 search.FileCount = soulseekSearch.FileCount;
                 search.LockedFileCount = soulseekSearch.LockedFileCount;
                 search.ResponseCount = soulseekSearch.ResponseCount;
                 search.State = soulseekSearch.State;
 
-                var context = ContextFactory.CreateDbContext();
+                SaveSearchState(search);
+            }
+        }
 
-                context.Update(search);
-                await context.SaveChangesAsync();
-            }).ContinueWith(task =>
-                Log.LogError(task.Exception, "Failed to update state of {SearchId}", search.Id),
-                TaskContinuationOptions.OnlyOnFaulted);
+        private void SaveSearchState(Search search)
+        {
+            var context = ContextFactory.CreateDbContext();
+            context.Update(search);
+            context.SaveChanges();
         }
     }
 }
