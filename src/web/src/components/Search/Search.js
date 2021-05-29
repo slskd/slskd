@@ -83,9 +83,9 @@ class Search extends Component {
             this.setState(JSON.parse(localStorage.getItem('soulseek-example-search-state')) || initialState, resolve));
     }
 
-    componentDidMount = () => {
-        this.fetchStatus();
-        this.loadState();
+    componentDidMount = async () => {
+        await this.loadState();
+        this.fetchResults();
         this.setState({
             interval: window.setInterval(this.fetchStatus, 500)
         }, () => this.setSearchText());
@@ -104,12 +104,25 @@ class Search extends Component {
         document.removeEventListener("keyup", this.keyUp, false);
     }
 
-    fetchStatus = () => {
-        if (this.state.searchState === 'pending') {
-            search.getStatus({ id: this.state.searchId })
-            .then(response => this.setState({
-                searchStatus: response
-            }));
+    fetchResults = async () => {
+        const { searchId } = this.state;
+
+        if (!!searchId) {
+            this.setState({ fetching: true }, async () => {
+                try {
+                    const responses = await search.getResponses({ id: searchId });
+
+                    this.setState({
+                        results: responses,
+                        fetching: false
+                    }, this.saveState);
+                } catch (error) {
+                    console.log(error);
+                    this.clear();
+                }
+            });
+        }
+    }
         }
     }
 
