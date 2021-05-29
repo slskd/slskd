@@ -83,14 +83,15 @@ namespace slskd.Search
         ///     Gets the state of the search corresponding to the specified <paramref name="id"/>.
         /// </summary>
         /// <param name="id">The unique id of the search.</param>
+        /// <param name="includeResponses">A value indicating whether to include search responses in the response.</param>
         /// <returns></returns>
         /// <response code="200">The request completed successfully.</response>
         /// <response code="404">A matching search was not found.</response>
         [HttpGet("{id}")]
         [Authorize]
-        public async Task<IActionResult> GetById([FromRoute]Guid id)
+        public async Task<IActionResult> GetById([FromRoute]Guid id, [FromQuery]bool includeResponses = false)
         {
-            var search = await Searches.FindAsync(search => search.Id == id);
+            var search = await Searches.FindAsync(search => search.Id == id, includeResponses);
 
             if (search == default)
             {
@@ -109,7 +110,7 @@ namespace slskd.Search
         /// <response code="404">A matching search was not found.</response>
         [HttpGet("{id}/responses")]
         [Authorize]
-        public async Task<IActionResult> GetByIdWithResponses([FromRoute] Guid id)
+        public async Task<IActionResult> GetResponsesById([FromRoute] Guid id)
         {
             var search = await Searches.FindAsync(search => search.Id == id, includeResponses: true);
 
@@ -118,7 +119,7 @@ namespace slskd.Search
                 return NotFound();
             }
 
-            return Ok(search);
+            return Ok(search.Responses);
         }
 
         /// <summary>
