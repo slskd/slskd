@@ -18,7 +18,7 @@ import {
 
 const initialState = {
     searchPhrase: '',
-    searchId: '',
+    searchId: undefined,
     searchState: 'idle',
     searchStatus: {
         responseCount: 0,
@@ -31,6 +31,7 @@ const initialState = {
     hideNoFreeSlots: true,
     hiddenResults: [],
     hideLocked: true,
+    fetching: false,
 };
 
 const sortOptions = {
@@ -123,6 +124,25 @@ class Search extends Component {
             });
         }
     }
+
+    fetchStatus = async () => {
+        const { searchState, searchId } = this.state;
+
+        if (searchState === 'pending') {
+            this.setState({ fetching: true }, async () => {
+                const response = await search.getStatus({ id: searchId });
+
+                if (response.isComplete) {
+                    this.setState({
+                        searchState: 'complete'
+                    }, this.fetchResults);
+                } else {
+                    this.setState({
+                        searchStatus: response,
+                        fetching: false
+                    }, this.saveState);
+                }
+            });
         }
     }
 
@@ -131,7 +151,7 @@ class Search extends Component {
     }
 
     sortAndFilterResults = () => {
-        const { results, hideNoFreeSlots, resultSort, hideLocked, hiddenResults } = this.state;
+        const { results = [], hideNoFreeSlots, resultSort, hideLocked, hiddenResults = [] } = this.state;
         const { field, order } = sortOptions[resultSort];
 
         return results
@@ -164,8 +184,8 @@ class Search extends Component {
     }
 
     render = () => {
-        let { searchState, searchStatus, results, displayCount, resultSort, hideNoFreeSlots, hideLocked, hiddenResults } = this.state;
-        let pending = searchState === 'pending';
+        let { searchState, searchStatus, results = [], displayCount, resultSort, hideNoFreeSlots, hideLocked, hiddenResults = [], fetching } = this.state;
+        let pending = fetching || searchState === 'pending';
 
         const sortedAndFilteredResults = this.sortAndFilterResults();
 
@@ -195,7 +215,8 @@ class Search extends Component {
                         inline='centered'
                         size='big'
                     >
-                        Found {searchStatus.fileCount} files {searchStatus.lockedFileCount > 0 ? `(plus ${searchStatus.lockedFileCount} locked) ` : ''}from {searchStatus.responseCount} users
+                        {searchState === 'pending' ? <span>Found {searchStatus.fileCount} files {searchStatus.lockedFileCount > 0 ? `(plus ${searchStatus.lockedFileCount} locked) ` : ''}from {searchStatus.responseCount} users</span>
+                        : 'Fetching results'}
                     </Loader>
                 :
                     <div>
