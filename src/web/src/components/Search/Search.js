@@ -18,7 +18,7 @@ import {
 
 const initialState = {
     searchPhrase: '',
-    searchId: '',
+    searchId: undefined,
     searchState: 'idle',
     searchStatus: {
         responseCount: 0,
@@ -31,6 +31,7 @@ const initialState = {
     hideNoFreeSlots: true,
     hiddenResults: [],
     hideLocked: true,
+    fetching: false,
 };
 
 const sortOptions = {
@@ -50,13 +51,9 @@ class Search extends Component {
         const searchPhrase = this.inputtext.inputRef.current.value;
         const searchId = uuidv4();
 
-        this.setState({ searchPhrase, searchId, searchState: 'pending' }, () => {
-            search.search({ id: searchId, searchText: searchPhrase })
-            .then(response => this.setState({ results: response.data }))
-            .then(() => this.setState({ searchState: 'complete' }, () => {
-                this.saveState();
-                this.setSearchText();
-            }))
+        this.setState({ searchPhrase, searchId, searchState: 'pending' }, async () => {
+            this.saveState();
+            search.search({ id: searchId, searchText: searchPhrase });
         });
     }
 
@@ -76,19 +73,20 @@ class Search extends Component {
 
     saveState = () => {
         try {
-            localStorage.setItem('soulseek-example-search-state', JSON.stringify(this.state));
+            localStorage.setItem('soulseek-example-search-state', JSON.stringify({ ...this.state, results: [] }));
         } catch(error) {
             console.log(error);
         }
     }
 
     loadState = () => {
-        this.setState(JSON.parse(localStorage.getItem('soulseek-example-search-state')) || initialState);
+        return new Promise((resolve) => 
+            this.setState(JSON.parse(localStorage.getItem('soulseek-example-search-state')) || initialState, resolve));
     }
 
-    componentDidMount = () => {
-        this.fetchStatus();
-        this.loadState();
+    componentDidMount = async () => {
+        await this.loadState();
+        this.fetchResults();
         this.setState({
             interval: window.setInterval(this.fetchStatus, 500)
         }, () => this.setSearchText());
@@ -107,12 +105,44 @@ class Search extends Component {
         document.removeEventListener("keyup", this.keyUp, false);
     }
 
-    fetchStatus = () => {
-        if (this.state.searchState === 'pending') {
-            search.getStatus({ id: this.state.searchId })
-            .then(response => this.setState({
-                searchStatus: response
-            }));
+    fetchResults = async () => {
+        const { searchId } = this.state;
+
+        if (!!searchId) {
+            this.setState({ fetching: true }, async () => {
+                try {
+                    const responses = await search.getResponses({ id: searchId });
+
+                    this.setState({
+                        results: responses,
+                        fetching: false
+                    }, this.saveState);
+                } catch (error) {
+                    console.log(error);
+                    this.clear();
+                }
+            });
+        }
+    }
+
+    fetchStatus = async () => {
+        const { searchState, searchId } = this.state;
+
+        if (searchState === 'pending') {
+            this.setState({ fetching: true }, async () => {
+                const response = await search.getStatus({ id: searchId });
+
+                if (response.isComplete) {
+                    this.setState({
+                        searchState: 'complete'
+                    }, this.fetchResults);
+                } else {
+                    this.setState({
+                        searchStatus: response,
+                        fetching: false
+                    }, this.saveState);
+                }
+            });
         }
     }
 
@@ -121,7 +151,7 @@ class Search extends Component {
     }
 
     sortAndFilterResults = () => {
-        const { results, hideNoFreeSlots, resultSort, hideLocked, hiddenResults } = this.state;
+        const { results = [], hideNoFreeSlots, resultSort, hideLocked, hiddenResults = [] } = this.state;
         const { field, order } = sortOptions[resultSort];
 
         return results
@@ -154,8 +184,8 @@ class Search extends Component {
     }
 
     render = () => {
-        let { searchState, searchStatus, results, displayCount, resultSort, hideNoFreeSlots, hideLocked, hiddenResults } = this.state;
-        let pending = searchState === 'pending';
+        let { searchState, searchStatus, results = [], displayCount, resultSort, hideNoFreeSlots, hideLocked, hiddenResults = [], fetching } = this.state;
+        let pending = fetching || searchState === 'pending';
 
         const sortedAndFilteredResults = this.sortAndFilterResults();
 
@@ -185,7 +215,8 @@ class Search extends Component {
                         inline='centered'
                         size='big'
                     >
-                        Found {searchStatus.fileCount} files {searchStatus.lockedFileCount > 0 ? `(plus ${searchStatus.lockedFileCount} locked) ` : ''}from {searchStatus.responseCount} users
+                        {searchState === 'pending' ? <span>Found {searchStatus.fileCount} files {searchStatus.lockedFileCount > 0 ? `(plus ${searchStatus.lockedFileCount} locked) ` : ''}from {searchStatus.responseCount} users</span>
+                        : 'Loading results...'}
                     </Loader>
                 :
                     <div>

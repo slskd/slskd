@@ -15,18 +15,16 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-namespace slskd.API.Controllers
+namespace slskd.Search
 {
     using System;
-    using System.Collections.Concurrent;
-    using System.Collections.Generic;
     using System.Linq;
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
     using slskd.API.DTO;
-    using slskd.Search;
-    using Soulseek;
+    using SearchQuery = Soulseek.SearchQuery;
+    using SearchScope = Soulseek.SearchScope;
 
     /// <summary>
     ///     Search.
@@ -41,16 +39,13 @@ namespace slskd.API.Controllers
         /// <summary>
         ///     Initializes a new instance of the <see cref="SearchesController"/> class.
         /// </summary>
-        /// <param name="client"></param>
-        /// <param name="tracker"></param>
-        public SearchesController(ISoulseekClient client, ISearchTracker tracker)
+        /// <param name="searchService"></param>
+        public SearchesController(ISearchService searchService)
         {
-            Client = client;
-            Tracker = tracker;
+            Searches = searchService;
         }
 
-        private ISoulseekClient Client { get; }
-        private ISearchTracker Tracker { get; }
+        private ISearchService Searches { get; }
 
         /// <summary>
         ///     Performs a search for the specified <paramref name="request"/>.
@@ -62,25 +57,17 @@ namespace slskd.API.Controllers
         /// <response code="500">The search terminated abnormally.</response>
         [HttpPost("")]
         [Authorize]
-        [ProducesResponseType(typeof(IEnumerable<SearchResponse>), 200)]
-        [ProducesResponseType(400)]
-        [ProducesResponseType(typeof(string), 500)]
         public async Task<IActionResult> Post([FromBody]SearchRequest request)
         {
             var id = request.Id ?? Guid.NewGuid();
-
-            var options = request.ToSearchOptions(
-                responseReceived: (e) => Tracker.AddOrUpdate(id, e),
-                stateChanged: (e) => Tracker.AddOrUpdate(id, e));
-
-            var results = new ConcurrentBag<SearchResponse>();
-
             var searchText = string.Join(' ', request.SearchText.Split(' ').Where(term => term.Length > 1));
+
+            Search search = null;
 
             try
             {
-                await Client.SearchAsync(SearchQuery.FromText(searchText), (r) => results.Add(r), SearchScope.Network, request.Token, options);
-                return Ok(results);
+                search = await Searches.CreateAsync(id, SearchQuery.FromText(searchText), SearchScope.Network);
+                return Ok(search.Responses);
             }
             catch (Exception ex)
             {
@@ -88,9 +75,30 @@ namespace slskd.API.Controllers
             }
             finally
             {
-                results = null;
-                Tracker.TryRemove(id);
+                search = null;
             }
+        }
+
+        /// <summary>
+        ///     Gets the state of the search corresponding to the specified <paramref name="id"/>.
+        /// </summary>
+        /// <param name="id">The unique id of the search.</param>
+        /// <param name="includeResponses">A value indicating whether to include search responses in the response.</param>
+        /// <returns></returns>
+        /// <response code="200">The request completed successfully.</response>
+        /// <response code="404">A matching search was not found.</response>
+        [HttpGet("{id}")]
+        [Authorize]
+        public async Task<IActionResult> GetById([FromRoute]Guid id, [FromQuery]bool includeResponses = false)
+        {
+            var search = await Searches.FindAsync(search => search.Id == id, includeResponses);
+
+            if (search == default)
+            {
+                return NotFound();
+            }
+
+            return Ok(search);
         }
 
         /// <summary>
@@ -100,20 +108,29 @@ namespace slskd.API.Controllers
         /// <returns></returns>
         /// <response code="200">The request completed successfully.</response>
         /// <response code="404">A matching search was not found.</response>
-        [HttpGet("{id}")]
+        [HttpGet("{id}/responses")]
         [Authorize]
-        [ProducesResponseType(typeof(Search), 200)]
-        [ProducesResponseType(404)]
-        public IActionResult GetById([FromRoute]Guid id)
+        public async Task<IActionResult> GetResponsesById([FromRoute] Guid id)
         {
-            Tracker.Searches.TryGetValue(id, out var search);
+            var search = await Searches.FindAsync(search => search.Id == id, includeResponses: true);
 
             if (search == default)
             {
                 return NotFound();
             }
 
-            return Ok(search);
+            return Ok(search.Responses);
+        }
+
+        /// <summary>
+        ///     Gets the list of active and completed searches.
+        /// </summary>
+        /// <returns></returns>
+        [HttpGet("")]
+        [Authorize]
+        public async Task<IActionResult> GetAll()
+        {
+            return Ok(await Searches.ListAsync());
         }
     }
 }
