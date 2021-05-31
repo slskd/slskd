@@ -68,7 +68,6 @@ namespace slskd.Search
         /// <param name="query">The search query.</param>
         /// <param name="scope">The search scope.</param>
         /// <param name="options">Search options.</param>
-        /// <param name="includeResponses">A value indicating whether to include search responses in the result.</param>
         /// <returns>The completed search.</returns>
         public async Task<Search> CreateAsync(Guid id, SearchQuery query, SearchScope scope, SearchOptions options = null)
         {
