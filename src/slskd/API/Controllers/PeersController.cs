@@ -1,4 +1,4 @@
-﻿// <copyright file="UserController.cs" company="slskd Team">
+﻿// <copyright file="PeersController.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -19,10 +19,10 @@ namespace slskd.API.Controllers
 {
     using System.Collections.Generic;
     using System.ComponentModel.DataAnnotations;
+    using System.Net;
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
-    using slskd.API.DTO;
     using slskd.Peer;
     using Soulseek;
 
@@ -34,14 +34,14 @@ namespace slskd.API.Controllers
     [ApiController]
     [Produces("application/json")]
     [Consumes("application/json")]
-    public class UserController : ControllerBase
+    public class PeersController : ControllerBase
     {
         /// <summary>
-        ///     Initializes a new instance of the <see cref="UserController"/> class.
+        ///     Initializes a new instance of the <see cref="PeersController"/> class.
         /// </summary>
         /// <param name="client"></param>
         /// <param name="browseTracker"></param>
-        public UserController(ISoulseekClient client, IBrowseTracker browseTracker, IPeerService peerService)
+        public PeersController(ISoulseekClient client, IBrowseTracker browseTracker, IPeerService peerService)
         {
             Client = client;
             BrowseTracker = browseTracker;
@@ -58,16 +58,16 @@ namespace slskd.API.Controllers
         /// <param name="username">The username of the user.</param>
         /// <returns></returns>
         /// <response code="200">The request completed successfully.</response>
-        [HttpGet("{username}/address")]
+        [HttpGet("{username}/endpoint")]
         [Authorize]
-        [ProducesResponseType(typeof(UserAddress), 200)]
+        [ProducesResponseType(typeof(IPEndPoint), 200)]
         [ProducesResponseType(404)]
-        public async Task<IActionResult> Address([FromRoute, Required] string username)
+        public async Task<IActionResult> Endpoint([FromRoute, Required] string username)
         {
             try
             {
-                var endpoint = await Client.GetUserEndPointAsync(username);
-                return Ok(new UserAddress() { IPAddress = endpoint.Address.ToString(), Port = endpoint.Port });
+                var endpoint = await Peers.GetIPEndPointAsync(username);
+                return Ok(endpoint);
             }
             catch (UserOfflineException ex)
             {
@@ -123,34 +123,21 @@ namespace slskd.API.Controllers
             return NotFound();
         }
 
-        [HttpGet("{username}")]
-        [Authorize]
-        public async Task<IActionResult> User([FromRoute]string username)
-        {
-            try
-            {
-                return Ok(await Peers.GetAsync(username));
-            }
-            catch (UserOfflineException ex)
-            {
-                return NotFound(ex.Message);
-            }
-        }
-
         /// <summary>
         ///     Retrieves information about the specified <paramref name="username"/>.
         /// </summary>
         /// <param name="username">The username of the user.</param>
+        /// <param name="bypassCache">Bypasses the internal cache and requests the latest information from the peer.</param>
         /// <returns></returns>
         [HttpGet("{username}/info")]
         [Authorize]
-        [ProducesResponseType(typeof(UserInfo), 200)]
+        [ProducesResponseType(typeof(Info), 200)]
         [ProducesResponseType(404)]
-        public async Task<IActionResult> Info([FromRoute, Required] string username)
+        public async Task<IActionResult> Info([FromRoute, Required] string username, [FromQuery]bool bypassCache = false)
         {
             try
             {
-                var response = await Client.GetUserInfoAsync(username);
+                var response = await Peers.GetInfoAsync(username, bypassCache);
                 return Ok(response);
             }
             catch (UserOfflineException ex)
@@ -166,13 +153,13 @@ namespace slskd.API.Controllers
         /// <returns></returns>
         [HttpGet("{username}/status")]
         [Authorize]
-        [ProducesResponseType(typeof(UserStatus), 200)]
+        [ProducesResponseType(typeof(Status), 200)]
         [ProducesResponseType(404)]
         public async Task<IActionResult> Status([FromRoute, Required] string username)
         {
             try
             {
-                var response = await Client.GetUserStatusAsync(username);
+                var response = await Peers.GetStatusAsync(username);
                 return Ok(response);
             }
             catch (UserOfflineException ex)

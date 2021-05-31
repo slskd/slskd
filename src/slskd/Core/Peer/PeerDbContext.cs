@@ -27,6 +27,6 @@ namespace slskd.Peer
             Database.EnsureCreated();
         }
 
-        public DbSet<Peer> Peers { get; set; }
+        public DbSet<Info> Info { get; set; }
     }
 }

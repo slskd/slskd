@@ -1,4 +1,4 @@
-﻿// <copyright file="Peer.cs" company="slskd Team">
+﻿// <copyright file="Info.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -19,10 +19,9 @@ namespace slskd.Peer
 {
     using System;
     using System.ComponentModel.DataAnnotations;
-    using System.Net;
-    using UserPresence = Soulseek.UserPresence;
+    using Soulseek;
 
-    public class Peer
+    public class Info
     {
         [Key]
         public string Username { get; init; }
@@ -32,10 +31,21 @@ namespace slskd.Peer
         public byte[] Picture { get; init; }
         public int QueueLength { get; init; }
         public int UploadSlots { get; init; }
-        public bool IsPrivileged { get; init; }
-        public UserPresence Presence { get; init; }
-        public IPAddress IPAddress { get; init; }
-        public int Port { get; init; }
         public DateTime UpdatedAt { get; init; }
+
+        public static Info FromSoulseekUserInfo(string username, UserInfo info)
+        {
+            return new Info()
+            {
+                Username = username,
+                Description = info.Description,
+                HasFreeUploadSlot = info.HasFreeUploadSlot,
+                HasPicture = info.HasPicture,
+                Picture = info.Picture,
+                QueueLength = info.QueueLength,
+                UploadSlots = info.UploadSlots,
+                UpdatedAt = DateTime.UtcNow,
+            };
+        }
     }
 }

@@ -1,4 +1,4 @@
-﻿// <copyright file="IPeerService.cs" company="slskd Team">
+﻿// <copyright file="Status.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -17,11 +17,20 @@
 
 namespace slskd.Peer
 {
-    using System.Threading;
-    using System.Threading.Tasks;
+    using Soulseek;
 
-    public interface IPeerService
+    public class Status
     {
-        Task<Peer> GetAsync(string username);
+        public bool IsPrivileged { get; init; }
+        public UserPresence Presence { get; init; }
+
+        public static Status FromSoulseekUserStatus(UserStatus status)
+        {
+            return new Status()
+            {
+                IsPrivileged = status.IsPrivileged,
+                Presence = status.Presence,
+            };
+        }
     }
 }
