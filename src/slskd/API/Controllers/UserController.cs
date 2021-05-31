@@ -41,14 +41,16 @@ namespace slskd.API.Controllers
         /// </summary>
         /// <param name="client"></param>
         /// <param name="browseTracker"></param>
-        public UserController(ISoulseekClient client, IBrowseTracker browseTracker)
+        public UserController(ISoulseekClient client, IBrowseTracker browseTracker, IPeerService peerService)
         {
             Client = client;
             BrowseTracker = browseTracker;
+            Peers = peerService;
         }
 
         private IBrowseTracker BrowseTracker { get; }
         private ISoulseekClient Client { get; }
+        private IPeerService Peers { get; }
 
         /// <summary>
         ///     Retrieves the address of the specified <paramref name="username"/>.
@@ -119,6 +121,20 @@ namespace slskd.API.Controllers
             }
 
             return NotFound();
+        }
+
+        [HttpGet("{username}")]
+        [Authorize]
+        public async Task<IActionResult> User([FromRoute]string username)
+        {
+            try
+            {
+                return Ok(await Peers.GetAsync(username));
+            }
+            catch (UserOfflineException ex)
+            {
+                return NotFound(ex.Message);
+            }
         }
 
         /// <summary>
