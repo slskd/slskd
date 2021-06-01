@@ -135,7 +135,7 @@ class App extends Component {
                             </Link>
                             <Link to='users'>
                                 <Menu.Item>
-                                    <Icon name='folder open'/>Users
+                                    <Icon name='users'/>Users
                                 </Menu.Item>
                             </Link>
                             <Link to='browse'>
