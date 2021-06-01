@@ -11,10 +11,11 @@ const User = ({
     picture, 
     queueLength, 
     uploadSlots, 
-    updatedAt 
+    updatedAt,
+    fetching
   }) => (
     <Item>
-      <Item.Image size='tiny' src={`data:image;base64,${picture}`} />
+      <Item.Image size='small' src={`data:image;base64,${picture}`} />
 
       <Item.Content>
         <Item.Header as='a'>{username}</Item.Header>

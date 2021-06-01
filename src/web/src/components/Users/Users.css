@@ -10,6 +10,16 @@
   margin-bottom: 17px;
 }
 
-.users-segment {
+.users-selection {
   margin-top: 15px !important;
+  height: 78px !important;
+}
+
+.users-input {
+  width: 100%;
+}
+
+.users-user {
+  margin-top: 15px !important;
+  min-height: 78px;
 }
