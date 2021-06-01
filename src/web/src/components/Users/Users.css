@@ -1,0 +1,15 @@
+.users-container {
+  padding-left: 15px;
+  padding-right: 15px;
+  max-width: 1200px !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+.users-container:last-child {
+  margin-bottom: 17px;
+}
+
+.users-segment {
+  margin-top: 15px !important;
+}
