@@ -23,3 +23,14 @@
   margin-top: 15px !important;
   min-height: 78px;
 }
+
+.users-picture-placeholder {
+  text-align: center;
+  padding-top: 10px !important;
+  opacity: .125;
+}
+
+.ui.items > .item > .content > .description {
+  white-space: pre-wrap;
+  margin-top: 15px;
+}
