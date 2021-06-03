@@ -7,7 +7,6 @@ const ImagePlaceholder = () =>
   (<div className='users-picture-placeholder ui small image'><Icon name='camera' size='big'/></div>);
 
 const Presence = ({ presence }) => {
-  console.log(presence);
   const colors = {
     Away: 'yellow',
     Online: 'green'
