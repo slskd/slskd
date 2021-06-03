@@ -61,7 +61,7 @@ namespace slskd.Peer
         {
             using var context = ContextFactory.CreateDbContext();
 
-            var info = await context.Info.FirstOrDefaultAsync(peer => peer.Username == username);
+            var info = await context.Info.AsNoTracking().FirstOrDefaultAsync(peer => peer.Username == username);
             var peerExists = info != default;
 
             if (!bypassCache && peerExists && info.UpdatedAt < DateTime.UtcNow.AddSeconds(CacheTTLSeconds))
