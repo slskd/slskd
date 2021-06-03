@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect } from 'react';
 
 import {
   Item,
@@ -7,7 +7,7 @@ import {
 } from 'semantic-ui-react';
 import User from './User';
 
-import { getInfo, getStatus, getEndpoint } from '../../lib/users';
+import { getInfo, getStatus, getEndpoint } from '../../lib/peers';
 
 import './Users.css';
 
@@ -17,6 +17,13 @@ const Users = (props) => {
   const [selectedUsername, setSelectedUsername] = useState(undefined);
   const [{ fetching, error }, setStatus] = useState({ fetching: false, error: undefined });
 
+  useEffect(() => {
+    document.addEventListener("keyup", keyUp, false);
+  }, []);
+
+  useLayoutEffect(() => {
+    document.removeEventListener('keyup', keyUp, false);
+  }, []);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -28,7 +35,7 @@ const Users = (props) => {
 
       try {
         const [info, status, endpoint] = await Promise.all([
-          getInfo({ username: selectedUsername }),
+          getInfo({ username: selectedUsername, bypassCache: true }),
           getStatus({ username: selectedUsername }),
           getEndpoint({ username: selectedUsername })
         ]);
@@ -48,19 +55,21 @@ const Users = (props) => {
     setUser(undefined);
   }
 
+  const keyUp = (e) => e.key === 'Escape' ? clear() : '';
+
   return (
     <div className='users-container'>
       <Segment className='users-selection' raised>
         <Input
-            input={<input placeholder="Username" type="search" data-lpignore="true" disabled={!!user || fetching}></input>}
-            size='big'
-            loading={fetching}
-            disabled={fetching}
-            className='users-input'
-            placeholder="Username"
-            onChange={(e) => setUsernameInput(e.target.value)}
-            action={!fetching && (!user ? { icon: 'search', onClick: () => setSelectedUsername(usernameInput) } : { icon: 'x', color: 'red', onClick: clear })}
-            onKeyUp={(e) => e.key === 'Enter' ? setSelectedUsername() : ''}
+          input={<input placeholder="Username" type="search" data-lpignore="true" disabled={!!user || fetching}></input>}
+          size='big'
+          loading={fetching}
+          disabled={fetching}
+          className='users-input'
+          placeholder="Username"
+          onChange={(e) => setUsernameInput(e.target.value)}
+          action={!fetching && (!user ? { icon: 'search', onClick: () => setSelectedUsername(usernameInput) } : { icon: 'x', color: 'red', onClick: clear })}
+          onKeyUp={(e) => e.key === 'Enter' ? setSelectedUsername(usernameInput) : ''}
         />
       </Segment>
       {!fetching && !error && !!user && <Segment className='users-user' raised>
