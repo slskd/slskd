@@ -1,7 +1,7 @@
 import api from './api';
 
-export const getInfo = ({ username }) => {
-  return api.get(`/peers/${username}/info`);
+export const getInfo = ({ username, bypassCache = false }) => {
+  return api.get(`/peers/${username}/info?bypassCache=${bypassCache}`);
 };
 
 export const getStatus = ({ username }) => {
