@@ -171,7 +171,10 @@ namespace slskd
                 options.UseSqlite($"Data Source={Path.Combine(Options.Directories.App, "search.db")}");
             });
 
-            services.AddTransient(p => p.GetRequiredService<IDbContextFactory<SearchDbContext>>().CreateDbContext());
+            services.AddDbContextFactory<PeerDbContext>(options =>
+            {
+                options.UseSqlite($"Data Source={Path.Combine(Options.Directories.App, "peer.db")}");
+            });
 
             services.AddSingleton<ITransferTracker, TransferTracker>();
             services.AddSingleton<IBrowseTracker, BrowseTracker>();
@@ -181,6 +184,7 @@ namespace slskd
                 new SharedFileCache(Options.Directories.Shared, 3600000));
 
             services.AddSingleton<ISearchService, SearchService>();
+            services.AddSingleton<IPeerService, PeerService>();
 
             services.AddHostedService<Service>();
             services.AddSingleton(_ => Service.SoulseekClient);

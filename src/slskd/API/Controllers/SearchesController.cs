@@ -15,7 +15,7 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-namespace slskd.Search
+namespace slskd.API.Controllers
 {
     using System;
     using System.Linq;
@@ -23,6 +23,7 @@ namespace slskd.Search
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
     using slskd.API.DTO;
+    using slskd.Search;
     using SearchQuery = Soulseek.SearchQuery;
     using SearchScope = Soulseek.SearchScope;
 

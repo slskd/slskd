@@ -1,4 +1,4 @@
-﻿// <copyright file="UserAddress.cs" company="slskd Team">
+﻿// <copyright file="Status.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -15,21 +15,22 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-namespace slskd.API.DTO
+namespace slskd.Peer
 {
-    /// <summary>
-    ///     A user's IP address and port.
-    /// </summary>
-    public class UserAddress
-    {
-        /// <summary>
-        ///     Gets or sets the IP address.
-        /// </summary>
-        public string IPAddress { get; set; }
+    using Soulseek;
 
-        /// <summary>
-        ///     Gets or sets the port.
-        /// </summary>
-        public int Port { get; set; }
+    public class Status
+    {
+        public bool IsPrivileged { get; init; }
+        public UserPresence Presence { get; init; }
+
+        public static Status FromSoulseekUserStatus(UserStatus status)
+        {
+            return new Status()
+            {
+                IsPrivileged = status.IsPrivileged,
+                Presence = status.Presence,
+            };
+        }
     }
 }

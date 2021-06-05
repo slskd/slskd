@@ -2,12 +2,14 @@ const baseUrl = process.env.NODE_ENV === 'production' ? 'api/v0' : 'http://local
 const tokenKey = 'slskd-token';
 const tokenPassthroughValue = 'n/a';
 const activeChatKey = 'slskd-active-chat';
-const activeRoomKey = 'sslskd-active-room';
+const activeRoomKey = 'slskd-active-room';
+const activeUserInfoKey = 'slskd-active-user';
 
 export {
     baseUrl,
     tokenKey,
     tokenPassthroughValue,
     activeChatKey,
-    activeRoomKey
+    activeRoomKey,
+    activeUserInfoKey
 };
