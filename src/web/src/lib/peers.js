@@ -11,3 +11,11 @@ export const getStatus = ({ username }) => {
 export const getEndpoint = ({ username }) => {
   return api.get(`/peers/${username}/endpoint`);
 };
+
+export const browse = async ({ username }) => {
+  return (await api.get(`/peers/${username}/browse`)).data;
+};
+
+export const getBrowseStatus = ({ username }) => {
+  return api.get(`/peers/${username}/browse/status`);
+};

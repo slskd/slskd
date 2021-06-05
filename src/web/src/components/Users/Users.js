@@ -6,8 +6,8 @@ import {
 } from 'semantic-ui-react';
 
 import User from './User';
-import { getInfo, getStatus, getEndpoint } from '../../lib/peers';
 import { activeUserInfoKey } from '../../config';
+import * as peers from '../../lib/peers';
 
 import './Users.css';
 
@@ -43,9 +43,9 @@ const Users = (props) => {
 
       try {
         const [info, status, endpoint] = await Promise.all([
-          getInfo({ username: selectedUsername, bypassCache: true }),
-          getStatus({ username: selectedUsername }),
-          getEndpoint({ username: selectedUsername })
+          peers.getInfo({ username: selectedUsername, bypassCache: true }),
+          peers.getStatus({ username: selectedUsername }),
+          peers.getEndpoint({ username: selectedUsername })
         ]);
       
         localStorage.setItem(activeUserInfoKey, selectedUsername);
