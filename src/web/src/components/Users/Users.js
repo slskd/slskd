@@ -1,17 +1,18 @@
-import React, { useState, useEffect, useLayoutEffect } from 'react';
-
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import {
   Item,
   Segment,
   Input
 } from 'semantic-ui-react';
-import User from './User';
 
+import User from './User';
 import { getInfo, getStatus, getEndpoint } from '../../lib/peers';
+import { activeUserInfoKey } from '../../config';
 
 import './Users.css';
 
 const Users = (props) => {
+  const inputRef = useRef();
   const [user, setUser] = useState();
   const [usernameInput, setUsernameInput] = useState();
   const [selectedUsername, setSelectedUsername] = useState(undefined);
@@ -19,15 +20,22 @@ const Users = (props) => {
 
   useEffect(() => {
     document.addEventListener("keyup", keyUp, false);
-  }, []);
+
+    const storedUsername = localStorage.getItem(activeUserInfoKey);
+
+    if (storedUsername !== undefined) {
+      setSelectedUsername(storedUsername);
+      setInputText(storedUsername);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useLayoutEffect(() => {
     document.removeEventListener('keyup', keyUp, false);
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const fetchUser = async () => {
-      if (selectedUsername === undefined) {
+      if (!selectedUsername) {
         return;
       }
 
@@ -40,6 +48,7 @@ const Users = (props) => {
           getEndpoint({ username: selectedUsername })
         ]);
       
+        localStorage.setItem(activeUserInfoKey, selectedUsername);
         setUser({ ...info.data, ...status.data, ...endpoint.data });
         setStatus({ fetching: false, error: undefined });
       } catch (error) {
@@ -51,8 +60,19 @@ const Users = (props) => {
   }, [selectedUsername]);
 
   const clear = () => {
+    localStorage.removeItem(activeUserInfoKey);
     setSelectedUsername(undefined);
     setUser(undefined);
+    setInputText('');
+    setInputFocus();
+  }
+
+  const setInputText = (text) => {
+    inputRef.current.inputRef.current.value = text;
+  }
+
+  const setInputFocus = () => {
+    inputRef.current.focus();
   }
 
   const keyUp = (e) => e.key === 'Escape' ? clear() : '';
@@ -65,6 +85,7 @@ const Users = (props) => {
           size='big'
           loading={fetching}
           disabled={fetching}
+          ref={inputRef}
           className='users-input'
           placeholder="Username"
           onChange={(e) => setUsernameInput(e.target.value)}
