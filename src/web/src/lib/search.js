@@ -92,18 +92,17 @@ export const filterResponse = ({
     isCBR: false
   },
   response = { 
-    files: [] 
+    files: [],
+    lockedFiles: []
   } 
 }) => {
-  let { files = [] } = response;
+  let { files = [], lockedFiles = [] } = response;
 
   if (response.fileCount + response.lockedFileCount < filters.minFilesInFolder) {
     return { ...response, files: [] }
   }
 
-  console.log(filters);
-
-  files = files.filter(file => {
+  const filterFiles = (files) => files.filter(file => {
     const { bitRate, size, length, filename } = file;
     const { isCBR, isVBR, minBitRate, minFileSize, minLength, include = [], exclude = [] } = filters;
   
@@ -119,5 +118,13 @@ export const filterResponse = ({
     return true;
   });
 
-  return { ...response, files };
+  const filteredFiles = filterFiles(files);
+  const filteredLockedFiles = filterFiles(lockedFiles);
+
+  return { 
+    ...response,
+    fileCount: filteredFiles.length,
+    lockedFileCount: filteredLockedFiles.length,
+    files: filteredFiles, 
+    lockedFiles: filteredLockedFiles };
 };
