@@ -32,6 +32,7 @@ const initialState = {
     hiddenResults: [],
     hideLocked: true,
     fetching: false,
+    resultFilters: undefined
 };
 
 const sortOptions = {
@@ -151,8 +152,10 @@ class Search extends Component {
     }
 
     sortAndFilterResults = () => {
-        const { results = [], hideNoFreeSlots, resultSort, hideLocked, hiddenResults = [] } = this.state;
+        const { results = [], hideNoFreeSlots, resultSort, resultFilters = '', hideLocked, hiddenResults = [] } = this.state;
         const { field, order } = sortOptions[resultSort];
+
+        const filters = search.parseFiltersFromString(resultFilters);
 
         return results
             .filter(r => !hiddenResults.includes(r.username))
@@ -162,6 +165,7 @@ class Search extends Component {
                 }
                 return r;
             })
+            .map(response => search.filterResponse({ response, filters }))
             .filter(r => r.fileCount + r.lockedFileCount > 0)
             .filter(r => !(hideNoFreeSlots && r.freeUploadSlots === 0))
             .sort((a, b) => {
@@ -220,34 +224,40 @@ class Search extends Component {
                     </Loader>
                 :
                     <div>
-                        {(results && results.length > 0) ? <Segment className='search-options' raised>
-                            <Dropdown
-                                button
-                                className='search-options-sort icon'
-                                floating
-                                labeled
-                                icon='sort'
-                                options={sortDropdownOptions}
-                                onChange={(e, { value }) => this.setState({ resultSort: value }, () => this.saveState())}
-                                text={sortDropdownOptions.find(o => o.value === resultSort).text}
-                            />
-                            <div className='search-option-toggles'>
-                                <Checkbox
-                                    className='search-options-hide-locked'
-                                    toggle
-                                    onChange={() => this.setState({ hideLocked: !hideLocked }, () => this.saveState())}
-                                    checked={hideLocked}
-                                    label='Hide Locked Results'
+                        {(results && results.length > 0) ? 
+                            <Segment className='search-options' raised>
+                                <Dropdown
+                                    button
+                                    className='search-options-sort icon'
+                                    floating
+                                    labeled
+                                    icon='sort'
+                                    options={sortDropdownOptions}
+                                    onChange={(e, { value }) => this.setState({ resultSort: value }, () => this.saveState())}
+                                    text={sortDropdownOptions.find(o => o.value === resultSort).text}
                                 />
-                                <Checkbox
-                                    className='search-options-hide-no-slots'
-                                    toggle
-                                    onChange={() => this.setState({ hideNoFreeSlots: !hideNoFreeSlots }, () => this.saveState())}
-                                    checked={hideNoFreeSlots}
-                                    label='Hide Results with No Free Slots'
+                                <div className='search-option-toggles'>
+                                    <Checkbox
+                                        className='search-options-hide-locked'
+                                        toggle
+                                        onChange={() => this.setState({ hideLocked: !hideLocked }, () => this.saveState())}
+                                        checked={hideLocked}
+                                        label='Hide Locked Results'
+                                    />
+                                    <Checkbox
+                                        className='search-options-hide-no-slots'
+                                        toggle
+                                        onChange={() => this.setState({ hideNoFreeSlots: !hideNoFreeSlots }, () => this.saveState())}
+                                        checked={hideNoFreeSlots}
+                                        label='Hide Results with No Free Slots'
+                                    />
+                                </div>
+                                <Input 
+                                    label='Filters' 
+                                    className='search-filter'
                                 />
-                            </div>
-                        </Segment> : <PlaceholderSegment icon='search'/>}
+                            </Segment> : <PlaceholderSegment icon='search'/>
+                        }
                         {sortedAndFilteredResults.slice(0, displayCount).map((r, i) =>
                             <Response
                                 key={i}
