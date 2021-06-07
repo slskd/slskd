@@ -34,7 +34,7 @@ describe('filterResponse', () => {
 
     const filters = { isCBR: true };
 
-    expect(search.filterResponse({ response, filters })).toStrictEqual({
+    expect(search.filterResponse({ response, filters })).toMatchObject({
       files: [
         { bitRate: 320 }
       ]
@@ -51,7 +51,7 @@ describe('filterResponse', () => {
 
     const filters = { isVBR: true };
 
-    expect(search.filterResponse({ response, filters })).toStrictEqual({
+    expect(search.filterResponse({ response, filters })).toMatchObject({
       files: [
         { bitRate: 123 }
       ]
@@ -68,12 +68,95 @@ describe('filterResponse', () => {
 
     const filters = { isCBR: true, isVBR: true };
 
-    expect(search.filterResponse({ response, filters })).toStrictEqual({
+    expect(search.filterResponse({ response, filters })).toMatchObject({
       files: []
     });
   });
 
-  // todo: more tests
+  it('removes files with bitRate less than minBitRate', () => {
+    const response = {
+      files: [
+        { bitRate: 100 },
+        { bitRate: 99 }
+      ]
+    };
+
+    const filters = { minBitRate: 100 };
+
+    expect(search.filterResponse({ response, filters })).toMatchObject({
+      files: [
+        { bitRate: 100 }
+      ]
+    });
+  });
+
+  it('removes files with size less than minFileSize', () => {
+    const response = {
+      files: [
+        { size: 100 },
+        { size: 99 }
+      ]
+    };
+
+    const filters = { minFileSize: 100 };
+
+    expect(search.filterResponse({ response, filters })).toMatchObject({
+      files: [
+        { size: 100 }
+      ]
+    });
+  });
+
+  it('removes files with length less than minLength', () => {
+    const response = {
+      files: [
+        { length: 100 },
+        { length: 99 }
+      ]
+    };
+
+    const filters = { minLength: 100 };
+
+    expect(search.filterResponse({ response, filters })).toMatchObject({
+      files: [
+        { length: 100 }
+      ]
+    });
+  });
+
+  it('removes files with filenames not containing included phrases', () => {
+    const response = {
+      files: [
+        { filename: '/path/to/foo.mp3' },
+        { filename: '/path/to/bar.mp3' }
+      ]
+    };
+
+    const filters = { include: ['foo'] };
+
+    expect(search.filterResponse({ response, filters })).toMatchObject({
+      files: [
+        { filename: '/path/to/foo.mp3' }
+      ]
+    });
+  });
+  
+  it('removes files with filenames containing excluded phrases', () => {
+    const response = {
+      files: [
+        { filename: '/path/to/foo.mp3' },
+        { filename: '/path/to/bar.mp3' }
+      ]
+    };
+
+    const filters = { exclude: ['foo'] };
+
+    expect(search.filterResponse({ response, filters })).toMatchObject({
+      files: [
+        { filename: '/path/to/bar.mp3' }
+      ]
+    });
+  });
 });
 
 describe('parseFiltersFromString', () => {

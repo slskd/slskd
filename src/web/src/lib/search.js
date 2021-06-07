@@ -1,8 +1,5 @@
 import api from './api';
 
-export const CBR = 'CBR';
-export const VBR = 'VBR';
-
 export const search = ({ id, searchText }) => {
   return api.post(`/searches`, { id, searchText });
 };
@@ -16,8 +13,6 @@ export const getResponses = async ({ id }) => {
 };
 
 export const isConstantBitRate = (bitRate) => {
-  // because the caller most likely already O^2 this uses an ugly but fast approach
-  // https://en.wikipedia.org/wiki/MP3#Bit_rate
   switch (bitRate) {
     case 8:
     case 16:
@@ -55,6 +50,14 @@ export const parseFiltersFromString = (string) => {
     isCBR: false
   };
 
+  const getNthMatch = (string, regex, n) => {
+    const match = string.match(regex);
+  
+    if (match) {
+      return parseInt(match[n], 10);
+    }
+  }
+
   filters.minBitRate = getNthMatch(string, /(minbr|minbitrate):([0-9]+)/i, 2) || filters.minBitRate;
   filters.minFileSize = getNthMatch(string, /(minfs|minfilesize):([0-9]+)/i, 2) || filters.minFileSize;
   filters.minLength = getNthMatch(string, /(minlen|minlength):([0-9]+)/i, 2) || filters.minLength;
@@ -63,23 +66,14 @@ export const parseFiltersFromString = (string) => {
   filters.isVBR = !!string.match(/isvbr/i);
   filters.isCBR = !!string.match(/iscbr/i);
 
-  const isReservedWord = (word) => word.includes(':') || word === 'isvbr' || word === 'iscbr';
-
-  let terms = string.toLowerCase().split(' ').filter(term => !isReservedWord(term));
+  let terms = string.toLowerCase().split(' ')
+    .filter(term => !term.includes(':') && term !== 'isvbr' && term !== 'iscbr');
 
   filters.include = terms.filter(term => !term.startsWith('-'));
   filters.exclude = terms.filter(term => term.startsWith('-')).map(term => term.slice(1));
 
   return filters;
 };
-
-const getNthMatch = (string, regex, n) => {
-  const match = string.match(regex);
-
-  if (match) {
-    return parseInt(match[n], 10);
-  }
-}
 
 export const filterResponse = ({ 
   filters = {
