@@ -32,7 +32,7 @@ const initialState = {
     hiddenResults: [],
     hideLocked: true,
     fetching: false,
-    resultFilters: undefined
+    resultFilters: ''
 };
 
 const sortOptions = {
@@ -70,6 +70,10 @@ class Search extends Component {
 
     onSearchPhraseChange = (event, data) => {
         this.setState({ searchPhrase: data.value });
+    }
+
+    onResultFilterChange = (event, data) => {
+        this.setState({ resultFilters: data.value }, () => this.saveState());
     }
 
     saveState = () => {
@@ -188,7 +192,7 @@ class Search extends Component {
     }
 
     render = () => {
-        let { searchState, searchStatus, results = [], displayCount, resultSort, hideNoFreeSlots, hideLocked, hiddenResults = [], fetching } = this.state;
+        let { searchState, searchStatus, results = [], displayCount, resultSort, hideNoFreeSlots, hideLocked, hiddenResults = [], fetching, resultFilters } = this.state;
         let pending = fetching || searchState === 'pending';
 
         const sortedAndFilteredResults = this.sortAndFilterResults();
@@ -255,6 +259,9 @@ class Search extends Component {
                                 <Input 
                                     label='Filters' 
                                     className='search-filter'
+                                    value={resultFilters}
+                                    onChange={this.onResultFilterChange}
+                                    action={!!resultFilters && { icon: 'x', color: 'red', onClick: () => this.setState({ resultFilters: '' }) }}
                                 />
                             </Segment> : <PlaceholderSegment icon='search'/>
                         }
