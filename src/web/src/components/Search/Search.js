@@ -76,6 +76,10 @@ class Search extends Component {
         this.setState({ resultFilters: data.value }, () => this.saveState());
     }
 
+    clearResultFilter = () => {
+        this.setState({ resultFilters: '' }, () => this.saveState());
+    }
+
     saveState = () => {
         try {
             localStorage.setItem('soulseek-example-search-state', JSON.stringify({ ...this.state, results: [] }));
@@ -262,7 +266,7 @@ class Search extends Component {
                                     label={{ icon: 'filter', content: 'Filter' }}
                                     value={resultFilters}
                                     onChange={this.onResultFilterChange}
-                                    action={!!resultFilters && { icon: 'x', color: 'red', onClick: () => this.setState({ resultFilters: '' }) }}
+                                    action={!!resultFilters && { icon: 'x', color: 'red', onClick: this.clearResultFilter }}
                                 />
                             </Segment> : <PlaceholderSegment icon='search'/>
                         }
