@@ -107,7 +107,7 @@ export const filterResponse = ({
     if (length < minLength) return false;
 
     if (include.length > 0 && include.filter(term => filename.toLowerCase().includes(term)).length === 0) return false;
-    if (exclude.length > 0 && exclude.filter(term => !filename.toLowerCase().includes(term)).length === 0) return false;
+    if (exclude.length > 0 && exclude.filter(term => filename.toLowerCase().includes(term)).length !== 0) return false;
 
     return true;
   });

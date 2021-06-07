@@ -124,37 +124,55 @@ describe('filterResponse', () => {
     });
   });
 
-  it('removes files with filenames not containing included phrases', () => {
+  describe('term filtering', () => {
     const response = {
       files: [
         { filename: '/path/to/foo.mp3' },
-        { filename: '/path/to/bar.mp3' }
+        { filename: '/path/to/bar.mp3' },
+        { filename: '/path/to/baz.mp3' },
+        { filename: '/path/to/qux.mp3' },
+        { filename: '/path/to/info.nfo' },
+        { filename: '/path/to/folder.jpg' }
       ]
     };
 
-    const filters = { include: ['foo'] };
-
-    expect(search.filterResponse({ response, filters })).toMatchObject({
-      files: [
-        { filename: '/path/to/foo.mp3' }
-      ]
-    });
-  });
+    it('removes files with filenames not containing included phrases', () => {
+      const filters = { include: ['foo', 'nfo', 'baz'] };
   
-  it('removes files with filenames containing excluded phrases', () => {
-    const response = {
-      files: [
-        { filename: '/path/to/foo.mp3' },
-        { filename: '/path/to/bar.mp3' }
-      ]
-    };
-
-    const filters = { exclude: ['foo'] };
-
-    expect(search.filterResponse({ response, filters })).toMatchObject({
-      files: [
-        { filename: '/path/to/bar.mp3' }
-      ]
+      expect(search.filterResponse({ response, filters })).toMatchObject({
+        files: [
+          { filename: '/path/to/foo.mp3' },
+          { filename: '/path/to/baz.mp3' },
+          { filename: '/path/to/info.nfo' },
+        ]
+      });
+    });
+    
+    it('removes files with filenames containing excluded phrases', () => {
+      const filters = { exclude: ['bar', 'jpg', 'qux'] };
+  
+      expect(search.filterResponse({ response, filters })).toMatchObject({
+        files: [
+          { filename: '/path/to/foo.mp3' },
+          { filename: '/path/to/baz.mp3' },
+          { filename: '/path/to/info.nfo' },
+        ]
+      });
+    });
+  
+    it('removes a mix of includes and excludes', () => {
+      const filters = { 
+        include: ['.jpg', '.mp3'],
+        exclude: ['foo', 'bar'] 
+      };
+  
+      expect(search.filterResponse({ response, filters })).toMatchObject({
+        files: [
+          { filename: '/path/to/baz.mp3' },
+          { filename: '/path/to/qux.mp3' },
+          { filename: '/path/to/folder.jpg' }
+        ]
+      });
     });
   });
 });
@@ -216,6 +234,16 @@ describe('parseFiltersFromString', () => {
     expect(search.parseFiltersFromString('foo -bar')).toMatchObject({
       include: [ 'foo' ],
       exclude: [ 'bar' ]
+    });
+
+    expect(search.parseFiltersFromString('-foo -bar -baz qux')).toMatchObject({
+      exclude: [ 'foo', 'bar', 'baz' ],
+      include: [ 'qux' ]
+    });
+
+    expect(search.parseFiltersFromString('foo bar baz -qux')).toMatchObject({
+      include: [ 'foo', 'bar', 'baz' ],
+      exclude: [ 'qux' ]
     });
   });
 
