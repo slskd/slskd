@@ -137,12 +137,10 @@ describe('filterResponse', () => {
     };
 
     it('removes files with filenames not containing included phrases', () => {
-      const filters = { include: ['foo', 'nfo', 'baz'] };
+      const filters = { include: ['path', 'to', '.nfo'] };
   
       expect(search.filterResponse({ response, filters })).toMatchObject({
         files: [
-          { filename: '/path/to/foo.mp3' },
-          { filename: '/path/to/baz.mp3' },
           { filename: '/path/to/info.nfo' },
         ]
       });
@@ -162,7 +160,7 @@ describe('filterResponse', () => {
   
     it('removes a mix of includes and excludes', () => {
       const filters = { 
-        include: ['.jpg', '.mp3'],
+        include: ['path', '.mp3'],
         exclude: ['foo', 'bar'] 
       };
   
@@ -170,7 +168,6 @@ describe('filterResponse', () => {
         files: [
           { filename: '/path/to/baz.mp3' },
           { filename: '/path/to/qux.mp3' },
-          { filename: '/path/to/folder.jpg' }
         ]
       });
     });
