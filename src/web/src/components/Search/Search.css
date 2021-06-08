@@ -59,3 +59,8 @@
 .search-loader {
   margin-top: 50px !important;
 }
+
+.search-filter {
+  width: 100%;
+  margin-top: 1rem;
+}

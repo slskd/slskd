@@ -2,6 +2,7 @@ import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import {
   Item,
   Segment,
+  Loader,
   Input
 } from 'semantic-ui-react';
 
@@ -10,6 +11,7 @@ import { activeUserInfoKey } from '../../config';
 import * as peers from '../../lib/peers';
 
 import './Users.css';
+import PlaceholderSegment from '../Shared/PlaceholderSegment';
 
 const Users = (props) => {
   const inputRef = useRef();
@@ -93,11 +95,20 @@ const Users = (props) => {
           onKeyUp={(e) => e.key === 'Enter' ? setSelectedUsername(usernameInput) : ''}
         />
       </Segment>
-      {!fetching && !error && !!user && <Segment className='users-user' raised>
-        <Item.Group>
-          <User {...user}/>
-        </Item.Group>
-      </Segment>}
+      {fetching ? 
+        <Loader className='search-loader' active inline='centered' size='big'/> :
+        <div>
+          {error ? 
+            <span>Failed to retrieve information for {selectedUsername}</span> : 
+            !user ? 
+              <PlaceholderSegment icon='users'/> :
+              <Segment className='users-user' raised>
+                <Item.Group>
+                  <User {...user}/>
+                </Item.Group>
+              </Segment>}
+        </div>
+      }
     </div>
   );
 };
