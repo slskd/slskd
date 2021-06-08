@@ -106,7 +106,7 @@ export const filterResponse = ({
     if (size < minFileSize) return false;
     if (length < minLength) return false;
 
-    if (include.length > 0 && include.filter(term => filename.toLowerCase().includes(term)).length === 0) return false;
+    if (include.length > 0 && include.filter(term => filename.toLowerCase().includes(term)).length !== include.length) return false;
     if (exclude.length > 0 && exclude.filter(term => filename.toLowerCase().includes(term)).length !== 0) return false;
 
     return true;
@@ -120,5 +120,6 @@ export const filterResponse = ({
     fileCount: filteredFiles.length,
     lockedFileCount: filteredLockedFiles.length,
     files: filteredFiles, 
-    lockedFiles: filteredLockedFiles };
+    lockedFiles: filteredLockedFiles
+  };
 };
