@@ -38,8 +38,11 @@ namespace slskd
 
     public class Service : IHostedService
     {
-        private static readonly int MaxReconnectAttempts = 3;
-        private static int currentReconnectAttempts = 0;
+        private static readonly int ReconnectDelaySeconds = 1;
+        private static readonly int ReconnectMaxDelaySeconds = 300; // 5 minutes
+        private static readonly int ReconnectBackoffRate = 2;
+        private static int reconnectAttempts = 0;
+
         private static (int Directories, int Files) sharedCounts = (0, 0);
 
         public Service(
@@ -121,6 +124,7 @@ namespace slskd
             Client.RoomJoined += Client_RoomJoined;
             Client.RoomLeft += Client_RoomLeft;
             Client.Disconnected += Client_Disconnected;
+            Client.Connected += Client_Connected;
 
             SoulseekClient = Client;
 
@@ -207,30 +211,40 @@ namespace slskd
             logger.Write(TranslateLogLevel(args.Level), "{@Message}", args.Message);
         }
 
+        private void Client_Connected(object sender, EventArgs e)
+        {
+            Interlocked.Exchange(ref reconnectAttempts, 0);
+        }
+
         private async void Client_Disconnected(object sender, SoulseekClientDisconnectedEventArgs args)
         {
-            Console.WriteLine($"Disconnected from Soulseek server: {args.Message}");
-
-            // don't reconnect if the disconnecting Exception is either of these types. if KickedFromServerException, another
-            // client was most likely signed in, and retrying will cause a connect loop. if ObjectDisposedException, the client is
-            // shutting down.
-            if (!(args.Exception is KickedFromServerException || args.Exception is ObjectDisposedException))
+            if (args.Exception is ObjectDisposedException)
             {
-                Interlocked.Increment(ref currentReconnectAttempts);
+                Logger.Debug("Disconnected from the Soulseek server: the client is shutting down");
+            }
+            else if (args.Exception is LoginRejectedException)
+            {
+                Logger.Error("Disconnected from the Soulseek server: invalid username or password");
+            }
+            else if (args.Exception is KickedFromServerException)
+            {
+                Logger.Error("Disconnected from the Soulseek server: another client logged in using the username {Username}", Options.Soulseek.Username);
+            }
+            else
+            {
+                var delay = Compute.ExponentialBackoffDelay(
+                    iteration: reconnectAttempts,
+                    backoffRate: ReconnectBackoffRate,
+                    delayInSeconds: ReconnectDelaySeconds,
+                    maxDelayInSeconds: ReconnectMaxDelaySeconds);
 
-                if (currentReconnectAttempts <= MaxReconnectAttempts)
-                {
-                    var wait = (int)Math.Pow(currentReconnectAttempts, 3);
-                    Console.WriteLine($"Waiting {wait} second(s) before reconnect...");
-                    await Task.Delay(wait);
+                Logger.Information($"Waiting {delay} second(s) before reconnecting...");
+                await Task.Delay(delay * 1000);
 
-                    Console.WriteLine($"Attepting to reconnect...");
-                    await Client.ConnectAsync(Options.Soulseek.Username, Options.Soulseek.Password);
-                }
-                else
-                {
-                    Console.WriteLine($"Unable to reconnect after {currentReconnectAttempts} tries.");
-                }
+                Interlocked.Increment(ref reconnectAttempts);
+
+                Logger.Information($"Attepting to reconnect (#{reconnectAttempts})...", reconnectAttempts);
+                await Client.ConnectAsync(Options.Soulseek.Username, Options.Soulseek.Password);
             }
         }
 
