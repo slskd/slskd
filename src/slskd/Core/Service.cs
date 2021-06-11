@@ -38,9 +38,7 @@ namespace slskd
 
     public class Service : IHostedService
     {
-        private static readonly int ReconnectDelaySeconds = 1;
-        private static readonly int ReconnectMaxDelaySeconds = 300; // 5 minutes
-        private static readonly int ReconnectBackoffRate = 2;
+        private static readonly int ReconnectMaxDelayMilliseconds = 300000; // 5 minutes
         private static int reconnectAttempts = 0;
 
         private static (int Directories, int Files) sharedCounts = (0, 0);
@@ -232,14 +230,12 @@ namespace slskd
             }
             else
             {
-                var delay = Compute.ExponentialBackoffDelay(
+                var (delay, jitter) = Compute.ExponentialBackoffDelay(
                     iteration: reconnectAttempts,
-                    backoffRate: ReconnectBackoffRate,
-                    delayInSeconds: ReconnectDelaySeconds,
-                    maxDelayInSeconds: ReconnectMaxDelaySeconds);
+                    maxDelayInMilliseconds: ReconnectMaxDelayMilliseconds);
 
-                Logger.Information($"Waiting {delay} second(s) before reconnecting...");
-                await Task.Delay(delay * 1000);
+                Logger.Information($"Waiting {delay + jitter} millisecond(s) before reconnecting...");
+                await Task.Delay(delay + jitter);
 
                 Interlocked.Increment(ref reconnectAttempts);
 

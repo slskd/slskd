@@ -5,16 +5,16 @@ namespace slskd.Tests.Unit
     public class ComputeTests
     {
         [Theory]
-        [InlineData(0, 1, 2, 300, 0)]
-        [InlineData(1, 1, 2, 300, 1)]
-        [InlineData(2, 1, 2, 300, 3)]
-        [InlineData(3, 1, 2, 300, 7)]
-        [InlineData(4, 1, 2, 300, 15)]
-        [InlineData(5, 1, 2, 300, 31)]
-        [InlineData(999999, 1, 2, 300, 300)]
-        public void ExponentialBackoffDelay(int iteration, int delayInSeconds, int backoffRate, int maxDelayInSeconds, int expectedDelay)
+        [InlineData(1, 300000, 0)]
+        [InlineData(2, 300000, 1000)]
+        [InlineData(3, 300000, 3000)]
+        [InlineData(4, 300000, 7000)]
+        [InlineData(5, 300000, 15000)]
+        [InlineData(6, 300000, 31000)]
+        [InlineData(999999, 300000, 300000)]
+        public void ExponentialBackoffDelay(int iteration, int maxDelayInMs, int expectedDelay)
         {
-            var computedDelay = Compute.ExponentialBackoffDelay(iteration, delayInSeconds, backoffRate, maxDelayInSeconds);
+            var (computedDelay, _) = Compute.ExponentialBackoffDelay(iteration, maxDelayInMs);
             Assert.Equal(expectedDelay, computedDelay);
         }
     }
