@@ -39,7 +39,6 @@ namespace slskd
     public class Service : IHostedService
     {
         private static readonly int ReconnectMaxDelayMilliseconds = 300000; // 5 minutes
-        private static int reconnectAttempts = 0;
 
         private static (int Directories, int Files) sharedCounts = (0, 0);
 
@@ -143,16 +142,14 @@ namespace slskd
 
         public async Task StartAsync(CancellationToken cancellationToken)
         {
-            await Client.ConnectAsync(Options.Soulseek.Username, Options.Soulseek.Password).ConfigureAwait(false);
-
             if (UsingProxy)
             {
                 Logger.Information($"Using Proxy {Options.Soulseek.Connection.Proxy.Address}:{Options.Soulseek.Connection.Proxy.Port}");
             }
 
-            Logger.Information("Connected and logged in as {Username}", Options.Soulseek.Username);
-            Logger.Information("Listening on port {Port}", Options.Soulseek.ListenPort);
             Logger.Information("Client started");
+            Logger.Information("Listening on port {Port}", Options.Soulseek.ListenPort);
+            await Client.ConnectAsync(Options.Soulseek.Username, Options.Soulseek.Password).ConfigureAwait(false);
         }
 
         public Task StopAsync(CancellationToken cancellationToken)
@@ -211,7 +208,7 @@ namespace slskd
 
         private void Client_Connected(object sender, EventArgs e)
         {
-            Interlocked.Exchange(ref reconnectAttempts, 0);
+            Logger.Information("Connected and logged in as {Username}", Options.Soulseek.Username);
         }
 
         private async void Client_Disconnected(object sender, SoulseekClientDisconnectedEventArgs args)
@@ -230,17 +227,33 @@ namespace slskd
             }
             else
             {
-                var (delay, jitter) = Compute.ExponentialBackoffDelay(
-                    iteration: reconnectAttempts,
-                    maxDelayInMilliseconds: ReconnectMaxDelayMilliseconds);
+                Logger.Error("Disconnected from the Soulseek server: {Message}", args.Exception.Message);
 
-                Logger.Information($"Waiting {delay + jitter} millisecond(s) before reconnecting...");
-                await Task.Delay(delay + jitter);
+                var attempts = 1;
 
-                Interlocked.Increment(ref reconnectAttempts);
+                while (true)
+                {
+                    var (delay, jitter) = Compute.ExponentialBackoffDelay(
+                        iteration: attempts,
+                        maxDelayInMilliseconds: ReconnectMaxDelayMilliseconds);
 
-                Logger.Information($"Attepting to reconnect (#{reconnectAttempts})...", reconnectAttempts);
-                await Client.ConnectAsync(Options.Soulseek.Username, Options.Soulseek.Password);
+                    var approximateDelay = (int)Math.Ceiling((double)(delay + jitter) / 1000);
+                    Logger.Information($"Waiting about {(approximateDelay == 1 ? "a second" : $"{approximateDelay} seconds")} before reconnecting");
+                    await Task.Delay(delay + jitter);
+
+                    Logger.Information($"Attempting to reconnect (#{attempts})...", attempts);
+
+                    try
+                    {
+                        await Client.ConnectAsync(Options.Soulseek.Username, Options.Soulseek.Password);
+                        break;
+                    }
+                    catch (Exception ex)
+                    {
+                        attempts++;
+                        Logger.Error("Failed to reconnect: {Message}", ex.Message);
+                    }
+                }
             }
         }
 
