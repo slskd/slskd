@@ -20,7 +20,7 @@ namespace slskd
     using System;
 
     /// <summary>
-    ///     Static utility methods that don't otherwise work well as extensions.
+    ///     Computational functions.
     /// </summary>
     public static class Compute
     {
