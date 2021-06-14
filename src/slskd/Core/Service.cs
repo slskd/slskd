@@ -154,7 +154,7 @@ namespace slskd
 
         public Task StopAsync(CancellationToken cancellationToken)
         {
-            Client.Disconnect("Shutting down");
+            Client.Disconnect("Shutting down", new ApplicationShutdownException("Shutting down"));
             Client.Dispose();
             Logger.Information("Client stopped");
             return Task.CompletedTask;
@@ -213,7 +213,7 @@ namespace slskd
 
         private async void Client_Disconnected(object sender, SoulseekClientDisconnectedEventArgs args)
         {
-            if (args.Exception is ObjectDisposedException)
+            if (args.Exception is ObjectDisposedException || args.Exception is ApplicationShutdownException)
             {
                 Logger.Debug("Disconnected from the Soulseek server: the client is shutting down");
             }
