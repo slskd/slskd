@@ -15,7 +15,7 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-namespace slskd.Server.API
+namespace slskd.Management.API
 {
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.Authorization;
