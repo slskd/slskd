@@ -33,7 +33,7 @@ namespace slskd
     using Prometheus;
     using Prometheus.SystemMetrics;
     using Serilog;
-    using slskd.API.Authentication;
+    using slskd.Authentication;
     using slskd.Cryptography;
     using slskd.Messaging;
     using slskd.Peer;

@@ -24,6 +24,7 @@ namespace slskd.Application.API
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
     using Microsoft.IdentityModel.Tokens;
+    using slskd.Authentication;
 
     /// <summary>
     ///     Session.
