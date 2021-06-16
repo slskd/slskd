@@ -1,4 +1,4 @@
-﻿// <copyright file="X509CertificateAttribute.cs" company="slskd Team">
+﻿// <copyright file="Extensions.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -17,28 +17,32 @@
 
 namespace slskd.Validation
 {
+    using System.Collections.Generic;
     using System.ComponentModel.DataAnnotations;
-    using slskd.Cryptography;
-    using static slskd.Options.WebOptions.HttpsOptions;
 
     /// <summary>
-    ///     Validates X509 certificate parameters specified through <see cref="CertificateOptions"/>.
+    ///     Extensions.
     /// </summary>
-    public class X509CertificateAttribute : ValidationAttribute
+    public static class Extensions
     {
-        protected override ValidationResult IsValid(object value, ValidationContext validationContext)
+        /// <summary>
+        ///     Validates options.
+        /// </summary>
+        /// <param name="options">The options instance to validate.</param>
+        /// <param name="result">The result of the validation, if invalid.</param>
+        /// <returns>A value indicating whether the instance is valid.</returns>
+        public static bool TryValidate(this Options options, out CompositeValidationResult result)
         {
-            if (value != null)
-            {
-                var cert = (CertificateOptions)value;
+            result = null;
+            var results = new List<ValidationResult>();
 
-                if (!string.IsNullOrEmpty(cert.Pfx) && !X509.TryValidate(cert.Pfx, cert.Password, out var certResult))
-                {
-                    return new ValidationResult($"Invalid HTTPs certificate: {certResult}");
-                }
+            if (!Validator.TryValidateObject(options, new ValidationContext(options), results, true))
+            {
+                result = new CompositeValidationResult("Invalid configuration", results);
+                return false;
             }
 
-            return ValidationResult.Success;
+            return true;
         }
     }
 }

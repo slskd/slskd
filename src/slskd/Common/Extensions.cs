@@ -55,17 +55,6 @@ namespace slskd
         }
 
         /// <summary>
-        ///     Returns the SHA1 hash of the given string.
-        /// </summary>
-        /// <param name="str">The string to hash.</param>
-        /// <returns>The hash.</returns>
-        public static string Sha1(this string str)
-        {
-            using var sha1 = new SHA1Managed();
-            return BitConverter.ToString(sha1.ComputeHash(Encoding.UTF8.GetBytes(str))).Replace("-", string.Empty);
-        }
-
-        /// <summary>
         ///     Formats byte to nearest size (KB, MB, etc.)
         /// </summary>
         /// <param name="value">The value to format.</param>
@@ -147,26 +136,6 @@ namespace slskd
         public static string ToLocalOSPath(this string path)
         {
             return path.Replace('\\', Path.DirectorySeparatorChar).Replace('/', Path.DirectorySeparatorChar);
-        }
-
-        /// <summary>
-        ///     Validates options.
-        /// </summary>
-        /// <param name="options">The options instance to validate.</param>
-        /// <param name="result">The result of the validation, if invalid.</param>
-        /// <returns>A value indicating whether the instance is valid.</returns>
-        public static bool TryValidate(this Options options, out CompositeValidationResult result)
-        {
-            result = null;
-            var results = new List<ValidationResult>();
-
-            if (!Validator.TryValidateObject(options, new ValidationContext(options), results, true))
-            {
-                result = new CompositeValidationResult("Invalid configuration", results);
-                return false;
-            }
-
-            return true;
         }
     }
 }

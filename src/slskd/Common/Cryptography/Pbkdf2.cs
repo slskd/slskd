@@ -15,7 +15,7 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-namespace slskd.Security
+namespace slskd.Cryptography
 {
     using System.Security.Cryptography;
     using Microsoft.AspNetCore.Cryptography.KeyDerivation;

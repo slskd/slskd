@@ -36,8 +36,8 @@ namespace slskd
     using Serilog;
     using Serilog.Events;
     using Serilog.Sinks.Grafana.Loki;
-    using slskd.Common.Cryptography;
     using slskd.Configuration;
+    using slskd.Cryptography;
     using slskd.Validation;
     using Utility.CommandLine;
     using Utility.EnvironmentVariables;
