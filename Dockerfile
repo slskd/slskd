@@ -41,6 +41,9 @@ LABEL org.opencontainers.image.licenses=AGPL-3.0
 LABEL org.opencontainers.image.version=${VERSION}
 LABEL org.opencontainers.image.created=$(date --iso-8601=s)
 
+RUN apt-get update
+RUN apt-get install -y wget
+
 WORKDIR /slskd
 COPY --from=publish /slskd/dist/${TARGETPLATFORM} .
 
