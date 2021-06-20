@@ -21,7 +21,8 @@ namespace slskd.Management
 
     public interface IManagementService
     {
-        void DisconnectClient(string message = null);
-        Task ConnectClientAsync();
+        void DisconnectServer(string message = null);
+        Task ConnectServerAsync();
+        ServerState GetServerState();
     }
 }

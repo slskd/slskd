@@ -33,10 +33,19 @@ namespace slskd.Management
         private ISoulseekClient Client { get; }
         private Options Options { get; }
 
-        public void DisconnectClient(string message = null)
+        public void DisconnectServer(string message = null)
             => Client.Disconnect(message, new IntentionalDisconnectException(message));
 
-        public Task ConnectClientAsync()
+        public Task ConnectServerAsync()
             => Client.ConnectAsync(Options.Soulseek.Username, Options.Soulseek.Password);
+
+        public ServerState GetServerState() =>
+            new ServerState()
+            {
+                Address = Client.Address,
+                IPEndPoint = Client.IPEndPoint,
+                State = Client.State,
+                Username = Client.Username,
+            };
     }
 }
