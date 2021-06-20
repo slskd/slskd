@@ -216,6 +216,10 @@ namespace slskd
             {
                 Logger.Debug("Disconnected from the Soulseek server: the client is shutting down");
             }
+            else if (args.Exception is IntentionalDisconnectException)
+            {
+                Logger.Debug("Disconnected from the Soulseek server: disconnected by the user");
+            }
             else if (args.Exception is LoginRejectedException)
             {
                 Logger.Error("Disconnected from the Soulseek server: invalid username or password");
@@ -226,7 +230,7 @@ namespace slskd
             }
             else
             {
-                Logger.Error("Disconnected from the Soulseek server: {Message}", args.Exception.Message);
+                Logger.Error("Disconnected from the Soulseek server: {Message}", args.Exception?.Message ?? args.Message);
 
                 var attempts = 1;
 
