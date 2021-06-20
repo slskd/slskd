@@ -48,7 +48,7 @@ namespace slskd.Management.API
         [Authorize]
         public async Task<IActionResult> Connect()
         {
-            await Management.ConnectClientAsync();
+            await Management.ConnectServerAsync();
             return Ok();
         }
 
@@ -61,8 +61,15 @@ namespace slskd.Management.API
         [Authorize]
         public IActionResult Disconnect([FromBody] string message)
         {
-            Management.DisconnectClient(message);
+            Management.DisconnectServer(message);
             return NoContent();
+        }
+
+        [HttpGet]
+        [Authorize]
+        public IActionResult Get()
+        {
+            return Ok(Management.GetServerState());
         }
     }
 }
