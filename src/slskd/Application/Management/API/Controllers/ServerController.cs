@@ -20,7 +20,6 @@ namespace slskd.Management.API
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
-    using Soulseek;
 
     /// <summary>
     ///     Server.
@@ -32,12 +31,13 @@ namespace slskd.Management.API
     [Consumes("application/json")]
     public class ServerController : ControllerBase
     {
-        public ServerController(ISoulseekClient client)
+        public ServerController(
+            IManagementService managementService)
         {
-            Client = client;
+            Management = managementService;
         }
 
-        private ISoulseekClient Client { get; }
+        private IManagementService Management { get; }
 
         /// <summary>
         ///     Connects the client.
@@ -46,26 +46,10 @@ namespace slskd.Management.API
         /// <returns></returns>
         [HttpPost]
         [Authorize]
-        public async Task<IActionResult> Connect([FromBody] ConnectRequest req)
+        public async Task<IActionResult> Connect()
         {
-            var addr = !string.IsNullOrEmpty(req.Address);
-            var port = req.Port.HasValue;
-            var un = !string.IsNullOrEmpty(req.Username);
-            var pw = !string.IsNullOrEmpty(req.Password);
-
-            if (addr && port && un && pw)
-            {
-                await Client.ConnectAsync(req.Address, req.Port.Value, req.Username, req.Password);
-                return Ok();
-            }
-
-            if (!addr && !port && un && pw)
-            {
-                await Client.ConnectAsync(req.Username, req.Password);
-                return Ok();
-            }
-
-            return BadRequest("Provide one of the following: address and port, username and password, or address, port, username and password");
+            await Management.ConnectClientAsync();
+            return Ok();
         }
 
         /// <summary>
@@ -77,7 +61,7 @@ namespace slskd.Management.API
         [Authorize]
         public IActionResult Disconnect([FromBody] string message)
         {
-            Client.Disconnect(message);
+            Management.DisconnectClient(message);
             return NoContent();
         }
     }
