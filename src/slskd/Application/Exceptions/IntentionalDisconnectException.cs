@@ -22,7 +22,7 @@ namespace slskd
     using System.Runtime.Serialization;
 
     /// <summary>
-    ///     Represents a normal application shutdown.
+    ///     Represents an intentional client disconnect.
     /// </summary>
     [ExcludeFromCodeCoverage]
     [Serializable]
