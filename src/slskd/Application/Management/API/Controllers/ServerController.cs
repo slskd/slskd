@@ -44,11 +44,15 @@ namespace slskd.Management.API
         /// </summary>
         /// <param name="req"></param>
         /// <returns></returns>
-        [HttpPost]
+        [HttpPut]
         [Authorize]
         public async Task<IActionResult> Connect()
         {
-            await Management.ConnectServerAsync();
+            if (!Management.GetServerState().IsConnected)
+            {
+                await Management.ConnectServerAsync();
+            }
+
             return Ok();
         }
 
@@ -61,10 +65,18 @@ namespace slskd.Management.API
         [Authorize]
         public IActionResult Disconnect([FromBody] string message)
         {
-            Management.DisconnectServer(message);
+            if (Management.GetServerState().IsConnected)
+            {
+                Management.DisconnectServer(message);
+            }
+
             return NoContent();
         }
 
+        /// <summary>
+        ///     Retrieves the current state of the server.
+        /// </summary>
+        /// <returns></returns>
         [HttpGet]
         [Authorize]
         public IActionResult Get()
