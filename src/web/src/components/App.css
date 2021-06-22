@@ -7,6 +7,10 @@ body {
     padding-bottom: 5px !important;
 }
 
+.ui.inverted.menu .item:before {
+    background: rgba(255,255,255, 0);
+}
+
 .app {
     margin: auto;
     border: 0px !important;
