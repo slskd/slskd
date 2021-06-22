@@ -17,8 +17,7 @@ import {
     Menu,
     Icon,
     Modal,
-    Header,
-    Dropdown
+    Header
 } from 'semantic-ui-react';
 import Rooms from './Rooms/Rooms';
 
@@ -155,7 +154,7 @@ class App extends Component {
                             </Menu.Item>
                             {token !== tokenPassthroughValue && <Modal
                                 trigger={
-                                    <Menu.Item position='right'>
+                                    <Menu.Item>
                                         <Icon name='sign-out'/>Log Out
                                     </Menu.Item>
                                 }
