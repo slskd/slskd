@@ -42,10 +42,12 @@ namespace slskd.Management.API
         /// <summary>
         ///     Connects the client.
         /// </summary>
-        /// <param name="req"></param>
         /// <returns></returns>
         [HttpPut]
+        [Route("")]
         [Authorize]
+        [ProducesResponseType(200)]
+        [ProducesResponseType(403)]
         public async Task<IActionResult> Connect()
         {
             if (!Management.GetServerState().IsConnected)
@@ -62,7 +64,10 @@ namespace slskd.Management.API
         /// <param name="message"></param>
         /// <returns></returns>
         [HttpDelete]
+        [Route("")]
         [Authorize]
+        [ProducesResponseType(204)]
+        [ProducesResponseType(403)]
         public IActionResult Disconnect([FromBody] string message)
         {
             if (Management.GetServerState().IsConnected)
@@ -77,8 +82,12 @@ namespace slskd.Management.API
         ///     Retrieves the current state of the server.
         /// </summary>
         /// <returns></returns>
+        /// <response code="200"></response>
         [HttpGet]
+        [Route("")]
         [Authorize]
+        [ProducesResponseType(typeof(ServerState), 200)]
+        [ProducesResponseType(403)]
         public IActionResult Get()
         {
             return Ok(Management.GetServerState());
