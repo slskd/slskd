@@ -123,3 +123,14 @@ body {
 .placeholder-segment {
     opacity: .25;
 }
+
+.menu-icon-group {
+    font-size: 1.71428571em !important;
+    margin: 0 auto .5rem !important;
+    text-shadow: unset !important;
+}
+
+.menu-icon-no-shadow {
+    font-size: 1rem !important;
+    text-shadow: unset !important;
+}

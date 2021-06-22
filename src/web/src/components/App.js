@@ -17,7 +17,8 @@ import {
     Menu,
     Icon,
     Modal,
-    Header
+    Header,
+    Dropdown
 } from 'semantic-ui-react';
 import Rooms from './Rooms/Rooms';
 
@@ -143,6 +144,15 @@ class App extends Component {
                                     <Icon name='folder open'/>Browse
                                 </Menu.Item>
                             </Link>
+                            <Menu.Item position='right'>
+                                <Icon name='wifi' color='green'/>Connected
+                            </Menu.Item>
+                            <Menu.Item>
+                                <Icon.Group className='menu-icon-group'>
+                                    <Icon name='wifi' color='grey'/>
+                                    <Icon name='close' color='red' corner='bottom right' className='menu-icon-no-shadow'/>
+                                </Icon.Group>Disconnected
+                            </Menu.Item>
                             {token !== tokenPassthroughValue && <Modal
                                 trigger={
                                     <Menu.Item position='right'>
