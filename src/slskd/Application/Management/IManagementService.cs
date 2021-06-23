@@ -17,12 +17,31 @@
 
 namespace slskd.Management
 {
+    using System;
     using System.Threading.Tasks;
 
+    /// <summary>
+    ///     Application and Soulseek client management.
+    /// </summary>
     public interface IManagementService
     {
-        void DisconnectServer(string message = null);
+        /// <summary>
+        ///     Disconnects the Soulseek client from the server.
+        /// </summary>
+        /// <param name="message">An optional message containing the reason for the disconnect.</param>
+        /// <param name="exception">An optional Exception to associate with the disconnect.</param>
+        void DisconnectServer(string message = null, Exception exception = null);
+
+        /// <summary>
+        ///     Connects the Soulseek client to the server using the configured username and password.
+        /// </summary>
+        /// <returns>The operation context.</returns>
         Task ConnectServerAsync();
+
+        /// <summary>
+        ///     Gets the current state of the connection to the Soulseek server.
+        /// </summary>
+        /// <returns>The current server state.</returns>
         ServerState GetServerState();
     }
 }

@@ -17,11 +17,20 @@
 
 namespace slskd.Management
 {
+    using System;
     using System.Threading.Tasks;
     using Soulseek;
 
+    /// <summary>
+    ///     Application and Soulseek client management.
+    /// </summary>
     public class ManagementService : IManagementService
     {
+        /// <summary>
+        ///     Initializes a new instance of the <see cref="ManagementService"/> class.
+        /// </summary>
+        /// <param name="optionsMonitor">The options monitor used to derive application options.</param>
+        /// <param name="soulseekClient">The Soulseek client.</param>
         public ManagementService(
             Microsoft.Extensions.Options.IOptionsMonitor<Options> optionsMonitor,
             ISoulseekClient soulseekClient)
@@ -33,12 +42,25 @@ namespace slskd.Management
         private ISoulseekClient Client { get; }
         private Options Options { get; }
 
-        public void DisconnectServer(string message = null)
-            => Client.Disconnect(message, new IntentionalDisconnectException(message));
+        /// <summary>
+        ///     Disconnects the Soulseek client from the server.
+        /// </summary>
+        /// <param name="message">An optional message containing the reason for the disconnect.</param>
+        /// <param name="exception">An optional Exception to associate with the disconnect.</param>
+        public void DisconnectServer(string message = null, Exception exception = null)
+            => Client.Disconnect(message, exception ?? new IntentionalDisconnectException(message));
 
+        /// <summary>
+        ///     Connects the Soulseek client to the server using the configured username and password.
+        /// </summary>
+        /// <returns>The operation context.</returns>
         public Task ConnectServerAsync()
             => Client.ConnectAsync(Options.Soulseek.Username, Options.Soulseek.Password);
 
+        /// <summary>
+        ///     Gets the current state of the connection to the Soulseek server.
+        /// </summary>
+        /// <returns>The current server state.</returns>
         public ServerState GetServerState() =>
             new ServerState()
             {
