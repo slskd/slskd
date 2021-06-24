@@ -121,6 +121,7 @@ namespace slskd
             Client.RoomLeft += Client_RoomLeft;
             Client.Disconnected += Client_Disconnected;
             Client.Connected += Client_Connected;
+            Client.LoggedIn += Client_LoggedIn;
 
             SoulseekClient = Client;
 
@@ -207,18 +208,23 @@ namespace slskd
 
         private void Client_Connected(object sender, EventArgs e)
         {
-            Logger.Information("Connected and logged in as {Username}", Options.Soulseek.Username);
+            Logger.Information("Connected to the Soulseek server");
+        }
+
+        private void Client_LoggedIn(object sender, EventArgs e)
+        {
+            Logger.Information("Logged in to the Soulseek server as {Username}", Options.Soulseek.Username);
         }
 
         private async void Client_Disconnected(object sender, SoulseekClientDisconnectedEventArgs args)
         {
             if (args.Exception is ObjectDisposedException || args.Exception is ApplicationShutdownException)
             {
-                Logger.Debug("Disconnected from the Soulseek server: the client is shutting down");
+                Logger.Information("Disconnected from the Soulseek server: the client is shutting down");
             }
             else if (args.Exception is IntentionalDisconnectException)
             {
-                Logger.Debug("Disconnected from the Soulseek server: disconnected by the user");
+                Logger.Information("Disconnected from the Soulseek server: disconnected by the user");
             }
             else if (args.Exception is LoginRejectedException)
             {
