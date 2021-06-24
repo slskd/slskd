@@ -7,6 +7,10 @@ body {
     padding-bottom: 5px !important;
 }
 
+.ui.inverted.menu .item:before {
+    background: rgba(255,255,255, 0);
+}
+
 .app {
     margin: auto;
     border: 0px !important;
@@ -122,4 +126,15 @@ body {
 
 .placeholder-segment {
     opacity: .25;
+}
+
+.menu-icon-group {
+    font-size: 1.71428571em !important;
+    margin: 0 auto .5rem !important;
+    text-shadow: unset !important;
+}
+
+.menu-icon-no-shadow {
+    font-size: 1rem !important;
+    text-shadow: unset !important;
 }

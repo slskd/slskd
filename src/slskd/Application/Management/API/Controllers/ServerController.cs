@@ -20,7 +20,6 @@ namespace slskd.Management.API
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
-    using Soulseek;
 
     /// <summary>
     ///     Server.
@@ -32,40 +31,31 @@ namespace slskd.Management.API
     [Consumes("application/json")]
     public class ServerController : ControllerBase
     {
-        public ServerController(ISoulseekClient client)
+        public ServerController(
+            IManagementService managementService)
         {
-            Client = client;
+            Management = managementService;
         }
 
-        private ISoulseekClient Client { get; }
+        private IManagementService Management { get; }
 
         /// <summary>
         ///     Connects the client.
         /// </summary>
-        /// <param name="req"></param>
         /// <returns></returns>
-        [HttpPost]
+        [HttpPut]
+        [Route("")]
         [Authorize]
-        public async Task<IActionResult> Connect([FromBody] ConnectRequest req)
+        [ProducesResponseType(200)]
+        [ProducesResponseType(403)]
+        public async Task<IActionResult> Connect()
         {
-            var addr = !string.IsNullOrEmpty(req.Address);
-            var port = req.Port.HasValue;
-            var un = !string.IsNullOrEmpty(req.Username);
-            var pw = !string.IsNullOrEmpty(req.Password);
-
-            if (addr && port && un && pw)
+            if (!Management.GetServerState().IsConnected)
             {
-                await Client.ConnectAsync(req.Address, req.Port.Value, req.Username, req.Password);
-                return Ok();
+                await Management.ConnectServerAsync();
             }
 
-            if (!addr && !port && un && pw)
-            {
-                await Client.ConnectAsync(req.Username, req.Password);
-                return Ok();
-            }
-
-            return BadRequest("Provide one of the following: address and port, username and password, or address, port, username and password");
+            return Ok();
         }
 
         /// <summary>
@@ -74,11 +64,33 @@ namespace slskd.Management.API
         /// <param name="message"></param>
         /// <returns></returns>
         [HttpDelete]
+        [Route("")]
         [Authorize]
+        [ProducesResponseType(204)]
+        [ProducesResponseType(403)]
         public IActionResult Disconnect([FromBody] string message)
         {
-            Client.Disconnect(message);
+            if (Management.GetServerState().IsConnected)
+            {
+                Management.DisconnectServer(message);
+            }
+
             return NoContent();
+        }
+
+        /// <summary>
+        ///     Retrieves the current state of the server.
+        /// </summary>
+        /// <returns></returns>
+        /// <response code="200"></response>
+        [HttpGet]
+        [Route("")]
+        [Authorize]
+        [ProducesResponseType(typeof(ServerState), 200)]
+        [ProducesResponseType(403)]
+        public IActionResult Get()
+        {
+            return Ok(Management.GetServerState());
         }
     }
 }

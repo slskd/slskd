@@ -2,6 +2,7 @@ import React, { Component } from 'react';
 import { Route, Link, Switch } from "react-router-dom";
 import { tokenKey, tokenPassthroughValue } from '../config';
 import * as session from '../lib/session';
+import * as server from '../lib/server';
 
 import './App.css';
 import Search from './Search/Search';
@@ -27,7 +28,9 @@ const initialState = {
         initialized: false,
         pending: false,
         error: undefined
-    }
+    },
+    serverStateInterval: undefined,
+    serverState: {}
 };
 
 class App extends Component {
@@ -35,6 +38,8 @@ class App extends Component {
 
     componentDidMount = async () => {
         const { login } = this.state;
+
+        await this.fetchServerState();
         const securityEnabled = await session.getSecurityEnabled();
 
         if (!securityEnabled) {
@@ -46,11 +51,17 @@ class App extends Component {
             login: {
                 ...login,
                 initialized: true
-            }
+            },
+            serverStateInterval: window.setInterval(this.fetchServerState, 5000)
         });
 
         await this.checkToken();
-    }
+    };
+
+    componentWillUnmount = () => {
+        clearInterval(this.state.serverStateInterval);
+        this.setState({ serverStateInterval: undefined });
+    };
 
     checkToken = async () => {
         try {
@@ -58,7 +69,7 @@ class App extends Component {
         } catch (error) {
             this.logout();
         }
-    }
+    };
 
     getToken = () => JSON.parse(sessionStorage.getItem(tokenKey) || localStorage.getItem(tokenKey));
     setToken = (storage, token) => storage.setItem(tokenKey, JSON.stringify(token));
@@ -73,21 +84,37 @@ class App extends Component {
                 this.setState({ login: { ...this.state.login, pending: false, error }});
             }
         });
-    }
+    };
     
     logout = () => {
         localStorage.removeItem(tokenKey);
         sessionStorage.removeItem(tokenKey);
         this.setState({ ...initialState, login: { ...initialState.login, initialized: true }});
-    }
+    };
 
     withTokenCheck = (component) => {
         this.checkToken(); // async, runs in the background
         return { ...component };
+    };
+
+    connect = async () => {
+        await server.connect();
+        this.fetchServerState();
+    };
+    
+    disconnect = async () => {
+        await server.disconnect();
+        this.fetchServerState();
     }
 
+    fetchServerState = async () => {
+        this.setState({ 
+            serverState: await server.getState()
+        });
+    };
+
     render = () => {
-        const { token, login } = this.state;
+        const { token, login, serverState } = this.state;
 
         return (
             <>
@@ -143,9 +170,24 @@ class App extends Component {
                                     <Icon name='folder open'/>Browse
                                 </Menu.Item>
                             </Link>
+                            {serverState.isConnected && <Menu.Item
+                                position='right'
+                                onClick={() => this.disconnect()}
+                            >
+                                <Icon name='wifi' color='green'/>Connected
+                            </Menu.Item>}
+                            {(!serverState.isConnected || serverState.isTransitioning) && <Menu.Item 
+                                position='right'
+                                onClick={() => this.connect()}
+                            >
+                                <Icon.Group className='menu-icon-group'>
+                                    <Icon name='wifi' color='grey'/>
+                                    <Icon name='close' color='red' corner='bottom right' className='menu-icon-no-shadow'/>
+                                </Icon.Group>Disconnected
+                            </Menu.Item>}
                             {token !== tokenPassthroughValue && <Modal
                                 trigger={
-                                    <Menu.Item position='right'>
+                                    <Menu.Item>
                                         <Icon name='sign-out'/>Log Out
                                     </Menu.Item>
                                 }
@@ -171,7 +213,7 @@ class App extends Component {
                 }
             </>
         )
-    }
-}
+    };
+};
 
 export default App;

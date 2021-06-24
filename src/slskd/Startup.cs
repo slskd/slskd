@@ -35,6 +35,7 @@ namespace slskd
     using Serilog;
     using slskd.Authentication;
     using slskd.Cryptography;
+    using slskd.Management;
     using slskd.Messaging;
     using slskd.Peer;
     using slskd.Search;
@@ -184,6 +185,7 @@ namespace slskd
 
             services.AddSingleton<ISearchService, SearchService>();
             services.AddSingleton<IPeerService, PeerService>();
+            services.AddSingleton<IManagementService, ManagementService>();
 
             services.AddHostedService<Service>();
             services.AddSingleton(_ => Service.SoulseekClient);
