@@ -108,9 +108,13 @@ class App extends Component {
     }
 
     fetchServerState = async () => {
-        this.setState({ 
-            serverState: await server.getState()
-        });
+        try {
+            this.setState({ 
+                serverState: await server.getState()
+            });
+        } catch (err) {
+            // noop
+        }
     };
 
     render = () => {
