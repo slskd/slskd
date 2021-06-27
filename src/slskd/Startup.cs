@@ -35,6 +35,7 @@ namespace slskd
     using Serilog;
     using slskd.Authentication;
     using slskd.Cryptography;
+    using slskd.Integrations.FTP;
     using slskd.Management;
     using slskd.Messaging;
     using slskd.Peer;
@@ -186,6 +187,7 @@ namespace slskd
             services.AddSingleton<ISearchService, SearchService>();
             services.AddSingleton<IPeerService, PeerService>();
             services.AddSingleton<IManagementService, ManagementService>();
+            services.AddSingleton<IFTPService, FTPService>();
 
             services.AddHostedService<Service>();
             services.AddSingleton(_ => Service.SoulseekClient);
