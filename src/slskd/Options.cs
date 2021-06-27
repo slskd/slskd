@@ -21,6 +21,7 @@ namespace slskd
     using System.ComponentModel;
     using System.ComponentModel.DataAnnotations;
     using System.Diagnostics;
+    using FluentFTP;
     using slskd.Validation;
     using Soulseek.Diagnostics;
     using Utility.CommandLine;
@@ -120,6 +121,12 @@ namespace slskd
         /// </summary>
         [Validate]
         public SoulseekOptions Soulseek { get; private set; } = new SoulseekOptions();
+
+        /// <summary>
+        ///     Gets options for external integrations.
+        /// </summary>
+        [Validate]
+        public IntegrationOptions Integration { get; private set; } = new IntegrationOptions();
 
         /// <summary>
         ///     Directory options.
@@ -545,6 +552,74 @@ namespace slskd
                     [Description("X509 certificate password")]
                     public string Password { get; private set; }
                 }
+            }
+        }
+
+        /// <summary>
+        ///     Options for external integrations.
+        /// </summary>
+        public class IntegrationOptions
+        {
+            /// <summary>
+            ///     Gets FTP options.
+            /// </summary>
+            [Validate]
+            public FTPOptions FTP { get; private set; } = new FTPOptions();
+
+            /// <summary>
+            ///     FTP options.
+            /// </summary>
+            public class FTPOptions
+            {
+                /// <summary>
+                ///     Gets the FTP address.
+                /// </summary>
+                [Argument(default, "ftp-address")]
+                [EnvironmentVariable("FTP_ADDRESS")]
+                [Description("FTP address")]
+                public string Address { get; private set; }
+
+                /// <summary>
+                ///     Gets the FTP port.
+                /// </summary>
+                [Argument(default, "ftp-port")]
+                [EnvironmentVariable("FTP_PORT")]
+                [Description("FTP port")]
+                [Range(1, 65535)]
+                public int Port { get; private set; } = 21;
+
+                /// <summary>
+                ///     Gets the FTP encryption mode.
+                /// </summary>
+                [Argument(default, "ftp-encryption-mode")]
+                [EnvironmentVariable("FTP_ENCRYPTION_MODE")]
+                [Description("FTP encryption mode; none, implicit, explicit, auto")]
+                [Enum(typeof(FtpEncryptionMode))]
+                public string EncryptionMode { get; private set; } = "auto";
+
+                /// <summary>
+                ///     Gets the FTP username.
+                /// </summary>
+                [Argument(default, "ftp-username")]
+                [EnvironmentVariable("FTP_USERNAME")]
+                [Description("FTP username")]
+                public string Username { get; private set; }
+
+                /// <summary>
+                ///     Gets the FTP password.
+                /// </summary>
+                [Argument(default, "ftp-password")]
+                [EnvironmentVariable("FTP_PASSWORD")]
+                [Description("FTP password")]
+                public string Password { get; private set; }
+
+                /// <summary>
+                ///     Gets the number of times failing uploads will be retried.
+                /// </summary>
+                [Argument(default, "ftp-retry-attempts")]
+                [EnvironmentVariable("FTP_RETRY_ATTEMPTS")]
+                [Description("The number of times failing uploads will be retried")]
+                public int RetryAttempts { get; private set; } = 5;
             }
         }
     }

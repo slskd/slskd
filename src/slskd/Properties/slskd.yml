@@ -49,3 +49,11 @@
 #         port: ~
 #         username: ~
 #         password: ~
+#   integration:
+#     ftp:
+#       address: ~
+#       port: ~
+#       encryption_mode: auto
+#       username: ~
+#       password: ~
+#       retry_attempts: 5
