@@ -614,11 +614,27 @@ namespace slskd
                 public string Password { get; private set; }
 
                 /// <summary>
+                ///     Gets the remote path for uploads.
+                /// </summary>
+                [Argument(default, "ftp-remote-path")]
+                [EnvironmentVariable("FTP_REMOTE_PATH")]
+                [Description("remote path for uploads")]
+                public string RemotePath { get; private set; } = "/";
+
+                /// <summary>
+                ///     Gets a value indicating whether existing files should be overwritten.
+                /// </summary>
+                [Argument(default, "ftp-overwrite-existing")]
+                [EnvironmentVariable("FTP_OVERWRITE_EXISTING")]
+                [Description("overwrite existing files")]
+                public bool OverwriteExisting { get; private set; } = true;
+
+                /// <summary>
                 ///     Gets the number of times failing uploads will be retried.
                 /// </summary>
                 [Argument(default, "ftp-retry-attempts")]
                 [EnvironmentVariable("FTP_RETRY_ATTEMPTS")]
-                [Description("The number of times failing uploads will be retried")]
+                [Description("number of times failing uploads will be retried")]
                 public int RetryAttempts { get; private set; } = 5;
             }
         }
