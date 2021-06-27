@@ -70,22 +70,25 @@ namespace slskd.Integrations.FTP
                 return;
             }
 
+            // todo: add retries up to configured count with exponential backoff
             try
             {
                 var fileOnly = Path.GetFileName(filename);
                 var fileAndParentDirectory = Path.Combine(Path.GetDirectoryName(filename).Replace(Path.GetDirectoryName(Path.GetDirectoryName(filename)), string.Empty), fileOnly).TrimStart('/').TrimStart('\\');
 
                 var remotePath = FTPOptions.RemotePath.TrimEnd('/').TrimEnd('\\');
+                // todo: sanitize filename
                 var remoteFilename = $"{remotePath}/{fileAndParentDirectory}";
 
                 var existsMode = FTPOptions.OverwriteExisting ? FtpRemoteExists.Overwrite : FtpRemoteExists.Skip;
 
-                using var stream = new FileStream(filename, FileMode.Open, FileAccess.Read);
-
                 Log.LogInformation("Uploading {Filename} to FTP {Address}:{Port} as {RemoteFilename}", fileAndParentDirectory, FTPOptions.Address, FTPOptions.Port, remoteFilename);
                 var client = Factory.CreateFtpClient();
+
+                // todo: add cancellation token for timeout
                 await client.ConnectAsync();
-                var status = await client.UploadAsync(stream, remoteFilename, existsMode, createRemoteDir: true);
+
+                var status = await client.UploadFileAsync(filename, remoteFilename, existsMode, createRemoteDir: true);
 
                 if (status == FtpStatus.Failed)
                 {
@@ -93,7 +96,6 @@ namespace slskd.Integrations.FTP
                 }
 
                 Log.LogInformation("FTP upload of {Filename} to {Address}:{Port} complete", fileAndParentDirectory, FTPOptions.Address, FTPOptions.Port);
-                Console.WriteLine($"========================DONE: {filename}, {status}");
             }
             catch (Exception ex)
             {
