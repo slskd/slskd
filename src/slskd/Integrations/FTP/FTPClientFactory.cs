@@ -1,4 +1,4 @@
-﻿// <copyright file="FTPService.cs" company="slskd Team">
+﻿// <copyright file="FTPClientFactory.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -18,44 +18,36 @@
 namespace slskd.Integrations.FTP
 {
     using System;
-    using System.Threading.Tasks;
     using FluentFTP;
-    using Microsoft.Extensions.Logging;
     using static slskd.Options.IntegrationOptions;
 
-    public class FTPService : IFTPService
+    public class FTPClientFactory : IFTPClientFactory
     {
-        public FTPService(
-            Microsoft.Extensions.Options.IOptionsMonitor<Options> optionsMonitor,
-            ILogger<FTPService> log)
+        public FTPClientFactory(Microsoft.Extensions.Options.IOptionsMonitor<Options> optionsMonitor)
         {
             Options = optionsMonitor.CurrentValue;
-            Log = log;
-
-            FtpEncryptionMode encryptionMode;
 
             try
             {
-                encryptionMode = (FtpEncryptionMode)Enum.Parse(typeof(FtpEncryptionMode), FTPOptions.EncryptionMode, ignoreCase: true);
+                EncryptionMode = (FtpEncryptionMode)Enum.Parse(typeof(FtpEncryptionMode), FTPOptions.EncryptionMode, ignoreCase: true);
             }
             catch (Exception ex)
             {
                 // Options should validate that the given string is parsable to FtpEncryptionMode through EnumAttribute; if this throws there's a bug somewhere.
                 throw new ArgumentException($"Failed to parse {typeof(FtpEncryptionMode).Name} from application Options. This is most likely a programming error; please file a GitHub issue and include your FTP configuration.", ex);
             }
-
-            Client = new FtpClient(FTPOptions.Address, FTPOptions.Port, FTPOptions.Username, FTPOptions.Password);
-            Client.EncryptionMode = encryptionMode;
         }
 
-        private Options Options { get; }
+        private Options Options { get; set; }
         private FTPOptions FTPOptions => Options.Integration.FTP;
-        private ILogger<FTPService> Log { get; set; }
-        private FtpClient Client { get; set; }
+        private FtpEncryptionMode EncryptionMode { get; set; }
 
-        public Task UploadAsync(string filename)
+        public FtpClient CreateFtpClient()
         {
-            throw new NotImplementedException();
+            var client = new FtpClient(FTPOptions.Address, FTPOptions.Port, FTPOptions.Username, FTPOptions.Password);
+            client.EncryptionMode = EncryptionMode;
+
+            return client;
         }
     }
 }

@@ -1,4 +1,4 @@
-﻿// <copyright file="IFTPService.cs" company="slskd Team">
+﻿// <copyright file="IFTPClientFactory.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -17,10 +17,10 @@
 
 namespace slskd.Integrations.FTP
 {
-    using System.Threading.Tasks;
+    using FluentFTP;
 
-    public interface IFTPService
+    public interface IFTPClientFactory
     {
-        Task UploadAsync(string filename);
+        public FtpClient CreateFtpClient();
     }
 }
