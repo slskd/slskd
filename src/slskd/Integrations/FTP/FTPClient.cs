@@ -1,4 +1,4 @@
-﻿// <copyright file="FTPService.cs" company="slskd Team">
+﻿// <copyright file="FTPClient.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -19,6 +19,7 @@ namespace slskd.Integrations.FTP
 {
     using System;
     using System.IO;
+    using System.Threading;
     using System.Threading.Tasks;
     using FluentFTP;
     using Microsoft.Extensions.Logging;
@@ -70,36 +71,41 @@ namespace slskd.Integrations.FTP
                 return;
             }
 
-            // todo: add retries up to configured count with exponential backoff
+            var fileOnly = Path.GetFileName(filename);
+            var fileAndParentDirectory = Path.Combine(Path.GetDirectoryName(filename).Replace(Path.GetDirectoryName(Path.GetDirectoryName(filename)), string.Empty), fileOnly).TrimStart('/').TrimStart('\\');
+
+            var remotePath = FTPOptions.RemotePath.TrimEnd('/').TrimEnd('\\');
+            var remoteFilename = $"{remotePath}/{fileAndParentDirectory}";
+
+            var existsMode = FTPOptions.OverwriteExisting ? FtpRemoteExists.Overwrite : FtpRemoteExists.Skip;
+
             try
             {
-                var fileOnly = Path.GetFileName(filename);
-                var fileAndParentDirectory = Path.Combine(Path.GetDirectoryName(filename).Replace(Path.GetDirectoryName(Path.GetDirectoryName(filename)), string.Empty), fileOnly).TrimStart('/').TrimStart('\\');
-
-                var remotePath = FTPOptions.RemotePath.TrimEnd('/').TrimEnd('\\');
-                // todo: sanitize filename
-                var remoteFilename = $"{remotePath}/{fileAndParentDirectory}";
-
-                var existsMode = FTPOptions.OverwriteExisting ? FtpRemoteExists.Overwrite : FtpRemoteExists.Skip;
-
-                Log.LogInformation("Uploading {Filename} to FTP {Address}:{Port} as {RemoteFilename}", fileAndParentDirectory, FTPOptions.Address, FTPOptions.Port, remoteFilename);
-                var client = Factory.CreateFtpClient();
-
-                // todo: add cancellation token for timeout
-                await client.ConnectAsync();
-
-                var status = await client.UploadFileAsync(filename, remoteFilename, existsMode, createRemoteDir: true);
-
-                if (status == FtpStatus.Failed)
+                await Retry.Do(async () =>
                 {
-                    throw new FtpException("FTP client reported a failed transfer");
-                }
+                    Log.LogInformation("Uploading {Filename} to FTP {Address}:{Port} as {RemoteFilename}", fileAndParentDirectory, FTPOptions.Address, FTPOptions.Port, remoteFilename);
+                    var client = Factory.CreateFtpClient();
 
-                Log.LogInformation("FTP upload of {Filename} to {Address}:{Port} complete", fileAndParentDirectory, FTPOptions.Address, FTPOptions.Port);
+                    var cts = new CancellationTokenSource(FTPOptions.ConnectionTimeout);
+                    await client.ConnectAsync(cts.Token);
+
+                    var status = await client.UploadFileAsync(filename, remoteFilename, existsMode, createRemoteDir: true);
+
+                    if (status == FtpStatus.Failed)
+                    {
+                        throw new FtpException("FTP client reported a failed transfer");
+                    }
+
+                    Log.LogInformation("FTP upload of {Filename} to {Address}:{Port} complete", fileAndParentDirectory, FTPOptions.Address, FTPOptions.Port);
+                }, (attempts, ex) =>
+                {
+                    Log.LogWarning("Failed attempt {Attempts} to upload {Filename} to FTP: {Message}", attempts, ex.Message);
+                    return true;
+                }, maxAttempts: FTPOptions.RetryAttempts, maxDelayInMilliseconds: 30000);
             }
             catch (Exception ex)
             {
-                Log.LogWarning(ex, "Failed to upload {Filename} to FTP: {Message}", ex.Message);
+                Log.LogWarning(ex, "Failed to upload {Filename} to FTP after {Attempts}: {Message}", FTPOptions.RetryAttempts, ex.Message);
                 throw;
             }
         }
