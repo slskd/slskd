@@ -31,16 +31,17 @@ namespace slskd
         /// </summary>
         /// <param name="task">The logic to execute.</param>
         /// <param name="isRetryable">A function returning a value indicating whether the last Exception is retryable.</param>
+        /// <param name="onFailure">An action to execute on failure.</param>
         /// <param name="maxAttempts">The maximum number of retry attempts.</param>
         /// <param name="maxDelayInMilliseconds">The maximum delay in milliseconds.</param>
         /// <returns>The execution context.</returns>
-        public static async Task Do(Func<Task> task, Func<int, Exception, bool> isRetryable = null, int maxAttempts = 3, int maxDelayInMilliseconds = int.MaxValue)
+        public static async Task Do(Func<Task> task, Func<int, Exception, bool> isRetryable = null, Action<int, Exception> onFailure = null, int maxAttempts = 3, int maxDelayInMilliseconds = int.MaxValue)
         {
             await Do<object>(async () =>
             {
                 await task();
                 return Task.FromResult<object>(null);
-            }, isRetryable, maxAttempts, maxDelayInMilliseconds);
+            }, isRetryable, onFailure, maxAttempts, maxDelayInMilliseconds);
         }
 
         /// <summary>
@@ -48,13 +49,15 @@ namespace slskd
         /// </summary>
         /// <param name="task">The logic to execute.</param>
         /// <param name="isRetryable">A function returning a value indicating whether the last Exception is retryable.</param>
+        /// <param name="onFailure">An action to execute on failure.</param>
         /// <param name="maxAttempts">The maximum number of retry attempts.</param>
         /// <param name="maxDelayInMilliseconds">The maximum delay in miliseconds.</param>
         /// <typeparam name="T">The Type of the logic return value.</typeparam>
         /// <returns>The execution context.</returns>
-        public static async Task<T> Do<T>(Func<Task<T>> task, Func<int, Exception, bool> isRetryable = null, int maxAttempts = 3, int maxDelayInMilliseconds = int.MaxValue)
+        public static async Task<T> Do<T>(Func<Task<T>> task, Func<int, Exception, bool> isRetryable = null, Action<int, Exception> onFailure = null, int maxAttempts = 3, int maxDelayInMilliseconds = int.MaxValue)
         {
             isRetryable ??= (_, _) => true;
+            onFailure ??= (_, _) => { };
 
             var exceptions = new List<Exception>();
 
@@ -74,9 +77,18 @@ namespace slskd
                 {
                     exceptions.Add(ex);
 
-                    if (!isRetryable(attempts + 1, ex))
+                    try
                     {
-                        throw new AggregateException(exceptions);
+                        onFailure(attempts + 1, ex);
+
+                        if (!isRetryable(attempts + 1, ex))
+                        {
+                            break;
+                        }
+                    }
+                    catch (Exception retryEx)
+                    {
+                        throw new RetryException($"Failed to retry operation: {retryEx.Message}", ex);
                     }
                 }
             }
