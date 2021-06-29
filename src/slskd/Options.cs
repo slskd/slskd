@@ -630,12 +630,22 @@ namespace slskd
                 public bool OverwriteExisting { get; private set; } = true;
 
                 /// <summary>
+                ///     Gets the connection timeout value, in milliseconds.
+                /// </summary>
+                [Argument(default, "ftp-connection-timeout")]
+                [EnvironmentVariable("FTP_CONNECTION_TIMEOUT")]
+                [Description("FTP connection timeout, in milliseconds")]
+                [Range(0, int.MaxValue)]
+                public int ConnectionTimeout { get; private set; } = 5000;
+
+                /// <summary>
                 ///     Gets the number of times failing uploads will be retried.
                 /// </summary>
                 [Argument(default, "ftp-retry-attempts")]
                 [EnvironmentVariable("FTP_RETRY_ATTEMPTS")]
                 [Description("number of times failing uploads will be retried")]
-                public int RetryAttempts { get; private set; } = 5;
+                [Range(0, 5)]
+                public int RetryAttempts { get; private set; } = 3;
             }
         }
     }

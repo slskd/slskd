@@ -56,4 +56,7 @@
 #       encryption_mode: auto
 #       username: ~
 #       password: ~
+#       remote_path: /
+#       overwrite_existing: true
+#       connection_timeout: 5000
 #       retry_attempts: 5
