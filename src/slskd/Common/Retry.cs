@@ -21,42 +21,51 @@ namespace slskd
     using System.Collections.Generic;
     using System.Threading.Tasks;
 
-    public class Retry
+    /// <summary>
+    ///     Retry logic.
+    /// </summary>
+    public static class Retry
     {
-        public static async Task Do(Func<Task> task, TimeSpan retryInterval, int maxAttemptCount = 3)
+        /// <summary>
+        ///     Executes logic with the specified retry parameters.
+        /// </summary>
+        /// <param name="task">The logic to execute.</param>
+        /// <param name="isRetryable">A function returning a value indicating whether the last Exception is retryable.</param>
+        /// <param name="maxAttempts">The maximum number of retry attempts.</param>
+        /// <param name="maxDelayInMilliseconds">The maximum delay in milliseconds.</param>
+        /// <returns>The execution context.</returns>
+        public static async Task Do(Func<Task> task, Func<int, Exception, bool> isRetryable = null, int maxAttempts = 3, int maxDelayInMilliseconds = int.MaxValue)
         {
-            var exceptions = new List<Exception>();
-            for (int attempted = 0; attempted < maxAttemptCount; attempted++)
+            await Do<object>(async () =>
             {
-                try
-                {
-                    if (attempted > 0)
-                    {
-                        await Task.Delay(retryInterval);
-                    }
-
-                    await task();
-                    return;
-                }
-                catch (Exception ex)
-                {
-                    exceptions.Add(ex);
-                }
-            }
-
-            throw new AggregateException(exceptions);
+                await task();
+                return Task.FromResult<object>(null);
+            }, isRetryable, maxAttempts, maxDelayInMilliseconds);
         }
 
-        public static async Task<T> Do<T>(Func<Task<T>> task, TimeSpan retryInterval, int maxAttemptCount = 3)
+        /// <summary>
+        ///     Executes logic with the specified retry parameters.
+        /// </summary>
+        /// <param name="task">The logic to execute.</param>
+        /// <param name="isRetryable">A function returning a value indicating whether the last Exception is retryable.</param>
+        /// <param name="maxAttempts">The maximum number of retry attempts.</param>
+        /// <param name="maxDelayInMilliseconds">The maximum delay in miliseconds.</param>
+        /// <typeparam name="T">The Type of the logic return value.</typeparam>
+        /// <returns>The execution context.</returns>
+        public static async Task<T> Do<T>(Func<Task<T>> task, Func<int, Exception, bool> isRetryable = null, int maxAttempts = 3, int maxDelayInMilliseconds = int.MaxValue)
         {
+            isRetryable ??= (_, _) => true;
+
             var exceptions = new List<Exception>();
-            for (int attempted = 0; attempted < maxAttemptCount; attempted++)
+
+            for (int attempts = 0; attempts < maxAttempts; attempts++)
             {
                 try
                 {
-                    if (attempted > 0)
+                    if (attempts > 0)
                     {
-                        await Task.Delay(retryInterval);
+                        var (delay, jitter) = Compute.ExponentialBackoffDelay(attempts, maxDelayInMilliseconds);
+                        await Task.Delay(delay + jitter);
                     }
 
                     return await task();
@@ -64,6 +73,11 @@ namespace slskd
                 catch (Exception ex)
                 {
                     exceptions.Add(ex);
+
+                    if (!isRetryable(attempts + 1, ex))
+                    {
+                        throw new AggregateException(exceptions);
+                    }
                 }
             }
 
