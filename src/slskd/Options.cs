@@ -618,7 +618,7 @@ namespace slskd
                 /// </summary>
                 [Argument(default, "ftp-remote-path")]
                 [EnvironmentVariable("FTP_REMOTE_PATH")]
-                [Description("remote path for uploads")]
+                [Description("remote path for FTP uploads")]
                 public string RemotePath { get; private set; } = "/";
 
                 /// <summary>
@@ -626,7 +626,7 @@ namespace slskd
                 /// </summary>
                 [Argument(default, "ftp-overwrite-existing")]
                 [EnvironmentVariable("FTP_OVERWRITE_EXISTING")]
-                [Description("overwrite existing files")]
+                [Description("overwrite existing files when uploading to FTP")]
                 public bool OverwriteExisting { get; private set; } = true;
 
                 /// <summary>
@@ -643,9 +643,14 @@ namespace slskd
                 /// </summary>
                 [Argument(default, "ftp-retry-attempts")]
                 [EnvironmentVariable("FTP_RETRY_ATTEMPTS")]
-                [Description("number of times failing uploads will be retried")]
+                [Description("number of times failing FTP uploads will be retried")]
                 [Range(0, 5)]
                 public int RetryAttempts { get; private set; } = 3;
+
+                [Argument(default, "ftp-ignore-certificate-errors")]
+                [EnvironmentVariable("FTP_IGNORE_CERTIFICATE_ERRORS")]
+                [Description("ignore FTP certificate errors")]
+                public bool IgnoreCertificateErrors { get; private set; } = false;
             }
         }
     }
