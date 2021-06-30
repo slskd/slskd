@@ -1,4 +1,4 @@
-﻿// <copyright file="FTPClient.cs" company="slskd Team">
+﻿// <copyright file="FTPService.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -25,12 +25,12 @@ namespace slskd.Integrations.FTP
     using Microsoft.Extensions.Logging;
     using static slskd.Options.IntegrationOptions;
 
-    public class FTPClient : IFTPClient
+    public class FTPService : IFTPService
     {
-        public FTPClient(
+        public FTPService(
             IFTPClientFactory ftpClientFactory,
             Microsoft.Extensions.Options.IOptionsMonitor<Options> optionsMonitor,
-            ILogger<FTPClient> log)
+            ILogger<FTPService> log)
         {
             Factory = ftpClientFactory;
             Options = optionsMonitor.CurrentValue;
@@ -51,7 +51,7 @@ namespace slskd.Integrations.FTP
 
         private Options Options { get; }
         private FTPOptions FTPOptions => Options.Integration.FTP;
-        private ILogger<FTPClient> Log { get; set; }
+        private ILogger<FTPService> Log { get; set; }
         private IFTPClientFactory Factory { get; set; }
         private FtpEncryptionMode EncryptionMode { get; set; }
 

@@ -189,7 +189,7 @@ namespace slskd
             services.AddSingleton<IManagementService, ManagementService>();
 
             services.AddSingleton<IFTPClientFactory, FTPClientFactory>();
-            services.AddTransient<IFTPClient, FTPClient>();
+            services.AddTransient<IFTPService, FTPService>();
 
             services.AddHostedService<Service>();
             services.AddSingleton(_ => Service.SoulseekClient);

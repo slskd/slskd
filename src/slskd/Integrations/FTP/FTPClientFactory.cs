@@ -21,8 +21,15 @@ namespace slskd.Integrations.FTP
     using FluentFTP;
     using static slskd.Options.IntegrationOptions;
 
+    /// <summary>
+    ///     FTP client factory.
+    /// </summary>
     public class FTPClientFactory : IFTPClientFactory
     {
+        /// <summary>
+        ///     Initializes a new instance of the <see cref="FTPClientFactory"/> class.
+        /// </summary>
+        /// <param name="optionsMonitor">The options monitor used to derive application options.</param>
         public FTPClientFactory(Microsoft.Extensions.Options.IOptionsMonitor<Options> optionsMonitor)
         {
             Options = optionsMonitor.CurrentValue;
@@ -33,15 +40,20 @@ namespace slskd.Integrations.FTP
             }
             catch (Exception ex)
             {
-                // Options should validate that the given string is parsable to FtpEncryptionMode through EnumAttribute; if this throws there's a bug somewhere.
+                // Options should validate that the given string is parsable to FtpEncryptionMode through EnumAttribute; if this
+                // throws there's a bug somewhere.
                 throw new ArgumentException($"Failed to parse {typeof(FtpEncryptionMode).Name} from application Options. This is most likely a programming error; please file a GitHub issue and include your FTP configuration.", ex);
             }
         }
 
-        private Options Options { get; set; }
-        private FTPOptions FTPOptions => Options.Integration.FTP;
         private FtpEncryptionMode EncryptionMode { get; set; }
+        private FTPOptions FTPOptions => Options.Integration.FTP;
+        private Options Options { get; set; }
 
+        /// <summary>
+        ///     Creates an instance of <see cref="FtpClient"/>.
+        /// </summary>
+        /// <returns>The created instance.</returns>
         public FtpClient CreateFtpClient()
         {
             var client = new FtpClient(FTPOptions.Address, FTPOptions.Port, FTPOptions.Username, FTPOptions.Password);

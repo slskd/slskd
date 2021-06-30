@@ -49,7 +49,7 @@ namespace slskd.Transfer.API
             Microsoft.Extensions.Options.IOptionsSnapshot<Options> options,
             ISoulseekClient client,
             ITransferTracker tracker,
-            IFTPClient ftpClient)
+            IFTPService ftpClient)
         {
             Client = client;
             Tracker = tracker;
@@ -60,7 +60,7 @@ namespace slskd.Transfer.API
         private Options Options { get; }
         private ISoulseekClient Client { get; }
         private ITransferTracker Tracker { get; }
-        private IFTPClient FTP { get; }
+        private IFTPService FTP { get; }
 
         /// <summary>
         ///     Cancels the specified download.

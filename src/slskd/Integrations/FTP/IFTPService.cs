@@ -1,4 +1,4 @@
-﻿// <copyright file="IFTPClient.cs" company="slskd Team">
+﻿// <copyright file="IFTPService.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -19,8 +19,12 @@ namespace slskd.Integrations.FTP
 {
     using System.Threading.Tasks;
 
-    public interface IFTPClient
+    /// <summary>
+    ///     FTP Integration service.
+    /// </summary>
+    public interface IFTPService
     {
+
         Task UploadAsync(string filename);
         bool Enabled { get; }
     }

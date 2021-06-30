@@ -19,8 +19,15 @@ namespace slskd.Integrations.FTP
 {
     using FluentFTP;
 
+    /// <summary>
+    ///     FTP client factory.
+    /// </summary>
     public interface IFTPClientFactory
     {
+        /// <summary>
+        ///     Creates an instance of <see cref="FtpClient"/>.
+        /// </summary>
+        /// <returns>The created instance.</returns>
         public FtpClient CreateFtpClient();
     }
 }
