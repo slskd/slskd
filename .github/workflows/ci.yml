@@ -19,9 +19,6 @@ jobs:
 
       - name: Set Environment Variables
         run: |
-          echo "LATEST_TAG=$(git describe --tags --abbrev=0)" >> $GITHUB_ENV
-          echo "REVISION=$([[ $GITHUB_REF = refs/tags/* ]] && echo 0 || echo 65534)" >> $GITHUB_ENV
-          echo "SHORT_SHA=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
           echo "VERSION=$(git describe --tags --abbrev=0).$([[ $GITHUB_REF = refs/tags/* ]] && echo 0 || echo 65534)-$(git rev-parse --short HEAD)" >> $GITHUB_ENV
 
       - name: Web
@@ -53,9 +50,6 @@ jobs:
 
       - name: Set Environment Variables
         run: |
-          echo "LATEST_TAG=$(git describe --tags --abbrev=0)" >> $GITHUB_ENV
-          echo "REVISION=$([[ $GITHUB_REF = refs/tags/* ]] && echo 0 || echo 65534)" >> $GITHUB_ENV
-          echo "SHORT_SHA=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
           echo "VERSION=$(git describe --tags --abbrev=0).$([[ $GITHUB_REF = refs/tags/* ]] && echo 0 || echo 65534)-$(git rev-parse --short HEAD)" >> $GITHUB_ENV
 
       - name: Download Static Web Content
@@ -86,10 +80,10 @@ jobs:
 
       - name: Set Environment Variables
         run: |
-          echo "LATEST_TAG=$(git describe --tags --abbrev=0)" >> $GITHUB_ENV
-          echo "REVISION=$([[ $GITHUB_REF = refs/tags/* ]] && echo 0 || echo 65534)" >> $GITHUB_ENV
-          echo "SHORT_SHA=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+          echo "TAG=$(git describe --tags --abbrev=0)" >> $GITHUB_ENV
           echo "VERSION=$(git describe --tags --abbrev=0).$([[ $GITHUB_REF = refs/tags/* ]] && echo 0 || echo 65534)-$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+          echo "REVISION=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+          echo "BUILD_DATE=$(date --iso-8601=s)" >> $GITHUB_ENV
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v1
@@ -125,7 +119,10 @@ jobs:
           platforms: linux/amd64,linux/arm64,linux/arm/v7
           push: true
           build-args: |
+            TAG=${{ env.TAG }}
             VERSION=${{ env.VERSION }}
+            REVISION=${{ env.REVISION }}
+            BUILD_DATE=${{ env.BUILD_DATE }}
           tags: |
             slskd/slskd:${{ env.VERSION }}
             slskd/slskd:canary
@@ -144,11 +141,11 @@ jobs:
             VERSION=${{ env.VERSION }}
           tags: |
             slskd/slskd:${{ env.VERSION }}
-            slskd/slskd:${{ env.LATEST_TAG }}
+            slskd/slskd:${{ env.TAG }}
             slskd/slskd:canary
             slskd/slskd:latest
             ghcr.io/slskd/slskd:${{ env.VERSION }}
-            ghcr.io/slskd/slskd:${{ env.LATEST_TAG }}
+            ghcr.io/slskd/slskd:${{ env.TAG }}
             ghcr.io/slskd/slskd:canary
             ghcr.io/slskd/slskd:latest
           cache-from: type=local,src=/tmp/.buildx-cache
@@ -166,9 +163,7 @@ jobs:
           fetch-depth: 0
       - name: Set Environment Variables
         run: |
-          echo "LATEST_TAG=$(git describe --tags --abbrev=0)" >> $GITHUB_ENV
-          echo "REVISION=$([[ $GITHUB_REF = refs/tags/* ]] && echo 0 || echo 65534)" >> $GITHUB_ENV
-          echo "SHORT_SHA=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+          echo "TAG=$(git describe --tags --abbrev=0)" >> $GITHUB_ENV
           echo "VERSION=$(git describe --tags --abbrev=0).$([[ $GITHUB_REF = refs/tags/* ]] && echo 0 || echo 65534)-$(git rev-parse --short HEAD)" >> $GITHUB_ENV
 
       - name: Download win-x64 Binaries
@@ -179,7 +174,7 @@ jobs:
       - name: Zip win-x64 Binaries
         run: |
           cd dist/win-x64
-          zip -r ../../slskd-${{ env.LATEST_TAG }}-win-x64.zip .
+          zip -r ../../slskd-${{ env.TAG }}-win-x64.zip .
 
       - name: Download linux-x64 Binaries
         uses: actions/download-artifact@v2
@@ -189,7 +184,7 @@ jobs:
       - name: Zip linux-x64 Binaries
         run: |
           cd dist/linux-x64
-          zip -r ../../slskd-${{ env.LATEST_TAG }}-linux-x64.zip .
+          zip -r ../../slskd-${{ env.TAG }}-linux-x64.zip .
 
       - name: Download linux-arm Binaries
         uses: actions/download-artifact@v2
@@ -199,7 +194,7 @@ jobs:
       - name: Zip linux-arm Binaries
         run: |
           cd dist/linux-arm
-          zip -r ../../slskd-${{ env.LATEST_TAG }}-linux-arm.zip .
+          zip -r ../../slskd-${{ env.TAG }}-linux-arm.zip .
 
       - name: Download linux-arm64 Binaries
         uses: actions/download-artifact@v2
@@ -209,7 +204,7 @@ jobs:
       - name: Zip linux-arm64 Binaries
         run: |
           cd dist/linux-arm64
-          zip -r ../../slskd-${{ env.LATEST_TAG }}-linux-arm64.zip .
+          zip -r ../../slskd-${{ env.TAG }}-linux-arm64.zip .
 
       - name: Download osx-x64 Binaries
         uses: actions/download-artifact@v2
@@ -219,7 +214,7 @@ jobs:
       - name: Zip osx-x64 Binaries
         run: |
           cd dist/osx-x64
-          zip -r ../../slskd-${{ env.LATEST_TAG }}-osx-x64.zip .
+          zip -r ../../slskd-${{ env.TAG }}-osx-x64.zip .
 
       - name: Build Changelog
         id: build_changelog
@@ -235,10 +230,10 @@ jobs:
         with:
           body: ${{ steps.build_changelog.outputs.changelog }}
           files: |
-            slskd-${{ env.LATEST_TAG }}-win-x64.zip
-            slskd-${{ env.LATEST_TAG }}-linux-x64.zip
-            slskd-${{ env.LATEST_TAG }}-linux-arm.zip
-            slskd-${{ env.LATEST_TAG }}-linux-arm64.zip
-            slskd-${{ env.LATEST_TAG }}-osx-x64.zip
+            slskd-${{ env.TAG }}-win-x64.zip
+            slskd-${{ env.TAG }}-linux-x64.zip
+            slskd-${{ env.TAG }}-linux-arm.zip
+            slskd-${{ env.TAG }}-linux-arm64.zip
+            slskd-${{ env.TAG }}-osx-x64.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
