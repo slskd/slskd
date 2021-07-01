@@ -572,6 +572,14 @@ namespace slskd
             public class FTPOptions
             {
                 /// <summary>
+                ///     Gets a value indicating whether the FTP integration is enabled.
+                /// </summary>
+                [Argument(default, "ftp")]
+                [EnvironmentVariable("FTP_ENABLED")]
+                [Description("enable FTP integration")]
+                public bool Enabled { get; private set; }
+
+                /// <summary>
                 ///     Gets the FTP address.
                 /// </summary>
                 [Argument(default, "ftp-address")]
@@ -596,6 +604,14 @@ namespace slskd
                 [Description("FTP encryption mode; none, implicit, explicit, auto")]
                 [Enum(typeof(FtpEncryptionMode))]
                 public string EncryptionMode { get; private set; } = "auto";
+
+                /// <summary>
+                ///     Gets a value indicating whether FTP certificate errors should be ignored.
+                /// </summary>
+                [Argument(default, "ftp-ignore-certificate-errors")]
+                [EnvironmentVariable("FTP_IGNORE_CERTIFICATE_ERRORS")]
+                [Description("ignore FTP certificate errors")]
+                public bool IgnoreCertificateErrors { get; private set; } = false;
 
                 /// <summary>
                 ///     Gets the FTP username.
@@ -646,11 +662,6 @@ namespace slskd
                 [Description("number of times failing FTP uploads will be retried")]
                 [Range(0, 5)]
                 public int RetryAttempts { get; private set; } = 3;
-
-                [Argument(default, "ftp-ignore-certificate-errors")]
-                [EnvironmentVariable("FTP_IGNORE_CERTIFICATE_ERRORS")]
-                [Description("ignore FTP certificate errors")]
-                public bool IgnoreCertificateErrors { get; private set; } = false;
             }
         }
     }
