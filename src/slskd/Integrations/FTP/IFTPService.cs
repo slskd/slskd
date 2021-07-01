@@ -24,8 +24,11 @@ namespace slskd.Integrations.FTP
     /// </summary>
     public interface IFTPService
     {
-
+        /// <summary>
+        ///     Uploads the specified <paramref name="filename"/> to the configured FTP server.
+        /// </summary>
+        /// <param name="filename">The fully qualified name of the file to upload.</param>
+        /// <returns>The operation context.</returns>
         Task UploadAsync(string filename);
-        bool Enabled { get; }
     }
 }

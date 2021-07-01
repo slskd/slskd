@@ -25,8 +25,17 @@ namespace slskd.Integrations.FTP
     using Microsoft.Extensions.Logging;
     using static slskd.Options.IntegrationOptions;
 
+    /// <summary>
+    ///     FTP Integration service.
+    /// </summary>
     public class FTPService : IFTPService
     {
+        /// <summary>
+        ///     Initializes a new instance of the <see cref="FTPService"/> class.
+        /// </summary>
+        /// <param name="ftpClientFactory">The FTP client factory to use.</param>
+        /// <param name="optionsMonitor">The options monitor used to derive application options.</param>
+        /// <param name="log">The logger.</param>
         public FTPService(
             IFTPClientFactory ftpClientFactory,
             Microsoft.Extensions.Options.IOptionsMonitor<Options> optionsMonitor,
@@ -35,37 +44,21 @@ namespace slskd.Integrations.FTP
             Factory = ftpClientFactory;
             Options = optionsMonitor.CurrentValue;
             Log = log;
-
-            try
-            {
-                EncryptionMode = (FtpEncryptionMode)Enum.Parse(typeof(FtpEncryptionMode), FTPOptions.EncryptionMode, ignoreCase: true);
-            }
-            catch (Exception ex)
-            {
-                // Options should validate that the given string is parsable to FtpEncryptionMode through EnumAttribute; if this throws there's a bug somewhere.
-                throw new ArgumentException($"Failed to parse {typeof(FtpEncryptionMode).Name} from application Options. This is most likely a programming error; please file a GitHub issue and include your FTP configuration.", ex);
-            }
         }
 
-        public bool Enabled => !string.IsNullOrEmpty(Options.Integration.FTP.Address);
-
-        private Options Options { get; }
+        private IFTPClientFactory Factory { get; set; }
         private FTPOptions FTPOptions => Options.Integration.FTP;
         private ILogger<FTPService> Log { get; set; }
-        private IFTPClientFactory Factory { get; set; }
-        private FtpEncryptionMode EncryptionMode { get; set; }
+        private Options Options { get; }
 
-        public FtpClient CreateFtpClient()
-        {
-            var client = new FtpClient(FTPOptions.Address, FTPOptions.Port, FTPOptions.Username, FTPOptions.Password);
-            client.EncryptionMode = EncryptionMode;
-
-            return client;
-        }
-
+        /// <summary>
+        ///     Uploads the specified <paramref name="filename"/> to the configured FTP server.
+        /// </summary>
+        /// <param name="filename">The fully qualified name of the file to upload.</param>
+        /// <returns>The operation context.</returns>
         public async Task UploadAsync(string filename)
         {
-            if (!Enabled)
+            if (!FTPOptions.Enabled)
             {
                 Log.LogDebug("Skipping FTP upload of {filename}; FTP integration is disabled");
                 return;
