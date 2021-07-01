@@ -18,6 +18,7 @@
 namespace slskd
 {
     using System;
+    using System.Collections.Generic;
     using System.ComponentModel;
     using System.ComponentModel.DataAnnotations;
     using System.Diagnostics;
@@ -569,7 +570,7 @@ namespace slskd
             /// <summary>
             ///     FTP options.
             /// </summary>
-            public class FTPOptions
+            public class FTPOptions : IValidatableObject
             {
                 /// <summary>
                 ///     Gets a value indicating whether the FTP integration is enabled.
@@ -662,6 +663,18 @@ namespace slskd
                 [Description("number of times failing FTP uploads will be retried")]
                 [Range(0, 5)]
                 public int RetryAttempts { get; private set; } = 3;
+
+                public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+                {
+                    var results = new List<ValidationResult>();
+
+                    if (Enabled && string.IsNullOrWhiteSpace(Address))
+                    {
+                        results.Add(new ValidationResult($"The Enabled field is true, but no Address has been specified."));
+                    }
+
+                    return results;
+                }
             }
         }
     }
