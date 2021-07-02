@@ -49,3 +49,16 @@
 #         port: ~
 #         username: ~
 #         password: ~
+#   integration:
+#     ftp:
+#       enabled: false
+#       address: ~
+#       port: ~
+#       encryption_mode: auto
+#		ignore_certificate_errors: false
+#       username: ~
+#       password: ~
+#       remote_path: /
+#       overwrite_existing: true
+#       connection_timeout: 5000
+#       retry_attempts: 5

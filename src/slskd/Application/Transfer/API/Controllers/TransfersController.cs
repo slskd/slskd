@@ -25,6 +25,7 @@ namespace slskd.Transfer.API
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
+    using slskd.Integrations.FTP;
     using Soulseek;
 
     /// <summary>
@@ -43,19 +44,23 @@ namespace slskd.Transfer.API
         /// <param name="options"></param>
         /// <param name="client"></param>
         /// <param name="tracker"></param>
+        /// <param name="ftpClient"></param>
         public TransfersController(
             Microsoft.Extensions.Options.IOptionsSnapshot<Options> options,
             ISoulseekClient client,
-            ITransferTracker tracker)
+            ITransferTracker tracker,
+            IFTPService ftpClient)
         {
             Client = client;
             Tracker = tracker;
             Options = options.Value;
+            FTP = ftpClient;
         }
 
         private Options Options { get; }
         private ISoulseekClient Client { get; }
         private ITransferTracker Tracker { get; }
+        private IFTPService FTP { get; }
 
         /// <summary>
         ///     Cancels the specified download.
@@ -129,6 +134,11 @@ namespace slskd.Transfer.API
                     }, progressUpdated: (e) => Tracker.AddOrUpdate(e, cts)), cts.Token);
 
                     MoveFile(request.Filename, Options.Directories.Incomplete, Options.Directories.Downloads);
+
+                    if (Options.Integration.FTP.Enabled)
+                    {
+                        _ = FTP.UploadAsync(request.Filename.ToLocalFilename(Options.Directories.Downloads));
+                    }
                 });
 
                 // wait until either the waitUntilEnqueue task completes because the download was successfully queued, or the

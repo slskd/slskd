@@ -18,9 +18,11 @@
 namespace slskd
 {
     using System;
+    using System.Collections.Generic;
     using System.ComponentModel;
     using System.ComponentModel.DataAnnotations;
     using System.Diagnostics;
+    using FluentFTP;
     using slskd.Validation;
     using Soulseek.Diagnostics;
     using Utility.CommandLine;
@@ -120,6 +122,12 @@ namespace slskd
         /// </summary>
         [Validate]
         public SoulseekOptions Soulseek { get; private set; } = new SoulseekOptions();
+
+        /// <summary>
+        ///     Gets options for external integrations.
+        /// </summary>
+        [Validate]
+        public IntegrationOptions Integration { get; private set; } = new IntegrationOptions();
 
         /// <summary>
         ///     Directory options.
@@ -544,6 +552,128 @@ namespace slskd
                     [EnvironmentVariable("HTTPS_CERT_PASSWORD")]
                     [Description("X509 certificate password")]
                     public string Password { get; private set; }
+                }
+            }
+        }
+
+        /// <summary>
+        ///     Options for external integrations.
+        /// </summary>
+        public class IntegrationOptions
+        {
+            /// <summary>
+            ///     Gets FTP options.
+            /// </summary>
+            [Validate]
+            public FTPOptions FTP { get; private set; } = new FTPOptions();
+
+            /// <summary>
+            ///     FTP options.
+            /// </summary>
+            public class FTPOptions : IValidatableObject
+            {
+                /// <summary>
+                ///     Gets a value indicating whether the FTP integration is enabled.
+                /// </summary>
+                [Argument(default, "ftp")]
+                [EnvironmentVariable("FTP_ENABLED")]
+                [Description("enable FTP integration")]
+                public bool Enabled { get; private set; }
+
+                /// <summary>
+                ///     Gets the FTP address.
+                /// </summary>
+                [Argument(default, "ftp-address")]
+                [EnvironmentVariable("FTP_ADDRESS")]
+                [Description("FTP address")]
+                public string Address { get; private set; }
+
+                /// <summary>
+                ///     Gets the FTP port.
+                /// </summary>
+                [Argument(default, "ftp-port")]
+                [EnvironmentVariable("FTP_PORT")]
+                [Description("FTP port")]
+                [Range(1, 65535)]
+                public int Port { get; private set; } = 21;
+
+                /// <summary>
+                ///     Gets the FTP encryption mode.
+                /// </summary>
+                [Argument(default, "ftp-encryption-mode")]
+                [EnvironmentVariable("FTP_ENCRYPTION_MODE")]
+                [Description("FTP encryption mode; none, implicit, explicit, auto")]
+                [Enum(typeof(FtpEncryptionMode))]
+                public string EncryptionMode { get; private set; } = "auto";
+
+                /// <summary>
+                ///     Gets a value indicating whether FTP certificate errors should be ignored.
+                /// </summary>
+                [Argument(default, "ftp-ignore-certificate-errors")]
+                [EnvironmentVariable("FTP_IGNORE_CERTIFICATE_ERRORS")]
+                [Description("ignore FTP certificate errors")]
+                public bool IgnoreCertificateErrors { get; private set; } = false;
+
+                /// <summary>
+                ///     Gets the FTP username.
+                /// </summary>
+                [Argument(default, "ftp-username")]
+                [EnvironmentVariable("FTP_USERNAME")]
+                [Description("FTP username")]
+                public string Username { get; private set; }
+
+                /// <summary>
+                ///     Gets the FTP password.
+                /// </summary>
+                [Argument(default, "ftp-password")]
+                [EnvironmentVariable("FTP_PASSWORD")]
+                [Description("FTP password")]
+                public string Password { get; private set; }
+
+                /// <summary>
+                ///     Gets the remote path for uploads.
+                /// </summary>
+                [Argument(default, "ftp-remote-path")]
+                [EnvironmentVariable("FTP_REMOTE_PATH")]
+                [Description("remote path for FTP uploads")]
+                public string RemotePath { get; private set; } = "/";
+
+                /// <summary>
+                ///     Gets a value indicating whether existing files should be overwritten.
+                /// </summary>
+                [Argument(default, "ftp-overwrite-existing")]
+                [EnvironmentVariable("FTP_OVERWRITE_EXISTING")]
+                [Description("overwrite existing files when uploading to FTP")]
+                public bool OverwriteExisting { get; private set; } = true;
+
+                /// <summary>
+                ///     Gets the connection timeout value, in milliseconds.
+                /// </summary>
+                [Argument(default, "ftp-connection-timeout")]
+                [EnvironmentVariable("FTP_CONNECTION_TIMEOUT")]
+                [Description("FTP connection timeout, in milliseconds")]
+                [Range(0, int.MaxValue)]
+                public int ConnectionTimeout { get; private set; } = 5000;
+
+                /// <summary>
+                ///     Gets the number of times failing uploads will be retried.
+                /// </summary>
+                [Argument(default, "ftp-retry-attempts")]
+                [EnvironmentVariable("FTP_RETRY_ATTEMPTS")]
+                [Description("number of times failing FTP uploads will be retried")]
+                [Range(0, 5)]
+                public int RetryAttempts { get; private set; } = 3;
+
+                public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+                {
+                    var results = new List<ValidationResult>();
+
+                    if (Enabled && string.IsNullOrWhiteSpace(Address))
+                    {
+                        results.Add(new ValidationResult($"The Enabled field is true, but no Address has been specified."));
+                    }
+
+                    return results;
                 }
             }
         }
