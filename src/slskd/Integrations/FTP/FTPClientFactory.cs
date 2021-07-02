@@ -58,6 +58,7 @@ namespace slskd.Integrations.FTP
         {
             var client = new FtpClient(FTPOptions.Address, FTPOptions.Port, FTPOptions.Username, FTPOptions.Password);
             client.EncryptionMode = EncryptionMode;
+            client.ValidateAnyCertificate = FTPOptions.IgnoreCertificateErrors;
 
             return client;
         }
