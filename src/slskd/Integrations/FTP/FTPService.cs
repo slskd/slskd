@@ -95,17 +95,16 @@ namespace slskd.Integrations.FTP
 
             var existsMode = FTPOptions.OverwriteExisting ? FtpRemoteExists.Overwrite : FtpRemoteExists.Skip;
 
-            Log.LogInformation("Uploading {Filename} to FTP {Address}:{Port} as {RemoteFilename}", fileAndParentDirectory, FTPOptions.Address, FTPOptions.Port, remoteFilename);
-            var client = Factory.CreateFtpClient();
-            client.ValidateAnyCertificate = FTPOptions.IgnoreCertificateErrors;
+            using var client = Factory.CreateFtpClient();
 
             var timeoutTaskCompletionSource = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             using var timeoutCancellationTokenSource = new CancellationTokenSource(TimeSpan.FromMilliseconds(FTPOptions.ConnectionTimeout));
             using var timeoutCancellationTokenRegistration =
                 timeoutCancellationTokenSource.Token.Register(() => timeoutTaskCompletionSource.TrySetResult(true));
 
-            var connectTask = client.ConnectAsync();
+            Log.LogDebug("Connecting to FTP at {Address}:{Port} using encryption mode {EncryptionMode}", client.Host, client.Port, client.EncryptionMode);
 
+            var connectTask = client.ConnectAsync();
             var completedTask = await Task.WhenAny(connectTask, timeoutTaskCompletionSource.Task);
 
             if (completedTask == timeoutTaskCompletionSource.Task)
@@ -118,6 +117,7 @@ namespace slskd.Integrations.FTP
                 throw connectTask.Exception;
             }
 
+            Log.LogInformation("Uploading {Filename} to FTP {Address}:{Port} as {RemoteFilename}", fileAndParentDirectory, FTPOptions.Address, FTPOptions.Port, remoteFilename);
             var status = await client.UploadFileAsync(filename, remoteFilename, existsMode, createRemoteDir: true);
 
             if (status == FtpStatus.Failed)
