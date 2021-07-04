@@ -568,6 +568,12 @@ namespace slskd
             public FTPOptions FTP { get; private set; } = new FTPOptions();
 
             /// <summary>
+            ///     Gets Pushbullet options.
+            /// </summary>
+            [Validate]
+            public PushbulletOptions Pushbullet { get; private set; } = new PushbulletOptions();
+
+            /// <summary>
             ///     FTP options.
             /// </summary>
             public class FTPOptions : IValidatableObject
@@ -675,6 +681,70 @@ namespace slskd
 
                     return results;
                 }
+            }
+
+            /// <summary>
+            ///     Pushbullet options.
+            /// </summary>
+            public class PushbulletOptions
+            {
+                /// <summary>
+                ///     Gets a value indicating whether the Pushbullet integration is enabled.
+                /// </summary>
+                [Argument(default, "pushbullet")]
+                [EnvironmentVariable("PUSHBULLET_ENABLED")]
+                [Description("enable Pushbullet integration")]
+                public bool Enabled { get; private set; } = false;
+
+                /// <summary>
+                ///     Gets the Pushbullet API access token.
+                /// </summary>
+                [Argument(default, "pushbullet-token")]
+                [EnvironmentVariable("PUSHBULLET_ACCESS_TOKEN")]
+                [Description("Pushbullet access token")]
+                public string AccessToken { get; private set; }
+
+                /// <summary>
+                ///     Gets the prefix for Pushbullet notification titles.
+                /// </summary>
+                [Argument(default, "pushbullet-prefix")]
+                [EnvironmentVariable("PUSHBULLET_NOTIFICATION_PREFIX")]
+                [Description("prefix for Pushbullet notification titles")]
+                public string NotificationPrefix { get; private set; } = "From slskd:";
+
+                /// <summary>
+                ///     Gets a value indicating whether a Pushbullet notification should be sent when a private message is received.
+                /// </summary>
+                [Argument(default, "pushbullet-notify-on-pm")]
+                [EnvironmentVariable("PUSHBULLET_NOTIFY_ON_PRIVATE_MESSAGE")]
+                [Description("send Pushbullet notifications when private messages are received")]
+                public bool NotifyOnPrivateMessage { get; private set; } = true;
+
+                /// <summary>
+                ///     Gets a value indicating whether a Pushbullet notification should be sent when the currently logged
+                ///     in user's username is mentioned in a room.
+                /// </summary>
+                [Argument(default, "pushbullet-notify-on-room-mention")]
+                [EnvironmentVariable("PUSHBULLET_NOTIFY_ON_ROOM_MENTION")]
+                [Description("send Pushbullet notifications when your username is mentioned in a room")]
+                public bool NotifyOnRoomMention { get; private set; } = true;
+
+                /// <summary>
+                ///     Gets the number of times failing Pushbullet notifications will be retried.
+                /// </summary>
+                [Argument(default, "pushbullet-retry-attempts")]
+                [EnvironmentVariable("PUSHBULLET_RETRY_ATTEMPTS")]
+                [Description("number of times failing Pushbullet notifications will be retried")]
+                [Range(0, 5)]
+                public int RetryAttempts { get; private set; } = 3;
+
+                /// <summary>
+                ///     Gets the cooldown time for Pushbullet notifications, in milliseconds.
+                /// </summary>
+                [Argument(default, "pushbullet-cooldown")]
+                [EnvironmentVariable("PUSHBULLET_COOLDOWN_TIME")]
+                [Description("cooldown time for Pushbullet notifications, in milliseconds")]
+                public int CooldownTime { get; private set; } = 900000; // 15 minutes
             }
         }
     }
