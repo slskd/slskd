@@ -71,6 +71,11 @@ namespace slskd.Integrations.Pushbullet
                 throw new ArgumentException("A notification title must be supplied", nameof(title));
             }
 
+            if (string.IsNullOrWhiteSpace(cacheKey))
+            {
+                throw new ArgumentException("A notification cache key must be supplied", nameof(cacheKey));
+            }
+
             if (string.IsNullOrWhiteSpace(body))
             {
                 throw new ArgumentException("A notification body must be supplied", nameof(body));
@@ -81,7 +86,7 @@ namespace slskd.Integrations.Pushbullet
                 return Task.CompletedTask;
             }
 
-            RecentlySent.Set(cacheKey, value: 0, absoluteExpirationRelativeToNow: TimeSpan.FromMilliseconds(PushbulletOptions.CooldownTime));
+            RecentlySent.Set(cacheKey, value: true, absoluteExpirationRelativeToNow: TimeSpan.FromMilliseconds(PushbulletOptions.CooldownTime));
 
             return PushInternalAsync(title, body);
         }
