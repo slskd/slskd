@@ -273,7 +273,7 @@ namespace slskd
         private void Client_PrivateMessageRecieved(object sender, PrivateMessageReceivedEventArgs args)
         {
             ConversationTracker.AddOrUpdate(args.Username, PrivateMessage.FromEventArgs(args));
-            Console.WriteLine($"PM : {args.Username} {args.Message}");
+
             if (Options.Integration.Pushbullet.Enabled && !args.Replayed)
             {
                 Console.WriteLine("Pushing...");
