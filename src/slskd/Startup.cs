@@ -36,6 +36,7 @@ namespace slskd
     using slskd.Authentication;
     using slskd.Cryptography;
     using slskd.Integrations.FTP;
+    using slskd.Integrations.Pushbullet;
     using slskd.Management;
     using slskd.Messaging;
     using slskd.Peer;
@@ -177,6 +178,8 @@ namespace slskd
                 options.UseSqlite($"Data Source={Path.Combine(Options.Directories.App, "peer.db")}");
             });
 
+            services.AddHttpClient();
+
             services.AddSingleton<ITransferTracker, TransferTracker>();
             services.AddSingleton<IBrowseTracker, BrowseTracker>();
             services.AddSingleton<IConversationTracker, ConversationTracker>();
@@ -190,6 +193,8 @@ namespace slskd
 
             services.AddSingleton<IFTPClientFactory, FTPClientFactory>();
             services.AddTransient<IFTPService, FTPService>();
+
+            services.AddSingleton<IPushbulletService, PushbulletService>();
 
             services.AddHostedService<Service>();
             services.AddSingleton(_ => Service.SoulseekClient);

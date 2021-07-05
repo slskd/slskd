@@ -28,6 +28,7 @@ namespace slskd
     using Microsoft.Extensions.Options;
     using Serilog;
     using Serilog.Events;
+    using slskd.Integrations.Pushbullet;
     using slskd.Messaging;
     using slskd.Peer;
     using slskd.Search;
@@ -47,7 +48,8 @@ namespace slskd
             IBrowseTracker browseTracker,
             IConversationTracker conversationTracker,
             IRoomTracker roomTracker,
-            ISharedFileCache sharedFileCache)
+            ISharedFileCache sharedFileCache,
+            IPushbulletService pushbulletService)
         {
             Options = options.Value;
             TransferTracker = transferTracker;
@@ -55,6 +57,7 @@ namespace slskd
             ConversationTracker = conversationTracker;
             RoomTracker = roomTracker;
             SharedFileCache = sharedFileCache;
+            Pushbullet = pushbulletService;
 
             ProxyOptions proxyOptions = default;
 
@@ -139,6 +142,7 @@ namespace slskd
         private ISharedFileCache SharedFileCache { get; set; }
         private ITransferTracker TransferTracker { get; set; }
         private bool UsingProxy => !string.IsNullOrWhiteSpace(Options.Soulseek.Connection.Proxy.Address) && Options.Soulseek.Connection.Proxy.Port.HasValue;
+        private IPushbulletService Pushbullet { get; }
 
         public async Task StartAsync(CancellationToken cancellationToken)
         {
@@ -269,11 +273,22 @@ namespace slskd
         private void Client_PrivateMessageRecieved(object sender, PrivateMessageReceivedEventArgs args)
         {
             ConversationTracker.AddOrUpdate(args.Username, PrivateMessage.FromEventArgs(args));
+
+            if (Options.Integration.Pushbullet.Enabled && !args.Replayed)
+            {
+                Console.WriteLine("Pushing...");
+                _ = Pushbullet.PushAsync($"Private Message from {args.Username}", args.Username, args.Message);
+            }
         }
 
         private void Client_PublicChatMessageReceived(object sender, PublicChatMessageReceivedEventArgs args)
         {
             Console.WriteLine($"[PUBLIC CHAT] [{args.RoomName}] [{args.Username}]: {args.Message}");
+
+            if (Options.Integration.Pushbullet.Enabled && args.Message.Contains(Client.Username))
+            {
+                _ = Pushbullet.PushAsync($"Room Mention by {args.Username} in {args.RoomName}", args.RoomName, args.Message);
+            }
         }
 
         private void Client_RoomJoined(object sender, RoomJoinedEventArgs args)
@@ -294,6 +309,11 @@ namespace slskd
         {
             var message = RoomMessage.FromEventArgs(args, DateTime.UtcNow);
             RoomTracker.AddOrUpdateMessage(args.RoomName, message);
+
+            if (Options.Integration.Pushbullet.Enabled && message.Message.Contains(Client.Username))
+            {
+                _ = Pushbullet.PushAsync($"Room Mention by {message.Username} in {message.RoomName}", message.RoomName, message.Message);
+            }
         }
 
         private void Client_TransferProgressUpdated(object sender, TransferProgressUpdatedEventArgs args)

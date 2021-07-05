@@ -61,4 +61,12 @@
 #       remote_path: /
 #       overwrite_existing: true
 #       connection_timeout: 5000
-#       retry_attempts: 5
+#       retry_attempts: 3
+#     pushbullet:
+#		enabled: false
+#		access_token: ~
+#		notification_prefix: "From slskd:"
+#		notify_on_private_message: true
+#		notify_on_room_mention: true
+#		retry_attempts: 3
+#		cooldown_time: 900000
