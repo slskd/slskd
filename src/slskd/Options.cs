@@ -686,7 +686,7 @@ namespace slskd
             /// <summary>
             ///     Pushbullet options.
             /// </summary>
-            public class PushbulletOptions
+            public class PushbulletOptions : IValidatableObject
             {
                 /// <summary>
                 ///     Gets a value indicating whether the Pushbullet integration is enabled.
@@ -745,6 +745,18 @@ namespace slskd
                 [EnvironmentVariable("PUSHBULLET_COOLDOWN_TIME")]
                 [Description("cooldown time for Pushbullet notifications, in milliseconds")]
                 public int CooldownTime { get; private set; } = 900000; // 15 minutes
+
+                public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+                {
+                    var results = new List<ValidationResult>();
+
+                    if (Enabled && string.IsNullOrWhiteSpace(AccessToken))
+                    {
+                        results.Add(new ValidationResult($"The Enabled field is true, but no AccessToken has been specified."));
+                    }
+
+                    return results;
+                }
             }
         }
     }
