@@ -55,7 +55,11 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /slskd
 COPY --from=publish /slskd/dist/${TARGETPLATFORM} .
 
-RUN mkdir -p /var/slskd/{incomplete,downloads,shared}
+RUN mkdir -p /var/slskd/{incomplete,downloads,shared} \ 
+  && chmod 666 /var/slskd \
+  && chmod 666 /var/slskd/{incomplete,downloads,shared}
+
+ENV DOTNET_BUNDLE_EXTRACT_BASE_DIR=/var/tmp/.net
 
 ENV SLSKD_HTTP_PORT=5000
 ENV SLSKD_APP_DIR=/var/slskd
