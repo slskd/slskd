@@ -55,22 +55,20 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /slskd
 COPY --from=publish /slskd/dist/${TARGETPLATFORM} .
 
-RUN mkdir -p /var/slskd/{incomplete,downloads,shared} \ 
-  && chmod 666 /var/slskd \
-  && chmod 666 /var/slskd/{incomplete,downloads,shared}
+RUN bash -c 'mkdir -p /var/slskd/{incomplete,downloads,shared} \ 
+  && chmod 777 /var/slskd \
+  && chmod 777 /var/slskd/{incomplete,downloads,shared}'
 
-ENV DOTNET_BUNDLE_EXTRACT_BASE_DIR=/var/tmp/.net
-
-ENV SLSKD_HTTP_PORT=5000
-ENV SLSKD_APP_DIR=/var/slskd
-ENV SLSKD_INCOMPLETE_DIR=/var/slskd/incomplete
-ENV SLSKD_DOWNLOADS_DIR=/var/slskd/downloads
-ENV SLSKD_SHARED_DIR=/var/slskd/shared
-
-ENV SLSKD_DOCKER_TAG=$TAG
-ENV SLSKD_DOCKER_VERSION=$VERSION
-ENV SLSKD_DOCKER_REVISON=$REVISION
-ENV SLSKD_DOCKER_BUILD_DATE=$BUILD_DATE
+ENV DOTNET_BUNDLE_EXTRACT_BASE_DIR=/var/tmp/.net \
+    SLSKD_HTTP_PORT=5000 \
+    SLSKD_APP_DIR=/var/slskd \
+    SLSKD_INCOMPLETE_DIR=/var/slskd/incomplete \
+    SLSKD_DOWNLOADS_DIR=/var/slskd/downloads \
+    SLSKD_SHARED_DIR=/var/slskd/shared \
+    SLSKD_DOCKER_TAG=$TAG \
+    SLSKD_DOCKER_VERSION=$VERSION \
+    SLSKD_DOCKER_REVISON=$REVISION \
+    SLSKD_DOCKER_BUILD_DATE=$BUILD_DATE
 
 HEALTHCHECK --interval=60s --timeout=3s --start-period=5s --retries=3 CMD wget -q -O - http://localhost:5000/health
 
