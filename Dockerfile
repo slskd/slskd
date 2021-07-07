@@ -56,8 +56,7 @@ WORKDIR /slskd
 COPY --from=publish /slskd/dist/${TARGETPLATFORM} .
 
 RUN bash -c 'mkdir -p /var/slskd/{incomplete,downloads,shared} \ 
-  && chmod 777 /var/slskd \
-  && chmod 777 /var/slskd/{incomplete,downloads,shared}'
+  && chmod -R 777 /var/slskd'
 
 ENV DOTNET_BUNDLE_EXTRACT_BASE_DIR=/var/tmp/.net \
     SLSKD_HTTP_PORT=5000 \
