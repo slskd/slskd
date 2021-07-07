@@ -195,6 +195,11 @@ namespace slskd
                 Configuration.GetSection(AppName)
                     .Bind(Options, (o) => { o.BindNonPublicProperties = true; });
 
+                if (Options.Debug)
+                {
+                    Console.WriteLine($"Configuration:\n{Configuration.GetDebugView()}");
+                }
+
                 if (!Options.TryValidate(out var result))
                 {
                     Console.WriteLine(result.GetResultView());
@@ -205,11 +210,6 @@ namespace slskd
             {
                 Console.WriteLine($"Invalid configuration: {(!Options.Debug ? ex : ex.Message)}");
                 return;
-            }
-
-            if (Options.Debug)
-            {
-                Console.WriteLine($"Configuration:\n{Configuration.GetDebugView()}");
             }
 
             try
