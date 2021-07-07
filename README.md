@@ -9,6 +9,7 @@ docker run -d \
   -p 5000:5000 \
   -p 5001:5001 \
   -v <path/to/downloads>:/var/slskd/downloads \
+  -v <path/to/incoming>:/var/slskd/incoming \
   -v <path/to/shared>:/var/slskd/shared \
   -e "SLSKD_SLSK_USERNAME=<Soulseek username>" \
   -e "SLSKD_SLSK_PASSWORD=<Soulseek password>" \
@@ -16,7 +17,7 @@ docker run -d \
   slskd/slskd:latest
 ```
 
-This command starts a container instance of slskd on ports 5000 (http) and 5001 (https), maps shared and downloads directories to the paths you choose, and logs in to Soulseek using the credentials provided.
+This command starts a container instance of slskd on ports 5000 (http) and 5001 (https), maps shared, downloads and incoming directories to the paths you choose, and logs in to Soulseek using the credentials provided.
 
 The default credentials for the web UI are slskd/slskd.
 
