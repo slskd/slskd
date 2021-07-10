@@ -276,7 +276,7 @@ namespace slskd
                     using var runtimeMetrics = DotNetRuntimeStatsBuilder.Default().StartCollecting();
                 }
 
-                WebHost.CreateDefaultBuilder(args)
+                var webHost = WebHost.CreateDefaultBuilder(args)
                     .SuppressStatusMessages(true)
                     .ConfigureAppConfiguration((hostingContext, builder) =>
                     {
@@ -308,8 +308,15 @@ namespace slskd
                         });
                     })
                     .UseStartup<Startup>()
-                    .Build()
-                    .Run();
+                    .Build();
+
+                if (Options.NoStart)
+                {
+                    logger.Information("Qutting because 'no-start' option is enabled");
+                    return;
+                }
+
+                webHost.Run();
             }
             catch (Exception ex)
             {
