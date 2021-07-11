@@ -35,12 +35,20 @@ namespace slskd.Management
             Microsoft.Extensions.Options.IOptionsMonitor<Options> optionsMonitor,
             ISoulseekClient soulseekClient)
         {
-            Options = optionsMonitor.CurrentValue;
+            OptionsMonitor = optionsMonitor;
             Client = soulseekClient;
         }
 
         private ISoulseekClient Client { get; }
-        private Options Options { get; }
+        private Options Options => OptionsMonitor.CurrentValue;
+        private Microsoft.Extensions.Options.IOptionsMonitor<Options> OptionsMonitor { get; }
+
+        /// <summary>
+        ///     Connects the Soulseek client to the server using the configured username and password.
+        /// </summary>
+        /// <returns>The operation context.</returns>
+        public Task ConnectServerAsync()
+            => Client.ConnectAsync(Options.Soulseek.Username, Options.Soulseek.Password);
 
         /// <summary>
         ///     Disconnects the Soulseek client from the server.
@@ -51,11 +59,10 @@ namespace slskd.Management
             => Client.Disconnect(message, exception ?? new IntentionalDisconnectException(message));
 
         /// <summary>
-        ///     Connects the Soulseek client to the server using the configured username and password.
+        ///     Gets the current application options.
         /// </summary>
-        /// <returns>The operation context.</returns>
-        public Task ConnectServerAsync()
-            => Client.ConnectAsync(Options.Soulseek.Username, Options.Soulseek.Password);
+        /// <returns></returns>
+        public Options GetOptions() => Options;
 
         /// <summary>
         ///     Gets the current state of the connection to the Soulseek server.
