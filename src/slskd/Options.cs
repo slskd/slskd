@@ -86,6 +86,14 @@ namespace slskd
         public bool NoLogo { get; private set; } = false;
 
         /// <summary>
+        ///     Gets a value indicating whether the application should quit after initialization.
+        /// </summary>
+        [Argument('x', "no-start")]
+        [EnvironmentVariable("NO_START")]
+        [Description("quit the application after initialization")]
+        public bool NoStart { get; private set; } = false;
+
+        /// <summary>
         ///     Gets the unique name for this instance.
         /// </summary>
         [Argument('i', "instance-name")]
