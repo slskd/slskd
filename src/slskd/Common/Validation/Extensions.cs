@@ -28,15 +28,15 @@ namespace slskd.Validation
         /// <summary>
         ///     Validates options.
         /// </summary>
-        /// <param name="options">The options instance to validate.</param>
+        /// <param name="configuration">The configuration instance to validate.</param>
         /// <param name="result">The result of the validation, if invalid.</param>
         /// <returns>A value indicating whether the instance is valid.</returns>
-        public static bool TryValidate(this Options options, out CompositeValidationResult result)
+        public static bool TryValidate(this Configuration configuration, out CompositeValidationResult result)
         {
             result = null;
             var results = new List<ValidationResult>();
 
-            if (!Validator.TryValidateObject(options, new ValidationContext(options), results, true))
+            if (!Validator.TryValidateObject(configuration, new ValidationContext(configuration), results, true))
             {
                 result = new CompositeValidationResult("Invalid configuration", results);
                 return false;

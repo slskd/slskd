@@ -51,29 +51,29 @@ namespace slskd
         /// <summary>
         ///     Initializes a new instance of the <see cref="Startup"/> class.
         /// </summary>
-        /// <param name="configuration">The application configuration.</param>
-        public Startup(IConfiguration configuration)
+        /// <param name="configuration">The application configuration root.</param>
+        public Startup(IConfiguration configurationRoot)
         {
-            Configuration = configuration;
+            ConfigurationRoot = configurationRoot;
 
-            Options = new Options();
-            Configuration.GetSection(Program.AppName).Bind(Options, (o) =>
+            Configuration = new Configuration();
+            ConfigurationRoot.GetSection(Program.AppName).Bind(Configuration, (o) =>
             {
                 o.BindNonPublicProperties = true;
             });
 
-            UrlBase = Options.Web.UrlBase;
+            UrlBase = Configuration.Web.UrlBase;
             UrlBase = UrlBase.StartsWith("/") ? UrlBase : "/" + UrlBase;
 
-            ContentPath = Path.GetFullPath(Options.Web.ContentPath);
+            ContentPath = Path.GetFullPath(Configuration.Web.ContentPath);
 
-            JwtSigningKey = new SymmetricSecurityKey(Pbkdf2.GetKey(Options.Web.Authentication.Jwt.Key));
+            JwtSigningKey = new SymmetricSecurityKey(Pbkdf2.GetKey(Configuration.Web.Authentication.Jwt.Key));
         }
 
-        private IConfiguration Configuration { get; }
+        private IConfiguration ConfigurationRoot { get; }
         private string ContentPath { get; set; }
         private SymmetricSecurityKey JwtSigningKey { get; set; }
-        private Options Options { get; }
+        private Configuration Configuration { get; }
         private string UrlBase { get; set; }
 
         /// <summary>
@@ -84,14 +84,14 @@ namespace slskd
         {
             var logger = Log.ForContext<Startup>();
 
-            services.AddOptions<Options>()
-                .Bind(Configuration.GetSection(Program.AppName), o => { o.BindNonPublicProperties = true; });
+            services.AddOptions<Configuration>()
+                .Bind(ConfigurationRoot.GetSection(Program.AppName), o => { o.BindNonPublicProperties = true; });
 
             services.AddCors(options => options.AddPolicy("AllowAll", builder => builder.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader()));
 
             services.AddSingleton(JwtSigningKey);
 
-            if (!Options.Web.Authentication.Disable)
+            if (!Configuration.Web.Authentication.Disable)
             {
                 services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                     .AddJwtBearer(options =>
@@ -139,7 +139,7 @@ namespace slskd
                 options.SubstituteApiVersionInUrl = true;
             });
 
-            if (Options.Feature.Swagger)
+            if (Configuration.Feature.Swagger)
             {
                 services.AddSwaggerGen(options =>
                 {
@@ -163,19 +163,19 @@ namespace slskd
                 });
             }
 
-            if (Options.Feature.Prometheus)
+            if (Configuration.Feature.Prometheus)
             {
                 services.AddSystemMetrics();
             }
 
             services.AddDbContextFactory<SearchDbContext>(options =>
             {
-                options.UseSqlite($"Data Source={Path.Combine(Options.Directories.App, "search.db")}");
+                options.UseSqlite($"Data Source={Path.Combine(Configuration.Directories.App, "search.db")}");
             });
 
             services.AddDbContextFactory<PeerDbContext>(options =>
             {
-                options.UseSqlite($"Data Source={Path.Combine(Options.Directories.App, "peer.db")}");
+                options.UseSqlite($"Data Source={Path.Combine(Configuration.Directories.App, "peer.db")}");
             });
 
             services.AddHttpClient();
@@ -185,7 +185,7 @@ namespace slskd
             services.AddSingleton<IConversationTracker, ConversationTracker>();
             services.AddSingleton<IRoomTracker, RoomTracker>(_ => new RoomTracker(messageLimit: 250));
             services.AddSingleton<ISharedFileCache>(_ =>
-                new SharedFileCache(Options.Directories.Shared, 3600000));
+                new SharedFileCache(Configuration.Directories.Shared, 3600000));
 
             services.AddSingleton<ISearchService, SearchService>();
             services.AddSingleton<IPeerService, PeerService>();
@@ -213,7 +213,7 @@ namespace slskd
 
             app.UseCors("AllowAll");
 
-            if (Options.Web.Https.Force)
+            if (Configuration.Web.Https.Force)
             {
                 app.UseHttpsRedirection();
                 app.UseHsts();
@@ -258,7 +258,7 @@ namespace slskd
                 logger.Information("Serving static content from {ContentPath}", ContentPath);
             }
 
-            if (Options.Feature.Prometheus)
+            if (Configuration.Feature.Prometheus)
             {
                 app.UseHttpMetrics();
                 logger.Information("Publishing Prometheus metrics to /metrics");
@@ -275,13 +275,13 @@ namespace slskd
                 endpoints.MapControllers();
                 endpoints.MapHealthChecks("/health");
 
-                if (Options.Feature.Prometheus)
+                if (Configuration.Feature.Prometheus)
                 {
                     endpoints.MapMetrics();
                 }
             });
 
-            if (Options.Feature.Swagger)
+            if (Configuration.Feature.Swagger)
             {
                 app.UseSwagger();
                 app.UseSwaggerUI(options => apiVersionDescriptionProvider.ApiVersionDescriptions.ToList()

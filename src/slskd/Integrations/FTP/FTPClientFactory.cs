@@ -19,7 +19,7 @@ namespace slskd.Integrations.FTP
 {
     using System;
     using FluentFTP;
-    using static slskd.Options.IntegrationOptions;
+    using static slskd.Configuration.IntegrationOptions;
 
     /// <summary>
     ///     FTP client factory.
@@ -30,7 +30,7 @@ namespace slskd.Integrations.FTP
         ///     Initializes a new instance of the <see cref="FTPClientFactory"/> class.
         /// </summary>
         /// <param name="optionsMonitor">The options monitor used to derive application options.</param>
-        public FTPClientFactory(Microsoft.Extensions.Options.IOptionsMonitor<Options> optionsMonitor)
+        public FTPClientFactory(Microsoft.Extensions.Options.IOptionsMonitor<Configuration> optionsMonitor)
         {
             Options = optionsMonitor.CurrentValue;
 
@@ -48,7 +48,7 @@ namespace slskd.Integrations.FTP
 
         private FtpEncryptionMode EncryptionMode { get; set; }
         private FTPOptions FTPOptions => Options.Integration.FTP;
-        private Options Options { get; set; }
+        private Configuration Options { get; set; }
 
         /// <summary>
         ///     Creates an instance of <see cref="FtpClient"/>.

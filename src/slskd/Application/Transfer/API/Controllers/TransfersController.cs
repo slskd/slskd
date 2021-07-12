@@ -46,7 +46,7 @@ namespace slskd.Transfer.API
         /// <param name="tracker"></param>
         /// <param name="ftpClient"></param>
         public TransfersController(
-            Microsoft.Extensions.Options.IOptionsSnapshot<Options> options,
+            Microsoft.Extensions.Options.IOptionsSnapshot<Configuration> options,
             ISoulseekClient client,
             ITransferTracker tracker,
             IFTPService ftpClient)
@@ -57,7 +57,7 @@ namespace slskd.Transfer.API
             FTP = ftpClient;
         }
 
-        private Options Options { get; }
+        private Configuration Options { get; }
         private ISoulseekClient Client { get; }
         private ITransferTracker Tracker { get; }
         private IFTPService FTP { get; }
