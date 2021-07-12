@@ -22,6 +22,7 @@ namespace slskd
     using System.IO;
     using System.Linq;
     using System.Net;
+    using System.Text.Json;
     using System.Threading;
     using System.Threading.Tasks;
     using Microsoft.Extensions.Hosting;
@@ -40,10 +41,10 @@ namespace slskd
     {
         private static readonly int ReconnectMaxDelayMilliseconds = 300000; // 5 minutes
 
-        private static (int Directories, int Files) sharedCounts = (0, 0);
+        private (int Directories, int Files) sharedCounts = (0, 0);
 
         public Service(
-            IOptions<Options> options,
+            IOptionsMonitor<Options> optionMonitor,
             ITransferTracker transferTracker,
             IBrowseTracker browseTracker,
             IConversationTracker conversationTracker,
@@ -51,7 +52,11 @@ namespace slskd
             ISharedFileCache sharedFileCache,
             IPushbulletService pushbulletService)
         {
-            Options = options.Value;
+            OptionsMonitor = optionMonitor;
+            OptionsMonitor.OnChange(options => OptionsChanged(options));
+
+            Options = OptionsMonitor.CurrentValue;
+
             TransferTracker = transferTracker;
             BrowseTracker = browseTracker;
             ConversationTracker = conversationTracker;
@@ -97,11 +102,6 @@ namespace slskd
                 searchResponseCache: new SearchResponseCache(),
                 searchResponseResolver: SearchResponseResolver);
 
-            if (string.IsNullOrEmpty(Options.Soulseek.Username) || string.IsNullOrEmpty(Options.Soulseek.Password))
-            {
-                throw new ArgumentException("Soulseek credentials are not configured");
-            }
-
             Client = new SoulseekClient(options: clientOptions);
 
             Client.DiagnosticGenerated += Client_DiagnosticGenerated;
@@ -137,6 +137,7 @@ namespace slskd
         private IConversationTracker ConversationTracker { get; set; }
         private ILogger Logger { get; set; } = Log.ForContext<Service>();
         private ConcurrentDictionary<string, ILogger> Loggers { get; } = new ConcurrentDictionary<string, ILogger>();
+        private IOptionsMonitor<Options> OptionsMonitor { get; set; }
         private Options Options { get; set; }
         private IRoomTracker RoomTracker { get; set; }
         private ISharedFileCache SharedFileCache { get; set; }
@@ -153,7 +154,15 @@ namespace slskd
 
             Logger.Information("Client started");
             Logger.Information("Listening on port {Port}", Options.Soulseek.ListenPort);
-            await Client.ConnectAsync(Options.Soulseek.Username, Options.Soulseek.Password).ConfigureAwait(false);
+
+            if (string.IsNullOrEmpty(Options.Soulseek.Username) || string.IsNullOrEmpty(Options.Soulseek.Password))
+            {
+                Logger.Warning($"Not connecting to the Soulseek server; username and/or password invalid.  Specify valid credentials and manually connect, or update config and restart.");
+            }
+            else
+            {
+                await Client.ConnectAsync(Options.Soulseek.Username, Options.Soulseek.Password).ConfigureAwait(false);
+            }
         }
 
         public Task StopAsync(CancellationToken cancellationToken)
@@ -164,7 +173,18 @@ namespace slskd
             return Task.CompletedTask;
         }
 
-        private static void SharedFileCache_Refreshed(object sender, (int Directories, int Files) e)
+        private void OptionsChanged(Options options)
+        {
+            Console.WriteLine($"Options changed.  Old options:");
+            Console.WriteLine(JsonSerializer.Serialize(Options));
+            Console.WriteLine($"\tNew options:");
+            Console.WriteLine(JsonSerializer.Serialize(options));
+            // todo: did options really change?
+            // todo: if options did change, create a patch and ReconfigureOptionsAsync
+            // todo: if ReconfigureOptionsAsync = true, find some way to let the user know a reconnect is pending
+        }
+
+        private void SharedFileCache_Refreshed(object sender, (int Directories, int Files) e)
         {
             if (sharedCounts != e)
             {
@@ -241,6 +261,12 @@ namespace slskd
             else
             {
                 Logger.Error("Disconnected from the Soulseek server: {Message}", args.Exception?.Message ?? args.Message);
+
+                if (string.IsNullOrEmpty(Options.Soulseek.Username) || string.IsNullOrEmpty(Options.Soulseek.Password))
+                {
+                    Logger.Warning($"Not reconnecting to the Soulseek server; username and/or password invalid.  Specify valid credentials and manually connect, or update config and restart.");
+                    return;
+                }
 
                 var attempts = 1;
 
