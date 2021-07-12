@@ -51,8 +51,6 @@ namespace slskd.Management.API
         [Authorize]
         public IActionResult Shutdown()
         {
-            Client.Disconnect("Shut down via API");
-
             Lifetime.StopApplication();
             return NoContent();
         }
@@ -65,8 +63,6 @@ namespace slskd.Management.API
         [Authorize]
         public IActionResult Restart()
         {
-            Client.Disconnect("Restarted via API");
-
             Process.Start(Process.GetCurrentProcess().MainModule.FileName, Environment.CommandLine);
             Lifetime.StopApplication();
 
