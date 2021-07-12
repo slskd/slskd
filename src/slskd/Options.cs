@@ -221,22 +221,20 @@ namespace slskd
         public class SoulseekOptions
         {
             /// <summary>
-            ///     Gets the password for the Soulseek network.
-            /// </summary>
-            [Argument(default, "slsk-password")]
-            [EnvironmentVariable("SLSK_PASSWORD")]
-            [Description("password for the Soulseek network")]
-            [Required]
-            public string Password { get; private set; } = null;
-
-            /// <summary>
             ///     Gets the username for the Soulseek network.
             /// </summary>
             [Argument(default, "slsk-username")]
             [EnvironmentVariable("SLSK_USERNAME")]
             [Description("username for the Soulseek network")]
-            [Required]
             public string Username { get; private set; } = null;
+
+            /// <summary>
+            ///     Gets the password for the Soulseek network.
+            /// </summary>
+            [Argument(default, "slsk-password")]
+            [EnvironmentVariable("SLSK_PASSWORD")]
+            [Description("password for the Soulseek network")]
+            public string Password { get; private set; } = null;
 
             /// <summary>
             ///     Gets the port on which to listen for incoming connections.
