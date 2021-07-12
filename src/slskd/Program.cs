@@ -340,6 +340,7 @@ namespace slskd
                     prefix: environmentVariablePrefix)
                 .AddYamlFile(
                     path: Path.GetFileName(configurationFile),
+                    targetType: typeof(Options),
                     optional: true,
                     reloadOnChange: false,
                     provider: new PhysicalFileProvider(Path.GetDirectoryName(configurationFile), ExclusionFilters.None)) // required for locations outside of the app directory
