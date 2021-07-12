@@ -15,7 +15,7 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-namespace slskd.Configuration
+namespace slskd.ConfigurationSources
 {
     using System;
     using System.IO;
