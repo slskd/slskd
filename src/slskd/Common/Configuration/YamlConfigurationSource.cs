@@ -37,6 +37,7 @@ namespace slskd.Configuration
         /// <param name="path">
         ///     Path relative to the base path stored in <see cref="IConfigurationBuilder.Properties"/> of <paramref name="builder"/>.
         /// </param>
+        /// <param name="targetType">The type from which to map properties.</param>
         /// <param name="optional">Whether the file is optional.</param>
         /// <param name="reloadOnChange">Whether the configuration should be reloaded if the file changes.</param>
         /// <param name="normalizeKeys">
@@ -44,7 +45,7 @@ namespace slskd.Configuration
         /// </param>
         /// <param name="provider">The updated <see cref="IFileProvider"/> to use to access the file.</param>
         /// <returns>The <see cref="IConfigurationBuilder"/>.</returns>
-        public static IConfigurationBuilder AddYamlFile(this IConfigurationBuilder builder, string path, bool optional = true, bool reloadOnChange = false, bool normalizeKeys = true, IFileProvider provider = null)
+        public static IConfigurationBuilder AddYamlFile(this IConfigurationBuilder builder, string path, Type targetType, bool optional = true, bool reloadOnChange = false, bool normalizeKeys = true, IFileProvider provider = null)
         {
             if (builder == null)
             {
@@ -59,6 +60,7 @@ namespace slskd.Configuration
             return builder.AddYamlFile(s =>
             {
                 s.Path = path;
+                s.TargetType = targetType;
                 s.Optional = optional;
                 s.ReloadOnChange = reloadOnChange;
                 s.NormalizeKeys = normalizeKeys;
@@ -89,9 +91,13 @@ namespace slskd.Configuration
         public YamlConfigurationProvider(YamlConfigurationSource source)
             : base(source)
         {
+            TargetType = source.TargetType;
+            Namespace = TargetType.Namespace.Split('.').First();
             NormalizeKeys = source.NormalizeKeys;
         }
 
+        private Type TargetType { get; set; }
+        private string Namespace { get; set; }
         private bool NormalizeKeys { get; set; }
         private string[] NullValues { get; } = new[] { "~", "null", string.Empty };
 
@@ -111,7 +117,7 @@ namespace slskd.Configuration
                 if (yaml.Documents.Count > 0)
                 {
                     var rootNode = (YamlMappingNode)yaml.Documents[0].RootNode;
-                    Traverse(rootNode);
+                    Traverse(rootNode, Namespace);
                 }
             }
             catch (YamlException e)
@@ -161,6 +167,11 @@ namespace slskd.Configuration
     /// </summary>
     public class YamlConfigurationSource : FileConfigurationSource
     {
+        /// <summary>
+        ///     Gets or sets the type from which to map properties.
+        /// </summary>
+        public Type TargetType { get; set; }
+
         /// <summary>
         ///     Gets or sets a value indicating whether configuration keys should be normalized (_, - removed, changed to lowercase).
         /// </summary>
