@@ -23,6 +23,7 @@ namespace slskd
     using System.ComponentModel.DataAnnotations;
     using System.Diagnostics;
     using FluentFTP;
+    using slskd.Configuration;
     using slskd.Validation;
     using Soulseek.Diagnostics;
     using Utility.CommandLine;
@@ -38,6 +39,7 @@ namespace slskd
         /// </summary>
         [Argument('v', "version")]
         [Description("display version information")]
+        [Obsolete("Used only for documentation; see Program for actual implementation")]
         public bool ShowVersion { get; private set; } = false;
 
         /// <summary>
@@ -45,6 +47,7 @@ namespace slskd
         /// </summary>
         [Argument('h', "help")]
         [Description("display command line usage")]
+        [Obsolete("Used only for documentation; see Program for actual implementation")]
         public bool ShowHelp { get; private set; } = false;
 
         /// <summary>
@@ -52,6 +55,7 @@ namespace slskd
         /// </summary>
         [Argument('e', "envars")]
         [Description("display environment variables")]
+        [Obsolete("Used only for documentation; see Program for actual implementation")]
         public bool ShowEnvironmentVariables { get; private set; } = false;
 
         /// <summary>
@@ -59,6 +63,7 @@ namespace slskd
         /// </summary>
         [Argument('g', "generate-cert")]
         [Description("generate X509 certificate and password for HTTPs")]
+        [Obsolete("Used only for documentation; see Program for actual implementation")]
         public bool GenerateCertificate { get; private set; } = false;
 
         /// <summary>
@@ -67,6 +72,7 @@ namespace slskd
         [Argument('c', "config")]
         [EnvironmentVariable("CONFIG")]
         [Description("path to configuration file")]
+        [Obsolete("Used only for documentation; see Program for actual implementation")]
         public string ConfigurationFile { get; private set; } = Program.DefaultConfigurationFile;
 
         /// <summary>
@@ -75,6 +81,7 @@ namespace slskd
         [Argument('d', "debug")]
         [EnvironmentVariable("DEBUG")]
         [Description("run in debug mode")]
+        [RequiresRestart]
         public bool Debug { get; private set; } = Debugger.IsAttached;
 
         /// <summary>
@@ -83,6 +90,7 @@ namespace slskd
         [Argument('n', "no-logo")]
         [EnvironmentVariable("NO_LOGO")]
         [Description("suppress logo on startup")]
+        [RequiresRestart]
         public bool NoLogo { get; private set; } = false;
 
         /// <summary>
@@ -91,6 +99,7 @@ namespace slskd
         [Argument('x', "no-start")]
         [EnvironmentVariable("NO_START")]
         [Description("quit the application after initialization")]
+        [RequiresRestart]
         public bool NoStart { get; private set; } = false;
 
         /// <summary>
@@ -99,6 +108,7 @@ namespace slskd
         [Argument('i', "instance-name")]
         [EnvironmentVariable("INSTANCE_NAME")]
         [Description("optional; a unique name for this instance")]
+        [RequiresRestart]
         public string InstanceName { get; private set; } = "default";
 
         /// <summary>
