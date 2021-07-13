@@ -32,6 +32,39 @@ namespace slskd
     /// <summary>
     ///     Application options.
     /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         This class contains all application options, which may be sourced from (in order of precedence):
+    ///         <list type="bullet">
+    ///             <item>
+    ///                 <term>Defaults</term>
+    ///                 <description>Default values, statically defined in this class.</description>
+    ///             </item>
+    ///             <item>
+    ///                 <term>Environment Variables</term>
+    ///                 <description>Environment variables set at either the system or user scope.</description>
+    ///             </item>
+    ///             <item>
+    ///                 <term>YAML Configuration File</term>
+    ///                 <description>A YAML file containing a mapping of this class.</description>
+    ///             </item>
+    ///             <item>
+    ///                 <term>Command Line</term>
+    ///                 <description>Options provided via the command line when starting the application.</description>
+    ///             </item>
+    ///         </list>
+    ///         Higher precedent sources override lower precedent sources.  As the command line is the most immediate and final source,
+    ///         options specified via the command line cannot be overwritten at runtime by any other source.
+    ///     </para>
+    ///     <para>
+    ///         Only the YAML configuration source can change at runtime, and consumers of this class must be aware of this, either using
+    ///         <see cref="IOptionsMonitor"/> in components with a singleton lifetime, or <see cref="IOptionsSnapshot"/> for transient or scoped lifetimes.
+    ///     </para>
+    ///     <para>
+    ///         Options specified via the command line can not be overwritten by changes to the YAML file.  This is by design due to the immutable
+    ///         nature of the command line string after the application is started.
+    ///     </para>
+    /// </remarks>
     public class Options
     {
         /// <summary>
