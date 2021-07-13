@@ -36,7 +36,7 @@ namespace slskd
     using Serilog;
     using Serilog.Events;
     using Serilog.Sinks.Grafana.Loki;
-    using slskd.ConfigurationSources;
+    using slskd.Configuration;
     using slskd.Cryptography;
     using slskd.Validation;
     using Utility.CommandLine;
@@ -342,7 +342,7 @@ namespace slskd
                     path: Path.GetFileName(configurationFile),
                     targetType: typeof(Options),
                     optional: true,
-                    reloadOnChange: false,
+                    reloadOnChange: true,
                     provider: new PhysicalFileProvider(Path.GetDirectoryName(configurationFile), ExclusionFilters.None)) // required for locations outside of the app directory
                 .AddCommandLine(
                     targetType: typeof(Options),
