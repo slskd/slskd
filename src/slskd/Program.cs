@@ -193,7 +193,7 @@ namespace slskd
                     .Build();
 
                 Configuration.GetSection(AppName)
-                    .Bind(Configuration, (o) => { o.BindNonPublicProperties = true; });
+                    .Bind(Options, (o) => { o.BindNonPublicProperties = true; });
 
                 if (Options.Debug)
                 {
