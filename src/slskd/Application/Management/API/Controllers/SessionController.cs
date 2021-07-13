@@ -37,10 +37,10 @@ namespace slskd.Management.API
     public class SessionController : ControllerBase
     {
         public SessionController(
-            Microsoft.Extensions.Options.IOptionsSnapshot<Options> optionsSnapshot,
+            Options optionsSnapshotAtStartup,
             SymmetricSecurityKey jwtSigningKey)
         {
-            Options = optionsSnapshot.Value;
+            Options = optionsSnapshotAtStartup;
             JwtSigningKey = jwtSigningKey;
         }
 
