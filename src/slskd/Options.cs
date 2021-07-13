@@ -1,4 +1,4 @@
-﻿// <copyright file="Configuration.cs" company="slskd Team">
+﻿// <copyright file="Options.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -32,7 +32,7 @@ namespace slskd
     /// <summary>
     ///     Application options.
     /// </summary>
-    public class Configuration
+    public class Options
     {
         /// <summary>
         ///     Gets a value indicating whether to display the application version.

@@ -23,7 +23,7 @@ namespace slskd.Integrations.FTP
     using System.Threading.Tasks;
     using FluentFTP;
     using Microsoft.Extensions.Logging;
-    using static slskd.Configuration.IntegrationOptions;
+    using static slskd.Options.IntegrationOptions;
 
     /// <summary>
     ///     FTP Integration service.
@@ -38,7 +38,7 @@ namespace slskd.Integrations.FTP
         /// <param name="log">The logger.</param>
         public FTPService(
             IFTPClientFactory ftpClientFactory,
-            Microsoft.Extensions.Options.IOptionsMonitor<Configuration> optionsMonitor,
+            Microsoft.Extensions.Options.IOptionsMonitor<Options> optionsMonitor,
             ILogger<FTPService> log)
         {
             Factory = ftpClientFactory;
@@ -49,7 +49,7 @@ namespace slskd.Integrations.FTP
         private IFTPClientFactory Factory { get; set; }
         private FTPOptions FTPOptions => Options.Integration.FTP;
         private ILogger<FTPService> Log { get; set; }
-        private Configuration Options { get; }
+        private Options Options { get; }
 
         /// <summary>
         ///     Uploads the specified <paramref name="filename"/> to the configured FTP server.

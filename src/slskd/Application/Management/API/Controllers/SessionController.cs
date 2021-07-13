@@ -37,7 +37,7 @@ namespace slskd.Management.API
     public class SessionController : ControllerBase
     {
         public SessionController(
-            Microsoft.Extensions.Options.IOptionsSnapshot<Configuration> optionsSnapshot,
+            Microsoft.Extensions.Options.IOptionsSnapshot<Options> optionsSnapshot,
             SymmetricSecurityKey jwtSigningKey)
         {
             Options = optionsSnapshot.Value;
@@ -45,7 +45,7 @@ namespace slskd.Management.API
         }
 
         private SymmetricSecurityKey JwtSigningKey { get; set; }
-        private Configuration Options { get; set; }
+        private Options Options { get; set; }
 
         /// <summary>
         ///     Checks whether the provided authentication is valid.

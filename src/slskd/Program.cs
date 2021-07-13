@@ -119,8 +119,8 @@ namespace slskd
         /// </summary>
         public static string Version { get; } = $"{AssemblyVersion} ({InformationalVersion})";
 
-        private static IConfigurationRoot ConfigurationRoot { get; set; }
-        private static Configuration Configuration { get; } = new Configuration();
+        private static IConfigurationRoot Configuration { get; set; }
+        private static Options Options { get; } = new Options();
 
         [EnvironmentVariable("CONFIG")]
         [Argument('c', "config", "path to configuration file")]
@@ -167,12 +167,12 @@ namespace slskd
 
                 if (ShowHelp)
                 {
-                    PrintCommandLineArguments(typeof(Configuration));
+                    PrintCommandLineArguments(typeof(Options));
                 }
 
                 if (ShowEnvironmentVariables)
                 {
-                    PrintEnvironmentVariables(typeof(Configuration), EnvironmentVariablePrefix);
+                    PrintEnvironmentVariables(typeof(Options), EnvironmentVariablePrefix);
                 }
 
                 return;
@@ -188,19 +188,19 @@ namespace slskd
             // with bootstrapping.
             try
             {
-                ConfigurationRoot = new ConfigurationBuilder()
+                Configuration = new ConfigurationBuilder()
                     .AddConfigurationProviders(EnvironmentVariablePrefix, ConfigurationFile)
                     .Build();
 
-                ConfigurationRoot.GetSection(AppName)
+                Configuration.GetSection(AppName)
                     .Bind(Configuration, (o) => { o.BindNonPublicProperties = true; });
 
-                if (Configuration.Debug)
+                if (Options.Debug)
                 {
-                    Console.WriteLine($"Configuration:\n{ConfigurationRoot.GetDebugView()}");
+                    Console.WriteLine($"Configuration:\n{Configuration.GetDebugView()}");
                 }
 
-                if (!Configuration.TryValidate(out var result))
+                if (!Options.TryValidate(out var result))
                 {
                     Console.WriteLine(result.GetResultView());
                     return;
@@ -208,16 +208,16 @@ namespace slskd
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Invalid configuration: {(!Configuration.Debug ? ex : ex.Message)}");
+                Console.WriteLine($"Invalid configuration: {(!Options.Debug ? ex : ex.Message)}");
                 return;
             }
 
             try
             {
-                VerifyOrCreateDirectory(Configuration.Directories.App);
-                VerifyOrCreateDirectory(Configuration.Directories.Incomplete);
-                VerifyOrCreateDirectory(Configuration.Directories.Downloads);
-                VerifyOrCreateDirectory(Configuration.Directories.Shared, verifyWriteable: false);
+                VerifyOrCreateDirectory(Options.Directories.App);
+                VerifyOrCreateDirectory(Options.Directories.Incomplete);
+                VerifyOrCreateDirectory(Options.Directories.Downloads);
+                VerifyOrCreateDirectory(Options.Directories.Shared, verifyWriteable: false);
             }
             catch (Exception ex)
             {
@@ -225,31 +225,31 @@ namespace slskd
                 return;
             }
 
-            Log.Logger = (Configuration.Debug ? new LoggerConfiguration().MinimumLevel.Debug() : new LoggerConfiguration().MinimumLevel.Information())
+            Log.Logger = (Options.Debug ? new LoggerConfiguration().MinimumLevel.Debug() : new LoggerConfiguration().MinimumLevel.Information())
                 .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
                 .MinimumLevel.Override("slskd.API.Authentication.PassthroughAuthenticationHandler", LogEventLevel.Information)
                 .Enrich.WithProperty("Version", Version)
-                .Enrich.WithProperty("InstanceName", Configuration.InstanceName)
+                .Enrich.WithProperty("InstanceName", Options.InstanceName)
                 .Enrich.WithProperty("InvocationId", InvocationId)
                 .Enrich.WithProperty("ProcessId", ProcessId)
                 .Enrich.FromLogContext()
                 .WriteTo.Console(
-                    outputTemplate: (Configuration.Debug ? "[{SourceContext}] [{SoulseekContext}] " : string.Empty) + "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
+                    outputTemplate: (Options.Debug ? "[{SourceContext}] [{SoulseekContext}] " : string.Empty) + "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
                 .WriteTo.Async(config =>
                     config.File(
                         Path.Combine(AppContext.BaseDirectory, "logs", $"{AppName}-.log"),
-                        outputTemplate: (Configuration.Debug ? "[{SourceContext}] " : string.Empty) + "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}",
+                        outputTemplate: (Options.Debug ? "[{SourceContext}] " : string.Empty) + "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}",
                         rollingInterval: RollingInterval.Day))
                 .WriteTo.Conditional(
-                    e => !string.IsNullOrEmpty(Configuration.Logger.Loki),
+                    e => !string.IsNullOrEmpty(Options.Logger.Loki),
                     config => config.GrafanaLoki(
-                        Configuration.Logger.Loki ?? string.Empty,
+                        Options.Logger.Loki ?? string.Empty,
                         outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}"))
                 .CreateLogger();
 
             var logger = Log.ForContext(typeof(Program));
 
-            if (!Configuration.NoLogo)
+            if (!Options.NoLogo)
             {
                 PrintLogo(Version);
             }
@@ -260,18 +260,18 @@ namespace slskd
             }
 
             logger.Information("Version: {Version}", Version);
-            logger.Information("Instance Name: {InstanceName}", Configuration.InstanceName);
+            logger.Information("Instance Name: {InstanceName}", Options.InstanceName);
             logger.Information("Invocation ID: {InvocationId}", InvocationId);
             logger.Information("Process ID: {ProcessId}", ProcessId);
 
-            if (!string.IsNullOrEmpty(Configuration.Logger.Loki))
+            if (!string.IsNullOrEmpty(Options.Logger.Loki))
             {
-                logger.Information("Forwarding logs to Grafana Loki instance at {LoggerLokiUrl}", Configuration.Logger.Loki);
+                logger.Information("Forwarding logs to Grafana Loki instance at {LoggerLokiUrl}", Options.Logger.Loki);
             }
 
             try
             {
-                if (Configuration.Feature.Prometheus)
+                if (Options.Feature.Prometheus)
                 {
                     using var runtimeMetrics = DotNetRuntimeStatsBuilder.Default().StartCollecting();
                 }
@@ -287,13 +287,13 @@ namespace slskd
                     .UseUrls()
                     .UseKestrel(options =>
                     {
-                        logger.Information($"Listening for HTTP requests at http://{IPAddress.Any}:{Configuration.Web.Port}/");
-                        options.Listen(IPAddress.Any, Configuration.Web.Port);
+                        logger.Information($"Listening for HTTP requests at http://{IPAddress.Any}:{Options.Web.Port}/");
+                        options.Listen(IPAddress.Any, Options.Web.Port);
 
-                        logger.Information($"Listening for HTTPS requests at https://{IPAddress.Any}:{Configuration.Web.Https.Port}/");
-                        options.Listen(IPAddress.Any, Configuration.Web.Https.Port, listenOptions =>
+                        logger.Information($"Listening for HTTPS requests at https://{IPAddress.Any}:{Options.Web.Https.Port}/");
+                        options.Listen(IPAddress.Any, Options.Web.Https.Port, listenOptions =>
                         {
-                            var cert = Configuration.Web.Https.Certificate;
+                            var cert = Options.Web.Https.Certificate;
 
                             if (!string.IsNullOrEmpty(cert.Pfx))
                             {
@@ -310,7 +310,7 @@ namespace slskd
                     .UseStartup<Startup>()
                     .Build();
 
-                if (Configuration.NoStart)
+                if (Options.NoStart)
                 {
                     logger.Information("Qutting because 'no-start' option is enabled");
                     return;
@@ -334,18 +334,18 @@ namespace slskd
 
             return builder
                 .AddDefaultValues(
-                    targetType: typeof(Configuration))
+                    targetType: typeof(Options))
                 .AddEnvironmentVariables(
-                    targetType: typeof(Configuration),
+                    targetType: typeof(Options),
                     prefix: environmentVariablePrefix)
                 .AddYamlFile(
                     path: Path.GetFileName(configurationFile),
-                    targetType: typeof(Configuration),
+                    targetType: typeof(Options),
                     optional: true,
                     reloadOnChange: true,
                     provider: new PhysicalFileProvider(Path.GetDirectoryName(configurationFile), ExclusionFilters.None)) // required for locations outside of the app directory
                 .AddCommandLine(
-                    targetType: typeof(Configuration),
+                    targetType: typeof(Options),
                     commandLine: Environment.CommandLine);
         }
 

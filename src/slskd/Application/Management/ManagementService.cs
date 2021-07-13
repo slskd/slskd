@@ -32,7 +32,7 @@ namespace slskd.Management
         /// <param name="optionsMonitor">The options monitor used to derive application options.</param>
         /// <param name="soulseekClient">The Soulseek client.</param>
         public ManagementService(
-            Microsoft.Extensions.Options.IOptionsMonitor<Configuration> optionsMonitor,
+            Microsoft.Extensions.Options.IOptionsMonitor<Options> optionsMonitor,
             ISoulseekClient soulseekClient)
         {
             OptionsMonitor = optionsMonitor;
@@ -40,8 +40,8 @@ namespace slskd.Management
         }
 
         private ISoulseekClient Client { get; }
-        private Configuration Options => OptionsMonitor.CurrentValue;
-        private Microsoft.Extensions.Options.IOptionsMonitor<Configuration> OptionsMonitor { get; }
+        private Options Options => OptionsMonitor.CurrentValue;
+        private Microsoft.Extensions.Options.IOptionsMonitor<Options> OptionsMonitor { get; }
 
         /// <summary>
         ///     Connects the Soulseek client to the server using the configured username and password.
@@ -62,7 +62,7 @@ namespace slskd.Management
         ///     Gets the current application options.
         /// </summary>
         /// <returns></returns>
-        public Configuration GetOptions() => Options;
+        public Options GetOptions() => Options;
 
         /// <summary>
         ///     Gets the current state of the connection to the Soulseek server.

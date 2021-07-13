@@ -19,7 +19,7 @@ namespace slskd.Validation
 {
     using System.ComponentModel.DataAnnotations;
     using slskd.Cryptography;
-    using static slskd.Configuration.WebOptions.HttpsOptions;
+    using static slskd.Options.WebOptions.HttpsOptions;
 
     /// <summary>
     ///     Validates X509 certificate parameters specified through <see cref="CertificateOptions"/>.

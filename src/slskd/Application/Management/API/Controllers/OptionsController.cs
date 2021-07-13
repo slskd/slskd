@@ -30,13 +30,13 @@ namespace slskd.Management.API
     [Consumes("application/json")]
     public class OptionsController : ControllerBase
     {
-        public OptionsController(Microsoft.Extensions.Options.IOptionsMonitor<Configuration> optionsMonitor)
+        public OptionsController(Microsoft.Extensions.Options.IOptionsMonitor<Options> optionsMonitor)
         {
             OptionsMonitor = optionsMonitor;
         }
 
-        private Microsoft.Extensions.Options.IOptionsMonitor<Configuration> OptionsMonitor { get; }
-        private Configuration Options => OptionsMonitor.CurrentValue;
+        private Microsoft.Extensions.Options.IOptionsMonitor<Options> OptionsMonitor { get; }
+        private Options Options => OptionsMonitor.CurrentValue;
 
         /// <summary>
         ///     Gets the current application options.
@@ -44,7 +44,7 @@ namespace slskd.Management.API
         /// <returns></returns>
         [HttpGet]
         [Authorize]
-        [ProducesResponseType(typeof(Configuration), 200)]
+        [ProducesResponseType(typeof(Options), 200)]
         public IActionResult Get()
         {
             return Ok(Options);

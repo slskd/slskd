@@ -42,7 +42,7 @@ namespace slskd.Management
         ///     Gets the current application options.
         /// </summary>
         /// <returns></returns>
-        Configuration GetOptions();
+        Options GetOptions();
 
         /// <summary>
         ///     Gets the current state of the connection to the Soulseek server.
