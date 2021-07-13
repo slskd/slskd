@@ -84,6 +84,11 @@ namespace slskd
         {
             var logger = Log.ForContext<Startup>();
 
+            // add an instance of Options to DI as they were at startup. use when Options might change, but
+            // the values at startup are to be used.
+            services.AddSingleton(Options);
+
+            // add IOptionsMonitor and IOptionsSnapshot to DI.  use when the current Options are to be used.
             services.AddOptions<Options>()
                 .Bind(Configuration.GetSection(Program.AppName), o => { o.BindNonPublicProperties = true; });
 
