@@ -15,6 +15,8 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
+using Microsoft.Extensions.Options;
+
 namespace slskd.Integrations.Pushbullet
 {
     using System;
@@ -41,7 +43,7 @@ namespace slskd.Integrations.Pushbullet
         /// <param name="log">The logger.</param>
         public PushbulletService(
             IHttpClientFactory httpClientFactory,
-            Microsoft.Extensions.Options.IOptionsMonitor<Options> optionsMonitor,
+            IOptionsMonitor<Options> optionsMonitor,
             ILogger<PushbulletService> log)
         {
             HttpClientFactory = httpClientFactory;

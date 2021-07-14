@@ -15,6 +15,8 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
+using Microsoft.Extensions.Options;
+
 namespace slskd.Transfer.API
 {
     using System;
@@ -46,7 +48,7 @@ namespace slskd.Transfer.API
         /// <param name="tracker"></param>
         /// <param name="ftpClient"></param>
         public TransfersController(
-            Microsoft.Extensions.Options.IOptionsSnapshot<Options> options,
+            IOptionsSnapshot<Options> options,
             ISoulseekClient client,
             ITransferTracker tracker,
             IFTPService ftpClient)

@@ -15,6 +15,8 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
+using Microsoft.Extensions.Options;
+
 namespace slskd.Integrations.FTP
 {
     using System;
@@ -30,7 +32,7 @@ namespace slskd.Integrations.FTP
         ///     Initializes a new instance of the <see cref="FTPClientFactory"/> class.
         /// </summary>
         /// <param name="optionsMonitor">The options monitor used to derive application options.</param>
-        public FTPClientFactory(Microsoft.Extensions.Options.IOptionsMonitor<Options> optionsMonitor)
+        public FTPClientFactory(IOptionsMonitor<Options> optionsMonitor)
         {
             Options = optionsMonitor.CurrentValue;
 

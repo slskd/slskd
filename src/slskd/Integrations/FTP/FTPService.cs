@@ -15,6 +15,8 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
+using Microsoft.Extensions.Options;
+
 namespace slskd.Integrations.FTP
 {
     using System;
@@ -38,7 +40,7 @@ namespace slskd.Integrations.FTP
         /// <param name="log">The logger.</param>
         public FTPService(
             IFTPClientFactory ftpClientFactory,
-            Microsoft.Extensions.Options.IOptionsMonitor<Options> optionsMonitor,
+            IOptionsMonitor<Options> optionsMonitor,
             ILogger<FTPService> log)
         {
             Factory = ftpClientFactory;
