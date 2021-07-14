@@ -53,11 +53,9 @@ namespace slskd
     ///                 <description>Options provided via the command line when starting the application.</description>
     ///             </item>
     ///         </list>
-    ///         Higher precedent sources override lower precedent sources.  As the command line is the most immediate and final source,
-    ///         options specified via the command line cannot be overwritten at runtime by any other source.
     ///     </para>
     ///     <para>
-    ///         Only the YAML configuration source can change at runtime, and consumers of this class must be aware of this, either using
+    ///         Only the YAML configuration source can change at runtime and consumers of this class must be aware of this, either injecting
     ///         <see cref="IOptionsMonitor"/> in components with a singleton lifetime, or <see cref="IOptionsSnapshot"/> for transient or scoped lifetimes.
     ///     </para>
     ///     <para>
