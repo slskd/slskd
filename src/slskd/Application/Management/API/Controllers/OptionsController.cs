@@ -15,6 +15,8 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
+using Microsoft.Extensions.Options;
+
 namespace slskd.Management.API
 {
     using Microsoft.AspNetCore.Authorization;
@@ -30,13 +32,16 @@ namespace slskd.Management.API
     [Consumes("application/json")]
     public class OptionsController : ControllerBase
     {
-        public OptionsController(Microsoft.Extensions.Options.IOptionsMonitor<Options> optionsMonitor)
+        public OptionsController(
+            Options optionsSnapshotAtStartup,
+            IOptionsMonitor<Options> optionsMonitor)
         {
+            OptionsSnapshotAtStartup = optionsSnapshotAtStartup;
             OptionsMonitor = optionsMonitor;
         }
 
-        private Microsoft.Extensions.Options.IOptionsMonitor<Options> OptionsMonitor { get; }
-        private Options Options => OptionsMonitor.CurrentValue;
+        private IOptionsMonitor<Options> OptionsMonitor { get; }
+        private Options OptionsSnapshotAtStartup { get; }
 
         /// <summary>
         ///     Gets the current application options.
@@ -45,9 +50,22 @@ namespace slskd.Management.API
         [HttpGet]
         [Authorize]
         [ProducesResponseType(typeof(Options), 200)]
-        public IActionResult Get()
+        public IActionResult Current()
         {
-            return Ok(Options);
+            return Ok(OptionsMonitor.CurrentValue);
+        }
+
+        /// <summary>
+        ///     Gets the application options provided at startup.
+        /// </summary>
+        /// <returns></returns>
+        [HttpGet]
+        [Route("startup")]
+        [Authorize]
+        [ProducesResponseType(typeof(Options), 200)]
+        public IActionResult Startup()
+        {
+            return Ok(OptionsSnapshotAtStartup);
         }
     }
 }
