@@ -17,12 +17,13 @@
 
 namespace slskd.Integrations.Pushbullet
 {
+    using System;
     using System.Threading.Tasks;
 
     /// <summary>
     ///     Pushbullet integration service.
     /// </summary>
-    public interface IPushbulletService
+    public interface IPushbulletService : IDisposable
     {
         /// <summary>
         ///     Sends a push notification to Pushbullet.
