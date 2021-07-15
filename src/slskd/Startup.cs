@@ -42,6 +42,7 @@ namespace slskd
     using slskd.Peer;
     using slskd.Search;
     using slskd.Transfer;
+    using slskd.Validation;
 
     /// <summary>
     ///     ASP.NET Startup.
@@ -90,7 +91,19 @@ namespace slskd
 
             // add IOptionsMonitor and IOptionsSnapshot to DI.  use when the current Options are to be used.
             services.AddOptions<Options>()
-                .Bind(Configuration.GetSection(Program.AppName), o => { o.BindNonPublicProperties = true; });
+                .Bind(Configuration.GetSection(Program.AppName), o => { o.BindNonPublicProperties = true; })
+                .Validate(options =>
+                {
+                    if (!options.TryValidate(out var result))
+                    {
+                        logger.Warning("Options (re)configuration rejected.");
+                        logger.Warning(result.GetResultView());
+                        return false;
+                    }
+
+                    logger.Information("Options (re)configured successfully.");
+                    return true;
+                });
 
             services.AddCors(options => options.AddPolicy("AllowAll", builder => builder.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader()));
 
@@ -196,8 +209,8 @@ namespace slskd
             services.AddSingleton<IPeerService, PeerService>();
             services.AddSingleton<IManagementService, ManagementService>();
 
-            services.AddSingleton<IFTPClientFactory, FTPClientFactory>();
-            services.AddTransient<IFTPService, FTPService>();
+            services.AddScoped<IFTPClientFactory, FTPClientFactory>();
+            services.AddScoped<IFTPService, FTPService>();
 
             services.AddSingleton<IPushbulletService, PushbulletService>();
 
