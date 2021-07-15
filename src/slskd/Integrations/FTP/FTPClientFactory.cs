@@ -31,10 +31,10 @@ namespace slskd.Integrations.FTP
         /// <summary>
         ///     Initializes a new instance of the <see cref="FTPClientFactory"/> class.
         /// </summary>
-        /// <param name="optionsMonitor">The options monitor used to derive application options.</param>
-        public FTPClientFactory(IOptionsMonitor<Options> optionsMonitor)
+        /// <param name="optionsSnapshot">The options monitor used to derive application options.</param>
+        public FTPClientFactory(IOptionsSnapshot<Options> optionsSnapshot)
         {
-            Options = optionsMonitor.CurrentValue;
+            OptionsSnapshot = optionsSnapshot;
 
             try
             {
@@ -49,8 +49,8 @@ namespace slskd.Integrations.FTP
         }
 
         private FtpEncryptionMode EncryptionMode { get; set; }
-        private FTPOptions FTPOptions => Options.Integration.FTP;
-        private Options Options { get; set; }
+        private FTPOptions FTPOptions => OptionsSnapshot.Value.Integration.FTP;
+        private IOptionsSnapshot<Options> OptionsSnapshot { get; set; }
 
         /// <summary>
         ///     Creates an instance of <see cref="FtpClient"/>.
