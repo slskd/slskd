@@ -33,15 +33,15 @@ namespace slskd.Management.API
     public class OptionsController : ControllerBase
     {
         public OptionsController(
-            Options optionsSnapshotAtStartup,
-            IOptionsMonitor<Options> optionsMonitor)
+            OptionsAtStartup optionsAtStartup,
+            IOptionsSnapshot<Options> optionsSnapshot)
         {
-            OptionsSnapshotAtStartup = optionsSnapshotAtStartup;
-            OptionsMonitor = optionsMonitor;
+            OptionsAtStartup = optionsAtStartup;
+            OptionsSnapshot = optionsSnapshot;
         }
 
-        private IOptionsMonitor<Options> OptionsMonitor { get; }
-        private Options OptionsSnapshotAtStartup { get; }
+        private IOptionsSnapshot<Options> OptionsSnapshot { get; }
+        private OptionsAtStartup OptionsAtStartup { get; }
 
         /// <summary>
         ///     Gets the current application options.
@@ -52,7 +52,7 @@ namespace slskd.Management.API
         [ProducesResponseType(typeof(Options), 200)]
         public IActionResult Current()
         {
-            return Ok(OptionsMonitor.CurrentValue);
+            return Ok(OptionsSnapshot.Value);
         }
 
         /// <summary>
@@ -65,7 +65,7 @@ namespace slskd.Management.API
         [ProducesResponseType(typeof(Options), 200)]
         public IActionResult Startup()
         {
-            return Ok(OptionsSnapshotAtStartup);
+            return Ok(OptionsAtStartup);
         }
     }
 }
