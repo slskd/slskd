@@ -31,26 +31,14 @@ namespace slskd.Integrations.FTP
         /// <summary>
         ///     Initializes a new instance of the <see cref="FTPClientFactory"/> class.
         /// </summary>
-        /// <param name="optionsSnapshot">The options monitor used to derive application options.</param>
-        public FTPClientFactory(IOptionsSnapshot<Options> optionsSnapshot)
+        /// <param name="optionsMonitor">The options monitor used to derive application options.</param>
+        public FTPClientFactory(IOptionsMonitor<Options> optionsMonitor)
         {
-            OptionsSnapshot = optionsSnapshot;
-
-            try
-            {
-                EncryptionMode = (FtpEncryptionMode)Enum.Parse(typeof(FtpEncryptionMode), FTPOptions.EncryptionMode, ignoreCase: true);
-            }
-            catch (Exception ex)
-            {
-                // Options should validate that the given string is parsable to FtpEncryptionMode through EnumAttribute; if this
-                // throws there's a bug somewhere.
-                throw new ArgumentException($"Failed to parse {typeof(FtpEncryptionMode).Name} from application Options. This is most likely a programming error; please file a GitHub issue and include your FTP configuration.", ex);
-            }
+            OptionsMonitor = optionsMonitor;
         }
 
-        private FtpEncryptionMode EncryptionMode { get; set; }
-        private FTPOptions FTPOptions => OptionsSnapshot.Value.Integration.FTP;
-        private IOptionsSnapshot<Options> OptionsSnapshot { get; set; }
+        private FTPOptions FTPOptions => OptionsMonitor.CurrentValue.Integration.FTP;
+        private IOptionsMonitor<Options> OptionsMonitor { get; set; }
 
         /// <summary>
         ///     Creates an instance of <see cref="FtpClient"/>.
@@ -59,10 +47,24 @@ namespace slskd.Integrations.FTP
         public FtpClient CreateFtpClient()
         {
             var client = new FtpClient(FTPOptions.Address, FTPOptions.Port, FTPOptions.Username, FTPOptions.Password);
-            client.EncryptionMode = EncryptionMode;
+            client.EncryptionMode = ParseFtpEncryptionMode(FTPOptions.EncryptionMode);
             client.ValidateAnyCertificate = FTPOptions.IgnoreCertificateErrors;
 
             return client;
+        }
+
+        private FtpEncryptionMode ParseFtpEncryptionMode(string encryptionMode)
+        {
+            try
+            {
+                return (FtpEncryptionMode)Enum.Parse(typeof(FtpEncryptionMode), encryptionMode, ignoreCase: true);
+            }
+            catch (Exception ex)
+            {
+                // Options should validate that the given string is parsable to FtpEncryptionMode through EnumAttribute; if this
+                // throws there's a bug somewhere.
+                throw new ArgumentException($"Failed to parse {typeof(FtpEncryptionMode).Name} from application Options. This is most likely a programming error; please file a GitHub issue and include your FTP configuration.", ex);
+            }
         }
     }
 }

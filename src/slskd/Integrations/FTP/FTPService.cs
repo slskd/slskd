@@ -36,22 +36,22 @@ namespace slskd.Integrations.FTP
         ///     Initializes a new instance of the <see cref="FTPService"/> class.
         /// </summary>
         /// <param name="ftpClientFactory">The FTP client factory to use.</param>
-        /// <param name="optionsSnapshot">The options snapshot used to derive application options.</param>
+        /// <param name="optionsMonitor">The options monitor used to derive application options.</param>
         /// <param name="log">The logger.</param>
         public FTPService(
             IFTPClientFactory ftpClientFactory,
-            IOptionsSnapshot<Options> optionsSnapshot,
+            IOptionsMonitor<Options> optionsMonitor,
             ILogger<FTPService> log)
         {
             Factory = ftpClientFactory;
-            OptionsSnapshot = optionsSnapshot;
+            OptionsMonitor = optionsMonitor;
             Log = log;
         }
 
         private IFTPClientFactory Factory { get; set; }
-        private FTPOptions FTPOptions => OptionsSnapshot.Value.Integration.FTP;
+        private FTPOptions FTPOptions => OptionsMonitor.CurrentValue.Integration.FTP;
         private ILogger<FTPService> Log { get; set; }
-        private IOptionsSnapshot<Options> OptionsSnapshot { get; }
+        private IOptionsMonitor<Options> OptionsMonitor { get; }
 
         /// <summary>
         ///     Uploads the specified <paramref name="filename"/> to the configured FTP server.
