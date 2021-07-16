@@ -15,6 +15,8 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
+using Microsoft.Extensions.Options;
+
 namespace slskd
 {
     using System;
@@ -28,6 +30,18 @@ namespace slskd
     using Soulseek.Diagnostics;
     using Utility.CommandLine;
     using Utility.EnvironmentVariables;
+
+    /// <summary>
+    ///     Disambiguates options derived at startup from options that may update at run time.
+    /// </summary>
+    /// <remarks>
+    ///     This class is added directly to dependency injection, but <see cref="Options"/> is not, so consumers must inject <see cref="OptionsAtStartup"/>
+    ///     instead of <see cref="Options"/> to make it clear that these options will not change.  Options that may change should be accessed by injecting
+    ///     <see cref="IOptionsMonitor{T}"/> or <see cref="IOptionsSnapshot{T}"/>, depending on the lifetime of the component.
+    /// </remarks>
+    public class OptionsAtStartup : Options
+    {
+    }
 
     /// <summary>
     ///     Application options.
@@ -56,10 +70,10 @@ namespace slskd
     ///     </para>
     ///     <para>
     ///         Only the YAML configuration source can change at runtime and consumers of this class must be aware of this, either injecting
-    ///         <see cref="IOptionsMonitor"/> in components with a singleton lifetime, or <see cref="IOptionsSnapshot"/> for transient or scoped lifetimes.
+    ///         <see cref="IOptionsMonitor{T}"/> in components with a singleton lifetime, or <see cref="IOptionsSnapshot{T}"/> for transient or scoped lifetimes.
     ///     </para>
     ///     <para>
-    ///         To obtain the Options specified at startup (discarding any updates that may have been applied since), inject <see cref="Options"/>.
+    ///         To obtain the Options specified at startup (discarding any updates that may have been applied since), inject <see cref="OptionsAtStartup"/>.
     ///     </para>
     ///     <para>
     ///         Options specified via the command line can not be overwritten by changes to the YAML file.  This is by design due to the immutable
