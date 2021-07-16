@@ -175,13 +175,7 @@ namespace slskd
 
         private void OptionsChanged(Options options)
         {
-            Console.WriteLine($"Options changed.  Old options:");
-            Console.WriteLine(JsonSerializer.Serialize(Options));
-            Console.WriteLine($"\tNew options:");
-            Console.WriteLine(JsonSerializer.Serialize(options));
-            // todo: did options really change?
-            // todo: if options did change, create a patch and ReconfigureOptionsAsync
-            // todo: if ReconfigureOptionsAsync = true, find some way to let the user know a reconnect is pending
+            Logger.Information("Options changed, but changes to the Soulseek configuration have not been propagated.  This functionality will come in a later update.");
         }
 
         private void SharedFileCache_Refreshed(object sender, (int Directories, int Files) e)
