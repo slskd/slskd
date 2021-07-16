@@ -57,24 +57,24 @@ namespace slskd
         {
             Configuration = configuration;
 
-            Options = new Options();
-            Configuration.GetSection(Program.AppName).Bind(Options, (o) =>
+            OptionsAtStartup = new OptionsAtStartup();
+            Configuration.GetSection(Program.AppName).Bind(OptionsAtStartup, (o) =>
             {
                 o.BindNonPublicProperties = true;
             });
 
-            UrlBase = Options.Web.UrlBase;
+            UrlBase = OptionsAtStartup.Web.UrlBase;
             UrlBase = UrlBase.StartsWith("/") ? UrlBase : "/" + UrlBase;
 
-            ContentPath = Path.GetFullPath(Options.Web.ContentPath);
+            ContentPath = Path.GetFullPath(OptionsAtStartup.Web.ContentPath);
 
-            JwtSigningKey = new SymmetricSecurityKey(Pbkdf2.GetKey(Options.Web.Authentication.Jwt.Key));
+            JwtSigningKey = new SymmetricSecurityKey(Pbkdf2.GetKey(OptionsAtStartup.Web.Authentication.Jwt.Key));
         }
 
         private IConfiguration Configuration { get; }
         private string ContentPath { get; set; }
         private SymmetricSecurityKey JwtSigningKey { get; set; }
-        private Options Options { get; }
+        private OptionsAtStartup OptionsAtStartup { get; }
         private string UrlBase { get; set; }
 
         /// <summary>
@@ -85,9 +85,9 @@ namespace slskd
         {
             var logger = Log.ForContext<Startup>();
 
-            // add an instance of Options to DI as they were at startup. use when Options might change, but
+            // add the instance of OptionsAtStartup to DI as they were at startup. use when Options might change, but
             // the values at startup are to be used.
-            services.AddSingleton(Options);
+            services.AddSingleton(OptionsAtStartup);
 
             // add IOptionsMonitor and IOptionsSnapshot to DI.  use when the current Options are to be used.
             services.AddOptions<Options>()
@@ -109,7 +109,7 @@ namespace slskd
 
             services.AddSingleton(JwtSigningKey);
 
-            if (!Options.Web.Authentication.Disable)
+            if (!OptionsAtStartup.Web.Authentication.Disable)
             {
                 services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                     .AddJwtBearer(options =>
@@ -157,7 +157,7 @@ namespace slskd
                 options.SubstituteApiVersionInUrl = true;
             });
 
-            if (Options.Feature.Swagger)
+            if (OptionsAtStartup.Feature.Swagger)
             {
                 services.AddSwaggerGen(options =>
                 {
@@ -181,19 +181,19 @@ namespace slskd
                 });
             }
 
-            if (Options.Feature.Prometheus)
+            if (OptionsAtStartup.Feature.Prometheus)
             {
                 services.AddSystemMetrics();
             }
 
             services.AddDbContextFactory<SearchDbContext>(options =>
             {
-                options.UseSqlite($"Data Source={Path.Combine(Options.Directories.App, "search.db")}");
+                options.UseSqlite($"Data Source={Path.Combine(OptionsAtStartup.Directories.App, "search.db")}");
             });
 
             services.AddDbContextFactory<PeerDbContext>(options =>
             {
-                options.UseSqlite($"Data Source={Path.Combine(Options.Directories.App, "peer.db")}");
+                options.UseSqlite($"Data Source={Path.Combine(OptionsAtStartup.Directories.App, "peer.db")}");
             });
 
             services.AddHttpClient();
@@ -203,14 +203,14 @@ namespace slskd
             services.AddSingleton<IConversationTracker, ConversationTracker>();
             services.AddSingleton<IRoomTracker, RoomTracker>(_ => new RoomTracker(messageLimit: 250));
             services.AddSingleton<ISharedFileCache>(_ =>
-                new SharedFileCache(Options.Directories.Shared, 3600000));
+                new SharedFileCache(OptionsAtStartup.Directories.Shared, 3600000));
 
             services.AddSingleton<ISearchService, SearchService>();
             services.AddSingleton<IPeerService, PeerService>();
             services.AddSingleton<IManagementService, ManagementService>();
 
-            services.AddScoped<IFTPClientFactory, FTPClientFactory>();
-            services.AddScoped<IFTPService, FTPService>();
+            services.AddSingleton<IFTPClientFactory, FTPClientFactory>();
+            services.AddSingleton<IFTPService, FTPService>();
 
             services.AddSingleton<IPushbulletService, PushbulletService>();
 
@@ -231,7 +231,7 @@ namespace slskd
 
             app.UseCors("AllowAll");
 
-            if (Options.Web.Https.Force)
+            if (OptionsAtStartup.Web.Https.Force)
             {
                 app.UseHttpsRedirection();
                 app.UseHsts();
@@ -276,7 +276,7 @@ namespace slskd
                 logger.Information("Serving static content from {ContentPath}", ContentPath);
             }
 
-            if (Options.Feature.Prometheus)
+            if (OptionsAtStartup.Feature.Prometheus)
             {
                 app.UseHttpMetrics();
                 logger.Information("Publishing Prometheus metrics to /metrics");
@@ -293,13 +293,13 @@ namespace slskd
                 endpoints.MapControllers();
                 endpoints.MapHealthChecks("/health");
 
-                if (Options.Feature.Prometheus)
+                if (OptionsAtStartup.Feature.Prometheus)
                 {
                     endpoints.MapMetrics();
                 }
             });
 
-            if (Options.Feature.Swagger)
+            if (OptionsAtStartup.Feature.Swagger)
             {
                 app.UseSwagger();
                 app.UseSwaggerUI(options => apiVersionDescriptionProvider.ApiVersionDescriptions.ToList()
