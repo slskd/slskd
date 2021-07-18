@@ -407,8 +407,16 @@ namespace slskd
                 /// <summary>
                 ///     Connection proxy options.
                 /// </summary>
-                public class ProxyOptions
+                public class ProxyOptions : IValidatableObject
                 {
+                    /// <summary>
+                    ///     Gets a value indicating whether the proxy is enabled.
+                    /// </summary>
+                    [Argument(default, "slsk-proxy")]
+                    [EnvironmentVariable("SLSK_PROXY_ENABLED")]
+                    [Description("enable connection proxy")]
+                    public bool Enabled { get; private set; } = false;
+
                     /// <summary>
                     ///     Gets the proxy address.
                     /// </summary>
@@ -444,6 +452,23 @@ namespace slskd
                     [Description("connection proxy password")]
                     [StringLength(255, MinimumLength = 1)]
                     public string Password { get; private set; }
+
+                    public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+                    {
+                        var results = new List<ValidationResult>();
+
+                        if (Enabled && string.IsNullOrWhiteSpace(Address))
+                        {
+                            results.Add(new ValidationResult($"The Enabled field is true, but no Address has been specified."));
+                        }
+
+                        if (Enabled && !Port.HasValue)
+                        {
+                            results.Add(new ValidationResult($"The Enabled field is true, but no Port has been specified."));
+                        }
+
+                        return results;
+                    }
                 }
             }
 
