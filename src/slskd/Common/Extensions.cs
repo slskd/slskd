@@ -37,25 +37,23 @@ namespace slskd
         /// <returns>A list of differences between the two objects.</returns>
         public static IEnumerable<(PropertyInfo Property, string FQN, object Left, object Right)> DiffWith(this object left, object right, string parentFqn = null)
         {
-            if (left.GetType() != right.GetType())
+            if (left?.GetType() != right?.GetType())
             {
-                throw new InvalidCastException($"Unable to diff types {left.GetType()} and {right.GetType()}");
+                throw new InvalidCastException($"Unable to diff types {left?.GetType()} and {right?.GetType()}");
             }
 
             var differences = new List<(PropertyInfo Property, string FQN, object Left, object Right)>();
 
-            foreach (var prop in left.GetType().GetProperties())
+            foreach (var prop in left?.GetType().GetProperties())
             {
                 var leftVal = prop.GetValue(left);
                 var rightVal = prop.GetValue(right);
                 var propType = prop.PropertyType;
                 var fqn = string.IsNullOrEmpty(parentFqn) ? prop.Name : string.Join(".", parentFqn, prop.Name);
 
-                var quasiPrimitives = new[] { typeof(string), typeof(decimal) };
-
-                if (propType.IsPrimitive || quasiPrimitives.Contains(propType))
+                if (propType.IsPrimitive || Nullable.GetUnderlyingType(propType) != null || new[] { typeof(string), typeof(decimal) }.Contains(propType))
                 {
-                    if (!leftVal.Equals(rightVal))
+                    if (!Equals(leftVal, rightVal))
                     {
                         differences.Add((prop, fqn, leftVal, rightVal));
                     }
