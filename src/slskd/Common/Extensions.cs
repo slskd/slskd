@@ -19,18 +19,56 @@ namespace slskd
 {
     using System;
     using System.Collections.Generic;
-    using System.ComponentModel.DataAnnotations;
     using System.IO;
     using System.Linq;
-    using System.Security.Cryptography;
-    using System.Text;
-    using slskd.Validation;
+    using System.Reflection;
 
     /// <summary>
     ///     Extensions.
     /// </summary>
     public static class Extensions
     {
+        /// <summary>
+        ///     Deeply compares this object with the specified object and returns a list of properties that are different.
+        /// </summary>
+        /// <param name="left">The left side of the comparison.</param>
+        /// <param name="right">The right side of the comparison.</param>
+        /// <param name="parentFqn">The root path for recursive calls.</param>
+        /// <returns>A list of differences between the two objects.</returns>
+        public static IEnumerable<(PropertyInfo Property, string FQN, object Left, object Right)> DiffWith(this object left, object right, string parentFqn = null)
+        {
+            if (left.GetType() != right.GetType())
+            {
+                throw new InvalidCastException($"Unable to diff types {left.GetType()} and {right.GetType()}");
+            }
+
+            var differences = new List<(PropertyInfo Property, string FQN, object Left, object Right)>();
+
+            foreach (var prop in left.GetType().GetProperties())
+            {
+                var leftVal = prop.GetValue(left);
+                var rightVal = prop.GetValue(right);
+                var propType = prop.PropertyType;
+                var fqn = string.IsNullOrEmpty(parentFqn) ? prop.Name : string.Join(".", parentFqn, prop.Name);
+
+                var quasiPrimitives = new[] { typeof(string), typeof(decimal) };
+
+                if (propType.IsPrimitive || quasiPrimitives.Contains(propType))
+                {
+                    if (!leftVal.Equals(rightVal))
+                    {
+                        differences.Add((prop, fqn, leftVal, rightVal));
+                    }
+                }
+                else
+                {
+                    differences.AddRange(DiffWith(leftVal, rightVal, fqn));
+                }
+            }
+
+            return differences;
+        }
+
         /// <summary>
         ///     Returns the directory from the given path, regardless of separator format.
         /// </summary>
