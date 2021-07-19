@@ -22,6 +22,7 @@ namespace slskd
     using System.IO;
     using System.Linq;
     using System.Net;
+    using System.Reflection;
     using System.Threading;
     using System.Threading.Tasks;
     using Microsoft.Extensions.Hosting;
@@ -146,6 +147,7 @@ namespace slskd
         private ITransferTracker TransferTracker { get; set; }
         private bool UsingProxy => Options.Soulseek.Connection.Proxy.Enabled;
         private IPushbulletService Pushbullet { get; }
+        private ReaderWriterLockSlim OptionsSyncRoot { get; } = new ReaderWriterLockSlim();
 
         public async Task StartAsync(CancellationToken cancellationToken)
         {
@@ -177,24 +179,45 @@ namespace slskd
 
         private void OptionsChanged(Options options)
         {
-            var diff = Options.DiffWith(options);
+            // this code is known to fire more than once per update.  i'm not sure
+            // whether these might be executed concurrently. lock to be safe, because
+            // we need to accurately track the last value of Options for diffing purposes.
+            // threading shenanigans here could lead to missed updates.
+            OptionsSyncRoot.EnterWriteLock();
 
-            if (Options.Debug)
+            try
             {
+                var diff = Options.DiffWith(options);
+
+                // don't react to duplicate/no-change events
+                // https://github.com/slskd/slskd/issues/126
+                if (!diff.Any())
+                {
+                    return;
+                }
+
+                bool RequiresRestart(PropertyInfo prop) => prop.CustomAttributes.Any(c => c.AttributeType == typeof(RequiresRestartAttribute));
+
                 foreach (var d in diff)
                 {
-                    Console.WriteLine($"{d.FQN} changed from {d.Left ?? "<null>"} to {d.Right ?? "<null>"}");
+                    Logger.Debug($"{d.FQN} changed from '{d.Left ?? "<null>"}' to '{d.Right ?? "<null>"}'{(RequiresRestart(d.Property) ? "; Requires restart." : string.Empty)}");
                 }
-            }
 
-            if (diff.Select(d => d.Property).Any(d => d.CustomAttributes.Any(c => c.AttributeType == typeof(RequiresRestartAttribute))))
+                var changesRequiringRestart = diff.Where(d => d.Property.CustomAttributes.Any(c => c.AttributeType == typeof(RequiresRestartAttribute)));
+
+                if (changesRequiringRestart.Any())
+                {
+                    Logger.Information("One or more updated options requires a restart to take effect.");
+                    PendingRestart = true;
+                }
+
+                Options = options;
+                Logger.Information("Options changed, but changes to the Soulseek configuration have not been propagated.  This functionality will come in a later update.");
+            }
+            finally
             {
-                Console.WriteLine("One or more updated options requires a restart to take effect.");
-                PendingRestart = true;
+                OptionsSyncRoot.ExitWriteLock();
             }
-
-            Options = options;
-            Logger.Information("Options changed, but changes to the Soulseek configuration have not been propagated.  This functionality will come in a later update.");
         }
 
         private void SharedFileCache_Refreshed(object sender, (int Directories, int Files) e)
