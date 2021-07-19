@@ -22,13 +22,13 @@ namespace slskd
     using System.IO;
     using System.Linq;
     using System.Net;
-    using System.Text.Json;
     using System.Threading;
     using System.Threading.Tasks;
     using Microsoft.Extensions.Hosting;
     using Microsoft.Extensions.Options;
     using Serilog;
     using Serilog.Events;
+    using slskd.Configuration;
     using slskd.Integrations.Pushbullet;
     using slskd.Messaging;
     using slskd.Peer;
@@ -132,6 +132,8 @@ namespace slskd
         }
 
         public static ISoulseekClient SoulseekClient { get; private set; }
+        public static bool PendingRestart { get; private set; }
+
         private IBrowseTracker BrowseTracker { get; set; }
         private ISoulseekClient Client { get; set; }
         private IConversationTracker ConversationTracker { get; set; }
@@ -142,7 +144,7 @@ namespace slskd
         private IRoomTracker RoomTracker { get; set; }
         private ISharedFileCache SharedFileCache { get; set; }
         private ITransferTracker TransferTracker { get; set; }
-        private bool UsingProxy => !string.IsNullOrWhiteSpace(Options.Soulseek.Connection.Proxy.Address) && Options.Soulseek.Connection.Proxy.Port.HasValue;
+        private bool UsingProxy => Options.Soulseek.Connection.Proxy.Enabled;
         private IPushbulletService Pushbullet { get; }
 
         public async Task StartAsync(CancellationToken cancellationToken)
@@ -175,6 +177,23 @@ namespace slskd
 
         private void OptionsChanged(Options options)
         {
+            var diff = Options.DiffWith(options);
+
+            if (Options.Debug)
+            {
+                foreach (var d in diff)
+                {
+                    Console.WriteLine($"{d.FQN} changed from {d.Left ?? "<null>"} to {d.Right ?? "<null>"}");
+                }
+            }
+
+            if (diff.Select(d => d.Property).Any(d => d.CustomAttributes.Any(c => c.AttributeType == typeof(RequiresRestartAttribute))))
+            {
+                Console.WriteLine("One or more updated options requires a restart to take effect.");
+                PendingRestart = true;
+            }
+
+            Options = options;
             Logger.Information("Options changed, but changes to the Soulseek configuration have not been propagated.  This functionality will come in a later update.");
         }
 
