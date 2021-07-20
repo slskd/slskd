@@ -453,6 +453,11 @@ namespace slskd
                     [StringLength(255, MinimumLength = 1)]
                     public string Password { get; private set; }
 
+                    /// <summary>
+                    ///     Extended validation.
+                    /// </summary>
+                    /// <param name="validationContext"></param>
+                    /// <returns></returns>
                     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
                     {
                         var results = new List<ValidationResult>();
@@ -782,6 +787,11 @@ namespace slskd
                 [Range(0, 5)]
                 public int RetryAttempts { get; private set; } = 3;
 
+                /// <summary>
+                ///     Extended validation.
+                /// </summary>
+                /// <param name="validationContext"></param>
+                /// <returns></returns>
                 public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
                 {
                     var results = new List<ValidationResult>();
@@ -858,6 +868,11 @@ namespace slskd
                 [Description("cooldown time for Pushbullet notifications, in milliseconds")]
                 public int CooldownTime { get; private set; } = 900000; // 15 minutes
 
+                /// <summary>
+                ///     Extended validation.
+                /// </summary>
+                /// <param name="validationContext"></param>
+                /// <returns></returns>
                 public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
                 {
                     var results = new List<ValidationResult>();
