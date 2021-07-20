@@ -92,7 +92,6 @@ namespace slskd
             // add IOptionsMonitor and IOptionsSnapshot to DI.  use when the current Options are to be used.
             services.AddOptions<Options>()
                 .Bind(Configuration.GetSection(Program.AppName), o => { o.BindNonPublicProperties = true; })
-                .PostConfigure(_ => logger.Debug("Options (re)configured."))
                 .Validate(options =>
                 {
                     if (!options.TryValidate(out var result))
@@ -102,7 +101,6 @@ namespace slskd
                         return false;
                     }
 
-                    logger.Debug("Options validated successfully.");
                     return true;
                 });
 
