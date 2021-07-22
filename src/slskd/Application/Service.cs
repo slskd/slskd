@@ -46,6 +46,7 @@ namespace slskd
 
         public Service(
             IOptionsMonitor<Options> optionMonitor,
+            IStateMonitor stateMonitor,
             ITransferTracker transferTracker,
             IBrowseTracker browseTracker,
             IConversationTracker conversationTracker,
@@ -54,7 +55,9 @@ namespace slskd
             IPushbulletService pushbulletService)
         {
             OptionsMonitor = optionMonitor;
-            OptionsMonitor.OnChange(options => OptionsChanged(options));
+
+            StateMonitor = stateMonitor;
+            StateMonitor.OnChange(state => StateMonitor_OnChange(state));
 
             Options = OptionsMonitor.CurrentValue;
 
@@ -143,6 +146,7 @@ namespace slskd
         private IOptionsMonitor<Options> OptionsMonitor { get; set; }
         private Options Options { get; set; }
         private IRoomTracker RoomTracker { get; set; }
+        private IStateMonitor StateMonitor { get; set; }
         private ISharedFileCache SharedFileCache { get; set; }
         private ITransferTracker TransferTracker { get; set; }
         private IPushbulletService Pushbullet { get; }
@@ -217,6 +221,11 @@ namespace slskd
             {
                 OptionsSyncRoot.ExitWriteLock();
             }
+        }
+
+        private void StateMonitor_OnChange((State Previous, State Current) state)
+        {
+            Logger.Debug("State changed from {Previous} to {Current}", state.Previous.ToJson(), state.Current.ToJson());
         }
 
         private void SharedFileCache_Refreshed(object sender, (int Directories, int Files) e)
