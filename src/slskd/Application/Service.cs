@@ -45,7 +45,8 @@ namespace slskd
         private (int Directories, int Files) sharedCounts = (0, 0);
 
         public Service(
-            IOptionsMonitor<Options> optionMonitor,
+            OptionsAtStartup optionsAtStartup,
+            IOptionsMonitor<Options> optionsMonitor,
             IStateMonitor stateMonitor,
             ITransferTracker transferTracker,
             IBrowseTracker browseTracker,
@@ -54,13 +55,13 @@ namespace slskd
             ISharedFileCache sharedFileCache,
             IPushbulletService pushbulletService)
         {
-            OptionsMonitor = optionMonitor;
+            OptionsAtStartup = optionsAtStartup;
+
+            OptionsMonitor = optionsMonitor;
             OptionsMonitor.OnChange(async options => await OptionsMonitor_OnChange(options));
 
             StateMonitor = stateMonitor;
             StateMonitor.OnChange(state => StateMonitor_OnChange(state));
-
-            Options = OptionsMonitor.CurrentValue;
 
             TransferTracker = transferTracker;
             BrowseTracker = browseTracker;
@@ -71,29 +72,29 @@ namespace slskd
 
             ProxyOptions proxyOptions = default;
 
-            if (Options.Soulseek.Connection.Proxy.Enabled)
+            if (OptionsAtStartup.Soulseek.Connection.Proxy.Enabled)
             {
                 proxyOptions = new ProxyOptions(
-                    address: Options.Soulseek.Connection.Proxy.Address,
-                    port: Options.Soulseek.Connection.Proxy.Port.Value,
-                    username: Options.Soulseek.Connection.Proxy.Username,
-                    password: Options.Soulseek.Connection.Proxy.Password);
+                    address: OptionsAtStartup.Soulseek.Connection.Proxy.Address,
+                    port: OptionsAtStartup.Soulseek.Connection.Proxy.Port.Value,
+                    username: OptionsAtStartup.Soulseek.Connection.Proxy.Username,
+                    password: OptionsAtStartup.Soulseek.Connection.Proxy.Password);
             }
 
             var connectionOptions = new ConnectionOptions(
-                readBufferSize: Options.Soulseek.Connection.Buffer.Read,
-                writeBufferSize: Options.Soulseek.Connection.Buffer.Write,
-                connectTimeout: Options.Soulseek.Connection.Timeout.Connect,
-                inactivityTimeout: Options.Soulseek.Connection.Timeout.Inactivity,
+                readBufferSize: OptionsAtStartup.Soulseek.Connection.Buffer.Read,
+                writeBufferSize: OptionsAtStartup.Soulseek.Connection.Buffer.Write,
+                connectTimeout: OptionsAtStartup.Soulseek.Connection.Timeout.Connect,
+                inactivityTimeout: OptionsAtStartup.Soulseek.Connection.Timeout.Inactivity,
                 proxyOptions: proxyOptions);
 
             var clientOptions = new SoulseekClientOptions(
-                listenPort: Options.Soulseek.ListenPort,
+                listenPort: OptionsAtStartup.Soulseek.ListenPort,
                 enableListener: true,
                 userEndPointCache: new UserEndPointCache(),
-                distributedChildLimit: Options.Soulseek.DistributedNetwork.ChildLimit,
-                enableDistributedNetwork: !Options.Soulseek.DistributedNetwork.Disabled,
-                minimumDiagnosticLevel: Options.Soulseek.DiagnosticLevel,
+                distributedChildLimit: OptionsAtStartup.Soulseek.DistributedNetwork.ChildLimit,
+                enableDistributedNetwork: !OptionsAtStartup.Soulseek.DistributedNetwork.Disabled,
+                minimumDiagnosticLevel: OptionsAtStartup.Soulseek.DiagnosticLevel,
                 autoAcknowledgePrivateMessages: false,
                 acceptPrivateRoomInvitations: true,
                 serverConnectionOptions: connectionOptions,
@@ -144,7 +145,7 @@ namespace slskd
         private ILogger Logger { get; set; } = Log.ForContext<Service>();
         private ConcurrentDictionary<string, ILogger> Loggers { get; } = new ConcurrentDictionary<string, ILogger>();
         private IOptionsMonitor<Options> OptionsMonitor { get; set; }
-        private Options Options { get; set; }
+        private OptionsAtStartup OptionsAtStartup { get; set; }
         private IRoomTracker RoomTracker { get; set; }
         private IStateMonitor StateMonitor { get; set; }
         private ISharedFileCache SharedFileCache { get; set; }
@@ -154,21 +155,21 @@ namespace slskd
 
         public async Task StartAsync(CancellationToken cancellationToken)
         {
-            if (Options.Soulseek.Connection.Proxy.Enabled)
+            if (OptionsAtStartup.Soulseek.Connection.Proxy.Enabled)
             {
-                Logger.Information($"Using Proxy {Options.Soulseek.Connection.Proxy.Address}:{Options.Soulseek.Connection.Proxy.Port}");
+                Logger.Information($"Using Proxy {OptionsAtStartup.Soulseek.Connection.Proxy.Address}:{OptionsAtStartup.Soulseek.Connection.Proxy.Port}");
             }
 
             Logger.Information("Client started");
-            Logger.Information("Listening on port {Port}", Options.Soulseek.ListenPort);
+            Logger.Information("Listening on port {Port}", OptionsAtStartup.Soulseek.ListenPort);
 
-            if (string.IsNullOrEmpty(Options.Soulseek.Username) || string.IsNullOrEmpty(Options.Soulseek.Password))
+            if (string.IsNullOrEmpty(OptionsAtStartup.Soulseek.Username) || string.IsNullOrEmpty(OptionsAtStartup.Soulseek.Password))
             {
                 Logger.Warning($"Not connecting to the Soulseek server; username and/or password invalid.  Specify valid credentials and manually connect, or update config and restart.");
             }
             else
             {
-                await Client.ConnectAsync(Options.Soulseek.Username, Options.Soulseek.Password).ConfigureAwait(false);
+                await Client.ConnectAsync(OptionsAtStartup.Soulseek.Username, OptionsAtStartup.Soulseek.Password).ConfigureAwait(false);
             }
         }
 
@@ -193,7 +194,7 @@ namespace slskd
                 var pendingRestart = false;
                 var pendingReconnect = false;
 
-                var diff = Options.DiffWith(options);
+                var diff = OptionsMonitor.CurrentValue.DiffWith(options);
 
                 // don't react to duplicate/no-change events
                 // https://github.com/slskd/slskd/issues/126
@@ -216,11 +217,11 @@ namespace slskd
 
                 // determine whether any Soulseek options changed.  if so, we need to construct a patch
                 // and invoke ReconfigureOptionsAsync().
-                var slskDiff = Options.Soulseek.DiffWith(options.Soulseek);
+                var slskDiff = OptionsMonitor.CurrentValue.Soulseek.DiffWith(options.Soulseek);
 
                 if (slskDiff.Any())
                 {
-                    var old = Options.Soulseek;
+                    var old = OptionsMonitor.CurrentValue.Soulseek;
                     var update = options.Soulseek;
 
                     Logger.Debug("Soulseek options changed from {Previous} to {Current}", old.ToJson(), update.ToJson());
@@ -282,7 +283,6 @@ namespace slskd
                     Logger.Information("One or more updated options requires an application restart to take effect.");
                 }
 
-                Options = options;
                 Logger.Information("Options updated successfully.");
             }
             catch (Exception ex)
@@ -318,7 +318,7 @@ namespace slskd
         private Task<BrowseResponse> BrowseResponseResolver(string username, IPEndPoint endpoint)
         {
             var directories = System.IO.Directory
-                .GetDirectories(Options.Directories.Shared, "*", SearchOption.AllDirectories)
+                .GetDirectories(OptionsMonitor.CurrentValue.Directories.Shared, "*", SearchOption.AllDirectories)
                 .Select(dir => new Soulseek.Directory(dir.Replace("/", @"\"), System.IO.Directory.GetFiles(dir)
                     .Select(f => new Soulseek.File(1, Path.GetFileName(f), new FileInfo(f).Length, Path.GetExtension(f)))));
 
@@ -416,7 +416,7 @@ namespace slskd
         {
             ConversationTracker.AddOrUpdate(args.Username, PrivateMessage.FromEventArgs(args));
 
-            if (Options.Integration.Pushbullet.Enabled && !args.Replayed)
+            if (OptionsMonitor.CurrentValue.Integration.Pushbullet.Enabled && !args.Replayed)
             {
                 Console.WriteLine("Pushing...");
                 _ = Pushbullet.PushAsync($"Private Message from {args.Username}", args.Username, args.Message);
@@ -427,7 +427,7 @@ namespace slskd
         {
             Console.WriteLine($"[PUBLIC CHAT] [{args.RoomName}] [{args.Username}]: {args.Message}");
 
-            if (Options.Integration.Pushbullet.Enabled && args.Message.Contains(Client.Username))
+            if (OptionsMonitor.CurrentValue.Integration.Pushbullet.Enabled && args.Message.Contains(Client.Username))
             {
                 _ = Pushbullet.PushAsync($"Room Mention by {args.Username} in {args.RoomName}", args.RoomName, args.Message);
             }
@@ -452,7 +452,7 @@ namespace slskd
             var message = RoomMessage.FromEventArgs(args, DateTime.UtcNow);
             RoomTracker.AddOrUpdateMessage(args.RoomName, message);
 
-            if (Options.Integration.Pushbullet.Enabled && message.Message.Contains(Client.Username))
+            if (OptionsMonitor.CurrentValue.Integration.Pushbullet.Enabled && message.Message.Contains(Client.Username))
             {
                 _ = Pushbullet.PushAsync($"Room Mention by {message.Username} in {message.RoomName}", message.RoomName, message.Message);
             }
