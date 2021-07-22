@@ -1,4 +1,4 @@
-// <copyright file="Service.cs" company="slskd Team">
+﻿// <copyright file="Service.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -22,7 +22,7 @@ namespace slskd
     using System.IO;
     using System.Linq;
     using System.Net;
-    using System.Reflection;
+    using System.Text.Json;
     using System.Threading;
     using System.Threading.Tasks;
     using Microsoft.Extensions.Hosting;
@@ -55,6 +55,7 @@ namespace slskd
             IPushbulletService pushbulletService)
         {
             OptionsMonitor = optionMonitor;
+            OptionsMonitor.OnChange(async options => await OptionsMonitor_OnChange(options));
 
             StateMonitor = stateMonitor;
             StateMonitor.OnChange(state => StateMonitor_OnChange(state));
@@ -136,7 +137,6 @@ namespace slskd
         }
 
         public static ISoulseekClient SoulseekClient { get; private set; }
-        public static bool PendingRestart { get; private set; }
 
         private IBrowseTracker BrowseTracker { get; set; }
         private ISoulseekClient Client { get; set; }
@@ -180,7 +180,7 @@ namespace slskd
             return Task.CompletedTask;
         }
 
-        private void OptionsChanged(Options options)
+        private async Task OptionsMonitor_OnChange(Options options)
         {
             // this code is known to fire more than once per update.  i'm not sure
             // whether these might be executed concurrently. lock to be safe, because
@@ -190,6 +190,9 @@ namespace slskd
 
             try
             {
+                var pendingRestart = false;
+                var pendingReconnect = false;
+
                 var diff = Options.DiffWith(options);
 
                 // don't react to duplicate/no-change events
@@ -199,23 +202,92 @@ namespace slskd
                     return;
                 }
 
-                bool RequiresRestart(PropertyInfo prop) => prop.CustomAttributes.Any(c => c.AttributeType == typeof(RequiresRestartAttribute));
-
-                foreach (var d in diff)
+                foreach (var (property, fqn, left, right) in diff)
                 {
-                    Logger.Debug($"{d.FQN} changed from '{d.Left ?? "<null>"}' to '{d.Right ?? "<null>"}'{(RequiresRestart(d.Property) ? "; Requires restart." : string.Empty)}");
+                    var requiresRestart = property.CustomAttributes.Any(c => c.AttributeType == typeof(RequiresRestartAttribute));
+
+                    Logger.Debug($"{fqn} changed from '{left ?? "<null>"}' to '{right ?? "<null>"}'{(requiresRestart ? "; Restart required to take effect." : string.Empty)}");
+
+                    if (requiresRestart)
+                    {
+                        pendingRestart = true;
+                    }
                 }
 
-                var changesRequiringRestart = diff.Where(d => d.Property.CustomAttributes.Any(c => c.AttributeType == typeof(RequiresRestartAttribute)));
+                // determine whether any Soulseek options changed.  if so, we need to construct a patch
+                // and invoke ReconfigureOptionsAsync().
+                var slskDiff = Options.Soulseek.DiffWith(options.Soulseek);
 
-                if (changesRequiringRestart.Any())
+                if (slskDiff.Any())
                 {
-                    Logger.Information("One or more updated options requires a restart to take effect.");
-                    PendingRestart = true;
+                    var old = Options.Soulseek;
+                    var update = options.Soulseek;
+
+                    Logger.Debug("Soulseek options changed from {Previous} to {Current}", old.ToJson(), update.ToJson());
+
+                    // determine whether any Connection options changed. if so, replace the whole object.
+                    // Soulseek.NET doesn't offer a way to patch parts of connection options. the updates only affect
+                    // new connections, so a partial patch doesn't make a lot of sense anyway.
+                    var connectionDiff = old.Connection.DiffWith(update.Connection);
+
+                    ConnectionOptions connectionPatch = null;
+
+                    if (connectionDiff.Any())
+                    {
+                        var connection = update.Connection;
+
+                        ProxyOptions proxyPatch = null;
+
+                        if (connection.Proxy.Enabled)
+                        {
+                            proxyPatch = new ProxyOptions(
+                                connection.Proxy.Address,
+                                connection.Proxy.Port.Value,
+                                connection.Proxy.Username,
+                                connection.Proxy.Password);
+                        }
+
+                        connectionPatch = new ConnectionOptions(
+                            connection.Buffer.Read,
+                            connection.Buffer.Write,
+                            connection.Timeout.Connect,
+                            connection.Timeout.Inactivity,
+                            proxyOptions: proxyPatch);
+                    }
+
+                    var patch = new SoulseekClientOptionsPatch(
+                        listenPort: old.ListenPort == update.ListenPort ? null : update.ListenPort,
+                        enableDistributedNetwork: old.DistributedNetwork.Disabled == update.DistributedNetwork.Disabled ? null : !update.DistributedNetwork.Disabled,
+                        distributedChildLimit: old.DistributedNetwork.ChildLimit == update.DistributedNetwork.ChildLimit ? null : update.DistributedNetwork.ChildLimit,
+                        serverConnectionOptions: connectionPatch,
+                        peerConnectionOptions: connectionPatch,
+                        transferConnectionOptions: connectionPatch,
+                        incomingConnectionOptions: connectionPatch,
+                        distributedConnectionOptions: connectionPatch);
+
+                    Logger.Debug("Patching Soulseek options with {Patch}", patch.ToJson());
+
+                    pendingReconnect = await SoulseekClient.ReconfigureOptionsAsync(patch);
+
+                    if (pendingReconnect)
+                    {
+                        StateMonitor.Set(state => state with { PendingReconnect = true });
+                        Logger.Information("One or more updated Soulseek options requires the client to be disconnected, then reconnected to the network to take effect.");
+                    }
+                }
+
+                if (pendingRestart)
+                {
+                    StateMonitor.Set(state => state with { PendingRestart = true });
+                    Logger.Information("One or more updated options requires an application restart to take effect.");
                 }
 
                 Options = options;
-                Logger.Information("Options changed, but changes to the Soulseek configuration have not been propagated.  This functionality will come in a later update.");
+                Logger.Information("Options updated successfully.");
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "Failed to apply option update: {Message}", ex.Message);
             }
             finally
             {
