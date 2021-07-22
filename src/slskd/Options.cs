@@ -319,6 +319,7 @@ namespace slskd
             [Argument(default, "slsk-diag-level")]
             [EnvironmentVariable("SLSK_DIAG_LEVEL")]
             [Description("minimum diagnostic level (None, Warning, Info, Debug)")]
+            [RequiresRestart]
             public DiagnosticLevel DiagnosticLevel { get; private set; } = DiagnosticLevel.Info;
 
             /// <summary>
