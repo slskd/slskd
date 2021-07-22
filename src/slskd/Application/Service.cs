@@ -1,4 +1,4 @@
-﻿// <copyright file="Service.cs" company="slskd Team">
+// <copyright file="Service.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -67,7 +67,7 @@ namespace slskd
 
             ProxyOptions proxyOptions = default;
 
-            if (UsingProxy)
+            if (Options.Soulseek.Connection.Proxy.Enabled)
             {
                 proxyOptions = new ProxyOptions(
                     address: Options.Soulseek.Connection.Proxy.Address,
@@ -145,13 +145,12 @@ namespace slskd
         private IRoomTracker RoomTracker { get; set; }
         private ISharedFileCache SharedFileCache { get; set; }
         private ITransferTracker TransferTracker { get; set; }
-        private bool UsingProxy => Options.Soulseek.Connection.Proxy.Enabled;
         private IPushbulletService Pushbullet { get; }
         private ReaderWriterLockSlim OptionsSyncRoot { get; } = new ReaderWriterLockSlim();
 
         public async Task StartAsync(CancellationToken cancellationToken)
         {
-            if (UsingProxy)
+            if (Options.Soulseek.Connection.Proxy.Enabled)
             {
                 Logger.Information($"Using Proxy {Options.Soulseek.Connection.Proxy.Address}:{Options.Soulseek.Connection.Proxy.Port}");
             }
