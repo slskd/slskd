@@ -22,12 +22,28 @@ namespace slskd
     using System.IO;
     using System.Linq;
     using System.Reflection;
+    using System.Text.Json;
 
     /// <summary>
     ///     Extensions.
     /// </summary>
     public static class Extensions
     {
+        /// <summary>
+        ///     Serializes this object to json.
+        /// </summary>
+        /// <param name="obj">The object to serialize.</param>
+        /// <returns>A string containing the serialized object.</returns>
+        public static string ToJson(this object obj) => JsonSerializer.Serialize(obj);
+
+        /// <summary>
+        ///     Deserializes this string from json to an object of type <typeparamref name="T"/>.
+        /// </summary>
+        /// <typeparam name="T">The type to which to deserialize the string.</typeparam>
+        /// <param name="str">The string to deserialize.</param>
+        /// <returns>The new object deserialzied from the string.</returns>
+        public static T ToObject<T>(this string str) => JsonSerializer.Deserialize<T>(str);
+
         /// <summary>
         ///     Deeply compares this object with the specified object and returns a list of properties that are different.
         /// </summary>
