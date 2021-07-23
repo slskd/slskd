@@ -59,6 +59,8 @@ namespace slskd
             OptionsMonitor = optionsMonitor;
             OptionsMonitor.OnChange(async options => await OptionsMonitor_OnChange(options));
 
+            OptionPostConfigurationSnapshot = OptionsMonitor.CurrentValue;
+
             StateMonitor = stateMonitor;
             StateMonitor.OnChange(state => StateMonitor_OnChange(state));
 
@@ -145,6 +147,7 @@ namespace slskd
         private ConcurrentDictionary<string, ILogger> Loggers { get; } = new ConcurrentDictionary<string, ILogger>();
         private IOptionsMonitor<Options> OptionsMonitor { get; set; }
         private OptionsAtStartup OptionsAtStartup { get; set; }
+        private Options OptionPostConfigurationSnapshot { get; set; }
         private IRoomTracker RoomTracker { get; set; }
         private IStateMonitor StateMonitor { get; set; }
         private ISharedFileCache SharedFileCache { get; set; }
@@ -193,7 +196,7 @@ namespace slskd
                 var pendingRestart = false;
                 var pendingReconnect = false;
 
-                var diff = OptionsMonitor.CurrentValue.DiffWith(options);
+                var diff = OptionPostConfigurationSnapshot.DiffWith(options);
 
                 // don't react to duplicate/no-change events
                 // https://github.com/slskd/slskd/issues/126
@@ -216,11 +219,11 @@ namespace slskd
 
                 // determine whether any Soulseek options changed.  if so, we need to construct a patch
                 // and invoke ReconfigureOptionsAsync().
-                var slskDiff = OptionsMonitor.CurrentValue.Soulseek.DiffWith(options.Soulseek);
+                var slskDiff = OptionPostConfigurationSnapshot.Soulseek.DiffWith(options.Soulseek);
 
                 if (slskDiff.Any())
                 {
-                    var old = OptionsMonitor.CurrentValue.Soulseek;
+                    var old = OptionPostConfigurationSnapshot.Soulseek;
                     var update = options.Soulseek;
 
                     Logger.Debug("Soulseek options changed from {Previous} to {Current}", old.ToJson(), update.ToJson());
@@ -290,6 +293,7 @@ namespace slskd
             }
             finally
             {
+                OptionPostConfigurationSnapshot = OptionsMonitor.CurrentValue;
                 OptionsSyncRoot.ExitWriteLock();
             }
         }
