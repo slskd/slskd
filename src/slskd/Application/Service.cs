@@ -386,7 +386,7 @@ namespace slskd
             {
                 Logger.Error("Disconnected from the Soulseek server: {Message}", args.Exception?.Message ?? args.Message);
 
-                if (string.IsNullOrEmpty(Options.Soulseek.Username) || string.IsNullOrEmpty(Options.Soulseek.Password))
+                if (string.IsNullOrEmpty(OptionsMonitor.CurrentValue.Soulseek.Username) || string.IsNullOrEmpty(OptionsMonitor.CurrentValue.Soulseek.Password))
                 {
                     Logger.Warning($"Not reconnecting to the Soulseek server; username and/or password invalid.  Specify valid credentials and manually connect, or update config and restart.");
                     return;
