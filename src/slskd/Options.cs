@@ -294,6 +294,7 @@ namespace slskd
             [Argument(default, "slsk-username")]
             [EnvironmentVariable("SLSK_USERNAME")]
             [Description("username for the Soulseek network")]
+            [RequiresReconnect]
             public string Username { get; private set; } = null;
 
             /// <summary>
@@ -302,6 +303,7 @@ namespace slskd
             [Argument(default, "slsk-password")]
             [EnvironmentVariable("SLSK_PASSWORD")]
             [Description("password for the Soulseek network")]
+            [RequiresReconnect]
             public string Password { get; private set; } = null;
 
             /// <summary>
