@@ -361,6 +361,11 @@ namespace slskd
 
         private async void Client_Disconnected(object sender, SoulseekClientDisconnectedEventArgs args)
         {
+            if (StateMonitor.Current.PendingReconnect)
+            {
+                StateMonitor.Set(state => state with { PendingReconnect = false });
+            }
+
             if (args.Exception is ObjectDisposedException || args.Exception is ApplicationShutdownException)
             {
                 Logger.Information("Disconnected from the Soulseek server: the client is shutting down");
