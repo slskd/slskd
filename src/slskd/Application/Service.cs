@@ -408,7 +408,9 @@ namespace slskd
 
                     try
                     {
-                        await Client.ConnectAsync(Options.Soulseek.Username, Options.Soulseek.Password);
+                        // reconnect with the latest configuration values we have for username and password, instead of the options that were 
+                        // captured at startup.  if a user has updated these values prior to the disconnect, the changes will take effect now.
+                        await Client.ConnectAsync(OptionsMonitor.CurrentValue.Soulseek.Username, OptionsMonitor.CurrentValue.Soulseek.Password);
                         break;
                     }
                     catch (Exception ex)
