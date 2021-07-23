@@ -1,4 +1,4 @@
-﻿// <copyright file="Service.cs" company="slskd Team">
+// <copyright file="Service.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -22,7 +22,6 @@ namespace slskd
     using System.IO;
     using System.Linq;
     using System.Net;
-    using System.Text.Json;
     using System.Threading;
     using System.Threading.Tasks;
     using Microsoft.Extensions.Hosting;
