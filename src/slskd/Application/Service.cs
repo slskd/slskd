@@ -356,7 +356,7 @@ namespace slskd
 
         private void Client_LoggedIn(object sender, EventArgs e)
         {
-            Logger.Information("Logged in to the Soulseek server as {Username}", Options.Soulseek.Username);
+            Logger.Information("Logged in to the Soulseek server as {Username}", Client.Username);
         }
 
         private async void Client_Disconnected(object sender, SoulseekClientDisconnectedEventArgs args)
@@ -380,7 +380,7 @@ namespace slskd
             }
             else if (args.Exception is KickedFromServerException)
             {
-                Logger.Error("Disconnected from the Soulseek server: another client logged in using the username {Username}", Options.Soulseek.Username);
+                Logger.Error("Disconnected from the Soulseek server: another client logged in using the username {Username}", Client.Username);
             }
             else
             {
@@ -446,7 +446,7 @@ namespace slskd
         private void Client_RoomJoined(object sender, RoomJoinedEventArgs args)
         {
             // this will fire when we join a room; track that through the join operation.
-            if (args.Username != Options.Soulseek.Username)
+            if (args.Username != Client.Username)
             {
                 RoomTracker.TryAddUser(args.RoomName, args.UserData);
             }
