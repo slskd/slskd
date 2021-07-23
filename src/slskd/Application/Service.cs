@@ -413,7 +413,7 @@ namespace slskd
             if (!fileInfo.Exists)
             {
                 Console.WriteLine($"[UPLOAD REJECTED] File {localFilename} not found.");
-                throw new DownloadEnqueueException($"File not found.");
+                throw new DownloadEnqueueException($"File not shared.");
             }
 
             if (tracker.TryGet(TransferDirection.Upload, username, filename, out _))
