@@ -1,4 +1,4 @@
-// <copyright file="Service.cs" company="slskd Team">
+﻿// <copyright file="Service.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -208,13 +208,12 @@ namespace slskd
                 foreach (var (property, fqn, left, right) in diff)
                 {
                     var requiresRestart = property.CustomAttributes.Any(c => c.AttributeType == typeof(RequiresRestartAttribute));
+                    var requiresReconnect = property.CustomAttributes.Any(c => c.AttributeType == typeof(RequiresReconnectAttribute));
 
-                    Logger.Debug($"{fqn} changed from '{left ?? "<null>"}' to '{right ?? "<null>"}'{(requiresRestart ? "; Restart required to take effect." : string.Empty)}");
+                    Logger.Debug($"{fqn} changed from '{left ?? "<null>"}' to '{right ?? "<null>"}'{(requiresRestart ? "; Restart required to take effect." : string.Empty)}{(requiresReconnect ? "; Reconnect required to take effect." : string.Empty)}");
 
-                    if (requiresRestart)
-                    {
-                        pendingRestart = true;
-                    }
+                    pendingRestart |= requiresRestart;
+                    pendingReconnect |= requiresReconnect;
                 }
 
                 // determine whether any Soulseek options changed.  if so, we need to construct a patch
@@ -270,9 +269,9 @@ namespace slskd
 
                     Logger.Debug("Patching Soulseek options with {Patch}", patch.ToJson());
 
-                    pendingReconnect = await SoulseekClient.ReconfigureOptionsAsync(patch);
+                    var reconfigRequiresReconnect = await SoulseekClient.ReconfigureOptionsAsync(patch);
 
-                    if (pendingReconnect)
+                    if ((Client.State.HasFlag(SoulseekClientStates.Connected) && pendingReconnect) | reconfigRequiresReconnect)
                     {
                         StateMonitor.Set(state => state with { PendingReconnect = true });
                         Logger.Information("One or more updated Soulseek options requires the client to be disconnected, then reconnected to the network to take effect.");
