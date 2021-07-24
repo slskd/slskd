@@ -17,9 +17,6 @@
 
 namespace slskd
 {
-    using System;
-    using System.Text.Json;
-
     /// <summary>
     ///     Application state.
     /// </summary>
