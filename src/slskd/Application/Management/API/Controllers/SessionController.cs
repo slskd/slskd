@@ -37,15 +37,15 @@ namespace slskd.Management.API
     public class SessionController : ControllerBase
     {
         public SessionController(
-            Options optionsSnapshotAtStartup,
+            OptionsAtStartup optionsAtStartup,
             SymmetricSecurityKey jwtSigningKey)
         {
-            Options = optionsSnapshotAtStartup;
+            OptionsAtStartup = optionsAtStartup;
             JwtSigningKey = jwtSigningKey;
         }
 
         private SymmetricSecurityKey JwtSigningKey { get; set; }
-        private Options Options { get; set; }
+        private OptionsAtStartup OptionsAtStartup { get; set; }
 
         /// <summary>
         ///     Checks whether the provided authentication is valid.
@@ -75,7 +75,7 @@ namespace slskd.Management.API
         [ProducesResponseType(typeof(bool), 200)]
         public IActionResult Enabled()
         {
-            return Ok(!Options.Web.Authentication.Disable);
+            return Ok(!OptionsAtStartup.Web.Authentication.Disable);
         }
 
         /// <summary>
@@ -106,7 +106,7 @@ namespace slskd.Management.API
             }
 
             // only admin login for now
-            if (Options.Web.Authentication.Username == login.Username && Options.Web.Authentication.Password == login.Password)
+            if (OptionsAtStartup.Web.Authentication.Username == login.Username && OptionsAtStartup.Web.Authentication.Password == login.Password)
             {
                 return Ok(new TokenResponse(GetJwtSecurityToken(login.Username, Role.Administrator)));
             }
@@ -117,7 +117,7 @@ namespace slskd.Management.API
         private JwtSecurityToken GetJwtSecurityToken(string username, Role role)
         {
             var issuedUtc = DateTime.UtcNow;
-            var expiresUtc = DateTime.UtcNow.AddMilliseconds(Options.Web.Authentication.Jwt.Ttl);
+            var expiresUtc = DateTime.UtcNow.AddMilliseconds(OptionsAtStartup.Web.Authentication.Jwt.Ttl);
 
             var claims = new List<Claim>()
             {
