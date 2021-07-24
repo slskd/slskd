@@ -61,12 +61,6 @@ namespace slskd.Management
             => Client.Disconnect(message, exception ?? new IntentionalDisconnectException(message));
 
         /// <summary>
-        ///     Gets the current application options.
-        /// </summary>
-        /// <returns></returns>
-        public Options GetOptions() => Options;
-
-        /// <summary>
         ///     Gets the current state of the connection to the Soulseek server.
         /// </summary>
         /// <returns>The current server state.</returns>

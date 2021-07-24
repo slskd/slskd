@@ -39,12 +39,6 @@ namespace slskd.Management
         void DisconnectServer(string message = null, Exception exception = null);
 
         /// <summary>
-        ///     Gets the current application options.
-        /// </summary>
-        /// <returns></returns>
-        Options GetOptions();
-
-        /// <summary>
         ///     Gets the current state of the connection to the Soulseek server.
         /// </summary>
         /// <returns>The current server state.</returns>
