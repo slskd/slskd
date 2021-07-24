@@ -22,6 +22,7 @@ namespace slskd
     using System.IO;
     using System.Linq;
     using System.Net;
+    using System.Reflection;
     using System.Threading;
     using System.Threading.Tasks;
     using Microsoft.Extensions.Hosting;
@@ -59,7 +60,7 @@ namespace slskd
             OptionsMonitor = optionsMonitor;
             OptionsMonitor.OnChange(async options => await OptionsMonitor_OnChange(options));
 
-            OptionPostConfigurationSnapshot = OptionsMonitor.CurrentValue;
+            PreviousOptions = OptionsMonitor.CurrentValue;
 
             StateMonitor = stateMonitor;
             StateMonitor.OnChange(state => StateMonitor_OnChange(state));
@@ -147,7 +148,7 @@ namespace slskd
         private ConcurrentDictionary<string, ILogger> Loggers { get; } = new ConcurrentDictionary<string, ILogger>();
         private IOptionsMonitor<Options> OptionsMonitor { get; set; }
         private OptionsAtStartup OptionsAtStartup { get; set; }
-        private Options OptionPostConfigurationSnapshot { get; set; }
+        private Options PreviousOptions { get; set; }
         private IRoomTracker RoomTracker { get; set; }
         private IStateMonitor StateMonitor { get; set; }
         private ISharedFileCache SharedFileCache { get; set; }
@@ -183,7 +184,7 @@ namespace slskd
             return Task.CompletedTask;
         }
 
-        private async Task OptionsMonitor_OnChange(Options options)
+        private async Task OptionsMonitor_OnChange(Options newOptions)
         {
             // this code is known to fire more than once per update.  i'm not sure
             // whether these might be executed concurrently. lock to be safe, because
@@ -195,8 +196,9 @@ namespace slskd
             {
                 var pendingRestart = false;
                 var pendingReconnect = false;
+                var soulseekRequiresReconnect = false;
 
-                var diff = OptionPostConfigurationSnapshot.DiffWith(options);
+                var diff = PreviousOptions.DiffWith(newOptions);
 
                 // don't react to duplicate/no-change events
                 // https://github.com/slskd/slskd/issues/126
@@ -207,8 +209,10 @@ namespace slskd
 
                 foreach (var (property, fqn, left, right) in diff)
                 {
-                    var requiresRestart = property.CustomAttributes.Any(c => c.AttributeType == typeof(RequiresRestartAttribute));
-                    var requiresReconnect = property.CustomAttributes.Any(c => c.AttributeType == typeof(RequiresReconnectAttribute));
+                    static bool HasAttribute<T>(PropertyInfo property) => property.CustomAttributes.Any(a => a.AttributeType == typeof(T));
+
+                    var requiresRestart = HasAttribute<RequiresRestartAttribute>(property);
+                    var requiresReconnect = HasAttribute<RequiresReconnectAttribute>(property);
 
                     Logger.Debug($"{fqn} changed from '{left ?? "<null>"}' to '{right ?? "<null>"}'{(requiresRestart ? "; Restart required to take effect." : string.Empty)}{(requiresReconnect ? "; Reconnect required to take effect." : string.Empty)}");
 
@@ -218,12 +222,12 @@ namespace slskd
 
                 // determine whether any Soulseek options changed.  if so, we need to construct a patch
                 // and invoke ReconfigureOptionsAsync().
-                var slskDiff = OptionPostConfigurationSnapshot.Soulseek.DiffWith(options.Soulseek);
+                var slskDiff = PreviousOptions.Soulseek.DiffWith(newOptions.Soulseek);
 
                 if (slskDiff.Any())
                 {
-                    var old = OptionPostConfigurationSnapshot.Soulseek;
-                    var update = options.Soulseek;
+                    var old = PreviousOptions.Soulseek;
+                    var update = newOptions.Soulseek;
 
                     Logger.Debug("Soulseek options changed from {Previous} to {Current}", old.ToJson(), update.ToJson());
 
@@ -269,13 +273,15 @@ namespace slskd
 
                     Logger.Debug("Patching Soulseek options with {Patch}", patch.ToJson());
 
-                    var reconfigRequiresReconnect = await SoulseekClient.ReconfigureOptionsAsync(patch);
+                    soulseekRequiresReconnect = await SoulseekClient.ReconfigureOptionsAsync(patch);
+                }
 
-                    if ((Client.State.HasFlag(SoulseekClientStates.Connected) && pendingReconnect) | reconfigRequiresReconnect)
-                    {
-                        StateMonitor.Set(state => state with { PendingReconnect = true });
-                        Logger.Information("One or more updated Soulseek options requires the client to be disconnected, then reconnected to the network to take effect.");
-                    }
+                // require a reconnect if the client is connected and any options marked [RequiresReconnect] changed,
+                // OR if the call to reconfigure the client requires a reconnect
+                if ((Client.State.HasFlag(SoulseekClientStates.Connected) && pendingReconnect) || soulseekRequiresReconnect)
+                {
+                    StateMonitor.Set(state => state with { PendingReconnect = true });
+                    Logger.Information("One or more updated Soulseek options requires the client to be disconnected, then reconnected to the network to take effect.");
                 }
 
                 if (pendingRestart)
@@ -292,7 +298,7 @@ namespace slskd
             }
             finally
             {
-                OptionPostConfigurationSnapshot = OptionsMonitor.CurrentValue;
+                PreviousOptions = OptionsMonitor.CurrentValue;
                 OptionsSyncRoot.ExitWriteLock();
             }
         }
@@ -407,7 +413,7 @@ namespace slskd
 
                     try
                     {
-                        // reconnect with the latest configuration values we have for username and password, instead of the options that were 
+                        // reconnect with the latest configuration values we have for username and password, instead of the options that were
                         // captured at startup.  if a user has updated these values prior to the disconnect, the changes will take effect now.
                         await Client.ConnectAsync(OptionsMonitor.CurrentValue.Soulseek.Username, OptionsMonitor.CurrentValue.Soulseek.Password);
                         break;
