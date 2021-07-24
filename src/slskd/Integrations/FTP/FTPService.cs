@@ -15,6 +15,8 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
+using Microsoft.Extensions.Options;
+
 namespace slskd.Integrations.FTP
 {
     using System;
@@ -38,18 +40,18 @@ namespace slskd.Integrations.FTP
         /// <param name="log">The logger.</param>
         public FTPService(
             IFTPClientFactory ftpClientFactory,
-            Microsoft.Extensions.Options.IOptionsMonitor<Options> optionsMonitor,
+            IOptionsMonitor<Options> optionsMonitor,
             ILogger<FTPService> log)
         {
             Factory = ftpClientFactory;
-            Options = optionsMonitor.CurrentValue;
+            OptionsMonitor = optionsMonitor;
             Log = log;
         }
 
         private IFTPClientFactory Factory { get; set; }
-        private FTPOptions FTPOptions => Options.Integration.FTP;
+        private FTPOptions FTPOptions => OptionsMonitor.CurrentValue.Integration.FTP;
         private ILogger<FTPService> Log { get; set; }
-        private Options Options { get; }
+        private IOptionsMonitor<Options> OptionsMonitor { get; }
 
         /// <summary>
         ///     Uploads the specified <paramref name="filename"/> to the configured FTP server.

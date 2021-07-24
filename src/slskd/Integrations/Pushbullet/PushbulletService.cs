@@ -15,6 +15,8 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
+using Microsoft.Extensions.Options;
+
 namespace slskd.Integrations.Pushbullet
 {
     using System;
@@ -41,21 +43,31 @@ namespace slskd.Integrations.Pushbullet
         /// <param name="log">The logger.</param>
         public PushbulletService(
             IHttpClientFactory httpClientFactory,
-            Microsoft.Extensions.Options.IOptionsMonitor<Options> optionsMonitor,
+            IOptionsMonitor<Options> optionsMonitor,
             ILogger<PushbulletService> log)
         {
             HttpClientFactory = httpClientFactory;
-            Options = optionsMonitor.CurrentValue;
+            OptionsMonitor = optionsMonitor;
             Log = log;
 
             RecentlySent = new MemoryCache(new MemoryCacheOptions());
         }
 
+        private bool Disposed { get; set; }
         private IHttpClientFactory HttpClientFactory { get; }
-        private Options Options { get; }
         private ILogger<PushbulletService> Log { get; }
-        private PushbulletOptions PushbulletOptions => Options.Integration.Pushbullet;
+        private IOptionsMonitor<Options> OptionsMonitor { get; }
+        private PushbulletOptions PushbulletOptions => OptionsMonitor.CurrentValue.Integration.Pushbullet;
         private IMemoryCache RecentlySent { get; }
+
+        /// <summary>
+        ///     Performs application-defined tasks associated with freeing, releasing, or resetting unmanaged resources.
+        /// </summary>
+        public void Dispose()
+        {
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
+        }
 
         /// <summary>
         ///     Sends a push notification to Pushbullet.
@@ -66,6 +78,11 @@ namespace slskd.Integrations.Pushbullet
         /// <returns>The operation context.</returns>
         public Task PushAsync(string title, string cacheKey, string body)
         {
+            if (!PushbulletOptions.Enabled)
+            {
+                return Task.CompletedTask;
+            }
+
             if (string.IsNullOrWhiteSpace(title))
             {
                 throw new ArgumentException("A notification title must be supplied", nameof(title));
@@ -89,6 +106,19 @@ namespace slskd.Integrations.Pushbullet
             RecentlySent.Set(cacheKey, value: true, absoluteExpirationRelativeToNow: TimeSpan.FromMilliseconds(PushbulletOptions.CooldownTime));
 
             return PushInternalAsync(title, body);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!Disposed)
+            {
+                if (disposing)
+                {
+                    RecentlySent.Dispose();
+                }
+
+                Disposed = true;
+            }
         }
 
         private async Task PushInternalAsync(string title, string body)

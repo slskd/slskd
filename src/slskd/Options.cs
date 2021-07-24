@@ -15,6 +15,8 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
+using Microsoft.Extensions.Options;
+
 namespace slskd
 {
     using System;
@@ -23,14 +25,61 @@ namespace slskd
     using System.ComponentModel.DataAnnotations;
     using System.Diagnostics;
     using FluentFTP;
+    using slskd.Configuration;
     using slskd.Validation;
     using Soulseek.Diagnostics;
     using Utility.CommandLine;
     using Utility.EnvironmentVariables;
 
     /// <summary>
+    ///     Disambiguates options derived at startup from options that may update at run time.
+    /// </summary>
+    /// <remarks>
+    ///     This class is added directly to dependency injection, but <see cref="Options"/> is not, so consumers must inject <see cref="OptionsAtStartup"/>
+    ///     instead of <see cref="Options"/> to make it clear that these options will not change.  Options that may change should be accessed by injecting
+    ///     <see cref="IOptionsMonitor{T}"/> or <see cref="IOptionsSnapshot{T}"/>, depending on the lifetime of the component.
+    /// </remarks>
+    public class OptionsAtStartup : Options
+    {
+    }
+
+    /// <summary>
     ///     Application options.
     /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         This class contains all application options, which may be sourced from (in order of precedence):
+    ///         <list type="bullet">
+    ///             <item>
+    ///                 <term>Defaults</term>
+    ///                 <description>Default values, statically defined in this class.</description>
+    ///             </item>
+    ///             <item>
+    ///                 <term>Environment Variables</term>
+    ///                 <description>Environment variables set at either the system or user scope.</description>
+    ///             </item>
+    ///             <item>
+    ///                 <term>YAML Configuration File</term>
+    ///                 <description>A YAML file containing a mapping of this class.</description>
+    ///             </item>
+    ///             <item>
+    ///                 <term>Command Line</term>
+    ///                 <description>Options provided via the command line when starting the application.</description>
+    ///             </item>
+    ///         </list>
+    ///     </para>
+    ///     <para>
+    ///         Only the YAML configuration source can change at runtime and consumers of this class must be aware of this, either injecting
+    ///         <see cref="IOptionsMonitor{T}"/> in components with a singleton lifetime, or <see cref="IOptionsSnapshot{T}"/> for transient or scoped lifetimes.
+    ///     </para>
+    ///     <para>
+    ///         To obtain the Options specified at startup (discarding any updates that may have been applied since), inject <see cref="OptionsAtStartup"/>.
+    ///     </para>
+    ///     <para>
+    ///         Options specified via the command line can not be overwritten by changes to the YAML file.  This is by design due to the immutable
+    ///         nature of the command line string after the application is started.
+    ///     </para>
+    /// </remarks>
     public class Options
     {
         /// <summary>
@@ -38,6 +87,7 @@ namespace slskd
         /// </summary>
         [Argument('v', "version")]
         [Description("display version information")]
+        [Obsolete("Used only for documentation; see Program for actual implementation")]
         public bool ShowVersion { get; private set; } = false;
 
         /// <summary>
@@ -45,6 +95,7 @@ namespace slskd
         /// </summary>
         [Argument('h', "help")]
         [Description("display command line usage")]
+        [Obsolete("Used only for documentation; see Program for actual implementation")]
         public bool ShowHelp { get; private set; } = false;
 
         /// <summary>
@@ -52,6 +103,7 @@ namespace slskd
         /// </summary>
         [Argument('e', "envars")]
         [Description("display environment variables")]
+        [Obsolete("Used only for documentation; see Program for actual implementation")]
         public bool ShowEnvironmentVariables { get; private set; } = false;
 
         /// <summary>
@@ -59,6 +111,7 @@ namespace slskd
         /// </summary>
         [Argument('g', "generate-cert")]
         [Description("generate X509 certificate and password for HTTPs")]
+        [Obsolete("Used only for documentation; see Program for actual implementation")]
         public bool GenerateCertificate { get; private set; } = false;
 
         /// <summary>
@@ -67,6 +120,7 @@ namespace slskd
         [Argument('c', "config")]
         [EnvironmentVariable("CONFIG")]
         [Description("path to configuration file")]
+        [Obsolete("Used only for documentation; see Program for actual implementation")]
         public string ConfigurationFile { get; private set; } = Program.DefaultConfigurationFile;
 
         /// <summary>
@@ -75,6 +129,7 @@ namespace slskd
         [Argument('d', "debug")]
         [EnvironmentVariable("DEBUG")]
         [Description("run in debug mode")]
+        [RequiresRestart]
         public bool Debug { get; private set; } = Debugger.IsAttached;
 
         /// <summary>
@@ -83,6 +138,7 @@ namespace slskd
         [Argument('n', "no-logo")]
         [EnvironmentVariable("NO_LOGO")]
         [Description("suppress logo on startup")]
+        [RequiresRestart]
         public bool NoLogo { get; private set; } = false;
 
         /// <summary>
@@ -91,6 +147,7 @@ namespace slskd
         [Argument('x', "no-start")]
         [EnvironmentVariable("NO_START")]
         [Description("quit the application after initialization")]
+        [RequiresRestart]
         public bool NoStart { get; private set; } = false;
 
         /// <summary>
@@ -99,12 +156,14 @@ namespace slskd
         [Argument('i', "instance-name")]
         [EnvironmentVariable("INSTANCE_NAME")]
         [Description("optional; a unique name for this instance")]
+        [RequiresRestart]
         public string InstanceName { get; private set; } = "default";
 
         /// <summary>
         ///     Gets directory options.
         /// </summary>
         [Validate]
+        [RequiresRestart]
         public DirectoriesOptions Directories { get; private set; } = new DirectoriesOptions();
 
         /// <summary>
@@ -117,12 +176,14 @@ namespace slskd
         ///     Gets logger options.
         /// </summary>
         [Validate]
+        [RequiresRestart]
         public LoggerOptions Logger { get; private set; } = new LoggerOptions();
 
         /// <summary>
         ///     Gets feature options.
         /// </summary>
         [Validate]
+        [RequiresRestart]
         public FeatureOptions Feature { get; private set; } = new FeatureOptions();
 
         /// <summary>
@@ -149,6 +210,7 @@ namespace slskd
             [EnvironmentVariable("APP_DIR")]
             [Description("path where application data is saved")]
             [DirectoryExists]
+            [RequiresRestart]
             public string App { get; private set; } = Program.DefaultAppDirectory;
 
             /// <summary>
@@ -158,6 +220,7 @@ namespace slskd
             [EnvironmentVariable("INCOMPLETE_DIR")]
             [Description("path where incomplete downloads are saved")]
             [DirectoryExists]
+            [RequiresRestart]
             public string Incomplete { get; private set; } = Program.DefaultIncompleteDirectory;
 
             /// <summary>
@@ -167,6 +230,7 @@ namespace slskd
             [EnvironmentVariable("DOWNLOADS_DIR")]
             [Description("path where downloaded files are saved")]
             [DirectoryExists]
+            [RequiresRestart]
             public string Downloads { get; private set; } = Program.DefaultDownloadsDirectory;
 
             /// <summary>
@@ -176,6 +240,7 @@ namespace slskd
             [EnvironmentVariable("SHARED_DIR")]
             [Description("path to shared files")]
             [DirectoryExists]
+            [RequiresRestart]
             public string Shared { get; private set; } = Program.DefaultSharedDirectory;
         }
 
@@ -190,6 +255,7 @@ namespace slskd
             [Argument(default, "prometheus")]
             [EnvironmentVariable("PROMETHEUS")]
             [Description("enable collection and publishing of prometheus metrics")]
+            [RequiresRestart]
             public bool Prometheus { get; private set; } = false;
 
             /// <summary>
@@ -198,6 +264,7 @@ namespace slskd
             [Argument(default, "swagger")]
             [EnvironmentVariable("SWAGGER")]
             [Description("enable swagger documentation and UI")]
+            [RequiresRestart]
             public bool Swagger { get; private set; } = false;
         }
 
@@ -212,6 +279,7 @@ namespace slskd
             [Argument(default, "loki")]
             [EnvironmentVariable("LOKI")]
             [Description("optional; url to a Grafana Loki instance to which to log")]
+            [RequiresRestart]
             public string Loki { get; private set; } = null;
         }
 
@@ -226,6 +294,7 @@ namespace slskd
             [Argument(default, "slsk-username")]
             [EnvironmentVariable("SLSK_USERNAME")]
             [Description("username for the Soulseek network")]
+            [RequiresReconnect]
             public string Username { get; private set; } = null;
 
             /// <summary>
@@ -234,6 +303,7 @@ namespace slskd
             [Argument(default, "slsk-password")]
             [EnvironmentVariable("SLSK_PASSWORD")]
             [Description("password for the Soulseek network")]
+            [RequiresReconnect]
             public string Password { get; private set; } = null;
 
             /// <summary>
@@ -251,6 +321,7 @@ namespace slskd
             [Argument(default, "slsk-diag-level")]
             [EnvironmentVariable("SLSK_DIAG_LEVEL")]
             [Description("minimum diagnostic level (None, Warning, Info, Debug)")]
+            [RequiresRestart]
             public DiagnosticLevel DiagnosticLevel { get; private set; } = DiagnosticLevel.Info;
 
             /// <summary>
@@ -339,8 +410,16 @@ namespace slskd
                 /// <summary>
                 ///     Connection proxy options.
                 /// </summary>
-                public class ProxyOptions
+                public class ProxyOptions : IValidatableObject
                 {
+                    /// <summary>
+                    ///     Gets a value indicating whether the proxy is enabled.
+                    /// </summary>
+                    [Argument(default, "slsk-proxy")]
+                    [EnvironmentVariable("SLSK_PROXY_ENABLED")]
+                    [Description("enable connection proxy")]
+                    public bool Enabled { get; private set; } = false;
+
                     /// <summary>
                     ///     Gets the proxy address.
                     /// </summary>
@@ -376,6 +455,28 @@ namespace slskd
                     [Description("connection proxy password")]
                     [StringLength(255, MinimumLength = 1)]
                     public string Password { get; private set; }
+
+                    /// <summary>
+                    ///     Extended validation.
+                    /// </summary>
+                    /// <param name="validationContext"></param>
+                    /// <returns></returns>
+                    public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+                    {
+                        var results = new List<ValidationResult>();
+
+                        if (Enabled && string.IsNullOrWhiteSpace(Address))
+                        {
+                            results.Add(new ValidationResult($"The Enabled field is true, but no Address has been specified."));
+                        }
+
+                        if (Enabled && !Port.HasValue)
+                        {
+                            results.Add(new ValidationResult($"The Enabled field is true, but no Port has been specified."));
+                        }
+
+                        return results;
+                    }
                 }
             }
 
@@ -415,12 +516,14 @@ namespace slskd
             [EnvironmentVariable("HTTP_PORT")]
             [Description("HTTP listen port for web UI")]
             [Range(1, 65535)]
+            [RequiresRestart]
             public int Port { get; private set; } = 5000;
 
             /// <summary>
             ///     Gets HTTPS options.
             /// </summary>
             [Validate]
+            [RequiresRestart]
             public HttpsOptions Https { get; private set; } = new HttpsOptions();
 
             /// <summary>
@@ -429,6 +532,7 @@ namespace slskd
             [Argument(default, "url-base")]
             [EnvironmentVariable("URL_BASE")]
             [Description("base url for web requests")]
+            [RequiresRestart]
             public string UrlBase { get; private set; } = "/";
 
             /// <summary>
@@ -438,6 +542,7 @@ namespace slskd
             [EnvironmentVariable("CONTENT_PATH")]
             [Description("path to static web content")]
             [StringLength(255, MinimumLength = 1)]
+            [RequiresRestart]
             public string ContentPath { get; private set; } = "wwwroot";
 
             /// <summary>
@@ -457,6 +562,7 @@ namespace slskd
                 [Argument('x', "no-auth")]
                 [EnvironmentVariable("NO_AUTH")]
                 [Description("disable authentication for web requests")]
+                [RequiresRestart]
                 public bool Disable { get; private set; } = false;
 
                 /// <summary>
@@ -481,6 +587,7 @@ namespace slskd
                 ///     Gets JWT options.
                 /// </summary>
                 [Validate]
+                [RequiresRestart]
                 public JwtOptions Jwt { get; private set; } = new JwtOptions();
 
                 /// <summary>
@@ -495,6 +602,7 @@ namespace slskd
                     [EnvironmentVariable("JWT_KEY")]
                     [Description("JWT signing key")]
                     [StringLength(255, MinimumLength = 1)]
+                    [RequiresRestart]
                     public string Key { get; private set; } = Guid.NewGuid().ToString();
 
                     /// <summary>
@@ -504,6 +612,7 @@ namespace slskd
                     [EnvironmentVariable("JWT_TTL")]
                     [Description("TTL for JWTs")]
                     [Range(3600, int.MaxValue)]
+                    [RequiresRestart]
                     public int Ttl { get; private set; } = 604800000;
                 }
             }
@@ -520,6 +629,7 @@ namespace slskd
                 [EnvironmentVariable("HTTPS_PORT")]
                 [Description("HTTPS listen port for web UI")]
                 [Range(1, 65535)]
+                [RequiresRestart]
                 public int Port { get; private set; } = 5001;
 
                 /// <summary>
@@ -528,12 +638,14 @@ namespace slskd
                 [Argument('f', "force-https")]
                 [EnvironmentVariable("HTTPS_FORCE")]
                 [Description("redirect HTTP to HTTPS")]
+                [RequiresRestart]
                 public bool Force { get; private set; } = false;
 
                 /// <summary>
                 ///     Gets certificate options.
                 /// </summary>
                 [Validate]
+                [RequiresRestart]
                 public CertificateOptions Certificate { get; private set; } = new CertificateOptions();
 
                 /// <summary>
@@ -549,6 +661,7 @@ namespace slskd
                     [EnvironmentVariable("HTTPS_CERT_PFX")]
                     [Description("path to X509 certificate .pfx")]
                     [FileExists]
+                    [RequiresRestart]
                     public string Pfx { get; private set; }
 
                     /// <summary>
@@ -557,6 +670,7 @@ namespace slskd
                     [Argument(default, "https-cert-password")]
                     [EnvironmentVariable("HTTPS_CERT_PASSWORD")]
                     [Description("X509 certificate password")]
+                    [RequiresRestart]
                     public string Password { get; private set; }
                 }
             }
@@ -676,6 +790,11 @@ namespace slskd
                 [Range(0, 5)]
                 public int RetryAttempts { get; private set; } = 3;
 
+                /// <summary>
+                ///     Extended validation.
+                /// </summary>
+                /// <param name="validationContext"></param>
+                /// <returns></returns>
                 public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
                 {
                     var results = new List<ValidationResult>();
@@ -752,6 +871,11 @@ namespace slskd
                 [Description("cooldown time for Pushbullet notifications, in milliseconds")]
                 public int CooldownTime { get; private set; } = 900000; // 15 minutes
 
+                /// <summary>
+                ///     Extended validation.
+                /// </summary>
+                /// <param name="validationContext"></param>
+                /// <returns></returns>
                 public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
                 {
                     var results = new List<ValidationResult>();

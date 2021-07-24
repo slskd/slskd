@@ -1,4 +1,4 @@
-﻿// <copyright file="ApplicationController.cs" company="slskd Team">
+﻿// <copyright file="OptionsController.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -15,58 +15,57 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
+using Microsoft.Extensions.Options;
+
 namespace slskd.Management.API
 {
-    using System;
-    using System.Diagnostics;
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
-    using Microsoft.Extensions.Hosting;
-    using Soulseek;
 
     /// <summary>
-    ///     Application.
+    ///     Options.
     /// </summary>
     [Route("api/v{version:apiVersion}/[controller]")]
     [ApiVersion("0")]
     [ApiController]
     [Produces("application/json")]
     [Consumes("application/json")]
-    public class ApplicationController : ControllerBase
+    public class OptionsController : ControllerBase
     {
-        public ApplicationController(ISoulseekClient client, IHostApplicationLifetime lifetime)
+        public OptionsController(
+            OptionsAtStartup optionsAtStartup,
+            IOptionsSnapshot<Options> optionsSnapshot)
         {
-            Client = client;
-            Lifetime = lifetime;
+            OptionsAtStartup = optionsAtStartup;
+            OptionsSnapshot = optionsSnapshot;
         }
 
-        private ISoulseekClient Client { get; }
-        private IHostApplicationLifetime Lifetime { get; }
+        private IOptionsSnapshot<Options> OptionsSnapshot { get; }
+        private OptionsAtStartup OptionsAtStartup { get; }
 
         /// <summary>
-        ///     Stops the application.
+        ///     Gets the current application options.
         /// </summary>
         /// <returns></returns>
-        [HttpDelete]
+        [HttpGet]
         [Authorize]
-        public IActionResult Shutdown()
+        [ProducesResponseType(typeof(Options), 200)]
+        public IActionResult Current()
         {
-            Lifetime.StopApplication();
-            return NoContent();
+            return Ok(OptionsSnapshot.Value);
         }
 
         /// <summary>
-        ///     Restarts the application.
+        ///     Gets the application options provided at startup.
         /// </summary>
         /// <returns></returns>
-        [HttpPut]
+        [HttpGet]
+        [Route("startup")]
         [Authorize]
-        public IActionResult Restart()
+        [ProducesResponseType(typeof(Options), 200)]
+        public IActionResult Startup()
         {
-            Process.Start(Process.GetCurrentProcess().MainModule.FileName, Environment.CommandLine);
-            Lifetime.StopApplication();
-
-            return NoContent();
+            return Ok(OptionsAtStartup);
         }
     }
 }

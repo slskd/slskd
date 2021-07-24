@@ -1,4 +1,4 @@
-﻿// <copyright file="IManagementService.cs" company="slskd Team">
+﻿// <copyright file="IStateMonitor.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -15,33 +15,32 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-namespace slskd.Management
+namespace slskd
 {
     using System;
-    using System.Threading.Tasks;
 
     /// <summary>
-    ///     Application and Soulseek client management.
+    ///     Used for notifications when <see cref="State"/> changes.
     /// </summary>
-    public interface IManagementService
+    public interface IStateMonitor
     {
         /// <summary>
-        ///     Connects the Soulseek client to the server using the configured username and password.
+        ///     Gets the current application state.
         /// </summary>
-        /// <returns>The operation context.</returns>
-        Task ConnectServerAsync();
+        State Current { get; }
 
         /// <summary>
-        ///     Disconnects the Soulseek client from the server.
+        ///     Registers a listener to be called whenever <see cref="State"/> changes.
         /// </summary>
-        /// <param name="message">An optional message containing the reason for the disconnect.</param>
-        /// <param name="exception">An optional Exception to associate with the disconnect.</param>
-        void DisconnectServer(string message = null, Exception exception = null);
+        /// <param name="listener">Registers a listener to be called whenver state changes.</param>
+        /// <returns>An <see cref="IDisposable"/> which should be disposed to stop listening for changes.</returns>
+        IDisposable OnChange(Action<(State Previous, State Current)> listener);
 
         /// <summary>
-        ///     Gets the current state of the connection to the Soulseek server.
+        ///     Replaces the current state with the value resolved by the <paramref name="setter"/>.
         /// </summary>
-        /// <returns>The current server state.</returns>
-        ServerState GetServerState();
+        /// <param name="setter">Given the current state, resolves a new state value.</param>
+        /// <returns>The updated state.</returns>
+        State Set(Func<State, State> setter);
     }
 }

@@ -15,6 +15,8 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
+using Microsoft.Extensions.Options;
+
 namespace slskd.Management
 {
     using System;
@@ -32,15 +34,23 @@ namespace slskd.Management
         /// <param name="optionsMonitor">The options monitor used to derive application options.</param>
         /// <param name="soulseekClient">The Soulseek client.</param>
         public ManagementService(
-            Microsoft.Extensions.Options.IOptionsMonitor<Options> optionsMonitor,
+            IOptionsMonitor<Options> optionsMonitor,
             ISoulseekClient soulseekClient)
         {
-            Options = optionsMonitor.CurrentValue;
+            OptionsMonitor = optionsMonitor;
             Client = soulseekClient;
         }
 
         private ISoulseekClient Client { get; }
-        private Options Options { get; }
+        private Options Options => OptionsMonitor.CurrentValue;
+        private IOptionsMonitor<Options> OptionsMonitor { get; }
+
+        /// <summary>
+        ///     Connects the Soulseek client to the server using the configured username and password.
+        /// </summary>
+        /// <returns>The operation context.</returns>
+        public Task ConnectServerAsync()
+            => Client.ConnectAsync(Options.Soulseek.Username, Options.Soulseek.Password);
 
         /// <summary>
         ///     Disconnects the Soulseek client from the server.
@@ -49,13 +59,6 @@ namespace slskd.Management
         /// <param name="exception">An optional Exception to associate with the disconnect.</param>
         public void DisconnectServer(string message = null, Exception exception = null)
             => Client.Disconnect(message, exception ?? new IntentionalDisconnectException(message));
-
-        /// <summary>
-        ///     Connects the Soulseek client to the server using the configured username and password.
-        /// </summary>
-        /// <returns>The operation context.</returns>
-        public Task ConnectServerAsync()
-            => Client.ConnectAsync(Options.Soulseek.Username, Options.Soulseek.Password);
 
         /// <summary>
         ///     Gets the current state of the connection to the Soulseek server.

@@ -1,72 +1,71 @@
-# slskd:
-#   debug: false
-#   no_logo: false
-#   instance_name: default
-#   web:
-#     port: 5000
-#     https:
-#       port: 5001
-#       force: false
-#       certificate:
-#         pfx: ~
-#         password: ~
-#     url_base: /
-#     content_path: wwwroot
-#     authentication:
-#       disable: false
-#       username: slskd
-#       password: slskd
-#       jwt:
-#         key: ~
-#         ttl: 604800000
-#   directories:
-#     app: ~
-#     incomplete: ~
-#     downloads: ~
-#     shared: ~
-#   logger:
-#     loki: ~
-#   feature:
-#     prometheus: false
-#     swagger: false
-#   soulseek:
-#     username: ~
-#     password: ~
-#     listen_port: 50000
-#     diagnostic_level: Info
-#     distributed_network:
-#       disabled: false
-#       child_limit: 25
-#     connection:
-#       timeout:
-#         connect: 10000
-#         inactivity: 15000
-#       buffer:
-#         read: 16384
-#         write: 16384
-#       proxy:
-#         address: ~
-#         port: ~
-#         username: ~
-#         password: ~
-#   integration:
-#     ftp:
-#       enabled: false
+# debug: false
+# no_logo: false
+# instance_name: default
+# web:
+#   port: 5000
+#   https:
+#     port: 5001
+#     force: false
+#     certificate:
+#       pfx: ~
+#       password: ~
+#   url_base: /
+#   content_path: wwwroot
+#   authentication:
+#     disable: false
+#     username: slskd
+#     password: slskd
+#     jwt:
+#       key: ~
+#       ttl: 604800000
+# directories:
+#   app: ~
+#   incomplete: ~
+#   downloads: ~
+#   shared: ~
+# logger:
+#   loki: ~
+# feature:
+#   prometheus: false
+#   swagger: false
+# soulseek:
+#   username: ~
+#   password: ~
+#   listen_port: 50000
+#   diagnostic_level: Info
+#   distributed_network:
+#     disabled: false
+#     child_limit: 25
+#   connection:
+#     timeout:
+#       connect: 10000
+#       inactivity: 15000
+#     buffer:
+#       read: 16384
+#       write: 16384
+#     proxy:
 #       address: ~
 #       port: ~
-#       encryption_mode: auto
-#		ignore_certificate_errors: false
 #       username: ~
 #       password: ~
-#       remote_path: /
-#       overwrite_existing: true
-#       connection_timeout: 5000
-#       retry_attempts: 3
-#     pushbullet:
-#		enabled: false
-#		access_token: ~
-#		notification_prefix: "From slskd:"
-#		notify_on_private_message: true
-#		notify_on_room_mention: true
-#		retry_attempts: 3
-#		cooldown_time: 900000
+# integration:
+#   ftp:
+#     enabled: false
+#     address: ~
+#     port: ~
+#     encryption_mode: auto
+#     ignore_certificate_errors: false
+#     username: ~
+#     password: ~
+#     remote_path: /
+#     overwrite_existing: true
+#     connection_timeout: 5000
+#     retry_attempts: 3
+#   pushbullet:
+#     enabled: false
+#     access_token: ~
+#     notification_prefix: "From slskd:"
+#     notify_on_private_message: true
+#     notify_on_room_mention: true
+#     retry_attempts: 3
+#     cooldown_time: 900000

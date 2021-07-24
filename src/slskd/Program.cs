@@ -120,7 +120,7 @@ namespace slskd
         public static string Version { get; } = $"{AssemblyVersion} ({InformationalVersion})";
 
         private static IConfigurationRoot Configuration { get; set; }
-        private static Options Options { get; } = new Options();
+        private static OptionsAtStartup OptionsAtStartup { get; } = new OptionsAtStartup();
 
         [EnvironmentVariable("CONFIG")]
         [Argument('c', "config", "path to configuration file")]
@@ -193,14 +193,14 @@ namespace slskd
                     .Build();
 
                 Configuration.GetSection(AppName)
-                    .Bind(Options, (o) => { o.BindNonPublicProperties = true; });
+                    .Bind(OptionsAtStartup, (o) => { o.BindNonPublicProperties = true; });
 
-                if (Options.Debug)
+                if (OptionsAtStartup.Debug)
                 {
                     Console.WriteLine($"Configuration:\n{Configuration.GetDebugView()}");
                 }
 
-                if (!Options.TryValidate(out var result))
+                if (!OptionsAtStartup.TryValidate(out var result))
                 {
                     Console.WriteLine(result.GetResultView());
                     return;
@@ -208,16 +208,16 @@ namespace slskd
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Invalid configuration: {(!Options.Debug ? ex : ex.Message)}");
+                Console.WriteLine($"Invalid configuration: {(!OptionsAtStartup.Debug ? ex : ex.Message)}");
                 return;
             }
 
             try
             {
-                VerifyOrCreateDirectory(Options.Directories.App);
-                VerifyOrCreateDirectory(Options.Directories.Incomplete);
-                VerifyOrCreateDirectory(Options.Directories.Downloads);
-                VerifyOrCreateDirectory(Options.Directories.Shared, verifyWriteable: false);
+                VerifyOrCreateDirectory(OptionsAtStartup.Directories.App);
+                VerifyOrCreateDirectory(OptionsAtStartup.Directories.Incomplete);
+                VerifyOrCreateDirectory(OptionsAtStartup.Directories.Downloads);
+                VerifyOrCreateDirectory(OptionsAtStartup.Directories.Shared, verifyWriteable: false);
             }
             catch (Exception ex)
             {
@@ -225,31 +225,31 @@ namespace slskd
                 return;
             }
 
-            Log.Logger = (Options.Debug ? new LoggerConfiguration().MinimumLevel.Debug() : new LoggerConfiguration().MinimumLevel.Information())
+            Log.Logger = (OptionsAtStartup.Debug ? new LoggerConfiguration().MinimumLevel.Debug() : new LoggerConfiguration().MinimumLevel.Information())
                 .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
                 .MinimumLevel.Override("slskd.API.Authentication.PassthroughAuthenticationHandler", LogEventLevel.Information)
                 .Enrich.WithProperty("Version", Version)
-                .Enrich.WithProperty("InstanceName", Options.InstanceName)
+                .Enrich.WithProperty("InstanceName", OptionsAtStartup.InstanceName)
                 .Enrich.WithProperty("InvocationId", InvocationId)
                 .Enrich.WithProperty("ProcessId", ProcessId)
                 .Enrich.FromLogContext()
                 .WriteTo.Console(
-                    outputTemplate: (Options.Debug ? "[{SourceContext}] [{SoulseekContext}] " : string.Empty) + "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
+                    outputTemplate: (OptionsAtStartup.Debug ? "[{SourceContext}] [{SoulseekContext}] " : string.Empty) + "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
                 .WriteTo.Async(config =>
                     config.File(
                         Path.Combine(AppContext.BaseDirectory, "logs", $"{AppName}-.log"),
-                        outputTemplate: (Options.Debug ? "[{SourceContext}] " : string.Empty) + "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}",
+                        outputTemplate: (OptionsAtStartup.Debug ? "[{SourceContext}] " : string.Empty) + "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}",
                         rollingInterval: RollingInterval.Day))
                 .WriteTo.Conditional(
-                    e => !string.IsNullOrEmpty(Options.Logger.Loki),
+                    e => !string.IsNullOrEmpty(OptionsAtStartup.Logger.Loki),
                     config => config.GrafanaLoki(
-                        Options.Logger.Loki ?? string.Empty,
+                        OptionsAtStartup.Logger.Loki ?? string.Empty,
                         outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}"))
                 .CreateLogger();
 
             var logger = Log.ForContext(typeof(Program));
 
-            if (!Options.NoLogo)
+            if (!OptionsAtStartup.NoLogo)
             {
                 PrintLogo(Version);
             }
@@ -260,18 +260,18 @@ namespace slskd
             }
 
             logger.Information("Version: {Version}", Version);
-            logger.Information("Instance Name: {InstanceName}", Options.InstanceName);
+            logger.Information("Instance Name: {InstanceName}", OptionsAtStartup.InstanceName);
             logger.Information("Invocation ID: {InvocationId}", InvocationId);
             logger.Information("Process ID: {ProcessId}", ProcessId);
 
-            if (!string.IsNullOrEmpty(Options.Logger.Loki))
+            if (!string.IsNullOrEmpty(OptionsAtStartup.Logger.Loki))
             {
-                logger.Information("Forwarding logs to Grafana Loki instance at {LoggerLokiUrl}", Options.Logger.Loki);
+                logger.Information("Forwarding logs to Grafana Loki instance at {LoggerLokiUrl}", OptionsAtStartup.Logger.Loki);
             }
 
             try
             {
-                if (Options.Feature.Prometheus)
+                if (OptionsAtStartup.Feature.Prometheus)
                 {
                     using var runtimeMetrics = DotNetRuntimeStatsBuilder.Default().StartCollecting();
                 }
@@ -287,13 +287,13 @@ namespace slskd
                     .UseUrls()
                     .UseKestrel(options =>
                     {
-                        logger.Information($"Listening for HTTP requests at http://{IPAddress.Any}:{Options.Web.Port}/");
-                        options.Listen(IPAddress.Any, Options.Web.Port);
+                        logger.Information($"Listening for HTTP requests at http://{IPAddress.Any}:{OptionsAtStartup.Web.Port}/");
+                        options.Listen(IPAddress.Any, OptionsAtStartup.Web.Port);
 
-                        logger.Information($"Listening for HTTPS requests at https://{IPAddress.Any}:{Options.Web.Https.Port}/");
-                        options.Listen(IPAddress.Any, Options.Web.Https.Port, listenOptions =>
+                        logger.Information($"Listening for HTTPS requests at https://{IPAddress.Any}:{OptionsAtStartup.Web.Https.Port}/");
+                        options.Listen(IPAddress.Any, OptionsAtStartup.Web.Https.Port, listenOptions =>
                         {
-                            var cert = Options.Web.Https.Certificate;
+                            var cert = OptionsAtStartup.Web.Https.Certificate;
 
                             if (!string.IsNullOrEmpty(cert.Pfx))
                             {
@@ -310,7 +310,7 @@ namespace slskd
                     .UseStartup<Startup>()
                     .Build();
 
-                if (Options.NoStart)
+                if (OptionsAtStartup.NoStart)
                 {
                     logger.Information("Qutting because 'no-start' option is enabled");
                     return;
@@ -340,8 +340,9 @@ namespace slskd
                     prefix: environmentVariablePrefix)
                 .AddYamlFile(
                     path: Path.GetFileName(configurationFile),
+                    targetType: typeof(Options),
                     optional: true,
-                    reloadOnChange: false,
+                    reloadOnChange: true,
                     provider: new PhysicalFileProvider(Path.GetDirectoryName(configurationFile), ExclusionFilters.None)) // required for locations outside of the app directory
                 .AddCommandLine(
                     targetType: typeof(Options),

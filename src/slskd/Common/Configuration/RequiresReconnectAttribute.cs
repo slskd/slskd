@@ -1,4 +1,4 @@
-﻿// <copyright file="IPushbulletService.cs" company="slskd Team">
+﻿// <copyright file="RequiresReconnectAttribute.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -15,23 +15,12 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-namespace slskd.Integrations.Pushbullet
+namespace slskd.Configuration
 {
     using System;
-    using System.Threading.Tasks;
 
-    /// <summary>
-    ///     Pushbullet integration service.
-    /// </summary>
-    public interface IPushbulletService : IDisposable
+    [AttributeUsage(AttributeTargets.Property)]
+    public class RequiresReconnectAttribute : Attribute
     {
-        /// <summary>
-        ///     Sends a push notification to Pushbullet.
-        /// </summary>
-        /// <param name="title">The notification title.</param>
-        /// <param name="cacheKey">A unique cache key for the notification.</param>
-        /// <param name="body">The notification body.</param>
-        /// <returns>The operation context.</returns>
-        Task PushAsync(string title, string cacheKey, string body);
     }
 }
