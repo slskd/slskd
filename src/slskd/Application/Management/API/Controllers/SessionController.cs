@@ -15,6 +15,8 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
+using Microsoft.Extensions.Options;
+
 namespace slskd.Management.API
 {
     using System;
@@ -37,14 +39,17 @@ namespace slskd.Management.API
     public class SessionController : ControllerBase
     {
         public SessionController(
+            IOptionsSnapshot<Options> optionsSnapshot,
             OptionsAtStartup optionsAtStartup,
             SymmetricSecurityKey jwtSigningKey)
         {
+            OptionsSnapshot = optionsSnapshot;
             OptionsAtStartup = optionsAtStartup;
             JwtSigningKey = jwtSigningKey;
         }
 
         private SymmetricSecurityKey JwtSigningKey { get; set; }
+        private IOptionsSnapshot<Options> OptionsSnapshot { get; set; }
         private OptionsAtStartup OptionsAtStartup { get; set; }
 
         /// <summary>
@@ -106,7 +111,7 @@ namespace slskd.Management.API
             }
 
             // only admin login for now
-            if (OptionsAtStartup.Web.Authentication.Username == login.Username && OptionsAtStartup.Web.Authentication.Password == login.Password)
+            if (OptionsSnapshot.Value.Web.Authentication.Username == login.Username && OptionsSnapshot.Value.Web.Authentication.Password == login.Password)
             {
                 return Ok(new TokenResponse(GetJwtSecurityToken(login.Username, Role.Administrator)));
             }
