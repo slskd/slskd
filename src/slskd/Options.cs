@@ -159,6 +159,14 @@ namespace slskd
         [RequiresRestart]
         public string InstanceName { get; private set; } = "default";
 
+        [Argument(default, "list")]
+        [EnvironmentVariable("LIST")]
+        public string[] List { get; private set; } = Array.Empty<string>();
+
+        [Argument(default, "list-of-ints")]
+        [EnvironmentVariable("LIST_OF_INTS")]
+        public int[] ListOfInts { get; private set; } = Array.Empty<int>();
+
         /// <summary>
         ///     Gets directory options.
         /// </summary>

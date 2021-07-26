@@ -212,6 +212,9 @@ namespace slskd
                 return;
             }
 
+            Console.WriteLine(OptionsAtStartup.List.ToJson());
+            Console.WriteLine(OptionsAtStartup.ListOfInts.ToJson());
+
             try
             {
                 VerifyOrCreateDirectory(OptionsAtStartup.Directories.App);

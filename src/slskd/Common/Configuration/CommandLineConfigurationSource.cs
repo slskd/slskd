@@ -89,7 +89,9 @@ namespace slskd.Configuration
         /// </summary>
         public override void Load()
         {
-            var dictionary = Arguments.Parse(CommandLine).ArgumentDictionary;
+            Console.WriteLine(CommandLine);
+            var dictionary = Arguments.Parse(CommandLine, TargetType).ArgumentDictionary;
+            Console.WriteLine(dictionary.ToJson());
 
             void Map(Type type, string path)
             {
