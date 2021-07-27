@@ -91,7 +91,14 @@ namespace slskd
                 var propType = prop.PropertyType;
                 var fqn = string.IsNullOrEmpty(parentFqn) ? prop.Name : string.Join(".", parentFqn, prop.Name);
 
-                if (propType.IsPrimitive || Nullable.GetUnderlyingType(propType) != null || new[] { typeof(string), typeof(decimal) }.Contains(propType))
+                if (propType.IsArray)
+                {
+                    if (leftVal.ToJson() != rightVal.ToJson())
+                    {
+                        differences.Add((prop, fqn, leftVal, rightVal));
+                    }
+                }
+                else if (propType.IsPrimitive || Nullable.GetUnderlyingType(propType) != null || new[] { typeof(string), typeof(decimal) }.Contains(propType))
                 {
                     if (!Equals(leftVal, rightVal))
                     {
