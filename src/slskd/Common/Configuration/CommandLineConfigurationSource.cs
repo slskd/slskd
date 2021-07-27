@@ -94,9 +94,7 @@ namespace slskd.Configuration
         /// </summary>
         public override void Load()
         {
-            Console.WriteLine(CommandLine);
             var dictionary = Arguments.Parse(CommandLine, options => options.CombinableArguments = MultiValuedArguments).ArgumentDictionary;
-            Console.WriteLine(dictionary.ToJson());
 
             void Map(Type type, string path)
             {
@@ -125,7 +123,7 @@ namespace slskd.Configuration
                                     // Parse() will stuff multiple values into a List<T> if the argument name is
                                     // in the list of those supporting multiple values, and more than one value was supplied.
                                     // detect this, and add the values to the target.
-                                    if (value.GetType().IsGenericType)
+                                    if (value.GetType().IsGenericType && value.GetType().GetGenericTypeDefinition() == typeof(List<>))
                                     {
                                         var elements = (List<object>)dictionary[argument];
 
