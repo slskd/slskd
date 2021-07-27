@@ -335,6 +335,8 @@ namespace slskd
         {
             configurationFile = Path.GetFullPath(configurationFile);
 
+            // todo: write some code here to fetch any properties in options marked with `Attribute` and backed by an array. stuff those arguments into a list for multiValuedArgumetns
+
             return builder
                 .AddDefaultValues(
                     targetType: typeof(Options))
@@ -349,6 +351,7 @@ namespace slskd
                     provider: new PhysicalFileProvider(Path.GetDirectoryName(configurationFile), ExclusionFilters.None)) // required for locations outside of the app directory
                 .AddCommandLine(
                     targetType: typeof(Options),
+                    multiValuedArguments: new[] { "t", "list", "list-of-ints" },
                     commandLine: Environment.CommandLine);
         }
 
