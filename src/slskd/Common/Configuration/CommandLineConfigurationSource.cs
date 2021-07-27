@@ -33,9 +33,10 @@ namespace slskd.Configuration
         /// </summary>
         /// <param name="builder">The <see cref="IConfigurationBuilder"/> to which to add.</param>
         /// <param name="targetType">The type from which to map properties.</param>
+        /// <param name="multiValuedArguments">An array of argument names which can be specified with multiple values.</param>
         /// <param name="commandLine">The command line string from which to parse arguments.</param>
         /// <returns>The updated <see cref="IConfigurationBuilder"/>.</returns>
-        public static IConfigurationBuilder AddCommandLine(this IConfigurationBuilder builder, Type targetType, string commandLine = null)
+        public static IConfigurationBuilder AddCommandLine(this IConfigurationBuilder builder, Type targetType, string[] multiValuedArguments = null, string commandLine = null)
         {
             if (builder == null)
             {
@@ -51,6 +52,7 @@ namespace slskd.Configuration
             {
                 s.TargetType = targetType;
                 s.CommandLine = commandLine ?? Environment.CommandLine;
+                s.MultiValuedArguments = multiValuedArguments;
             });
         }
 
@@ -78,11 +80,13 @@ namespace slskd.Configuration
             TargetType = source.TargetType;
             Namespace = TargetType.Namespace.Split('.').First();
             CommandLine = source.CommandLine;
+            MultiValuedArguments = source.MultiValuedArguments;
         }
 
         private string CommandLine { get; set; }
         private string Namespace { get; set; }
         private Type TargetType { get; set; }
+        private string[] MultiValuedArguments { get; set; }
 
         /// <summary>
         ///     Parses command line arguments from the specified string and maps them to the corresponding keys.
@@ -90,7 +94,7 @@ namespace slskd.Configuration
         public override void Load()
         {
             Console.WriteLine(CommandLine);
-            var dictionary = Arguments.Parse(CommandLine, TargetType).ArgumentDictionary;
+            var dictionary = Arguments.Parse(CommandLine, options => options.CombinableArguments = MultiValuedArguments).ArgumentDictionary;
             Console.WriteLine(dictionary.ToJson());
 
             void Map(Type type, string path)
@@ -148,6 +152,11 @@ namespace slskd.Configuration
         ///     Gets or sets the type from which to map properties.
         /// </summary>
         public Type TargetType { get; set; }
+
+        /// <summary>
+        ///     Gets or sets an array of argument names which can be specified with multiple values.
+        /// </summary>
+        public string[] MultiValuedArguments { get; set; } = Array.Empty<string>();
 
         /// <summary>
         ///     Builds the <see cref="CommandLineConfigurationProvider"/> for this source.
