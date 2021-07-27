@@ -18,6 +18,7 @@
 namespace slskd.Configuration
 {
     using System;
+    using System.Collections.Generic;
     using System.Linq;
     using System.Reflection;
     using Microsoft.Extensions.Configuration;
@@ -116,14 +117,41 @@ namespace slskd.Configuration
                         {
                             if (dictionary.ContainsKey(argument))
                             {
-                                var value = dictionary[argument].ToString();
-
-                                if (property.PropertyType == typeof(bool) && string.IsNullOrEmpty(value))
+                                // if the backing type is an array, it supports multiple values.
+                                if (property.PropertyType.IsArray)
                                 {
-                                    value = "true";
-                                }
+                                    var value = dictionary[argument];
 
-                                Data[key] = value;
+                                    // Parse() will stuff multiple values into a List<T> if the argument name is
+                                    // in the list of those supporting multiple values, and more than one value was supplied.
+                                    // detect this, and add the values to the target.
+                                    if (value.GetType().IsGenericType)
+                                    {
+                                        var elements = (List<object>)dictionary[argument];
+
+                                        for (int i = 0; i < elements.Count; i++)
+                                        {
+                                            Data[ConfigurationPath.Combine(key, i.ToString())] = elements[i].ToString();
+                                        }
+                                    }
+                                    else
+                                    {
+                                        // there may have only been one value supplied, in which case the value is just a
+                                        // string.  stick it in index 0 of the target.
+                                        Data[ConfigurationPath.Combine(key, "0")] = value.ToString();
+                                    }
+                                }
+                                else
+                                {
+                                    var value = dictionary[argument].ToString();
+
+                                    if (property.PropertyType == typeof(bool) && string.IsNullOrEmpty(value))
+                                    {
+                                        value = "true";
+                                    }
+
+                                    Data[key] = value;
+                                }
                             }
                         }
                     }

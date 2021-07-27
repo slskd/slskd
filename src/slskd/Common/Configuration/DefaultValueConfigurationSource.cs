@@ -99,11 +99,14 @@ namespace slskd.Configuration
                     }
                     else
                     {
-                        var value = property.GetValue(defaults);
-
-                        if (value != null)
+                        if (!property.PropertyType.IsArray)
                         {
-                            Data[key] = value.ToString();
+                            var value = property.GetValue(defaults);
+
+                            if (value != null)
+                            {
+                                Data[key] = value.ToString();
+                            }
                         }
                     }
                 }

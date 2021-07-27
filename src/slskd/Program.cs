@@ -335,7 +335,17 @@ namespace slskd
         {
             configurationFile = Path.GetFullPath(configurationFile);
 
-            // todo: write some code here to fetch any properties in options marked with `Attribute` and backed by an array. stuff those arguments into a list for multiValuedArgumetns
+            var multiValuedArguments = typeof(Options)
+                .GetPropertiesRecursively()
+                .Where(p => p.PropertyType.IsArray)
+                .SelectMany(p =>
+                    p.CustomAttributes
+                        .Where(a => a.AttributeType == typeof(ArgumentAttribute))
+                        .Select(a => new[] { a.ConstructorArguments[0].Value, a.ConstructorArguments[1].Value })
+                        .SelectMany(v => v))
+                .Select(v => v.ToString())
+                .Where(v => v != "\u0000")
+                .ToArray();
 
             return builder
                 .AddDefaultValues(
@@ -351,7 +361,7 @@ namespace slskd
                     provider: new PhysicalFileProvider(Path.GetDirectoryName(configurationFile), ExclusionFilters.None)) // required for locations outside of the app directory
                 .AddCommandLine(
                     targetType: typeof(Options),
-                    multiValuedArguments: new[] { "t", "list", "list-of-ints" },
+                    multiValuedArguments,
                     commandLine: Environment.CommandLine);
         }
 
