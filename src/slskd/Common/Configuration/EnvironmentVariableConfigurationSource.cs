@@ -100,15 +100,32 @@ namespace slskd.Configuration
 
                     if (attribute != default)
                     {
+                        // retrieve the envar name from the attribute
                         var name = (string)attribute.ConstructorArguments[0].Value;
 
                         if (!string.IsNullOrEmpty(name))
                         {
+                            // retrieve the corresponding value from environment variables
                             var value = Environment.GetEnvironmentVariable(Prefix + name);
 
                             if (value != null)
                             {
-                                Data[key] = value.ToString();
+                                // if the type of the backing property is an array,
+                                // split the retrieved value by semicolon and add the parts to
+                                // config as zero-based children of the prop
+                                if (property.PropertyType.IsArray)
+                                {
+                                    var elements = value.Split(';');
+
+                                    for (int i = 0; i < elements.Length; i++)
+                                    {
+                                        Data[ConfigurationPath.Combine(key, i.ToString())] = elements[i];
+                                    }
+                                }
+                                else
+                                {
+                                    Data[key] = value.ToString();
+                                }
                             }
                         }
                     }

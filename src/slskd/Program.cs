@@ -332,6 +332,18 @@ namespace slskd
         {
             configurationFile = Path.GetFullPath(configurationFile);
 
+            var multiValuedArguments = typeof(Options)
+                .GetPropertiesRecursively()
+                .Where(p => p.PropertyType.IsArray)
+                .SelectMany(p =>
+                    p.CustomAttributes
+                        .Where(a => a.AttributeType == typeof(ArgumentAttribute))
+                        .Select(a => new[] { a.ConstructorArguments[0].Value, a.ConstructorArguments[1].Value })
+                        .SelectMany(v => v))
+                .Select(v => v.ToString())
+                .Where(v => v != "\u0000")
+                .ToArray();
+
             return builder
                 .AddDefaultValues(
                     targetType: typeof(Options))
@@ -346,6 +358,7 @@ namespace slskd
                     provider: new PhysicalFileProvider(Path.GetDirectoryName(configurationFile), ExclusionFilters.None)) // required for locations outside of the app directory
                 .AddCommandLine(
                     targetType: typeof(Options),
+                    multiValuedArguments,
                     commandLine: Environment.CommandLine);
         }
 

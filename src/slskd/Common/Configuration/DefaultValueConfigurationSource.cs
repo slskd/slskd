@@ -99,11 +99,16 @@ namespace slskd.Configuration
                     }
                     else
                     {
-                        var value = property.GetValue(defaults);
-
-                        if (value != null)
+                        // don't add array values to the configuration; these are additive across providers
+                        // and the default value from the class is "stuck", so adding them again results in duplicates.
+                        if (!property.PropertyType.IsArray)
                         {
-                            Data[key] = value.ToString();
+                            var value = property.GetValue(defaults);
+
+                            if (value != null)
+                            {
+                                Data[key] = value.ToString();
+                            }
                         }
                     }
                 }
