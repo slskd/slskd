@@ -45,6 +45,30 @@ namespace slskd
         public static T ToObject<T>(this string str) => JsonSerializer.Deserialize<T>(str);
 
         /// <summary>
+        ///     Recursively retrieves all properties.
+        /// </summary>
+        /// <param name="type">The type from which to retrieve properties.</param>
+        /// <returns>The list of properties.</returns>
+        public static IEnumerable<PropertyInfo> GetPropertiesRecursively(this Type type)
+        {
+            var props = new List<PropertyInfo>();
+
+            foreach (var prop in type.GetProperties())
+            {
+                if (prop.PropertyType.IsPrimitive || prop.PropertyType.IsArray || Nullable.GetUnderlyingType(prop.PropertyType) != null || new[] { typeof(string), typeof(decimal) }.Contains(prop.PropertyType))
+                {
+                    props.Add(prop);
+                }
+                else
+                {
+                    props.AddRange(prop.PropertyType.GetPropertiesRecursively());
+                }
+            }
+
+            return props;
+        }
+
+        /// <summary>
         ///     Deeply compares this object with the specified object and returns a list of properties that are different.
         /// </summary>
         /// <param name="left">The left side of the comparison.</param>
