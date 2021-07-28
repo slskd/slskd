@@ -241,7 +241,7 @@ namespace slskd
             [Description("path to shared files")]
             [DirectoryExists]
             [RequiresRestart]
-            public string Shared { get; private set; } = Program.DefaultSharedDirectory;
+            public string[] Shared { get; private set; } = new[] { Program.DefaultSharedDirectory };
         }
 
         /// <summary>
