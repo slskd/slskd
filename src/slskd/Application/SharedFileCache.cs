@@ -83,9 +83,14 @@ namespace slskd
 
                     // merge the new dictionary with the rest
                     // this will overwrite any duplicate keys, but keys are the fully qualified name
+                    // the only time this *should* cause problems is if one of the shares is a subdirectory of another.
                     foreach (var file in newFiles)
                     {
-                        Console.WriteLine(file.Key);
+                        if (files.ContainsKey(file.Key))
+                        {
+                            Console.WriteLine($"[WARNING] File {file.Key} shared in directory {directory} has already been cached.  This is probably a misconfiguration of the shared directories.");
+                        }
+
                         files[file.Key] = file.Value;
                     }
                 }
