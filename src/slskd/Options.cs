@@ -239,9 +239,8 @@ namespace slskd
             [Argument('s', "shared")]
             [EnvironmentVariable("SHARED_DIR")]
             [Description("path to shared files")]
-            [DirectoryExists]
             [RequiresRestart]
-            public string Shared { get; private set; } = Program.DefaultSharedDirectory;
+            public string[] Shared { get; private set; } = new[] { Program.DefaultSharedDirectory };
         }
 
         /// <summary>

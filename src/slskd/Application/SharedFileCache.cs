@@ -34,17 +34,17 @@ namespace slskd
         /// <summary>
         ///     Initializes a new instance of the <see cref="SharedFileCache"/> class.
         /// </summary>
-        /// <param name="directory"></param>
+        /// <param name="directories"></param>
         /// <param name="ttl"></param>
-        public SharedFileCache(string directory, long ttl)
+        public SharedFileCache(IEnumerable<string> directories, long ttl)
         {
-            Directory = directory;
+            Directories = directories;
             TTL = ttl;
         }
 
         public event EventHandler<(int Directories, int Files)> Refreshed;
 
-        public string Directory { get; }
+        public IEnumerable<string> Directories { get; }
         public DateTime? LastFill { get; set; }
         public long TTL { get; }
 
@@ -53,7 +53,7 @@ namespace slskd
         private ReaderWriterLockSlim SyncRoot { get; } = new ReaderWriterLockSlim();
 
         /// <summary>
-        ///     Scans the configured <see cref="Directory"/> and fills the cache.
+        ///     Scans the configured <see cref="Directories"/> and fills the cache.
         /// </summary>
         public void Fill()
         {
@@ -68,20 +68,43 @@ namespace slskd
             {
                 CreateTable();
 
-                var directories = System.IO.Directory.GetDirectories(Directory, "*", SearchOption.AllDirectories);
+                var directories = 0;
+                var files = new Dictionary<string, Soulseek.File>();
 
-                Files = System.IO.Directory.GetFiles(Directory, "*", SearchOption.AllDirectories)
-                    .Select(f => new Soulseek.File(1, f.Replace("/", @"\"), new FileInfo(f).Length, Path.GetExtension(f)))
-                    .ToDictionary(f => f.Filename, f => f);
+                foreach (var directory in Directories)
+                {
+                    directories += System.IO.Directory.GetDirectories(directory, "*", SearchOption.AllDirectories).Length;
+
+                    // recursively find all files in the directory and stick a record in a dictionary, keyed on the sanitized
+                    // filename and with a value of a Soulseek.File object
+                    var newFiles = System.IO.Directory.GetFiles(directory, "*", SearchOption.AllDirectories)
+                        .Select(f => new Soulseek.File(1, f.Replace("/", @"\"), new FileInfo(f).Length, Path.GetExtension(f)))
+                        .ToDictionary(f => f.Filename, f => f);
+
+                    // merge the new dictionary with the rest
+                    // this will overwrite any duplicate keys, but keys are the fully qualified name
+                    // the only time this *should* cause problems is if one of the shares is a subdirectory of another.
+                    foreach (var file in newFiles)
+                    {
+                        if (files.ContainsKey(file.Key))
+                        {
+                            Console.WriteLine($"[WARNING] File {file.Key} shared in directory {directory} has already been cached.  This is probably a misconfiguration of the shared directories.");
+                        }
+
+                        files[file.Key] = file.Value;
+                    }
+                }
 
                 // potentially optimize with multi-valued insert
                 // https://stackoverflow.com/questions/16055566/insert-multiple-rows-in-sqlite
-                foreach (var file in Files)
+                foreach (var file in files)
                 {
                     InsertFilename(file.Key);
                 }
 
-                Refreshed?.Invoke(this, (directories.Length, Files.Count));
+                Files = files;
+
+                Refreshed?.Invoke(this, (directories, Files.Count));
             }
             finally
             {

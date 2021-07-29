@@ -19,6 +19,7 @@ namespace slskd
 {
     using System;
     using System.Collections.Concurrent;
+    using System.Collections.Generic;
     using System.IO;
     using System.Linq;
     using System.Net;
@@ -325,10 +326,16 @@ namespace slskd
         /// <returns>A Task resolving an IEnumerable of Soulseek.Directory.</returns>
         private Task<BrowseResponse> BrowseResponseResolver(string username, IPEndPoint endpoint)
         {
-            var directories = System.IO.Directory
-                .GetDirectories(OptionsMonitor.CurrentValue.Directories.Shared, "*", SearchOption.AllDirectories)
-                .Select(dir => new Soulseek.Directory(dir.Replace("/", @"\"), System.IO.Directory.GetFiles(dir)
-                    .Select(f => new Soulseek.File(1, Path.GetFileName(f), new FileInfo(f).Length, Path.GetExtension(f)))));
+            var shares = OptionsMonitor.CurrentValue.Directories.Shared;
+            var directories = new List<Soulseek.Directory>();
+
+            foreach (var share in shares)
+            {
+                directories.AddRange(System.IO.Directory
+                    .GetDirectories(share, "*", SearchOption.AllDirectories)
+                    .Select(dir => new Soulseek.Directory(dir.Replace("/", @"\"), System.IO.Directory.GetFiles(dir)
+                        .Select(f => new Soulseek.File(1, Path.GetFileName(f), new FileInfo(f).Length, Path.GetExtension(f))))));
+            }
 
             return Task.FromResult(new BrowseResponse(directories));
         }

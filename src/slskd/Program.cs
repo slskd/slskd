@@ -212,19 +212,6 @@ namespace slskd
                 return;
             }
 
-            try
-            {
-                VerifyOrCreateDirectory(OptionsAtStartup.Directories.App);
-                VerifyOrCreateDirectory(OptionsAtStartup.Directories.Incomplete);
-                VerifyOrCreateDirectory(OptionsAtStartup.Directories.Downloads);
-                VerifyOrCreateDirectory(OptionsAtStartup.Directories.Shared, verifyWriteable: false);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Filesystem exception: {ex.Message}");
-                return;
-            }
-
             Log.Logger = (OptionsAtStartup.Debug ? new LoggerConfiguration().MinimumLevel.Debug() : new LoggerConfiguration().MinimumLevel.Information())
                 .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
                 .MinimumLevel.Override("slskd.API.Authentication.PassthroughAuthenticationHandler", LogEventLevel.Information)
@@ -248,6 +235,26 @@ namespace slskd
                 .CreateLogger();
 
             var logger = Log.ForContext(typeof(Program));
+
+            try
+            {
+                VerifyDirectory(OptionsAtStartup.Directories.App, createIfMissing: true, verifyWriteable: true);
+                VerifyDirectory(OptionsAtStartup.Directories.Incomplete, createIfMissing: true, verifyWriteable: true);
+                VerifyDirectory(OptionsAtStartup.Directories.Downloads, createIfMissing: true, verifyWriteable: true);
+
+                foreach (var share in OptionsAtStartup.Directories.Shared)
+                {
+                    if (!VerifyDirectory(share, createIfMissing: false, verifyWriteable: false))
+                    {
+                        logger.Warning("Shared directory {Directory} does not exist", share);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.Error(ex, "Filesystem exception: {Message}", ex.Message);
+                return;
+            }
 
             if (!OptionsAtStartup.NoLogo)
             {
@@ -505,18 +512,25 @@ namespace slskd
             Console.WriteLine(banner);
         }
 
-        private static void VerifyOrCreateDirectory(string directory, bool verifyWriteable = true)
+        private static bool VerifyDirectory(string directory, bool createIfMissing = true, bool verifyWriteable = true)
         {
-            try
+            if (!Directory.Exists(directory))
             {
-                if (!Directory.Exists(directory))
+                if (createIfMissing)
                 {
-                    Directory.CreateDirectory(directory);
+                    try
+                    {
+                        Directory.CreateDirectory(directory);
+                    }
+                    catch (Exception ex)
+                    {
+                        throw new IOException($"Directory {directory} does not exist, and could not be created: {ex.Message}", ex);
+                    }
                 }
-            }
-            catch (Exception ex)
-            {
-                throw new IOException($"Directory {directory} does not exist, and could not be created: {ex.Message}", ex);
+                else
+                {
+                    return false;
+                }
             }
 
             if (verifyWriteable)
@@ -533,6 +547,8 @@ namespace slskd
                     throw new IOException($"Directory {directory} is not writeable: {ex.Message}", ex);
                 }
             }
+
+            return true;
         }
     }
 }
