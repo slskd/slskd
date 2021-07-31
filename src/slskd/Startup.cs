@@ -112,7 +112,7 @@ namespace slskd
 
             services.AddSingleton(JwtSigningKey);
 
-            if (!OptionsAtStartup.Web.Authentication.Disable)
+            if (!OptionsAtStartup.Web.Authentication.Disabled)
             {
                 services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                     .AddJwtBearer(options =>

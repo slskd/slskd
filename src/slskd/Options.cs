@@ -562,7 +562,7 @@ namespace slskd
                 [EnvironmentVariable("NO_AUTH")]
                 [Description("disable authentication for web requests")]
                 [RequiresRestart]
-                public bool Disable { get; private set; } = false;
+                public bool Disabled { get; private set; } = false;
 
                 /// <summary>
                 ///     Gets the username for the web UI.
@@ -701,7 +701,7 @@ namespace slskd
                 ///     Gets a value indicating whether the FTP integration is enabled.
                 /// </summary>
                 [Argument(default, "ftp")]
-                [EnvironmentVariable("FTP_ENABLED")]
+                [EnvironmentVariable("FTP")]
                 [Description("enable FTP integration")]
                 public bool Enabled { get; private set; }
 
@@ -816,7 +816,7 @@ namespace slskd
                 ///     Gets a value indicating whether the Pushbullet integration is enabled.
                 /// </summary>
                 [Argument(default, "pushbullet")]
-                [EnvironmentVariable("PUSHBULLET_ENABLED")]
+                [EnvironmentVariable("PUSHBULLET")]
                 [Description("enable Pushbullet integration")]
                 public bool Enabled { get; private set; } = false;
 

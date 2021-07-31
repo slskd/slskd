@@ -80,7 +80,7 @@ namespace slskd.Management.API
         [ProducesResponseType(typeof(bool), 200)]
         public IActionResult Enabled()
         {
-            return Ok(!OptionsAtStartup.Web.Authentication.Disable);
+            return Ok(!OptionsAtStartup.Web.Authentication.Disabled);
         }
 
         /// <summary>

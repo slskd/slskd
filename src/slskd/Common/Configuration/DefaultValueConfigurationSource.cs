@@ -114,7 +114,7 @@ namespace slskd.Configuration
                         else
                         {
                             // serialize array defaults and stick them on the parent key
-                            // (not indexed by array position).  this value is "stuck", and 
+                            // (not indexed by array position).  this value is "stuck", and
                             // we want to show that in the config debug view.  this isn't really
                             // functional, just illustrative.
                             Data[key] = JsonSerializer.Serialize(property.GetValue(defaults));
