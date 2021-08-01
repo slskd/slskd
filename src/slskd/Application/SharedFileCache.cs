@@ -132,6 +132,23 @@ namespace slskd
             return QueryTable(query.Query);
         }
 
+        public IEnumerable<Soulseek.Directory> Browse()
+        {
+            var directories = Files
+                .GroupBy(f => Path.GetDirectoryName(f.Key))
+                .Select(g => new Soulseek.Directory(g.Key, g.Select(g => {
+                    var f = g.Value;
+                    return new Soulseek.File(
+                        f.Code,
+                        Path.GetFileName(f.Filename),
+                        f.Size,
+                        f.Extension,
+                        f.Attributes);
+                })));
+
+            return directories;
+        }
+
         private void CreateTable()
         {
             SQLite = new SqliteConnection("Data Source=:memory:");

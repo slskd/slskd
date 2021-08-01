@@ -32,5 +32,6 @@ namespace slskd
         void Fill();
 
         IEnumerable<File> Search(SearchQuery query);
+        IEnumerable<Directory> Browse();
     }
 }
