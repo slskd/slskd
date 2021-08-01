@@ -329,6 +329,8 @@ namespace slskd
         {
             var directories = SharedFileCache.Browse();
 
+            System.IO.File.WriteAllText(@"C:\Users\JP.WHATNET\Desktop\Soulseek\files.json", directories.ToJson());
+
             return Task.FromResult(new BrowseResponse(directories));
         }
 

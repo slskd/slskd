@@ -25,7 +25,7 @@ namespace slskd
     {
         event EventHandler<(int Directories, int Files)> Refreshed;
 
-        IEnumerable<string> Directories { get; }
+        IEnumerable<string> Shares { get; }
         DateTime? LastFill { get; }
         long TTL { get; }
 

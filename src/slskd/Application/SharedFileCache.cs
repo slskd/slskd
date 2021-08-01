@@ -18,6 +18,7 @@
 namespace slskd
 {
     using System;
+    using System.Collections.Concurrent;
     using System.Collections.Generic;
     using System.Diagnostics;
     using System.IO;
@@ -34,17 +35,17 @@ namespace slskd
         /// <summary>
         ///     Initializes a new instance of the <see cref="SharedFileCache"/> class.
         /// </summary>
-        /// <param name="directories"></param>
+        /// <param name="shares"></param>
         /// <param name="ttl"></param>
-        public SharedFileCache(IEnumerable<string> directories, long ttl)
+        public SharedFileCache(IEnumerable<string> shares, long ttl)
         {
-            Directories = directories;
+            Shares = shares;
             TTL = ttl;
         }
 
         public event EventHandler<(int Directories, int Files)> Refreshed;
 
-        public IEnumerable<string> Directories { get; }
+        public IEnumerable<string> Shares { get; }
         public DateTime? LastFill { get; set; }
         public long TTL { get; }
 
@@ -52,8 +53,10 @@ namespace slskd
         private SqliteConnection SQLite { get; set; }
         private ReaderWriterLockSlim SyncRoot { get; } = new ReaderWriterLockSlim();
 
+        private HashSet<string> Directories { get; set; }
+
         /// <summary>
-        ///     Scans the configured <see cref="Directories"/> and fills the cache.
+        ///     Scans the configured <see cref="Shares"/> and fills the cache.
         /// </summary>
         public void Fill()
         {
@@ -67,34 +70,33 @@ namespace slskd
             try
             {
                 CreateTable();
-
-                var directories = 0;
+                var directories = new HashSet<string>();
                 var files = new Dictionary<string, Soulseek.File>();
 
-                foreach (var directory in Directories)
+                foreach (var share in Shares)
                 {
-                    Console.WriteLine(directory);
-
-                    directories += System.IO.Directory.GetDirectories(directory, "*", SearchOption.AllDirectories).Length;
-
-                    // recursively find all files in the directory and stick a record in a dictionary, keyed on the sanitized
-                    // filename and with a value of a Soulseek.File object
-                    var newFiles = System.IO.Directory.GetFiles(directory, "*", SearchOption.AllDirectories)
-                        .Select(f => new Soulseek.File(1, f.Replace("/", @"\"), new FileInfo(f).Length, Path.GetExtension(f)))
-                        .ToDictionary(f => f.Filename, f => f);
-
-                    // merge the new dictionary with the rest
-                    // this will overwrite any duplicate keys, but keys are the fully qualified name
-                    // the only time this *should* cause problems is if one of the shares is a subdirectory of another.
-                    foreach (var file in newFiles)
+                    foreach (var directory in System.IO.Directory.GetDirectories(share, "*", SearchOption.AllDirectories))
                     {
-                        Console.WriteLine(file.Key);
-                        if (files.ContainsKey(file.Key))
-                        {
-                            Console.WriteLine($"[WARNING] File {file.Key} shared in directory {directory} has already been cached.  This is probably a misconfiguration of the shared directories.");
-                        }
+                        directories.Add(directory);
 
-                        files[file.Key] = file.Value;
+                        // recursively find all files in the directory and stick a record in a dictionary, keyed on the sanitized
+                        // filename and with a value of a Soulseek.File object
+                        var newFiles = System.IO.Directory.GetFiles(directory, "*", SearchOption.TopDirectoryOnly)
+                            .Select(f => new Soulseek.File(1, f.Replace("/", @"\"), new FileInfo(f).Length, Path.GetExtension(f)))
+                            .ToDictionary(f => f.Filename, f => f);
+
+                        // merge the new dictionary with the rest
+                        // this will overwrite any duplicate keys, but keys are the fully qualified name
+                        // the only time this *should* cause problems is if one of the shares is a subdirectory of another.
+                        foreach (var file in newFiles)
+                        {
+                            if (files.ContainsKey(file.Key))
+                            {
+                                Console.WriteLine($"[WARNING] File {file.Key} shared in directory {directory} has already been cached.  This is probably a misconfiguration of the shared directories.");
+                            }
+
+                            files[file.Key] = file.Value;
+                        }
                     }
                 }
 
@@ -105,9 +107,9 @@ namespace slskd
                     InsertFilename(file.Key);
                 }
 
+                Directories = directories;
                 Files = files;
-
-                Refreshed?.Invoke(this, (directories, Files.Count));
+                Refreshed?.Invoke(this, (directories.Count, Files.Count));
             }
             finally
             {
@@ -137,19 +139,40 @@ namespace slskd
 
         public IEnumerable<Soulseek.Directory> Browse()
         {
-            var directories = Files
+            var directories = new ConcurrentDictionary<string, Soulseek.Directory>();
+
+            // Soulseek requires that each directory in the tree have an entry in the list returned
+            // in a browse response.  if missing, files that are nested within directories which contain
+            // only directories (no files) are displayed as being in the root.  to get around this, prime
+            // a dictionary with all known directories, and an empty Soulseek.Directory.  if there are any
+            // files in the directory, this entry will be overwritten with a new Soulseek.Directory containing
+            // the files. if not they'll be left as is.
+            foreach (var directory in Directories)
+            {
+                directories.TryAdd(directory, new Soulseek.Directory(directory));
+            }
+
+            var groups = Files
                 .GroupBy(f => Path.GetDirectoryName(f.Key))
-                .Select(g => new Soulseek.Directory(g.Key, g.Select(g => {
+                .Select(g => new Soulseek.Directory(g.Key, g.Select(g =>
+                {
                     var f = g.Value;
                     return new Soulseek.File(
                         f.Code,
-                        Path.GetFileName(f.Filename),
+                        Path.GetFileName(f.Filename), // we can send the full path, or just the filename.  save bandwidth and omit the path.
                         f.Size,
                         f.Extension,
                         f.Attributes);
                 })));
 
-            return directories;
+            // merge the dictionary containing all directories with the Soulseek.Directory instances
+            // containing their files. entries with no files will remain untouched.
+            foreach (var group in groups)
+            {
+                directories.AddOrUpdate(group.Name, group, (_, _) => group);
+            }
+
+            return directories.Values;
         }
 
         private void CreateTable()
