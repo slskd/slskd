@@ -73,6 +73,8 @@ namespace slskd
 
                 foreach (var directory in Directories)
                 {
+                    Console.WriteLine(directory);
+
                     directories += System.IO.Directory.GetDirectories(directory, "*", SearchOption.AllDirectories).Length;
 
                     // recursively find all files in the directory and stick a record in a dictionary, keyed on the sanitized
@@ -86,6 +88,7 @@ namespace slskd
                     // the only time this *should* cause problems is if one of the shares is a subdirectory of another.
                     foreach (var file in newFiles)
                     {
+                        Console.WriteLine(file.Key);
                         if (files.ContainsKey(file.Key))
                         {
                             Console.WriteLine($"[WARNING] File {file.Key} shared in directory {directory} has already been cached.  This is probably a misconfiguration of the shared directories.");
