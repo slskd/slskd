@@ -22,25 +22,25 @@ namespace slskd
     /// <summary>
     ///     Used for notifications when <see cref="State"/> changes.
     /// </summary>
-    public interface IStateMonitor
+    public interface IStateMonitor<T>
     {
         /// <summary>
         ///     Gets the current application state.
         /// </summary>
-        State Current { get; }
+        T Current { get; }
 
         /// <summary>
-        ///     Registers a listener to be called whenever <see cref="State"/> changes.
+        ///     Registers a listener to be called whenever <see cref="T"/> changes.
         /// </summary>
         /// <param name="listener">Registers a listener to be called whenver state changes.</param>
         /// <returns>An <see cref="IDisposable"/> which should be disposed to stop listening for changes.</returns>
-        IDisposable OnChange(Action<(State Previous, State Current)> listener);
+        IDisposable OnChange(Action<(T Previous, T Current)> listener);
 
         /// <summary>
         ///     Replaces the current state with the value resolved by the <paramref name="setter"/>.
         /// </summary>
         /// <param name="setter">Given the current state, resolves a new state value.</param>
         /// <returns>The updated state.</returns>
-        State Set(Func<State, State> setter);
+        T Set(Func<T, T> setter);
     }
 }
