@@ -31,6 +31,8 @@ namespace slskd
         /// </summary>
         public T Current { get; private set; } = (T)Activator.CreateInstance(typeof(T));
 
+        private object Lock { get; } = new object();
+
         /// <summary>
         ///     Registers a listener to be called whenever <see cref="T"/> changes.
         /// </summary>
@@ -50,11 +52,14 @@ namespace slskd
         /// <returns>The updated state.</returns>
         public T Set(Func<T, T> setter)
         {
-            var previous = Current.ToJson().ToObject<T>();
-            Current = setter(Current);
+            lock (Lock)
+            {
+                var previous = Current.ToJson().ToObject<T>();
+                Current = setter(Current);
 
-            Changed?.Invoke((previous, Current));
-            return Current;
+                Changed?.Invoke((previous, Current));
+                return Current;
+            }
         }
 
         private class StateTrackerDisposable<T> : IDisposable
