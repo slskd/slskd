@@ -226,6 +226,13 @@ namespace slskd
                     pendingReconnect |= requiresReconnect;
                 }
 
+                if (PreviousOptions.Directories.Shared.Except(newOptions.Directories.Shared).Any()
+                    || newOptions.Directories.Shared.Except(PreviousOptions.Directories.Shared).Any())
+                {
+                    StateMonitor.SetValue(state => state with { PendingReconnect = true });
+                    Logger.Information("Shared directory configuration changed.  Shares must be re-scanned for changes to take effect.");
+                }
+
                 // determine whether any Soulseek options changed.  if so, we need to construct a patch
                 // and invoke ReconfigureOptionsAsync().
                 var slskDiff = PreviousOptions.Soulseek.DiffWith(newOptions.Soulseek);

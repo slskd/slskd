@@ -24,5 +24,6 @@ namespace slskd
     {
         public bool PendingReconnect { get; init; }
         public bool PendingRestart { get; init; }
+        public bool PendingRescan { get; init; }
     }
 }
