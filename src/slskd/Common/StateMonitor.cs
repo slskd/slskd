@@ -20,8 +20,9 @@ namespace slskd
     using System;
 
     /// <summary>
-    ///     Used for notifications when <see cref="State"/> changes.
+    ///     Used for notifications when <see cref="ServiceState"/> changes.
     /// </summary>
+    /// <typeparam name="T">The type of the tracked state object.</typeparam>
     public class StateMonitor<T> : IStateMonitor<T>
     {
         private event Action<(T, T)> Changed;
@@ -29,12 +30,12 @@ namespace slskd
         /// <summary>
         ///     Gets the current application state.
         /// </summary>
-        public T Current { get; private set; } = (T)Activator.CreateInstance(typeof(T));
+        public T CurrentValue { get; private set; } = (T)Activator.CreateInstance(typeof(T));
 
         private object Lock { get; } = new object();
 
         /// <summary>
-        ///     Registers a listener to be called whenever <see cref="T"/> changes.
+        ///     Registers a listener to be called whenever the stracked state changes.
         /// </summary>
         /// <param name="listener">Registers a listener to be called whenver state changes.</param>
         /// <returns>An <see cref="IDisposable"/> which should be disposed to stop listening for changes.</returns>
@@ -50,19 +51,21 @@ namespace slskd
         /// </summary>
         /// <param name="setter">Given the current state, resolves a new state value.</param>
         /// <returns>The updated state.</returns>
-        public T Set(Func<T, T> setter)
+        public T SetValue(Func<T, T> setter)
         {
             lock (Lock)
             {
-                var previous = Current.ToJson().ToObject<T>();
-                Current = setter(Current);
+                var previous = CurrentValue.ToJson().ToObject<T>();
+                CurrentValue = setter(CurrentValue);
 
-                Changed?.Invoke((previous, Current));
-                return Current;
+                Changed?.Invoke((previous, CurrentValue));
+                return CurrentValue;
             }
         }
 
+#pragma warning disable CS0693 // Type parameter has the same name as the type parameter from outer type
         private class StateTrackerDisposable<T> : IDisposable
+#pragma warning restore CS0693 // Type parameter has the same name as the type parameter from outer type
         {
             public StateTrackerDisposable(StateMonitor<T> stateMonitor, Action<(T Previous, T Current)> listener)
             {

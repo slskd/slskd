@@ -20,17 +20,18 @@ namespace slskd
     using System;
 
     /// <summary>
-    ///     Used for notifications when <see cref="State"/> changes.
+    ///     Used for notifications when <see cref="ServiceState"/> changes.
     /// </summary>
+    /// <typeparam name="T">The type of the tracked state object.</typeparam>
     public interface IStateMonitor<T>
     {
         /// <summary>
         ///     Gets the current application state.
         /// </summary>
-        T Current { get; }
+        T CurrentValue { get; }
 
         /// <summary>
-        ///     Registers a listener to be called whenever <see cref="T"/> changes.
+        ///     Registers a listener to be called whenever the tracked state changes.
         /// </summary>
         /// <param name="listener">Registers a listener to be called whenver state changes.</param>
         /// <returns>An <see cref="IDisposable"/> which should be disposed to stop listening for changes.</returns>
@@ -41,6 +42,6 @@ namespace slskd
         /// </summary>
         /// <param name="setter">Given the current state, resolves a new state value.</param>
         /// <returns>The updated state.</returns>
-        T Set(Func<T, T> setter);
+        T SetValue(Func<T, T> setter);
     }
 }
