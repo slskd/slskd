@@ -108,8 +108,8 @@ namespace slskd
             // add IStateMonitor instances to DI, to track application state in an observable way.
             // imilar to IOptionsMonitor, but state is managed by the application itself.
             // Usage is roughly the same.
-            services.AddSingleton<IStateMonitor<State>, StateMonitor<State>>();
-            services.AddSingleton<IStateMonitor<SharesState>, StateMonitor<SharesState>>();
+            services.AddSingleton<IStateMonitor<ServiceState>, StateMonitor<ServiceState>>();
+            services.AddSingleton<IStateMonitor<SharedFileCacheState>, StateMonitor<SharedFileCacheState>>();
 
             services.AddCors(options => options.AddPolicy("AllowAll", builder => builder.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader()));
 
@@ -209,7 +209,8 @@ namespace slskd
             services.AddSingleton<IConversationTracker, ConversationTracker>();
             services.AddSingleton<IRoomTracker, RoomTracker>(_ => new RoomTracker(messageLimit: 250));
 
-            services.AddSingleton<ISharesService, SharesService>();
+            services.AddSingleton<ISharedFileCache, SharedFileCache>();
+
             services.AddSingleton<ISearchService, SearchService>();
             services.AddSingleton<IPeerService, PeerService>();
             services.AddSingleton<IManagementService, ManagementService>();

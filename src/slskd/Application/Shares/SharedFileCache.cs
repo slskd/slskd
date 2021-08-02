@@ -1,4 +1,4 @@
-﻿// <copyright file="SharesService.cs" company="slskd Team">
+﻿// <copyright file="SharedFileCache.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -31,38 +31,37 @@ namespace slskd.Shares
     using Soulseek;
 
     /// <summary>
-    ///     Caches shared files.
+    ///     Shared file cache.
     /// </summary>
-    public class SharesService : ISharesService
+    public class SharedFileCache : ISharedFileCache
     {
         /// <summary>
-        ///     Initializes a new instance of the <see cref="SharesService"/> class.
+        ///     Initializes a new instance of the <see cref="SharedFileCache"/> class.
         /// </summary>
         /// <param name="stateMonitor"></param>
         /// <param name="optionsMonitor"></param>
-        public SharesService(
-            IStateMonitor<SharesState> stateMonitor,
+        public SharedFileCache(
+            IStateMonitor<SharedFileCacheState> stateMonitor,
             IOptionsMonitor<Options> optionsMonitor)
         {
             StateMonitor = stateMonitor;
             OptionsMonitor = optionsMonitor;
-
-            State = new SharesState() { Ready = false, FillProgress = 0 };
         }
-
-        public IEnumerable<string> Shares => OptionsMonitor.CurrentValue.Directories.Shared;
-        public SharesState State { get; }
 
         private HashSet<string> Directories { get; set; }
         private Dictionary<string, Soulseek.File> Files { get; set; }
         private IOptionsMonitor<Options> OptionsMonitor { get; set; }
         private SqliteConnection SQLite { get; set; }
-        private IStateMonitor<SharesState> StateMonitor { get; set; }
+        private IStateMonitor<SharedFileCacheState> StateMonitor { get; set; }
         private ReaderWriterLockSlim SyncRoot { get; } = new ReaderWriterLockSlim();
 
+        /// <summary>
+        ///     Returns the contents of the cache.
+        /// </summary>
+        /// <returns>The contents of the cache.</returns>
         public IEnumerable<Soulseek.Directory> Browse()
         {
-            if (!State.Ready)
+            if (!StateMonitor.CurrentValue.Ready)
             {
                 return Enumerable.Empty<Soulseek.Directory>();
             }
@@ -117,11 +116,11 @@ namespace slskd.Shares
 
             try
             {
-                StateMonitor.Set(state => state with { Ready = false, FillProgress = 0 });
+                StateMonitor.SetValue(state => state with { Ready = false, FillProgress = 0 });
 
                 CreateTable();
 
-                var directories = Shares
+                var directories = OptionsMonitor.CurrentValue.Directories.Shared
                     .SelectMany(share => System.IO.Directory.GetDirectories(share, "*", SearchOption.AllDirectories))
                     .ToHashSet();
 
@@ -150,7 +149,7 @@ namespace slskd.Shares
                     }
 
                     current++;
-                    StateMonitor.Set(state => state with { Ready = false, FillProgress = current / (double)total, Directories = current, Files = files.Count });
+                    StateMonitor.SetValue(state => state with { Ready = false, FillProgress = current / (double)total, Directories = current, Files = files.Count });
                 }
 
                 // potentially optimize with multi-valued insert https://stackoverflow.com/questions/16055566/insert-multiple-rows-in-sqlite
@@ -162,7 +161,7 @@ namespace slskd.Shares
                 Directories = directories;
                 Files = files;
 
-                StateMonitor.Set(state => state with { Ready = true, FillProgress = 1, Directories = directories.Count, Files = files.Count });
+                StateMonitor.SetValue(state => state with { Ready = true, FillProgress = 1, Directories = directories.Count, Files = files.Count });
             }
             finally
             {
@@ -179,7 +178,7 @@ namespace slskd.Shares
         /// <returns></returns>
         public async Task<IEnumerable<Soulseek.File>> SearchAsync(SearchQuery query)
         {
-            if (!State.Ready)
+            if (!StateMonitor.CurrentValue.Ready)
             {
                 return Enumerable.Empty<Soulseek.File>();
             }

@@ -19,7 +19,6 @@ namespace slskd
 {
     using System;
     using System.Collections.Concurrent;
-    using System.Collections.Generic;
     using System.IO;
     using System.Linq;
     using System.Net;
@@ -44,18 +43,16 @@ namespace slskd
     {
         private static readonly int ReconnectMaxDelayMilliseconds = 300000; // 5 minutes
 
-        private (int Directories, int Files) sharedCounts = (0, 0);
-
         public Service(
             OptionsAtStartup optionsAtStartup,
             IOptionsMonitor<Options> optionsMonitor,
-            IStateMonitor<State> stateMonitor,
-            IStateMonitor<SharesState> sharesStateMonitor,
+            IStateMonitor<ServiceState> stateMonitor,
+            IStateMonitor<SharedFileCacheState> sharedFileCacheStateMonitor,
             ITransferTracker transferTracker,
             IBrowseTracker browseTracker,
             IConversationTracker conversationTracker,
             IRoomTracker roomTracker,
-            ISharesService sharesService,
+            ISharedFileCache sharesService,
             IPushbulletService pushbulletService)
         {
             OptionsAtStartup = optionsAtStartup;
@@ -68,8 +65,8 @@ namespace slskd
             StateMonitor = stateMonitor;
             StateMonitor.OnChange(state => StateMonitor_OnChange(state));
 
-            SharesStateMonitor = sharesStateMonitor;
-            SharesStateMonitor.OnChange(state => SharesStateMonitor_OnChange(state));
+            SharedFileCacheStateMonitor = sharedFileCacheStateMonitor;
+            SharedFileCacheStateMonitor.OnChange(state => SharedFileCacheStateMonitor_OnChange(state));
 
             TransferTracker = transferTracker;
             BrowseTracker = browseTracker;
@@ -154,9 +151,9 @@ namespace slskd
         private OptionsAtStartup OptionsAtStartup { get; set; }
         private Options PreviousOptions { get; set; }
         private IRoomTracker RoomTracker { get; set; }
-        private IStateMonitor<State> StateMonitor { get; set; }
-        private IStateMonitor<SharesState> SharesStateMonitor { get; set; }
-        private ISharesService SharesService { get; set; }
+        private IStateMonitor<ServiceState> StateMonitor { get; set; }
+        private IStateMonitor<SharedFileCacheState> SharedFileCacheStateMonitor { get; set; }
+        private ISharedFileCache SharesService { get; set; }
         private ITransferTracker TransferTracker { get; set; }
         private IPushbulletService Pushbullet { get; }
         private ReaderWriterLockSlim OptionsSyncRoot { get; } = new ReaderWriterLockSlim();
@@ -289,13 +286,13 @@ namespace slskd
                 // OR if the call to reconfigure the client requires a reconnect
                 if ((Client.State.HasFlag(SoulseekClientStates.Connected) && pendingReconnect) || soulseekRequiresReconnect)
                 {
-                    StateMonitor.Set(state => state with { PendingReconnect = true });
+                    StateMonitor.SetValue(state => state with { PendingReconnect = true });
                     Logger.Information("One or more updated Soulseek options requires the client to be disconnected, then reconnected to the network to take effect.");
                 }
 
                 if (pendingRestart)
                 {
-                    StateMonitor.Set(state => state with { PendingRestart = true });
+                    StateMonitor.SetValue(state => state with { PendingRestart = true });
                     Logger.Information("One or more updated options requires an application restart to take effect.");
                 }
 
@@ -312,12 +309,12 @@ namespace slskd
             }
         }
 
-        private void StateMonitor_OnChange((State Previous, State Current) state)
+        private void StateMonitor_OnChange((ServiceState Previous, ServiceState Current) state)
         {
             Logger.Debug("State changed from {Previous} to {Current}", state.Previous.ToJson(), state.Current.ToJson());
         }
 
-        private void SharesStateMonitor_OnChange((SharesState Previous, SharesState Current) state)
+        private void SharedFileCacheStateMonitor_OnChange((SharedFileCacheState Previous, SharedFileCacheState Current) state)
         {
             if (state.Previous.Ready && !state.Current.Ready)
             {
@@ -400,9 +397,9 @@ namespace slskd
 
         private async void Client_Disconnected(object sender, SoulseekClientDisconnectedEventArgs args)
         {
-            if (StateMonitor.Current.PendingReconnect)
+            if (StateMonitor.CurrentValue.PendingReconnect)
             {
-                StateMonitor.Set(state => state with { PendingReconnect = false });
+                StateMonitor.SetValue(state => state with { PendingReconnect = false });
             }
 
             if (args.Exception is ObjectDisposedException || args.Exception is ApplicationShutdownException)

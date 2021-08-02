@@ -1,4 +1,4 @@
-﻿// <copyright file="State.cs" company="slskd Team">
+﻿// <copyright file="ServiceState.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -18,9 +18,9 @@
 namespace slskd
 {
     /// <summary>
-    ///     Application state.
+    ///     Application service state.
     /// </summary>
-    public record State()
+    public record ServiceState()
     {
         public bool PendingReconnect { get; init; }
         public bool PendingRestart { get; init; }

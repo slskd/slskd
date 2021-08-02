@@ -1,4 +1,4 @@
-﻿// <copyright file="ISharesService.cs" company="slskd Team">
+﻿// <copyright file="ISharedFileCache.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -21,12 +21,28 @@ namespace slskd.Shares
     using System.Threading.Tasks;
     using Soulseek;
 
-    public interface ISharesService
+    /// <summary>
+    ///     Shared file cache.
+    /// </summary>
+    public interface ISharedFileCache
     {
+        /// <summary>
+        ///     Returns the contents of the cache.
+        /// </summary>
+        /// <returns>The contents of the cache.</returns>
         IEnumerable<Directory> Browse();
 
+        /// <summary>
+        ///     Drops and re-creates the cache from disk.
+        /// </summary>
+        /// <returns>The operation context.</returns>
         Task FillAsync();
 
+        /// <summary>
+        ///     Searches the cache for the specified <paramref name="query"/> and returns the matching files.
+        /// </summary>
+        /// <param name="query">The query for which to search.</param>
+        /// <returns>The matching files.</returns>
         Task<IEnumerable<File>> SearchAsync(SearchQuery query);
     }
 }

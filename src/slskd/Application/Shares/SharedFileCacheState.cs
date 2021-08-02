@@ -1,4 +1,4 @@
-﻿// <copyright file="SharesState.cs" company="slskd Team">
+﻿// <copyright file="SharedFileCacheState.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -17,14 +17,36 @@
 
 namespace slskd.Shares
 {
+    using System;
+
     /// <summary>
     ///     Share cache state.
     /// </summary>
-    public record SharesState()
+    public record SharedFileCacheState()
     {
+        /// <summary>
+        ///     Gets a value indicating whether the cache is ready to be used.
+        /// </summary>
         public bool Ready { get; init; } = true;
+
+        /// <summary>
+        ///     Gets the current fill progress.
+        /// </summary>
         public double FillProgress { get; init; } = 1;
+
+        /// <summary>
+        ///     Gets the number of cached directories.
+        /// </summary>
         public int Directories { get; init; }
+
+        /// <summary>
+        ///     Gets the number of cached files.
+        /// </summary>
         public int Files { get; init; }
+
+        /// <summary>
+        ///     Gets the UTC timestamp of the last fill.
+        /// </summary>
+        public DateTime? LastFilled { get; init; }
     }
 }
