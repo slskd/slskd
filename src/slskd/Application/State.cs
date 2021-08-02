@@ -20,5 +20,9 @@ namespace slskd
     /// <summary>
     ///     Application state.
     /// </summary>
-    public record State(bool PendingReconnect = false, bool PendingRestart = false);
+    public record State()
+    {
+        public bool PendingReconnect { get; init; }
+        public bool PendingRestart { get; init; }
+    }
 }
