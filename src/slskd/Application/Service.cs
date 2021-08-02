@@ -35,6 +35,7 @@ namespace slskd
     using slskd.Messaging;
     using slskd.Peer;
     using slskd.Search;
+    using slskd.Shares;
     using slskd.Transfer;
     using Soulseek;
     using Soulseek.Diagnostics;
@@ -48,12 +49,13 @@ namespace slskd
         public Service(
             OptionsAtStartup optionsAtStartup,
             IOptionsMonitor<Options> optionsMonitor,
-            IStateMonitor stateMonitor,
+            IStateMonitor<State> stateMonitor,
+            IStateMonitor<SharesState> sharesStateMonitor,
             ITransferTracker transferTracker,
             IBrowseTracker browseTracker,
             IConversationTracker conversationTracker,
             IRoomTracker roomTracker,
-            ISharedFileCache sharedFileCache,
+            ISharesService sharesService,
             IPushbulletService pushbulletService)
         {
             OptionsAtStartup = optionsAtStartup;
@@ -66,11 +68,14 @@ namespace slskd
             StateMonitor = stateMonitor;
             StateMonitor.OnChange(state => StateMonitor_OnChange(state));
 
+            SharesStateMonitor = sharesStateMonitor;
+            SharesStateMonitor.OnChange(state => SharesStateMonitor_OnChange(state));
+
             TransferTracker = transferTracker;
             BrowseTracker = browseTracker;
             ConversationTracker = conversationTracker;
             RoomTracker = roomTracker;
-            SharedFileCache = sharedFileCache;
+            SharesService = sharesService;
             Pushbullet = pushbulletService;
 
             ProxyOptions proxyOptions = default;
@@ -136,9 +141,6 @@ namespace slskd
             Client.LoggedIn += Client_LoggedIn;
 
             SoulseekClient = Client;
-
-            SharedFileCache.Fill();
-            SharedFileCache.Refreshed += SharedFileCache_Refreshed;
         }
 
         public static ISoulseekClient SoulseekClient { get; private set; }
@@ -152,14 +154,19 @@ namespace slskd
         private OptionsAtStartup OptionsAtStartup { get; set; }
         private Options PreviousOptions { get; set; }
         private IRoomTracker RoomTracker { get; set; }
-        private IStateMonitor StateMonitor { get; set; }
-        private ISharedFileCache SharedFileCache { get; set; }
+        private IStateMonitor<State> StateMonitor { get; set; }
+        private IStateMonitor<SharesState> SharesStateMonitor { get; set; }
+        private ISharesService SharesService { get; set; }
         private ITransferTracker TransferTracker { get; set; }
         private IPushbulletService Pushbullet { get; }
         private ReaderWriterLockSlim OptionsSyncRoot { get; } = new ReaderWriterLockSlim();
+        private (int Directories, int Files) SharedCounts { get; set; } = (0, 0);
+        private DateTime SharesRefreshStarted { get; set; }
 
         public async Task StartAsync(CancellationToken cancellationToken)
         {
+            _ = SharesService.FillAsync();
+
             if (OptionsAtStartup.Soulseek.Connection.Proxy.Enabled)
             {
                 Logger.Information($"Using Proxy {OptionsAtStartup.Soulseek.Connection.Proxy.Address}:{OptionsAtStartup.Soulseek.Connection.Proxy.Port}");
@@ -310,12 +317,34 @@ namespace slskd
             Logger.Debug("State changed from {Previous} to {Current}", state.Previous.ToJson(), state.Current.ToJson());
         }
 
-        private void SharedFileCache_Refreshed(object sender, (int Directories, int Files) e)
+        private void SharesStateMonitor_OnChange((SharesState Previous, SharesState Current) state)
         {
-            if (sharedCounts != e)
+            if (state.Previous.Ready && !state.Current.Ready)
             {
-                _ = SoulseekClient.SetSharedCountsAsync(e.Directories, e.Files);
-                sharedCounts = e;
+                Logger.Information("Refreshing shares");
+                SharesRefreshStarted = DateTime.UtcNow;
+            }
+
+            var lastProgress = Math.Round(state.Previous.FillProgress * 100);
+            var currentProgress = Math.Round(state.Current.FillProgress * 100);
+
+            if (lastProgress != currentProgress)
+            {
+                Logger.Debug("Processed {Percent}%", currentProgress);
+            }
+
+            if (!state.Previous.Ready && state.Current.Ready)
+            {
+                SharedCounts = (state.Current.Directories, state.Current.Files);
+
+                Logger.Information("Shares refreshed successfully. Found {Directories} directories and {Files} files in {Duration}ms", SharedCounts.Directories, SharedCounts.Files, (DateTime.UtcNow - SharesRefreshStarted).TotalMilliseconds);
+
+                SharesRefreshStarted = default;
+
+                if (Client.State.HasFlag(SoulseekClientStates.Connected | SoulseekClientStates.LoggedIn))
+                {
+                    _ = SoulseekClient.SetSharedCountsAsync(SharedCounts.Directories, SharedCounts.Files);
+                }
             }
         }
 
@@ -327,7 +356,7 @@ namespace slskd
         /// <returns>A Task resolving an IEnumerable of Soulseek.Directory.</returns>
         private Task<BrowseResponse> BrowseResponseResolver(string username, IPEndPoint endpoint)
         {
-            var directories = SharedFileCache.Browse();
+            var directories = SharesService.Browse();
 
             System.IO.File.WriteAllText(@"C:\Users\JP.WHATNET\Desktop\Soulseek\files.json", directories.ToJson());
 
@@ -363,6 +392,10 @@ namespace slskd
         private void Client_LoggedIn(object sender, EventArgs e)
         {
             Logger.Information("Logged in to the Soulseek server as {Username}", Client.Username);
+
+            // send whatever counts we have currently. we'll probably connect before the cache is primed,
+            // so these will be zero initially, but we'll update them when the cache is filled.
+            _ = SoulseekClient.SetSharedCountsAsync(SharedCounts.Directories, SharedCounts.Files);
         }
 
         private async void Client_Disconnected(object sender, SoulseekClientDisconnectedEventArgs args)
@@ -581,41 +614,39 @@ namespace slskd
         /// <param name="token">The search token.</param>
         /// <param name="query">The search query.</param>
         /// <returns>A Task resolving a SearchResponse, or null.</returns>
-        private Task<Soulseek.SearchResponse> SearchResponseResolver(string username, int token, SearchQuery query)
+        private async Task<Soulseek.SearchResponse> SearchResponseResolver(string username, int token, SearchQuery query)
         {
-            var defaultResponse = Task.FromResult<Soulseek.SearchResponse>(null);
-
             // some bots continually query for very common strings. blacklist known names here.
             var blacklist = new[] { "Lola45", "Lolo51", "rajah" };
             if (blacklist.Contains(username))
             {
-                return defaultResponse;
+                return null;
             }
 
             // some bots and perhaps users search for very short terms. only respond to queries >= 3 characters. sorry, U2 fans.
             if (query.Query.Length < 3)
             {
-                return defaultResponse;
+                return null;
             }
 
-            var results = SharedFileCache.Search(query);
+            var results = await SharesService.SearchAsync(query);
 
             if (results.Any())
             {
                 Console.WriteLine($"[SENDING SEARCH RESULTS]: {results.Count()} records to {username} for query {query.SearchText}");
 
-                return Task.FromResult(new Soulseek.SearchResponse(
+                return new Soulseek.SearchResponse(
                     SoulseekClient.Username,
                     token,
                     freeUploadSlots: 1,
                     uploadSpeed: 0,
                     queueLength: 0,
-                    fileList: results));
+                    fileList: results);
             }
 
             // if no results, either return null or an instance of SearchResponse with a fileList of length 0 in either case, no
             // response will be sent to the requestor.
-            return Task.FromResult<Soulseek.SearchResponse>(null);
+            return null;
         }
 
         /// <summary>

@@ -129,7 +129,7 @@ namespace slskd.Shares
                 var current = 0;
                 var total = directories.Count;
 
-                foreach (var directory in directories.Take(100))
+                foreach (var directory in directories)
                 {
                     // recursively find all files in the directory and stick a record in a dictionary, keyed on the sanitized
                     // filename and with a value of a Soulseek.File object
