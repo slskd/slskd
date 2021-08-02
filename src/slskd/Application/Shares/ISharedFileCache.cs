@@ -33,7 +33,7 @@ namespace slskd.Shares
         IEnumerable<Directory> Browse();
 
         /// <summary>
-        ///     Drops and re-creates the cache from disk.
+        ///     Scans the configured shares and fills the cache.
         /// </summary>
         /// <returns>The operation context.</returns>
         Task FillAsync();

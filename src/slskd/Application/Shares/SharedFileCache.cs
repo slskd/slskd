@@ -15,6 +15,7 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
+using System.IO;
 using Microsoft.Extensions.Options;
 
 namespace slskd.Shares
@@ -23,11 +24,11 @@ namespace slskd.Shares
     using System.Collections.Concurrent;
     using System.Collections.Generic;
     using System.Diagnostics;
-    using System.IO;
     using System.Linq;
     using System.Threading;
     using System.Threading.Tasks;
     using Microsoft.Data.Sqlite;
+    using Serilog;
     using Soulseek;
 
     /// <summary>
@@ -49,24 +50,25 @@ namespace slskd.Shares
         }
 
         private HashSet<string> Directories { get; set; }
-        private Dictionary<string, Soulseek.File> Files { get; set; }
+        private Dictionary<string, File> Files { get; set; }
         private IOptionsMonitor<Options> OptionsMonitor { get; set; }
         private SqliteConnection SQLite { get; set; }
         private IStateMonitor<SharedFileCacheState> StateMonitor { get; set; }
         private ReaderWriterLockSlim SyncRoot { get; } = new ReaderWriterLockSlim();
+        private ILogger Log { get; } = Serilog.Log.ForContext<SharedFileCache>();
 
         /// <summary>
         ///     Returns the contents of the cache.
         /// </summary>
         /// <returns>The contents of the cache.</returns>
-        public IEnumerable<Soulseek.Directory> Browse()
+        public IEnumerable<Directory> Browse()
         {
             if (!StateMonitor.CurrentValue.Ready)
             {
-                return Enumerable.Empty<Soulseek.Directory>();
+                return Enumerable.Empty<Directory>();
             }
 
-            var directories = new ConcurrentDictionary<string, Soulseek.Directory>();
+            var directories = new ConcurrentDictionary<string, Directory>();
 
             // Soulseek requires that each directory in the tree have an entry in the list returned in a browse response. if
             // missing, files that are nested within directories which contain only directories (no files) are displayed as being
@@ -75,15 +77,15 @@ namespace slskd.Shares
             // files. if not they'll be left as is.
             foreach (var directory in Directories)
             {
-                directories.TryAdd(directory, new Soulseek.Directory(directory));
+                directories.TryAdd(directory, new Directory(directory));
             }
 
             var groups = Files
                 .GroupBy(f => Path.GetDirectoryName(f.Key))
-                .Select(g => new Soulseek.Directory(g.Key, g.Select(g =>
+                .Select(g => new Directory(g.Key, g.Select(g =>
                 {
                     var f = g.Value;
-                    return new Soulseek.File(
+                    return new File(
                         f.Code,
                         Path.GetFileName(f.Filename), // we can send the full path, or just the filename.  save bandwidth and omit the path.
                         f.Size,
@@ -102,11 +104,17 @@ namespace slskd.Shares
         }
 
         /// <summary>
-        ///     Scans the configured <see cref="Shares"/> and fills the cache.
+        ///     Scans the configured shares and fills the cache.
         /// </summary>
-        /// <returns></returns>
+        /// <returns>The operation context.</returns>
         public async Task FillAsync()
         {
+            if (!StateMonitor.CurrentValue.Ready)
+            {
+                Log.Warning("Cache fill rejected; cache is already filling.");
+                return;
+            }
+
             await Task.Yield();
 
             var sw = new Stopwatch();
@@ -124,7 +132,7 @@ namespace slskd.Shares
                     .SelectMany(share => System.IO.Directory.GetDirectories(share, "*", SearchOption.AllDirectories))
                     .ToHashSet();
 
-                var files = new Dictionary<string, Soulseek.File>();
+                var files = new Dictionary<string, File>();
                 var current = 0;
                 var total = directories.Count;
 
@@ -133,7 +141,7 @@ namespace slskd.Shares
                     // recursively find all files in the directory and stick a record in a dictionary, keyed on the sanitized
                     // filename and with a value of a Soulseek.File object
                     var newFiles = System.IO.Directory.GetFiles(directory, "*", SearchOption.TopDirectoryOnly)
-                        .Select(f => new Soulseek.File(1, f.Replace("/", @"\"), new FileInfo(f).Length, Path.GetExtension(f)))
+                        .Select(f => new File(1, f.Replace("/", @"\"), new FileInfo(f).Length, Path.GetExtension(f)))
                         .ToDictionary(f => f.Filename, f => f);
 
                     // merge the new dictionary with the rest this will overwrite any duplicate keys, but keys are the fully
@@ -172,15 +180,15 @@ namespace slskd.Shares
         }
 
         /// <summary>
-        ///     Searches the cache for files matching the specified <paramref name="query"/>.
+        ///     Searches the cache for the specified <paramref name="query"/> and returns the matching files.
         /// </summary>
-        /// <param name="query"></param>
-        /// <returns></returns>
-        public async Task<IEnumerable<Soulseek.File>> SearchAsync(SearchQuery query)
+        /// <param name="query">The query for which to search.</param>
+        /// <returns>The matching files.</returns>
+        public async Task<IEnumerable<File>> SearchAsync(SearchQuery query)
         {
             if (!StateMonitor.CurrentValue.Ready)
             {
-                return Enumerable.Empty<Soulseek.File>();
+                return Enumerable.Empty<File>();
             }
 
             // sanitize the query string. there's probably more to it than this.
@@ -211,7 +219,7 @@ namespace slskd.Shares
             {
                 // temporary error trap to refine substitution rules
                 Console.WriteLine($"[MALFORMED QUERY]: {query} ({ex.Message})");
-                return Enumerable.Empty<Soulseek.File>();
+                return Enumerable.Empty<File>();
             }
             finally
             {
