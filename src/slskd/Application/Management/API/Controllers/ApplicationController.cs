@@ -22,7 +22,6 @@ namespace slskd.Management.API
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
     using Microsoft.Extensions.Hosting;
-    using Soulseek;
 
     /// <summary>
     ///     Application.
@@ -34,14 +33,25 @@ namespace slskd.Management.API
     [Consumes("application/json")]
     public class ApplicationController : ControllerBase
     {
-        public ApplicationController(ISoulseekClient client, IHostApplicationLifetime lifetime)
+        public ApplicationController(IManagementService managementService, IHostApplicationLifetime lifetime)
         {
-            Client = client;
+            Management = managementService;
             Lifetime = lifetime;
         }
 
-        private ISoulseekClient Client { get; }
+        private IManagementService Management { get; }
         private IHostApplicationLifetime Lifetime { get; }
+
+        /// <summary>
+        ///     Gets the current state of the application.
+        /// </summary>
+        /// <returns></returns>
+        [HttpGet]
+        [Authorize]
+        public IActionResult State()
+        {
+            return Ok(Management.GetServiceState());
+        }
 
         /// <summary>
         ///     Stops the application.

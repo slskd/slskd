@@ -1,18 +1,13 @@
 ﻿// <copyright file="ManagementService.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
-//     This program is free software: you can redistribute it and/or modify
-//     it under the terms of the GNU Affero General Public License as published
-//     by the Free Software Foundation, either version 3 of the License, or
-//     (at your option) any later version.
+//     This program is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public
+//     License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
 //
-//     This program is distributed in the hope that it will be useful,
-//     but WITHOUT ANY WARRANTY; without even the implied warranty of
-//     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//     GNU Affero General Public License for more details.
+//     This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty
+//     of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for more details.
 //
-//     You should have received a copy of the GNU Affero General Public License
-//     along with this program.  If not, see https://www.gnu.org/licenses/.
+//     You should have received a copy of the GNU Affero General Public License along with this program. If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
 using Microsoft.Extensions.Options;
@@ -21,6 +16,7 @@ namespace slskd.Management
 {
     using System;
     using System.Threading.Tasks;
+    using slskd.Shares;
     using Soulseek;
 
     /// <summary>
@@ -32,18 +28,26 @@ namespace slskd.Management
         ///     Initializes a new instance of the <see cref="ManagementService"/> class.
         /// </summary>
         /// <param name="optionsMonitor">The options monitor used to derive application options.</param>
+        /// <param name="serviceStateMonitor">The state monitor for application service state.</param>
         /// <param name="soulseekClient">The Soulseek client.</param>
+        /// <param name="sharedFileCache">The shared file cache.</param>
         public ManagementService(
             IOptionsMonitor<Options> optionsMonitor,
-            ISoulseekClient soulseekClient)
+            IStateMonitor<ServiceState> serviceStateMonitor,
+            ISoulseekClient soulseekClient,
+            ISharedFileCache sharedFileCache)
         {
             OptionsMonitor = optionsMonitor;
+            ServiceStateMonitor = serviceStateMonitor;
             Client = soulseekClient;
+            SharedFileCache = sharedFileCache;
         }
 
         private ISoulseekClient Client { get; }
         private Options Options => OptionsMonitor.CurrentValue;
         private IOptionsMonitor<Options> OptionsMonitor { get; }
+        private IStateMonitor<ServiceState> ServiceStateMonitor { get; }
+        private ISharedFileCache SharedFileCache { get; }
 
         /// <summary>
         ///     Connects the Soulseek client to the server using the configured username and password.
@@ -72,5 +76,17 @@ namespace slskd.Management
                 State = Client.State,
                 Username = Client.Username,
             };
+
+        /// <summary>
+        ///     Gets the current state of the slskd service.
+        /// </summary>
+        /// <returns></returns>
+        public ServiceState GetServiceState() => ServiceStateMonitor.CurrentValue;
+
+        /// <summary>
+        ///     Re-scans shared directories.
+        /// </summary>
+        /// <returns>The operation context.</returns>
+        public Task RescanSharesAsync() => SharedFileCache.FillAsync();
     }
 }

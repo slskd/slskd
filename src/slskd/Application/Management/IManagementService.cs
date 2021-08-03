@@ -43,5 +43,17 @@ namespace slskd.Management
         /// </summary>
         /// <returns>The current server state.</returns>
         ServerState GetServerState();
+
+        /// <summary>
+        ///     Gets the current state of the slskd service.
+        /// </summary>
+        /// <returns></returns>
+        ServiceState GetServiceState();
+
+        /// <summary>
+        ///     Re-scans shared directories.
+        /// </summary>
+        /// <returns>The operation context.</returns>
+        Task RescanSharesAsync();
     }
 }

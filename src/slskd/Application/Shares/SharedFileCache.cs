@@ -109,21 +109,21 @@ namespace slskd.Shares
         /// <returns>The operation context.</returns>
         public async Task FillAsync()
         {
-            if (!StateMonitor.CurrentValue.Ready)
+            if (SyncRoot.TryEnterWriteLock(0))
             {
-                Log.Warning("Cache fill rejected; cache is already filling.");
-                return;
+                Log.Warning("Shared file scan rejected; scan is already in progress.");
+                throw new ShareScanInProgressException("Shared files are already being scanned.");
             }
 
             await Task.Yield();
-
-            var sw = new Stopwatch();
-            sw.Start();
 
             SyncRoot.EnterWriteLock();
 
             try
             {
+                var sw = new Stopwatch();
+                sw.Start();
+
                 StateMonitor.SetValue(state => state with { Ready = false, FillProgress = 0 });
 
                 CreateTable();
@@ -150,7 +150,7 @@ namespace slskd.Shares
                     {
                         if (files.ContainsKey(file.Key))
                         {
-                            Console.WriteLine($"[WARNING] File {file.Key} shared in directory {directory} has already been cached.  This is probably a misconfiguration of the shared directories.");
+                            Log.Warning($"File {file.Key} shared in directory {directory} has already been cached.  This is probably a misconfiguration of the shared directories (is a subdirectory being re-shared?).");
                         }
 
                         files[file.Key] = file.Value;
@@ -170,13 +170,13 @@ namespace slskd.Shares
                 Files = files;
 
                 StateMonitor.SetValue(state => state with { Ready = true, FillProgress = 1, Directories = directories.Count, Files = files.Count });
+
+                Log.Information($"Shared file cache recreated in {sw.ElapsedMilliseconds}ms.  Directories: {directories.Count}, Files: {files.Count}");
             }
             finally
             {
                 SyncRoot.ExitWriteLock();
             }
-
-            sw.Stop();
         }
 
         /// <summary>
