@@ -25,14 +25,19 @@ namespace slskd.Shares
     public record SharedFileCacheState()
     {
         /// <summary>
-        ///     Gets a value indicating whether the cache is ready to be used.
+        ///     Gets a value indicating whether the cache is being filled.
         /// </summary>
-        public bool Ready { get; init; } = true;
+        public bool Filling { get; init; } = false;
+
+        /// <summary>
+        ///     Gets a value indicating whether the cache is faulted.
+        /// </summary>
+        public bool Faulted { get; init; } = false;
 
         /// <summary>
         ///     Gets the current fill progress.
         /// </summary>
-        public double FillProgress { get; init; } = 1;
+        public double FillProgress { get; init; }
 
         /// <summary>
         ///     Gets the number of cached directories.
