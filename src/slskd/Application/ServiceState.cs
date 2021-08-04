@@ -24,6 +24,7 @@ namespace slskd
     {
         public bool PendingReconnect { get; init; }
         public bool PendingRestart { get; init; }
-        public bool PendingRescan { get; init; }
+        public bool PendingShareRescan { get; init; }
+        public (int Directories, int Files) SharedCounts { get; init; } = (0, 0);
     }
 }
