@@ -54,7 +54,7 @@ namespace slskd.Shares
         private IOptionsMonitor<Options> OptionsMonitor { get; set; }
         private SqliteConnection SQLite { get; set; }
         private IStateMonitor<SharedFileCacheState> StateMonitor { get; set; }
-        private ReaderWriterLockSlim SyncRoot { get; } = new ReaderWriterLockSlim();
+        private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1);
         private ILogger Log { get; } = Serilog.Log.ForContext<SharedFileCache>();
 
         /// <summary>
@@ -63,11 +63,6 @@ namespace slskd.Shares
         /// <returns>The contents of the cache.</returns>
         public IEnumerable<Directory> Browse()
         {
-            if (!StateMonitor.CurrentValue.Ready)
-            {
-                return Enumerable.Empty<Directory>();
-            }
-
             var directories = new ConcurrentDictionary<string, Directory>();
 
             // Soulseek requires that each directory in the tree have an entry in the list returned in a browse response. if
@@ -109,7 +104,7 @@ namespace slskd.Shares
         /// <returns>The operation context.</returns>
         public async Task FillAsync()
         {
-            if (SyncRoot.TryEnterWriteLock(0))
+            if (SyncRoot.CurrentCount == 0)
             {
                 Log.Warning("Shared file scan rejected; scan is already in progress.");
                 throw new ShareScanInProgressException("Shared files are already being scanned.");
@@ -117,24 +112,38 @@ namespace slskd.Shares
 
             await Task.Yield();
 
-            SyncRoot.EnterWriteLock();
+            await SyncRoot.WaitAsync();
 
             try
             {
+                StateMonitor.SetValue(state => state with { Filling = true, FillProgress = 0 });
+                Log.Debug("Starting shared file scan");
+
                 var sw = new Stopwatch();
                 sw.Start();
+                var swSnapshot = 0L;
 
-                StateMonitor.SetValue(state => state with { Ready = false, FillProgress = 0 });
-
+                // this destroys the old table and creates a new one.  empty the other cached fields to reflect this
+                // todo: use an A/B style table naming schema so that the cache remains available while it is filling
                 CreateTable();
+                Directories = new HashSet<string>();
+                Files = new Dictionary<string, File>();
+                StateMonitor.SetValue(state => state with { Directories = 0, Files = 0 });
+
+                Log.Debug("Enumerating shared directories");
+                swSnapshot = sw.ElapsedMilliseconds;
 
                 var directories = OptionsMonitor.CurrentValue.Directories.Shared
                     .SelectMany(share => System.IO.Directory.GetDirectories(share, "*", SearchOption.AllDirectories))
                     .ToHashSet();
 
+                StateMonitor.SetValue(state => state with { Directories = directories.Count });
+
+                Log.Debug("Found {Directories} shared directories in {Elapsed}ms.  Starting recursive scan.", sw.ElapsedMilliseconds - swSnapshot, directories.Count);
+                swSnapshot = sw.ElapsedMilliseconds;
+
                 var files = new Dictionary<string, File>();
                 var current = 0;
-                var total = directories.Count;
 
                 foreach (var directory in directories)
                 {
@@ -157,8 +166,11 @@ namespace slskd.Shares
                     }
 
                     current++;
-                    StateMonitor.SetValue(state => state with { Ready = false, FillProgress = current / (double)total, Directories = current, Files = files.Count });
+                    StateMonitor.SetValue(state => state with { FillProgress = current / (double)directories.Count, Files = files.Count });
                 }
+
+                Log.Debug("Directory scan found {Files} in {Elapsed}ms.  Populating filename database", files.Count, sw.ElapsedMilliseconds - swSnapshot);
+                swSnapshot = sw.ElapsedMilliseconds;
 
                 // potentially optimize with multi-valued insert https://stackoverflow.com/questions/16055566/insert-multiple-rows-in-sqlite
                 foreach (var file in files)
@@ -166,16 +178,37 @@ namespace slskd.Shares
                     InsertFilename(file.Key);
                 }
 
+                Log.Debug("Inserted {Files} records in {Elapsed}ms", files.Count, sw.ElapsedMilliseconds - swSnapshot);
+
                 Directories = directories;
                 Files = files;
 
-                StateMonitor.SetValue(state => state with { Ready = true, FillProgress = 1, Directories = directories.Count, Files = files.Count });
+                StateMonitor.SetValue(state => state with
+                {
+                    Filling = false,
+                    Faulted = false,
+                    FillProgress = 1,
+                    Directories = Directories.Count,
+                    Files = Files.Count,
+                });
 
-                Log.Information($"Shared file cache recreated in {sw.ElapsedMilliseconds}ms.  Directories: {directories.Count}, Files: {files.Count}");
+                Log.Debug($"Shared file cache recreated in {sw.ElapsedMilliseconds}ms.  Directories: {directories.Count}, Files: {files.Count}");
+            }
+            catch (Exception ex)
+            {
+                StateMonitor.SetValue(state => state with
+                {
+                    Filling = false,
+                    Faulted = true,
+                    FillProgress = 0,
+                });
+
+                Log.Warning(ex, "Encountered error during scan of shared files: {Message}", ex.Message);
+                throw;
             }
             finally
             {
-                SyncRoot.ExitWriteLock();
+                SyncRoot.Release();
             }
         }
 
@@ -186,11 +219,6 @@ namespace slskd.Shares
         /// <returns>The matching files.</returns>
         public async Task<IEnumerable<File>> SearchAsync(SearchQuery query)
         {
-            if (!StateMonitor.CurrentValue.Ready)
-            {
-                return Enumerable.Empty<File>();
-            }
-
             // sanitize the query string. there's probably more to it than this.
             var text = query.Query
                 .Replace("/", " ")
@@ -199,8 +227,6 @@ namespace slskd.Shares
                 .Replace("\"", " ");
 
             var sql = $"SELECT * FROM cache WHERE cache MATCH '\"{text.Replace("'", "''")}\"'";
-
-            SyncRoot.EnterReadLock();
 
             try
             {
@@ -220,10 +246,6 @@ namespace slskd.Shares
                 // temporary error trap to refine substitution rules
                 Console.WriteLine($"[MALFORMED QUERY]: {query} ({ex.Message})");
                 return Enumerable.Empty<File>();
-            }
-            finally
-            {
-                SyncRoot.ExitReadLock();
             }
         }
 
