@@ -19,7 +19,6 @@ using Microsoft.Extensions.Options;
 
 namespace slskd.Application.Management.API
 {
-    using System.Threading.Tasks;
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
     using slskd.Management;
@@ -50,6 +49,7 @@ namespace slskd.Application.Management.API
         private IStateMonitor<SharedFileCacheState> SharedFileCacheMonitor { get; }
 
         [HttpGet]
+        [Route("")]
         [Authorize]
         public IActionResult GetOptions()
         {
@@ -58,17 +58,16 @@ namespace slskd.Application.Management.API
         }
 
         [HttpPut]
+        [Route("shares")]
         [Authorize]
-        public async Task<IActionResult> RescanSharesAsync()
+        public IActionResult RescanSharesAsync()
         {
-            try
+            if (SharedFileCacheMonitor.CurrentValue.Filling)
             {
-                await ManagementService.RescanSharesAsync();
+                return Conflict("A share scan is already in progress.");
             }
-            catch (ShareScanInProgressException ex)
-            {
-                return Conflict(ex.Message);
-            }
+
+            _ = ManagementService.RescanSharesAsync();
 
             return Ok();
         }
