@@ -150,11 +150,23 @@ namespace slskd
         [RequiresRestart]
         public bool NoStart { get; private set; } = false;
 
+        /// <summary>
+        ///     Gets a value indicating whether the application should connect to the Soulseek network on startup.
+        /// </summary>
         [Argument(default, "no-connect")]
         [EnvironmentVariable("NO_CONNECT")]
         [Description("do not connect to the Soulseek network on startup")]
         [RequiresRestart]
         public bool NoConnect { get; private set; } = false;
+
+        /// <summary>
+        ///     Gets a value indicating whether the application should scan shared directories on startup.
+        /// </summary>
+        [Argument(default, "no-share-scan")]
+        [EnvironmentVariable("NO_SHARE_SCAN")]
+        [Description("do not scan shares on startup")]
+        [RequiresRestart]
+        public bool NoShareScan { get; private set; } = true;
 
         /// <summary>
         ///     Gets the unique name for this instance.
@@ -245,7 +257,6 @@ namespace slskd
             [Argument('s', "shared")]
             [EnvironmentVariable("SHARED_DIR")]
             [Description("path to shared files")]
-            [RequiresRestart]
             public string[] Shared { get; private set; } = new[] { Program.DefaultSharedDirectory };
         }
 
