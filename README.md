@@ -11,6 +11,8 @@ docker run -d \
   -v <path/to/downloads>:/var/slskd/downloads \
   -v <path/to/incoming>:/var/slskd/incoming \
   -v <path/to/shared>:/var/slskd/shared \
+  -e "SLSKD_USERNAME=<slskd username>" \
+  -e "SLSKD_PASSWORD=<slskd password>" \
   -e "SLSKD_SLSK_USERNAME=<Soulseek username>" \
   -e "SLSKD_SLSK_PASSWORD=<Soulseek password>" \
   --name slskd \
