@@ -52,7 +52,7 @@ namespace slskd
             IBrowseTracker browseTracker,
             IConversationTracker conversationTracker,
             IRoomTracker roomTracker,
-            ISharedFileCache sharesService,
+            ISharedFileCache sharedFileCache,
             IPushbulletService pushbulletService)
         {
             OptionsAtStartup = optionsAtStartup;
@@ -72,7 +72,7 @@ namespace slskd
             BrowseTracker = browseTracker;
             ConversationTracker = conversationTracker;
             RoomTracker = roomTracker;
-            SharesService = sharesService;
+            SharedFileCache = sharedFileCache;
             Pushbullet = pushbulletService;
 
             ProxyOptions proxyOptions = default;
@@ -153,7 +153,7 @@ namespace slskd
         private IRoomTracker RoomTracker { get; set; }
         private IStateMonitor<ServiceState> StateMonitor { get; set; }
         private IStateMonitor<SharedFileCacheState> SharedFileCacheStateMonitor { get; set; }
-        private ISharedFileCache SharesService { get; set; }
+        private ISharedFileCache SharedFileCache { get; set; }
         private ITransferTracker TransferTracker { get; set; }
         private IPushbulletService Pushbullet { get; }
         private ReaderWriterLockSlim OptionsSyncRoot { get; } = new ReaderWriterLockSlim();
@@ -162,7 +162,7 @@ namespace slskd
 
         public async Task StartAsync(CancellationToken cancellationToken)
         {
-            _ = SharesService.FillAsync();
+            _ = SharedFileCache.FillAsync();
 
             if (OptionsAtStartup.Soulseek.Connection.Proxy.Enabled)
             {
@@ -172,7 +172,11 @@ namespace slskd
             Logger.Information("Client started");
             Logger.Information("Listening on port {Port}", OptionsAtStartup.Soulseek.ListenPort);
 
-            if (string.IsNullOrEmpty(OptionsAtStartup.Soulseek.Username) || string.IsNullOrEmpty(OptionsAtStartup.Soulseek.Password))
+            if (OptionsAtStartup.NoConnect)
+            {
+                Logger.Warning("Not connecting to the Soulseek server; 'no-connect' option is enabled");
+            }
+            else if (string.IsNullOrEmpty(OptionsAtStartup.Soulseek.Username) || string.IsNullOrEmpty(OptionsAtStartup.Soulseek.Password))
             {
                 Logger.Warning($"Not connecting to the Soulseek server; username and/or password invalid.  Specify valid credentials and manually connect, or update config and restart.");
             }
@@ -360,10 +364,7 @@ namespace slskd
         /// <returns>A Task resolving an IEnumerable of Soulseek.Directory.</returns>
         private Task<BrowseResponse> BrowseResponseResolver(string username, IPEndPoint endpoint)
         {
-            var directories = SharesService.Browse();
-
-            System.IO.File.WriteAllText(@"C:\Users\JP.WHATNET\Desktop\Soulseek\files.json", directories.ToJson());
-
+            var directories = SharedFileCache.Browse();
             return Task.FromResult(new BrowseResponse(directories));
         }
 
@@ -618,7 +619,7 @@ namespace slskd
         /// <param name="token">The search token.</param>
         /// <param name="query">The search query.</param>
         /// <returns>A Task resolving a SearchResponse, or null.</returns>
-        private async Task<Soulseek.SearchResponse> SearchResponseResolver(string username, int token, SearchQuery query)
+        private async Task<SearchResponse> SearchResponseResolver(string username, int token, SearchQuery query)
         {
             // some bots continually query for very common strings. blacklist known names here.
             var blacklist = new[] { "Lola45", "Lolo51", "rajah" };
@@ -633,13 +634,13 @@ namespace slskd
                 return null;
             }
 
-            var results = await SharesService.SearchAsync(query);
+            var results = await SharedFileCache.SearchAsync(query);
 
             if (results.Any())
             {
                 Console.WriteLine($"[SENDING SEARCH RESULTS]: {results.Count()} records to {username} for query {query.SearchText}");
 
-                return new Soulseek.SearchResponse(
+                return new SearchResponse(
                     SoulseekClient.Username,
                     token,
                     freeUploadSlots: 1,

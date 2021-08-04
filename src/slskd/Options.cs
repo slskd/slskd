@@ -150,6 +150,12 @@ namespace slskd
         [RequiresRestart]
         public bool NoStart { get; private set; } = false;
 
+        [Argument(default, "no-connect")]
+        [EnvironmentVariable("NO_CONNECT")]
+        [Description("do not connect to the Soulseek network on startup")]
+        [RequiresRestart]
+        public bool NoConnect { get; private set; } = false;
+
         /// <summary>
         ///     Gets the unique name for this instance.
         /// </summary>
