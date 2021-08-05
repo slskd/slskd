@@ -140,7 +140,7 @@ namespace slskd
 
                 State.SetValue(state => state with { Directories = directories.Count });
 
-                Log.Debug("Found {Directories} shared directories in {Elapsed}ms.  Starting recursive scan.", sw.ElapsedMilliseconds - swSnapshot, directories.Count);
+                Log.Debug("Found {Directories} shared directories in {Elapsed}ms.  Starting file scan.", sw.ElapsedMilliseconds - swSnapshot, directories.Count);
                 swSnapshot = sw.ElapsedMilliseconds;
 
                 var files = new Dictionary<string, File>();

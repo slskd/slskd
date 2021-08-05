@@ -166,7 +166,7 @@ namespace slskd
         [EnvironmentVariable("NO_SHARE_SCAN")]
         [Description("do not scan shares on startup")]
         [RequiresRestart]
-        public bool NoShareScan { get; private set; } = true;
+        public bool NoShareScan { get; private set; } = false;
 
         /// <summary>
         ///     Gets the unique name for this instance.

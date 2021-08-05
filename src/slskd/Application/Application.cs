@@ -334,20 +334,23 @@ namespace slskd
             if (!state.Previous.Filling && state.Current.Filling)
             {
                 SharesRefreshStarted = DateTime.UtcNow;
+
+                StateMonitor.SetValue(s => s with { SharedFileCache = state.Current });
                 Logger.Information("Scanning shares");
             }
 
             var lastProgress = Math.Round(state.Previous.FillProgress * 100);
             var currentProgress = Math.Round(state.Current.FillProgress * 100);
 
-            if (lastProgress != currentProgress && currentProgress % 10 == 0)
+            if (lastProgress != currentProgress && Math.Round(currentProgress, 0) % 10 == 0)
             {
-                Logger.Debug("Share scan progress {Percent}%", currentProgress);
+                StateMonitor.SetValue(s => s with { SharedFileCache = state.Current });
+                Logger.Information("Scanned {Percent}% of shared directories.  Found {Files} files so far.", currentProgress, state.Current.Files);
             }
 
             if (state.Previous.Filling && !state.Current.Filling)
             {
-                StateMonitor.SetValue(s => s with { SharedCounts = (state.Current.Directories, state.Current.Files) });
+                StateMonitor.SetValue(s => s with { SharedFileCache = state.Current });
 
                 if (state.Current.Faulted)
                 {
@@ -356,13 +359,13 @@ namespace slskd
                 else
                 {
                     StateMonitor.SetValue(s => s with { PendingShareRescan = false });
-                    Logger.Information("Shares scanned successfully. Found {Directories} directories and {Files} files in {Duration}ms", State.SharedCounts.Directories, State.SharedCounts.Files, (DateTime.UtcNow - SharesRefreshStarted).TotalMilliseconds);
+                    Logger.Information("Shares scanned successfully. Found {Directories} directories and {Files} files in {Duration}ms", state.Current.Directories, state.Current.Files, (DateTime.UtcNow - SharesRefreshStarted).TotalMilliseconds);
 
                     SharesRefreshStarted = default;
 
                     if (Client.State.HasFlag(SoulseekClientStates.Connected | SoulseekClientStates.LoggedIn))
                     {
-                        _ = SoulseekClient.SetSharedCountsAsync(State.SharedCounts.Directories, State.SharedCounts.Files);
+                        _ = SoulseekClient.SetSharedCountsAsync(State.SharedFileCache.Directories, State.SharedFileCache.Files);
                     }
                 }
             }
@@ -412,7 +415,7 @@ namespace slskd
 
             // send whatever counts we have currently. we'll probably connect before the cache is primed,
             // so these will be zero initially, but we'll update them when the cache is filled.
-            _ = SoulseekClient.SetSharedCountsAsync(State.SharedCounts.Directories, State.SharedCounts.Files);
+            _ = SoulseekClient.SetSharedCountsAsync(State.SharedFileCache.Directories, State.SharedFileCache.Files);
         }
 
         private async void Client_Disconnected(object sender, SoulseekClientDisconnectedEventArgs args)
