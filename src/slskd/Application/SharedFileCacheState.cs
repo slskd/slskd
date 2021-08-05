@@ -1,4 +1,4 @@
-﻿// <copyright file="IStateMonitor.cs" company="slskd Team">
+﻿// <copyright file="SharedFileCacheState.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -20,27 +20,33 @@ namespace slskd
     using System;
 
     /// <summary>
-    ///     Used for notifications when <see cref="State"/> changes.
+    ///     Share cache state.
     /// </summary>
-    public interface IStateMonitor
+    public record SharedFileCacheState
     {
         /// <summary>
-        ///     Gets the current application state.
+        ///     Gets a value indicating whether the cache is being filled.
         /// </summary>
-        State Current { get; }
+        public bool Filling { get; init; } = false;
 
         /// <summary>
-        ///     Registers a listener to be called whenever <see cref="State"/> changes.
+        ///     Gets a value indicating whether the cache is faulted.
         /// </summary>
-        /// <param name="listener">Registers a listener to be called whenver state changes.</param>
-        /// <returns>An <see cref="IDisposable"/> which should be disposed to stop listening for changes.</returns>
-        IDisposable OnChange(Action<(State Previous, State Current)> listener);
+        public bool Faulted { get; init; } = false;
 
         /// <summary>
-        ///     Replaces the current state with the value resolved by the <paramref name="setter"/>.
+        ///     Gets the current fill progress.
         /// </summary>
-        /// <param name="setter">Given the current state, resolves a new state value.</param>
-        /// <returns>The updated state.</returns>
-        State Set(Func<State, State> setter);
+        public double FillProgress { get; init; }
+
+        /// <summary>
+        ///     Gets the number of cached directories.
+        /// </summary>
+        public int Directories { get; init; }
+
+        /// <summary>
+        ///     Gets the number of cached files.
+        /// </summary>
+        public int Files { get; init; }
     }
 }

@@ -20,25 +20,28 @@ namespace slskd
     using System;
 
     /// <summary>
-    ///     Used for notifications when <see cref="State"/> changes.
+    ///     Provideds observable management of state objects.
     /// </summary>
-    public class StateMonitor : IStateMonitor
+    /// <typeparam name="T">The type of the tracked state object.</typeparam>
+    public class StateMonitor<T> : IStateMonitor<T>
     {
-        private event Action<(State, State)> Changed;
+        private event Action<(T, T)> Changed;
 
         /// <summary>
         ///     Gets the current application state.
         /// </summary>
-        public State Current { get; private set; } = new State();
+        public T CurrentValue { get; private set; } = (T)Activator.CreateInstance(typeof(T));
+
+        private object Lock { get; } = new object();
 
         /// <summary>
-        ///     Registers a listener to be called whenever <see cref="State"/> changes.
+        ///     Registers a listener to be called whenever the stracked state changes.
         /// </summary>
         /// <param name="listener">Registers a listener to be called whenver state changes.</param>
         /// <returns>An <see cref="IDisposable"/> which should be disposed to stop listening for changes.</returns>
-        public IDisposable OnChange(Action<(State Previous, State Current)> listener)
+        public IDisposable OnChange(Action<(T Previous, T Current)> listener)
         {
-            var disposable = new StateTrackerDisposable(this, listener);
+            var disposable = new StateTrackerDisposable<T>(this, listener);
             Changed += disposable.OnChange;
             return disposable;
         }
@@ -48,26 +51,31 @@ namespace slskd
         /// </summary>
         /// <param name="setter">Given the current state, resolves a new state value.</param>
         /// <returns>The updated state.</returns>
-        public State Set(Func<State, State> setter)
+        public T SetValue(Func<T, T> setter)
         {
-            var previous = Current.ToJson().ToObject<State>();
-            Current = setter(Current);
+            lock (Lock)
+            {
+                var previous = CurrentValue.ToJson().ToObject<T>();
+                CurrentValue = setter(CurrentValue);
 
-            Changed?.Invoke((previous, Current));
-            return Current;
+                Changed?.Invoke((previous, CurrentValue));
+                return CurrentValue;
+            }
         }
 
-        private class StateTrackerDisposable : IDisposable
+#pragma warning disable CS0693 // Type parameter has the same name as the type parameter from outer type
+        private class StateTrackerDisposable<T> : IDisposable
+#pragma warning restore CS0693 // Type parameter has the same name as the type parameter from outer type
         {
-            public StateTrackerDisposable(StateMonitor stateMonitor, Action<(State Previous, State Current)> listener)
+            public StateTrackerDisposable(StateMonitor<T> stateMonitor, Action<(T Previous, T Current)> listener)
             {
                 StateMonitor = stateMonitor;
                 Listener = listener;
             }
 
             private bool Disposed { get; set; }
-            private Action<(State Previous, State Current)> Listener { get; }
-            private StateMonitor StateMonitor { get; }
+            private Action<(T Previous, T Current)> Listener { get; }
+            private StateMonitor<T> StateMonitor { get; }
 
             public void Dispose()
             {
@@ -75,7 +83,7 @@ namespace slskd
                 GC.SuppressFinalize(this);
             }
 
-            public void OnChange((State Previous, State Current) args) => Listener.Invoke(args);
+            public void OnChange((T Previous, T Current) args) => Listener.Invoke(args);
 
             protected virtual void Dispose(bool disposing)
             {

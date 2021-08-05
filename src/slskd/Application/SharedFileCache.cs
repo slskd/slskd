@@ -15,156 +15,225 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
+using System.IO;
+using Microsoft.Extensions.Options;
+
 namespace slskd
 {
     using System;
+    using System.Collections.Concurrent;
     using System.Collections.Generic;
     using System.Diagnostics;
-    using System.IO;
     using System.Linq;
     using System.Threading;
+    using System.Threading.Tasks;
     using Microsoft.Data.Sqlite;
+    using Serilog;
     using Soulseek;
 
     /// <summary>
-    ///     Caches shared files.
+    ///     Shared file cache.
     /// </summary>
     public class SharedFileCache : ISharedFileCache
     {
         /// <summary>
         ///     Initializes a new instance of the <see cref="SharedFileCache"/> class.
         /// </summary>
-        /// <param name="directories"></param>
-        /// <param name="ttl"></param>
-        public SharedFileCache(IEnumerable<string> directories, long ttl)
+        /// <param name="optionsMonitor"></param>
+        public SharedFileCache(
+            IOptionsMonitor<Options> optionsMonitor)
         {
-            Directories = directories;
-            TTL = ttl;
+            OptionsMonitor = optionsMonitor;
         }
 
-        public event EventHandler<(int Directories, int Files)> Refreshed;
+        /// <summary>
+        ///     Gets the cache state.
+        /// </summary>
+        public IStateMonitor<SharedFileCacheState> State { get; } = new StateMonitor<SharedFileCacheState>();
 
-        public IEnumerable<string> Directories { get; }
-        public DateTime? LastFill { get; set; }
-        public long TTL { get; }
-
-        private Dictionary<string, Soulseek.File> Files { get; set; }
+        private HashSet<string> Directories { get; set; }
+        private Dictionary<string, File> Files { get; set; }
+        private ILogger Log { get; } = Serilog.Log.ForContext<SharedFileCache>();
+        private IOptionsMonitor<Options> OptionsMonitor { get; set; }
         private SqliteConnection SQLite { get; set; }
-        private ReaderWriterLockSlim SyncRoot { get; } = new ReaderWriterLockSlim();
+        private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1);
 
         /// <summary>
-        ///     Scans the configured <see cref="Directories"/> and fills the cache.
+        ///     Returns the contents of the cache.
         /// </summary>
-        public void Fill()
+        /// <returns>The contents of the cache.</returns>
+        public IEnumerable<Directory> Browse()
         {
-            var sw = new Stopwatch();
-            sw.Start();
+            var directories = new ConcurrentDictionary<string, Directory>();
 
-            Console.WriteLine($"[SHARED FILE CACHE]: Refreshing...");
+            // Soulseek requires that each directory in the tree have an entry in the list returned in a browse response. if
+            // missing, files that are nested within directories which contain only directories (no files) are displayed as being
+            // in the root. to get around this, prime a dictionary with all known directories, and an empty Soulseek.Directory. if
+            // there are any files in the directory, this entry will be overwritten with a new Soulseek.Directory containing the
+            // files. if not they'll be left as is.
+            foreach (var directory in Directories)
+            {
+                directories.TryAdd(directory, new Directory(directory));
+            }
 
-            SyncRoot.EnterWriteLock();
+            var groups = Files
+                .GroupBy(f => Path.GetDirectoryName(f.Key))
+                .Select(g => new Directory(g.Key, g.Select(g =>
+                {
+                    var f = g.Value;
+                    return new File(
+                        f.Code,
+                        Path.GetFileName(f.Filename), // we can send the full path, or just the filename.  save bandwidth and omit the path.
+                        f.Size,
+                        f.Extension,
+                        f.Attributes);
+                })));
+
+            // merge the dictionary containing all directories with the Soulseek.Directory instances containing their files.
+            // entries with no files will remain untouched.
+            foreach (var group in groups)
+            {
+                directories.AddOrUpdate(group.Name, group, (_, _) => group);
+            }
+
+            return directories.Values;
+        }
+
+        /// <summary>
+        ///     Scans the configured shares and fills the cache.
+        /// </summary>
+        /// <returns>The operation context.</returns>
+        public async Task FillAsync()
+        {
+            if (SyncRoot.CurrentCount == 0)
+            {
+                Log.Warning("Shared file scan rejected; scan is already in progress.");
+                throw new ShareScanInProgressException("Shared files are already being scanned.");
+            }
+
+            await Task.Yield();
+
+            await SyncRoot.WaitAsync();
 
             try
             {
+                State.SetValue(state => state with { Filling = true, FillProgress = 0 });
+                Log.Debug("Starting shared file scan");
+
+                var sw = new Stopwatch();
+                sw.Start();
+                var swSnapshot = 0L;
+
+                // this destroys the old table and creates a new one. empty the other cached fields to reflect this
+                // todo: use an A/B style table naming schema so that the cache remains available while it is filling
                 CreateTable();
+                Directories = new HashSet<string>();
+                Files = new Dictionary<string, File>();
+                State.SetValue(state => state with { Directories = 0, Files = 0 });
 
-                var directories = 0;
-                var files = new Dictionary<string, Soulseek.File>();
+                Log.Debug("Enumerating shared directories");
+                swSnapshot = sw.ElapsedMilliseconds;
 
-                foreach (var directory in Directories)
+                var directories = OptionsMonitor.CurrentValue.Directories.Shared
+                    .SelectMany(share => System.IO.Directory.GetDirectories(share, "*", SearchOption.AllDirectories))
+                    .ToHashSet();
+
+                State.SetValue(state => state with { Directories = directories.Count });
+
+                Log.Debug("Found {Directories} shared directories in {Elapsed}ms.  Starting file scan.", sw.ElapsedMilliseconds - swSnapshot, directories.Count);
+                swSnapshot = sw.ElapsedMilliseconds;
+
+                var files = new Dictionary<string, File>();
+                var current = 0;
+
+                foreach (var directory in directories)
                 {
-                    directories += System.IO.Directory.GetDirectories(directory, "*", SearchOption.AllDirectories).Length;
-
                     // recursively find all files in the directory and stick a record in a dictionary, keyed on the sanitized
                     // filename and with a value of a Soulseek.File object
-                    var newFiles = System.IO.Directory.GetFiles(directory, "*", SearchOption.AllDirectories)
-                        .Select(f => new Soulseek.File(1, f.Replace("/", @"\"), new FileInfo(f).Length, Path.GetExtension(f)))
+                    var newFiles = System.IO.Directory.GetFiles(directory, "*", SearchOption.TopDirectoryOnly)
+                        .Select(f => new File(1, f.Replace("/", @"\"), new FileInfo(f).Length, Path.GetExtension(f)))
                         .ToDictionary(f => f.Filename, f => f);
 
-                    // merge the new dictionary with the rest
-                    // this will overwrite any duplicate keys, but keys are the fully qualified name
-                    // the only time this *should* cause problems is if one of the shares is a subdirectory of another.
+                    // merge the new dictionary with the rest this will overwrite any duplicate keys, but keys are the fully
+                    // qualified name the only time this *should* cause problems is if one of the shares is a subdirectory of another.
                     foreach (var file in newFiles)
                     {
                         if (files.ContainsKey(file.Key))
                         {
-                            Console.WriteLine($"[WARNING] File {file.Key} shared in directory {directory} has already been cached.  This is probably a misconfiguration of the shared directories.");
+                            Log.Warning($"File {file.Key} shared in directory {directory} has already been cached.  This is probably a misconfiguration of the shared directories (is a subdirectory being re-shared?).");
                         }
 
                         files[file.Key] = file.Value;
                     }
+
+                    current++;
+                    State.SetValue(state => state with { FillProgress = current / (double)directories.Count, Files = files.Count });
                 }
 
-                // potentially optimize with multi-valued insert
-                // https://stackoverflow.com/questions/16055566/insert-multiple-rows-in-sqlite
+                Log.Debug("Directory scan found {Files} in {Elapsed}ms.  Populating filename database", files.Count, sw.ElapsedMilliseconds - swSnapshot);
+                swSnapshot = sw.ElapsedMilliseconds;
+
+                // potentially optimize with multi-valued insert https://stackoverflow.com/questions/16055566/insert-multiple-rows-in-sqlite
                 foreach (var file in files)
                 {
                     InsertFilename(file.Key);
                 }
 
+                Log.Debug("Inserted {Files} records in {Elapsed}ms", files.Count, sw.ElapsedMilliseconds - swSnapshot);
+
+                Directories = directories;
                 Files = files;
 
-                Refreshed?.Invoke(this, (directories, Files.Count));
+                State.SetValue(state => state with
+                {
+                    Filling = false,
+                    Faulted = false,
+                    FillProgress = 1,
+                    Directories = Directories.Count,
+                    Files = Files.Count,
+                });
+
+                Log.Debug($"Shared file cache recreated in {sw.ElapsedMilliseconds}ms.  Directories: {directories.Count}, Files: {files.Count}");
+            }
+            catch (Exception ex)
+            {
+                State.SetValue(state => state with
+                {
+                    Filling = false,
+                    Faulted = true,
+                    FillProgress = 0,
+                });
+
+                Log.Warning(ex, "Encountered error during scan of shared files: {Message}", ex.Message);
+                throw;
             }
             finally
             {
-                SyncRoot.ExitWriteLock();
+                SyncRoot.Release();
             }
-
-            sw.Stop();
-
-            Console.WriteLine($"[SHARED FILE CACHE]: Refreshed in {sw.ElapsedMilliseconds}ms.  Found {Files.Count} files.");
-            LastFill = DateTime.UtcNow;
         }
 
         /// <summary>
-        ///     Searches the cache for files matching the specified <paramref name="query"/>.
+        ///     Searches the cache for the specified <paramref name="query"/> and returns the matching files.
         /// </summary>
-        /// <param name="query"></param>
-        /// <returns></returns>
-        public IEnumerable<Soulseek.File> Search(SearchQuery query)
-        {
-            if (!LastFill.HasValue || LastFill.Value.AddMilliseconds(TTL) < DateTime.UtcNow)
-            {
-                Fill();
-            }
-
-            return QueryTable(query.Query);
-        }
-
-        private void CreateTable()
-        {
-            SQLite = new SqliteConnection("Data Source=:memory:");
-            SQLite.Open();
-
-            using var cmd = new SqliteCommand("CREATE VIRTUAL TABLE cache USING fts5(filename)", SQLite);
-            cmd.ExecuteNonQuery();
-        }
-
-        private void InsertFilename(string filename)
-        {
-            using var cmd = new SqliteCommand($"INSERT INTO cache(filename) VALUES('{filename.Replace("'", "''")}')", SQLite);
-            cmd.ExecuteNonQuery();
-        }
-
-        private IEnumerable<Soulseek.File> QueryTable(string text)
+        /// <param name="query">The query for which to search.</param>
+        /// <returns>The matching files.</returns>
+        public async Task<IEnumerable<File>> SearchAsync(SearchQuery query)
         {
             // sanitize the query string. there's probably more to it than this.
-            text = text
+            var text = query.Query
                 .Replace("/", " ")
                 .Replace("\\", " ")
                 .Replace(":", " ")
                 .Replace("\"", " ");
 
-            var query = $"SELECT * FROM cache WHERE cache MATCH '\"{text.Replace("'", "''")}\"'";
-
-            SyncRoot.EnterReadLock();
+            var sql = $"SELECT * FROM cache WHERE cache MATCH '\"{text.Replace("'", "''")}\"'";
 
             try
             {
-                using var cmd = new SqliteCommand(query, SQLite);
+                using var cmd = new SqliteCommand(sql, SQLite);
                 var results = new List<string>();
-                var reader = cmd.ExecuteReader();
+                var reader = await cmd.ExecuteReaderAsync();
 
                 while (reader.Read())
                 {
@@ -177,12 +246,28 @@ namespace slskd
             {
                 // temporary error trap to refine substitution rules
                 Console.WriteLine($"[MALFORMED QUERY]: {query} ({ex.Message})");
-                return Enumerable.Empty<Soulseek.File>();
+                return Enumerable.Empty<File>();
             }
-            finally
+        }
+
+        private void CreateTable()
+        {
+            if (SQLite != null)
             {
-                SyncRoot.ExitReadLock();
+                SQLite.Dispose();
             }
+
+            SQLite = new SqliteConnection("Data Source=:memory:");
+            SQLite.Open();
+
+            using var cmd = new SqliteCommand("CREATE VIRTUAL TABLE cache USING fts5(filename)", SQLite);
+            cmd.ExecuteNonQuery();
+        }
+
+        private void InsertFilename(string filename)
+        {
+            using var cmd = new SqliteCommand($"INSERT INTO cache(filename) VALUES('{filename.Replace("'", "''")}')", SQLite);
+            cmd.ExecuteNonQuery();
         }
     }
 }

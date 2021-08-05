@@ -32,18 +32,48 @@ namespace slskd.Management
         ///     Initializes a new instance of the <see cref="ManagementService"/> class.
         /// </summary>
         /// <param name="optionsMonitor">The options monitor used to derive application options.</param>
+        /// <param name="serviceStateMonitor">The state monitor for application service state.</param>
         /// <param name="soulseekClient">The Soulseek client.</param>
+        /// <param name="sharedFileCache">The shared file cache.</param>
         public ManagementService(
             IOptionsMonitor<Options> optionsMonitor,
-            ISoulseekClient soulseekClient)
+            IStateMonitor<ApplicationState> serviceStateMonitor,
+            ISoulseekClient soulseekClient,
+            ISharedFileCache sharedFileCache)
         {
             OptionsMonitor = optionsMonitor;
+            ServiceStateMonitor = serviceStateMonitor;
             Client = soulseekClient;
+            SharedFileCache = sharedFileCache;
         }
+
+        /// <summary>
+        ///     Gets the current state of the slskd service.
+        /// </summary>
+        public ApplicationState ApplicationState => ServiceStateMonitor.CurrentValue;
+
+        /// <summary>
+        ///     Gets the current state of the connection to the Soulseek server.
+        /// </summary>
+        public ServerState ServerState =>
+            new ServerState()
+            {
+                Address = Client.Address,
+                IPEndPoint = Client.IPEndPoint,
+                State = Client.State,
+                Username = Client.Username,
+            };
+
+        /// <summary>
+        ///     Gets the current state of the connection to the Soulseek server.
+        /// </summary>
+        public SharedFileCacheState SharedFileCacheState => SharedFileCache.State.CurrentValue;
 
         private ISoulseekClient Client { get; }
         private Options Options => OptionsMonitor.CurrentValue;
         private IOptionsMonitor<Options> OptionsMonitor { get; }
+        private IStateMonitor<ApplicationState> ServiceStateMonitor { get; }
+        private ISharedFileCache SharedFileCache { get; }
 
         /// <summary>
         ///     Connects the Soulseek client to the server using the configured username and password.
@@ -61,16 +91,9 @@ namespace slskd.Management
             => Client.Disconnect(message, exception ?? new IntentionalDisconnectException(message));
 
         /// <summary>
-        ///     Gets the current state of the connection to the Soulseek server.
+        ///     Re-scans shared directories.
         /// </summary>
-        /// <returns>The current server state.</returns>
-        public ServerState GetServerState() =>
-            new ServerState()
-            {
-                Address = Client.Address,
-                IPEndPoint = Client.IPEndPoint,
-                State = Client.State,
-                Username = Client.Username,
-            };
+        /// <returns>The operation context.</returns>
+        public Task RescanSharesAsync() => SharedFileCache.FillAsync();
     }
 }

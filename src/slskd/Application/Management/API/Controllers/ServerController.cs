@@ -50,7 +50,7 @@ namespace slskd.Management.API
         [ProducesResponseType(403)]
         public async Task<IActionResult> Connect()
         {
-            if (!Management.GetServerState().IsConnected)
+            if (!Management.ServerState.IsConnected)
             {
                 await Management.ConnectServerAsync();
             }
@@ -70,7 +70,7 @@ namespace slskd.Management.API
         [ProducesResponseType(403)]
         public IActionResult Disconnect([FromBody] string message)
         {
-            if (Management.GetServerState().IsConnected)
+            if (Management.ServerState.IsConnected)
             {
                 Management.DisconnectServer(message);
             }
@@ -90,7 +90,7 @@ namespace slskd.Management.API
         [ProducesResponseType(403)]
         public IActionResult Get()
         {
-            return Ok(Management.GetServerState());
+            return Ok(Management.ServerState);
         }
     }
 }

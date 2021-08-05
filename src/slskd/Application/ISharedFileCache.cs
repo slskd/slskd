@@ -17,20 +17,37 @@
 
 namespace slskd
 {
-    using System;
     using System.Collections.Generic;
+    using System.Threading.Tasks;
     using Soulseek;
 
+    /// <summary>
+    ///     Shared file cache.
+    /// </summary>
     public interface ISharedFileCache
     {
-        event EventHandler<(int Directories, int Files)> Refreshed;
+        /// <summary>
+        ///     Gets the cache state.
+        /// </summary>
+        IStateMonitor<SharedFileCacheState> State { get; }
 
-        IEnumerable<string> Directories { get; }
-        DateTime? LastFill { get; }
-        long TTL { get; }
+        /// <summary>
+        ///     Returns the contents of the cache.
+        /// </summary>
+        /// <returns>The contents of the cache.</returns>
+        IEnumerable<Directory> Browse();
 
-        void Fill();
+        /// <summary>
+        ///     Scans the configured shares and fills the cache.
+        /// </summary>
+        /// <returns>The operation context.</returns>
+        Task FillAsync();
 
-        IEnumerable<File> Search(SearchQuery query);
+        /// <summary>
+        ///     Searches the cache for the specified <paramref name="query"/> and returns the matching files.
+        /// </summary>
+        /// <param name="query">The query for which to search.</param>
+        /// <returns>The matching files.</returns>
+        Task<IEnumerable<File>> SearchAsync(SearchQuery query);
     }
 }

@@ -1,4 +1,4 @@
-﻿// <copyright file="Service.cs" company="slskd Team">
+﻿// <copyright file="Application.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -19,7 +19,6 @@ namespace slskd
 {
     using System;
     using System.Collections.Concurrent;
-    using System.Collections.Generic;
     using System.IO;
     using System.Linq;
     using System.Net;
@@ -39,16 +38,14 @@ namespace slskd
     using Soulseek;
     using Soulseek.Diagnostics;
 
-    public class Service : IHostedService
+    public class Application : IHostedService
     {
         private static readonly int ReconnectMaxDelayMilliseconds = 300000; // 5 minutes
 
-        private (int Directories, int Files) sharedCounts = (0, 0);
-
-        public Service(
+        public Application(
             OptionsAtStartup optionsAtStartup,
             IOptionsMonitor<Options> optionsMonitor,
-            IStateMonitor stateMonitor,
+            IStateMonitor<ApplicationState> stateMonitor,
             ITransferTracker transferTracker,
             IBrowseTracker browseTracker,
             IConversationTracker conversationTracker,
@@ -66,11 +63,13 @@ namespace slskd
             StateMonitor = stateMonitor;
             StateMonitor.OnChange(state => StateMonitor_OnChange(state));
 
+            SharedFileCache = sharedFileCache;
+            SharedFileCache.State.OnChange(state => SharedFileCacheState_OnChange(state));
+
             TransferTracker = transferTracker;
             BrowseTracker = browseTracker;
             ConversationTracker = conversationTracker;
             RoomTracker = roomTracker;
-            SharedFileCache = sharedFileCache;
             Pushbullet = pushbulletService;
 
             ProxyOptions proxyOptions = default;
@@ -136,8 +135,6 @@ namespace slskd
             Client.LoggedIn += Client_LoggedIn;
 
             SoulseekClient = Client;
-
-            SharedFileCache.Refreshed += SharedFileCache_Refreshed;
         }
 
         public static ISoulseekClient SoulseekClient { get; private set; }
@@ -145,20 +142,32 @@ namespace slskd
         private IBrowseTracker BrowseTracker { get; set; }
         private ISoulseekClient Client { get; set; }
         private IConversationTracker ConversationTracker { get; set; }
-        private ILogger Logger { get; set; } = Log.ForContext<Service>();
+        private ILogger Logger { get; set; } = Log.ForContext<Application>();
         private ConcurrentDictionary<string, ILogger> Loggers { get; } = new ConcurrentDictionary<string, ILogger>();
         private IOptionsMonitor<Options> OptionsMonitor { get; set; }
+        private Options Options => OptionsMonitor.CurrentValue;
         private OptionsAtStartup OptionsAtStartup { get; set; }
         private Options PreviousOptions { get; set; }
         private IRoomTracker RoomTracker { get; set; }
-        private IStateMonitor StateMonitor { get; set; }
+        private IStateMonitor<ApplicationState> StateMonitor { get; set; }
+        private ApplicationState State => StateMonitor.CurrentValue;
         private ISharedFileCache SharedFileCache { get; set; }
         private ITransferTracker TransferTracker { get; set; }
         private IPushbulletService Pushbullet { get; }
         private ReaderWriterLockSlim OptionsSyncRoot { get; } = new ReaderWriterLockSlim();
+        private DateTime SharesRefreshStarted { get; set; }
 
         public async Task StartAsync(CancellationToken cancellationToken)
         {
+            if (OptionsAtStartup.NoShareScan)
+            {
+                Logger.Warning("Not scanning shares; 'no-share-scan' option is enabled.  Search and browse results will remain disabled until a manual scan is completed.");
+            }
+            else
+            {
+                _ = SharedFileCache.FillAsync();
+            }
+
             if (OptionsAtStartup.Soulseek.Connection.Proxy.Enabled)
             {
                 Logger.Information($"Using Proxy {OptionsAtStartup.Soulseek.Connection.Proxy.Address}:{OptionsAtStartup.Soulseek.Connection.Proxy.Port}");
@@ -167,7 +176,11 @@ namespace slskd
             Logger.Information("Client started");
             Logger.Information("Listening on port {Port}", OptionsAtStartup.Soulseek.ListenPort);
 
-            if (string.IsNullOrEmpty(OptionsAtStartup.Soulseek.Username) || string.IsNullOrEmpty(OptionsAtStartup.Soulseek.Password))
+            if (OptionsAtStartup.NoConnect)
+            {
+                Logger.Warning("Not connecting to the Soulseek server; 'no-connect' option is enabled");
+            }
+            else if (string.IsNullOrEmpty(OptionsAtStartup.Soulseek.Username) || string.IsNullOrEmpty(OptionsAtStartup.Soulseek.Password))
             {
                 Logger.Warning($"Not connecting to the Soulseek server; username and/or password invalid.  Specify valid credentials and manually connect, or update config and restart.");
             }
@@ -219,6 +232,13 @@ namespace slskd
 
                     pendingRestart |= requiresRestart;
                     pendingReconnect |= requiresReconnect;
+                }
+
+                if (PreviousOptions.Directories.Shared.Except(newOptions.Directories.Shared).Any()
+                    || newOptions.Directories.Shared.Except(PreviousOptions.Directories.Shared).Any())
+                {
+                    StateMonitor.SetValue(state => state with { PendingShareRescan = true });
+                    Logger.Information("Shared directory configuration changed.  Shares must be re-scanned for changes to take effect.");
                 }
 
                 // determine whether any Soulseek options changed.  if so, we need to construct a patch
@@ -281,13 +301,13 @@ namespace slskd
                 // OR if the call to reconfigure the client requires a reconnect
                 if ((Client.State.HasFlag(SoulseekClientStates.Connected) && pendingReconnect) || soulseekRequiresReconnect)
                 {
-                    StateMonitor.Set(state => state with { PendingReconnect = true });
+                    StateMonitor.SetValue(state => state with { PendingReconnect = true });
                     Logger.Information("One or more updated Soulseek options requires the client to be disconnected, then reconnected to the network to take effect.");
                 }
 
                 if (pendingRestart)
                 {
-                    StateMonitor.Set(state => state with { PendingRestart = true });
+                    StateMonitor.SetValue(state => state with { PendingRestart = true });
                     Logger.Information("One or more updated options requires an application restart to take effect.");
                 }
 
@@ -304,17 +324,50 @@ namespace slskd
             }
         }
 
-        private void StateMonitor_OnChange((State Previous, State Current) state)
+        private void StateMonitor_OnChange((ApplicationState Previous, ApplicationState Current) state)
         {
             Logger.Debug("State changed from {Previous} to {Current}", state.Previous.ToJson(), state.Current.ToJson());
         }
 
-        private void SharedFileCache_Refreshed(object sender, (int Directories, int Files) e)
+        private void SharedFileCacheState_OnChange((SharedFileCacheState Previous, SharedFileCacheState Current) state)
         {
-            if (sharedCounts != e)
+            if (!state.Previous.Filling && state.Current.Filling)
             {
-                _ = SoulseekClient.SetSharedCountsAsync(e.Directories, e.Files);
-                sharedCounts = e;
+                SharesRefreshStarted = DateTime.UtcNow;
+
+                StateMonitor.SetValue(s => s with { SharedFileCache = state.Current });
+                Logger.Information("Scanning shares");
+            }
+
+            var lastProgress = Math.Round(state.Previous.FillProgress * 100);
+            var currentProgress = Math.Round(state.Current.FillProgress * 100);
+
+            if (lastProgress != currentProgress && Math.Round(currentProgress, 0) % 10 == 0)
+            {
+                StateMonitor.SetValue(s => s with { SharedFileCache = state.Current });
+                Logger.Information("Scanned {Percent}% of shared directories.  Found {Files} files so far.", currentProgress, state.Current.Files);
+            }
+
+            if (state.Previous.Filling && !state.Current.Filling)
+            {
+                StateMonitor.SetValue(s => s with { SharedFileCache = state.Current });
+
+                if (state.Current.Faulted)
+                {
+                    Logger.Error("Failed to scan shares.");
+                }
+                else
+                {
+                    StateMonitor.SetValue(s => s with { PendingShareRescan = false });
+                    Logger.Information("Shares scanned successfully. Found {Directories} directories and {Files} files in {Duration}ms", state.Current.Directories, state.Current.Files, (DateTime.UtcNow - SharesRefreshStarted).TotalMilliseconds);
+
+                    SharesRefreshStarted = default;
+
+                    if (Client.State.HasFlag(SoulseekClientStates.Connected | SoulseekClientStates.LoggedIn))
+                    {
+                        _ = SoulseekClient.SetSharedCountsAsync(State.SharedFileCache.Directories, State.SharedFileCache.Files);
+                    }
+                }
             }
         }
 
@@ -326,17 +379,7 @@ namespace slskd
         /// <returns>A Task resolving an IEnumerable of Soulseek.Directory.</returns>
         private Task<BrowseResponse> BrowseResponseResolver(string username, IPEndPoint endpoint)
         {
-            var shares = OptionsMonitor.CurrentValue.Directories.Shared;
-            var directories = new List<Soulseek.Directory>();
-
-            foreach (var share in shares)
-            {
-                directories.AddRange(System.IO.Directory
-                    .GetDirectories(share, "*", SearchOption.AllDirectories)
-                    .Select(dir => new Soulseek.Directory(dir.Replace("/", @"\"), System.IO.Directory.GetFiles(dir)
-                        .Select(f => new Soulseek.File(1, Path.GetFileName(f), new FileInfo(f).Length, Path.GetExtension(f))))));
-            }
-
+            var directories = SharedFileCache.Browse();
             return Task.FromResult(new BrowseResponse(directories));
         }
 
@@ -369,13 +412,17 @@ namespace slskd
         private void Client_LoggedIn(object sender, EventArgs e)
         {
             Logger.Information("Logged in to the Soulseek server as {Username}", Client.Username);
+
+            // send whatever counts we have currently. we'll probably connect before the cache is primed,
+            // so these will be zero initially, but we'll update them when the cache is filled.
+            _ = SoulseekClient.SetSharedCountsAsync(State.SharedFileCache.Directories, State.SharedFileCache.Files);
         }
 
         private async void Client_Disconnected(object sender, SoulseekClientDisconnectedEventArgs args)
         {
-            if (StateMonitor.Current.PendingReconnect)
+            if (State.PendingReconnect)
             {
-                StateMonitor.Set(state => state with { PendingReconnect = false });
+                StateMonitor.SetValue(state => state with { PendingReconnect = false });
             }
 
             if (args.Exception is ObjectDisposedException || args.Exception is ApplicationShutdownException)
@@ -398,7 +445,7 @@ namespace slskd
             {
                 Logger.Error("Disconnected from the Soulseek server: {Message}", args.Exception?.Message ?? args.Message);
 
-                if (string.IsNullOrEmpty(OptionsMonitor.CurrentValue.Soulseek.Username) || string.IsNullOrEmpty(OptionsMonitor.CurrentValue.Soulseek.Password))
+                if (string.IsNullOrEmpty(Options.Soulseek.Username) || string.IsNullOrEmpty(Options.Soulseek.Password))
                 {
                     Logger.Warning($"Not reconnecting to the Soulseek server; username and/or password invalid.  Specify valid credentials and manually connect, or update config and restart.");
                     return;
@@ -422,7 +469,7 @@ namespace slskd
                     {
                         // reconnect with the latest configuration values we have for username and password, instead of the options that were
                         // captured at startup.  if a user has updated these values prior to the disconnect, the changes will take effect now.
-                        await Client.ConnectAsync(OptionsMonitor.CurrentValue.Soulseek.Username, OptionsMonitor.CurrentValue.Soulseek.Password);
+                        await Client.ConnectAsync(Options.Soulseek.Username, Options.Soulseek.Password);
                         break;
                     }
                     catch (Exception ex)
@@ -438,7 +485,7 @@ namespace slskd
         {
             ConversationTracker.AddOrUpdate(args.Username, PrivateMessage.FromEventArgs(args));
 
-            if (OptionsMonitor.CurrentValue.Integration.Pushbullet.Enabled && !args.Replayed)
+            if (Options.Integration.Pushbullet.Enabled && !args.Replayed)
             {
                 Console.WriteLine("Pushing...");
                 _ = Pushbullet.PushAsync($"Private Message from {args.Username}", args.Username, args.Message);
@@ -449,7 +496,7 @@ namespace slskd
         {
             Console.WriteLine($"[PUBLIC CHAT] [{args.RoomName}] [{args.Username}]: {args.Message}");
 
-            if (OptionsMonitor.CurrentValue.Integration.Pushbullet.Enabled && args.Message.Contains(Client.Username))
+            if (Options.Integration.Pushbullet.Enabled && args.Message.Contains(Client.Username))
             {
                 _ = Pushbullet.PushAsync($"Room Mention by {args.Username} in {args.RoomName}", args.RoomName, args.Message);
             }
@@ -474,7 +521,7 @@ namespace slskd
             var message = RoomMessage.FromEventArgs(args, DateTime.UtcNow);
             RoomTracker.AddOrUpdateMessage(args.RoomName, message);
 
-            if (OptionsMonitor.CurrentValue.Integration.Pushbullet.Enabled && message.Message.Contains(Client.Username))
+            if (Options.Integration.Pushbullet.Enabled && message.Message.Contains(Client.Username))
             {
                 _ = Pushbullet.PushAsync($"Room Mention by {message.Username} in {message.RoomName}", message.RoomName, message.Message);
             }
@@ -587,41 +634,39 @@ namespace slskd
         /// <param name="token">The search token.</param>
         /// <param name="query">The search query.</param>
         /// <returns>A Task resolving a SearchResponse, or null.</returns>
-        private Task<Soulseek.SearchResponse> SearchResponseResolver(string username, int token, SearchQuery query)
+        private async Task<SearchResponse> SearchResponseResolver(string username, int token, SearchQuery query)
         {
-            var defaultResponse = Task.FromResult<Soulseek.SearchResponse>(null);
-
             // some bots continually query for very common strings. blacklist known names here.
             var blacklist = new[] { "Lola45", "Lolo51", "rajah" };
             if (blacklist.Contains(username))
             {
-                return defaultResponse;
+                return null;
             }
 
             // some bots and perhaps users search for very short terms. only respond to queries >= 3 characters. sorry, U2 fans.
             if (query.Query.Length < 3)
             {
-                return defaultResponse;
+                return null;
             }
 
-            var results = SharedFileCache.Search(query);
+            var results = await SharedFileCache.SearchAsync(query);
 
             if (results.Any())
             {
                 Console.WriteLine($"[SENDING SEARCH RESULTS]: {results.Count()} records to {username} for query {query.SearchText}");
 
-                return Task.FromResult(new Soulseek.SearchResponse(
+                return new SearchResponse(
                     SoulseekClient.Username,
                     token,
                     freeUploadSlots: 1,
                     uploadSpeed: 0,
                     queueLength: 0,
-                    fileList: results));
+                    fileList: results);
             }
 
             // if no results, either return null or an instance of SearchResponse with a fileList of length 0 in either case, no
             // response will be sent to the requestor.
-            return Task.FromResult<Soulseek.SearchResponse>(null);
+            return null;
         }
 
         /// <summary>

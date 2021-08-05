@@ -104,9 +104,10 @@ namespace slskd
                     return true;
                 });
 
-            // add IStateMonitor to DI, to track application state in an observable way.  similar to IOptionsMonitor,
-            // but state is managed by the application itself.  Usage is roughly the same.
-            services.AddSingleton<IStateMonitor, StateMonitor>();
+            // add IStateMonitor instance to DI, to track application state in an observable way.
+            // similar to IOptionsMonitor, but state is managed by the application itself.
+            // Usage is roughly the same.
+            services.AddSingleton<IStateMonitor<ApplicationState>, StateMonitor<ApplicationState>>();
 
             services.AddCors(options => options.AddPolicy("AllowAll", builder => builder.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader()));
 
@@ -205,8 +206,8 @@ namespace slskd
             services.AddSingleton<IBrowseTracker, BrowseTracker>();
             services.AddSingleton<IConversationTracker, ConversationTracker>();
             services.AddSingleton<IRoomTracker, RoomTracker>(_ => new RoomTracker(messageLimit: 250));
-            services.AddSingleton<ISharedFileCache>(_ =>
-                new SharedFileCache(OptionsAtStartup.Directories.Shared, 3600000));
+
+            services.AddSingleton<ISharedFileCache, SharedFileCache>();
 
             services.AddSingleton<ISearchService, SearchService>();
             services.AddSingleton<IPeerService, PeerService>();
@@ -217,8 +218,8 @@ namespace slskd
 
             services.AddSingleton<IPushbulletService, PushbulletService>();
 
-            services.AddHostedService<Service>();
-            services.AddSingleton(_ => Service.SoulseekClient);
+            services.AddHostedService<Application>();
+            services.AddSingleton(_ => Application.SoulseekClient);
         }
 
         /// <summary>
