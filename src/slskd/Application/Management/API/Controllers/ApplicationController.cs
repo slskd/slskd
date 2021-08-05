@@ -50,7 +50,7 @@ namespace slskd.Management.API
         [Authorize]
         public IActionResult State()
         {
-            return Ok(Management.GetServiceState());
+            return Ok(Management.ApplicationState);
         }
 
         /// <summary>

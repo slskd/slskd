@@ -15,14 +15,14 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-namespace slskd.Shares
+namespace slskd
 {
     using System;
 
     /// <summary>
     ///     Share cache state.
     /// </summary>
-    public record SharedFileCacheState()
+    public record SharedFileCacheState
     {
         /// <summary>
         ///     Gets a value indicating whether the cache is being filled.
@@ -48,10 +48,5 @@ namespace slskd.Shares
         ///     Gets the number of cached files.
         /// </summary>
         public int Files { get; init; }
-
-        /// <summary>
-        ///     Gets the UTC timestamp of the last fill.
-        /// </summary>
-        public DateTime? LastFilled { get; init; }
     }
 }

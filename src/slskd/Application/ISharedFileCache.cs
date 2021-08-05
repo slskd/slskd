@@ -15,7 +15,7 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-namespace slskd.Shares
+namespace slskd
 {
     using System.Collections.Generic;
     using System.Threading.Tasks;
@@ -26,6 +26,11 @@ namespace slskd.Shares
     /// </summary>
     public interface ISharedFileCache
     {
+        /// <summary>
+        ///     Gets the cache state.
+        /// </summary>
+        IStateMonitor<SharedFileCacheState> State { get; }
+
         /// <summary>
         ///     Returns the contents of the cache.
         /// </summary>

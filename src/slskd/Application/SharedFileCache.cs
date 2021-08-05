@@ -18,7 +18,7 @@
 using System.IO;
 using Microsoft.Extensions.Options;
 
-namespace slskd.Shares
+namespace slskd
 {
     using System;
     using System.Collections.Concurrent;
@@ -39,23 +39,24 @@ namespace slskd.Shares
         /// <summary>
         ///     Initializes a new instance of the <see cref="SharedFileCache"/> class.
         /// </summary>
-        /// <param name="stateMonitor"></param>
         /// <param name="optionsMonitor"></param>
         public SharedFileCache(
-            IStateMonitor<SharedFileCacheState> stateMonitor,
             IOptionsMonitor<Options> optionsMonitor)
         {
-            StateMonitor = stateMonitor;
             OptionsMonitor = optionsMonitor;
         }
 
+        /// <summary>
+        ///     Gets the cache state.
+        /// </summary>
+        public IStateMonitor<SharedFileCacheState> State { get; } = new StateMonitor<SharedFileCacheState>();
+
         private HashSet<string> Directories { get; set; }
         private Dictionary<string, File> Files { get; set; }
+        private ILogger Log { get; } = Serilog.Log.ForContext<SharedFileCache>();
         private IOptionsMonitor<Options> OptionsMonitor { get; set; }
         private SqliteConnection SQLite { get; set; }
-        private IStateMonitor<SharedFileCacheState> StateMonitor { get; set; }
         private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1);
-        private ILogger Log { get; } = Serilog.Log.ForContext<SharedFileCache>();
 
         /// <summary>
         ///     Returns the contents of the cache.
@@ -116,19 +117,19 @@ namespace slskd.Shares
 
             try
             {
-                StateMonitor.SetValue(state => state with { Filling = true, FillProgress = 0 });
+                State.SetValue(state => state with { Filling = true, FillProgress = 0 });
                 Log.Debug("Starting shared file scan");
 
                 var sw = new Stopwatch();
                 sw.Start();
                 var swSnapshot = 0L;
 
-                // this destroys the old table and creates a new one.  empty the other cached fields to reflect this
+                // this destroys the old table and creates a new one. empty the other cached fields to reflect this
                 // todo: use an A/B style table naming schema so that the cache remains available while it is filling
                 CreateTable();
                 Directories = new HashSet<string>();
                 Files = new Dictionary<string, File>();
-                StateMonitor.SetValue(state => state with { Directories = 0, Files = 0 });
+                State.SetValue(state => state with { Directories = 0, Files = 0 });
 
                 Log.Debug("Enumerating shared directories");
                 swSnapshot = sw.ElapsedMilliseconds;
@@ -137,7 +138,7 @@ namespace slskd.Shares
                     .SelectMany(share => System.IO.Directory.GetDirectories(share, "*", SearchOption.AllDirectories))
                     .ToHashSet();
 
-                StateMonitor.SetValue(state => state with { Directories = directories.Count });
+                State.SetValue(state => state with { Directories = directories.Count });
 
                 Log.Debug("Found {Directories} shared directories in {Elapsed}ms.  Starting recursive scan.", sw.ElapsedMilliseconds - swSnapshot, directories.Count);
                 swSnapshot = sw.ElapsedMilliseconds;
@@ -166,7 +167,7 @@ namespace slskd.Shares
                     }
 
                     current++;
-                    StateMonitor.SetValue(state => state with { FillProgress = current / (double)directories.Count, Files = files.Count });
+                    State.SetValue(state => state with { FillProgress = current / (double)directories.Count, Files = files.Count });
                 }
 
                 Log.Debug("Directory scan found {Files} in {Elapsed}ms.  Populating filename database", files.Count, sw.ElapsedMilliseconds - swSnapshot);
@@ -183,7 +184,7 @@ namespace slskd.Shares
                 Directories = directories;
                 Files = files;
 
-                StateMonitor.SetValue(state => state with
+                State.SetValue(state => state with
                 {
                     Filling = false,
                     Faulted = false,
@@ -196,7 +197,7 @@ namespace slskd.Shares
             }
             catch (Exception ex)
             {
-                StateMonitor.SetValue(state => state with
+                State.SetValue(state => state with
                 {
                     Filling = false,
                     Faulted = true,

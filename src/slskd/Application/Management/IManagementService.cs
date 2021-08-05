@@ -26,6 +26,21 @@ namespace slskd.Management
     public interface IManagementService
     {
         /// <summary>
+        ///     Gets the current state of the slskd service.
+        /// </summary>
+        ApplicationState ApplicationState { get; }
+
+        /// <summary>
+        ///     Gets the current state of the connection to the Soulseek server.
+        /// </summary>
+        ServerState ServerState { get; }
+
+        /// <summary>
+        ///     Gets the current state of the shared file cache.
+        /// </summary>
+        SharedFileCacheState SharedFileCacheState { get; }
+
+        /// <summary>
         ///     Connects the Soulseek client to the server using the configured username and password.
         /// </summary>
         /// <returns>The operation context.</returns>
@@ -37,18 +52,6 @@ namespace slskd.Management
         /// <param name="message">An optional message containing the reason for the disconnect.</param>
         /// <param name="exception">An optional Exception to associate with the disconnect.</param>
         void DisconnectServer(string message = null, Exception exception = null);
-
-        /// <summary>
-        ///     Gets the current state of the connection to the Soulseek server.
-        /// </summary>
-        /// <returns>The current server state.</returns>
-        ServerState GetServerState();
-
-        /// <summary>
-        ///     Gets the current state of the slskd service.
-        /// </summary>
-        /// <returns></returns>
-        ServiceState GetServiceState();
 
         /// <summary>
         ///     Re-scans shared directories.

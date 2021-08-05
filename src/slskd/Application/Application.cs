@@ -1,4 +1,4 @@
-﻿// <copyright file="Service.cs" company="slskd Team">
+﻿// <copyright file="Application.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -34,20 +34,18 @@ namespace slskd
     using slskd.Messaging;
     using slskd.Peer;
     using slskd.Search;
-    using slskd.Shares;
     using slskd.Transfer;
     using Soulseek;
     using Soulseek.Diagnostics;
 
-    public class Service : IHostedService
+    public class Application : IHostedService
     {
         private static readonly int ReconnectMaxDelayMilliseconds = 300000; // 5 minutes
 
-        public Service(
+        public Application(
             OptionsAtStartup optionsAtStartup,
             IOptionsMonitor<Options> optionsMonitor,
-            IStateMonitor<ServiceState> stateMonitor,
-            IStateMonitor<SharedFileCacheState> sharedFileCacheStateMonitor,
+            IStateMonitor<ApplicationState> stateMonitor,
             ITransferTracker transferTracker,
             IBrowseTracker browseTracker,
             IConversationTracker conversationTracker,
@@ -65,14 +63,13 @@ namespace slskd
             StateMonitor = stateMonitor;
             StateMonitor.OnChange(state => StateMonitor_OnChange(state));
 
-            SharedFileCacheStateMonitor = sharedFileCacheStateMonitor;
-            SharedFileCacheStateMonitor.OnChange(state => SharedFileCacheStateMonitor_OnChange(state));
+            SharedFileCache = sharedFileCache;
+            SharedFileCache.State.OnChange(state => SharedFileCacheState_OnChange(state));
 
             TransferTracker = transferTracker;
             BrowseTracker = browseTracker;
             ConversationTracker = conversationTracker;
             RoomTracker = roomTracker;
-            SharedFileCache = sharedFileCache;
             Pushbullet = pushbulletService;
 
             ProxyOptions proxyOptions = default;
@@ -145,16 +142,15 @@ namespace slskd
         private IBrowseTracker BrowseTracker { get; set; }
         private ISoulseekClient Client { get; set; }
         private IConversationTracker ConversationTracker { get; set; }
-        private ILogger Logger { get; set; } = Log.ForContext<Service>();
+        private ILogger Logger { get; set; } = Log.ForContext<Application>();
         private ConcurrentDictionary<string, ILogger> Loggers { get; } = new ConcurrentDictionary<string, ILogger>();
         private IOptionsMonitor<Options> OptionsMonitor { get; set; }
         private Options Options => OptionsMonitor.CurrentValue;
         private OptionsAtStartup OptionsAtStartup { get; set; }
         private Options PreviousOptions { get; set; }
         private IRoomTracker RoomTracker { get; set; }
-        private IStateMonitor<ServiceState> StateMonitor { get; set; }
-        private ServiceState State => StateMonitor.CurrentValue;
-        private IStateMonitor<SharedFileCacheState> SharedFileCacheStateMonitor { get; set; }
+        private IStateMonitor<ApplicationState> StateMonitor { get; set; }
+        private ApplicationState State => StateMonitor.CurrentValue;
         private ISharedFileCache SharedFileCache { get; set; }
         private ITransferTracker TransferTracker { get; set; }
         private IPushbulletService Pushbullet { get; }
@@ -328,12 +324,12 @@ namespace slskd
             }
         }
 
-        private void StateMonitor_OnChange((ServiceState Previous, ServiceState Current) state)
+        private void StateMonitor_OnChange((ApplicationState Previous, ApplicationState Current) state)
         {
             Logger.Debug("State changed from {Previous} to {Current}", state.Previous.ToJson(), state.Current.ToJson());
         }
 
-        private void SharedFileCacheStateMonitor_OnChange((SharedFileCacheState Previous, SharedFileCacheState Current) state)
+        private void SharedFileCacheState_OnChange((SharedFileCacheState Previous, SharedFileCacheState Current) state)
         {
             if (!state.Previous.Filling && state.Current.Filling)
             {

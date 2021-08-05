@@ -17,12 +17,11 @@
 
 using Microsoft.Extensions.Options;
 
-namespace slskd.Application.Management.API
+namespace slskd.Management.API
 {
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
     using slskd.Management;
-    using slskd.Shares;
 
     /// <summary>
     ///     Configuration.
@@ -36,17 +35,14 @@ namespace slskd.Application.Management.API
     {
         public ConfigurationController(
             IOptionsSnapshot<Options> optionsShapshot,
-            IStateMonitor<SharedFileCacheState> sharedFileCacheMonitor,
             IManagementService managementService)
         {
             OptionsShapshot = optionsShapshot;
-            SharedFileCacheMonitor = sharedFileCacheMonitor;
             ManagementService = managementService;
         }
 
         private IManagementService ManagementService { get; }
         private IOptionsSnapshot<Options> OptionsShapshot { get; }
-        private IStateMonitor<SharedFileCacheState> SharedFileCacheMonitor { get; }
 
         [HttpGet]
         [Route("")]
@@ -62,7 +58,7 @@ namespace slskd.Application.Management.API
         [Authorize]
         public IActionResult RescanSharesAsync()
         {
-            if (SharedFileCacheMonitor.CurrentValue.Filling)
+            if (ManagementService.SharedFileCacheState.Filling)
             {
                 return Conflict("A share scan is already in progress.");
             }
