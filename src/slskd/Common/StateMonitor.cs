@@ -20,7 +20,7 @@ namespace slskd
     using System;
 
     /// <summary>
-    ///     Used for notifications when <see cref="ApplicationState"/> changes.
+    ///     Provideds observable management of state objects.
     /// </summary>
     /// <typeparam name="T">The type of the tracked state object.</typeparam>
     public class StateMonitor<T> : IStateMonitor<T>
