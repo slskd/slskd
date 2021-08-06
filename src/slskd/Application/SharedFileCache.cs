@@ -160,7 +160,7 @@ namespace slskd
                     // recursively find all files in the directory and stick a record in a dictionary, keyed on the sanitized
                     // filename and with a value of a Soulseek.File object
                     var newFiles = System.IO.Directory.GetFiles(directory, "*", SearchOption.TopDirectoryOnly)
-                        .Select(f => new File(1, f.Replace("/", @"\"), new FileInfo(f).Length, Path.GetExtension(f)))
+                        .Select(f => new File(1, f.Replace("/", @"\").ReplaceFirst(mask.Value, mask.Key), new FileInfo(f).Length, Path.GetExtension(f)))
                         .ToDictionary(f => f.Filename, f => f);
 
                     // merge the new dictionary with the rest this will overwrite any duplicate keys, but keys are the fully
