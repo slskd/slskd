@@ -161,7 +161,7 @@ namespace slskd
                     // filename and with a value of a Soulseek.File object
                     var newFiles = System.IO.Directory.GetFiles(directory, "*", SearchOption.TopDirectoryOnly)
                         .Select(f => new File(1, f.Replace("/", @"\").ReplaceFirst(mask.Value, mask.Key), new FileInfo(f).Length, Path.GetExtension(f)))
-                        .ToDictionary(f => f.Filename, f => f);
+                        .ToDictionary(f => f.Filename.ReplaceFirst(mask.Value, mask.Key), f => f);
 
                     // merge the new dictionary with the rest this will overwrite any duplicate keys, but keys are the fully
                     // qualified name the only time this *should* cause problems is if one of the shares is a subdirectory of another.
@@ -172,7 +172,7 @@ namespace slskd
                             Log.Warning($"File {file.Key} shared in directory {directory} has already been cached.  This is probably a misconfiguration of the shared directories (is a subdirectory being re-shared?).");
                         }
 
-                        files[file.Key.ReplaceFirst(mask.Value, mask.Key)] = file.Value;
+                        files[file.Key] = file.Value;
                     }
 
                     current++;
