@@ -594,7 +594,6 @@ namespace slskd
         {
             _ = endpoint;
             var localFilename = SharedFileCache.Resolve(filename).ToLocalOSPath();
-            Console.WriteLine($"Local: {localFilename}");
 
             var fileInfo = new FileInfo(localFilename);
 
