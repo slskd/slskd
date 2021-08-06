@@ -44,6 +44,14 @@ namespace slskd
         Task FillAsync();
 
         /// <summary>
+        ///     Substitutes the mask in the specified <paramref name="filename"/> with the original path, if the mask is tracked
+        ///     by the cache.
+        /// </summary>
+        /// <param name="filename">The fully qualified filename to unmask.</param>
+        /// <returns>The unmasked filename.</returns>
+        public string Resolve(string filename);
+
+        /// <summary>
         ///     Searches the cache for the specified <paramref name="query"/> and returns the matching files.
         /// </summary>
         /// <param name="query">The query for which to search.</param>
