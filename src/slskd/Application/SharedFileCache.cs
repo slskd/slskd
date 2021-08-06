@@ -51,12 +51,14 @@ namespace slskd
         /// </summary>
         public IStateMonitor<SharedFileCacheState> State { get; } = new StateMonitor<SharedFileCacheState>();
 
-        private HashSet<string> Directories { get; set; }
         private Dictionary<string, File> Files { get; set; }
         private ILogger Log { get; } = Serilog.Log.ForContext<SharedFileCache>();
+        private HashSet<string> MaskedDirectories { get; set; }
+        private Dictionary<string, string> Masks { get; set; } = new Dictionary<string, string>();
         private IOptionsMonitor<Options> OptionsMonitor { get; set; }
         private SqliteConnection SQLite { get; set; }
         private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1);
+        private HashSet<string> UnmaskedDirectories { get; set; }
 
         /// <summary>
         ///     Returns the contents of the cache.
@@ -71,7 +73,7 @@ namespace slskd
             // in the root. to get around this, prime a dictionary with all known directories, and an empty Soulseek.Directory. if
             // there are any files in the directory, this entry will be overwritten with a new Soulseek.Directory containing the
             // files. if not they'll be left as is.
-            foreach (var directory in Directories)
+            foreach (var directory in MaskedDirectories)
             {
                 directories.TryAdd(directory, new Directory(directory));
             }
@@ -117,37 +119,44 @@ namespace slskd
 
             try
             {
+                // todo: don't do this, but rather build a new cache and then swap it in
+                ResetCache();
+
                 State.SetValue(state => state with { Filling = true, FillProgress = 0 });
                 Log.Debug("Starting shared file scan");
 
                 var sw = new Stopwatch();
-                sw.Start();
                 var swSnapshot = 0L;
+                sw.Start();
 
-                // this destroys the old table and creates a new one. empty the other cached fields to reflect this
-                // todo: use an A/B style table naming schema so that the cache remains available while it is filling
-                CreateTable();
-                Directories = new HashSet<string>();
-                Files = new Dictionary<string, File>();
-                State.SetValue(state => state with { Directories = 0, Files = 0 });
+                var shares = OptionsMonitor.CurrentValue.Directories.Shared.ToList(); // copy it so it can't change as we scan
+
+                var masks = new Dictionary<string, string>(shares
+                    .Select(s => System.IO.Directory.GetParent(s).FullName)
+                    .Select(s => new KeyValuePair<string, string>(Compute.MaskHash(s), s)));
 
                 Log.Debug("Enumerating shared directories");
                 swSnapshot = sw.ElapsedMilliseconds;
 
-                var directories = OptionsMonitor.CurrentValue.Directories.Shared
+                var unmaskedDirectories = shares
                     .SelectMany(share => System.IO.Directory.GetDirectories(share, "*", SearchOption.AllDirectories))
+                    .Concat(shares)
                     .ToHashSet();
 
-                State.SetValue(state => state with { Directories = directories.Count });
-
-                Log.Debug("Found {Directories} shared directories in {Elapsed}ms.  Starting file scan.", sw.ElapsedMilliseconds - swSnapshot, directories.Count);
+                State.SetValue(state => state with { Directories = unmaskedDirectories.Count });
+                Log.Debug("Found {Directories} shared directories in {Elapsed}ms.  Starting file scan.", sw.ElapsedMilliseconds - swSnapshot, unmaskedDirectories.Count);
                 swSnapshot = sw.ElapsedMilliseconds;
 
                 var files = new Dictionary<string, File>();
+                var maskedDirectories = new HashSet<string>();
                 var current = 0;
 
-                foreach (var directory in directories)
+                foreach (var directory in unmaskedDirectories)
                 {
+                    var mask = masks.First(m => directory.StartsWith(m.Value));
+
+                    maskedDirectories.Add(directory.ReplaceFirst(mask.Value, mask.Key));
+
                     // recursively find all files in the directory and stick a record in a dictionary, keyed on the sanitized
                     // filename and with a value of a Soulseek.File object
                     var newFiles = System.IO.Directory.GetFiles(directory, "*", SearchOption.TopDirectoryOnly)
@@ -163,11 +172,11 @@ namespace slskd
                             Log.Warning($"File {file.Key} shared in directory {directory} has already been cached.  This is probably a misconfiguration of the shared directories (is a subdirectory being re-shared?).");
                         }
 
-                        files[file.Key] = file.Value;
+                        files[file.Key.ReplaceFirst(mask.Value, mask.Key)] = file.Value;
                     }
 
                     current++;
-                    State.SetValue(state => state with { FillProgress = current / (double)directories.Count, Files = files.Count });
+                    State.SetValue(state => state with { FillProgress = current / (double)unmaskedDirectories.Count, Files = files.Count });
                 }
 
                 Log.Debug("Directory scan found {Files} in {Elapsed}ms.  Populating filename database", files.Count, sw.ElapsedMilliseconds - swSnapshot);
@@ -181,29 +190,17 @@ namespace slskd
 
                 Log.Debug("Inserted {Files} records in {Elapsed}ms", files.Count, sw.ElapsedMilliseconds - swSnapshot);
 
-                Directories = directories;
+                UnmaskedDirectories = unmaskedDirectories;
+                MaskedDirectories = maskedDirectories;
+                Masks = masks;
                 Files = files;
 
-                State.SetValue(state => state with
-                {
-                    Filling = false,
-                    Faulted = false,
-                    FillProgress = 1,
-                    Directories = Directories.Count,
-                    Files = Files.Count,
-                });
-
-                Log.Debug($"Shared file cache recreated in {sw.ElapsedMilliseconds}ms.  Directories: {directories.Count}, Files: {files.Count}");
+                State.SetValue(state => state with { Filling = false, Faulted = false, FillProgress = 1, Directories = UnmaskedDirectories.Count, Files = Files.Count });
+                Log.Debug($"Shared file cache recreated in {sw.ElapsedMilliseconds}ms.  Directories: {unmaskedDirectories.Count}, Files: {files.Count}");
             }
             catch (Exception ex)
             {
-                State.SetValue(state => state with
-                {
-                    Filling = false,
-                    Faulted = true,
-                    FillProgress = 0,
-                });
-
+                State.SetValue(state => state with { Filling = false, Faulted = true, FillProgress = 0 });
                 Log.Warning(ex, "Encountered error during scan of shared files: {Message}", ex.Message);
                 throw;
             }
@@ -211,6 +208,24 @@ namespace slskd
             {
                 SyncRoot.Release();
             }
+        }
+
+        /// <summary>
+        ///     Substitutes the mask in the specified <paramref name="filename"/> with the original path, if the mask is tracked
+        ///     by the cache.
+        /// </summary>
+        /// <param name="filename">The fully qualified filename to unmask.</param>
+        /// <returns>The unmasked filename.</returns>
+        public string Resolve(string filename)
+        {
+            var mask = filename.Split(new[] { '/', '\\' }).FirstOrDefault();
+
+            if (Masks.ContainsKey(mask))
+            {
+                return filename.ReplaceFirst(mask, Masks[mask]);
+            }
+
+            return filename;
         }
 
         /// <summary>
@@ -268,6 +283,16 @@ namespace slskd
         {
             using var cmd = new SqliteCommand($"INSERT INTO cache(filename) VALUES('{filename.Replace("'", "''")}')", SQLite);
             cmd.ExecuteNonQuery();
+        }
+
+        private void ResetCache()
+        {
+            CreateTable();
+            UnmaskedDirectories = new HashSet<string>();
+            MaskedDirectories = new HashSet<string>();
+            Masks = new Dictionary<string, string>();
+            Files = new Dictionary<string, File>();
+            State.SetValue(state => state with { Directories = 0, Files = 0 });
         }
     }
 }

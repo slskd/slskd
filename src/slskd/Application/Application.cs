@@ -21,6 +21,7 @@ namespace slskd
     using System.Collections.Concurrent;
     using System.IO;
     using System.Linq;
+    //using System.Linq;
     using System.Net;
     using System.Reflection;
     using System.Threading;
@@ -592,7 +593,9 @@ namespace slskd
         private Task EnqueueDownloadAction(string username, IPEndPoint endpoint, string filename, ITransferTracker tracker)
         {
             _ = endpoint;
-            var localFilename = filename.ToLocalOSPath();
+            var localFilename = SharedFileCache.Resolve(filename).ToLocalOSPath();
+            Console.WriteLine($"Local: {localFilename}");
+
             var fileInfo = new FileInfo(localFilename);
 
             if (!fileInfo.Exists)
