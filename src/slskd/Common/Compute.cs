@@ -43,5 +43,13 @@ namespace slskd
             using var sha1 = new SHA1Managed();
             return BitConverter.ToString(sha1.ComputeHash(Encoding.UTF8.GetBytes(str))).Replace("-", string.Empty);
         }
+
+        public static string MaskHash(string str)
+        {
+            var hashCode = str.GetStableHashCode();
+            var bytes = BitConverter.GetBytes(hashCode);
+            var base64 = Convert.ToBase64String(bytes);
+            return $"@@{base64.ToLowerInvariant().Replace("=", string.Empty)}";
+        }
     }
 }
