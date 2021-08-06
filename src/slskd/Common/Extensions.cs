@@ -94,7 +94,7 @@ namespace slskd
         ///     https://stackoverflow.com/questions/5154970/how-do-i-create-a-hashcode-in-net-c-for-a-string-that-is-safe-to-store-in-a
         /// </remarks>
         /// <param name="str">The string for which the hash code is to be computed.</param>
-        /// <returns>The hash code</returns>
+        /// <returns>The hash code.</returns>
         public static int GetStableHashCode(this string str)
         {
             unchecked
