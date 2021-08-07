@@ -25,6 +25,6 @@ namespace slskd
         public bool PendingReconnect { get; init; }
         public bool PendingRestart { get; init; }
         public bool PendingShareRescan { get; init; }
-        public SharedFileCacheState SharedFileCache { get; init; }
+        public SharedFileCacheState SharedFileCache { get; init; } = new SharedFileCacheState();
     }
 }

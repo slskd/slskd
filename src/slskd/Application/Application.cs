@@ -592,7 +592,8 @@ namespace slskd
         private Task EnqueueDownloadAction(string username, IPEndPoint endpoint, string filename, ITransferTracker tracker)
         {
             _ = endpoint;
-            var localFilename = filename.ToLocalOSPath();
+            var localFilename = SharedFileCache.Resolve(filename).ToLocalOSPath();
+
             var fileInfo = new FileInfo(localFilename);
 
             if (!fileInfo.Exists)
