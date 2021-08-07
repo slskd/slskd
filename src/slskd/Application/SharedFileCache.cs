@@ -133,7 +133,7 @@ namespace slskd
 
                 var masks = new Dictionary<string, string>(shares
                     .Select(s => System.IO.Directory.GetParent(s).FullName)
-                    .Select(s => new KeyValuePair<string, string>(Compute.MaskHash(s), s)));
+                    .Select(s => new KeyValuePair<string, string>(Compute.MaskHash(s), s)).ToHashSet());
 
                 Log.Debug("Enumerating shared directories");
                 swSnapshot = sw.ElapsedMilliseconds;
