@@ -20,6 +20,7 @@ namespace slskd
     using System;
     using System.Security.Cryptography;
     using System.Text;
+    using System.Text.RegularExpressions;
 
     /// <summary>
     ///     Computational functions.
@@ -46,10 +47,19 @@ namespace slskd
 
         public static string MaskHash(string str)
         {
-            var hashCode = str.GetStableHashCode();
-            var bytes = BitConverter.GetBytes(hashCode);
-            var base64 = Convert.ToBase64String(bytes);
-            return $"@@{base64.ToLowerInvariant().Replace("=", string.Empty)}";
+            var hash = Sha1Hash(str);
+            hash = Convert.ToBase64String(Encoding.UTF8.GetBytes(hash));
+            hash = Regex.Replace(hash, @"[\d=]", string.Empty).ToLowerInvariant();
+
+            // in some very unlucky circumstances, the sha1 might end up being all or mostly numbers.
+            // if this is the case the resulting hash could be fewer than the 5 characters we need,
+            // so copy it until we get to 5
+            while (hash.Length < 5)
+            {
+                hash += hash;
+            }
+
+            return $"@@{hash.Substring(0, 5)}";
         }
     }
 }
