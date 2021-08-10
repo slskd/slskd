@@ -41,7 +41,7 @@ servicesL
       - <path/to/shared>:/var/slskd/shared
     restart: always
 ```
-This command/docker-compose file starts a container instance of slskd on ports 5000 (http) and 5001 (https), maps shared, downloads and incoming directories to the paths you choose, and logs in to Soulseek using the credentials provided.
+This command or docker-compose file (depending on your choice) starts a container instance of slskd on ports 5000 (http) and 5001 (https), maps shared, downloads and incoming directories to the paths you choose, and logs in to Soulseek using the credentials provided.
 
 The default credentials for the web UI are slskd/slskd.
 
