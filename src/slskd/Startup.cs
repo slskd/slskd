@@ -307,7 +307,7 @@ namespace slskd
             {
                 app.UseSwagger();
                 app.UseSwaggerUI(options => apiVersionDescriptionProvider.ApiVersionDescriptions.ToList()
-                    .ForEach(description => options.SwaggerEndpoint($"/swagger/{description.GroupName}/swagger.json", description.GroupName)));
+                    .ForEach(description => options.SwaggerEndpoint($"{(UrlBase == "/" ? string.Empty : UrlBase)}/swagger/{description.GroupName}/swagger.json", description.GroupName)));
 
                 logger.Information("Publishing Swagger documentation to /swagger");
             }
