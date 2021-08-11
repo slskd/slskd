@@ -130,7 +130,7 @@ namespace slskd
                 sw.Start();
 
                 var configuredShares = OptionsMonitor.CurrentValue.Directories.Shared.ToList(); // copy it so it can't change as we scan
-                var shares = configuredShares.Where(s => !s.StartsWith('-'));
+                var shares = configuredShares.Where(s => !s.StartsWith('!') && !s.StartsWith('-'));
                 var exclusions = configuredShares.Except(shares).Select(s => s[1..]);
 
                 var masks = new Dictionary<string, string>(shares
