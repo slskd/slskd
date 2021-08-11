@@ -17,8 +17,6 @@
 
 namespace slskd
 {
-    using System;
-
     /// <summary>
     ///     Share cache state.
     /// </summary>
@@ -48,5 +46,10 @@ namespace slskd
         ///     Gets the number of cached files.
         /// </summary>
         public int Files { get; init; }
+
+        /// <summary>
+        ///     Gets the number of directories excluded by filters.
+        /// </summary>
+        public int ExcludedDirectories { get; init; }
     }
 }
