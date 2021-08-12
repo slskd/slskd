@@ -25,6 +25,7 @@ namespace slskd
     using System.Collections.Generic;
     using System.Diagnostics;
     using System.Linq;
+    using System.Text.RegularExpressions;
     using System.Threading;
     using System.Threading.Tasks;
     using Microsoft.Data.Sqlite;
@@ -101,6 +102,41 @@ namespace slskd
             return directories.Values;
         }
 
+        private (Dictionary<string, string> Aliases, IEnumerable<string> Shares) DigestAliases(IEnumerable<string> shares)
+        {
+            var aliases = new Dictionary<string, string>();
+            var cleanedShares = new HashSet<string>();
+
+            foreach (var share in shares)
+            {
+                var matches = Regex.Matches(share, @"^(\[.*\])(.*)$");
+
+                if (matches.Any())
+                {
+                    var alias = matches[0].Groups[1].Value;
+                    var unaliasedShare = matches[0].Groups[2].Value;
+                    var parent = System.IO.Directory.GetParent(unaliasedShare).FullName;
+
+                    cleanedShares.Add(unaliasedShare);
+
+                    if (aliases.ContainsKey(parent))
+                    {
+                        aliases[parent] = alias;
+                    }
+                    else
+                    {
+                        aliases.Add(parent, alias);
+                    }
+                }
+                else
+                {
+                    cleanedShares.Add(share);
+                }
+            }
+
+            return (aliases, cleanedShares);
+        }
+
         /// <summary>
         ///     Scans the configured shares and fills the cache.
         /// </summary>
@@ -133,9 +169,15 @@ namespace slskd
                 var shares = configuredShares.Where(s => !s.StartsWith('!') && !s.StartsWith('-'));
                 var exclusions = configuredShares.Except(shares).Select(s => s[1..]);
 
+                var (aliases, unaliasedShares) = DigestAliases(shares);
+                shares = unaliasedShares;
+
                 var masks = new Dictionary<string, string>(shares
                     .Select(s => System.IO.Directory.GetParent(s).FullName)
                     .Select(s => new KeyValuePair<string, string>(Compute.MaskHash(s), s)).ToHashSet());
+
+                Console.WriteLine(masks.ToJson());
+                Console.WriteLine(aliases.ToJson());
 
                 Log.Debug("Enumerating shared directories");
                 swSnapshot = sw.ElapsedMilliseconds;
