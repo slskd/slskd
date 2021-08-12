@@ -129,7 +129,9 @@ namespace slskd
                 var swSnapshot = 0L;
                 sw.Start();
 
-                var shares = OptionsMonitor.CurrentValue.Directories.Shared.ToList(); // copy it so it can't change as we scan
+                var configuredShares = OptionsMonitor.CurrentValue.Directories.Shared.ToList(); // copy it so it can't change as we scan
+                var shares = configuredShares.Where(s => !s.StartsWith('!') && !s.StartsWith('-'));
+                var exclusions = configuredShares.Except(shares).Select(s => s[1..]);
 
                 var masks = new Dictionary<string, string>(shares
                     .Select(s => System.IO.Directory.GetParent(s).FullName)
@@ -143,8 +145,13 @@ namespace slskd
                     .Concat(shares)
                     .ToHashSet();
 
-                State.SetValue(state => state with { Directories = unmaskedDirectories.Count });
-                Log.Debug("Found {Directories} shared directories in {Elapsed}ms.  Starting file scan.", sw.ElapsedMilliseconds - swSnapshot, unmaskedDirectories.Count);
+                var excludedDirectories = unmaskedDirectories
+                    .Where(share => exclusions.Any(exclusions => share.StartsWith(exclusions)));
+
+                unmaskedDirectories = unmaskedDirectories.Except(excludedDirectories).ToHashSet();
+
+                State.SetValue(state => state with { Directories = unmaskedDirectories.Count, ExcludedDirectories = excludedDirectories.Count() });
+                Log.Debug("Found {Directories} shared directories (and {Excluded} were filtered) in {Elapsed}ms.  Starting file scan.", unmaskedDirectories.Count, excludedDirectories.Count(), sw.ElapsedMilliseconds - swSnapshot);
                 swSnapshot = sw.ElapsedMilliseconds;
 
                 var files = new Dictionary<string, File>();
