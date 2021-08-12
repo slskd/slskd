@@ -115,17 +115,16 @@ namespace slskd
                 {
                     var alias = matches[0].Groups[1].Value;
                     var unaliasedShare = matches[0].Groups[2].Value;
-                    var parent = System.IO.Directory.GetParent(unaliasedShare).FullName;
 
                     cleanedShares.Add(unaliasedShare);
 
-                    if (aliases.ContainsKey(parent))
+                    if (aliases.ContainsKey(unaliasedShare))
                     {
-                        aliases[parent] = alias;
+                        aliases[alias] = unaliasedShare;
                     }
                     else
                     {
-                        aliases.Add(parent, alias);
+                        aliases.Add(alias, unaliasedShare);
                     }
                 }
                 else
@@ -203,6 +202,17 @@ namespace slskd
                 foreach (var directory in unmaskedDirectories)
                 {
                     var mask = masks.First(m => directory.StartsWith(m.Value));
+                    var alias = aliases.FirstOrDefault(a => directory.StartsWith(a.Value));
+
+                    var masked = directory.ReplaceFirst(mask.Value, mask.Key);
+
+                    if (alias.Key != null)
+                    {
+                        var target = masked.Split(new[] { '\\', '/' }).Skip(1).First();
+                        Console.WriteLine($"Directory {target} is aliased to {alias.Key}");
+                        masked = masked.ReplaceFirst(target, alias.Key);
+                        Console.WriteLine(masked);
+                    }
 
                     maskedDirectories.Add(directory.ReplaceFirst(mask.Value, mask.Key));
 
