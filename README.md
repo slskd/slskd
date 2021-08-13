@@ -23,7 +23,7 @@ docker run -d \
 ```
 ---
 version: "2"
-servicesL
+services:
   slskd:
     image: slskd/slskd
     container_name: slskd
