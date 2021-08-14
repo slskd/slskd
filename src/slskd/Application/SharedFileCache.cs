@@ -56,6 +56,7 @@ namespace slskd
         private ILogger Log { get; } = Serilog.Log.ForContext<SharedFileCache>();
         private HashSet<string> MaskedDirectories { get; set; }
         private Dictionary<string, string> Masks { get; set; } = new Dictionary<string, string>();
+        private Dictionary<string, string> Aliases { get; set; } = new Dictionary<string, string>();
         private IOptionsMonitor<Options> OptionsMonitor { get; set; }
         private SqliteConnection SQLite { get; set; }
         private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1);
@@ -130,7 +131,7 @@ namespace slskd
                 var swSnapshot = 0L;
                 sw.Start();
 
-                var configuredShares = OptionsMonitor.CurrentValue.Directories.Shared.ToList(); // copy it so it can't change as we scan
+                var configuredShares = OptionsMonitor.CurrentValue.Directories.Shared.ToHashSet().ToList(); // copy it so it can't change as we scan
                 var (aliases, unaliasedShares) = DigestAliases(configuredShares);
                 var (shares, exclusions) = DigestExclusions(unaliasedShares);
                 var masks = ComputeMasks(shares);
@@ -201,6 +202,7 @@ namespace slskd
                 UnmaskedDirectories = unmaskedDirectories;
                 MaskedDirectories = maskedDirectories;
                 Masks = masks;
+                Aliases = aliases;
                 Files = files;
 
                 State.SetValue(state => state with { Filling = false, Faulted = false, FillProgress = 1, Directories = UnmaskedDirectories.Count, Files = Files.Count });
@@ -226,14 +228,30 @@ namespace slskd
         /// <returns>The unmasked filename.</returns>
         public string Resolve(string filename)
         {
-            var mask = filename.Split(new[] { '/', '\\' }).FirstOrDefault();
+            var resolved = filename;
 
-            if (Masks.ContainsKey(mask))
+            var parts = filename.Split(new[] { '/', '\\' });
+
+            if (parts.Length < 2)
             {
-                return filename.ReplaceFirst(mask, Masks[mask]);
+                return resolved;
             }
 
-            return filename;
+            var mask = parts[0];
+            var root = parts[1];
+
+            if (Masks.TryGetValue(mask, out var maskedPath))
+            {
+                resolved = resolved.ReplaceFirst(mask, maskedPath);
+
+                if (Aliases.TryGetValue(root, out var aliasedPath))
+                {
+                    var relativeAlias = aliasedPath[(maskedPath.Length + 1)..];
+                    resolved = resolved.ReplaceFirst(root, relativeAlias);
+                }
+            }
+
+            return resolved;
         }
 
         /// <summary>
@@ -307,6 +325,12 @@ namespace slskd
                 {
                     var groups = matches[0].Groups;
                     var alias = groups[2].Value;
+
+                    if (alias.Contains('\\') || alias.Contains('/'))
+                    {
+                        throw new ShareAliasException($"Share aliases must not contain path separators '/' or '\\' (provided: {alias})");
+                    }
+
                     var unaliasedShare = groups[1].Value + groups[3].Value;
 
                     unaliasedShares.Add(unaliasedShare);
