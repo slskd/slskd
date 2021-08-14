@@ -24,6 +24,8 @@ namespace slskd
     using System.ComponentModel;
     using System.ComponentModel.DataAnnotations;
     using System.Diagnostics;
+    using System.Linq;
+    using System.Text.RegularExpressions;
     using FluentFTP;
     using slskd.Configuration;
     using slskd.Validation;
@@ -219,7 +221,7 @@ namespace slskd
         /// <summary>
         ///     Directory options.
         /// </summary>
-        public class DirectoriesOptions
+        public class DirectoriesOptions : IValidatableObject
         {
             /// <summary>
             ///     Gets the path where application data is saved.
@@ -258,6 +260,33 @@ namespace slskd
             [EnvironmentVariable("SHARED_DIR")]
             [Description("path to shared files")]
             public string[] Shared { get; private set; } = new[] { Program.DefaultSharedDirectory };
+
+            /// <summary>
+            ///     Extended validation.
+            /// </summary>
+            /// <param name="validationContext"></param>
+            /// <returns></returns>
+            public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+            {
+                var results = new List<ValidationResult>();
+
+                foreach (var share in Shared)
+                {
+                    var matches = Regex.Matches(share, @"^(-?)\[(.*)\](.*)$");
+
+                    if (matches.Any())
+                    {
+                        var alias = matches[0].Groups[2].Value;
+
+                        if (alias.Contains('\\') || alias.Contains('/'))
+                        {
+                            results.Add(new ValidationResult($"Share {share} is invalid; aliases may not contain path separators '/' or '\'"));
+                        }
+                    }
+                }
+
+                return results;
+            }
         }
 
         /// <summary>
