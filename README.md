@@ -4,6 +4,7 @@ slskd is a modern client-server application for the Soulseek file sharing networ
 
 ## Quick Start
 
+### Docker Run
 ```
 docker run -d \
   -p 5000:5000 \
@@ -18,8 +19,29 @@ docker run -d \
   --name slskd \
   slskd/slskd:latest
 ```
-
-This command starts a container instance of slskd on ports 5000 (http) and 5001 (https), maps shared, downloads and incoming directories to the paths you choose, and logs in to Soulseek using the credentials provided.
+### Docker-Compose
+```
+---
+version: "2"
+services:
+  slskd:
+    image: slskd/slskd
+    container_name: slskd
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Australia/Sydney
+      - SLSKD_USERNAME=<slskd username>
+      - SLSKD_PASSWORD=<slskd password>
+      - SLSKD_SLSK_USERNAME=<Soulseek username>
+      - SLSKD_SLSK_PASSWORD=<Soulseek password>
+    volumes:
+      - <path/to/downloads>:/var/slskd/downloads
+      - <path/to/incoming>:/var/slskd/incoming
+      - <path/to/shared>:/var/slskd/shared
+    restart: always
+```
+This command or docker-compose file (depending on your choice) starts a container instance of slskd on ports 5000 (http) and 5001 (https), maps shared, downloads and incoming directories to the paths you choose, and logs in to Soulseek using the credentials provided.
 
 The default credentials for the web UI are slskd/slskd.
 
