@@ -151,8 +151,20 @@ namespace slskd
                 swSnapshot = sw.ElapsedMilliseconds;
 
                 var unmaskedDirectories = Shares
-                    .SelectMany(share => System.IO.Directory.GetDirectories(share.LocalPath, "*", SearchOption.AllDirectories))
+                    .SelectMany(share =>
+                    {
+                        try
+                        {
+                            return System.IO.Directory.GetDirectories(share.LocalPath, "*", SearchOption.AllDirectories);
+                        }
+                        catch (Exception ex)
+                        {
+                            Log.Warning("Failed to scan share {Directory}: {Message}", share.LocalPath, ex.Message);
+                            return Array.Empty<string>();
+                        }
+                    })
                     .Concat(Shares.Select(share => share.LocalPath)) // include the shares themselves (GetDirectories returns only subdirectories)
+                    .Where(share => System.IO.Directory.Exists(share)) // discard any directories that don't exist.  we already warned about them.
                     .ToHashSet(); // remove duplicates (in case shares overlap)
 
                 var excludedDirectories = unmaskedDirectories
@@ -176,21 +188,29 @@ namespace slskd
 
                     // recursively find all files in the directory and stick a record in a dictionary, keyed on the sanitized
                     // filename and with a value of a Soulseek.File object
-                    var newFiles = System.IO.Directory.GetFiles(directory, "*", SearchOption.TopDirectoryOnly)
-                        .Select(f => new File(1, f.Replace("/", @"\").ReplaceFirst(share.LocalPath, share.RemotePath), new FileInfo(f).Length, Path.GetExtension(f)))
-                        .ToDictionary(f => f.Filename, f => f);
-
-                    // merge the new dictionary with the rest this will overwrite any duplicate keys, but keys are the fully
-                    // qualified name the only time this *should* cause problems is if one of the shares is a subdirectory of another.
-                    foreach (var file in newFiles)
+                    try
                     {
-                        if (files.ContainsKey(file.Key))
-                        {
-                            Log.Warning($"File {file.Key} shared in directory {directory} has already been cached.  This is probably a misconfiguration of the shared directories (is a subdirectory being re-shared?).");
-                        }
+                        var newFiles = System.IO.Directory.GetFiles(directory, "*", SearchOption.TopDirectoryOnly)
+                            .Select(f => new File(1, f.Replace("/", @"\").ReplaceFirst(share.LocalPath, share.RemotePath), new FileInfo(f).Length, Path.GetExtension(f)))
+                            .ToDictionary(f => f.Filename, f => f);
 
-                        files[file.Key] = file.Value;
+                        // merge the new dictionary with the rest this will overwrite any duplicate keys, but keys are the fully
+                        // qualified name the only time this *should* cause problems is if one of the shares is a subdirectory of another.
+                        foreach (var file in newFiles)
+                        {
+                            if (files.ContainsKey(file.Key))
+                            {
+                                Log.Warning($"File {file.Key} shared in directory {directory} has already been cached.  This is probably a misconfiguration of the shared directories (is a subdirectory being re-shared?).");
+                            }
+
+                            files[file.Key] = file.Value;
+                        }
                     }
+                    catch (Exception ex)
+                    {
+                        Log.Warning("Failed to scan files in directory {Directory}: {Message}", directory, ex.Message);
+                    }
+
 
                     current++;
                     State.SetValue(state => state with { FillProgress = current / (double)unmaskedDirectories.Count, Files = files.Count });
