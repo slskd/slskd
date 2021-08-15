@@ -56,10 +56,10 @@ namespace slskd
         private ILogger Log { get; } = Serilog.Log.ForContext<SharedFileCache>();
         private HashSet<string> MaskedDirectories { get; set; }
         private IOptionsMonitor<Options> OptionsMonitor { get; set; }
+        private List<Share> Shares { get; set; }
         private SqliteConnection SQLite { get; set; }
         private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1);
         private HashSet<string> UnmaskedDirectories { get; set; }
-        private List<Share> Shares { get; set; }
 
         /// <summary>
         ///     Returns the contents of the cache.
@@ -143,7 +143,7 @@ namespace slskd
                 {
                     foreach (var dupe in duplicates)
                     {
-                        Log.Warning($"Overlapping shares: {string.Join(", ", dupe.Select(s => s.Raw))}. Use different alias(es) to disambiguate; downloads from these shares will most likely fail.");
+                        Log.Warning($"Overlapping shares: {string.Join(", ", dupe.Select(s => s.Raw))}. Use different alias(es) to disambiguate; downloads from one of these shares will fail.");
                     }
                 }
 
@@ -236,8 +236,8 @@ namespace slskd
         {
             var resolved = filename;
 
-            // a well-formed path will consist of a mask, either an alias or a local directory, and a
-            // fully qualified path to a file.  split the requested filename so we can examine the first two segments
+            // a well-formed path will consist of a mask, either an alias or a local directory, and a fully qualified path to a
+            // file. split the requested filename so we can examine the first two segments
             var parts = filename.Split(new[] { '/', '\\' });
 
             if (parts.Length < 2)
@@ -375,12 +375,12 @@ namespace slskd
                 }
             }
 
-            public string Raw { get; init; }
             public string Alias { get; init; }
-            public string LocalPath { get; init; }
-            public string RemotePath { get; init; }
-            public string Mask { get; init; }
             public bool IsExcluded { get; init; }
+            public string LocalPath { get; init; }
+            public string Mask { get; init; }
+            public string Raw { get; init; }
+            public string RemotePath { get; init; }
         }
     }
 }
