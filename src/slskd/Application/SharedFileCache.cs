@@ -100,7 +100,7 @@ namespace slskd
                 directories.AddOrUpdate(group.Name, group, (_, _) => group);
             }
 
-            return directories.Values;
+            return directories.Values.OrderBy(f => f.Name[8..]);
         }
 
         /// <summary>
@@ -131,7 +131,11 @@ namespace slskd
                 var swSnapshot = 0L;
                 sw.Start();
 
-                var configuredShares = OptionsMonitor.CurrentValue.Directories.Shared.ToHashSet().ToList(); // copy it so it can't change as we scan
+                var configuredShares = OptionsMonitor.CurrentValue.Directories.Shared
+                    .ToHashSet() // remove duplicates
+                    .OrderBy(s => DigestShare(s).Share.Length) // ensure root directories are first
+                    .ToList(); // copy it so it can't change as we scan
+
                 var (aliases, unaliasedShares) = DigestAliases(configuredShares);
                 var (shares, exclusions) = DigestExclusions(unaliasedShares);
                 var masks = ComputeMasks(shares);
@@ -319,20 +323,10 @@ namespace slskd
 
             foreach (var share in shares)
             {
-                var matches = Regex.Matches(share, @"^(-?)\[(.*)\](.*)$");
+                var (alias, unaliasedShare) = DigestShare(share);
 
-                if (matches.Any())
+                if (!string.IsNullOrEmpty(share))
                 {
-                    var groups = matches[0].Groups;
-                    var alias = groups[2].Value;
-
-                    if (alias.Contains('\\') || alias.Contains('/'))
-                    {
-                        throw new ShareAliasException($"Share aliases must not contain path separators '/' or '\\' (provided: {alias})");
-                    }
-
-                    var unaliasedShare = groups[1].Value + groups[3].Value;
-
                     unaliasedShares.Add(unaliasedShare);
                     aliases.AddOrUpdate(alias, unaliasedShare, (k, v) => unaliasedShare);
                 }
@@ -343,6 +337,28 @@ namespace slskd
             }
 
             return (new Dictionary<string, string>(aliases), unaliasedShares);
+        }
+
+        private (string Alias, string Share) DigestShare(string share)
+        {
+            var matches = Regex.Matches(share, @"^(-?)\[(.*)\](.*)$");
+
+            if (matches.Any())
+            {
+                var groups = matches[0].Groups;
+                var alias = groups[2].Value;
+
+                if (alias.Contains('\\') || alias.Contains('/'))
+                {
+                    throw new ShareAliasException($"Share aliases must not contain path separators '/' or '\\' (provided: {alias})");
+                }
+
+                var unaliasedShare = groups[1].Value + groups[3].Value;
+
+                return (alias, unaliasedShare);
+            }
+
+            return (string.Empty, share);
         }
 
         private (IEnumerable<string> Shares, IEnumerable<string> Exclusions) DigestExclusions(IEnumerable<string> shares)
@@ -373,7 +389,7 @@ namespace slskd
         {
             var maskedPath = path.ReplaceFirst(mask.Value, mask.Key);
 
-            if (alias.Key != null)
+            if (!string.IsNullOrEmpty(alias.Key) && alias.Value != mask.Value)
             {
                 var relativeAlias = alias.Value[(mask.Value.Length + 1)..];
                 return maskedPath.ReplaceFirst(relativeAlias, alias.Key);
