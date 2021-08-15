@@ -131,21 +131,11 @@ namespace slskd
                 sw.Start();
 
                 Shares = OptionsMonitor.CurrentValue.Directories.Shared
+                    .Select(share => Path.TrimEndingDirectorySeparator(share))
                     .ToHashSet() // remove duplicates
                     .Select(share => new Share(share)) // convert to Shares
                     .OrderByDescending(share => share.LocalPath.Length) // process subdirectories first.  this allows them to be aliased separately from their parent
                     .ToList();
-
-                // check for and warn about duplicates
-                var duplicates = Shares.GroupBy(share => share.Mask + share.Alias).Where(group => group.Count() > 1);
-
-                if (duplicates.Any())
-                {
-                    foreach (var dupe in duplicates)
-                    {
-                        Log.Warning($"Overlapping shares: {string.Join(", ", dupe.Select(s => s.Raw))}. Use different alias(es) to disambiguate; downloads from one of these shares will fail.");
-                    }
-                }
 
                 Log.Debug("Enumerating shared directories");
                 swSnapshot = sw.ElapsedMilliseconds;
@@ -362,16 +352,6 @@ namespace slskd
                     // split the alias from the path, and validate the alias
                     var groups = matches[0].Groups;
                     Alias = groups[1].Value;
-
-                    if (string.IsNullOrWhiteSpace(Alias))
-                    {
-                        throw new ShareAliasException($"Share aliases must not be null, empty or contain only whitespace (provided: {Alias})");
-                    }
-                    else if (Alias.Contains('\\') || Alias.Contains('/'))
-                    {
-                        throw new ShareAliasException($"Share aliases must not contain path separators '/' or '\\' (provided: {Alias})");
-                    }
-
                     LocalPath = groups[2].Value;
                 }
                 else
