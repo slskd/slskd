@@ -55,12 +55,11 @@ namespace slskd
         private Dictionary<string, File> Files { get; set; }
         private ILogger Log { get; } = Serilog.Log.ForContext<SharedFileCache>();
         private HashSet<string> MaskedDirectories { get; set; }
-        private Dictionary<string, string> Masks { get; set; } = new Dictionary<string, string>();
-        private Dictionary<string, string> Aliases { get; set; } = new Dictionary<string, string>();
         private IOptionsMonitor<Options> OptionsMonitor { get; set; }
         private SqliteConnection SQLite { get; set; }
         private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1);
         private HashSet<string> UnmaskedDirectories { get; set; }
+        private List<Share> Shares { get; set; }
 
         /// <summary>
         ///     Returns the contents of the cache.
@@ -131,25 +130,33 @@ namespace slskd
                 var swSnapshot = 0L;
                 sw.Start();
 
-                var configuredShares = OptionsMonitor.CurrentValue.Directories.Shared
+                Shares = OptionsMonitor.CurrentValue.Directories.Shared
                     .ToHashSet() // remove duplicates
-                    .OrderBy(s => DigestShare(s).Share.Length) // ensure root directories are first
-                    .ToList(); // copy it so it can't change as we scan
+                    .Select(share => new Share(share)) // convert to Shares
+                    .OrderByDescending(share => share.LocalPath.Length) // process subdirectories first.  this allows them to be aliased separately from their parent
+                    .ToList();
 
-                var (aliases, unaliasedShares) = DigestAliases(configuredShares);
-                var (shares, exclusions) = DigestExclusions(unaliasedShares);
-                var masks = ComputeMasks(shares);
+                // check for and warn about duplicates
+                var duplicates = Shares.GroupBy(share => share.Mask + share.Alias).Where(group => group.Count() > 1);
+
+                if (duplicates.Any())
+                {
+                    foreach (var dupe in duplicates)
+                    {
+                        Log.Warning($"Overlapping shares: {string.Join(", ", dupe.Select(s => s.Raw))}. Use different alias(es) to disambiguate; downloads from these shares will most likely fail.");
+                    }
+                }
 
                 Log.Debug("Enumerating shared directories");
                 swSnapshot = sw.ElapsedMilliseconds;
 
-                var unmaskedDirectories = shares
-                    .SelectMany(share => System.IO.Directory.GetDirectories(share, "*", SearchOption.AllDirectories))
-                    .Concat(shares)
-                    .ToHashSet();
+                var unmaskedDirectories = Shares
+                    .SelectMany(share => System.IO.Directory.GetDirectories(share.LocalPath, "*", SearchOption.AllDirectories))
+                    .Concat(Shares.Select(share => share.LocalPath)) // include the shares themselves (GetDirectories returns only subdirectories)
+                    .ToHashSet(); // remove duplicates (in case shares overlap)
 
                 var excludedDirectories = unmaskedDirectories
-                    .Where(share => exclusions.Any(exclusions => share.StartsWith(exclusions)));
+                    .Where(share => Shares.Where(share => share.IsExcluded).Any(exclusion => share.StartsWith(exclusion.LocalPath)));
 
                 unmaskedDirectories = unmaskedDirectories.Except(excludedDirectories).ToHashSet();
 
@@ -163,17 +170,14 @@ namespace slskd
 
                 foreach (var directory in unmaskedDirectories)
                 {
-                    var mask = masks.First(m => directory.StartsWith(m.Value));
-                    var alias = aliases
-                        .OrderByDescending(a => a.Value.Length) // ensure that nested aliases are matched first
-                        .FirstOrDefault(a => directory.StartsWith(a.Value));
+                    var share = Shares.First(share => directory.StartsWith(share.LocalPath));
 
-                    maskedDirectories.Add(TransformPath(directory, mask, alias));
+                    maskedDirectories.Add(directory.ReplaceFirst(share.LocalPath, share.RemotePath));
 
                     // recursively find all files in the directory and stick a record in a dictionary, keyed on the sanitized
                     // filename and with a value of a Soulseek.File object
                     var newFiles = System.IO.Directory.GetFiles(directory, "*", SearchOption.TopDirectoryOnly)
-                        .Select(f => new File(1, TransformPath(f.Replace("/", @"\"), mask, alias), new FileInfo(f).Length, Path.GetExtension(f)))
+                        .Select(f => new File(1, f.Replace("/", @"\").ReplaceFirst(share.LocalPath, share.RemotePath), new FileInfo(f).Length, Path.GetExtension(f)))
                         .ToDictionary(f => f.Filename, f => f);
 
                     // merge the new dictionary with the rest this will overwrite any duplicate keys, but keys are the fully
@@ -205,8 +209,6 @@ namespace slskd
 
                 UnmaskedDirectories = unmaskedDirectories;
                 MaskedDirectories = maskedDirectories;
-                Masks = masks;
-                Aliases = aliases;
                 Files = files;
 
                 State.SetValue(state => state with { Filling = false, Faulted = false, FillProgress = 1, Directories = UnmaskedDirectories.Count, Files = Files.Count });
@@ -234,6 +236,8 @@ namespace slskd
         {
             var resolved = filename;
 
+            // a well-formed path will consist of a mask, either an alias or a local directory, and a
+            // fully qualified path to a file.  split the requested filename so we can examine the first two segments
             var parts = filename.Split(new[] { '/', '\\' });
 
             if (parts.Length < 2)
@@ -241,21 +245,15 @@ namespace slskd
                 return resolved;
             }
 
-            var mask = parts[0];
-            var root = parts[1];
+            // find the share with a matching mask and alias/local directory
+            var share = Shares.FirstOrDefault(share => share.Mask == parts[0] && share.Alias == parts[1]);
 
-            if (Masks.TryGetValue(mask, out var maskedPath))
+            if (share == default)
             {
-                resolved = resolved.ReplaceFirst(mask, maskedPath);
-
-                if (Aliases.TryGetValue(root, out var aliasedPath))
-                {
-                    var relativeAlias = aliasedPath[(maskedPath.Length + 1)..];
-                    resolved = resolved.ReplaceFirst(root, relativeAlias);
-                }
+                return resolved;
             }
 
-            return resolved;
+            return resolved.ReplaceFirst(share.RemotePath, share.LocalPath);
         }
 
         /// <summary>
@@ -295,13 +293,6 @@ namespace slskd
             }
         }
 
-        private Dictionary<string, string> ComputeMasks(IEnumerable<string> shares)
-        {
-            return new Dictionary<string, string>(shares
-                    .Select(s => System.IO.Directory.GetParent(s).FullName)
-                    .Select(s => new KeyValuePair<string, string>(Compute.MaskHash(s), s)).ToHashSet());
-        }
-
         private void CreateTable()
         {
             if (SQLite != null)
@@ -316,59 +307,6 @@ namespace slskd
             cmd.ExecuteNonQuery();
         }
 
-        private (Dictionary<string, string> Aliases, IEnumerable<string> UnaliasedShares) DigestAliases(IEnumerable<string> shares)
-        {
-            var aliases = new ConcurrentDictionary<string, string>();
-            var unaliasedShares = new HashSet<string>();
-
-            foreach (var share in shares)
-            {
-                var (alias, unaliasedShare) = DigestShare(share);
-
-                if (!string.IsNullOrEmpty(share))
-                {
-                    unaliasedShares.Add(unaliasedShare);
-                    aliases.AddOrUpdate(alias, unaliasedShare, (k, v) => unaliasedShare);
-                }
-                else
-                {
-                    unaliasedShares.Add(share);
-                }
-            }
-
-            return (new Dictionary<string, string>(aliases), unaliasedShares);
-        }
-
-        private (string Alias, string Share) DigestShare(string share)
-        {
-            var matches = Regex.Matches(share, @"^(-?)\[(.*)\](.*)$");
-
-            if (matches.Any())
-            {
-                var groups = matches[0].Groups;
-                var alias = groups[2].Value;
-
-                if (alias.Contains('\\') || alias.Contains('/'))
-                {
-                    throw new ShareAliasException($"Share aliases must not contain path separators '/' or '\\' (provided: {alias})");
-                }
-
-                var unaliasedShare = groups[1].Value + groups[3].Value;
-
-                return (alias, unaliasedShare);
-            }
-
-            return (string.Empty, share);
-        }
-
-        private (IEnumerable<string> Shares, IEnumerable<string> Exclusions) DigestExclusions(IEnumerable<string> shares)
-        {
-            var included = shares.Where(s => !s.StartsWith('!') && !s.StartsWith('-'));
-            var exclusions = shares.Except(included).Select(s => s[1..]);
-
-            return (included, exclusions);
-        }
-
         private void InsertFilename(string filename)
         {
             using var cmd = new SqliteCommand($"INSERT INTO cache(filename) VALUES('{filename.Replace("'", "''")}')", SQLite);
@@ -380,22 +318,69 @@ namespace slskd
             CreateTable();
             UnmaskedDirectories = new HashSet<string>();
             MaskedDirectories = new HashSet<string>();
-            Masks = new Dictionary<string, string>();
             Files = new Dictionary<string, File>();
             State.SetValue(state => state with { Directories = 0, Files = 0 });
         }
 
-        private string TransformPath(string path, KeyValuePair<string, string> mask, KeyValuePair<string, string> alias)
+        private class Share
         {
-            var maskedPath = path.ReplaceFirst(mask.Value, mask.Key);
-
-            if (!string.IsNullOrEmpty(alias.Key) && alias.Value != mask.Value)
+            public Share(string share)
             {
-                var relativeAlias = alias.Value[(mask.Value.Length + 1)..];
-                return maskedPath.ReplaceFirst(relativeAlias, alias.Key);
+                Raw = share;
+                IsExcluded = share.StartsWith('-') || share.StartsWith('!');
+
+                if (IsExcluded)
+                {
+                    share = share[1..];
+                }
+
+                // test to see whether an alias has been specified
+                var matches = Regex.Matches(share, @"^\[(.*)\](.*)$");
+
+                if (matches.Any())
+                {
+                    // split the alias from the path, and validate the alias
+                    var groups = matches[0].Groups;
+                    Alias = groups[1].Value;
+
+                    if (string.IsNullOrWhiteSpace(Alias))
+                    {
+                        throw new ShareAliasException($"Share aliases must not be null, empty or contain only whitespace (provided: {Alias})");
+                    }
+                    else if (Alias.Contains('\\') || Alias.Contains('/'))
+                    {
+                        throw new ShareAliasException($"Share aliases must not contain path separators '/' or '\\' (provided: {Alias})");
+                    }
+
+                    LocalPath = groups[2].Value;
+                }
+                else
+                {
+                    Alias = new Uri(share).Segments.Last();
+                    LocalPath = share;
+                }
+
+                Mask = Compute.MaskHash(System.IO.Directory.GetParent(LocalPath).FullName);
+
+                var maskedPath = LocalPath.ReplaceFirst(System.IO.Directory.GetParent(LocalPath).FullName, Mask);
+
+                if (!string.IsNullOrEmpty(Alias))
+                {
+                    var aliasedSegment = LocalPath[(System.IO.Directory.GetParent(LocalPath).FullName.Length + 1)..];
+                    RemotePath = maskedPath.ReplaceFirst(aliasedSegment, Alias);
+                }
+                else
+                {
+                    RemotePath = LocalPath.ReplaceFirst(System.IO.Directory.GetParent(LocalPath).FullName, Mask);
+                }
             }
 
-            return path.ReplaceFirst(mask.Value, mask.Key);
+            public string Raw { get; init; }
+            public string Alias { get; init; }
+            public string LocalPath { get; init; }
+            public string RemotePath { get; init; }
+            public string Mask { get; init; }
+            public bool IsExcluded { get; init; }
         }
     }
 }
