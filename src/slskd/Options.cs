@@ -278,7 +278,11 @@ namespace slskd
                     {
                         var alias = matches[0].Groups[2].Value;
 
-                        if (alias.Contains('\\') || alias.Contains('/'))
+                        if (string.IsNullOrWhiteSpace(alias))
+                        {
+                            results.Add(new ValidationResult($"Share {share} is invalid; alias may not be null, empty or consist of only whitespace"));
+                        }
+                        else if (alias.Contains('\\') || alias.Contains('/'))
                         {
                             results.Add(new ValidationResult($"Share {share} is invalid; aliases may not contain path separators '/' or '\'"));
                         }
