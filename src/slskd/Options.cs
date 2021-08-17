@@ -271,41 +271,43 @@ namespace slskd
             {
                 var results = new List<ValidationResult>();
 
-                (string Raw, string Mask, string Alias) Digest(string share)
+                (string Raw, string Mask, string Alias, string Path) Digest(string share)
                 {
                     var matches = Regex.Matches(share, @"^(-?)\[(.*)\](.*)$");
 
                     if (matches.Any())
                     {
-                        return (share, Compute.MaskHash(Directory.GetParent(matches[0].Groups[3].Value).FullName), matches[0].Groups[2].Value);
+                        return (share, Compute.MaskHash(Directory.GetParent(matches[0].Groups[3].Value).FullName), matches[0].Groups[2].Value, matches[0].Groups[3].Value);
                     }
 
-                    return (share, Compute.MaskHash(Directory.GetParent(share).FullName), new Uri(share).Segments.Last());
+                    return (share, Compute.MaskHash(Directory.GetParent(share).FullName), new Uri(share).Segments.Last(), share);
                 }
 
                 var digestedShared = Shared
                     .Select(share => Digest(Path.TrimEndingDirectorySeparator(share)))
                     .ToHashSet();
 
-                var duplicates = digestedShared.GroupBy(share => share.Mask + share.Alias).Where(group => group.Count() > 1);
-
-                if (duplicates.Any())
+                var overlapping = digestedShared.GroupBy(share => share.Mask + share.Alias).Where(group => group.Count() > 1);
+                foreach (var overlap in overlapping)
                 {
-                    foreach (var dupe in duplicates)
-                    {
-                        results.Add(new ValidationResult($"Shares {string.Join(", ", dupe.Select(s => s.Raw))} overlap. Use different alias(es) to disambiguate them."));
-                    }
+                    results.Add(new ValidationResult($"Shares {string.Join(", ", overlap.Select(s => $"'{s.Raw}'"))} overlap"));
                 }
 
-                foreach (var share in digestedShared)
+                var duplicates = digestedShared.GroupBy(share => share.Path).Where(group => group.Count() > 1);
+                foreach (var dupe in duplicates)
+                {
+                    results.Add(new ValidationResult($"Shares {string.Join(", ", dupe.Select(s => $"'{s.Raw}'"))} alias the same path"));
+                }
+
+                foreach (var share in digestedShared.Where(s => s.Alias != null))
                 {
                     if (string.IsNullOrWhiteSpace(share.Alias))
                     {
-                        results.Add(new ValidationResult($"Share {share.Raw} is invalid; alias may not be null, empty or consist of only whitespace"));
+                        results.Add(new ValidationResult($"Share '{share.Raw}' is invalid; alias may not be null, empty or consist of only whitespace"));
                     }
                     else if (share.Alias.Contains('\\') || share.Alias.Contains('/'))
                     {
-                        results.Add(new ValidationResult($"Share {share.Raw} is invalid; aliases may not contain path separators '/' or '\'"));
+                        results.Add(new ValidationResult($"Share '{share.Raw}' is invalid; aliases may not contain path separators '/' or '\\'"));
                     }
                 }
 
