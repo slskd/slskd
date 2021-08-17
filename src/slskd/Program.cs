@@ -241,14 +241,6 @@ namespace slskd
                 VerifyDirectory(OptionsAtStartup.Directories.App, createIfMissing: true, verifyWriteable: true);
                 VerifyDirectory(OptionsAtStartup.Directories.Incomplete, createIfMissing: true, verifyWriteable: true);
                 VerifyDirectory(OptionsAtStartup.Directories.Downloads, createIfMissing: true, verifyWriteable: true);
-
-                foreach (var share in OptionsAtStartup.Directories.Shared)
-                {
-                    if (!VerifyDirectory(share, createIfMissing: false, verifyWriteable: false))
-                    {
-                        logger.Warning("Shared directory {Directory} does not exist", share);
-                    }
-                }
             }
             catch (Exception ex)
             {

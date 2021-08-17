@@ -25,6 +25,7 @@ namespace slskd
     using System.Collections.Generic;
     using System.Diagnostics;
     using System.Linq;
+    using System.Text.RegularExpressions;
     using System.Threading;
     using System.Threading.Tasks;
     using Microsoft.Data.Sqlite;
@@ -54,8 +55,8 @@ namespace slskd
         private Dictionary<string, File> Files { get; set; }
         private ILogger Log { get; } = Serilog.Log.ForContext<SharedFileCache>();
         private HashSet<string> MaskedDirectories { get; set; }
-        private Dictionary<string, string> Masks { get; set; } = new Dictionary<string, string>();
         private IOptionsMonitor<Options> OptionsMonitor { get; set; }
+        private List<Share> Shares { get; set; }
         private SqliteConnection SQLite { get; set; }
         private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1);
         private HashSet<string> UnmaskedDirectories { get; set; }
@@ -98,7 +99,7 @@ namespace slskd
                 directories.AddOrUpdate(group.Name, group, (_, _) => group);
             }
 
-            return directories.Values;
+            return directories.Values.OrderBy(f => f.Name[8..]);
         }
 
         /// <summary>
@@ -129,24 +130,35 @@ namespace slskd
                 var swSnapshot = 0L;
                 sw.Start();
 
-                var configuredShares = OptionsMonitor.CurrentValue.Directories.Shared.ToList(); // copy it so it can't change as we scan
-                var shares = configuredShares.Where(s => !s.StartsWith('!') && !s.StartsWith('-'));
-                var exclusions = configuredShares.Except(shares).Select(s => s[1..]);
-
-                var masks = new Dictionary<string, string>(shares
-                    .Select(s => System.IO.Directory.GetParent(s).FullName)
-                    .Select(s => new KeyValuePair<string, string>(Compute.MaskHash(s), s)).ToHashSet());
+                Shares = OptionsMonitor.CurrentValue.Directories.Shared
+                    .Select(share => Path.TrimEndingDirectorySeparator(share))
+                    .ToHashSet() // remove duplicates
+                    .Select(share => new Share(share)) // convert to Shares
+                    .OrderByDescending(share => share.LocalPath.Length) // process subdirectories first.  this allows them to be aliased separately from their parent
+                    .ToList();
 
                 Log.Debug("Enumerating shared directories");
                 swSnapshot = sw.ElapsedMilliseconds;
 
-                var unmaskedDirectories = shares
-                    .SelectMany(share => System.IO.Directory.GetDirectories(share, "*", SearchOption.AllDirectories))
-                    .Concat(shares)
-                    .ToHashSet();
+                var unmaskedDirectories = Shares
+                    .SelectMany(share =>
+                    {
+                        try
+                        {
+                            return System.IO.Directory.GetDirectories(share.LocalPath, "*", SearchOption.AllDirectories);
+                        }
+                        catch (Exception ex)
+                        {
+                            Log.Warning("Failed to scan share {Directory}: {Message}", share.LocalPath, ex.Message);
+                            return Array.Empty<string>();
+                        }
+                    })
+                    .Concat(Shares.Select(share => share.LocalPath)) // include the shares themselves (GetDirectories returns only subdirectories)
+                    .Where(share => System.IO.Directory.Exists(share)) // discard any directories that don't exist.  we already warned about them.
+                    .ToHashSet(); // remove duplicates (in case shares overlap)
 
                 var excludedDirectories = unmaskedDirectories
-                    .Where(share => exclusions.Any(exclusions => share.StartsWith(exclusions)));
+                    .Where(share => Shares.Where(share => share.IsExcluded).Any(exclusion => share.StartsWith(exclusion.LocalPath)));
 
                 unmaskedDirectories = unmaskedDirectories.Except(excludedDirectories).ToHashSet();
 
@@ -160,27 +172,35 @@ namespace slskd
 
                 foreach (var directory in unmaskedDirectories)
                 {
-                    var mask = masks.First(m => directory.StartsWith(m.Value));
+                    var share = Shares.First(share => directory.StartsWith(share.LocalPath));
 
-                    maskedDirectories.Add(directory.ReplaceFirst(mask.Value, mask.Key));
+                    maskedDirectories.Add(directory.ReplaceFirst(share.LocalPath, share.RemotePath));
 
                     // recursively find all files in the directory and stick a record in a dictionary, keyed on the sanitized
                     // filename and with a value of a Soulseek.File object
-                    var newFiles = System.IO.Directory.GetFiles(directory, "*", SearchOption.TopDirectoryOnly)
-                        .Select(f => new File(1, f.Replace("/", @"\").ReplaceFirst(mask.Value, mask.Key), new FileInfo(f).Length, Path.GetExtension(f)))
-                        .ToDictionary(f => f.Filename.ReplaceFirst(mask.Value, mask.Key), f => f);
-
-                    // merge the new dictionary with the rest this will overwrite any duplicate keys, but keys are the fully
-                    // qualified name the only time this *should* cause problems is if one of the shares is a subdirectory of another.
-                    foreach (var file in newFiles)
+                    try
                     {
-                        if (files.ContainsKey(file.Key))
-                        {
-                            Log.Warning($"File {file.Key} shared in directory {directory} has already been cached.  This is probably a misconfiguration of the shared directories (is a subdirectory being re-shared?).");
-                        }
+                        var newFiles = System.IO.Directory.GetFiles(directory, "*", SearchOption.TopDirectoryOnly)
+                            .Select(f => new File(1, f.Replace("/", @"\").ReplaceFirst(share.LocalPath, share.RemotePath), new FileInfo(f).Length, Path.GetExtension(f)))
+                            .ToDictionary(f => f.Filename, f => f);
 
-                        files[file.Key] = file.Value;
+                        // merge the new dictionary with the rest this will overwrite any duplicate keys, but keys are the fully
+                        // qualified name the only time this *should* cause problems is if one of the shares is a subdirectory of another.
+                        foreach (var file in newFiles)
+                        {
+                            if (files.ContainsKey(file.Key))
+                            {
+                                Log.Warning($"File {file.Key} shared in directory {directory} has already been cached.  This is probably a misconfiguration of the shared directories (is a subdirectory being re-shared?).");
+                            }
+
+                            files[file.Key] = file.Value;
+                        }
                     }
+                    catch (Exception ex)
+                    {
+                        Log.Warning("Failed to scan files in directory {Directory}: {Message}", directory, ex.Message);
+                    }
+
 
                     current++;
                     State.SetValue(state => state with { FillProgress = current / (double)unmaskedDirectories.Count, Files = files.Count });
@@ -199,7 +219,6 @@ namespace slskd
 
                 UnmaskedDirectories = unmaskedDirectories;
                 MaskedDirectories = maskedDirectories;
-                Masks = masks;
                 Files = files;
 
                 State.SetValue(state => state with { Filling = false, Faulted = false, FillProgress = 1, Directories = UnmaskedDirectories.Count, Files = Files.Count });
@@ -225,14 +244,26 @@ namespace slskd
         /// <returns>The unmasked filename.</returns>
         public string Resolve(string filename)
         {
-            var mask = filename.Split(new[] { '/', '\\' }).FirstOrDefault();
+            var resolved = filename;
 
-            if (Masks.ContainsKey(mask))
+            // a well-formed path will consist of a mask, either an alias or a local directory, and a fully qualified path to a
+            // file. split the requested filename so we can examine the first two segments
+            var parts = filename.Split(new[] { '/', '\\' });
+
+            if (parts.Length < 2)
             {
-                return filename.ReplaceFirst(mask, Masks[mask]);
+                return resolved;
             }
 
-            return filename;
+            // find the share with a matching mask and alias/local directory
+            var share = Shares.FirstOrDefault(share => share.Mask == parts[0] && share.Alias == parts[1]);
+
+            if (share == default)
+            {
+                return resolved;
+            }
+
+            return resolved.ReplaceFirst(share.RemotePath, share.LocalPath);
         }
 
         /// <summary>
@@ -297,9 +328,59 @@ namespace slskd
             CreateTable();
             UnmaskedDirectories = new HashSet<string>();
             MaskedDirectories = new HashSet<string>();
-            Masks = new Dictionary<string, string>();
             Files = new Dictionary<string, File>();
             State.SetValue(state => state with { Directories = 0, Files = 0 });
+        }
+
+        private class Share
+        {
+            public Share(string share)
+            {
+                Raw = share;
+                IsExcluded = share.StartsWith('-') || share.StartsWith('!');
+
+                if (IsExcluded)
+                {
+                    share = share[1..];
+                }
+
+                // test to see whether an alias has been specified
+                var matches = Regex.Matches(share, @"^\[(.*)\](.*)$");
+
+                if (matches.Any())
+                {
+                    // split the alias from the path, and validate the alias
+                    var groups = matches[0].Groups;
+                    Alias = groups[1].Value;
+                    LocalPath = groups[2].Value;
+                }
+                else
+                {
+                    Alias = new Uri(share).Segments.Last();
+                    LocalPath = share;
+                }
+
+                Mask = Compute.MaskHash(System.IO.Directory.GetParent(LocalPath).FullName);
+
+                var maskedPath = LocalPath.ReplaceFirst(System.IO.Directory.GetParent(LocalPath).FullName, Mask);
+
+                if (!string.IsNullOrEmpty(Alias))
+                {
+                    var aliasedSegment = LocalPath[(System.IO.Directory.GetParent(LocalPath).FullName.Length + 1)..];
+                    RemotePath = maskedPath.ReplaceFirst(aliasedSegment, Alias);
+                }
+                else
+                {
+                    RemotePath = LocalPath.ReplaceFirst(System.IO.Directory.GetParent(LocalPath).FullName, Mask);
+                }
+            }
+
+            public string Alias { get; init; }
+            public bool IsExcluded { get; init; }
+            public string LocalPath { get; init; }
+            public string Mask { get; init; }
+            public string Raw { get; init; }
+            public string RemotePath { get; init; }
         }
     }
 }
