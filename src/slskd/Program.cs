@@ -241,6 +241,7 @@ namespace slskd
                 VerifyDirectory(OptionsAtStartup.Directories.App, createIfMissing: true, verifyWriteable: true);
                 VerifyDirectory(OptionsAtStartup.Directories.Incomplete, createIfMissing: true, verifyWriteable: true);
                 VerifyDirectory(OptionsAtStartup.Directories.Downloads, createIfMissing: true, verifyWriteable: true);
+                VerifyDirectory(DefaultSharedDirectory, createIfMissing: true, verifyWriteable: false);
             }
             catch (Exception ex)
             {
