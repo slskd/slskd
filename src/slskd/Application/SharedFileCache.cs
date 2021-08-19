@@ -137,6 +137,11 @@ namespace slskd
                     .OrderByDescending(share => share.LocalPath.Length) // process subdirectories first.  this allows them to be aliased separately from their parent
                     .ToList();
 
+                if (!Shares.Any())
+                {
+                    Log.Warning("Aborting shared file scan; no shares configured.");
+                }
+
                 Log.Debug("Enumerating shared directories");
                 swSnapshot = sw.ElapsedMilliseconds;
 

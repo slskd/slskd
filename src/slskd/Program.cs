@@ -74,11 +74,6 @@ namespace slskd
         public static readonly string DefaultDownloadsDirectory = Path.Combine(DefaultAppDirectory, "downloads");
 
         /// <summary>
-        ///     The default shared directory.
-        /// </summary>
-        public static readonly string DefaultSharedDirectory = Path.Combine(DefaultAppDirectory, "shared");
-
-        /// <summary>
         ///     The global prefix for environment variables.
         /// </summary>
         public static readonly string EnvironmentVariablePrefix = $"{AppName.ToUpperInvariant()}_";
@@ -241,7 +236,6 @@ namespace slskd
                 VerifyDirectory(OptionsAtStartup.Directories.App, createIfMissing: true, verifyWriteable: true);
                 VerifyDirectory(OptionsAtStartup.Directories.Incomplete, createIfMissing: true, verifyWriteable: true);
                 VerifyDirectory(OptionsAtStartup.Directories.Downloads, createIfMissing: true, verifyWriteable: true);
-                VerifyDirectory(DefaultSharedDirectory, createIfMissing: true, verifyWriteable: false);
             }
             catch (Exception ex)
             {

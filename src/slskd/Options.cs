@@ -260,7 +260,7 @@ namespace slskd
             [Argument('s', "shared")]
             [EnvironmentVariable("SHARED_DIR")]
             [Description("path to shared files")]
-            public string[] Shared { get; private set; } = new[] { Program.DefaultSharedDirectory };
+            public string[] Shared { get; private set; } = Array.Empty<string>();
 
             /// <summary>
             ///     Extended validation.
