@@ -283,9 +283,12 @@ namespace slskd
                 .Replace("/", " ")
                 .Replace("\\", " ")
                 .Replace(":", " ")
-                .Replace("\"", " ");
+                .Replace("\"", " ")
+                .Replace("'", "''");
 
-            var sql = $"SELECT * FROM cache WHERE cache MATCH '\"{text.Replace("'", "''")}\"'";
+            var tokens = text.Split(' ');
+
+            var sql = $"SELECT * FROM cache WHERE cache MATCH '{string.Join(" AND ", tokens)}'";
 
             try
             {
@@ -297,6 +300,8 @@ namespace slskd
                 {
                     results.Add(reader.GetString(0));
                 }
+
+                Log.Debug($"Query {sql} returned {results.Count} results");
 
                 return results.Select(r => Files[r.Replace("''", "'")]);
             }
@@ -318,7 +323,7 @@ namespace slskd
             SQLite = new SqliteConnection("Data Source=:memory:");
             SQLite.Open();
 
-            using var cmd = new SqliteCommand("CREATE VIRTUAL TABLE cache USING fts5(filename)", SQLite);
+            using var cmd = new SqliteCommand("CREATE VIRTUAL TABLE cache USING fts5(filename, tokenize=\"porter\")", SQLite);
             cmd.ExecuteNonQuery();
         }
 
