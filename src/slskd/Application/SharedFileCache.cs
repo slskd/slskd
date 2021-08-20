@@ -286,7 +286,7 @@ namespace slskd
                 .Replace("\"", " ")
                 .Replace("'", "''");
 
-            var tokens = text.Split(' ');
+            var tokens = text.Split(' ').Select(token => $"\"{token}\"");
 
             var sql = $"SELECT * FROM cache WHERE cache MATCH '{string.Join(" AND ", tokens)}'";
 
