@@ -52,14 +52,13 @@ namespace slskd
         /// </summary>
         public IStateMonitor<SharedFileCacheState> State { get; } = new StateMonitor<SharedFileCacheState>();
 
-        private Dictionary<string, File> Files { get; set; }
         private ILogger Log { get; } = Serilog.Log.ForContext<SharedFileCache>();
         private HashSet<string> MaskedDirectories { get; set; }
+        private Dictionary<string, File> MaskedFiles { get; set; }
         private IOptionsMonitor<Options> OptionsMonitor { get; set; }
         private List<Share> Shares { get; set; }
         private SqliteConnection SQLite { get; set; }
         private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1);
-        private HashSet<string> UnmaskedDirectories { get; set; }
 
         /// <summary>
         ///     Returns the contents of the cache.
@@ -79,7 +78,7 @@ namespace slskd
                 directories.TryAdd(directory, new Directory(directory));
             }
 
-            var groups = Files
+            var groups = MaskedFiles
                 .GroupBy(f => Path.GetDirectoryName(f.Key))
                 .Select(g => new Directory(g.Key, g.Select(g =>
                 {
@@ -99,7 +98,7 @@ namespace slskd
                 directories.AddOrUpdate(group.Name, group, (_, _) => group);
             }
 
-            return directories.Values.OrderBy(f => f.Name[8..]);
+            return directories.Values.OrderBy(f => f.Name);
         }
 
         /// <summary>
@@ -186,7 +185,7 @@ namespace slskd
                     try
                     {
                         var newFiles = System.IO.Directory.GetFiles(directory, "*", SearchOption.TopDirectoryOnly)
-                            .Select(f => new File(1, f.Replace("/", @"\").ReplaceFirst(share.LocalPath, share.RemotePath), new FileInfo(f).Length, Path.GetExtension(f)))
+                            .Select(f => new File(1, f.ReplaceFirst(share.LocalPath, share.RemotePath), new FileInfo(f).Length, Path.GetExtension(f)))
                             .ToDictionary(f => f.Filename, f => f);
 
                         // merge the new dictionary with the rest this will overwrite any duplicate keys, but keys are the fully
@@ -206,7 +205,6 @@ namespace slskd
                         Log.Warning("Failed to scan files in directory {Directory}: {Message}", directory, ex.Message);
                     }
 
-
                     current++;
                     State.SetValue(state => state with { FillProgress = current / (double)unmaskedDirectories.Count, Files = files.Count });
                 }
@@ -222,11 +220,10 @@ namespace slskd
 
                 Log.Debug("Inserted {Files} records in {Elapsed}ms", files.Count, sw.ElapsedMilliseconds - swSnapshot);
 
-                UnmaskedDirectories = unmaskedDirectories;
                 MaskedDirectories = maskedDirectories;
-                Files = files;
+                MaskedFiles = files;
 
-                State.SetValue(state => state with { Filling = false, Faulted = false, FillProgress = 1, Directories = UnmaskedDirectories.Count, Files = Files.Count });
+                State.SetValue(state => state with { Filling = false, Faulted = false, FillProgress = 1, Directories = MaskedDirectories.Count, Files = MaskedFiles.Count });
                 Log.Debug($"Shared file cache recreated in {sw.ElapsedMilliseconds}ms.  Directories: {unmaskedDirectories.Count}, Files: {files.Count}");
             }
             catch (Exception ex)
@@ -303,7 +300,7 @@ namespace slskd
 
                 Log.Debug($"Query {sql} returned {results.Count} results");
 
-                return results.Select(r => Files[r.Replace("''", "'")]);
+                return results.Select(r => MaskedFiles[r.Replace("''", "'")]);
             }
             catch (Exception ex)
             {
@@ -336,9 +333,8 @@ namespace slskd
         private void ResetCache()
         {
             CreateTable();
-            UnmaskedDirectories = new HashSet<string>();
             MaskedDirectories = new HashSet<string>();
-            Files = new Dictionary<string, File>();
+            MaskedFiles = new Dictionary<string, File>();
             State.SetValue(state => state with { Directories = 0, Files = 0 });
         }
 
@@ -366,7 +362,7 @@ namespace slskd
                 }
                 else
                 {
-                    Alias = new Uri(share).Segments.Last();
+                    Alias = share.Split(new[] { '/', '\\' }).Last();
                     LocalPath = share;
                 }
 
@@ -374,15 +370,8 @@ namespace slskd
 
                 var maskedPath = LocalPath.ReplaceFirst(System.IO.Directory.GetParent(LocalPath).FullName, Mask);
 
-                if (!string.IsNullOrEmpty(Alias))
-                {
-                    var aliasedSegment = LocalPath[(System.IO.Directory.GetParent(LocalPath).FullName.Length + 1)..];
-                    RemotePath = maskedPath.ReplaceFirst(aliasedSegment, Alias);
-                }
-                else
-                {
-                    RemotePath = LocalPath.ReplaceFirst(System.IO.Directory.GetParent(LocalPath).FullName, Mask);
-                }
+                var aliasedSegment = LocalPath[(System.IO.Directory.GetParent(LocalPath).FullName.Length + 1)..];
+                RemotePath = maskedPath.ReplaceFirst(aliasedSegment, Alias);
             }
 
             public string Alias { get; init; }
