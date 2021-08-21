@@ -99,7 +99,7 @@ namespace slskd
                 directories.AddOrUpdate(group.Name, group, (_, _) => group);
             }
 
-            return directories.Values.OrderBy(f => f.Name[8..]);
+            return directories.Values.OrderBy(f => f.Name);
         }
 
         /// <summary>
