@@ -365,7 +365,7 @@ namespace slskd
                 }
                 else
                 {
-                    Alias = new Uri(share).Segments.Last();
+                    Alias = share.Split(new[] { '/', '\\' }).Last();
                     LocalPath = share;
                 }
 
