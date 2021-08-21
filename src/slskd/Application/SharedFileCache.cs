@@ -275,17 +275,16 @@ namespace slskd
         /// <returns>The matching files.</returns>
         public async Task<IEnumerable<File>> SearchAsync(SearchQuery query)
         {
-            // sanitize the query string. there's probably more to it than this.
-            var text = query.Query
-                .Replace("/", " ")
+            string Clean(string str) => str.Replace("/", " ")
                 .Replace("\\", " ")
                 .Replace(":", " ")
                 .Replace("\"", " ")
                 .Replace("'", "''");
 
-            var tokens = text.Split(' ').Select(token => $"\"{token}\"");
+            var match = string.Join(" AND ", query.Terms.Select(token => $"\"{Clean(token)}\""));
+            var exclusions = string.Join(" OR ", query.Exclusions.Select(exclusion => $"\"{Clean(exclusion)}\""));
 
-            var sql = $"SELECT * FROM cache WHERE cache MATCH '{string.Join(" AND ", tokens)}'";
+            var sql = $"SELECT * FROM cache WHERE cache MATCH '({match}) {(query.Exclusions.Any() ? $"NOT ({exclusions})" : string.Empty)}'";
 
             try
             {
