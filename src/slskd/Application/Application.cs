@@ -379,7 +379,9 @@ namespace slskd
         /// <returns>A Task resolving an IEnumerable of Soulseek.Directory.</returns>
         private Task<BrowseResponse> BrowseResponseResolver(string username, IPEndPoint endpoint)
         {
-            var directories = SharedFileCache.Browse();
+            var directories = SharedFileCache.Browse()
+                .Select(d => new Soulseek.Directory(d.Name.Replace('/', '\\'), d.Files)); // Soulseek NS requires backslashes
+
             return Task.FromResult(new BrowseResponse(directories));
         }
 

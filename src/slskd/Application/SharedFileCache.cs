@@ -52,14 +52,13 @@ namespace slskd
         /// </summary>
         public IStateMonitor<SharedFileCacheState> State { get; } = new StateMonitor<SharedFileCacheState>();
 
-        private Dictionary<string, File> Files { get; set; }
         private ILogger Log { get; } = Serilog.Log.ForContext<SharedFileCache>();
         private HashSet<string> MaskedDirectories { get; set; }
+        private Dictionary<string, File> MaskedFiles { get; set; }
         private IOptionsMonitor<Options> OptionsMonitor { get; set; }
         private List<Share> Shares { get; set; }
         private SqliteConnection SQLite { get; set; }
         private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1);
-        private HashSet<string> UnmaskedDirectories { get; set; }
 
         /// <summary>
         ///     Returns the contents of the cache.
@@ -79,7 +78,7 @@ namespace slskd
                 directories.TryAdd(directory, new Directory(directory));
             }
 
-            var groups = Files
+            var groups = MaskedFiles
                 .GroupBy(f => Path.GetDirectoryName(f.Key))
                 .Select(g => new Directory(g.Key, g.Select(g =>
                 {
@@ -221,11 +220,10 @@ namespace slskd
 
                 Log.Debug("Inserted {Files} records in {Elapsed}ms", files.Count, sw.ElapsedMilliseconds - swSnapshot);
 
-                UnmaskedDirectories = unmaskedDirectories;
                 MaskedDirectories = maskedDirectories;
-                Files = files;
+                MaskedFiles = files;
 
-                State.SetValue(state => state with { Filling = false, Faulted = false, FillProgress = 1, Directories = UnmaskedDirectories.Count, Files = Files.Count });
+                State.SetValue(state => state with { Filling = false, Faulted = false, FillProgress = 1, Directories = MaskedDirectories.Count, Files = MaskedFiles.Count });
                 Log.Debug($"Shared file cache recreated in {sw.ElapsedMilliseconds}ms.  Directories: {unmaskedDirectories.Count}, Files: {files.Count}");
             }
             catch (Exception ex)
@@ -297,7 +295,7 @@ namespace slskd
                     results.Add(reader.GetString(0));
                 }
 
-                return results.Select(r => Files[r.Replace("''", "'")]);
+                return results.Select(r => MaskedFiles[r.Replace("''", "'")]);
             }
             catch (Exception ex)
             {
@@ -330,9 +328,8 @@ namespace slskd
         private void ResetCache()
         {
             CreateTable();
-            UnmaskedDirectories = new HashSet<string>();
             MaskedDirectories = new HashSet<string>();
-            Files = new Dictionary<string, File>();
+            MaskedFiles = new Dictionary<string, File>();
             State.SetValue(state => state with { Directories = 0, Files = 0 });
         }
 
