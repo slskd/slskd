@@ -319,7 +319,7 @@ namespace slskd
             SQLite = new SqliteConnection("Data Source=:memory:");
             SQLite.Open();
 
-            using var cmd = new SqliteCommand("CREATE VIRTUAL TABLE cache USING fts5(filename, tokenize=\"porter\")", SQLite);
+            using var cmd = new SqliteCommand("CREATE VIRTUAL TABLE cache USING fts5(filename)", SQLite);
             cmd.ExecuteNonQuery();
         }
 
