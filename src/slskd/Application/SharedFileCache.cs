@@ -99,7 +99,12 @@ namespace slskd
                 directories.AddOrUpdate(group.Name, group, (_, _) => group);
             }
 
-            return directories.Values.OrderBy(f => f.Name[8..]);
+            Console.WriteLine(directories.Values.ToJson());
+
+            return directories.Values.OrderBy(f => {
+                Console.WriteLine($"Sorting by {f.Name}");
+                return f.Name[8..];
+            });
         }
 
         /// <summary>
@@ -205,7 +210,6 @@ namespace slskd
                     {
                         Log.Warning("Failed to scan files in directory {Directory}: {Message}", directory, ex.Message);
                     }
-
 
                     current++;
                     State.SetValue(state => state with { FillProgress = current / (double)unmaskedDirectories.Count, Files = files.Count });
