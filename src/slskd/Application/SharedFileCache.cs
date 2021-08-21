@@ -186,7 +186,7 @@ namespace slskd
                     try
                     {
                         var newFiles = System.IO.Directory.GetFiles(directory, "*", SearchOption.TopDirectoryOnly)
-                            .Select(f => new File(1, f.Replace("/", @"\").ReplaceFirst(share.LocalPath, share.RemotePath), new FileInfo(f).Length, Path.GetExtension(f)))
+                            .Select(f => new File(1, f.ReplaceFirst(share.LocalPath, share.RemotePath), new FileInfo(f).Length, Path.GetExtension(f)))
                             .ToDictionary(f => f.Filename, f => f);
 
                         // merge the new dictionary with the rest this will overwrite any duplicate keys, but keys are the fully
@@ -205,7 +205,6 @@ namespace slskd
                     {
                         Log.Warning("Failed to scan files in directory {Directory}: {Message}", directory, ex.Message);
                     }
-
 
                     current++;
                     State.SetValue(state => state with { FillProgress = current / (double)unmaskedDirectories.Count, Files = files.Count });
@@ -361,7 +360,7 @@ namespace slskd
                 }
                 else
                 {
-                    Alias = new Uri(share).Segments.Last();
+                    Alias = share.Split(new[] { '/', '\\' }).Last();
                     LocalPath = share;
                 }
 
@@ -369,15 +368,8 @@ namespace slskd
 
                 var maskedPath = LocalPath.ReplaceFirst(System.IO.Directory.GetParent(LocalPath).FullName, Mask);
 
-                if (!string.IsNullOrEmpty(Alias))
-                {
-                    var aliasedSegment = LocalPath[(System.IO.Directory.GetParent(LocalPath).FullName.Length + 1)..];
-                    RemotePath = maskedPath.ReplaceFirst(aliasedSegment, Alias);
-                }
-                else
-                {
-                    RemotePath = LocalPath.ReplaceFirst(System.IO.Directory.GetParent(LocalPath).FullName, Mask);
-                }
+                var aliasedSegment = LocalPath[(System.IO.Directory.GetParent(LocalPath).FullName.Length + 1)..];
+                RemotePath = maskedPath.ReplaceFirst(aliasedSegment, Alias);
             }
 
             public string Alias { get; init; }

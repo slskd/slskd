@@ -280,7 +280,7 @@ namespace slskd
                         return (share, Compute.MaskHash(Directory.GetParent(matches[0].Groups[3].Value).FullName), matches[0].Groups[2].Value, matches[0].Groups[3].Value);
                     }
 
-                    return (share, Compute.MaskHash(Directory.GetParent(share).FullName), new Uri(share).Segments.Last(), share);
+                    return (share, Compute.MaskHash(Directory.GetParent(share).FullName), share.Split(new[] { '/', '\\' }).Last(), share);
                 }
 
                 var digestedShared = Shared
