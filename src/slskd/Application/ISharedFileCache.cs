@@ -44,6 +44,13 @@ namespace slskd
         Task FillAsync();
 
         /// <summary>
+        ///     Returns the contents of the specified <paramref name="directory"/>.
+        /// </summary>
+        /// <param name="directory">The directory for which the contents are to be listed.</param>
+        /// <returns>The contents of the directory.</returns>
+        Directory List(string directory);
+
+        /// <summary>
         ///     Substitutes the mask in the specified <paramref name="filename"/> with the original path, if the mask is tracked
         ///     by the cache.
         /// </summary>
