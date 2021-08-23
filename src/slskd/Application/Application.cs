@@ -570,10 +570,8 @@ namespace slskd
         /// <returns>A Task resolving an instance of Soulseek.Directory containing the contents of the requested directory.</returns>
         private Task<Soulseek.Directory> DirectoryContentsResponseResolver(string username, IPEndPoint endpoint, int token, string directory)
         {
-            var result = new Soulseek.Directory(directory.Replace("/", @"\"), System.IO.Directory.GetFiles(directory)
-                    .Select(f => new Soulseek.File(1, Path.GetFileName(f), new FileInfo(f).Length, Path.GetExtension(f))));
-
-            return Task.FromResult(result);
+            var dir = SharedFileCache.List(directory);
+            return Task.FromResult(dir);
         }
 
         /// <summary>
