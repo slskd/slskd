@@ -23,6 +23,7 @@ namespace slskd
     using System.Linq;
     using System.Reflection;
     using System.Text.Json;
+    using System.Text.RegularExpressions;
 
     /// <summary>
     ///     Extensions.
@@ -115,6 +116,30 @@ namespace slskd
 
                 return hash1 + (hash2 * 1566083941);
             }
+        }
+
+        /// <summary>
+        ///     Determines whether the string is a valid regular expression.
+        /// </summary>
+        /// <param name="pattern">The string to validate.</param>
+        /// <returns>A value indicating whether the string is a valid regular expression.</returns>
+        public static bool IsValidRegex(this string pattern)
+        {
+            if (string.IsNullOrWhiteSpace(pattern))
+            {
+                return false;
+            }
+
+            try
+            {
+                Regex.Match(string.Empty, pattern);
+            }
+            catch (ArgumentException)
+            {
+                return false;
+            }
+
+            return true;
         }
 
         /// <summary>
