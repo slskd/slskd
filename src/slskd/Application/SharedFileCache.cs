@@ -239,6 +239,27 @@ namespace slskd
         }
 
         /// <summary>
+        ///     Returns the contents of the specified <paramref name="directory"/>.
+        /// </summary>
+        /// <param name="directory">The directory for which the contents are to be listed.</param>
+        /// <returns>The contents of the directory.</returns>
+        public Directory List(string directory)
+        {
+            var files = MaskedFiles.Where(f => f.Key.StartsWith(directory)).Select(kvp =>
+            {
+                var f = kvp.Value;
+                return new File(
+                    f.Code,
+                    Path.GetFileName(f.Filename),
+                    f.Size,
+                    f.Extension,
+                    f.Attributes);
+            });
+
+            return new Directory(directory, files);
+        }
+
+        /// <summary>
         ///     Substitutes the mask in the specified <paramref name="filename"/> with the original path, if the mask is tracked
         ///     by the cache.
         /// </summary>
