@@ -188,6 +188,12 @@ namespace slskd
         public DirectoriesOptions Directories { get; private set; } = new DirectoriesOptions();
 
         /// <summary>
+        ///     Gets filter options.
+        /// </summary>
+        [Validate]
+        public FiltersOptions Filters { get; private set; } = new FiltersOptions();
+
+        /// <summary>
         ///     Gets options for the web UI.
         /// </summary>
         [Validate]
@@ -255,7 +261,7 @@ namespace slskd
             public string Downloads { get; private set; } = Program.DefaultDownloadsDirectory;
 
             /// <summary>
-            ///     Gets the path to shared files.
+            ///     Gets the list of paths to shared files.
             /// </summary>
             [Argument('s', "shared")]
             [EnvironmentVariable("SHARED_DIR")]
@@ -337,6 +343,40 @@ namespace slskd
             [Description("enable swagger documentation and UI")]
             [RequiresRestart]
             public bool Swagger { get; private set; } = false;
+        }
+
+        /// <summary>
+        ///     Filter options.
+        /// </summary>
+        public class FiltersOptions : IValidatableObject
+        {
+            /// <summary>
+            ///     Gets the list of file filters.
+            /// </summary>
+            [Argument(default, "file-filter")]
+            [EnvironmentVariable("FILE_FILTER")]
+            [Description("regular expressions to filter files from shares and results")]
+            public string[] File { get; private set; } = Array.Empty<string>();
+
+            /// <summary>
+            ///     Extended validation.
+            /// </summary>
+            /// <param name="validationContext"></param>
+            /// <returns></returns>
+            public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+            {
+                var results = new List<ValidationResult>();
+
+                foreach (var filter in File)
+                {
+                    if (!filter.IsValidRegex())
+                    {
+                        results.Add(new ValidationResult($"File filter '{filter}' is not a valid regular expression"));
+                    }
+                }
+
+                return results;
+            }
         }
 
         /// <summary>
