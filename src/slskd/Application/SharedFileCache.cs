@@ -192,6 +192,11 @@ namespace slskd
                         // qualified name the only time this *should* cause problems is if one of the shares is a subdirectory of another.
                         foreach (var file in newFiles)
                         {
+                            if (OptionsMonitor.CurrentValue.Filters.File.Any(pattern => Regex.IsMatch(file.Key, pattern)))
+                            {
+                                continue;
+                            }
+
                             if (files.ContainsKey(file.Key))
                             {
                                 Log.Warning($"File {file.Key} shared in directory {directory} has already been cached.  This is probably a misconfiguration of the shared directories (is a subdirectory being re-shared?).");
