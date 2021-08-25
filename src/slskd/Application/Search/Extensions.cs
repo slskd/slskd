@@ -71,6 +71,34 @@ namespace slskd.Search
         }
 
         /// <summary>
+        ///     Returns a copy of the specified <paramref name="options"/> with the specified filter delegates overridden.
+        /// </summary>
+        /// <param name="options"></param>
+        /// <param name="responseFilter"></param>
+        /// <param name="fileFilter"></param>
+        /// <returns></returns>
+        public static SearchOptions WithFilters(
+            this SearchOptions options,
+            Func<SearchResponse, bool> responseFilter = null,
+            Func<Soulseek.File, bool> fileFilter = null)
+        {
+            return new SearchOptions(
+                options.SearchTimeout,
+                options.ResponseLimit,
+                filterResponses: options.FilterResponses || responseFilter != null || fileFilter != null,
+                options.MinimumResponseFileCount,
+                options.MinimumPeerFreeUploadSlots,
+                options.MaximumPeerQueueLength,
+                options.MinimumPeerUploadSpeed,
+                options.FileLimit,
+                options.RemoveSingleCharacterSearchTerms,
+                responseFilter,
+                fileFilter,
+                options.StateChanged,
+                options.ResponseReceived);
+        }
+
+        /// <summary>
         ///     Creates a projection over the specified <paramref name="query"/> which omits responses.
         /// </summary>
         /// <param name="query"></param>
