@@ -12,9 +12,9 @@
 #	  - ~
 # filters:
 #   file:
-#     - .ini$
+#     - \.ini$
 #     - Thumbs.db$
-#     - .DS_Store$
+#     - \.DS_Store$
 # web:
 #   port: 5000
 #   https:
