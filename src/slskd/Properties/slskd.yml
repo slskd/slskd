@@ -13,7 +13,7 @@
 # filters:
 #   file:
 #     - .ini$
-#     - ^Thumbs.db$
+#     - Thumbs.db$
 #     - .DS_Store$
 # web:
 #   port: 5000
