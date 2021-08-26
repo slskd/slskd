@@ -90,15 +90,10 @@ namespace slskd.Search
                 StartedAt = DateTime.UtcNow,
             };
 
-            var filters = OptionsMonitor.CurrentValue.Filters.File
-                .Select(filter => new Regex(filter, RegexOptions.Compiled));
-
             options ??= new SearchOptions();
             options = options.WithActions(
                 stateChanged: (args) => UpdateSearchState(search, args.Search),
                 responseReceived: (args) => UpdateSearchState(search, args.Search));
-            options = options.WithFilters(
-                fileFilter: (file) => !filters.Any(filter => filter.IsMatch(file.Filename)));
 
             try
             {
