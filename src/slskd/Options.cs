@@ -351,12 +351,12 @@ namespace slskd
         public class FiltersOptions : IValidatableObject
         {
             /// <summary>
-            ///     Gets the list of file filters.
+            ///     Gets the list of shared file filters.
             /// </summary>
-            [Argument(default, "file-filter")]
-            [EnvironmentVariable("FILE_FILTER")]
-            [Description("regular expressions to filter files from shares and results")]
-            public string[] File { get; private set; } = Array.Empty<string>();
+            [Argument(default, "share-filter")]
+            [EnvironmentVariable("SHARE_FILTER")]
+            [Description("regular expressions to filter files from shares")]
+            public string[] Share { get; private set; } = Array.Empty<string>();
 
             /// <summary>
             ///     Extended validation.
@@ -367,11 +367,11 @@ namespace slskd
             {
                 var results = new List<ValidationResult>();
 
-                foreach (var filter in File)
+                foreach (var filter in Share)
                 {
                     if (!filter.IsValidRegex())
                     {
-                        results.Add(new ValidationResult($"File filter '{filter}' is not a valid regular expression"));
+                        results.Add(new ValidationResult($"Share filter '{filter}' is not a valid regular expression"));
                     }
                 }
 

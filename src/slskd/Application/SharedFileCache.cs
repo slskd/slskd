@@ -170,7 +170,7 @@ namespace slskd
                 Log.Debug("Found {Directories} shared directories (and {Excluded} were excluded) in {Elapsed}ms.  Starting file scan.", unmaskedDirectories.Count, excludedDirectories.Count(), sw.ElapsedMilliseconds - swSnapshot);
                 swSnapshot = sw.ElapsedMilliseconds;
 
-                var filters = OptionsMonitor.CurrentValue.Filters.File
+                var filters = OptionsMonitor.CurrentValue.Filters.Share
                     .Select(filter => new Regex(filter, RegexOptions.Compiled));
 
                 var files = new Dictionary<string, File>();

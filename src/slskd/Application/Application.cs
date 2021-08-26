@@ -241,8 +241,8 @@ namespace slskd
                     Logger.Information("Shared directory configuration changed.  Shares must be re-scanned for changes to take effect.");
                 }
 
-                if (PreviousOptions.Filters.File.Except(newOptions.Filters.File).Any()
-                    || newOptions.Filters.File.Except(PreviousOptions.Filters.File).Any())
+                if (PreviousOptions.Filters.Share.Except(newOptions.Filters.Share).Any()
+                    || newOptions.Filters.Share.Except(PreviousOptions.Filters.Share).Any())
                 {
                     StateMonitor.SetValue(state => state with { PendingShareRescan = true });
                     Logger.Information("File filter configuration changed.  Shares must be re-scanned for changes to take effect.");

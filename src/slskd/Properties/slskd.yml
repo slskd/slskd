@@ -11,7 +11,7 @@
 #   shared:
 #	  - ~
 # filters:
-#   file:
+#   share:
 #     - \.ini$
 #     - Thumbs.db$
 #     - \.DS_Store$
