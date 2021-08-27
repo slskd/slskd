@@ -241,6 +241,13 @@ namespace slskd
                     Logger.Information("Shared directory configuration changed.  Shares must be re-scanned for changes to take effect.");
                 }
 
+                if (PreviousOptions.Filters.Share.Except(newOptions.Filters.Share).Any()
+                    || newOptions.Filters.Share.Except(PreviousOptions.Filters.Share).Any())
+                {
+                    StateMonitor.SetValue(state => state with { PendingShareRescan = true });
+                    Logger.Information("File filter configuration changed.  Shares must be re-scanned for changes to take effect.");
+                }
+
                 // determine whether any Soulseek options changed.  if so, we need to construct a patch
                 // and invoke ReconfigureOptionsAsync().
                 var slskDiff = PreviousOptions.Soulseek.DiffWith(newOptions.Soulseek);

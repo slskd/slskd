@@ -15,6 +15,8 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
+using Microsoft.Extensions.Options;
+
 namespace slskd.Search
 {
     using System;
@@ -41,14 +43,17 @@ namespace slskd.Search
         /// <summary>
         ///     Initializes a new instance of the <see cref="SearchService"/> class.
         /// </summary>
+        /// <param name="optionsMonitor"></param>
         /// <param name="client">The client instance to use.</param>
         /// <param name="contextFactory">The database context to use.</param>
         /// <param name="log">The logger.</param>
         public SearchService(
+            IOptionsMonitor<Options> optionsMonitor,
             ISoulseekClient client,
             IDbContextFactory<SearchDbContext> contextFactory,
             ILogger<SearchService> log)
         {
+            OptionsMonitor = optionsMonitor;
             Client = client;
             ContextFactory = contextFactory;
             Log = log;
@@ -57,6 +62,7 @@ namespace slskd.Search
         private ConcurrentDictionary<Guid, CancellationTokenSource> CancellationTokens { get; }
             = new ConcurrentDictionary<Guid, CancellationTokenSource>();
 
+        private IOptionsMonitor<Options> OptionsMonitor { get; }
         private ISoulseekClient Client { get; }
         private IDbContextFactory<SearchDbContext> ContextFactory { get; }
         private ILogger<SearchService> Log { get; set; }

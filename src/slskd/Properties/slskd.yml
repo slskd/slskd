@@ -1,6 +1,20 @@
 # debug: false
 # no_logo: false
+# no_start: false
+# no_connect: false
+# no_share_scan: false
 # instance_name: default
+# directories:
+#   app: ~
+#   incomplete: ~
+#   downloads: ~
+#   shared:
+#	  - ~
+# filters:
+#   share:
+#     - \.ini$
+#     - Thumbs.db$
+#     - \.DS_Store$
 # web:
 #   port: 5000
 #   https:
@@ -18,11 +32,6 @@
 #     jwt:
 #       key: ~
 #       ttl: 604800000
-# directories:
-#   app: ~
-#   incomplete: ~
-#   downloads: ~
-#   shared: ~
 # logger:
 #   loki: ~
 # feature:

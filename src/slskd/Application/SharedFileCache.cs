@@ -167,12 +167,16 @@ namespace slskd
                 unmaskedDirectories = unmaskedDirectories.Except(excludedDirectories).ToHashSet();
 
                 State.SetValue(state => state with { Directories = unmaskedDirectories.Count, ExcludedDirectories = excludedDirectories.Count() });
-                Log.Debug("Found {Directories} shared directories (and {Excluded} were filtered) in {Elapsed}ms.  Starting file scan.", unmaskedDirectories.Count, excludedDirectories.Count(), sw.ElapsedMilliseconds - swSnapshot);
+                Log.Debug("Found {Directories} shared directories (and {Excluded} were excluded) in {Elapsed}ms.  Starting file scan.", unmaskedDirectories.Count, excludedDirectories.Count(), sw.ElapsedMilliseconds - swSnapshot);
                 swSnapshot = sw.ElapsedMilliseconds;
+
+                var filters = OptionsMonitor.CurrentValue.Filters.Share
+                    .Select(filter => new Regex(filter, RegexOptions.Compiled));
 
                 var files = new Dictionary<string, File>();
                 var maskedDirectories = new HashSet<string>();
                 var current = 0;
+                var filtered = 0;
 
                 foreach (var directory in unmaskedDirectories)
                 {
@@ -192,6 +196,12 @@ namespace slskd
                         // qualified name the only time this *should* cause problems is if one of the shares is a subdirectory of another.
                         foreach (var file in newFiles)
                         {
+                            if (filters.Any(filter => filter.IsMatch(file.Key)))
+                            {
+                                filtered++;
+                                continue;
+                            }
+
                             if (files.ContainsKey(file.Key))
                             {
                                 Log.Warning($"File {file.Key} shared in directory {directory} has already been cached.  This is probably a misconfiguration of the shared directories (is a subdirectory being re-shared?).");
@@ -209,7 +219,7 @@ namespace slskd
                     State.SetValue(state => state with { FillProgress = current / (double)unmaskedDirectories.Count, Files = files.Count });
                 }
 
-                Log.Debug("Directory scan found {Files} in {Elapsed}ms.  Populating filename database", files.Count, sw.ElapsedMilliseconds - swSnapshot);
+                Log.Debug("Directory scan found {Files} files (and {Filtered} were filtered) in {Elapsed}ms.  Populating filename database", files.Count, filtered, sw.ElapsedMilliseconds - swSnapshot);
                 swSnapshot = sw.ElapsedMilliseconds;
 
                 // potentially optimize with multi-valued insert https://stackoverflow.com/questions/16055566/insert-multiple-rows-in-sqlite
