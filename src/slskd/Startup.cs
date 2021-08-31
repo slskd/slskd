@@ -233,6 +233,11 @@ namespace slskd
         {
             var logger = Log.ForContext<Startup>();
 
+            // initialize DbContext instances to avoid race conditions when a db needs to be
+            // created from scratch. note that this method needs to be updated to include each
+            // DbContext explicitly.
+            InitializeDbContexts(app);
+
             app.UseCors("AllowAll");
 
             if (OptionsAtStartup.Web.Https.Force)
@@ -330,6 +335,28 @@ namespace slskd
             if (Directory.Exists(ContentPath))
             {
                 app.UseFileServer(fileServerOptions);
+            }
+        }
+
+        private void InitializeDbContexts(IApplicationBuilder app)
+        {
+            var logger = Log.ForContext<Startup>();
+
+            IDbContextFactory<T> GetFactory<T>()
+                where T : DbContext
+                => app.ApplicationServices.GetRequiredService<IDbContextFactory<T>>();
+
+            logger.Debug("Initializing database contexts");
+
+            try
+            {
+                using var search = GetFactory<SearchDbContext>().CreateDbContext();
+                using var peer = GetFactory<PeerDbContext>().CreateDbContext();
+            }
+            catch (Exception ex)
+            {
+                logger.Error(ex, "Failed to initialize one or more application databases");
+                throw;
             }
         }
     }
