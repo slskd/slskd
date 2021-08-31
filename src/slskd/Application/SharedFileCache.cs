@@ -328,14 +328,11 @@ namespace slskd
                     results.Add(reader.GetString(0));
                 }
 
-                Log.Debug($"Query {sql} returned {results.Count} results");
-
                 return results.Select(r => MaskedFiles[r.Replace("''", "'")]);
             }
             catch (Exception ex)
             {
-                // temporary error trap to refine substitution rules
-                Console.WriteLine($"[MALFORMED QUERY]: {query} ({ex.Message})");
+                Log.Error(ex, "Malformed query: {Query}", query);
                 return Enumerable.Empty<File>();
             }
         }
