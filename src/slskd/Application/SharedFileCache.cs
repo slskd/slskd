@@ -29,6 +29,7 @@ namespace slskd
     using System.Threading;
     using System.Threading.Tasks;
     using Microsoft.Data.Sqlite;
+    using Microsoft.Extensions.Caching.Memory;
     using Serilog;
     using Soulseek;
 
@@ -59,6 +60,7 @@ namespace slskd
         private List<Share> Shares { get; set; }
         private SqliteConnection SQLite { get; set; }
         private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1);
+        private ConcurrentDictionary<int, SqliteConnection> SQLiteConnections { get; } = new ConcurrentDictionary<int, SqliteConnection>();
 
         /// <summary>
         ///     Returns the contents of the cache.
@@ -319,11 +321,10 @@ namespace slskd
 
             try
             {
-                var results = new List<string>();
-
-                using var sqlite = new SqliteConnection("Data Source=file:shares?mode=memory&cache=shared");
+                var sqlite = SQLiteConnections.GetOrAdd(Thread.CurrentThread.ManagedThreadId, new SqliteConnection("Data Source=file:shares?mode=memory&cache=shared"));
                 using var cmd = new SqliteCommand(sql, sqlite);
 
+                var results = new List<string>();
                 sqlite.Open();
 
                 var reader = await cmd.ExecuteReaderAsync();
