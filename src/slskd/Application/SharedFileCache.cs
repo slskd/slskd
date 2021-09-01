@@ -29,7 +29,6 @@ namespace slskd
     using System.Threading;
     using System.Threading.Tasks;
     using Microsoft.Data.Sqlite;
-    using Microsoft.Extensions.Caching.Memory;
     using Serilog;
     using Soulseek;
 
@@ -60,7 +59,6 @@ namespace slskd
         private List<Share> Shares { get; set; }
         private SqliteConnection SQLite { get; set; }
         private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1);
-        private ConcurrentDictionary<int, SqliteConnection> SQLiteConnections { get; } = new ConcurrentDictionary<int, SqliteConnection>();
 
         /// <summary>
         ///     Returns the contents of the cache.
@@ -308,6 +306,12 @@ namespace slskd
         /// <returns>The matching files.</returns>
         public async Task<IEnumerable<File>> SearchAsync(SearchQuery query)
         {
+            // ignore requests while the cache is building
+            if (SyncRoot.CurrentCount == 0)
+            {
+                return Enumerable.Empty<File>();
+            }
+
             string Clean(string str) => str.Replace("/", " ")
                 .Replace("\\", " ")
                 .Replace(":", " ")
@@ -318,14 +322,13 @@ namespace slskd
             var exclusions = string.Join(" OR ", query.Exclusions.Select(exclusion => $"\"{Clean(exclusion)}\""));
 
             var sql = $"SELECT * FROM cache WHERE cache MATCH '({match}) {(query.Exclusions.Any() ? $"NOT ({exclusions})" : string.Empty)}'";
+            var results = new List<string>();
 
             try
             {
-                var sqlite = SQLiteConnections.GetOrAdd(Thread.CurrentThread.ManagedThreadId, new SqliteConnection("Data Source=file:shares?mode=memory&cache=shared"));
-                using var cmd = new SqliteCommand(sql, sqlite);
-
-                var results = new List<string>();
-                sqlite.Open();
+                using var conn = new SqliteConnection("Data Source=file:shares?mode=memory&cache=shared");
+                using var cmd = new SqliteCommand(sql, conn);
+                await conn.OpenAsync();
 
                 var reader = await cmd.ExecuteReaderAsync();
 
@@ -338,7 +341,7 @@ namespace slskd
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "Malformed query: {Query}", query);
+                Log.Warning(ex, "Failed to execute shared file query '{Query}': {Message}", query, ex.Message);
                 return Enumerable.Empty<File>();
             }
         }
