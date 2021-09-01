@@ -1,4 +1,4 @@
-﻿// <copyright file="SharedFileCache.cs" company="slskd Team">
+// <copyright file="SharedFileCache.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -344,7 +344,7 @@ namespace slskd
                 SQLite.Dispose();
             }
 
-            SQLite = new SqliteConnection("Data Source=:memory:");
+            SQLite = new SqliteConnection("Data Source=file:shares?mode=memory&cache=shared");
             SQLite.Open();
 
             using var cmd = new SqliteCommand("CREATE VIRTUAL TABLE cache USING fts5(filename)", SQLite);
