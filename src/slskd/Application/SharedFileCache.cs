@@ -1,4 +1,4 @@
-// <copyright file="SharedFileCache.cs" company="slskd Team">
+﻿// <copyright file="SharedFileCache.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -319,8 +319,13 @@ namespace slskd
 
             try
             {
-                using var cmd = new SqliteCommand(sql, SQLite);
                 var results = new List<string>();
+
+                using var sqlite = new SqliteConnection("Data Source=file:shares?mode=memory&cache=shared");
+                using var cmd = new SqliteCommand(sql, sqlite);
+
+                sqlite.Open();
+
                 var reader = await cmd.ExecuteReaderAsync();
 
                 while (reader.Read())
