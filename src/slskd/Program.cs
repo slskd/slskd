@@ -61,8 +61,7 @@ namespace slskd
         /// <summary>
         ///     The default configuration filename.
         /// </summary>
-        //public static readonly string DefaultConfigurationFile = Path.Combine(AppContext.BaseDirectory, "config", $"{AppName}.yml");
-        public static readonly string DefaultConfigurationFile = @"C:\Users\JP.WHATNET\slskd.yml";
+        public static readonly string DefaultConfigurationFile = Path.Combine(AppContext.BaseDirectory, "config", $"{AppName}.yml");
 
         /// <summary>
         ///     The default incomplete download directory.
