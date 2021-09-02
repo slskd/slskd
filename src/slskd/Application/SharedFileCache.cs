@@ -107,19 +107,17 @@ namespace slskd
         /// <returns>The operation context.</returns>
         public async Task FillAsync()
         {
-            if (SyncRoot.CurrentCount == 0)
+            // obtain the semaphore, or fail if it can't be obtained immediately, indicating that a scan is running.
+            if (!await SyncRoot.WaitAsync(millisecondsTimeout: 0))
             {
                 Log.Warning("Shared file scan rejected; scan is already in progress.");
                 throw new ShareScanInProgressException("Shared files are already being scanned.");
             }
 
-            await Task.Yield();
-
-            await SyncRoot.WaitAsync();
-
             try
             {
-                // todo: don't do this, but rather build a new cache and then swap it in
+                await Task.Yield();
+
                 ResetCache();
 
                 State.SetValue(state => state with { Filling = true, FillProgress = 0 });
