@@ -107,19 +107,17 @@ namespace slskd
         /// <returns>The operation context.</returns>
         public async Task FillAsync()
         {
-            if (SyncRoot.CurrentCount == 0)
+            // obtain the semaphore, or fail if it can't be obtained immediately, indicating that a scan is running.
+            if (!await SyncRoot.WaitAsync(millisecondsTimeout: 0))
             {
                 Log.Warning("Shared file scan rejected; scan is already in progress.");
                 throw new ShareScanInProgressException("Shared files are already being scanned.");
             }
 
-            await Task.Yield();
-
-            await SyncRoot.WaitAsync();
-
             try
             {
-                // todo: don't do this, but rather build a new cache and then swap it in
+                await Task.Yield();
+
                 ResetCache();
 
                 State.SetValue(state => state with { Filling = true, FillProgress = 0 });
@@ -306,6 +304,12 @@ namespace slskd
         /// <returns>The matching files.</returns>
         public async Task<IEnumerable<File>> SearchAsync(SearchQuery query)
         {
+            // ignore requests while the cache is building
+            if (SyncRoot.CurrentCount == 0)
+            {
+                return Enumerable.Empty<File>();
+            }
+
             string Clean(string str) => str.Replace("/", " ")
                 .Replace("\\", " ")
                 .Replace(":", " ")
@@ -316,11 +320,14 @@ namespace slskd
             var exclusions = string.Join(" OR ", query.Exclusions.Select(exclusion => $"\"{Clean(exclusion)}\""));
 
             var sql = $"SELECT * FROM cache WHERE cache MATCH '({match}) {(query.Exclusions.Any() ? $"NOT ({exclusions})" : string.Empty)}'";
+            var results = new List<string>();
 
             try
             {
-                using var cmd = new SqliteCommand(sql, SQLite);
-                var results = new List<string>();
+                using var conn = new SqliteConnection("Data Source=file:shares?mode=memory&cache=shared");
+                using var cmd = new SqliteCommand(sql, conn);
+                await conn.OpenAsync();
+
                 var reader = await cmd.ExecuteReaderAsync();
 
                 while (reader.Read())
@@ -332,7 +339,7 @@ namespace slskd
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "Malformed query: {Query}", query);
+                Log.Warning(ex, "Failed to execute shared file query '{Query}': {Message}", query, ex.Message);
                 return Enumerable.Empty<File>();
             }
         }
@@ -344,7 +351,7 @@ namespace slskd
                 SQLite.Dispose();
             }
 
-            SQLite = new SqliteConnection("Data Source=:memory:");
+            SQLite = new SqliteConnection("Data Source=file:shares?mode=memory&cache=shared");
             SQLite.Open();
 
             using var cmd = new SqliteCommand("CREATE VIRTUAL TABLE cache USING fts5(filename)", SQLite);
