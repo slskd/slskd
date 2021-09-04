@@ -66,6 +66,12 @@ namespace slskd
         /// <returns>The contents of the cache.</returns>
         public IEnumerable<Directory> Browse()
         {
+            // ignore requests while the cache is building
+            if (SyncRoot.CurrentCount == 0)
+            {
+                return new[] { new Directory("Scanning shares, please check back in a few minutes.") };
+            }
+
             var directories = new ConcurrentDictionary<string, Directory>();
 
             // Soulseek requires that each directory in the tree have an entry in the list returned in a browse response. if
