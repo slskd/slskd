@@ -19,6 +19,7 @@ namespace slskd
 {
     using System;
     using System.Collections.Concurrent;
+    using System.Collections.Generic;
     using System.IO;
     using System.Linq;
     using System.Net;
@@ -252,7 +253,7 @@ namespace slskd
                     || newOptions.Rooms.Except(PreviousOptions.Rooms).Any())
                 {
                     Logger.Information("Room configuration changed.  Joining any newly added rooms.");
-                    _ = AutoJoinRooms(newOptions.Rooms);
+                    _ = AutoJoinRoomsAsync(newOptions.Rooms);
                 }
 
                 // determine whether any Soulseek options changed.  if so, we need to construct a patch
@@ -425,28 +426,62 @@ namespace slskd
             Logger.Information("Connected to the Soulseek server");
         }
 
-        private void Client_LoggedIn(object sender, EventArgs e)
+        private async void Client_LoggedIn(object sender, EventArgs e)
         {
             Logger.Information("Logged in to the Soulseek server as {Username}", Client.Username);
 
             // send whatever counts we have currently. we'll probably connect before the cache is primed,
             // so these will be zero initially, but we'll update them when the cache is filled.
             _ = SoulseekClient.SetSharedCountsAsync(State.SharedFileCache.Directories, State.SharedFileCache.Files);
-            _ = AutoJoinRooms(OptionsMonitor.CurrentValue.Rooms);
+
+            // rejoin any rooms that we might have been in during the previous session
+            await JoinRoomsAsync(RoomTracker.Rooms.Keys);
+
+            // join the rooms configured for autojoin.  always do this after rejoining has completed.
+            await AutoJoinRoomsAsync(OptionsMonitor.CurrentValue.Rooms);
         }
 
-        private Task AutoJoinRooms(string[] rooms)
+        private Task AutoJoinRoomsAsync(string[] rooms)
         {
-            Logger.Information("Joining rooms {Rooms}", string.Join(", ", OptionsMonitor.CurrentValue.Rooms));
-
             // don't try to join rooms that we've already joined.  the server returns no response in this case
             // and the client believes the request has timed out.
             var unjoined = rooms.Where(room => !RoomTracker.Rooms.ContainsKey(room));
+            return JoinRoomsAsync(unjoined);
+        }
 
-            var tasks = unjoined.Select(room => SoulseekClient.JoinRoomAsync(room)
-                    .ContinueWith(task => Logger.Warning("Failed to join room {Room}: {Message}", room, task.Exception.InnerExceptions.First().Message), TaskContinuationOptions.OnlyOnFaulted));
+        private async Task JoinRoomsAsync(IEnumerable<string> roomNames)
+        {
+            var tasks = new List<Task>();
 
-            return Task.WhenAll(tasks);
+            foreach (var room in roomNames)
+            {
+                tasks.Add(JoinRoomAsync(room));
+            }
+
+            try
+            {
+                await Task.WhenAll(tasks);
+            }
+            catch (Exception ex)
+            {
+                Logger.Debug(ex, "Caught Exception in JoinRoomsAsync");
+            }
+        }
+
+        private async Task JoinRoomAsync(string roomName)
+        {
+            Logger.Debug("Joining room {Room}", roomName);
+
+            try
+            {
+                var data = await SoulseekClient.JoinRoomAsync(roomName);
+                Logger.Information("Joined room {Room}", roomName);
+                Logger.Debug("Room data for {Room}: {Info}", roomName, data.ToJson());
+            }
+            catch (Exception ex)
+            {
+                Logger.Warning("Failed to join room {Room}: {Message}", roomName, ex.Message);
+            }
         }
 
         private async void Client_Disconnected(object sender, SoulseekClientDisconnectedEventArgs args)
