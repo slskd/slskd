@@ -1,4 +1,4 @@
-﻿// <copyright file="Application.cs" company="slskd Team">
+// <copyright file="Application.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -246,6 +246,13 @@ namespace slskd
                 {
                     StateMonitor.SetValue(state => state with { PendingShareRescan = true });
                     Logger.Information("File filter configuration changed.  Shares must be re-scanned for changes to take effect.");
+                }
+
+                if (PreviousOptions.Rooms.Except(newOptions.Rooms).Any()
+                    || newOptions.Rooms.Except(PreviousOptions.Rooms).Any())
+                {
+                    Logger.Information("Room configuration changed.  Joining any newly added rooms.");
+                    _ = AutoJoinRooms(newOptions.Rooms);
                 }
 
                 // determine whether any Soulseek options changed.  if so, we need to construct a patch
