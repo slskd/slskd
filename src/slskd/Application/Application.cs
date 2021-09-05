@@ -1,4 +1,4 @@
-// <copyright file="Application.cs" company="slskd Team">
+﻿// <copyright file="Application.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -439,7 +439,11 @@ namespace slskd
         {
             Logger.Information("Joining rooms {Rooms}", string.Join(", ", OptionsMonitor.CurrentValue.Rooms));
 
-            var tasks = rooms.Select(room => SoulseekClient.JoinRoomAsync(room)
+            // don't try to join rooms that we've already joined.  the server returns no response in this case
+            // and the client believes the request has timed out.
+            var unjoined = rooms.Where(room => !RoomTracker.Rooms.ContainsKey(room));
+
+            var tasks = unjoined.Select(room => SoulseekClient.JoinRoomAsync(room)
                     .ContinueWith(task => Logger.Warning("Failed to join room {Room}: {Message}", room, task.Exception.InnerExceptions.First().Message), TaskContinuationOptions.OnlyOnFaulted));
 
             return Task.WhenAll(tasks);
