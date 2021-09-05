@@ -425,6 +425,17 @@ namespace slskd
             // send whatever counts we have currently. we'll probably connect before the cache is primed,
             // so these will be zero initially, but we'll update them when the cache is filled.
             _ = SoulseekClient.SetSharedCountsAsync(State.SharedFileCache.Directories, State.SharedFileCache.Files);
+            _ = AutoJoinRooms(OptionsMonitor.CurrentValue.Rooms);
+        }
+
+        private Task AutoJoinRooms(string[] rooms)
+        {
+            Logger.Information("Joining rooms {Rooms}", string.Join(", ", OptionsMonitor.CurrentValue.Rooms));
+
+            var tasks = rooms.Select(room => SoulseekClient.JoinRoomAsync(room)
+                    .ContinueWith(task => Logger.Warning("Failed to join room {Room}: {Message}", room, task.Exception.InnerExceptions.First().Message), TaskContinuationOptions.OnlyOnFaulted));
+
+            return Task.WhenAll(tasks);
         }
 
         private async void Client_Disconnected(object sender, SoulseekClientDisconnectedEventArgs args)
