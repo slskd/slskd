@@ -194,6 +194,14 @@ namespace slskd
         public FiltersOptions Filters { get; private set; } = new FiltersOptions();
 
         /// <summary>
+        ///     Gets a list of rooms to automatically join upon connection.
+        /// </summary>
+        [Argument(default, "rooms")]
+        [EnvironmentVariable("ROOMS")]
+        [Description("a list of rooms to automatically join")]
+        public string[] Rooms { get; private set; } = Array.Empty<string>();
+
+        /// <summary>
         ///     Gets options for the web UI.
         /// </summary>
         [Validate]
