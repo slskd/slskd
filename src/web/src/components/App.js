@@ -21,6 +21,7 @@ import {
     Header
 } from 'semantic-ui-react';
 import Rooms from './Rooms/Rooms';
+import ErrorSegment from './Shared/ErrorSegment';
 
 const initialState = {
     token: undefined,
@@ -30,7 +31,8 @@ const initialState = {
         error: undefined
     },
     serverStateInterval: undefined,
-    serverState: {}
+    serverState: {},
+    error: false,
 };
 
 class App extends Component {
@@ -39,23 +41,28 @@ class App extends Component {
     componentDidMount = async () => {
         const { login } = this.state;
 
-        await this.fetchServerState();
-        const securityEnabled = await session.getSecurityEnabled();
-
-        if (!securityEnabled) {
-            this.setToken(sessionStorage, tokenPassthroughValue)
+        try {
+            await this.fetchServerState();
+            const securityEnabled = await session.getSecurityEnabled();
+    
+            if (!securityEnabled) {
+                this.setToken(sessionStorage, tokenPassthroughValue)
+            }
+            
+            this.setState({
+                token: this.getToken(),
+                login: {
+                    ...login,
+                    initialized: true
+                },
+                serverStateInterval: window.setInterval(this.fetchServerState, 5000)
+            });
+    
+            await this.checkToken();
+        } catch (err) {
+            console.error(err)
+            this.setState({ error: true })
         }
-        
-        this.setState({
-            token: this.getToken(),
-            login: {
-                ...login,
-                initialized: true
-            },
-            serverStateInterval: window.setInterval(this.fetchServerState, 5000)
-        });
-
-        await this.checkToken();
     };
 
     componentWillUnmount = () => {
@@ -110,19 +117,20 @@ class App extends Component {
     fetchServerState = async () => {
         try {
             this.setState({ 
-                serverState: await server.getState()
+                serverState: await server.getState(),
+                error: false,
             });
         } catch (err) {
-            // noop
+            this.setState({ error: true })
         }
     };
 
     render = () => {
-        const { token, login, serverState } = this.state;
+        const { token, login, serverState, error } = this.state;
 
         return (
             <>
-                {!token ? 
+                {error ? <ErrorSegment caption='slskd appears to be offline' /> : !token ? 
                     <LoginForm 
                         onLoginAttempt={this.login} 
                         initialized={login.initialized}
