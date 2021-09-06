@@ -1,7 +1,14 @@
 import api from './api';
 
 export const getAll = async () => {
-  return (await api.get('/conversations')).data;
+  const response = (await api.get('/conversations')).data;
+
+  if (!Array.isArray(response)) {
+    console.warn('got non-array response from conversations API', response)
+    return undefined;
+  }
+
+  return response;
 };
 
 export const acknowledge = ({ username }) => {

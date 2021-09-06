@@ -142,7 +142,7 @@ class Rooms extends Component {
   };
 
   render = () => {
-    const { joined, active, room, loading } = this.state;
+    const { joined = [], active = [], room, loading } = this.state;
 
     return (
       <div className='rooms'>

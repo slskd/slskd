@@ -1,7 +1,14 @@
 import api from './api';
 
 export const getAll = async ({ direction }) => {
-  return (await api.get(`/transfers/${direction}s`)).data;
+  const response = (await api.get(`/transfers/${direction}s`)).data;
+
+  if (!Array.isArray(response)) {
+    console.warn('got non-array response from transfers API', response)
+    return undefined;
+  }
+
+  return response;
 };
 
 export const download = ({ username, filename, size }) => {
