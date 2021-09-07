@@ -22,6 +22,10 @@ namespace slskd
     /// </summary>
     public record ApplicationState()
     {
+        public string Version { get; init; } = Program.InformationalVersion;
+        public string LatestVersion { get; init; } = Program.InformationalVersion;
+        public bool? UpdateAvailable { get; init; } = null;
+        public bool IsCanary { get; init; } = Program.InformationalVersion.EndsWith("65534");
         public bool PendingReconnect { get; init; }
         public bool PendingRestart { get; init; }
         public bool PendingShareRescan { get; init; }
