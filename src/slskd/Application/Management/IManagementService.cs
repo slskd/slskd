@@ -58,5 +58,11 @@ namespace slskd.Management
         /// </summary>
         /// <returns>The operation context.</returns>
         Task RescanSharesAsync();
+
+        /// <summary>
+        ///     Gets the version of the latest application release.
+        /// </summary>
+        /// <returns>The operation context.</returns>
+        Task CheckVersionAsync();
     }
 }

@@ -19,6 +19,7 @@ namespace slskd.Management.API
 {
     using System;
     using System.Diagnostics;
+    using System.Threading.Tasks;
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
     using Microsoft.Extensions.Hosting;
@@ -77,6 +78,34 @@ namespace slskd.Management.API
             Lifetime.StopApplication();
 
             return NoContent();
+        }
+
+        /// <summary>
+        ///     Gets the current application version.
+        /// </summary>
+        /// <returns></returns>
+        [HttpGet("version")]
+        [Authorize]
+        public IActionResult GetVersion()
+        {
+            return Ok(Program.InformationalVersion);
+        }
+
+        /// <summary>
+        ///     Checks for updates.
+        /// </summary>
+        /// <returns></returns>
+        [HttpGet("version/latest")]
+        [Authorize]
+        public async Task<IActionResult> CheckVersion([FromQuery]bool forceCheck = false)
+        {
+            if (forceCheck)
+            {
+                await Management.CheckVersionAsync();
+            }
+
+            var state = Management.ApplicationState;
+            return Ok(new CheckVersionResponse() { UpdateAvailable = state.UpdateAvailable, LatestVersion = state.LatestVersion });
         }
     }
 }
