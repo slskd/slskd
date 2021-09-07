@@ -58,6 +58,11 @@ namespace slskd.Management
         private ILogger Log { get; } = Serilog.Log.ForContext<ManagementService>();
 
         /// <summary>
+        ///     Gets the current state of the slskd service.
+        /// </summary>
+        public ApplicationState ApplicationState => ApplicationStateMonitor.CurrentValue;
+
+        /// <summary>
         ///     Gets the current state of the connection to the Soulseek server.
         /// </summary>
         public ServerState ServerState =>
