@@ -134,6 +134,7 @@ namespace slskd
             Client.Disconnected += Client_Disconnected;
             Client.Connected += Client_Connected;
             Client.LoggedIn += Client_LoggedIn;
+            Client.StateChanged += Client_StateChanged;
 
             SoulseekClient = Client;
         }
@@ -419,6 +420,11 @@ namespace slskd
             var logger = Loggers.GetOrAdd(sender.GetType().FullName, Log.ForContext("SourceContext", "Soulseek").ForContext("SoulseekContext", sender.GetType().FullName));
 
             logger.Write(TranslateLogLevel(args.Level), "{@Message}", args.Message);
+        }
+
+        private void Client_StateChanged(object sender, SoulseekClientStateChangedEventArgs e)
+        {
+            StateMonitor.SetValue(state => state with { Server = new ServerState() { Address = Client.Address, IPEndPoint = Client.IPEndPoint, State = Client.State, Username = Client.Username } });
         }
 
         private void Client_Connected(object sender, EventArgs e)
