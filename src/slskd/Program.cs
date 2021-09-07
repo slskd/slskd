@@ -114,6 +114,21 @@ namespace slskd
         /// </summary>
         public static string Version { get; } = $"{AssemblyVersion} ({InformationalVersion})";
 
+        /// <summary>
+        ///     Gets a value indicating whether the current version is a Canary build.
+        /// </summary>
+        public static bool IsCanary { get; } = InformationalVersion.EndsWith("65534");
+
+        /// <summary>
+        ///     Gets the API url for the application repository.
+        /// </summary>
+        public static string RepositoryAPIUrl { get; } = "https://api.github.com/repos/slskd/slskd";
+
+        /// <summary>
+        ///     Gets the API url for the latest application release.
+        /// </summary>
+        public static string RepositoryAPILatestReleaseUrl { get; } = $"{RepositoryAPIUrl}/releases/latest";
+
         private static IConfigurationRoot Configuration { get; set; }
         private static OptionsAtStartup OptionsAtStartup { get; } = new OptionsAtStartup();
 
@@ -209,7 +224,8 @@ namespace slskd
 
             Log.Logger = (OptionsAtStartup.Debug ? new LoggerConfiguration().MinimumLevel.Debug() : new LoggerConfiguration().MinimumLevel.Information())
                 .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
-                .MinimumLevel.Override("slskd.API.Authentication.PassthroughAuthenticationHandler", LogEventLevel.Information)
+                .MinimumLevel.Override("System.Net.Http.HttpClient", OptionsAtStartup.Debug ? LogEventLevel.Warning : LogEventLevel.Fatal)
+                .MinimumLevel.Override("slskd.Authentication.PassthroughAuthenticationHandler", LogEventLevel.Warning)
                 .Enrich.WithProperty("Version", Version)
                 .Enrich.WithProperty("InstanceName", OptionsAtStartup.InstanceName)
                 .Enrich.WithProperty("InvocationId", InvocationId)
