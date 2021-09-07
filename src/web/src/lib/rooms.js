@@ -1,19 +1,47 @@
 import api from './api';
 
 export const getAvailable = async () => {
-  return (await api.get('/rooms/available')).data;
+  const response = (await api.get('/rooms/available')).data;
+
+  if (!Array.isArray(response)) {
+    console.warn('got non-array response from rooms API', response)
+    return undefined;
+  }
+
+  return response;
 };
 
 export const getJoined = async () => {
-  return (await api.get('/rooms/joined')).data;
+  const response = (await api.get('/rooms/joined')).data;
+
+  if (!Array.isArray(response)) {
+    console.warn('got non-array response from rooms API', response)
+    return undefined;
+  }
+
+  return response;
 };
 
 export const getMessages = async ({ roomName }) => {
-  return (await api.get(`/rooms/joined/${roomName}/messages`)).data;
+  const response = (await api.get(`/rooms/joined/${roomName}/messages`)).data;
+
+  if (!Array.isArray(response)) {
+    console.warn('got non-array response from rooms API', response)
+    return undefined;
+  }
+
+  return response;
 };
 
 export const getUsers = async ({ roomName }) => {
-  return (await api.get(`/rooms/joined/${roomName}/users`)).data;
+  const response = (await api.get(`/rooms/joined/${roomName}/users`)).data;
+
+  if (!Array.isArray(response)) {
+    console.warn('got non-array response from rooms API', response)
+    return undefined;
+  }
+
+  return response;
 };
 
 export const join = async ({ roomName }) => {

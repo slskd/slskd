@@ -9,7 +9,14 @@ export const getStatus = async ({ id, includeResponses = false }) => {
 };
 
 export const getResponses = async ({ id }) => {
-  return (await api.get(`/searches/${encodeURIComponent(id)}/responses`)).data;
+  const response = (await api.get(`/searches/${encodeURIComponent(id)}/responses`)).data;
+
+  if (!Array.isArray(response)) {
+    console.warn('got non-array response from searches API', response)
+    return undefined;
+  }
+
+  return response;
 };
 
 export const isConstantBitRate = (bitRate) => {
