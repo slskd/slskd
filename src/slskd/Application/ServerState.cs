@@ -1,4 +1,4 @@
-﻿// <copyright file="ApplicationState.cs" company="slskd Team">
+﻿// <copyright file="ServerState.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -17,19 +17,20 @@
 
 namespace slskd
 {
-    /// <summary>
-    ///     Application service state.
-    /// </summary>
-    public record ApplicationState()
+    using System.Net;
+    using System.Text.Json.Serialization;
+    using Soulseek;
+
+    public record ServerState
     {
-        public string Version { get; init; } = Program.InformationalVersion;
-        public string LatestVersion { get; init; } = Program.InformationalVersion;
-        public bool? UpdateAvailable { get; init; } = null;
-        public bool IsCanary { get; init; } = Program.IsCanary;
-        public bool PendingReconnect { get; init; }
-        public bool PendingRestart { get; init; }
-        public bool PendingShareRescan { get; init; }
-        public ServerState Server { get; init; } = new ServerState();
-        public SharedFileCacheState SharedFileCache { get; init; } = new SharedFileCacheState();
+        public string Address { get; init; }
+
+        [JsonConverter(typeof(IPEndPointConverter))]
+        public IPEndPoint IPEndPoint { get; init; }
+        public SoulseekClientStates State { get; init; }
+        public string Username { get; init; }
+        public bool IsConnected => State.HasFlag(SoulseekClientStates.Connected);
+        public bool IsLoggedIn => State.HasFlag(SoulseekClientStates.LoggedIn);
+        public bool IsTransitioning => State.HasFlag(SoulseekClientStates.Connecting) || State.HasFlag(SoulseekClientStates.Disconnecting) || State.HasFlag(SoulseekClientStates.LoggingIn);
     }
 }
