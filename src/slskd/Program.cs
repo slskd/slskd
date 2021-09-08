@@ -119,16 +119,6 @@ namespace slskd
         /// </summary>
         public static bool IsCanary { get; } = InformationalVersion.EndsWith("65534");
 
-        /// <summary>
-        ///     Gets the API url for the application repository.
-        /// </summary>
-        public static string RepositoryAPIUrl { get; } = "https://api.github.com/repos/slskd/slskd";
-
-        /// <summary>
-        ///     Gets the API url for the latest application release.
-        /// </summary>
-        public static string RepositoryAPILatestReleaseUrl { get; } = $"{RepositoryAPIUrl}/releases/latest";
-
         private static IConfigurationRoot Configuration { get; set; }
         private static OptionsAtStartup OptionsAtStartup { get; } = new OptionsAtStartup();
 

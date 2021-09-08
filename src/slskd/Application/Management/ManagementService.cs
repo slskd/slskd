@@ -20,9 +20,6 @@ using Microsoft.Extensions.Options;
 namespace slskd.Management
 {
     using System;
-    using System.Net.Http;
-    using System.Net.Http.Json;
-    using System.Text.Json;
     using System.Threading.Tasks;
     using Serilog;
     using Soulseek;
@@ -39,22 +36,18 @@ namespace slskd.Management
         /// <param name="applicationStateMonitor">The state monitor for application service state.</param>
         /// <param name="soulseekClient">The Soulseek client.</param>
         /// <param name="sharedFileCache">The shared file cache.</param>
-        /// <param name="httpClientFactory">The HttpClientFactory to use.</param>
         public ManagementService(
             IOptionsMonitor<Options> optionsMonitor,
             IStateMonitor<ApplicationState> applicationStateMonitor,
             ISoulseekClient soulseekClient,
-            ISharedFileCache sharedFileCache,
-            IHttpClientFactory httpClientFactory)
+            ISharedFileCache sharedFileCache)
         {
             OptionsMonitor = optionsMonitor;
             ApplicationStateMonitor = applicationStateMonitor;
             Client = soulseekClient;
             SharedFileCache = sharedFileCache;
-            HttpClientFactory = httpClientFactory;
         }
 
-        private IHttpClientFactory HttpClientFactory { get; }
         private ILogger Log { get; } = Serilog.Log.ForContext<ManagementService>();
 
         /// <summary>
@@ -105,45 +98,5 @@ namespace slskd.Management
         /// </summary>
         /// <returns>The operation context.</returns>
         public Task RescanSharesAsync() => SharedFileCache.FillAsync();
-
-        /// <summary>
-        ///     Gets the version of the latest application release.
-        /// </summary>
-        /// <returns>The operation context.</returns>
-        public async Task CheckVersionAsync()
-        {
-            if (Program.InformationalVersion.EndsWith("65534"))
-            {
-                Log.Information("Skipping version check for Canary build; check for updates manually.");
-            }
-
-            try
-            {
-                using var http = HttpClientFactory.CreateClient();
-                http.DefaultRequestHeaders.UserAgent.TryParseAdd(Program.AppName + Program.Version);
-
-                Log.Information("Checking {LatestReleaseUrl} for latest version", Program.RepositoryAPILatestReleaseUrl);
-
-                var response = await http.GetFromJsonAsync<JsonDocument>(Program.RepositoryAPILatestReleaseUrl);
-                var latestVersion = Version.Parse(response.RootElement.GetProperty("tag_name").GetString());
-                var currentVersion = Version.Parse(Program.InformationalVersion);
-
-                if (latestVersion > currentVersion)
-                {
-                    ApplicationStateMonitor.SetValue(state => state with { LatestVersion = latestVersion.ToString(), UpdateAvailable = true });
-                    Log.Information("A new version is available! {CurrentVersion} -> {LatestVersion}", currentVersion, latestVersion);
-                }
-                else
-                {
-                    Log.Information("Version {Version} is up to date.", currentVersion);
-                }
-
-            }
-            catch (Exception ex)
-            {
-                Log.Warning("Failed to check version: {Message}", ex.Message);
-                throw;
-            }
-        }
     }
 }
