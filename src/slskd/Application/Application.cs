@@ -39,7 +39,7 @@ namespace slskd
     using Soulseek;
     using Soulseek.Diagnostics;
 
-    public class Application : IHostedService
+    public class Application : IApplication
     {
         private static readonly int ReconnectMaxDelayMilliseconds = 300000; // 5 minutes
 
@@ -161,6 +161,19 @@ namespace slskd
 
         public async Task StartAsync(CancellationToken cancellationToken)
         {
+            Logger.Information("Client started");
+            Logger.Information("Listening on port {Port}", OptionsAtStartup.Soulseek.ListenPort);
+
+            if (OptionsAtStartup.Soulseek.Connection.Proxy.Enabled)
+            {
+                Logger.Information($"Using Proxy {OptionsAtStartup.Soulseek.Connection.Proxy.Address}:{OptionsAtStartup.Soulseek.Connection.Proxy.Port}");
+            }
+
+            if (!OptionsAtStartup.NoVersionCheck)
+            {
+                _ = CheckVersionAsync();
+            }
+
             if (OptionsAtStartup.NoShareScan)
             {
                 Logger.Warning("Not scanning shares; 'no-share-scan' option is enabled.  Search and browse results will remain disabled until a manual scan is completed.");
@@ -169,14 +182,6 @@ namespace slskd
             {
                 _ = SharedFileCache.FillAsync();
             }
-
-            if (OptionsAtStartup.Soulseek.Connection.Proxy.Enabled)
-            {
-                Logger.Information($"Using Proxy {OptionsAtStartup.Soulseek.Connection.Proxy.Address}:{OptionsAtStartup.Soulseek.Connection.Proxy.Port}");
-            }
-
-            Logger.Information("Client started");
-            Logger.Information("Listening on port {Port}", OptionsAtStartup.Soulseek.ListenPort);
 
             if (OptionsAtStartup.NoConnect)
             {
@@ -198,6 +203,46 @@ namespace slskd
             Client.Dispose();
             Logger.Information("Client stopped");
             return Task.CompletedTask;
+        }
+
+        /// <summary>
+        ///     Gets the version of the latest application release.
+        /// </summary>
+        /// <returns>The operation context.</returns>
+        public async Task CheckVersionAsync()
+        {
+            if (Program.InformationalVersion.EndsWith("65534"))
+            {
+                Logger.Information("Skipping version check for Canary build; check for updates manually.");
+            }
+
+            Logger.Information("Checking GitHub Releases for latest version");
+
+            try
+            {
+
+                var latestVersion = await GitHub.GetLatestReleaseVersion(
+                    organization: Program.AppName,
+                    repository: Program.AppName,
+                    userAgent: $"{Program.AppName} v{Program.InformationalVersion}");
+
+                if (latestVersion > Program.AssemblyVersion)
+                {
+                    StateMonitor.SetValue(state => state with { LatestVersion = latestVersion.ToString(), UpdateAvailable = true });
+                    Logger.Information("A new version is available! {CurrentVersion} -> {LatestVersion}", Program.AssemblyVersion, latestVersion);
+                }
+                else
+                {
+                    StateMonitor.SetValue(state => state with { LatestVersion = Program.AssemblyVersion.ToString(), UpdateAvailable = false });
+                    Logger.Information("Version {CurrentVersion} is up to date.", Program.AssemblyVersion);
+                }
+
+            }
+            catch (Exception ex)
+            {
+                Logger.Warning("Failed to check version: {Message}", ex.Message);
+                throw;
+            }
         }
 
         private async Task OptionsMonitor_OnChange(Options newOptions)
