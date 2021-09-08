@@ -3,6 +3,7 @@ import { Route, Link, Switch } from "react-router-dom";
 import { tokenKey, tokenPassthroughValue } from '../config';
 import * as session from '../lib/session';
 import * as server from '../lib/server';
+import * as application from '../lib/application';
 
 import './App.css';
 import Search from './Search/Search';
@@ -30,8 +31,8 @@ const initialState = {
         pending: false,
         error: undefined
     },
-    serverStateInterval: undefined,
-    serverState: {},
+    applicationStateInterval: undefined,
+    applicationState: {},
     error: false,
 };
 
@@ -42,7 +43,7 @@ class App extends Component {
         const { login } = this.state;
 
         try {
-            await this.fetchServerState();
+            await this.fetchApplicationState();
             const securityEnabled = await session.getSecurityEnabled();
     
             if (!securityEnabled) {
@@ -55,7 +56,7 @@ class App extends Component {
                     ...login,
                     initialized: true
                 },
-                serverStateInterval: window.setInterval(this.fetchServerState, 5000)
+                applicationStateInterval: window.setInterval(this.fetchApplicationState, 5000)
             });
     
             await this.checkToken();
@@ -66,8 +67,8 @@ class App extends Component {
     };
 
     componentWillUnmount = () => {
-        clearInterval(this.state.serverStateInterval);
-        this.setState({ serverStateInterval: undefined });
+        clearInterval(this.state.applicationStateInterval);
+        this.setState({ applicationStateInterval: undefined });
     };
 
     checkToken = async () => {
@@ -106,18 +107,18 @@ class App extends Component {
 
     connect = async () => {
         await server.connect();
-        this.fetchServerState();
+        this.fetchApplicationState();
     };
     
     disconnect = async () => {
         await server.disconnect();
-        this.fetchServerState();
+        this.fetchApplicationState();
     }
 
-    fetchServerState = async () => {
+    fetchApplicationState = async () => {
         try {
             this.setState({ 
-                serverState: await server.getState(),
+                applicationState: await application.getState(),
                 error: false,
             });
         } catch (err) {
@@ -126,7 +127,8 @@ class App extends Component {
     };
 
     render = () => {
-        const { token, login, serverState, error } = this.state;
+        const { token, login, applicationState = {}, error } = this.state;
+        const { server, updateAvailable } = applicationState
 
         return (
             <>
@@ -182,33 +184,45 @@ class App extends Component {
                                     <Icon name='folder open'/>Browse
                                 </Menu.Item>
                             </Link>
-                            {serverState.isConnected && <Menu.Item
-                                position='right'
-                                onClick={() => this.disconnect()}
-                            >
-                                <Icon name='wifi' color='green'/>Connected
-                            </Menu.Item>}
-                            {(!serverState.isConnected || serverState.isTransitioning) && <Menu.Item 
-                                position='right'
-                                onClick={() => this.connect()}
-                            >
-                                <Icon.Group className='menu-icon-group'>
-                                    <Icon name='wifi' color='grey'/>
-                                    <Icon name='close' color='red' corner='bottom right' className='menu-icon-no-shadow'/>
-                                </Icon.Group>Disconnected
-                            </Menu.Item>}
-                            {token !== tokenPassthroughValue && <Modal
-                                trigger={
-                                    <Menu.Item>
-                                        <Icon name='sign-out'/>Log Out
-                                    </Menu.Item>
-                                }
-                                centered
-                                size='mini'
-                                header={<Header icon='sign-out' content='Confirm Log Out' />}
-                                content='Are you sure you want to log out?'
-                                actions={['Cancel', { key: 'done', content: 'Log Out', negative: true, onClick: this.logout }]}
-                            />}
+                            <Menu className='right' inverted>
+                                {server.isConnected && <Menu.Item
+                                    onClick={() => this.disconnect()}
+                                >
+                                    <Icon name='plug' color='green'/>Connected
+                                </Menu.Item>}
+                                {(!server.isConnected || server.isTransitioning) && <Menu.Item 
+                                    onClick={() => this.connect()}
+                                >
+                                    <Icon.Group className='menu-icon-group'>
+                                        <Icon name='plug' color='grey'/>
+                                        <Icon name='close' color='red' corner='bottom right' className='menu-icon-no-shadow'/>
+                                    </Icon.Group>Disconnected
+                                </Menu.Item>}
+                                {<Modal
+                                    trigger={<Menu.Item position='right'>
+                                        <Icon.Group className='menu-icon-group'>
+                                            <Icon name='exclamation circle' color={updateAvailable && 'yellow'}/>
+                                        </Icon.Group>Notifications
+                                    </Menu.Item>}
+                                    centered
+                                    size='mini'
+                                    header={<Header icon='exclamation circle' content='Notifications'/>}
+                                    content='A new version is available!'
+                                    actions={['Ok']}
+                                />}
+                                {token !== tokenPassthroughValue && <Modal
+                                    trigger={
+                                        <Menu.Item>
+                                            <Icon name='sign-out'/>Log Out
+                                        </Menu.Item>
+                                    }
+                                    centered
+                                    size='mini'
+                                    header={<Header icon='sign-out' content='Confirm Log Out' />}
+                                    content='Are you sure you want to log out?'
+                                    actions={['Cancel', { key: 'done', content: 'Log Out', negative: true, onClick: this.logout }]}
+                                />}
+                            </Menu>
                         </Sidebar>
                         <Sidebar.Pusher className='app-content'>
                             <Switch>
