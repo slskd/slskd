@@ -3,6 +3,7 @@
 # no_start: false
 # no_connect: false
 # no_share_scan: false
+# no_version_check: false
 # instance_name: default
 # directories:
 #   app: ~
