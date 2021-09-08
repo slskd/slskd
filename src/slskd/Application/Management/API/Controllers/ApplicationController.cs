@@ -34,12 +34,14 @@ namespace slskd.Management.API
     [Consumes("application/json")]
     public class ApplicationController : ControllerBase
     {
-        public ApplicationController(IManagementService managementService, IHostApplicationLifetime lifetime)
+        public ApplicationController(IManagementService managementService, IHostApplicationLifetime lifetime, IApplication application)
         {
             Management = managementService;
             Lifetime = lifetime;
+            Application = application;
         }
 
+        private IApplication Application { get; }
         private IManagementService Management { get; }
         private IHostApplicationLifetime Lifetime { get; }
 
@@ -101,7 +103,7 @@ namespace slskd.Management.API
         {
             if (forceCheck)
             {
-                await Management.CheckVersionAsync();
+                await Application.CheckVersionAsync();
             }
 
             var state = Management.ApplicationState;
