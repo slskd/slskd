@@ -213,6 +213,7 @@ namespace slskd
         {
             if (Program.InformationalVersion.EndsWith("65534"))
             {
+                // todo: use the docker hub API to find the latest canary tag
                 Logger.Information("Skipping version check for Canary build; check for updates manually.");
             }
 
@@ -220,23 +221,21 @@ namespace slskd
 
             try
             {
-
                 var latestVersion = await GitHub.GetLatestReleaseVersion(
                     organization: Program.AppName,
                     repository: Program.AppName,
                     userAgent: $"{Program.AppName} v{Program.InformationalVersion}");
 
-                if (latestVersion > Program.AssemblyVersion)
+                if (latestVersion > Version.Parse(Program.InformationalVersion))
                 {
-                    StateMonitor.SetValue(state => state with { LatestVersion = latestVersion.ToString(), UpdateAvailable = true });
-                    Logger.Information("A new version is available! {CurrentVersion} -> {LatestVersion}", Program.AssemblyVersion, latestVersion);
+                    StateMonitor.SetValue(state => state with { Version = state.Version with { Latest = latestVersion.ToString(), IsUpdateAvailable = true } });
+                    Logger.Information("A new version is available! {CurrentVersion} -> {LatestVersion}", Program.InformationalVersion, latestVersion);
                 }
                 else
                 {
-                    StateMonitor.SetValue(state => state with { LatestVersion = Program.AssemblyVersion.ToString(), UpdateAvailable = false });
-                    Logger.Information("Version {CurrentVersion} is up to date.", Program.AssemblyVersion);
+                    StateMonitor.SetValue(state => state with { Version = state.Version with { Latest = Program.InformationalVersion, IsUpdateAvailable = false } });
+                    Logger.Information("Version {CurrentVersion} is up to date.", Program.InformationalVersion);
                 }
-
             }
             catch (Exception ex)
             {
