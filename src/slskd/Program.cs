@@ -89,7 +89,7 @@ namespace slskd
         /// <remarks>
         ///     Inaccurate when running locally.
         /// </remarks>
-        public static Version AssemblyVersion { get; } = Assembly.GetExecutingAssembly().GetName().Version;
+        public static Version AssemblyVersion { get; } = Assembly.GetExecutingAssembly().GetName().Version.Equals(new Version(1,0,0,0)) ? new Version(0, 0, 0, 0) : Assembly.GetExecutingAssembly().GetName().Version;
 
         /// <summary>
         ///     Gets the informational version of the application, including the git sha at the latest commit.
@@ -97,7 +97,7 @@ namespace slskd
         /// <remarks>
         ///     Inaccurate when running locally.
         /// </remarks>
-        public static string InformationalVersion { get; } = Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>().InformationalVersion;
+        public static string InformationalVersion { get; } = Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>().InformationalVersion == "1.0.0" ? "0.0.0" : Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>().InformationalVersion;
 
         /// <summary>
         ///     Gets the unique Id of this application invocation.
