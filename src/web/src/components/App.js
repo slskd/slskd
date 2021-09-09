@@ -19,7 +19,8 @@ import {
     Menu,
     Icon,
     Modal,
-    Header
+    Header,
+    Button
 } from 'semantic-ui-react';
 import Rooms from './Rooms/Rooms';
 import ErrorSegment from './Shared/ErrorSegment';
@@ -128,7 +129,8 @@ class App extends Component {
 
     render = () => {
         const { token, login, applicationState = {}, error } = this.state;
-        const { server, updateAvailable } = applicationState
+        const { version = {}, server } = applicationState;
+        const { isUpdateAvailable, current, latest } = version;
 
         return (
             <>
@@ -198,18 +200,28 @@ class App extends Component {
                                         <Icon name='close' color='red' corner='bottom right' className='menu-icon-no-shadow'/>
                                     </Icon.Group>Disconnected
                                 </Menu.Item>}
-                                {<Modal
+                                {isUpdateAvailable && <Modal
                                     trigger={<Menu.Item position='right'>
                                         <Icon.Group className='menu-icon-group'>
-                                            <Icon name='exclamation circle' color={updateAvailable && 'yellow'}/>
-                                        </Icon.Group>Notifications
+                                            <Icon name='bullhorn' color='yellow'/>
+                                        </Icon.Group>New Version!
                                     </Menu.Item>}
                                     centered
+                                    closeIcon
                                     size='mini'
-                                    header={<Header icon='exclamation circle' content='Notifications'/>}
-                                    content='A new version is available!'
-                                    actions={['Ok']}
-                                />}
+                                >
+                                    <Modal.Header>New Version!</Modal.Header>
+                                    <Modal.Content>
+                                        <p>You are currently running version <strong>{current}</strong> while version <strong>{latest}</strong> is available.</p>
+                                    </Modal.Content>
+                                    <Modal.Actions>
+                                        <Button
+                                            style={{marginLeft: 0}}
+                                            primary 
+                                            fluid
+                                            href="https://github.com/slskd/slskd/releases">See Release Notes</Button>
+                                    </Modal.Actions>
+                                </Modal>}
                                 {token !== tokenPassthroughValue && <Modal
                                     trigger={
                                         <Menu.Item>
