@@ -107,7 +107,7 @@ namespace slskd.Management.API
             }
 
             var state = Management.ApplicationState;
-            return Ok(new CheckVersionResponse() { UpdateAvailable = state.UpdateAvailable, LatestVersion = state.LatestVersion });
+            return Ok(state.Version);
         }
     }
 }
