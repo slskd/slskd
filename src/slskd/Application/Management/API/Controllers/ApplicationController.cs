@@ -34,15 +34,18 @@ namespace slskd.Management.API
     [Consumes("application/json")]
     public class ApplicationController : ControllerBase
     {
-        public ApplicationController(IManagementService managementService, IHostApplicationLifetime lifetime, IApplication application)
+        public ApplicationController(
+            IHostApplicationLifetime lifetime,
+            IApplication application,
+            IStateMonitor<ApplicationState> applicationStateMonitor)
         {
-            Management = managementService;
             Lifetime = lifetime;
             Application = application;
+            ApplicationStateMonitor = applicationStateMonitor;
         }
 
         private IApplication Application { get; }
-        private IManagementService Management { get; }
+        private IStateMonitor<ApplicationState> ApplicationStateMonitor { get; }
         private IHostApplicationLifetime Lifetime { get; }
 
         /// <summary>
@@ -53,7 +56,7 @@ namespace slskd.Management.API
         [Authorize]
         public IActionResult State()
         {
-            return Ok(Management.ApplicationState);
+            return Ok(ApplicationStateMonitor.CurrentValue);
         }
 
         /// <summary>
@@ -106,8 +109,7 @@ namespace slskd.Management.API
                 await Application.CheckVersionAsync();
             }
 
-            var state = Management.ApplicationState;
-            return Ok(state.Version);
+            return Ok(ApplicationStateMonitor.CurrentValue.Version);
         }
     }
 }

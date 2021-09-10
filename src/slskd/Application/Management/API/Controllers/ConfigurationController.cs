@@ -34,15 +34,18 @@ namespace slskd.Management.API
     public class ConfigurationController : ControllerBase
     {
         public ConfigurationController(
+            IApplication application,
             IOptionsSnapshot<Options> optionsShapshot,
-            IManagementService managementService)
+            IStateMonitor<ApplicationState> applicationStateMonitor)
         {
+            Application = application;
             OptionsShapshot = optionsShapshot;
-            ManagementService = managementService;
+            ApplicationStateMonitor = applicationStateMonitor;
         }
 
-        private IManagementService ManagementService { get; }
+        private IApplication Application { get; }
         private IOptionsSnapshot<Options> OptionsShapshot { get; }
+        private IStateMonitor<ApplicationState> ApplicationStateMonitor { get; }
 
         [HttpGet]
         [Route("")]
@@ -58,12 +61,12 @@ namespace slskd.Management.API
         [Authorize]
         public IActionResult RescanSharesAsync()
         {
-            if (ManagementService.SharedFileCacheState.Filling)
+            if (ApplicationStateMonitor.CurrentValue.SharedFileCache.Filling)
             {
                 return Conflict("A share scan is already in progress.");
             }
 
-            _ = ManagementService.RescanSharesAsync();
+            _ = Application.RescanSharesAsync();
 
             return Ok();
         }

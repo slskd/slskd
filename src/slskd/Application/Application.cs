@@ -244,6 +244,27 @@ namespace slskd
             }
         }
 
+        /// <summary>
+        ///     Connects the Soulseek client to the server using the configured username and password.
+        /// </summary>
+        /// <returns>The operation context.</returns>
+        public Task ConnectAsync()
+            => Client.ConnectAsync(Options.Soulseek.Username, Options.Soulseek.Password);
+
+        /// <summary>
+        ///     Disconnects the Soulseek client from the server.
+        /// </summary>
+        /// <param name="message">An optional message containing the reason for the disconnect.</param>
+        /// <param name="exception">An optional Exception to associate with the disconnect.</param>
+        public void Disconnect(string message = null, Exception exception = null)
+            => Client.Disconnect(message, exception ?? new IntentionalDisconnectException(message));
+
+        /// <summary>
+        ///     Re-scans shared directories.
+        /// </summary>
+        /// <returns>The operation context.</returns>
+        public Task RescanSharesAsync() => SharedFileCache.FillAsync();
+
         private async Task OptionsMonitor_OnChange(Options newOptions)
         {
             // this code is known to fire more than once per update.  i'm not sure

@@ -32,12 +32,15 @@ namespace slskd.Management.API
     public class ServerController : ControllerBase
     {
         public ServerController(
-            IManagementService managementService)
+            IApplication application,
+            IStateMonitor<ApplicationState> applicationStateMonitor)
         {
-            Management = managementService;
+            Application = application;
+            ApplicationStateMonitor = applicationStateMonitor;
         }
 
-        private IManagementService Management { get; }
+        private IApplication Application { get; }
+        private IStateMonitor<ApplicationState> ApplicationStateMonitor { get; }
 
         /// <summary>
         ///     Connects the client.
@@ -50,9 +53,9 @@ namespace slskd.Management.API
         [ProducesResponseType(403)]
         public async Task<IActionResult> Connect()
         {
-            if (!Management.ServerState.IsConnected)
+            if (!ApplicationStateMonitor.CurrentValue.Server.IsConnected)
             {
-                await Management.ConnectServerAsync();
+                await Application.ConnectAsync();
             }
 
             return Ok();
@@ -70,9 +73,9 @@ namespace slskd.Management.API
         [ProducesResponseType(403)]
         public IActionResult Disconnect([FromBody] string message)
         {
-            if (Management.ServerState.IsConnected)
+            if (ApplicationStateMonitor.CurrentValue.Server.IsConnected)
             {
-                Management.DisconnectServer(message);
+                Application.Disconnect(message);
             }
 
             return NoContent();
@@ -90,7 +93,7 @@ namespace slskd.Management.API
         [ProducesResponseType(403)]
         public IActionResult Get()
         {
-            return Ok(Management.ServerState);
+            return Ok(ApplicationStateMonitor.CurrentValue.Server);
         }
     }
 }

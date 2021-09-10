@@ -211,7 +211,6 @@ namespace slskd
 
             services.AddSingleton<ISearchService, SearchService>();
             services.AddSingleton<IPeerService, PeerService>();
-            services.AddSingleton<IManagementService, ManagementService>();
 
             services.AddSingleton<IFTPClientFactory, FTPClientFactory>();
             services.AddSingleton<IFTPService, FTPService>();
