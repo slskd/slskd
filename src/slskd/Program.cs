@@ -89,7 +89,7 @@ namespace slskd
         /// <remarks>
         ///     Inaccurate when running locally.
         /// </remarks>
-        public static Version AssemblyVersion { get; } = Assembly.GetExecutingAssembly().GetName().Version;
+        public static Version AssemblyVersion { get; } = Assembly.GetExecutingAssembly().GetName().Version.Equals(new Version(1,0,0,0)) ? new Version(0, 0, 0, 0) : Assembly.GetExecutingAssembly().GetName().Version;
 
         /// <summary>
         ///     Gets the informational version of the application, including the git sha at the latest commit.
@@ -97,7 +97,7 @@ namespace slskd
         /// <remarks>
         ///     Inaccurate when running locally.
         /// </remarks>
-        public static string InformationalVersion { get; } = Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>().InformationalVersion;
+        public static string InformationalVersion { get; } = Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>().InformationalVersion == "1.0.0" ? "0.0.0" : Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>().InformationalVersion;
 
         /// <summary>
         ///     Gets the unique Id of this application invocation.
@@ -113,6 +113,11 @@ namespace slskd
         ///     Gets the full application version, including both assembly and informational versions.
         /// </summary>
         public static string Version { get; } = $"{AssemblyVersion} ({InformationalVersion})";
+
+        /// <summary>
+        ///     Gets a value indicating whether the current version is a Canary build.
+        /// </summary>
+        public static bool IsCanary { get; } = InformationalVersion.EndsWith("65534");
 
         private static IConfigurationRoot Configuration { get; set; }
         private static OptionsAtStartup OptionsAtStartup { get; } = new OptionsAtStartup();
@@ -209,7 +214,8 @@ namespace slskd
 
             Log.Logger = (OptionsAtStartup.Debug ? new LoggerConfiguration().MinimumLevel.Debug() : new LoggerConfiguration().MinimumLevel.Information())
                 .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
-                .MinimumLevel.Override("slskd.API.Authentication.PassthroughAuthenticationHandler", LogEventLevel.Information)
+                .MinimumLevel.Override("System.Net.Http.HttpClient", OptionsAtStartup.Debug ? LogEventLevel.Warning : LogEventLevel.Fatal)
+                .MinimumLevel.Override("slskd.Authentication.PassthroughAuthenticationHandler", LogEventLevel.Warning)
                 .Enrich.WithProperty("Version", Version)
                 .Enrich.WithProperty("InstanceName", OptionsAtStartup.InstanceName)
                 .Enrich.WithProperty("InvocationId", InvocationId)

@@ -21,6 +21,7 @@ namespace slskd.Management
 {
     using System;
     using System.Threading.Tasks;
+    using Serilog;
     using Soulseek;
 
     /// <summary>
@@ -32,25 +33,27 @@ namespace slskd.Management
         ///     Initializes a new instance of the <see cref="ManagementService"/> class.
         /// </summary>
         /// <param name="optionsMonitor">The options monitor used to derive application options.</param>
-        /// <param name="serviceStateMonitor">The state monitor for application service state.</param>
+        /// <param name="applicationStateMonitor">The state monitor for application service state.</param>
         /// <param name="soulseekClient">The Soulseek client.</param>
         /// <param name="sharedFileCache">The shared file cache.</param>
         public ManagementService(
             IOptionsMonitor<Options> optionsMonitor,
-            IStateMonitor<ApplicationState> serviceStateMonitor,
+            IStateMonitor<ApplicationState> applicationStateMonitor,
             ISoulseekClient soulseekClient,
             ISharedFileCache sharedFileCache)
         {
             OptionsMonitor = optionsMonitor;
-            ServiceStateMonitor = serviceStateMonitor;
+            ApplicationStateMonitor = applicationStateMonitor;
             Client = soulseekClient;
             SharedFileCache = sharedFileCache;
         }
 
+        private ILogger Log { get; } = Serilog.Log.ForContext<ManagementService>();
+
         /// <summary>
         ///     Gets the current state of the slskd service.
         /// </summary>
-        public ApplicationState ApplicationState => ServiceStateMonitor.CurrentValue;
+        public ApplicationState ApplicationState => ApplicationStateMonitor.CurrentValue;
 
         /// <summary>
         ///     Gets the current state of the connection to the Soulseek server.
@@ -72,7 +75,7 @@ namespace slskd.Management
         private ISoulseekClient Client { get; }
         private Options Options => OptionsMonitor.CurrentValue;
         private IOptionsMonitor<Options> OptionsMonitor { get; }
-        private IStateMonitor<ApplicationState> ServiceStateMonitor { get; }
+        private IStateMonitor<ApplicationState> ApplicationStateMonitor { get; }
         private ISharedFileCache SharedFileCache { get; }
 
         /// <summary>

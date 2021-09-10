@@ -172,6 +172,15 @@ namespace slskd
         public bool NoShareScan { get; private set; } = false;
 
         /// <summary>
+        ///     Gets a value indicating whether the application should check for a newer version on startup.
+        /// </summary>
+        [Argument(default, "no-version-check")]
+        [EnvironmentVariable("NO_VERSION_CHECK")]
+        [Description("do not check for newer version at startup")]
+        [RequiresRestart]
+        public bool NoVersionCheck { get; private set; } = false;
+
+        /// <summary>
         ///     Gets the unique name for this instance.
         /// </summary>
         [Argument('i', "instance-name")]

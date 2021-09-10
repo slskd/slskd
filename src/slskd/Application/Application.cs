@@ -39,7 +39,7 @@ namespace slskd
     using Soulseek;
     using Soulseek.Diagnostics;
 
-    public class Application : IHostedService
+    public class Application : IApplication
     {
         private static readonly int ReconnectMaxDelayMilliseconds = 300000; // 5 minutes
 
@@ -134,6 +134,7 @@ namespace slskd
             Client.Disconnected += Client_Disconnected;
             Client.Connected += Client_Connected;
             Client.LoggedIn += Client_LoggedIn;
+            Client.StateChanged += Client_StateChanged;
 
             SoulseekClient = Client;
         }
@@ -160,6 +161,19 @@ namespace slskd
 
         public async Task StartAsync(CancellationToken cancellationToken)
         {
+            Logger.Information("Client started");
+            Logger.Information("Listening on port {Port}", OptionsAtStartup.Soulseek.ListenPort);
+
+            if (OptionsAtStartup.Soulseek.Connection.Proxy.Enabled)
+            {
+                Logger.Information($"Using Proxy {OptionsAtStartup.Soulseek.Connection.Proxy.Address}:{OptionsAtStartup.Soulseek.Connection.Proxy.Port}");
+            }
+
+            if (!OptionsAtStartup.NoVersionCheck)
+            {
+                _ = CheckVersionAsync();
+            }
+
             if (OptionsAtStartup.NoShareScan)
             {
                 Logger.Warning("Not scanning shares; 'no-share-scan' option is enabled.  Search and browse results will remain disabled until a manual scan is completed.");
@@ -168,14 +182,6 @@ namespace slskd
             {
                 _ = SharedFileCache.FillAsync();
             }
-
-            if (OptionsAtStartup.Soulseek.Connection.Proxy.Enabled)
-            {
-                Logger.Information($"Using Proxy {OptionsAtStartup.Soulseek.Connection.Proxy.Address}:{OptionsAtStartup.Soulseek.Connection.Proxy.Port}");
-            }
-
-            Logger.Information("Client started");
-            Logger.Information("Listening on port {Port}", OptionsAtStartup.Soulseek.ListenPort);
 
             if (OptionsAtStartup.NoConnect)
             {
@@ -197,6 +203,45 @@ namespace slskd
             Client.Dispose();
             Logger.Information("Client stopped");
             return Task.CompletedTask;
+        }
+
+        /// <summary>
+        ///     Gets the version of the latest application release.
+        /// </summary>
+        /// <returns>The operation context.</returns>
+        public async Task CheckVersionAsync()
+        {
+            if (Program.InformationalVersion.EndsWith("65534"))
+            {
+                // todo: use the docker hub API to find the latest canary tag
+                Logger.Information("Skipping version check for Canary build; check for updates manually.");
+            }
+
+            Logger.Information("Checking GitHub Releases for latest version");
+
+            try
+            {
+                var latestVersion = await GitHub.GetLatestReleaseVersion(
+                    organization: Program.AppName,
+                    repository: Program.AppName,
+                    userAgent: $"{Program.AppName} v{Program.InformationalVersion}");
+
+                if (latestVersion > Version.Parse(Program.InformationalVersion))
+                {
+                    StateMonitor.SetValue(state => state with { Version = state.Version with { Latest = latestVersion.ToString(), IsUpdateAvailable = true } });
+                    Logger.Information("A new version is available! {CurrentVersion} -> {LatestVersion}", Program.InformationalVersion, latestVersion);
+                }
+                else
+                {
+                    StateMonitor.SetValue(state => state with { Version = state.Version with { Latest = Program.InformationalVersion, IsUpdateAvailable = false } });
+                    Logger.Information("Version {CurrentVersion} is up to date.", Program.InformationalVersion);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Warning("Failed to check version: {Message}", ex.Message);
+                throw;
+            }
         }
 
         private async Task OptionsMonitor_OnChange(Options newOptions)
@@ -419,6 +464,11 @@ namespace slskd
             var logger = Loggers.GetOrAdd(sender.GetType().FullName, Log.ForContext("SourceContext", "Soulseek").ForContext("SoulseekContext", sender.GetType().FullName));
 
             logger.Write(TranslateLogLevel(args.Level), "{@Message}", args.Message);
+        }
+
+        private void Client_StateChanged(object sender, SoulseekClientStateChangedEventArgs e)
+        {
+            StateMonitor.SetValue(state => state with { Server = new ServerState() { Address = Client.Address, IPEndPoint = Client.IPEndPoint, State = Client.State, Username = Client.Username } });
         }
 
         private void Client_Connected(object sender, EventArgs e)

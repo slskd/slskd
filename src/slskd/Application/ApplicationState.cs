@@ -17,14 +17,77 @@
 
 namespace slskd
 {
+    using System.Net;
+    using System.Text.Json.Serialization;
+    using Soulseek;
+
     /// <summary>
     ///     Application service state.
     /// </summary>
-    public record ApplicationState()
+    public record ApplicationState
     {
+        public VersionState Version { get; init; } = new VersionState();
         public bool PendingReconnect { get; init; }
         public bool PendingRestart { get; init; }
         public bool PendingShareRescan { get; init; }
+        public ServerState Server { get; init; } = new ServerState();
         public SharedFileCacheState SharedFileCache { get; init; } = new SharedFileCacheState();
+    }
+
+    public record VersionState
+    {
+        public string Current { get; init; } = Program.InformationalVersion;
+        public string Latest { get; init; } = null;
+        public bool? IsUpdateAvailable { get; init; } = null;
+        public bool IsCanary { get; init; } = Program.IsCanary;
+    }
+
+    public record ServerState
+    {
+        public string Address { get; init; }
+
+        [JsonConverter(typeof(IPEndPointConverter))]
+        public IPEndPoint IPEndPoint { get; init; }
+        public SoulseekClientStates State { get; init; }
+        public string Username { get; init; }
+        public bool IsConnected => State.HasFlag(SoulseekClientStates.Connected);
+        public bool IsLoggedIn => State.HasFlag(SoulseekClientStates.LoggedIn);
+        public bool IsTransitioning => State.HasFlag(SoulseekClientStates.Connecting) || State.HasFlag(SoulseekClientStates.Disconnecting) || State.HasFlag(SoulseekClientStates.LoggingIn);
+    }
+
+    /// <summary>
+    ///     Share cache state.
+    /// </summary>
+    public record SharedFileCacheState
+    {
+        /// <summary>
+        ///     Gets a value indicating whether the cache is being filled.
+        /// </summary>
+        public bool Filling { get; init; } = false;
+
+        /// <summary>
+        ///     Gets a value indicating whether the cache is faulted.
+        /// </summary>
+        public bool Faulted { get; init; } = false;
+
+        /// <summary>
+        ///     Gets the current fill progress.
+        /// </summary>
+        public double FillProgress { get; init; }
+
+        /// <summary>
+        ///     Gets the number of cached directories.
+        /// </summary>
+        public int Directories { get; init; }
+
+        /// <summary>
+        ///     Gets the number of cached files.
+        /// </summary>
+        public int Files { get; init; }
+
+        /// <summary>
+        ///     Gets the number of directories excluded by filters.
+        /// </summary>
+        public int ExcludedDirectories { get; init; }
     }
 }
