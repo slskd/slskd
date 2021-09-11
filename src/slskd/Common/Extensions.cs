@@ -89,36 +89,6 @@ namespace slskd
         }
 
         /// <summary>
-        ///     Computes a stable/consistent hash code for strings.
-        /// </summary>
-        /// <remarks>
-        ///     https://stackoverflow.com/questions/5154970/how-do-i-create-a-hashcode-in-net-c-for-a-string-that-is-safe-to-store-in-a
-        /// </remarks>
-        /// <param name="str">The string for which the hash code is to be computed.</param>
-        /// <returns>The hash code.</returns>
-        public static int GetStableHashCode(this string str)
-        {
-            unchecked
-            {
-                int hash1 = 5381;
-                int hash2 = hash1;
-
-                for (int i = 0; i < str.Length && str[i] != '\0'; i += 2)
-                {
-                    hash1 = ((hash1 << 5) + hash1) ^ str[i];
-                    if (i == str.Length - 1 || str[i + 1] == '\0')
-                    {
-                        break;
-                    }
-
-                    hash2 = ((hash2 << 5) + hash2) ^ str[i + 1];
-                }
-
-                return hash1 + (hash2 * 1566083941);
-            }
-        }
-
-        /// <summary>
         ///     Determines whether the string is a valid regular expression.
         /// </summary>
         /// <param name="pattern">The string to validate.</param>

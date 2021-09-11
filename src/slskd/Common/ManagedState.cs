@@ -18,6 +18,7 @@
 namespace slskd
 {
     using System;
+    using System.Text.Json;
     using Microsoft.Extensions.DependencyInjection;
 
     /// <summary>
@@ -57,7 +58,7 @@ namespace slskd
     ///     Provides point-in-time read access for state objects.
     /// </summary>
     /// <typeparam name="T">The type of the tracked state object.</typeparam>
-    public interface IStateSnapshot<T>
+    public interface IStateSnapshot<out T>
     {
         /// <summary>
         ///     Gets the snapshotted state.
@@ -133,7 +134,7 @@ namespace slskd
         /// <param name="value">The current value of the state.</param>
         public StateSnapshot(T value)
         {
-            Value = value.ToJson().ToObject<T>();
+            Value = JsonSerializer.Deserialize<T>(JsonSerializer.Serialize(value));
         }
 
         /// <summary>
