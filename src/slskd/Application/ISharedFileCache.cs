@@ -27,9 +27,9 @@ namespace slskd
     public interface ISharedFileCache
     {
         /// <summary>
-        ///     Gets the cache state.
+        ///     Gets the cache state monitor.
         /// </summary>
-        IStateMonitor<SharedFileCacheState> State { get; }
+        IStateMonitor<SharedFileCacheState> StateMonitor { get; }
 
         /// <summary>
         ///     Returns the contents of the cache.

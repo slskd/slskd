@@ -104,10 +104,7 @@ namespace slskd
                     return true;
                 });
 
-            // add IStateMonitor instance to DI, to track application state in an observable way.
-            // similar to IOptionsMonitor, but state is managed by the application itself.
-            // Usage is roughly the same.
-            services.AddSingleton<IStateMonitor<ApplicationState>, StateMonitor<ApplicationState>>();
+            services.AddManagedState<ApplicationState>(state => state with { Version = state.Version with { Current = "9000" } });
 
             services.AddCors(options => options.AddPolicy("AllowAll", builder => builder.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader()));
 

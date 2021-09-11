@@ -48,10 +48,11 @@ namespace slskd
         }
 
         /// <summary>
-        ///     Gets the cache state.
+        ///     Gets the cache state monitor.
         /// </summary>
-        public IStateMonitor<SharedFileCacheState> State { get; } = new StateMonitor<SharedFileCacheState>();
+        public IStateMonitor<SharedFileCacheState> StateMonitor => State;
 
+        private IManagedState<SharedFileCacheState> State { get; } = new ManagedState<SharedFileCacheState>();
         private ILogger Log { get; } = Serilog.Log.ForContext<SharedFileCache>();
         private HashSet<string> MaskedDirectories { get; set; }
         private Dictionary<string, File> MaskedFiles { get; set; }

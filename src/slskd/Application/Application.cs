@@ -26,7 +26,6 @@ namespace slskd
     using System.Reflection;
     using System.Threading;
     using System.Threading.Tasks;
-    using Microsoft.Extensions.Hosting;
     using Microsoft.Extensions.Options;
     using Serilog;
     using Serilog.Events;
@@ -47,6 +46,7 @@ namespace slskd
             OptionsAtStartup optionsAtStartup,
             IOptionsMonitor<Options> optionsMonitor,
             IStateMonitor<ApplicationState> stateMonitor,
+            IStateMutator<ApplicationState> stateMutator,
             ITransferTracker transferTracker,
             IBrowseTracker browseTracker,
             IConversationTracker conversationTracker,
@@ -63,9 +63,10 @@ namespace slskd
 
             StateMonitor = stateMonitor;
             StateMonitor.OnChange(state => StateMonitor_OnChange(state));
+            StateMutator = stateMutator;
 
             SharedFileCache = sharedFileCache;
-            SharedFileCache.State.OnChange(state => SharedFileCacheState_OnChange(state));
+            SharedFileCache.StateMonitor.OnChange(state => SharedFileCacheState_OnChange(state));
 
             TransferTracker = transferTracker;
             BrowseTracker = browseTracker;
@@ -151,7 +152,8 @@ namespace slskd
         private OptionsAtStartup OptionsAtStartup { get; set; }
         private Options PreviousOptions { get; set; }
         private IRoomTracker RoomTracker { get; set; }
-        private IStateMonitor<ApplicationState> StateMonitor { get; set; }
+        private IStateMonitor<ApplicationState> StateMonitor { get; }
+        private IStateMutator<ApplicationState> StateMutator { get; }
         private ApplicationState State => StateMonitor.CurrentValue;
         private ISharedFileCache SharedFileCache { get; set; }
         private ITransferTracker TransferTracker { get; set; }
@@ -228,12 +230,12 @@ namespace slskd
 
                 if (latestVersion > Version.Parse(Program.InformationalVersion))
                 {
-                    StateMonitor.SetValue(state => state with { Version = state.Version with { Latest = latestVersion.ToString(), IsUpdateAvailable = true } });
+                    StateMutator.SetValue(state => state with { Version = state.Version with { Latest = latestVersion.ToString(), IsUpdateAvailable = true } });
                     Logger.Information("A new version is available! {CurrentVersion} -> {LatestVersion}", Program.InformationalVersion, latestVersion);
                 }
                 else
                 {
-                    StateMonitor.SetValue(state => state with { Version = state.Version with { Latest = Program.InformationalVersion, IsUpdateAvailable = false } });
+                    StateMutator.SetValue(state => state with { Version = state.Version with { Latest = Program.InformationalVersion, IsUpdateAvailable = false } });
                     Logger.Information("Version {CurrentVersion} is up to date.", Program.InformationalVersion);
                 }
             }
@@ -304,14 +306,14 @@ namespace slskd
                 if (PreviousOptions.Directories.Shared.Except(newOptions.Directories.Shared).Any()
                     || newOptions.Directories.Shared.Except(PreviousOptions.Directories.Shared).Any())
                 {
-                    StateMonitor.SetValue(state => state with { PendingShareRescan = true });
+                    StateMutator.SetValue(state => state with { PendingShareRescan = true });
                     Logger.Information("Shared directory configuration changed.  Shares must be re-scanned for changes to take effect.");
                 }
 
                 if (PreviousOptions.Filters.Share.Except(newOptions.Filters.Share).Any()
                     || newOptions.Filters.Share.Except(PreviousOptions.Filters.Share).Any())
                 {
-                    StateMonitor.SetValue(state => state with { PendingShareRescan = true });
+                    StateMutator.SetValue(state => state with { PendingShareRescan = true });
                     Logger.Information("File filter configuration changed.  Shares must be re-scanned for changes to take effect.");
                 }
 
@@ -382,13 +384,13 @@ namespace slskd
                 // OR if the call to reconfigure the client requires a reconnect
                 if ((Client.State.HasFlag(SoulseekClientStates.Connected) && pendingReconnect) || soulseekRequiresReconnect)
                 {
-                    StateMonitor.SetValue(state => state with { PendingReconnect = true });
+                    StateMutator.SetValue(state => state with { PendingReconnect = true });
                     Logger.Information("One or more updated Soulseek options requires the client to be disconnected, then reconnected to the network to take effect.");
                 }
 
                 if (pendingRestart)
                 {
-                    StateMonitor.SetValue(state => state with { PendingRestart = true });
+                    StateMutator.SetValue(state => state with { PendingRestart = true });
                     Logger.Information("One or more updated options requires an application restart to take effect.");
                 }
 
@@ -416,7 +418,7 @@ namespace slskd
             {
                 SharesRefreshStarted = DateTime.UtcNow;
 
-                StateMonitor.SetValue(s => s with { SharedFileCache = state.Current });
+                StateMutator.SetValue(s => s with { SharedFileCache = state.Current });
                 Logger.Information("Scanning shares");
             }
 
@@ -425,13 +427,13 @@ namespace slskd
 
             if (lastProgress != currentProgress && Math.Round(currentProgress, 0) % 10 == 0)
             {
-                StateMonitor.SetValue(s => s with { SharedFileCache = state.Current });
+                StateMutator.SetValue(s => s with { SharedFileCache = state.Current });
                 Logger.Information("Scanned {Percent}% of shared directories.  Found {Files} files so far.", currentProgress, state.Current.Files);
             }
 
             if (state.Previous.Filling && !state.Current.Filling)
             {
-                StateMonitor.SetValue(s => s with { SharedFileCache = state.Current });
+                StateMutator.SetValue(s => s with { SharedFileCache = state.Current });
 
                 if (state.Current.Faulted)
                 {
@@ -439,7 +441,7 @@ namespace slskd
                 }
                 else
                 {
-                    StateMonitor.SetValue(s => s with { PendingShareRescan = false });
+                    StateMutator.SetValue(s => s with { PendingShareRescan = false });
                     Logger.Information("Shares scanned successfully. Found {Directories} directories and {Files} files in {Duration}ms", state.Current.Directories, state.Current.Files, (DateTime.UtcNow - SharesRefreshStarted).TotalMilliseconds);
 
                     SharesRefreshStarted = default;
@@ -489,7 +491,7 @@ namespace slskd
 
         private void Client_StateChanged(object sender, SoulseekClientStateChangedEventArgs e)
         {
-            StateMonitor.SetValue(state => state with { Server = new ServerState() { Address = Client.Address, IPEndPoint = Client.IPEndPoint, State = Client.State, Username = Client.Username } });
+            StateMutator.SetValue(state => state with { Server = new ServerState() { Address = Client.Address, IPEndPoint = Client.IPEndPoint, State = Client.State, Username = Client.Username } });
         }
 
         private void Client_Connected(object sender, EventArgs e)
@@ -559,7 +561,7 @@ namespace slskd
         {
             if (State.PendingReconnect)
             {
-                StateMonitor.SetValue(state => state with { PendingReconnect = false });
+                StateMutator.SetValue(state => state with { PendingReconnect = false });
             }
 
             if (args.Exception is ObjectDisposedException || args.Exception is ApplicationShutdownException)
