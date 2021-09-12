@@ -42,5 +42,6 @@ namespace slskd
         public Task LeaveRoomAsync(string roomName);
         public Task DownloadAsync(string username, string filename, Stream outputStream, long? size, long startOffset = 0, int? token = null, TransferOptions options = null, CancellationToken? cancellationToken = null);
         public Task<int> GetDownloadPlaceInQueueAsync(string username, string filename);
+        public Task<BrowseResponse> BrowseAsync(string username);
     }
 }

@@ -38,18 +38,18 @@ namespace slskd.Peer.API
         /// <summary>
         ///     Initializes a new instance of the <see cref="PeersController"/> class.
         /// </summary>
-        /// <param name="client"></param>
+        /// <param name="application"></param>
         /// <param name="browseTracker"></param>
         /// <param name="peerService"></param>
-        public PeersController(ISoulseekClient client, IBrowseTracker browseTracker, IPeerService peerService)
+        public PeersController(IApplication application, IBrowseTracker browseTracker, IPeerService peerService)
         {
-            Client = client;
+            Application = application;
             BrowseTracker = browseTracker;
             Peers = peerService;
         }
 
         private IBrowseTracker BrowseTracker { get; }
-        private ISoulseekClient Client { get; }
+        private IApplication Application { get; }
         private IPeerService Peers { get; }
 
         /// <summary>
@@ -88,7 +88,7 @@ namespace slskd.Peer.API
         {
             try
             {
-                var result = await Client.BrowseAsync(username);
+                var result = await Application.BrowseAsync(username);
 
                 _ = Task.Run(async () =>
                 {
