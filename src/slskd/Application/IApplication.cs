@@ -27,28 +27,54 @@ namespace slskd
 
     public interface IApplication : IHostedService
     {
-        public Task CheckVersionAsync();
-        public Task ConnectAsync();
-        public void Disconnect(string message = null, Exception exception = null);
-        public Task RescanSharesAsync();
-        public Task StartPublicChatAsync();
-        public Task StopPublicChatAsync();
         public Task AcknowledgePrivateMessageAsync(int id);
-        public Task SendPrivateMessageAsync(string username, string message);
-        public Task SendRoomMessageAsync(string roomName, string message);
-        public Task SetRoomTickerAsync(string roomName, string message);
+
         public Task AddPrivateRoomMemberAsync(string roomName, string username);
-        public Task<RoomList> GetRoomListAsync();
-        public Task<RoomData> JoinRoomAsync(string roomName);
-        public Task LeaveRoomAsync(string roomName);
-        public Task DownloadAsync(string username, string filename, Stream outputStream, long? size, long startOffset = 0, int? token = null, TransferOptions options = null, CancellationToken? cancellationToken = null);
-        public Task<int> GetDownloadPlaceInQueueAsync(string username, string filename);
-        public Task<BrowseResponse> BrowseAsync(string username);
-        public Task<UserInfo> GetUserInfoAsync(string username);
-        public Task<IPEndPoint> GetUserEndPointAsync(string username);
-        public Task<UserStatus> GetUserStatusAsync(string username);
-        public Task GrantUserPrivilegesAsync(string username, int days);
-        public Task<bool> GetUserPrivilegedAsync(string username);
+
         public Task AddUserAsync(string username);
+
+        public Task<BrowseResponse> BrowseAsync(string username);
+
+        public Task CheckVersionAsync();
+
+        public Task ConnectAsync();
+
+        public void Disconnect(string message = null, Exception exception = null);
+
+        public Task DownloadAsync(string username, string filename, Stream outputStream, long? size, long startOffset = 0, int? token = null, TransferOptions options = null, CancellationToken? cancellationToken = null);
+
+        public Task<int> GetDownloadPlaceInQueueAsync(string username, string filename);
+
+        public int GetNextToken();
+
+        public Task<RoomList> GetRoomListAsync();
+
+        public Task<IPEndPoint> GetUserEndPointAsync(string username);
+
+        public Task<UserInfo> GetUserInfoAsync(string username);
+
+        public Task<bool> GetUserPrivilegedAsync(string username);
+
+        public Task<UserStatus> GetUserStatusAsync(string username);
+
+        public Task GrantUserPrivilegesAsync(string username, int days);
+
+        public Task<RoomData> JoinRoomAsync(string roomName);
+
+        public Task LeaveRoomAsync(string roomName);
+
+        public Task RescanSharesAsync();
+
+        public Task<Soulseek.Search> SearchAsync(SearchQuery query, Action<SearchResponse> responseReceived, SearchScope scope = null, int? token = null, SearchOptions options = null, CancellationToken? cancellationToken = null);
+
+        public Task SendPrivateMessageAsync(string username, string message);
+
+        public Task SendRoomMessageAsync(string roomName, string message);
+
+        public Task SetRoomTickerAsync(string roomName, string message);
+
+        public Task StartPublicChatAsync();
+
+        public Task StopPublicChatAsync();
     }
 }

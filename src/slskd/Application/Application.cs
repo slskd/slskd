@@ -290,6 +290,9 @@ namespace slskd
         public Task AddUserAsync(string username) => SoulseekClient.AddUserAsync(username);
         public Task<BrowseResponse> BrowseAsync(string username) => SoulseekClient.BrowseAsync(username);
         public Task<UserInfo> GetUserInfoAsync(string username) => SoulseekClient.GetUserInfoAsync(username);
+        public int GetNextToken() => SoulseekClient.GetNextToken();
+        public Task<Soulseek.Search> SearchAsync(SearchQuery query, Action<SearchResponse> responseReceived, SearchScope scope = null, int? token = null, SearchOptions options = null, CancellationToken? cancellationToken = null)
+            => SoulseekClient.SearchAsync(query, responseReceived, scope, token, options, cancellationToken);
 
         private async Task OptionsMonitor_OnChange(Options newOptions)
         {
