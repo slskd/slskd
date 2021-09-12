@@ -36,13 +36,18 @@ namespace slskd.Messaging.API
     [Consumes("application/json")]
     public class RoomsController : ControllerBase
     {
-        public RoomsController(ISoulseekClient client, IRoomTracker tracker)
+        public RoomsController(
+            IApplication application,
+            IStateMonitor<ApplicationState> applicationStateMonitor,
+            IRoomTracker tracker)
         {
-            Client = client;
+            Application = application;
+            ApplicationStateMonitor = applicationStateMonitor;
             Tracker = tracker;
         }
 
-        private ISoulseekClient Client { get; }
+        private IApplication Application { get; }
+        private IStateMonitor<ApplicationState> ApplicationStateMonitor { get; }
         private IRoomTracker Tracker { get; }
 
         /// <summary>
@@ -95,7 +100,7 @@ namespace slskd.Messaging.API
         {
             if (Tracker.TryGet(roomName, out var _))
             {
-                await Client.SendRoomMessageAsync(roomName, message);
+                await Application.SendRoomMessageAsync(roomName, message);
                 return StatusCode(StatusCodes.Status201Created);
             }
 
@@ -118,7 +123,7 @@ namespace slskd.Messaging.API
         {
             if (Tracker.TryGet(roomName, out var _))
             {
-                await Client.SetRoomTickerAsync(roomName, message);
+                await Application.SetRoomTickerAsync(roomName, message);
                 return StatusCode(StatusCodes.Status201Created);
             }
 
@@ -141,7 +146,7 @@ namespace slskd.Messaging.API
         {
             if (Tracker.TryGet(roomName, out var _))
             {
-                await Client.AddPrivateRoomMemberAsync(roomName, username);
+                await Application.AddPrivateRoomMemberAsync(roomName, username);
                 return StatusCode(StatusCodes.Status201Created);
             }
 
@@ -164,7 +169,7 @@ namespace slskd.Messaging.API
             if (Tracker.TryGet(roomName, out var room))
             {
                 var response = room.Users
-                    .Select(user => UserDataResponse.FromUserData(user, self: user.Username == Client.Username));
+                    .Select(user => UserDataResponse.FromUserData(user, self: user.Username == ApplicationStateMonitor.CurrentValue.Server.Username));
 
                 return Ok(response);
             }
@@ -188,7 +193,7 @@ namespace slskd.Messaging.API
             if (Tracker.TryGet(roomName, out var room))
             {
                 var response = room.Messages
-                    .Select(message => RoomMessageResponse.FromRoomMessage(message, self: message.Username == Client.Username));
+                    .Select(message => RoomMessageResponse.FromRoomMessage(message, self: message.Username == ApplicationStateMonitor.CurrentValue.Server.Username));
 
                 return Ok(response);
             }
@@ -205,7 +210,7 @@ namespace slskd.Messaging.API
         [ProducesResponseType(typeof(List<RoomInfo>), 200)]
         public async Task<IActionResult> GetRooms()
         {
-            var list = await Client.GetRoomListAsync();
+            var list = await Application.GetRoomListAsync();
 
             var response = new List<RoomInfoResponse>();
 
@@ -241,7 +246,7 @@ namespace slskd.Messaging.API
 
             try
             {
-                var roomData = await Client.JoinRoomAsync(roomName);
+                var roomData = await Application.JoinRoomAsync(roomName);
                 var room = Room.FromRoomData(roomData);
                 Tracker.TryAdd(roomName, room);
 
@@ -276,7 +281,7 @@ namespace slskd.Messaging.API
                 return StatusCode(StatusCodes.Status404NotFound);
             }
 
-            await Client.LeaveRoomAsync(roomName);
+            await Application.LeaveRoomAsync(roomName);
             Tracker.TryRemove(roomName);
 
             return StatusCode(StatusCodes.Status204NoContent);
@@ -286,7 +291,7 @@ namespace slskd.Messaging.API
         {
             bool IsSelf(string username)
             {
-                return username == Client.Username;
+                return username == ApplicationStateMonitor.CurrentValue.Server.Username;
             }
 
             var response = RoomResponse.FromRoom(room);

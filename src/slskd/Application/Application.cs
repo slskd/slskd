@@ -267,6 +267,19 @@ namespace slskd
         /// <returns>The operation context.</returns>
         public Task RescanSharesAsync() => SharedFileCache.FillAsync();
 
+        public Task StartPublicChatAsync() => SoulseekClient.StartPublicChatAsync();
+        public Task StopPublicChatAsync() => SoulseekClient.StopPublicChatAsync();
+        public Task AcknowledgePrivateMessageAsnyc(int id) => SoulseekClient.AcknowledgePrivateMessageAsync(id);
+        public Task SendRoomMessageAsync(string roomName, string message)
+            => SoulseekClient.SendRoomMessageAsync(roomName, message);
+        public Task SetRoomTickerAsync(string roomName, string message)
+            => SoulseekClient.SetRoomTickerAsync(roomName, message);
+        public Task AddPrivateRoomMemberAsync(string roomName, string username)
+            => SoulseekClient.AddPrivateRoomMemberAsync(roomName, username);
+        public Task<RoomList> GetRoomListAsync() => SoulseekClient.GetRoomListAsync();
+        public Task<RoomData> JoinRoomAsync(string roomName) => SoulseekClient.JoinRoomAsync(roomName);
+        public Task LeaveRoomAsync(string roomName) => SoulseekClient.LeaveRoomAsync(roomName);
+
         private async Task OptionsMonitor_OnChange(Options newOptions)
         {
             // this code is known to fire more than once per update.  i'm not sure

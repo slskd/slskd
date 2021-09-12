@@ -38,15 +38,20 @@ namespace slskd.Messaging.API
         /// <summary>
         ///     Initializes a new instance of the <see cref="ConversationsController"/> class.
         /// </summary>
-        /// <param name="client"></param>
+        /// <param name="application"></param>
         /// <param name="tracker"></param>
-        public ConversationsController(ISoulseekClient client, IConversationTracker tracker)
+        public ConversationsController(
+            IApplication application,
+            IStateMonitor<ApplicationState> applicationStateMonotor,
+            IConversationTracker tracker)
         {
-            Client = client;
+            Application = application;
+            ApplicationStateMonitor = applicationStateMonotor;
             Tracker = tracker;
         }
 
-        private ISoulseekClient Client { get; }
+        private IApplication Application { get; }
+        private IStateMonitor<ApplicationState> ApplicationStateMonitor { get; }
         private IConversationTracker Tracker { get; }
 
         /// <summary>
@@ -72,7 +77,7 @@ namespace slskd.Messaging.API
                 return NotFound();
             }
 
-            await Client.AcknowledgePrivateMessageAsync(id);
+            await Application.AcknowledgePrivateMessageAsync(id);
             return StatusCode(200);
         }
 
@@ -102,7 +107,7 @@ namespace slskd.Messaging.API
             {
                 tasks.Add(Task.Run(async () =>
                 {
-                    await Client.AcknowledgePrivateMessageAsync(message.Id);
+                    await Application.AcknowledgePrivateMessageAsync(message.Id);
                     message.Acknowledged = true;
                 }));
             }
@@ -146,7 +151,7 @@ namespace slskd.Messaging.API
             var response = Tracker.Conversations.ToDictionary(
                 entry => entry.Key,
                 entry => entry.Value
-                    .Select(pm => PrivateMessageResponse.FromPrivateMessage(pm, self: pm.Username == Client.Username))
+                    .Select(pm => PrivateMessageResponse.FromPrivateMessage(pm, self: pm.Username == ApplicationStateMonitor.CurrentValue.Server.Username))
                     .OrderBy(m => m.Timestamp));
 
             return Ok(response);
@@ -168,7 +173,7 @@ namespace slskd.Messaging.API
             if (Tracker.TryGet(username, out var conversation))
             {
                 var response = conversation
-                    .Select(pm => PrivateMessageResponse.FromPrivateMessage(pm, self: pm.Username == Client.Username))
+                    .Select(pm => PrivateMessageResponse.FromPrivateMessage(pm, self: pm.Username == ApplicationStateMonitor.CurrentValue.Server.Username))
                     .OrderBy(m => m.Timestamp);
 
                 return Ok(response);
@@ -196,11 +201,12 @@ namespace slskd.Messaging.API
                 return BadRequest();
             }
 
-            await Client.SendPrivateMessageAsync(username, message);
+            await Application.SendPrivateMessageAsync(username, message);
 
+            // append the outgoing message to the tracker
             Tracker.AddOrUpdate(username, new PrivateMessage()
             {
-                Username = Client.Username,
+                Username = ApplicationStateMonitor.CurrentValue.Server.Username,
                 Timestamp = DateTime.UtcNow,
                 Message = message,
                 Acknowledged = true,

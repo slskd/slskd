@@ -20,6 +20,7 @@ namespace slskd
     using System;
     using System.Threading.Tasks;
     using Microsoft.Extensions.Hosting;
+    using Soulseek;
 
     public interface IApplication : IHostedService
     {
@@ -27,5 +28,15 @@ namespace slskd
         public Task ConnectAsync();
         public void Disconnect(string message = null, Exception exception = null);
         public Task RescanSharesAsync();
+        public Task StartPublicChatAsync();
+        public Task StopPublicChatAsync();
+        public Task AcknowledgePrivateMessageAsync(int id);
+        public Task SendPrivateMessageAsync(string username, string message);
+        public Task SendRoomMessageAsync(string roomName, string message);
+        public Task SetRoomTickerAsync(string roomName, string message);
+        public Task AddPrivateRoomMemberAsync(string roomName, string username);
+        public Task<RoomList> GetRoomListAsync();
+        public Task<RoomData> JoinRoomAsync(string roomName);
+        public Task LeaveRoomAsync(string roomName);
     }
 }

@@ -21,7 +21,6 @@ namespace slskd.Messaging.API
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Http;
     using Microsoft.AspNetCore.Mvc;
-    using Soulseek;
 
     /// <summary>
     ///     Server.
@@ -33,12 +32,12 @@ namespace slskd.Messaging.API
     [Consumes("application/json")]
     public class PublicChatController : ControllerBase
     {
-        public PublicChatController(ISoulseekClient client)
+        public PublicChatController(IApplication application)
         {
-            Client = client;
+            Application = application;
         }
 
-        private ISoulseekClient Client { get; }
+        private IApplication Application { get; }
 
         /// <summary>
         ///     Starts public chat.
@@ -48,7 +47,7 @@ namespace slskd.Messaging.API
         [Authorize]
         public async Task<IActionResult> Start()
         {
-            await Client.StartPublicChatAsync();
+            await Application.StartPublicChatAsync();
             return StatusCode(StatusCodes.Status201Created);
         }
 
@@ -60,7 +59,7 @@ namespace slskd.Messaging.API
         [Authorize]
         public async Task<IActionResult> Stop()
         {
-            await Client.StopPublicChatAsync();
+            await Application.StopPublicChatAsync();
             return StatusCode(StatusCodes.Status204NoContent);
         }
     }
