@@ -216,9 +216,6 @@ namespace slskd
 
             services.AddSingleton<IApplication, Application>();
             services.AddHostedService(p => p.GetRequiredService<IApplication>());
-
-            // todo: add public methods to Application until this is no longer necessary
-            services.AddSingleton(_ => Application.SoulseekClient);
         }
 
         /// <summary>
