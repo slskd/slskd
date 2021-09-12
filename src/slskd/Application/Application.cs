@@ -269,7 +269,8 @@ namespace slskd
 
         public Task StartPublicChatAsync() => SoulseekClient.StartPublicChatAsync();
         public Task StopPublicChatAsync() => SoulseekClient.StopPublicChatAsync();
-        public Task AcknowledgePrivateMessageAsnyc(int id) => SoulseekClient.AcknowledgePrivateMessageAsync(id);
+        public Task SendPrivateMessageAsync(string username, string message) => SoulseekClient.SendPrivateMessageAsync(username, message);
+        public Task AcknowledgePrivateMessageAsync(int id) => SoulseekClient.AcknowledgePrivateMessageAsync(id);
         public Task SendRoomMessageAsync(string roomName, string message)
             => SoulseekClient.SendRoomMessageAsync(roomName, message);
         public Task SetRoomTickerAsync(string roomName, string message)
@@ -277,12 +278,18 @@ namespace slskd
         public Task AddPrivateRoomMemberAsync(string roomName, string username)
             => SoulseekClient.AddPrivateRoomMemberAsync(roomName, username);
         public Task<RoomList> GetRoomListAsync() => SoulseekClient.GetRoomListAsync();
-        public Task<RoomData> JoinRoomAsync(string roomName) => SoulseekClient.JoinRoomAsync(roomName);
         public Task LeaveRoomAsync(string roomName) => SoulseekClient.LeaveRoomAsync(roomName);
         public Task DownloadAsync(string username, string filename, Stream outputStream, long? size, long startOffset = 0, int? token = null, TransferOptions options = null, CancellationToken? cancellationToken = null)
             => SoulseekClient.DownloadAsync(username, filename, outputStream, size, startOffset, token, options, cancellationToken);
         public Task<int> GetDownloadPlaceInQueueAsync(string username, string filename)
             => SoulseekClient.GetDownloadPlaceInQueueAsync(username, filename);
+        public Task<IPEndPoint> GetUserEndPointAsync(string username) => SoulseekClient.GetUserEndPointAsync(username);
+        public Task<UserStatus> GetUserStatusAsync(string username) => SoulseekClient.GetUserStatusAsync(username);
+        public Task GrantUserPrivilegesAsync(string username, int days) => SoulseekClient.GrantUserPrivilegesAsync(username, days);
+        public Task<bool> GetUserPrivilegedAsync(string username) => SoulseekClient.GetUserPrivilegedAsync(username);
+        public Task AddUserAsync(string username) => SoulseekClient.AddUserAsync(username);
+        public Task<BrowseResponse> BrowseAsync(string username) => SoulseekClient.BrowseAsync(username);
+        public Task<UserInfo> GetUserInfoAsync(string username) => SoulseekClient.GetUserInfoAsync(username);
 
         private async Task OptionsMonitor_OnChange(Options newOptions)
         {
@@ -558,7 +565,7 @@ namespace slskd
             }
         }
 
-        private async Task JoinRoomAsync(string roomName)
+        public async Task<RoomData> JoinRoomAsync(string roomName)
         {
             Logger.Debug("Joining room {Room}", roomName);
 
@@ -567,10 +574,12 @@ namespace slskd
                 var data = await SoulseekClient.JoinRoomAsync(roomName);
                 Logger.Information("Joined room {Room}", roomName);
                 Logger.Debug("Room data for {Room}: {Info}", roomName, data.ToJson());
+                return data;
             }
             catch (Exception ex)
             {
                 Logger.Warning("Failed to join room {Room}: {Message}", roomName, ex.Message);
+                throw;
             }
         }
 

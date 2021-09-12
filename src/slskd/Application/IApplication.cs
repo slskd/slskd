@@ -19,6 +19,7 @@ namespace slskd
 {
     using System;
     using System.IO;
+    using System.Net;
     using System.Threading;
     using System.Threading.Tasks;
     using Microsoft.Extensions.Hosting;
@@ -43,5 +44,11 @@ namespace slskd
         public Task DownloadAsync(string username, string filename, Stream outputStream, long? size, long startOffset = 0, int? token = null, TransferOptions options = null, CancellationToken? cancellationToken = null);
         public Task<int> GetDownloadPlaceInQueueAsync(string username, string filename);
         public Task<BrowseResponse> BrowseAsync(string username);
+        public Task<UserInfo> GetUserInfoAsync(string username);
+        public Task<IPEndPoint> GetUserEndPointAsync(string username);
+        public Task<UserStatus> GetUserStatusAsync(string username);
+        public Task GrantUserPrivilegesAsync(string username, int days);
+        public Task<bool> GetUserPrivilegedAsync(string username);
+        public Task AddUserAsync(string username);
     }
 }

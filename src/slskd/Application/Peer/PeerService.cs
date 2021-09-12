@@ -22,7 +22,6 @@ namespace slskd.Peer
     using System.Threading.Tasks;
     using Microsoft.EntityFrameworkCore;
     using Microsoft.Extensions.Logging;
-    using ISoulseekClient = Soulseek.ISoulseekClient;
 
     /// <summary>
     ///     Provides information and operations for network peers.
@@ -34,20 +33,20 @@ namespace slskd.Peer
         /// <summary>
         ///     Initializes a new instance of the <see cref="PeerService"/> class.
         /// </summary>
-        /// <param name="client">The client instance to use.</param>
+        /// <param name="application"></param>
         /// <param name="contextFactory">The database context to use.</param>
         /// <param name="log">The logger.</param>
         public PeerService(
-            ISoulseekClient client,
+            IApplication application,
             IDbContextFactory<PeerDbContext> contextFactory,
             ILogger<PeerService> log)
         {
-            Client = client;
+            Application = application;
             ContextFactory = contextFactory;
             Log = log;
         }
 
-        private ISoulseekClient Client { get; }
+        private IApplication Application { get; }
         private IDbContextFactory<PeerDbContext> ContextFactory { get; }
         private ILogger<PeerService> Log { get; set; }
 
@@ -69,7 +68,7 @@ namespace slskd.Peer
                 return info;
             }
 
-            var soulseekUserInfo = await Client.GetUserInfoAsync(username);
+            var soulseekUserInfo = await Application.GetUserInfoAsync(username);
             info = Info.FromSoulseekUserInfo(username, soulseekUserInfo);
 
             if (peerExists)
@@ -93,7 +92,7 @@ namespace slskd.Peer
         /// <returns>The retrieved endpoint.</returns>
         public Task<IPEndPoint> GetIPEndPointAsync(string username)
         {
-            return Client.GetUserEndPointAsync(username);
+            return Application.GetUserEndPointAsync(username);
         }
 
         /// <summary>
@@ -103,7 +102,7 @@ namespace slskd.Peer
         /// <returns>The retrieved status.</returns>
         public async Task<Status> GetStatusAsync(string username)
         {
-            var soulseekStatus = await Client.GetUserStatusAsync(username);
+            var soulseekStatus = await Application.GetUserStatusAsync(username);
 
             return Status.FromSoulseekUserStatus(soulseekStatus);
         }
@@ -115,7 +114,7 @@ namespace slskd.Peer
         /// <param name="days">The number of days to grant.</param>
         /// <returns>The operation context.</returns>
         public Task GrantPrivilegesAsync(string username, int days)
-            => Client.GrantUserPrivilegesAsync(username, days);
+            => Application.GrantUserPrivilegesAsync(username, days);
 
         /// <summary>
         ///     Retrieves a value indicating whether the specified peer is privileged.
@@ -123,7 +122,7 @@ namespace slskd.Peer
         /// <param name="username">The username of the peer.</param>
         /// <returns>A value indicating whether the specified peer is privileged.</returns>
         public Task<bool> IsPrivilegedAsync(string username)
-            => Client.GetUserPrivilegedAsync(username);
+            => Application.GetUserPrivilegedAsync(username);
 
         /// <summary>
         ///     Adds the specified username to the server-side user list.
@@ -132,7 +131,7 @@ namespace slskd.Peer
         /// <returns>The operation context.</returns>
         public async Task WatchAsync(string username)
         {
-            await Client.AddUserAsync(username);
+            await Application.AddUserAsync(username);
         }
     }
 }
