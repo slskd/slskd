@@ -18,6 +18,8 @@
 namespace slskd
 {
     using System;
+    using System.IO;
+    using System.Threading;
     using System.Threading.Tasks;
     using Microsoft.Extensions.Hosting;
     using Soulseek;
@@ -38,5 +40,7 @@ namespace slskd
         public Task<RoomList> GetRoomListAsync();
         public Task<RoomData> JoinRoomAsync(string roomName);
         public Task LeaveRoomAsync(string roomName);
+        public Task DownloadAsync(string username, string filename, Stream outputStream, long? size, long startOffset = 0, int? token = null, TransferOptions options = null, CancellationToken? cancellationToken = null);
+        public Task<int> GetDownloadPlaceInQueueAsync(string username, string filename);
     }
 }

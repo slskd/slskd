@@ -44,23 +44,23 @@ namespace slskd.Transfer.API
         ///     Initializes a new instance of the <see cref="TransfersController"/> class.
         /// </summary>
         /// <param name="options"></param>
-        /// <param name="client"></param>
+        /// <param name="application"></param>
         /// <param name="tracker"></param>
         /// <param name="ftpClient"></param>
         public TransfersController(
             IOptionsSnapshot<Options> options,
-            ISoulseekClient client,
+            IApplication application,
             ITransferTracker tracker,
             IFTPService ftpClient)
         {
-            Client = client;
+            Application = application;
             Tracker = tracker;
             Options = options.Value;
             FTP = ftpClient;
         }
 
         private Options Options { get; }
-        private ISoulseekClient Client { get; }
+        private IApplication Application { get; }
         private ITransferTracker Tracker { get; }
         private IFTPService FTP { get; }
 
@@ -125,7 +125,7 @@ namespace slskd.Transfer.API
 
                 var downloadTask = Task.Run(async () =>
                 {
-                    await Client.DownloadAsync(username, request.Filename, stream, request.Size, 0, request.Token, new TransferOptions(disposeOutputStreamOnCompletion: true, stateChanged: (e) =>
+                    await Application.DownloadAsync(username, request.Filename, stream, request.Size, 0, request.Token, new TransferOptions(disposeOutputStreamOnCompletion: true, stateChanged: (e) =>
                     {
                         Tracker.AddOrUpdate(e, cts);
 
@@ -224,7 +224,7 @@ namespace slskd.Transfer.API
                 return NotFound();
             }
 
-            record.Transfer.PlaceInQueue = await Client.GetDownloadPlaceInQueueAsync(username, record.Transfer.Filename);
+            record.Transfer.PlaceInQueue = await Application.GetDownloadPlaceInQueueAsync(username, record.Transfer.Filename);
             return Ok(record.Transfer);
         }
 

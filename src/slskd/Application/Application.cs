@@ -279,6 +279,10 @@ namespace slskd
         public Task<RoomList> GetRoomListAsync() => SoulseekClient.GetRoomListAsync();
         public Task<RoomData> JoinRoomAsync(string roomName) => SoulseekClient.JoinRoomAsync(roomName);
         public Task LeaveRoomAsync(string roomName) => SoulseekClient.LeaveRoomAsync(roomName);
+        public Task DownloadAsync(string username, string filename, Stream outputStream, long? size, long startOffset = 0, int? token = null, TransferOptions options = null, CancellationToken? cancellationToken = null)
+            => SoulseekClient.DownloadAsync(username, filename, outputStream, size, startOffset, token, options, cancellationToken);
+        public Task<int> GetDownloadPlaceInQueueAsync(string username, string filename)
+            => SoulseekClient.GetDownloadPlaceInQueueAsync(username, filename);
 
         private async Task OptionsMonitor_OnChange(Options newOptions)
         {
