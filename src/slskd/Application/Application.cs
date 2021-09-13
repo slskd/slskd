@@ -45,7 +45,7 @@ namespace slskd
         public Application(
             OptionsAtStartup optionsAtStartup,
             IOptionsMonitor<Options> optionsMonitor,
-            IManagedState<ApplicationState> state,
+            IManagedState<State> state,
             ITransferTracker transferTracker,
             IBrowseTracker browseTracker,
             IConversationTracker conversationTracker,
@@ -154,7 +154,7 @@ namespace slskd
         private IRoomTracker RoomTracker { get; set; }
         private ISharedFileCache SharedFileCache { get; set; }
         private DateTime SharesRefreshStarted { get; set; }
-        private IManagedState<ApplicationState> State { get; }
+        private IManagedState<State> State { get; }
         private ITransferTracker TransferTracker { get; set; }
 
         public Task AcknowledgePrivateMessageAsync(int id) => SoulseekClient.AcknowledgePrivateMessageAsync(id);
@@ -502,7 +502,7 @@ namespace slskd
 
         private void Client_StateChanged(object sender, SoulseekClientStateChangedEventArgs e)
         {
-            State.SetValue(state => state with { Server = new ServerState() { Address = Client.Address, IPEndPoint = Client.IPEndPoint, State = Client.State, Username = Client.Username } });
+            State.SetValue(state => state with { Server = state.Server with { Address = Client.Address, IPEndPoint = Client.IPEndPoint, State = Client.State, Username = Client.Username } });
         }
 
         private void Client_TransferProgressUpdated(object sender, TransferProgressUpdatedEventArgs args)
@@ -844,7 +844,7 @@ namespace slskd
             }
         }
 
-        private void State_OnChange((ApplicationState Previous, ApplicationState Current) state)
+        private void State_OnChange((State Previous, State Current) state)
         {
             Logger.Debug("State changed from {Previous} to {Current}", state.Previous.ToJson(), state.Current.ToJson());
         }

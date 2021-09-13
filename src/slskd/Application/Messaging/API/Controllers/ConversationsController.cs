@@ -42,7 +42,7 @@ namespace slskd.Messaging.API
         /// <param name="tracker"></param>
         public ConversationsController(
             IApplication application,
-            IStateMonitor<ApplicationState> applicationStateMonotor,
+            IStateMonitor<State> applicationStateMonotor,
             IConversationTracker tracker)
         {
             Application = application;
@@ -51,7 +51,7 @@ namespace slskd.Messaging.API
         }
 
         private IApplication Application { get; }
-        private IStateMonitor<ApplicationState> ApplicationStateMonitor { get; }
+        private IStateMonitor<State> ApplicationStateMonitor { get; }
         private IConversationTracker Tracker { get; }
 
         /// <summary>

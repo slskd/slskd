@@ -37,7 +37,7 @@ namespace slskd.Management.API
         public ApplicationController(
             IHostApplicationLifetime lifetime,
             IApplication application,
-            IStateMonitor<ApplicationState> applicationStateMonitor)
+            IStateMonitor<State> applicationStateMonitor)
         {
             Lifetime = lifetime;
             Application = application;
@@ -45,7 +45,7 @@ namespace slskd.Management.API
         }
 
         private IApplication Application { get; }
-        private IStateMonitor<ApplicationState> ApplicationStateMonitor { get; }
+        private IStateMonitor<State> ApplicationStateMonitor { get; }
         private IHostApplicationLifetime Lifetime { get; }
 
         /// <summary>

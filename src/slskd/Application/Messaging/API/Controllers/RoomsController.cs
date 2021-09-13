@@ -38,7 +38,7 @@ namespace slskd.Messaging.API
     {
         public RoomsController(
             IApplication application,
-            IStateMonitor<ApplicationState> applicationStateMonitor,
+            IStateMonitor<State> applicationStateMonitor,
             IRoomTracker tracker)
         {
             Application = application;
@@ -47,7 +47,7 @@ namespace slskd.Messaging.API
         }
 
         private IApplication Application { get; }
-        private IStateMonitor<ApplicationState> ApplicationStateMonitor { get; }
+        private IStateMonitor<State> ApplicationStateMonitor { get; }
         private IRoomTracker Tracker { get; }
 
         /// <summary>

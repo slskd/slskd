@@ -33,14 +33,14 @@ namespace slskd.Management.API
     {
         public ServerController(
             IApplication application,
-            IStateMonitor<ApplicationState> applicationStateMonitor)
+            IStateMonitor<State> applicationStateMonitor)
         {
             Application = application;
             ApplicationStateMonitor = applicationStateMonitor;
         }
 
         private IApplication Application { get; }
-        private IStateMonitor<ApplicationState> ApplicationStateMonitor { get; }
+        private IStateMonitor<State> ApplicationStateMonitor { get; }
 
         /// <summary>
         ///     Connects the client.

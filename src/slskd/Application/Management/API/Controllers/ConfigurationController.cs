@@ -36,7 +36,7 @@ namespace slskd.Management.API
         public ConfigurationController(
             IApplication application,
             IOptionsSnapshot<Options> optionsShapshot,
-            IStateMonitor<ApplicationState> applicationStateMonitor)
+            IStateMonitor<State> applicationStateMonitor)
         {
             Application = application;
             OptionsShapshot = optionsShapshot;
@@ -45,7 +45,7 @@ namespace slskd.Management.API
 
         private IApplication Application { get; }
         private IOptionsSnapshot<Options> OptionsShapshot { get; }
-        private IStateMonitor<ApplicationState> ApplicationStateMonitor { get; }
+        private IStateMonitor<State> ApplicationStateMonitor { get; }
 
         [HttpGet]
         [Route("")]
