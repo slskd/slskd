@@ -45,8 +45,7 @@ namespace slskd
         public Application(
             OptionsAtStartup optionsAtStartup,
             IOptionsMonitor<Options> optionsMonitor,
-            IStateMonitor<ApplicationState> stateMonitor,
-            IStateMutator<ApplicationState> stateMutator,
+            IManagedState<ApplicationState> state,
             ITransferTracker transferTracker,
             IBrowseTracker browseTracker,
             IConversationTracker conversationTracker,
@@ -61,9 +60,8 @@ namespace slskd
 
             PreviousOptions = OptionsMonitor.CurrentValue;
 
-            StateMonitor = stateMonitor;
-            StateMonitor.OnChange(state => StateMonitor_OnChange(state));
-            StateMutator = stateMutator;
+            State = state;
+            State.OnChange(state => State_OnChange(state));
 
             SharedFileCache = sharedFileCache;
             SharedFileCache.StateMonitor.OnChange(state => SharedFileCacheState_OnChange(state));
@@ -147,19 +145,137 @@ namespace slskd
         private IConversationTracker ConversationTracker { get; set; }
         private ILogger Logger { get; set; } = Log.ForContext<Application>();
         private ConcurrentDictionary<string, ILogger> Loggers { get; } = new ConcurrentDictionary<string, ILogger>();
-        private IOptionsMonitor<Options> OptionsMonitor { get; set; }
         private Options Options => OptionsMonitor.CurrentValue;
         private OptionsAtStartup OptionsAtStartup { get; set; }
-        private Options PreviousOptions { get; set; }
-        private IRoomTracker RoomTracker { get; set; }
-        private IStateMonitor<ApplicationState> StateMonitor { get; }
-        private IStateMutator<ApplicationState> StateMutator { get; }
-        private ApplicationState State => StateMonitor.CurrentValue;
-        private ISharedFileCache SharedFileCache { get; set; }
-        private ITransferTracker TransferTracker { get; set; }
-        private IPushbulletService Pushbullet { get; }
+        private IOptionsMonitor<Options> OptionsMonitor { get; set; }
         private ReaderWriterLockSlim OptionsSyncRoot { get; } = new ReaderWriterLockSlim();
+        private Options PreviousOptions { get; set; }
+        private IPushbulletService Pushbullet { get; }
+        private IRoomTracker RoomTracker { get; set; }
+        private ISharedFileCache SharedFileCache { get; set; }
         private DateTime SharesRefreshStarted { get; set; }
+        private IManagedState<ApplicationState> State { get; }
+        private ITransferTracker TransferTracker { get; set; }
+
+        public Task AcknowledgePrivateMessageAsync(int id) => SoulseekClient.AcknowledgePrivateMessageAsync(id);
+
+        public Task AddPrivateRoomMemberAsync(string roomName, string username)
+            => SoulseekClient.AddPrivateRoomMemberAsync(roomName, username);
+
+        public Task AddUserAsync(string username) => SoulseekClient.AddUserAsync(username);
+
+        public Task<BrowseResponse> BrowseAsync(string username) => SoulseekClient.BrowseAsync(username);
+
+        /// <summary>
+        ///     Gets the version of the latest application release.
+        /// </summary>
+        /// <returns>The operation context.</returns>
+        public async Task CheckVersionAsync()
+        {
+            if (Program.InformationalVersion.EndsWith("65534"))
+            {
+                // todo: use the docker hub API to find the latest canary tag
+                Logger.Information("Skipping version check for Canary build; check for updates manually.");
+            }
+
+            Logger.Information("Checking GitHub Releases for latest version");
+
+            try
+            {
+                var latestVersion = await GitHub.GetLatestReleaseVersion(
+                    organization: Program.AppName,
+                    repository: Program.AppName,
+                    userAgent: $"{Program.AppName} v{Program.InformationalVersion}");
+
+                if (latestVersion > Version.Parse(Program.InformationalVersion))
+                {
+                    State.SetValue(state => state with { Version = state.Version with { Latest = latestVersion.ToString(), IsUpdateAvailable = true } });
+                    Logger.Information("A new version is available! {CurrentVersion} -> {LatestVersion}", Program.InformationalVersion, latestVersion);
+                }
+                else
+                {
+                    State.SetValue(state => state with { Version = state.Version with { Latest = Program.InformationalVersion, IsUpdateAvailable = false } });
+                    Logger.Information("Version {CurrentVersion} is up to date.", Program.InformationalVersion);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Warning("Failed to check version: {Message}", ex.Message);
+                throw;
+            }
+        }
+
+        /// <summary>
+        ///     Connects the Soulseek client to the server using the configured username and password.
+        /// </summary>
+        /// <returns>The operation context.</returns>
+        public Task ConnectAsync()
+            => Client.ConnectAsync(Options.Soulseek.Username, Options.Soulseek.Password);
+
+        /// <summary>
+        ///     Disconnects the Soulseek client from the server.
+        /// </summary>
+        /// <param name="message">An optional message containing the reason for the disconnect.</param>
+        /// <param name="exception">An optional Exception to associate with the disconnect.</param>
+        public void Disconnect(string message = null, Exception exception = null)
+            => Client.Disconnect(message, exception ?? new IntentionalDisconnectException(message));
+
+        public Task DownloadAsync(string username, string filename, Stream outputStream, long? size, long startOffset = 0, int? token = null, TransferOptions options = null, CancellationToken? cancellationToken = null)
+            => SoulseekClient.DownloadAsync(username, filename, outputStream, size, startOffset, token, options, cancellationToken);
+
+        public Task<int> GetDownloadPlaceInQueueAsync(string username, string filename)
+            => SoulseekClient.GetDownloadPlaceInQueueAsync(username, filename);
+
+        public int GetNextToken() => SoulseekClient.GetNextToken();
+
+        public Task<RoomList> GetRoomListAsync() => SoulseekClient.GetRoomListAsync();
+
+        public Task<IPEndPoint> GetUserEndPointAsync(string username) => SoulseekClient.GetUserEndPointAsync(username);
+
+        public Task<UserInfo> GetUserInfoAsync(string username) => SoulseekClient.GetUserInfoAsync(username);
+
+        public Task<bool> GetUserPrivilegedAsync(string username) => SoulseekClient.GetUserPrivilegedAsync(username);
+
+        public Task<UserStatus> GetUserStatusAsync(string username) => SoulseekClient.GetUserStatusAsync(username);
+
+        public Task GrantUserPrivilegesAsync(string username, int days) => SoulseekClient.GrantUserPrivilegesAsync(username, days);
+
+        public async Task<RoomData> JoinRoomAsync(string roomName)
+        {
+            Logger.Debug("Joining room {Room}", roomName);
+
+            try
+            {
+                var data = await SoulseekClient.JoinRoomAsync(roomName);
+                Logger.Information("Joined room {Room}", roomName);
+                Logger.Debug("Room data for {Room}: {Info}", roomName, data.ToJson());
+                return data;
+            }
+            catch (Exception ex)
+            {
+                Logger.Warning("Failed to join room {Room}: {Message}", roomName, ex.Message);
+                throw;
+            }
+        }
+
+        public Task LeaveRoomAsync(string roomName) => SoulseekClient.LeaveRoomAsync(roomName);
+
+        /// <summary>
+        ///     Re-scans shared directories.
+        /// </summary>
+        /// <returns>The operation context.</returns>
+        public Task RescanSharesAsync() => SharedFileCache.FillAsync();
+
+        public Task<Soulseek.Search> SearchAsync(SearchQuery query, Action<SearchResponse> responseReceived, SearchScope scope = null, int? token = null, SearchOptions options = null, CancellationToken? cancellationToken = null)
+            => SoulseekClient.SearchAsync(query, responseReceived, scope, token, options, cancellationToken);
+
+        public Task SendPrivateMessageAsync(string username, string message) => SoulseekClient.SendPrivateMessageAsync(username, message);
+
+        public Task SendRoomMessageAsync(string roomName, string message)
+            => SoulseekClient.SendRoomMessageAsync(roomName, message);
+
+        public Task SetRoomTickerAsync(string roomName, string message)
+            => SoulseekClient.SetRoomTickerAsync(roomName, message);
 
         public async Task StartAsync(CancellationToken cancellationToken)
         {
@@ -199,6 +315,8 @@ namespace slskd
             }
         }
 
+        public Task StartPublicChatAsync() => SoulseekClient.StartPublicChatAsync();
+
         public Task StopAsync(CancellationToken cancellationToken)
         {
             Client.Disconnect("Shutting down", new ApplicationShutdownException("Shutting down"));
@@ -207,278 +325,14 @@ namespace slskd
             return Task.CompletedTask;
         }
 
-        /// <summary>
-        ///     Gets the version of the latest application release.
-        /// </summary>
-        /// <returns>The operation context.</returns>
-        public async Task CheckVersionAsync()
-        {
-            if (Program.InformationalVersion.EndsWith("65534"))
-            {
-                // todo: use the docker hub API to find the latest canary tag
-                Logger.Information("Skipping version check for Canary build; check for updates manually.");
-            }
-
-            Logger.Information("Checking GitHub Releases for latest version");
-
-            try
-            {
-                var latestVersion = await GitHub.GetLatestReleaseVersion(
-                    organization: Program.AppName,
-                    repository: Program.AppName,
-                    userAgent: $"{Program.AppName} v{Program.InformationalVersion}");
-
-                if (latestVersion > Version.Parse(Program.InformationalVersion))
-                {
-                    StateMutator.SetValue(state => state with { Version = state.Version with { Latest = latestVersion.ToString(), IsUpdateAvailable = true } });
-                    Logger.Information("A new version is available! {CurrentVersion} -> {LatestVersion}", Program.InformationalVersion, latestVersion);
-                }
-                else
-                {
-                    StateMutator.SetValue(state => state with { Version = state.Version with { Latest = Program.InformationalVersion, IsUpdateAvailable = false } });
-                    Logger.Information("Version {CurrentVersion} is up to date.", Program.InformationalVersion);
-                }
-            }
-            catch (Exception ex)
-            {
-                Logger.Warning("Failed to check version: {Message}", ex.Message);
-                throw;
-            }
-        }
-
-        /// <summary>
-        ///     Connects the Soulseek client to the server using the configured username and password.
-        /// </summary>
-        /// <returns>The operation context.</returns>
-        public Task ConnectAsync()
-            => Client.ConnectAsync(Options.Soulseek.Username, Options.Soulseek.Password);
-
-        /// <summary>
-        ///     Disconnects the Soulseek client from the server.
-        /// </summary>
-        /// <param name="message">An optional message containing the reason for the disconnect.</param>
-        /// <param name="exception">An optional Exception to associate with the disconnect.</param>
-        public void Disconnect(string message = null, Exception exception = null)
-            => Client.Disconnect(message, exception ?? new IntentionalDisconnectException(message));
-
-        /// <summary>
-        ///     Re-scans shared directories.
-        /// </summary>
-        /// <returns>The operation context.</returns>
-        public Task RescanSharesAsync() => SharedFileCache.FillAsync();
-
-        public Task StartPublicChatAsync() => SoulseekClient.StartPublicChatAsync();
         public Task StopPublicChatAsync() => SoulseekClient.StopPublicChatAsync();
-        public Task SendPrivateMessageAsync(string username, string message) => SoulseekClient.SendPrivateMessageAsync(username, message);
-        public Task AcknowledgePrivateMessageAsync(int id) => SoulseekClient.AcknowledgePrivateMessageAsync(id);
-        public Task SendRoomMessageAsync(string roomName, string message)
-            => SoulseekClient.SendRoomMessageAsync(roomName, message);
-        public Task SetRoomTickerAsync(string roomName, string message)
-            => SoulseekClient.SetRoomTickerAsync(roomName, message);
-        public Task AddPrivateRoomMemberAsync(string roomName, string username)
-            => SoulseekClient.AddPrivateRoomMemberAsync(roomName, username);
-        public Task<RoomList> GetRoomListAsync() => SoulseekClient.GetRoomListAsync();
-        public Task LeaveRoomAsync(string roomName) => SoulseekClient.LeaveRoomAsync(roomName);
-        public Task DownloadAsync(string username, string filename, Stream outputStream, long? size, long startOffset = 0, int? token = null, TransferOptions options = null, CancellationToken? cancellationToken = null)
-            => SoulseekClient.DownloadAsync(username, filename, outputStream, size, startOffset, token, options, cancellationToken);
-        public Task<int> GetDownloadPlaceInQueueAsync(string username, string filename)
-            => SoulseekClient.GetDownloadPlaceInQueueAsync(username, filename);
-        public Task<IPEndPoint> GetUserEndPointAsync(string username) => SoulseekClient.GetUserEndPointAsync(username);
-        public Task<UserStatus> GetUserStatusAsync(string username) => SoulseekClient.GetUserStatusAsync(username);
-        public Task GrantUserPrivilegesAsync(string username, int days) => SoulseekClient.GrantUserPrivilegesAsync(username, days);
-        public Task<bool> GetUserPrivilegedAsync(string username) => SoulseekClient.GetUserPrivilegedAsync(username);
-        public Task AddUserAsync(string username) => SoulseekClient.AddUserAsync(username);
-        public Task<BrowseResponse> BrowseAsync(string username) => SoulseekClient.BrowseAsync(username);
-        public Task<UserInfo> GetUserInfoAsync(string username) => SoulseekClient.GetUserInfoAsync(username);
-        public int GetNextToken() => SoulseekClient.GetNextToken();
-        public Task<Soulseek.Search> SearchAsync(SearchQuery query, Action<SearchResponse> responseReceived, SearchScope scope = null, int? token = null, SearchOptions options = null, CancellationToken? cancellationToken = null)
-            => SoulseekClient.SearchAsync(query, responseReceived, scope, token, options, cancellationToken);
 
-        private async Task OptionsMonitor_OnChange(Options newOptions)
+        private Task AutoJoinRoomsAsync(string[] rooms)
         {
-            // this code is known to fire more than once per update.  i'm not sure
-            // whether these might be executed concurrently. lock to be safe, because
-            // we need to accurately track the last value of Options for diffing purposes.
-            // threading shenanigans here could lead to missed updates.
-            OptionsSyncRoot.EnterWriteLock();
-
-            try
-            {
-                var pendingRestart = false;
-                var pendingReconnect = false;
-                var soulseekRequiresReconnect = false;
-
-                var diff = PreviousOptions.DiffWith(newOptions);
-
-                // don't react to duplicate/no-change events
-                // https://github.com/slskd/slskd/issues/126
-                if (!diff.Any())
-                {
-                    return;
-                }
-
-                foreach (var (property, fqn, left, right) in diff)
-                {
-                    static bool HasAttribute<T>(PropertyInfo property) => property.CustomAttributes.Any(a => a.AttributeType == typeof(T));
-
-                    var requiresRestart = HasAttribute<RequiresRestartAttribute>(property);
-                    var requiresReconnect = HasAttribute<RequiresReconnectAttribute>(property);
-
-                    Logger.Debug($"{fqn} changed from '{left.ToJson() ?? "<null>"}' to '{right.ToJson() ?? "<null>"}'{(requiresRestart ? "; Restart required to take effect." : string.Empty)}{(requiresReconnect ? "; Reconnect required to take effect." : string.Empty)}");
-
-                    pendingRestart |= requiresRestart;
-                    pendingReconnect |= requiresReconnect;
-                }
-
-                if (PreviousOptions.Directories.Shared.Except(newOptions.Directories.Shared).Any()
-                    || newOptions.Directories.Shared.Except(PreviousOptions.Directories.Shared).Any())
-                {
-                    StateMutator.SetValue(state => state with { PendingShareRescan = true });
-                    Logger.Information("Shared directory configuration changed.  Shares must be re-scanned for changes to take effect.");
-                }
-
-                if (PreviousOptions.Filters.Share.Except(newOptions.Filters.Share).Any()
-                    || newOptions.Filters.Share.Except(PreviousOptions.Filters.Share).Any())
-                {
-                    StateMutator.SetValue(state => state with { PendingShareRescan = true });
-                    Logger.Information("File filter configuration changed.  Shares must be re-scanned for changes to take effect.");
-                }
-
-                if (PreviousOptions.Rooms.Except(newOptions.Rooms).Any()
-                    || newOptions.Rooms.Except(PreviousOptions.Rooms).Any())
-                {
-                    Logger.Information("Room configuration changed.  Joining any newly added rooms.");
-                    _ = AutoJoinRoomsAsync(newOptions.Rooms);
-                }
-
-                // determine whether any Soulseek options changed.  if so, we need to construct a patch
-                // and invoke ReconfigureOptionsAsync().
-                var slskDiff = PreviousOptions.Soulseek.DiffWith(newOptions.Soulseek);
-
-                if (slskDiff.Any())
-                {
-                    var old = PreviousOptions.Soulseek;
-                    var update = newOptions.Soulseek;
-
-                    Logger.Debug("Soulseek options changed from {Previous} to {Current}", old.ToJson(), update.ToJson());
-
-                    // determine whether any Connection options changed. if so, replace the whole object.
-                    // Soulseek.NET doesn't offer a way to patch parts of connection options. the updates only affect
-                    // new connections, so a partial patch doesn't make a lot of sense anyway.
-                    var connectionDiff = old.Connection.DiffWith(update.Connection);
-
-                    ConnectionOptions connectionPatch = null;
-
-                    if (connectionDiff.Any())
-                    {
-                        var connection = update.Connection;
-
-                        ProxyOptions proxyPatch = null;
-
-                        if (connection.Proxy.Enabled)
-                        {
-                            proxyPatch = new ProxyOptions(
-                                connection.Proxy.Address,
-                                connection.Proxy.Port.Value,
-                                connection.Proxy.Username,
-                                connection.Proxy.Password);
-                        }
-
-                        connectionPatch = new ConnectionOptions(
-                            connection.Buffer.Read,
-                            connection.Buffer.Write,
-                            connection.Timeout.Connect,
-                            connection.Timeout.Inactivity,
-                            proxyOptions: proxyPatch);
-                    }
-
-                    var patch = new SoulseekClientOptionsPatch(
-                        listenPort: old.ListenPort == update.ListenPort ? null : update.ListenPort,
-                        enableDistributedNetwork: old.DistributedNetwork.Disabled == update.DistributedNetwork.Disabled ? null : !update.DistributedNetwork.Disabled,
-                        distributedChildLimit: old.DistributedNetwork.ChildLimit == update.DistributedNetwork.ChildLimit ? null : update.DistributedNetwork.ChildLimit,
-                        serverConnectionOptions: connectionPatch,
-                        peerConnectionOptions: connectionPatch,
-                        transferConnectionOptions: connectionPatch,
-                        incomingConnectionOptions: connectionPatch,
-                        distributedConnectionOptions: connectionPatch);
-
-                    Logger.Debug("Patching Soulseek options with {Patch}", patch.ToJson());
-
-                    soulseekRequiresReconnect = await SoulseekClient.ReconfigureOptionsAsync(patch);
-                }
-
-                // require a reconnect if the client is connected and any options marked [RequiresReconnect] changed,
-                // OR if the call to reconfigure the client requires a reconnect
-                if ((Client.State.HasFlag(SoulseekClientStates.Connected) && pendingReconnect) || soulseekRequiresReconnect)
-                {
-                    StateMutator.SetValue(state => state with { PendingReconnect = true });
-                    Logger.Information("One or more updated Soulseek options requires the client to be disconnected, then reconnected to the network to take effect.");
-                }
-
-                if (pendingRestart)
-                {
-                    StateMutator.SetValue(state => state with { PendingRestart = true });
-                    Logger.Information("One or more updated options requires an application restart to take effect.");
-                }
-
-                Logger.Information("Options updated successfully.");
-            }
-            catch (Exception ex)
-            {
-                Logger.Error(ex, "Failed to apply option update: {Message}", ex.Message);
-            }
-            finally
-            {
-                PreviousOptions = OptionsMonitor.CurrentValue;
-                OptionsSyncRoot.ExitWriteLock();
-            }
-        }
-
-        private void StateMonitor_OnChange((ApplicationState Previous, ApplicationState Current) state)
-        {
-            Logger.Debug("State changed from {Previous} to {Current}", state.Previous.ToJson(), state.Current.ToJson());
-        }
-
-        private void SharedFileCacheState_OnChange((SharedFileCacheState Previous, SharedFileCacheState Current) state)
-        {
-            if (!state.Previous.Filling && state.Current.Filling)
-            {
-                SharesRefreshStarted = DateTime.UtcNow;
-
-                StateMutator.SetValue(s => s with { SharedFileCache = state.Current });
-                Logger.Information("Scanning shares");
-            }
-
-            var lastProgress = Math.Round(state.Previous.FillProgress * 100);
-            var currentProgress = Math.Round(state.Current.FillProgress * 100);
-
-            if (lastProgress != currentProgress && Math.Round(currentProgress, 0) % 10 == 0)
-            {
-                StateMutator.SetValue(s => s with { SharedFileCache = state.Current });
-                Logger.Information("Scanned {Percent}% of shared directories.  Found {Files} files so far.", currentProgress, state.Current.Files);
-            }
-
-            if (state.Previous.Filling && !state.Current.Filling)
-            {
-                StateMutator.SetValue(s => s with { SharedFileCache = state.Current });
-
-                if (state.Current.Faulted)
-                {
-                    Logger.Error("Failed to scan shares.");
-                }
-                else
-                {
-                    StateMutator.SetValue(s => s with { PendingShareRescan = false });
-                    Logger.Information("Shares scanned successfully. Found {Directories} directories and {Files} files in {Duration}ms", state.Current.Directories, state.Current.Files, (DateTime.UtcNow - SharesRefreshStarted).TotalMilliseconds);
-
-                    SharesRefreshStarted = default;
-
-                    if (Client.State.HasFlag(SoulseekClientStates.Connected | SoulseekClientStates.LoggedIn))
-                    {
-                        _ = SoulseekClient.SetSharedCountsAsync(State.SharedFileCache.Directories, State.SharedFileCache.Files);
-                    }
-                }
-            }
+            // don't try to join rooms that we've already joined. the server returns no response in this case and the client
+            // believes the request has timed out.
+            var unjoined = rooms.Where(room => !RoomTracker.Rooms.ContainsKey(room));
+            return JoinRoomsAsync(unjoined);
         }
 
         /// <summary>
@@ -500,6 +354,11 @@ namespace slskd
             BrowseTracker.AddOrUpdate(args.Username, args);
         }
 
+        private void Client_Connected(object sender, EventArgs e)
+        {
+            Logger.Information("Connected to the Soulseek server");
+        }
+
         private void Client_DiagnosticGenerated(object sender, DiagnosticEventArgs args)
         {
             static LogEventLevel TranslateLogLevel(DiagnosticLevel diagnosticLevel) => diagnosticLevel switch
@@ -516,81 +375,11 @@ namespace slskd
             logger.Write(TranslateLogLevel(args.Level), "{@Message}", args.Message);
         }
 
-        private void Client_StateChanged(object sender, SoulseekClientStateChangedEventArgs e)
-        {
-            StateMutator.SetValue(state => state with { Server = new ServerState() { Address = Client.Address, IPEndPoint = Client.IPEndPoint, State = Client.State, Username = Client.Username } });
-        }
-
-        private void Client_Connected(object sender, EventArgs e)
-        {
-            Logger.Information("Connected to the Soulseek server");
-        }
-
-        private async void Client_LoggedIn(object sender, EventArgs e)
-        {
-            Logger.Information("Logged in to the Soulseek server as {Username}", Client.Username);
-
-            // send whatever counts we have currently. we'll probably connect before the cache is primed,
-            // so these will be zero initially, but we'll update them when the cache is filled.
-            _ = SoulseekClient.SetSharedCountsAsync(State.SharedFileCache.Directories, State.SharedFileCache.Files);
-
-            // rejoin any rooms that we might have been in during the previous session
-            await JoinRoomsAsync(RoomTracker.Rooms.Keys);
-
-            // join the rooms configured for autojoin.  always do this after rejoining has completed.
-            await AutoJoinRoomsAsync(OptionsMonitor.CurrentValue.Rooms);
-        }
-
-        private Task AutoJoinRoomsAsync(string[] rooms)
-        {
-            // don't try to join rooms that we've already joined.  the server returns no response in this case
-            // and the client believes the request has timed out.
-            var unjoined = rooms.Where(room => !RoomTracker.Rooms.ContainsKey(room));
-            return JoinRoomsAsync(unjoined);
-        }
-
-        private async Task JoinRoomsAsync(IEnumerable<string> roomNames)
-        {
-            var tasks = new List<Task>();
-
-            foreach (var room in roomNames)
-            {
-                tasks.Add(JoinRoomAsync(room));
-            }
-
-            try
-            {
-                await Task.WhenAll(tasks);
-            }
-            catch (Exception ex)
-            {
-                Logger.Debug(ex, "Caught Exception in JoinRoomsAsync");
-            }
-        }
-
-        public async Task<RoomData> JoinRoomAsync(string roomName)
-        {
-            Logger.Debug("Joining room {Room}", roomName);
-
-            try
-            {
-                var data = await SoulseekClient.JoinRoomAsync(roomName);
-                Logger.Information("Joined room {Room}", roomName);
-                Logger.Debug("Room data for {Room}: {Info}", roomName, data.ToJson());
-                return data;
-            }
-            catch (Exception ex)
-            {
-                Logger.Warning("Failed to join room {Room}: {Message}", roomName, ex.Message);
-                throw;
-            }
-        }
-
         private async void Client_Disconnected(object sender, SoulseekClientDisconnectedEventArgs args)
         {
-            if (State.PendingReconnect)
+            if (State.CurrentValue.PendingReconnect)
             {
-                StateMutator.SetValue(state => state with { PendingReconnect = false });
+                State.SetValue(state => state with { PendingReconnect = false });
             }
 
             if (args.Exception is ObjectDisposedException || args.Exception is ApplicationShutdownException)
@@ -635,8 +424,9 @@ namespace slskd
 
                     try
                     {
-                        // reconnect with the latest configuration values we have for username and password, instead of the options that were
-                        // captured at startup.  if a user has updated these values prior to the disconnect, the changes will take effect now.
+                        // reconnect with the latest configuration values we have for username and password, instead of the
+                        // options that were captured at startup. if a user has updated these values prior to the disconnect, the
+                        // changes will take effect now.
                         await Client.ConnectAsync(Options.Soulseek.Username, Options.Soulseek.Password);
                         break;
                     }
@@ -647,6 +437,21 @@ namespace slskd
                     }
                 }
             }
+        }
+
+        private async void Client_LoggedIn(object sender, EventArgs e)
+        {
+            Logger.Information("Logged in to the Soulseek server as {Username}", Client.Username);
+
+            // send whatever counts we have currently. we'll probably connect before the cache is primed, so these will be zero
+            // initially, but we'll update them when the cache is filled.
+            _ = SoulseekClient.SetSharedCountsAsync(State.CurrentValue.SharedFileCache.Directories, State.CurrentValue.SharedFileCache.Files);
+
+            // rejoin any rooms that we might have been in during the previous session
+            await JoinRoomsAsync(RoomTracker.Rooms.Keys);
+
+            // join the rooms configured for autojoin. always do this after rejoining has completed.
+            await AutoJoinRoomsAsync(OptionsMonitor.CurrentValue.Rooms);
         }
 
         private void Client_PrivateMessageRecieved(object sender, PrivateMessageReceivedEventArgs args)
@@ -693,6 +498,11 @@ namespace slskd
             {
                 _ = Pushbullet.PushAsync($"Room Mention by {message.Username} in {message.RoomName}", message.RoomName, message.Message);
             }
+        }
+
+        private void Client_StateChanged(object sender, SoulseekClientStateChangedEventArgs e)
+        {
+            State.SetValue(state => state with { Server = new ServerState() { Address = Client.Address, IPEndPoint = Client.IPEndPoint, State = Client.State, Username = Client.Username } });
         }
 
         private void Client_TransferProgressUpdated(object sender, TransferProgressUpdatedEventArgs args)
@@ -794,6 +604,162 @@ namespace slskd
             return Task.CompletedTask;
         }
 
+        private async Task JoinRoomsAsync(IEnumerable<string> roomNames)
+        {
+            var tasks = new List<Task>();
+
+            foreach (var room in roomNames)
+            {
+                tasks.Add(JoinRoomAsync(room));
+            }
+
+            try
+            {
+                await Task.WhenAll(tasks);
+            }
+            catch (Exception ex)
+            {
+                Logger.Debug(ex, "Caught Exception in JoinRoomsAsync");
+            }
+        }
+
+        private async Task OptionsMonitor_OnChange(Options newOptions)
+        {
+            // this code is known to fire more than once per update. i'm not sure whether these might be executed concurrently.
+            // lock to be safe, because we need to accurately track the last value of Options for diffing purposes. threading
+            // shenanigans here could lead to missed updates.
+            OptionsSyncRoot.EnterWriteLock();
+
+            try
+            {
+                var pendingRestart = false;
+                var pendingReconnect = false;
+                var soulseekRequiresReconnect = false;
+
+                var diff = PreviousOptions.DiffWith(newOptions);
+
+                // don't react to duplicate/no-change events https://github.com/slskd/slskd/issues/126
+                if (!diff.Any())
+                {
+                    return;
+                }
+
+                foreach (var (property, fqn, left, right) in diff)
+                {
+                    static bool HasAttribute<T>(PropertyInfo property) => property.CustomAttributes.Any(a => a.AttributeType == typeof(T));
+
+                    var requiresRestart = HasAttribute<RequiresRestartAttribute>(property);
+                    var requiresReconnect = HasAttribute<RequiresReconnectAttribute>(property);
+
+                    Logger.Debug($"{fqn} changed from '{left.ToJson() ?? "<null>"}' to '{right.ToJson() ?? "<null>"}'{(requiresRestart ? "; Restart required to take effect." : string.Empty)}{(requiresReconnect ? "; Reconnect required to take effect." : string.Empty)}");
+
+                    pendingRestart |= requiresRestart;
+                    pendingReconnect |= requiresReconnect;
+                }
+
+                if (PreviousOptions.Directories.Shared.Except(newOptions.Directories.Shared).Any()
+                    || newOptions.Directories.Shared.Except(PreviousOptions.Directories.Shared).Any())
+                {
+                    State.SetValue(state => state with { PendingShareRescan = true });
+                    Logger.Information("Shared directory configuration changed.  Shares must be re-scanned for changes to take effect.");
+                }
+
+                if (PreviousOptions.Filters.Share.Except(newOptions.Filters.Share).Any()
+                    || newOptions.Filters.Share.Except(PreviousOptions.Filters.Share).Any())
+                {
+                    State.SetValue(state => state with { PendingShareRescan = true });
+                    Logger.Information("File filter configuration changed.  Shares must be re-scanned for changes to take effect.");
+                }
+
+                if (PreviousOptions.Rooms.Except(newOptions.Rooms).Any()
+                    || newOptions.Rooms.Except(PreviousOptions.Rooms).Any())
+                {
+                    Logger.Information("Room configuration changed.  Joining any newly added rooms.");
+                    _ = AutoJoinRoomsAsync(newOptions.Rooms);
+                }
+
+                // determine whether any Soulseek options changed. if so, we need to construct a patch and invoke ReconfigureOptionsAsync().
+                var slskDiff = PreviousOptions.Soulseek.DiffWith(newOptions.Soulseek);
+
+                if (slskDiff.Any())
+                {
+                    var old = PreviousOptions.Soulseek;
+                    var update = newOptions.Soulseek;
+
+                    Logger.Debug("Soulseek options changed from {Previous} to {Current}", old.ToJson(), update.ToJson());
+
+                    // determine whether any Connection options changed. if so, replace the whole object. Soulseek.NET doesn't
+                    // offer a way to patch parts of connection options. the updates only affect new connections, so a partial
+                    // patch doesn't make a lot of sense anyway.
+                    var connectionDiff = old.Connection.DiffWith(update.Connection);
+
+                    ConnectionOptions connectionPatch = null;
+
+                    if (connectionDiff.Any())
+                    {
+                        var connection = update.Connection;
+
+                        ProxyOptions proxyPatch = null;
+
+                        if (connection.Proxy.Enabled)
+                        {
+                            proxyPatch = new ProxyOptions(
+                                connection.Proxy.Address,
+                                connection.Proxy.Port.Value,
+                                connection.Proxy.Username,
+                                connection.Proxy.Password);
+                        }
+
+                        connectionPatch = new ConnectionOptions(
+                            connection.Buffer.Read,
+                            connection.Buffer.Write,
+                            connection.Timeout.Connect,
+                            connection.Timeout.Inactivity,
+                            proxyOptions: proxyPatch);
+                    }
+
+                    var patch = new SoulseekClientOptionsPatch(
+                        listenPort: old.ListenPort == update.ListenPort ? null : update.ListenPort,
+                        enableDistributedNetwork: old.DistributedNetwork.Disabled == update.DistributedNetwork.Disabled ? null : !update.DistributedNetwork.Disabled,
+                        distributedChildLimit: old.DistributedNetwork.ChildLimit == update.DistributedNetwork.ChildLimit ? null : update.DistributedNetwork.ChildLimit,
+                        serverConnectionOptions: connectionPatch,
+                        peerConnectionOptions: connectionPatch,
+                        transferConnectionOptions: connectionPatch,
+                        incomingConnectionOptions: connectionPatch,
+                        distributedConnectionOptions: connectionPatch);
+
+                    Logger.Debug("Patching Soulseek options with {Patch}", patch.ToJson());
+
+                    soulseekRequiresReconnect = await SoulseekClient.ReconfigureOptionsAsync(patch);
+                }
+
+                // require a reconnect if the client is connected and any options marked [RequiresReconnect] changed, OR if the
+                // call to reconfigure the client requires a reconnect
+                if ((Client.State.HasFlag(SoulseekClientStates.Connected) && pendingReconnect) || soulseekRequiresReconnect)
+                {
+                    State.SetValue(state => state with { PendingReconnect = true });
+                    Logger.Information("One or more updated Soulseek options requires the client to be disconnected, then reconnected to the network to take effect.");
+                }
+
+                if (pendingRestart)
+                {
+                    State.SetValue(state => state with { PendingRestart = true });
+                    Logger.Information("One or more updated options requires an application restart to take effect.");
+                }
+
+                Logger.Information("Options updated successfully.");
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "Failed to apply option update: {Message}", ex.Message);
+            }
+            finally
+            {
+                PreviousOptions = OptionsMonitor.CurrentValue;
+                OptionsSyncRoot.ExitWriteLock();
+            }
+        }
+
         /// <summary>
         ///     Creates and returns a <see cref="Response"/> in response to the given <paramref name="query"/>.
         /// </summary>
@@ -834,6 +800,53 @@ namespace slskd
             // if no results, either return null or an instance of SearchResponse with a fileList of length 0 in either case, no
             // response will be sent to the requestor.
             return null;
+        }
+
+        private void SharedFileCacheState_OnChange((SharedFileCacheState Previous, SharedFileCacheState Current) state)
+        {
+            if (!state.Previous.Filling && state.Current.Filling)
+            {
+                SharesRefreshStarted = DateTime.UtcNow;
+
+                State.SetValue(s => s with { SharedFileCache = state.Current });
+                Logger.Information("Scanning shares");
+            }
+
+            var lastProgress = Math.Round(state.Previous.FillProgress * 100);
+            var currentProgress = Math.Round(state.Current.FillProgress * 100);
+
+            if (lastProgress != currentProgress && Math.Round(currentProgress, 0) % 10 == 0)
+            {
+                State.SetValue(s => s with { SharedFileCache = state.Current });
+                Logger.Information("Scanned {Percent}% of shared directories.  Found {Files} files so far.", currentProgress, state.Current.Files);
+            }
+
+            if (state.Previous.Filling && !state.Current.Filling)
+            {
+                State.SetValue(s => s with { SharedFileCache = state.Current });
+
+                if (state.Current.Faulted)
+                {
+                    Logger.Error("Failed to scan shares.");
+                }
+                else
+                {
+                    State.SetValue(s => s with { PendingShareRescan = false });
+                    Logger.Information("Shares scanned successfully. Found {Directories} directories and {Files} files in {Duration}ms", state.Current.Directories, state.Current.Files, (DateTime.UtcNow - SharesRefreshStarted).TotalMilliseconds);
+
+                    SharesRefreshStarted = default;
+
+                    if (Client.State.HasFlag(SoulseekClientStates.Connected | SoulseekClientStates.LoggedIn))
+                    {
+                        _ = SoulseekClient.SetSharedCountsAsync(State.CurrentValue.SharedFileCache.Directories, State.CurrentValue.SharedFileCache.Files);
+                    }
+                }
+            }
+        }
+
+        private void State_OnChange((ApplicationState Previous, ApplicationState Current) state)
+        {
+            Logger.Debug("State changed from {Previous} to {Current}", state.Previous.ToJson(), state.Current.ToJson());
         }
 
         /// <summary>
