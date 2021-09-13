@@ -214,6 +214,8 @@ namespace slskd
 
             services.AddSingleton<IPushbulletService, PushbulletService>();
 
+            services.AddTransient<ISoulseekClientFactory, SoulseekClientFactory>();
+
             services.AddSingleton<IApplication, Application>();
             services.AddHostedService(p => p.GetRequiredService<IApplication>());
         }

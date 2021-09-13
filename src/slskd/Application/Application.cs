@@ -46,6 +46,7 @@ namespace slskd
             OptionsAtStartup optionsAtStartup,
             IOptionsMonitor<Options> optionsMonitor,
             IManagedState<State> state,
+            ISoulseekClientFactory soulseekClientFactory,
             ITransferTracker transferTracker,
             IBrowseTracker browseTracker,
             IConversationTracker conversationTracker,
@@ -110,7 +111,7 @@ namespace slskd
                 searchResponseCache: new SearchResponseCache(),
                 searchResponseResolver: SearchResponseResolver);
 
-            Client = new SoulseekClient(options: clientOptions);
+            Client = soulseekClientFactory.Create(options: clientOptions);
 
             Client.DiagnosticGenerated += Client_DiagnosticGenerated;
 
@@ -134,11 +135,7 @@ namespace slskd
             Client.Connected += Client_Connected;
             Client.LoggedIn += Client_LoggedIn;
             Client.StateChanged += Client_StateChanged;
-
-            SoulseekClient = Client;
         }
-
-        public static ISoulseekClient SoulseekClient { get; private set; }
 
         private IBrowseTracker BrowseTracker { get; set; }
         private ISoulseekClient Client { get; set; }
@@ -157,14 +154,14 @@ namespace slskd
         private IManagedState<State> State { get; }
         private ITransferTracker TransferTracker { get; set; }
 
-        public Task AcknowledgePrivateMessageAsync(int id) => SoulseekClient.AcknowledgePrivateMessageAsync(id);
+        public Task AcknowledgePrivateMessageAsync(int id) => Client.AcknowledgePrivateMessageAsync(id);
 
         public Task AddPrivateRoomMemberAsync(string roomName, string username)
-            => SoulseekClient.AddPrivateRoomMemberAsync(roomName, username);
+            => Client.AddPrivateRoomMemberAsync(roomName, username);
 
-        public Task AddUserAsync(string username) => SoulseekClient.AddUserAsync(username);
+        public Task AddUserAsync(string username) => Client.AddUserAsync(username);
 
-        public Task<BrowseResponse> BrowseAsync(string username) => SoulseekClient.BrowseAsync(username);
+        public Task<BrowseResponse> BrowseAsync(string username) => Client.BrowseAsync(username);
 
         /// <summary>
         ///     Gets the version of the latest application release.
@@ -221,24 +218,24 @@ namespace slskd
             => Client.Disconnect(message, exception ?? new IntentionalDisconnectException(message));
 
         public Task DownloadAsync(string username, string filename, Stream outputStream, long? size, long startOffset = 0, int? token = null, TransferOptions options = null, CancellationToken? cancellationToken = null)
-            => SoulseekClient.DownloadAsync(username, filename, outputStream, size, startOffset, token, options, cancellationToken);
+            => Client.DownloadAsync(username, filename, outputStream, size, startOffset, token, options, cancellationToken);
 
         public Task<int> GetDownloadPlaceInQueueAsync(string username, string filename)
-            => SoulseekClient.GetDownloadPlaceInQueueAsync(username, filename);
+            => Client.GetDownloadPlaceInQueueAsync(username, filename);
 
-        public int GetNextToken() => SoulseekClient.GetNextToken();
+        public int GetNextToken() => Client.GetNextToken();
 
-        public Task<RoomList> GetRoomListAsync() => SoulseekClient.GetRoomListAsync();
+        public Task<RoomList> GetRoomListAsync() => Client.GetRoomListAsync();
 
-        public Task<IPEndPoint> GetUserEndPointAsync(string username) => SoulseekClient.GetUserEndPointAsync(username);
+        public Task<IPEndPoint> GetUserEndPointAsync(string username) => Client.GetUserEndPointAsync(username);
 
-        public Task<UserInfo> GetUserInfoAsync(string username) => SoulseekClient.GetUserInfoAsync(username);
+        public Task<UserInfo> GetUserInfoAsync(string username) => Client.GetUserInfoAsync(username);
 
-        public Task<bool> GetUserPrivilegedAsync(string username) => SoulseekClient.GetUserPrivilegedAsync(username);
+        public Task<bool> GetUserPrivilegedAsync(string username) => Client.GetUserPrivilegedAsync(username);
 
-        public Task<UserStatus> GetUserStatusAsync(string username) => SoulseekClient.GetUserStatusAsync(username);
+        public Task<UserStatus> GetUserStatusAsync(string username) => Client.GetUserStatusAsync(username);
 
-        public Task GrantUserPrivilegesAsync(string username, int days) => SoulseekClient.GrantUserPrivilegesAsync(username, days);
+        public Task GrantUserPrivilegesAsync(string username, int days) => Client.GrantUserPrivilegesAsync(username, days);
 
         public async Task<RoomData> JoinRoomAsync(string roomName)
         {
@@ -246,7 +243,7 @@ namespace slskd
 
             try
             {
-                var data = await SoulseekClient.JoinRoomAsync(roomName);
+                var data = await Client.JoinRoomAsync(roomName);
                 Logger.Information("Joined room {Room}", roomName);
                 Logger.Debug("Room data for {Room}: {Info}", roomName, data.ToJson());
                 return data;
@@ -258,7 +255,7 @@ namespace slskd
             }
         }
 
-        public Task LeaveRoomAsync(string roomName) => SoulseekClient.LeaveRoomAsync(roomName);
+        public Task LeaveRoomAsync(string roomName) => Client.LeaveRoomAsync(roomName);
 
         /// <summary>
         ///     Re-scans shared directories.
@@ -267,15 +264,15 @@ namespace slskd
         public Task RescanSharesAsync() => SharedFileCache.FillAsync();
 
         public Task<Soulseek.Search> SearchAsync(SearchQuery query, Action<SearchResponse> responseReceived, SearchScope scope = null, int? token = null, SearchOptions options = null, CancellationToken? cancellationToken = null)
-            => SoulseekClient.SearchAsync(query, responseReceived, scope, token, options, cancellationToken);
+            => Client.SearchAsync(query, responseReceived, scope, token, options, cancellationToken);
 
-        public Task SendPrivateMessageAsync(string username, string message) => SoulseekClient.SendPrivateMessageAsync(username, message);
+        public Task SendPrivateMessageAsync(string username, string message) => Client.SendPrivateMessageAsync(username, message);
 
         public Task SendRoomMessageAsync(string roomName, string message)
-            => SoulseekClient.SendRoomMessageAsync(roomName, message);
+            => Client.SendRoomMessageAsync(roomName, message);
 
         public Task SetRoomTickerAsync(string roomName, string message)
-            => SoulseekClient.SetRoomTickerAsync(roomName, message);
+            => Client.SetRoomTickerAsync(roomName, message);
 
         public async Task StartAsync(CancellationToken cancellationToken)
         {
@@ -315,7 +312,7 @@ namespace slskd
             }
         }
 
-        public Task StartPublicChatAsync() => SoulseekClient.StartPublicChatAsync();
+        public Task StartPublicChatAsync() => Client.StartPublicChatAsync();
 
         public Task StopAsync(CancellationToken cancellationToken)
         {
@@ -325,7 +322,7 @@ namespace slskd
             return Task.CompletedTask;
         }
 
-        public Task StopPublicChatAsync() => SoulseekClient.StopPublicChatAsync();
+        public Task StopPublicChatAsync() => Client.StopPublicChatAsync();
 
         private Task AutoJoinRoomsAsync(string[] rooms)
         {
@@ -445,7 +442,7 @@ namespace slskd
 
             // send whatever counts we have currently. we'll probably connect before the cache is primed, so these will be zero
             // initially, but we'll update them when the cache is filled.
-            _ = SoulseekClient.SetSharedCountsAsync(State.CurrentValue.SharedFileCache.Directories, State.CurrentValue.SharedFileCache.Files);
+            _ = Client.SetSharedCountsAsync(State.CurrentValue.SharedFileCache.Directories, State.CurrentValue.SharedFileCache.Files);
 
             // rejoin any rooms that we might have been in during the previous session
             await JoinRoomsAsync(RoomTracker.Rooms.Keys);
@@ -730,7 +727,7 @@ namespace slskd
 
                     Logger.Debug("Patching Soulseek options with {Patch}", patch.ToJson());
 
-                    soulseekRequiresReconnect = await SoulseekClient.ReconfigureOptionsAsync(patch);
+                    soulseekRequiresReconnect = await Client.ReconfigureOptionsAsync(patch);
                 }
 
                 // require a reconnect if the client is connected and any options marked [RequiresReconnect] changed, OR if the
@@ -789,7 +786,7 @@ namespace slskd
                 Console.WriteLine($"[SENDING SEARCH RESULTS]: {results.Count()} records to {username} for query {query.SearchText}");
 
                 return new SearchResponse(
-                    SoulseekClient.Username,
+                    Client.Username,
                     token,
                     freeUploadSlots: 1,
                     uploadSpeed: 0,
@@ -838,7 +835,7 @@ namespace slskd
 
                     if (Client.State.HasFlag(SoulseekClientStates.Connected | SoulseekClientStates.LoggedIn))
                     {
-                        _ = SoulseekClient.SetSharedCountsAsync(State.CurrentValue.SharedFileCache.Directories, State.CurrentValue.SharedFileCache.Files);
+                        _ = Client.SetSharedCountsAsync(State.CurrentValue.SharedFileCache.Directories, State.CurrentValue.SharedFileCache.Files);
                     }
                 }
             }
