@@ -26,6 +26,7 @@ namespace slskd
     using System.Reflection;
     using System.Threading;
     using System.Threading.Tasks;
+    using Microsoft.Extensions.Hosting;
     using Microsoft.Extensions.Options;
     using Serilog;
     using Serilog.Events;
@@ -38,7 +39,7 @@ namespace slskd
     using Soulseek;
     using Soulseek.Diagnostics;
 
-    public class Application : IApplication
+    public sealed class Application : IApplication
     {
         private static readonly int ReconnectMaxDelayMilliseconds = 300000; // 5 minutes
 
@@ -46,11 +47,12 @@ namespace slskd
             OptionsAtStartup optionsAtStartup,
             IOptionsMonitor<Options> optionsMonitor,
             IManagedState<State> state,
-            ISoulseekClientFactory soulseekClientFactory,
+            ISoulseekClient soulseekClient,
             ITransferTracker transferTracker,
             IBrowseTracker browseTracker,
             IConversationTracker conversationTracker,
             IRoomTracker roomTracker,
+            IRoomService roomService,
             ISharedFileCache sharedFileCache,
             IPushbulletService pushbulletService)
         {
@@ -73,45 +75,9 @@ namespace slskd
             RoomTracker = roomTracker;
             Pushbullet = pushbulletService;
 
-            ProxyOptions proxyOptions = default;
+            RoomService = roomService;
 
-            if (OptionsAtStartup.Soulseek.Connection.Proxy.Enabled)
-            {
-                proxyOptions = new ProxyOptions(
-                    address: OptionsAtStartup.Soulseek.Connection.Proxy.Address,
-                    port: OptionsAtStartup.Soulseek.Connection.Proxy.Port.Value,
-                    username: OptionsAtStartup.Soulseek.Connection.Proxy.Username,
-                    password: OptionsAtStartup.Soulseek.Connection.Proxy.Password);
-            }
-
-            var connectionOptions = new ConnectionOptions(
-                readBufferSize: OptionsAtStartup.Soulseek.Connection.Buffer.Read,
-                writeBufferSize: OptionsAtStartup.Soulseek.Connection.Buffer.Write,
-                connectTimeout: OptionsAtStartup.Soulseek.Connection.Timeout.Connect,
-                inactivityTimeout: OptionsAtStartup.Soulseek.Connection.Timeout.Inactivity,
-                proxyOptions: proxyOptions);
-
-            var clientOptions = new SoulseekClientOptions(
-                listenPort: OptionsAtStartup.Soulseek.ListenPort,
-                enableListener: true,
-                userEndPointCache: new UserEndPointCache(),
-                distributedChildLimit: OptionsAtStartup.Soulseek.DistributedNetwork.ChildLimit,
-                enableDistributedNetwork: !OptionsAtStartup.Soulseek.DistributedNetwork.Disabled,
-                minimumDiagnosticLevel: OptionsAtStartup.Soulseek.DiagnosticLevel,
-                autoAcknowledgePrivateMessages: false,
-                acceptPrivateRoomInvitations: true,
-                serverConnectionOptions: connectionOptions,
-                peerConnectionOptions: connectionOptions,
-                transferConnectionOptions: connectionOptions,
-                distributedConnectionOptions: connectionOptions,
-                userInfoResponseResolver: UserInfoResponseResolver,
-                browseResponseResolver: BrowseResponseResolver,
-                directoryContentsResponseResolver: DirectoryContentsResponseResolver,
-                enqueueDownloadAction: (username, endpoint, filename) => EnqueueDownloadAction(username, endpoint, filename, TransferTracker),
-                searchResponseCache: new SearchResponseCache(),
-                searchResponseResolver: SearchResponseResolver);
-
-            Client = soulseekClientFactory.Create(options: clientOptions);
+            Client = soulseekClient;
 
             Client.DiagnosticGenerated += Client_DiagnosticGenerated;
 
@@ -137,8 +103,9 @@ namespace slskd
             Client.StateChanged += Client_StateChanged;
         }
 
-        private IBrowseTracker BrowseTracker { get; set; }
         private ISoulseekClient Client { get; set; }
+        private IRoomService RoomService { get; set; }
+        private IBrowseTracker BrowseTracker { get; set; }
         private IConversationTracker ConversationTracker { get; set; }
         private ILogger Logger { get; set; } = Log.ForContext<Application>();
         private ConcurrentDictionary<string, ILogger> Loggers { get; } = new ConcurrentDictionary<string, ILogger>();
@@ -154,12 +121,30 @@ namespace slskd
         private IManagedState<State> State { get; }
         private ITransferTracker TransferTracker { get; set; }
 
-        public Task AcknowledgePrivateMessageAsync(int id) => Client.AcknowledgePrivateMessageAsync(id);
+        /// <summary>
+        ///     Sends an acknowledgement for the specified private message <paramref name="id"/>.
+        /// </summary>
+        /// <param name="id">The id of the private message to acknowledge.</param>
+        /// <returns>The operation context.</returns>
+        Task IApplication.AcknowledgePrivateMessageAsync(int id)
+        {
+            Logger.Debug("Acknowledging private message with ID {Id}", id);
+            return Client.AcknowledgePrivateMessageAsync(id);
+        }
 
-        public Task AddPrivateRoomMemberAsync(string roomName, string username)
-            => Client.AddPrivateRoomMemberAsync(roomName, username);
+        /// <summary>
+        ///     Adds a the specified <paramref name="username"/> as a member of the specified private <paramref name="roomName"/>.
+        /// </summary>
+        /// <param name="roomName">The room to which to add the member.</param>
+        /// <param name="username">The username of the member to add.</param>
+        /// <returns>The operation context.</returns>
+        Task IApplication.AddPrivateRoomMemberAsync(string roomName, string username)
+        {
+            Logger.Information("Adding member {Username} to private room {roomName}", username, roomName);
+            return Client.AddPrivateRoomMemberAsync(roomName, username);
+        }
 
-        public Task AddUserAsync(string username) => Client.AddUserAsync(username);
+        public Task<UserData> AddUserAsync(string username) => Client.AddUserAsync(username);
 
         public Task<BrowseResponse> BrowseAsync(string username) => Client.BrowseAsync(username);
 
@@ -237,24 +222,6 @@ namespace slskd
 
         public Task GrantUserPrivilegesAsync(string username, int days) => Client.GrantUserPrivilegesAsync(username, days);
 
-        public async Task<RoomData> JoinRoomAsync(string roomName)
-        {
-            Logger.Debug("Joining room {Room}", roomName);
-
-            try
-            {
-                var data = await Client.JoinRoomAsync(roomName);
-                Logger.Information("Joined room {Room}", roomName);
-                Logger.Debug("Room data for {Room}: {Info}", roomName, data.ToJson());
-                return data;
-            }
-            catch (Exception ex)
-            {
-                Logger.Warning("Failed to join room {Room}: {Message}", roomName, ex.Message);
-                throw;
-            }
-        }
-
         public Task LeaveRoomAsync(string roomName) => Client.LeaveRoomAsync(roomName);
 
         /// <summary>
@@ -274,9 +241,50 @@ namespace slskd
         public Task SetRoomTickerAsync(string roomName, string message)
             => Client.SetRoomTickerAsync(roomName, message);
 
-        public async Task StartAsync(CancellationToken cancellationToken)
+        async Task IHostedService.StartAsync(CancellationToken cancellationToken)
         {
-            Logger.Information("Client started");
+            Logger.Information("Configuring client");
+
+            ProxyOptions proxyOptions = default;
+
+            if (OptionsAtStartup.Soulseek.Connection.Proxy.Enabled)
+            {
+                proxyOptions = new ProxyOptions(
+                    address: OptionsAtStartup.Soulseek.Connection.Proxy.Address,
+                    port: OptionsAtStartup.Soulseek.Connection.Proxy.Port.Value,
+                    username: OptionsAtStartup.Soulseek.Connection.Proxy.Username,
+                    password: OptionsAtStartup.Soulseek.Connection.Proxy.Password);
+            }
+
+            var connectionOptions = new ConnectionOptions(
+                readBufferSize: OptionsAtStartup.Soulseek.Connection.Buffer.Read,
+                writeBufferSize: OptionsAtStartup.Soulseek.Connection.Buffer.Write,
+                connectTimeout: OptionsAtStartup.Soulseek.Connection.Timeout.Connect,
+                inactivityTimeout: OptionsAtStartup.Soulseek.Connection.Timeout.Inactivity,
+                proxyOptions: proxyOptions);
+
+            var patch = new SoulseekClientOptionsPatch(
+                listenPort: OptionsAtStartup.Soulseek.ListenPort,
+                enableListener: true,
+                userEndPointCache: new UserEndPointCache(),
+                distributedChildLimit: OptionsAtStartup.Soulseek.DistributedNetwork.ChildLimit,
+                enableDistributedNetwork: !OptionsAtStartup.Soulseek.DistributedNetwork.Disabled,
+                autoAcknowledgePrivateMessages: false,
+                acceptPrivateRoomInvitations: true,
+                serverConnectionOptions: connectionOptions,
+                peerConnectionOptions: connectionOptions,
+                transferConnectionOptions: connectionOptions,
+                distributedConnectionOptions: connectionOptions,
+                userInfoResponseResolver: UserInfoResponseResolver,
+                browseResponseResolver: BrowseResponseResolver,
+                directoryContentsResponseResolver: DirectoryContentsResponseResolver,
+                enqueueDownloadAction: (username, endpoint, filename) => EnqueueDownloadAction(username, endpoint, filename, TransferTracker),
+                searchResponseCache: new SearchResponseCache(),
+                searchResponseResolver: SearchResponseResolver);
+
+            await Client.ReconfigureOptionsAsync(patch);
+
+            Logger.Information("Client configured");
             Logger.Information("Listening on port {Port}", OptionsAtStartup.Soulseek.ListenPort);
 
             if (OptionsAtStartup.Soulseek.Connection.Proxy.Enabled)
@@ -314,7 +322,7 @@ namespace slskd
 
         public Task StartPublicChatAsync() => Client.StartPublicChatAsync();
 
-        public Task StopAsync(CancellationToken cancellationToken)
+        Task IHostedService.StopAsync(CancellationToken cancellationToken)
         {
             Client.Disconnect("Shutting down", new ApplicationShutdownException("Shutting down"));
             Client.Dispose();
@@ -607,7 +615,7 @@ namespace slskd
 
             foreach (var room in roomNames)
             {
-                tasks.Add(JoinRoomAsync(room));
+                tasks.Add(RoomService.JoinAsync(room));
             }
 
             try
@@ -801,35 +809,37 @@ namespace slskd
 
         private void SharedFileCacheState_OnChange((SharedFileCacheState Previous, SharedFileCacheState Current) state)
         {
-            if (!state.Previous.Filling && state.Current.Filling)
+            var (previous, current) = state;
+
+            if (!previous.Filling && current.Filling)
             {
                 SharesRefreshStarted = DateTime.UtcNow;
 
-                State.SetValue(s => s with { SharedFileCache = state.Current });
+                State.SetValue(s => s with { SharedFileCache = current });
                 Logger.Information("Scanning shares");
             }
 
-            var lastProgress = Math.Round(state.Previous.FillProgress * 100);
-            var currentProgress = Math.Round(state.Current.FillProgress * 100);
+            var lastProgress = Math.Round(previous.FillProgress * 100);
+            var currentProgress = Math.Round(current.FillProgress * 100);
 
             if (lastProgress != currentProgress && Math.Round(currentProgress, 0) % 10 == 0)
             {
-                State.SetValue(s => s with { SharedFileCache = state.Current });
-                Logger.Information("Scanned {Percent}% of shared directories.  Found {Files} files so far.", currentProgress, state.Current.Files);
+                State.SetValue(s => s with { SharedFileCache = current });
+                Logger.Information("Scanned {Percent}% of shared directories.  Found {Files} files so far.", currentProgress, current.Files);
             }
 
-            if (state.Previous.Filling && !state.Current.Filling)
+            if (previous.Filling && !current.Filling)
             {
-                State.SetValue(s => s with { SharedFileCache = state.Current });
+                State.SetValue(s => s with { SharedFileCache = current });
 
-                if (state.Current.Faulted)
+                if (current.Faulted)
                 {
                     Logger.Error("Failed to scan shares.");
                 }
                 else
                 {
                     State.SetValue(s => s with { PendingShareRescan = false });
-                    Logger.Information("Shares scanned successfully. Found {Directories} directories and {Files} files in {Duration}ms", state.Current.Directories, state.Current.Files, (DateTime.UtcNow - SharesRefreshStarted).TotalMilliseconds);
+                    Logger.Information("Shares scanned successfully. Found {Directories} directories and {Files} files in {Duration}ms", current.Directories, current.Files, (DateTime.UtcNow - SharesRefreshStarted).TotalMilliseconds);
 
                     SharesRefreshStarted = default;
 
@@ -841,10 +851,7 @@ namespace slskd
             }
         }
 
-        private void State_OnChange((State Previous, State Current) state)
-        {
-            Logger.Debug("State changed from {Previous} to {Current}", state.Previous.ToJson(), state.Current.ToJson());
-        }
+        private void State_OnChange((State Previous, State Current) state) => Logger.Debug("State changed from {Previous} to {Current}", state.Previous.ToJson(), state.Current.ToJson());
 
         /// <summary>
         ///     Creates and returns a <see cref="UserInfo"/> object in response to a remote request.

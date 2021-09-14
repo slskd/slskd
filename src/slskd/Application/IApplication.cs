@@ -27,11 +27,22 @@ namespace slskd
 
     public interface IApplication : IHostedService
     {
+        /// <summary>
+        ///     Sends an acknowledgement for the specified private message <paramref name="id"/>.
+        /// </summary>
+        /// <param name="id">The id of the private message to acknowledge.</param>
+        /// <returns>The operation context.</returns>
         public Task AcknowledgePrivateMessageAsync(int id);
 
+        /// <summary>
+        ///     Adds a the specified <paramref name="username"/> as a member of the specified private <paramref name="roomName"/>.
+        /// </summary>
+        /// <param name="roomName">The room to which to add the member.</param>
+        /// <param name="username">The username of the member to add.</param>
+        /// <returns>The operation context.</returns>
         public Task AddPrivateRoomMemberAsync(string roomName, string username);
 
-        public Task AddUserAsync(string username);
+        public Task<UserData> AddUserAsync(string username);
 
         public Task<BrowseResponse> BrowseAsync(string username);
 
@@ -58,8 +69,6 @@ namespace slskd
         public Task<UserStatus> GetUserStatusAsync(string username);
 
         public Task GrantUserPrivilegesAsync(string username, int days);
-
-        public Task<RoomData> JoinRoomAsync(string roomName);
 
         public Task LeaveRoomAsync(string roomName);
 
