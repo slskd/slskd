@@ -37,19 +37,19 @@ namespace slskd.Messaging.API
     public class RoomsController : ControllerBase
     {
         public RoomsController(
-            IApplication application,
+            ISoulseekClient soulseekClient,
             IRoomService roomService,
             IStateMonitor<State> applicationStateMonitor,
             IRoomTracker tracker)
         {
-            Application = application;
+            Client = soulseekClient;
             ApplicationStateMonitor = applicationStateMonitor;
             Tracker = tracker;
             RoomService = roomService;
         }
 
         private IRoomService RoomService { get; }
-        private IApplication Application { get; }
+        private ISoulseekClient Client { get; }
         private IStateMonitor<State> ApplicationStateMonitor { get; }
         private IRoomTracker Tracker { get; }
 
@@ -103,7 +103,7 @@ namespace slskd.Messaging.API
         {
             if (Tracker.TryGet(roomName, out var _))
             {
-                await Application.SendRoomMessageAsync(roomName, message);
+                await Client.SendRoomMessageAsync(roomName, message);
                 return StatusCode(StatusCodes.Status201Created);
             }
 
@@ -126,7 +126,7 @@ namespace slskd.Messaging.API
         {
             if (Tracker.TryGet(roomName, out var _))
             {
-                await Application.SetRoomTickerAsync(roomName, message);
+                await Client.SetRoomTickerAsync(roomName, message);
                 return StatusCode(StatusCodes.Status201Created);
             }
 
@@ -149,7 +149,7 @@ namespace slskd.Messaging.API
         {
             if (Tracker.TryGet(roomName, out var _))
             {
-                await Application.AddPrivateRoomMemberAsync(roomName, username);
+                await Client.AddPrivateRoomMemberAsync(roomName, username);
                 return StatusCode(StatusCodes.Status201Created);
             }
 
@@ -213,7 +213,7 @@ namespace slskd.Messaging.API
         [ProducesResponseType(typeof(List<RoomInfo>), 200)]
         public async Task<IActionResult> GetRooms()
         {
-            var list = await Application.GetRoomListAsync();
+            var list = await Client.GetRoomListAsync();
 
             var response = new List<RoomInfoResponse>();
 
@@ -284,7 +284,7 @@ namespace slskd.Messaging.API
                 return StatusCode(StatusCodes.Status404NotFound);
             }
 
-            await Application.LeaveRoomAsync(roomName);
+            await Client.LeaveRoomAsync(roomName);
             Tracker.TryRemove(roomName);
 
             return StatusCode(StatusCodes.Status204NoContent);

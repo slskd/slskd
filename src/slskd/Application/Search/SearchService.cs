@@ -28,6 +28,7 @@ namespace slskd.Search
     using System.Threading.Tasks;
     using Microsoft.EntityFrameworkCore;
     using Microsoft.Extensions.Logging;
+    using Soulseek;
     using SearchOptions = Soulseek.SearchOptions;
     using SearchQuery = Soulseek.SearchQuery;
     using SearchScope = Soulseek.SearchScope;
@@ -43,17 +44,17 @@ namespace slskd.Search
         ///     Initializes a new instance of the <see cref="SearchService"/> class.
         /// </summary>
         /// <param name="optionsMonitor"></param>
-        /// <param name="application"></param>
+        /// <param name="soulseekClient"></param>
         /// <param name="contextFactory">The database context to use.</param>
         /// <param name="log">The logger.</param>
         public SearchService(
             IOptionsMonitor<Options> optionsMonitor,
-            IApplication application,
+            ISoulseekClient soulseekClient,
             IDbContextFactory<SearchDbContext> contextFactory,
             ILogger<SearchService> log)
         {
             OptionsMonitor = optionsMonitor;
-            Application = application;
+            Client = soulseekClient;
             ContextFactory = contextFactory;
             Log = log;
         }
@@ -62,7 +63,7 @@ namespace slskd.Search
             = new ConcurrentDictionary<Guid, CancellationTokenSource>();
 
         private IOptionsMonitor<Options> OptionsMonitor { get; }
-        private IApplication Application { get; }
+        private ISoulseekClient Client { get; }
         private IDbContextFactory<SearchDbContext> ContextFactory { get; }
         private ILogger<SearchService> Log { get; set; }
 
@@ -76,7 +77,7 @@ namespace slskd.Search
         /// <returns>The completed search.</returns>
         public async Task<Search> CreateAsync(Guid id, SearchQuery query, SearchScope scope, SearchOptions options = null)
         {
-            var token = Application.GetNextToken();
+            var token = Client.GetNextToken();
             var cancellationTokenSource = new CancellationTokenSource();
 
             var search = new Search()
@@ -103,7 +104,7 @@ namespace slskd.Search
                 CancellationTokens.TryAdd(id, cancellationTokenSource);
                 var responses = new List<Response>();
 
-                var soulseekSearch = await Application.SearchAsync(
+                var soulseekSearch = await Client.SearchAsync(
                     query,
                     responseReceived: (response) =>
                     {

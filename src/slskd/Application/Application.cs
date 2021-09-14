@@ -122,33 +122,6 @@ namespace slskd
         private ITransferTracker TransferTracker { get; set; }
 
         /// <summary>
-        ///     Sends an acknowledgement for the specified private message <paramref name="id"/>.
-        /// </summary>
-        /// <param name="id">The id of the private message to acknowledge.</param>
-        /// <returns>The operation context.</returns>
-        Task IApplication.AcknowledgePrivateMessageAsync(int id)
-        {
-            Logger.Debug("Acknowledging private message with ID {Id}", id);
-            return Client.AcknowledgePrivateMessageAsync(id);
-        }
-
-        /// <summary>
-        ///     Adds a the specified <paramref name="username"/> as a member of the specified private <paramref name="roomName"/>.
-        /// </summary>
-        /// <param name="roomName">The room to which to add the member.</param>
-        /// <param name="username">The username of the member to add.</param>
-        /// <returns>The operation context.</returns>
-        Task IApplication.AddPrivateRoomMemberAsync(string roomName, string username)
-        {
-            Logger.Information("Adding member {Username} to private room {roomName}", username, roomName);
-            return Client.AddPrivateRoomMemberAsync(roomName, username);
-        }
-
-        public Task<UserData> AddUserAsync(string username) => Client.AddUserAsync(username);
-
-        public Task<BrowseResponse> BrowseAsync(string username) => Client.BrowseAsync(username);
-
-        /// <summary>
         ///     Gets the version of the latest application release.
         /// </summary>
         /// <returns>The operation context.</returns>
@@ -202,28 +175,6 @@ namespace slskd
         public void Disconnect(string message = null, Exception exception = null)
             => Client.Disconnect(message, exception ?? new IntentionalDisconnectException(message));
 
-        public Task DownloadAsync(string username, string filename, Stream outputStream, long? size, long startOffset = 0, int? token = null, TransferOptions options = null, CancellationToken? cancellationToken = null)
-            => Client.DownloadAsync(username, filename, outputStream, size, startOffset, token, options, cancellationToken);
-
-        public Task<int> GetDownloadPlaceInQueueAsync(string username, string filename)
-            => Client.GetDownloadPlaceInQueueAsync(username, filename);
-
-        public int GetNextToken() => Client.GetNextToken();
-
-        public Task<RoomList> GetRoomListAsync() => Client.GetRoomListAsync();
-
-        public Task<IPEndPoint> GetUserEndPointAsync(string username) => Client.GetUserEndPointAsync(username);
-
-        public Task<UserInfo> GetUserInfoAsync(string username) => Client.GetUserInfoAsync(username);
-
-        public Task<bool> GetUserPrivilegedAsync(string username) => Client.GetUserPrivilegedAsync(username);
-
-        public Task<UserStatus> GetUserStatusAsync(string username) => Client.GetUserStatusAsync(username);
-
-        public Task GrantUserPrivilegesAsync(string username, int days) => Client.GrantUserPrivilegesAsync(username, days);
-
-        public Task LeaveRoomAsync(string roomName) => Client.LeaveRoomAsync(roomName);
-
         /// <summary>
         ///     Re-scans shared directories.
         /// </summary>
@@ -232,14 +183,6 @@ namespace slskd
 
         public Task<Soulseek.Search> SearchAsync(SearchQuery query, Action<SearchResponse> responseReceived, SearchScope scope = null, int? token = null, SearchOptions options = null, CancellationToken? cancellationToken = null)
             => Client.SearchAsync(query, responseReceived, scope, token, options, cancellationToken);
-
-        public Task SendPrivateMessageAsync(string username, string message) => Client.SendPrivateMessageAsync(username, message);
-
-        public Task SendRoomMessageAsync(string roomName, string message)
-            => Client.SendRoomMessageAsync(roomName, message);
-
-        public Task SetRoomTickerAsync(string roomName, string message)
-            => Client.SetRoomTickerAsync(roomName, message);
 
         async Task IHostedService.StartAsync(CancellationToken cancellationToken)
         {
@@ -320,8 +263,6 @@ namespace slskd
             }
         }
 
-        public Task StartPublicChatAsync() => Client.StartPublicChatAsync();
-
         Task IHostedService.StopAsync(CancellationToken cancellationToken)
         {
             Client.Disconnect("Shutting down", new ApplicationShutdownException("Shutting down"));
@@ -329,8 +270,6 @@ namespace slskd
             Logger.Information("Client stopped");
             return Task.CompletedTask;
         }
-
-        public Task StopPublicChatAsync() => Client.StopPublicChatAsync();
 
         private Task AutoJoinRoomsAsync(string[] rooms)
         {

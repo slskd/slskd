@@ -38,19 +38,20 @@ namespace slskd.Messaging.API
         /// <summary>
         ///     Initializes a new instance of the <see cref="ConversationsController"/> class.
         /// </summary>
-        /// <param name="application"></param>
+        /// <param name="soulseekClient"></param>
+        /// <param name="applicationStateMonotor"></param>
         /// <param name="tracker"></param>
         public ConversationsController(
-            IApplication application,
+            ISoulseekClient soulseekClient,
             IStateMonitor<State> applicationStateMonotor,
             IConversationTracker tracker)
         {
-            Application = application;
+            Client = soulseekClient;
             ApplicationStateMonitor = applicationStateMonotor;
             Tracker = tracker;
         }
 
-        private IApplication Application { get; }
+        private ISoulseekClient Client { get; }
         private IStateMonitor<State> ApplicationStateMonitor { get; }
         private IConversationTracker Tracker { get; }
 
@@ -77,7 +78,7 @@ namespace slskd.Messaging.API
                 return NotFound();
             }
 
-            await Application.AcknowledgePrivateMessageAsync(id);
+            await Client.AcknowledgePrivateMessageAsync(id);
             return StatusCode(200);
         }
 
@@ -107,7 +108,7 @@ namespace slskd.Messaging.API
             {
                 tasks.Add(Task.Run(async () =>
                 {
-                    await Application.AcknowledgePrivateMessageAsync(message.Id);
+                    await Client.AcknowledgePrivateMessageAsync(message.Id);
                     message.Acknowledged = true;
                 }));
             }
@@ -201,7 +202,7 @@ namespace slskd.Messaging.API
                 return BadRequest();
             }
 
-            await Application.SendPrivateMessageAsync(username, message);
+            await Client.SendPrivateMessageAsync(username, message);
 
             // append the outgoing message to the tracker
             Tracker.AddOrUpdate(username, new PrivateMessage()
