@@ -38,14 +38,17 @@ namespace slskd.Messaging.API
     {
         public RoomsController(
             IApplication application,
+            IRoomService roomService,
             IStateMonitor<State> applicationStateMonitor,
             IRoomTracker tracker)
         {
             Application = application;
             ApplicationStateMonitor = applicationStateMonitor;
             Tracker = tracker;
+            RoomService = roomService;
         }
 
+        private IRoomService RoomService { get; }
         private IApplication Application { get; }
         private IStateMonitor<State> ApplicationStateMonitor { get; }
         private IRoomTracker Tracker { get; }
@@ -246,7 +249,7 @@ namespace slskd.Messaging.API
 
             try
             {
-                var roomData = await Application.JoinRoomAsync(roomName);
+                var roomData = await RoomService.JoinAsync(roomName);
                 var room = Room.FromRoomData(roomData);
                 Tracker.TryAdd(roomName, room);
 
