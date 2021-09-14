@@ -37,12 +37,12 @@ namespace slskd
     using slskd.Cryptography;
     using slskd.Integrations.FTP;
     using slskd.Integrations.Pushbullet;
-    using slskd.Management;
     using slskd.Messaging;
     using slskd.Peer;
     using slskd.Search;
     using slskd.Transfer;
     using slskd.Validation;
+    using Soulseek;
 
     /// <summary>
     ///     ASP.NET Startup.
@@ -199,6 +199,16 @@ namespace slskd
 
             services.AddHttpClient();
 
+            // add a partially configured instance of SoulseekClient. the Application instance will
+            // complete configuration at startup.
+            services.AddSingleton<ISoulseekClient, SoulseekClient>(_ =>
+                new SoulseekClient(options: new SoulseekClientOptions(minimumDiagnosticLevel: OptionsAtStartup.Soulseek.DiagnosticLevel)));
+
+            // add Application to DI as well as a hosted service so that other services can
+            // access instance methods
+            services.AddSingleton<IApplication, Application>();
+            services.AddHostedService(p => p.GetRequiredService<IApplication>());
+
             services.AddSingleton<ITransferTracker, TransferTracker>();
             services.AddSingleton<IBrowseTracker, BrowseTracker>();
             services.AddSingleton<IConversationTracker, ConversationTracker>();
@@ -208,16 +218,12 @@ namespace slskd
 
             services.AddSingleton<ISearchService, SearchService>();
             services.AddSingleton<IPeerService, PeerService>();
+            services.AddSingleton<IRoomService, RoomService>();
 
             services.AddSingleton<IFTPClientFactory, FTPClientFactory>();
             services.AddSingleton<IFTPService, FTPService>();
 
             services.AddSingleton<IPushbulletService, PushbulletService>();
-
-            services.AddTransient<ISoulseekClientFactory, SoulseekClientFactory>();
-
-            services.AddSingleton<IApplication, Application>();
-            services.AddHostedService(p => p.GetRequiredService<IApplication>());
         }
 
         /// <summary>
@@ -265,7 +271,7 @@ namespace slskd
 
             FileServerOptions fileServerOptions = default;
 
-            if (!Directory.Exists(ContentPath))
+            if (!System.IO.Directory.Exists(ContentPath))
             {
                 logger.Warning($"Static content disabled; cannot find content path '{ContentPath}'");
             }
@@ -330,7 +336,7 @@ namespace slskd
 
             // finally, hit the fileserver again. if the path was modified to return the index above, the index document will be
             // returned. otherwise it will throw a final 404 back to the client.
-            if (Directory.Exists(ContentPath))
+            if (System.IO.Directory.Exists(ContentPath))
             {
                 app.UseFileServer(fileServerOptions);
             }
