@@ -15,11 +15,14 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
+using Microsoft.Extensions.Options;
+
 namespace slskd.Management.API
 {
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
+    using Soulseek;
 
     /// <summary>
     ///     Server.
@@ -32,15 +35,18 @@ namespace slskd.Management.API
     public class ServerController : ControllerBase
     {
         public ServerController(
-            IApplication application,
-            IStateMonitor<State> applicationStateMonitor)
+            ISoulseekClient soulseekClient,
+            IOptionsSnapshot<Options> optionsSnapshot,
+            IStateSnapshot<State> stateSnapshot)
         {
-            Application = application;
-            ApplicationStateMonitor = applicationStateMonitor;
+            Client = soulseekClient;
+            OptionsSnapshot = optionsSnapshot;
+            StateSnapshot = stateSnapshot;
         }
 
-        private IApplication Application { get; }
-        private IStateMonitor<State> ApplicationStateMonitor { get; }
+        private ISoulseekClient Client { get; }
+        private IOptionsSnapshot<Options> OptionsSnapshot { get; }
+        private IStateSnapshot<State> StateSnapshot { get; }
 
         /// <summary>
         ///     Connects the client.
@@ -53,9 +59,9 @@ namespace slskd.Management.API
         [ProducesResponseType(403)]
         public async Task<IActionResult> Connect()
         {
-            if (!ApplicationStateMonitor.CurrentValue.Server.IsConnected)
+            if (!Client.State.HasFlag(SoulseekClientStates.Connected))
             {
-                await Application.ConnectAsync();
+                await Client.ConnectAsync(OptionsSnapshot.Value.Soulseek.Username, OptionsSnapshot.Value.Soulseek.Password);
             }
 
             return Ok();
@@ -73,9 +79,9 @@ namespace slskd.Management.API
         [ProducesResponseType(403)]
         public IActionResult Disconnect([FromBody] string message)
         {
-            if (ApplicationStateMonitor.CurrentValue.Server.IsConnected)
+            if (Client.State.HasFlag(SoulseekClientStates.Connected))
             {
-                Application.Disconnect(message);
+                Client.Disconnect(message, new IntentionalDisconnectException(message));
             }
 
             return NoContent();
@@ -93,7 +99,7 @@ namespace slskd.Management.API
         [ProducesResponseType(403)]
         public IActionResult Get()
         {
-            return Ok(ApplicationStateMonitor.CurrentValue.Server);
+            return Ok(StateSnapshot.Value.Server);
         }
     }
 }
