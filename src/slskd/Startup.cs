@@ -104,7 +104,7 @@ namespace slskd
                     return true;
                 });
 
-            services.AddManagedState<State>(state => state with { Version = state.Version with { Current = "9000" } });
+            services.AddManagedState<State>();
 
             services.AddCors(options => options.AddPolicy("AllowAll", builder => builder.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader()));
 
@@ -217,8 +217,8 @@ namespace slskd
             services.AddSingleton<ISharedFileCache, SharedFileCache>();
 
             services.AddSingleton<ISearchService, SearchService>();
-            services.AddSingleton<IPeerService, PeerService>();
-            services.AddSingleton<IRoomService, RoomService>();
+            services.AddScoped<IPeerService, PeerService>();
+            services.AddScoped<IRoomService, RoomService>();
 
             services.AddSingleton<IFTPClientFactory, FTPClientFactory>();
             services.AddSingleton<IFTPService, FTPService>();
