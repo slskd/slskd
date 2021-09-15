@@ -17,6 +17,7 @@
 
 namespace slskd
 {
+    using System;
     using System.Net;
     using System.Text.Json.Serialization;
     using Soulseek;
@@ -32,6 +33,7 @@ namespace slskd
         public bool PendingShareRescan { get; init; }
         public ServerState Server { get; init; } = new ServerState();
         public SharedFileCacheState SharedFileCache { get; init; } = new SharedFileCacheState();
+        public string[] Rooms { get; init; } = Array.Empty<string>();
     }
 
     public record VersionState
