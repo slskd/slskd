@@ -217,8 +217,8 @@ namespace slskd
             services.AddSingleton<ISharedFileCache, SharedFileCache>();
 
             services.AddSingleton<ISearchService, SearchService>();
-            services.AddScoped<IPeerService, PeerService>();
-            services.AddScoped<IRoomService, RoomService>();
+            services.AddSingleton<IPeerService, PeerService>();
+            services.AddSingleton<IRoomService, RoomService>();
 
             services.AddSingleton<IFTPClientFactory, FTPClientFactory>();
             services.AddSingleton<IFTPService, FTPService>();
