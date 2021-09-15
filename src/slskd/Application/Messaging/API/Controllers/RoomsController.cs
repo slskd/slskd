@@ -284,7 +284,7 @@ namespace slskd.Messaging.API
                 return StatusCode(StatusCodes.Status404NotFound);
             }
 
-            await Client.LeaveRoomAsync(roomName);
+            await RoomService.LeaveAsync(roomName);
             Tracker.TryRemove(roomName);
 
             return StatusCode(StatusCodes.Status204NoContent);
