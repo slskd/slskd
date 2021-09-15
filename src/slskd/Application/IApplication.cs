@@ -17,18 +17,12 @@
 
 namespace slskd
 {
-    using System;
     using System.Threading.Tasks;
     using Microsoft.Extensions.Hosting;
 
     public interface IApplication : IHostedService
     {
         public Task CheckVersionAsync();
-
-        public Task ConnectAsync();
-
-        public void Disconnect(string message = null, Exception exception = null);
-
         public Task RescanSharesAsync();
     }
 }

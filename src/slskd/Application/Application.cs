@@ -161,28 +161,10 @@ namespace slskd
         }
 
         /// <summary>
-        ///     Connects the Soulseek client to the server using the configured username and password.
-        /// </summary>
-        /// <returns>The operation context.</returns>
-        public Task ConnectAsync()
-            => Client.ConnectAsync(Options.Soulseek.Username, Options.Soulseek.Password);
-
-        /// <summary>
-        ///     Disconnects the Soulseek client from the server.
-        /// </summary>
-        /// <param name="message">An optional message containing the reason for the disconnect.</param>
-        /// <param name="exception">An optional Exception to associate with the disconnect.</param>
-        public void Disconnect(string message = null, Exception exception = null)
-            => Client.Disconnect(message, exception ?? new IntentionalDisconnectException(message));
-
-        /// <summary>
         ///     Re-scans shared directories.
         /// </summary>
         /// <returns>The operation context.</returns>
         public Task RescanSharesAsync() => SharedFileCache.FillAsync();
-
-        public Task<Soulseek.Search> SearchAsync(SearchQuery query, Action<SearchResponse> responseReceived, SearchScope scope = null, int? token = null, SearchOptions options = null, CancellationToken? cancellationToken = null)
-            => Client.SearchAsync(query, responseReceived, scope, token, options, cancellationToken);
 
         async Task IHostedService.StartAsync(CancellationToken cancellationToken)
         {
