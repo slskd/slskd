@@ -23,7 +23,7 @@ api.interceptors.request.use(config => {
 api.interceptors.response.use(response => {
   return response;
 }, error => {
-  if (error.response.status === 401 && error.response.config.url !== '/session' && error.response.config.url !== '/server') {
+  if (error.response.status === 401 && !['/session', '/server', '/application'].includes(error.response.config.url)) {
     sessionStorage.removeItem(tokenKey);
     localStorage.removeItem(tokenKey);
 
