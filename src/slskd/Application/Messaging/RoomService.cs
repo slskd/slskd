@@ -1,81 +1,202 @@
-﻿namespace slskd.Messaging
+﻿// <copyright file="RoomService.cs" company="slskd Team">
+//     Copyright (c) slskd Team. All rights reserved.
+//
+//     This program is free software: you can redistribute it and/or modify
+//     it under the terms of the GNU Affero General Public License as published
+//     by the Free Software Foundation, either version 3 of the License, or
+//     (at your option) any later version.
+//
+//     This program is distributed in the hope that it will be useful,
+//     but WITHOUT ANY WARRANTY; without even the implied warranty of
+//     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//     GNU Affero General Public License for more details.
+//
+//     You should have received a copy of the GNU Affero General Public License
+//     along with this program.  If not, see https://www.gnu.org/licenses/.
+// </copyright>
+
+using Microsoft.Extensions.Options;
+
+namespace slskd.Messaging
 {
     using System;
+    using System.Collections.Generic;
     using System.Linq;
     using System.Threading.Tasks;
     using Serilog;
     using Soulseek;
 
+    /// <summary>
+    ///     Chat room management and event handling.
+    /// </summary>
     public interface IRoomService
     {
-        Task<RoomData> JoinAsync(string name);
-        Task LeaveAsync(string name);
+        /// <summary>
+        ///     Joins the specfied <paramref name="roomName"/>.
+        /// </summary>
+        /// <param name="roomName">The name of the room to join.</param>
+        /// <returns>The operation context, including information about the room.</returns>
+        Task<RoomData> JoinAsync(string roomName);
+
+        /// <summary>
+        ///     Leaves the specified <paramref name="roomName"/>.
+        /// </summary>
+        /// <param name="roomName">The name of the room to leave.</param>
+        /// <returns>The operation context.</returns>
+        Task LeaveAsync(string roomName);
+
+        /// <summary>
+        ///     Attempts to join the specified <paramref name="roomNames"/>.
+        /// </summary>
+        /// <remarks>
+        ///     Failures are logged but not thrown. Use JoinAsync() to trap Exceptions.
+        /// </remarks>
+        /// <param name="roomNames">The list of room names to join.</param>
+        /// <returns>The operation context.</returns>
+        Task TryJoinAsync(params string[] roomNames);
     }
 
+    /// <summary>
+    ///     Chat room management and event handling.
+    /// </summary>
     public class RoomService : IRoomService
     {
         public RoomService(
             ISoulseekClient soulseekClient,
-            IStateMonitor<State> stateMonitor,
-            IStateMutator<State> stateMutator)
+            IOptionsMonitor<Options> optionsMonitor,
+            IStateMutator<State> stateMutator,
+            IRoomTracker roomTracker)
         {
             Client = soulseekClient;
 
-            Monitor = stateMonitor;
-            Mutator = stateMutator;
+            StateMutator = stateMutator;
+            OptionsMonitor = optionsMonitor;
+
+            RoomTracker = roomTracker;
 
             Client.RoomJoined += Client_RoomJoined;
             Client.RoomLeft += Client_RoomLeft;
+            Client.RoomMessageReceived += Client_RoomMessageReceived;
+            Client.LoggedIn += Client_LoggedIn;
         }
 
         private ISoulseekClient Client { get; }
-        private IStateMonitor<State> Monitor { get; }
-        private IStateMutator<State> Mutator { get; }
         private ILogger Logger { get; set; } = Log.ForContext<RoomService>();
+        private IStateMutator<State> StateMutator { get; }
+        private IOptionsMonitor<Options> OptionsMonitor { get; }
+        private IRoomTracker RoomTracker { get; set; }
 
-        public async Task<RoomData> JoinAsync(string name)
+        /// <summary>
+        ///     Joins the specfied <paramref name="roomName"/>.
+        /// </summary>
+        /// <param name="roomName">The name of the room to join.</param>
+        /// <returns>The operation context, including information about the room.</returns>
+        public async Task<RoomData> JoinAsync(string roomName)
         {
-            Logger.Debug("Joining room {Room}", name);
+            Logger.Debug("Joining room {Room}", roomName);
 
             try
             {
-                var data = await Client.JoinRoomAsync(name);
+                var data = await Client.JoinRoomAsync(roomName);
 
-                Mutator.SetValue(state => state with { Rooms = state.Rooms.Concat(new[] { name }).ToArray() });
+                StateMutator.SetValue(state => state with { Rooms = state.Rooms.Concat(new[] { roomName }).Distinct().ToArray() });
 
-                Logger.Information("Joined room {Room}", name);
-                Logger.Debug("Room data for {Room}: {Info}", name, data.ToJson());
+                Logger.Information("Joined room {Room}", roomName);
+                Logger.Debug("Room data for {Room}: {Info}", roomName, data.ToJson());
                 return data;
             }
             catch (Exception ex)
             {
-                Logger.Warning("Failed to join room {Room}: {Message}", name, ex.Message);
+                Logger.Warning("Failed to join room {Room}: {Message}", roomName, ex.Message);
                 throw;
             }
         }
 
-        public async Task LeaveAsync(string name)
+        /// <summary>
+        ///     Leaves the specified <paramref name="roomName"/>.
+        /// </summary>
+        /// <param name="roomName">The name of the room to leave.</param>
+        /// <returns>The operation context.</returns>
+        public async Task LeaveAsync(string roomName)
         {
-            Logger.Debug("Leaving room {Room}", name);
+            Logger.Debug("Leaving room {Room}", roomName);
+
             try
             {
-                await Client.LeaveRoomAsync(name);
+                await Client.LeaveRoomAsync(roomName);
 
-                Mutator.SetValue(state => state with { Rooms = state.Rooms.Where(room => room != name).ToArray() });
+                StateMutator.SetValue(state => state with { Rooms = state.Rooms.Where(room => room != roomName).ToArray() });
             }
             catch (Exception ex)
             {
-                Logger.Warning("Failed to leave room {Room}: {Message}", name, ex.Message);
+                Logger.Warning("Failed to leave room {Room}: {Message}", roomName, ex.Message);
                 throw;
+            }
+        }
+
+        /// <summary>
+        ///     Attempts to join the specified <paramref name="roomNames"/>.
+        /// </summary>
+        /// <remarks>
+        ///     Failures are logged but not thrown. Use JoinAsync() to trap Exceptions.
+        /// </remarks>
+        /// <param name="roomNames">The list of room names to join.</param>
+        /// <returns>The operation context.</returns>
+        public async Task TryJoinAsync(params string[] roomNames)
+        {
+            var tasks = new List<Task>();
+
+            foreach (var room in roomNames)
+            {
+                tasks.Add(JoinAsync(room));
+            }
+
+            try
+            {
+                await Task.WhenAll(tasks);
+            }
+            catch (Exception ex)
+            {
+                Logger.Debug(ex, "Caught Exception in JoinAsync");
+            }
+        }
+
+        private async void Client_LoggedIn(object sender, EventArgs e)
+        {
+            var autoJoinRooms = OptionsMonitor.CurrentValue.Rooms;
+
+            if (autoJoinRooms.Any())
+            {
+                Logger.Information("Auto-joining room(s) {Rooms}", string.Join(", ", autoJoinRooms));
+                await TryJoinAsync(autoJoinRooms);
+            }
+
+            var previouslyJoinedRooms = RoomTracker.Rooms.Keys.Except(autoJoinRooms);
+
+            if (previouslyJoinedRooms.Any())
+            {
+                Logger.Information("Attempting to rejoin room(s) {Rooms}", string.Join(", ", previouslyJoinedRooms));
+                await TryJoinAsync(previouslyJoinedRooms.ToArray());
             }
         }
 
         private void Client_RoomJoined(object sender, RoomJoinedEventArgs args)
         {
+            if (args.Username != Client.Username)
+            {
+                RoomTracker.TryAddUser(args.RoomName, args.UserData);
+            }
         }
 
         private void Client_RoomLeft(object sender, RoomLeftEventArgs args)
         {
+            RoomTracker.TryRemoveUser(args.RoomName, args.Username);
+        }
+
+        private void Client_RoomMessageReceived(object sender, RoomMessageReceivedEventArgs args)
+        {
+            var message = RoomMessage.FromEventArgs(args, DateTime.UtcNow);
+            RoomTracker.AddOrUpdateMessage(args.RoomName, message);
         }
     }
 }

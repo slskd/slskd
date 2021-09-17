@@ -19,7 +19,6 @@ namespace slskd
 {
     using System;
     using System.Collections.Concurrent;
-    using System.Collections.Generic;
     using System.IO;
     using System.Linq;
     using System.Net;
@@ -72,7 +71,6 @@ namespace slskd
             TransferTracker = transferTracker;
             BrowseTracker = browseTracker;
             ConversationTracker = conversationTracker;
-            RoomTracker = roomTracker;
             Pushbullet = pushbulletService;
 
             RoomService = roomService;
@@ -95,8 +93,6 @@ namespace slskd
 
             Client.PublicChatMessageReceived += Client_PublicChatMessageReceived;
             Client.RoomMessageReceived += Client_RoomMessageReceived;
-            Client.RoomJoined += Client_RoomJoined;
-            Client.RoomLeft += Client_RoomLeft;
             Client.Disconnected += Client_Disconnected;
             Client.Connected += Client_Connected;
             Client.LoggedIn += Client_LoggedIn;
@@ -115,7 +111,6 @@ namespace slskd
         private ReaderWriterLockSlim OptionsSyncRoot { get; } = new ReaderWriterLockSlim();
         private Options PreviousOptions { get; set; }
         private IPushbulletService Pushbullet { get; }
-        private IRoomTracker RoomTracker { get; set; }
         private ISharedFileCache SharedFileCache { get; set; }
         private DateTime SharesRefreshStarted { get; set; }
         private IManagedState<State> State { get; }
@@ -253,14 +248,6 @@ namespace slskd
             return Task.CompletedTask;
         }
 
-        private Task AutoJoinRoomsAsync(string[] rooms)
-        {
-            // don't try to join rooms that we've already joined. the server returns no response in this case and the client
-            // believes the request has timed out.
-            var unjoined = rooms.Where(room => !RoomTracker.Rooms.ContainsKey(room));
-            return JoinRoomsAsync(unjoined);
-        }
-
         /// <summary>
         ///     Creates and returns an instances of <see cref="BrowseResponse"/> in response to a remote request.
         /// </summary>
@@ -372,12 +359,6 @@ namespace slskd
             // send whatever counts we have currently. we'll probably connect before the cache is primed, so these will be zero
             // initially, but we'll update them when the cache is filled.
             _ = Client.SetSharedCountsAsync(State.CurrentValue.SharedFileCache.Directories, State.CurrentValue.SharedFileCache.Files);
-
-            // rejoin any rooms that we might have been in during the previous session
-            await JoinRoomsAsync(RoomTracker.Rooms.Keys);
-
-            // join the rooms configured for autojoin. always do this after rejoining has completed.
-            await AutoJoinRoomsAsync(OptionsMonitor.CurrentValue.Rooms);
         }
 
         private void Client_PrivateMessageRecieved(object sender, PrivateMessageReceivedEventArgs args)
@@ -401,24 +382,9 @@ namespace slskd
             }
         }
 
-        private void Client_RoomJoined(object sender, RoomJoinedEventArgs args)
-        {
-            // this will fire when we join a room; track that through the join operation.
-            if (args.Username != Client.Username)
-            {
-                RoomTracker.TryAddUser(args.RoomName, args.UserData);
-            }
-        }
-
-        private void Client_RoomLeft(object sender, RoomLeftEventArgs args)
-        {
-            RoomTracker.TryRemoveUser(args.RoomName, args.Username);
-        }
-
         private void Client_RoomMessageReceived(object sender, RoomMessageReceivedEventArgs args)
         {
             var message = RoomMessage.FromEventArgs(args, DateTime.UtcNow);
-            RoomTracker.AddOrUpdateMessage(args.RoomName, message);
 
             if (Options.Integration.Pushbullet.Enabled && message.Message.Contains(Client.Username))
             {
@@ -530,25 +496,6 @@ namespace slskd
             return Task.CompletedTask;
         }
 
-        private async Task JoinRoomsAsync(IEnumerable<string> roomNames)
-        {
-            var tasks = new List<Task>();
-
-            foreach (var room in roomNames)
-            {
-                tasks.Add(RoomService.JoinAsync(room));
-            }
-
-            try
-            {
-                await Task.WhenAll(tasks);
-            }
-            catch (Exception ex)
-            {
-                Logger.Debug(ex, "Caught Exception in JoinRoomsAsync");
-            }
-        }
-
         private async Task OptionsMonitor_OnChange(Options newOptions)
         {
             // this code is known to fire more than once per update. i'm not sure whether these might be executed concurrently.
@@ -601,7 +548,7 @@ namespace slskd
                     || newOptions.Rooms.Except(PreviousOptions.Rooms).Any())
                 {
                     Logger.Information("Room configuration changed.  Joining any newly added rooms.");
-                    _ = AutoJoinRoomsAsync(newOptions.Rooms);
+                    _ = RoomService.TryJoinAsync(newOptions.Rooms);
                 }
 
                 // determine whether any Soulseek options changed. if so, we need to construct a patch and invoke ReconfigureOptionsAsync().
