@@ -352,7 +352,7 @@ namespace slskd
             }
         }
 
-        private async void Client_LoggedIn(object sender, EventArgs e)
+        private void Client_LoggedIn(object sender, EventArgs e)
         {
             Logger.Information("Logged in to the Soulseek server as {Username}", Client.Username);
 
