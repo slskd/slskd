@@ -106,7 +106,11 @@ namespace slskd
 
             services.AddManagedState<State>();
 
-            services.AddCors(options => options.AddPolicy("AllowAll", builder => builder.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader()));
+            services.AddCors(options => options.AddPolicy("AllowAll", builder => builder
+                .AllowAnyHeader()
+                .AllowAnyMethod()
+                .SetIsOriginAllowed((host) => true)
+                .AllowCredentials()));
 
             services.AddSingleton(JwtSigningKey);
 
@@ -147,6 +151,12 @@ namespace slskd
                 options.JsonSerializerOptions.Converters.Add(new IPAddressConverter());
                 options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
                 options.JsonSerializerOptions.IgnoreNullValues = true;
+            });
+
+            services.AddSignalR().AddJsonProtocol(options =>
+            {
+                options.PayloadSerializerOptions.Converters.Add(new IPAddressConverter());
+                options.PayloadSerializerOptions.Converters.Add(new JsonStringEnumConverter());
             });
 
             services.AddHealthChecks();
@@ -303,6 +313,7 @@ namespace slskd
             app.UseAuthorization();
             app.UseEndpoints(endpoints =>
             {
+                endpoints.MapHub<Hub>("/live");
                 endpoints.MapControllers();
                 endpoints.MapHealthChecks("/health");
 
