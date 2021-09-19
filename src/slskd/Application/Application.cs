@@ -39,6 +39,12 @@ namespace slskd
     using Soulseek;
     using Soulseek.Diagnostics;
 
+    public interface IApplication : IHostedService
+    {
+        public Task CheckVersionAsync();
+        public Task RescanSharesAsync();
+    }
+
     public sealed class Application : IApplication
     {
         private static readonly int ReconnectMaxDelayMilliseconds = 300000; // 5 minutes

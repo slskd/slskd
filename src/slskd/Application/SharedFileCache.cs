@@ -35,6 +35,51 @@ namespace slskd
     /// <summary>
     ///     Shared file cache.
     /// </summary>
+    public interface ISharedFileCache
+    {
+        /// <summary>
+        ///     Gets the cache state monitor.
+        /// </summary>
+        IStateMonitor<SharedFileCacheState> StateMonitor { get; }
+
+        /// <summary>
+        ///     Returns the contents of the cache.
+        /// </summary>
+        /// <returns>The contents of the cache.</returns>
+        IEnumerable<Directory> Browse();
+
+        /// <summary>
+        ///     Scans the configured shares and fills the cache.
+        /// </summary>
+        /// <returns>The operation context.</returns>
+        Task FillAsync();
+
+        /// <summary>
+        ///     Returns the contents of the specified <paramref name="directory"/>.
+        /// </summary>
+        /// <param name="directory">The directory for which the contents are to be listed.</param>
+        /// <returns>The contents of the directory.</returns>
+        Directory List(string directory);
+
+        /// <summary>
+        ///     Substitutes the mask in the specified <paramref name="filename"/> with the original path, if the mask is tracked
+        ///     by the cache.
+        /// </summary>
+        /// <param name="filename">The fully qualified filename to unmask.</param>
+        /// <returns>The unmasked filename.</returns>
+        public string Resolve(string filename);
+
+        /// <summary>
+        ///     Searches the cache for the specified <paramref name="query"/> and returns the matching files.
+        /// </summary>
+        /// <param name="query">The query for which to search.</param>
+        /// <returns>The matching files.</returns>
+        Task<IEnumerable<File>> SearchAsync(SearchQuery query);
+    }
+
+    /// <summary>
+    ///     Shared file cache.
+    /// </summary>
     public class SharedFileCache : ISharedFileCache
     {
         /// <summary>
