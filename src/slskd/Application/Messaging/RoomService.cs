@@ -61,6 +61,13 @@ namespace slskd.Messaging
     /// </summary>
     public class RoomService : IRoomService
     {
+        /// <summary>
+        ///     Initializes a new instance of the <see cref="RoomService"/> class.
+        /// </summary>
+        /// <param name="soulseekClient"></param>
+        /// <param name="optionsMonitor"></param>
+        /// <param name="stateMutator"></param>
+        /// <param name="roomTracker"></param>
         public RoomService(
             ISoulseekClient soulseekClient,
             IOptionsMonitor<Options> optionsMonitor,
@@ -74,10 +81,11 @@ namespace slskd.Messaging
 
             RoomTracker = roomTracker;
 
+            Client.LoggedIn += Client_LoggedIn;
+
             Client.RoomJoined += Client_RoomJoined;
             Client.RoomLeft += Client_RoomLeft;
             Client.RoomMessageReceived += Client_RoomMessageReceived;
-            Client.LoggedIn += Client_LoggedIn;
         }
 
         private ISoulseekClient Client { get; }
@@ -99,9 +107,6 @@ namespace slskd.Messaging
             {
                 var data = await Client.JoinRoomAsync(roomName);
 
-                StateMutator.SetValue(state => state with { Rooms = state.Rooms.Concat(new[] { roomName }).Distinct().ToArray() });
-
-                Logger.Information("Joined room {Room}", roomName);
                 Logger.Debug("Room data for {Room}: {Info}", roomName, data.ToJson());
                 return data;
             }
@@ -124,8 +129,6 @@ namespace slskd.Messaging
             try
             {
                 await Client.LeaveRoomAsync(roomName);
-
-                StateMutator.SetValue(state => state with { Rooms = state.Rooms.Where(room => room != roomName).ToArray() });
             }
             catch (Exception ex)
             {
@@ -182,7 +185,12 @@ namespace slskd.Messaging
 
         private void Client_RoomJoined(object sender, RoomJoinedEventArgs args)
         {
-            if (args.Username != Client.Username)
+            if (args.Username == Client.Username)
+            {
+                Logger.Information("Joined room {Room}", args.RoomName);
+                StateMutator.SetValue(state => state with { Rooms = state.Rooms.Concat(new[] { args.RoomName }).Distinct().ToArray() });
+            }
+            else
             {
                 RoomTracker.TryAddUser(args.RoomName, args.UserData);
             }
@@ -190,7 +198,15 @@ namespace slskd.Messaging
 
         private void Client_RoomLeft(object sender, RoomLeftEventArgs args)
         {
-            RoomTracker.TryRemoveUser(args.RoomName, args.Username);
+            if (args.Username == Client.Username)
+            {
+                Logger.Information("Left room {Room}", args.RoomName);
+                StateMutator.SetValue(state => state with { Rooms = state.Rooms.Where(room => room != args.RoomName).ToArray() });
+            }
+            else
+            {
+                RoomTracker.TryRemoveUser(args.RoomName, args.Username);
+            }
         }
 
         private void Client_RoomMessageReceived(object sender, RoomMessageReceivedEventArgs args)
