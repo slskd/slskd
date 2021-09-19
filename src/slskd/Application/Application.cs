@@ -25,6 +25,7 @@ namespace slskd
     using System.Reflection;
     using System.Threading;
     using System.Threading.Tasks;
+    using Microsoft.AspNetCore.SignalR;
     using Microsoft.Extensions.Hosting;
     using Microsoft.Extensions.Options;
     using Serilog;
@@ -53,7 +54,8 @@ namespace slskd
             IRoomTracker roomTracker,
             IRoomService roomService,
             ISharedFileCache sharedFileCache,
-            IPushbulletService pushbulletService)
+            IPushbulletService pushbulletService,
+            IHubContext<Hub> hubContext)
         {
             OptionsAtStartup = optionsAtStartup;
 
@@ -74,6 +76,7 @@ namespace slskd
             Pushbullet = pushbulletService;
 
             RoomService = roomService;
+            HubContext = hubContext;
 
             Client = soulseekClient;
 
@@ -115,6 +118,7 @@ namespace slskd
         private DateTime SharesRefreshStarted { get; set; }
         private IManagedState<State> State { get; }
         private ITransferTracker TransferTracker { get; set; }
+        private IHubContext<Hub> HubContext { get; set; }
 
         /// <summary>
         ///     Gets the version of the latest application release.
@@ -719,7 +723,11 @@ namespace slskd
             }
         }
 
-        private void State_OnChange((State Previous, State Current) state) => Logger.Debug("State changed from {Previous} to {Current}", state.Previous.ToJson(), state.Current.ToJson());
+        private void State_OnChange((State Previous, State Current) state)
+        {
+            Logger.Debug("State changed from {Previous} to {Current}", state.Previous.ToJson(), state.Current.ToJson());
+            HubContext.BroadcastStateAsync(state.Current);
+        }
 
         /// <summary>
         ///     Creates and returns a <see cref="UserInfo"/> object in response to a remote request.
