@@ -33,9 +33,9 @@ namespace slskd
     using slskd.Configuration;
     using slskd.Integrations.Pushbullet;
     using slskd.Messaging;
-    using slskd.Peer;
     using slskd.Search;
     using slskd.Transfer;
+    using slskd.Users;
     using Soulseek;
     using Soulseek.Diagnostics;
 

@@ -38,9 +38,9 @@ namespace slskd
     using slskd.Integrations.FTP;
     using slskd.Integrations.Pushbullet;
     using slskd.Messaging;
-    using slskd.Peer;
     using slskd.Search;
     using slskd.Transfer;
+    using slskd.Users;
     using slskd.Validation;
     using Soulseek;
 
@@ -202,9 +202,9 @@ namespace slskd
                 options.UseSqlite($"Data Source={Path.Combine(OptionsAtStartup.Directories.App, "search.db")}");
             });
 
-            services.AddDbContextFactory<PeerDbContext>(options =>
+            services.AddDbContextFactory<UserDbContext>(options =>
             {
-                options.UseSqlite($"Data Source={Path.Combine(OptionsAtStartup.Directories.App, "peer.db")}");
+                options.UseSqlite($"Data Source={Path.Combine(OptionsAtStartup.Directories.App, "users.db")}");
             });
 
             services.AddHttpClient();
@@ -227,7 +227,7 @@ namespace slskd
             services.AddSingleton<ISharedFileCache, SharedFileCache>();
 
             services.AddSingleton<ISearchService, SearchService>();
-            services.AddSingleton<IPeerService, PeerService>();
+            services.AddSingleton<IUserService, UserService>();
             services.AddSingleton<IRoomService, RoomService>();
 
             services.AddSingleton<IFTPClientFactory, FTPClientFactory>();
@@ -313,13 +313,13 @@ namespace slskd
             app.UseAuthorization();
             app.UseEndpoints(endpoints =>
             {
-                endpoints.MapHub<Hub>("/live");
+                endpoints.MapHub<Hub>("/hub");
                 endpoints.MapControllers();
                 endpoints.MapHealthChecks("/health");
 
                 if (OptionsAtStartup.Feature.Prometheus)
                 {
-                    endpoints.MapMetrics();
+                    endpoints.MapMetrics("/metrics");
                 }
             });
 
@@ -366,7 +366,7 @@ namespace slskd
             try
             {
                 using var search = GetFactory<SearchDbContext>().CreateDbContext();
-                using var peer = GetFactory<PeerDbContext>().CreateDbContext();
+                using var peer = GetFactory<UserDbContext>().CreateDbContext();
             }
             catch (Exception ex)
             {

@@ -1,4 +1,4 @@
-﻿// <copyright file="PeersController.cs" company="slskd Team">
+﻿// <copyright file="UsersController.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -15,7 +15,7 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-namespace slskd.Peer.API
+namespace slskd.Users.API
 {
     using System.Collections.Generic;
     using System.ComponentModel.DataAnnotations;
@@ -33,15 +33,15 @@ namespace slskd.Peer.API
     [ApiController]
     [Produces("application/json")]
     [Consumes("application/json")]
-    public class PeersController : ControllerBase
+    public class UsersController : ControllerBase
     {
         /// <summary>
-        ///     Initializes a new instance of the <see cref="PeersController"/> class.
+        ///     Initializes a new instance of the <see cref="UsersController"/> class.
         /// </summary>
         /// <param name="soulseekClient"></param>
         /// <param name="browseTracker"></param>
         /// <param name="peerService"></param>
-        public PeersController(ISoulseekClient soulseekClient, IBrowseTracker browseTracker, IPeerService peerService)
+        public UsersController(ISoulseekClient soulseekClient, IBrowseTracker browseTracker, IUserService peerService)
         {
             Client = soulseekClient;
             BrowseTracker = browseTracker;
@@ -50,7 +50,7 @@ namespace slskd.Peer.API
 
         private IBrowseTracker BrowseTracker { get; }
         private ISoulseekClient Client { get; }
-        private IPeerService Peers { get; }
+        private IUserService Peers { get; }
 
         /// <summary>
         ///     Retrieves the address of the specified <paramref name="username"/>.

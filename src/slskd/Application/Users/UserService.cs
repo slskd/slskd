@@ -1,4 +1,4 @@
-﻿// <copyright file="PeerService.cs" company="slskd Team">
+﻿// <copyright file="UserService.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -15,7 +15,7 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-namespace slskd.Peer
+namespace slskd.Users
 {
     using System;
     using System.Net;
@@ -27,20 +27,20 @@ namespace slskd.Peer
     /// <summary>
     ///     Provides information and operations for network peers.
     /// </summary>
-    public class PeerService : IPeerService
+    public class UserService : IUserService
     {
         private const int CacheTTLSeconds = 300;
 
         /// <summary>
-        ///     Initializes a new instance of the <see cref="PeerService"/> class.
+        ///     Initializes a new instance of the <see cref="UserService"/> class.
         /// </summary>
         /// <param name="soulseekClient"></param>
         /// <param name="contextFactory">The database context to use.</param>
         /// <param name="log">The logger.</param>
-        public PeerService(
+        public UserService(
             ISoulseekClient soulseekClient,
-            IDbContextFactory<PeerDbContext> contextFactory,
-            ILogger<PeerService> log)
+            IDbContextFactory<UserDbContext> contextFactory,
+            ILogger<UserService> log)
         {
             Client = soulseekClient;
             ContextFactory = contextFactory;
@@ -48,8 +48,8 @@ namespace slskd.Peer
         }
 
         private ISoulseekClient Client { get; }
-        private IDbContextFactory<PeerDbContext> ContextFactory { get; }
-        private ILogger<PeerService> Log { get; set; }
+        private IDbContextFactory<UserDbContext> ContextFactory { get; }
+        private ILogger<UserService> Log { get; set; }
 
         /// <summary>
         ///     Retrieves peer <see cref="Info"/>.

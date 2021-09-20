@@ -15,7 +15,7 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-namespace slskd.Peer
+namespace slskd.Users
 {
     using System;
     using System.ComponentModel.DataAnnotations;

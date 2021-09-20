@@ -1,4 +1,4 @@
-﻿// <copyright file="PeerDbContext.cs" company="slskd Team">
+﻿// <copyright file="UserDbContext.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -15,13 +15,13 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-namespace slskd.Peer
+namespace slskd.Users
 {
     using Microsoft.EntityFrameworkCore;
 
-    public class PeerDbContext : DbContext
+    public class UserDbContext : DbContext
     {
-        public PeerDbContext(DbContextOptions<PeerDbContext> options)
+        public UserDbContext(DbContextOptions<UserDbContext> options)
             : base(options)
         {
             Database.EnsureCreated();

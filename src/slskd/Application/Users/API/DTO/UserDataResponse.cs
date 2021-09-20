@@ -15,7 +15,7 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-namespace slskd.Peer.API
+namespace slskd.Users.API
 {
     using Soulseek;
 

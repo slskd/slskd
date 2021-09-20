@@ -1,4 +1,4 @@
-﻿// <copyright file="BrowseTracker.cs" company="slskd Team">
+﻿// <copyright file="IBrowseTracker.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -15,7 +15,7 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-namespace slskd.Peer
+namespace slskd.Users
 {
     using System.Collections.Concurrent;
     using Soulseek;
@@ -23,27 +23,19 @@ namespace slskd.Peer
     /// <summary>
     ///     Tracks browse operations.
     /// </summary>
-    public class BrowseTracker : IBrowseTracker
+    public interface IBrowseTracker
     {
         /// <summary>
         ///     Tracked browse operations.
         /// </summary>
-        public ConcurrentDictionary<string, BrowseProgressUpdatedEventArgs> Browses { get; } = new ConcurrentDictionary<string, BrowseProgressUpdatedEventArgs>();
+        ConcurrentDictionary<string, BrowseProgressUpdatedEventArgs> Browses { get; }
 
         /// <summary>
         ///     Adds or updates a tracked browse operation.
         /// </summary>
         /// <param name="username"></param>
         /// <param name="progress"></param>
-        public void AddOrUpdate(string username, BrowseProgressUpdatedEventArgs progress)
-            => Browses.AddOrUpdate(username, progress, (user, oldprogress) => progress);
-
-        /// <summary>
-        ///     Removes a tracked browse operation for the specified user.
-        /// </summary>
-        /// <param name="username"></param>
-        public void TryRemove(string username)
-            => Browses.TryRemove(username, out _);
+        void AddOrUpdate(string username, BrowseProgressUpdatedEventArgs progress);
 
         /// <summary>
         ///     Gets the browse progress for the specified user.
@@ -51,7 +43,12 @@ namespace slskd.Peer
         /// <param name="username"></param>
         /// <param name="progress"></param>
         /// <returns></returns>
-        public bool TryGet(string username, out BrowseProgressUpdatedEventArgs progress)
-            => Browses.TryGetValue(username, out progress);
+        bool TryGet(string username, out BrowseProgressUpdatedEventArgs progress);
+
+        /// <summary>
+        ///     Removes a tracked browse operation for the specified user.
+        /// </summary>
+        /// <param name="username"></param>
+        void TryRemove(string username);
     }
 }
