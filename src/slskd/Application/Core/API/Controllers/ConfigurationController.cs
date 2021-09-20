@@ -1,4 +1,4 @@
-﻿// <copyright file="OptionsController.cs" company="slskd Team">
+﻿// <copyright file="ConfigurationController.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -17,55 +17,57 @@
 
 using Microsoft.Extensions.Options;
 
-namespace slskd.Management.API
+namespace slskd.Core.API
 {
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
 
     /// <summary>
-    ///     Options.
+    ///     Configuration.
     /// </summary>
     [Route("api/v{version:apiVersion}/[controller]")]
     [ApiVersion("0")]
     [ApiController]
     [Produces("application/json")]
     [Consumes("application/json")]
-    public class OptionsController : ControllerBase
+    public class ConfigurationController : ControllerBase
     {
-        public OptionsController(
-            OptionsAtStartup optionsAtStartup,
-            IOptionsSnapshot<Options> optionsSnapshot)
+        public ConfigurationController(
+            IApplication application,
+            IOptionsSnapshot<Options> optionsShapshot,
+            IStateMonitor<State> applicationStateMonitor)
         {
-            OptionsAtStartup = optionsAtStartup;
-            OptionsSnapshot = optionsSnapshot;
+            Application = application;
+            OptionsShapshot = optionsShapshot;
+            ApplicationStateMonitor = applicationStateMonitor;
         }
 
-        private IOptionsSnapshot<Options> OptionsSnapshot { get; }
-        private OptionsAtStartup OptionsAtStartup { get; }
+        private IApplication Application { get; }
+        private IOptionsSnapshot<Options> OptionsShapshot { get; }
+        private IStateMonitor<State> ApplicationStateMonitor { get; }
 
-        /// <summary>
-        ///     Gets the current application options.
-        /// </summary>
-        /// <returns></returns>
         [HttpGet]
+        [Route("")]
         [Authorize]
-        [ProducesResponseType(typeof(Options), 200)]
-        public IActionResult Current()
+        public IActionResult GetOptions()
         {
-            return Ok(OptionsSnapshot.Value);
+            // todo: sanitize this to remove passwords
+            return Ok(OptionsShapshot.Value);
         }
 
-        /// <summary>
-        ///     Gets the application options provided at startup.
-        /// </summary>
-        /// <returns></returns>
-        [HttpGet]
-        [Route("startup")]
+        [HttpPut]
+        [Route("shares")]
         [Authorize]
-        [ProducesResponseType(typeof(Options), 200)]
-        public IActionResult Startup()
+        public IActionResult RescanSharesAsync()
         {
-            return Ok(OptionsAtStartup);
+            if (ApplicationStateMonitor.CurrentValue.SharedFileCache.Filling)
+            {
+                return Conflict("A share scan is already in progress.");
+            }
+
+            _ = Application.RescanSharesAsync();
+
+            return Ok();
         }
     }
 }

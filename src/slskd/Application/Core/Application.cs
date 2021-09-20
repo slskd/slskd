@@ -15,7 +15,9 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-namespace slskd
+using Microsoft.Extensions.Options;
+
+namespace slskd.Core
 {
     using System;
     using System.Collections.Concurrent;
@@ -27,13 +29,13 @@ namespace slskd
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.SignalR;
     using Microsoft.Extensions.Hosting;
-    using Microsoft.Extensions.Options;
     using Serilog;
     using Serilog.Events;
     using slskd.Configuration;
     using slskd.Integrations.Pushbullet;
     using slskd.Messaging;
     using slskd.Search;
+    using slskd.Shares;
     using slskd.Transfers;
     using slskd.Users;
     using Soulseek;
@@ -61,7 +63,7 @@ namespace slskd
             IRoomService roomService,
             ISharedFileCache sharedFileCache,
             IPushbulletService pushbulletService,
-            IHubContext<Hub> hubContext)
+            IHubContext<ApplicationHub> applicationHub)
         {
             OptionsAtStartup = optionsAtStartup;
 
@@ -82,7 +84,7 @@ namespace slskd
             Pushbullet = pushbulletService;
 
             RoomService = roomService;
-            HubContext = hubContext;
+            ApplicationHub = applicationHub;
 
             Client = soulseekClient;
 
@@ -124,7 +126,7 @@ namespace slskd
         private DateTime SharesRefreshStarted { get; set; }
         private IManagedState<State> State { get; }
         private ITransferTracker TransferTracker { get; set; }
-        private IHubContext<Hub> HubContext { get; set; }
+        private IHubContext<ApplicationHub> ApplicationHub { get; set; }
 
         /// <summary>
         ///     Gets the version of the latest application release.
@@ -732,7 +734,7 @@ namespace slskd
         private void State_OnChange((State Previous, State Current) state)
         {
             Logger.Debug("State changed from {Previous} to {Current}", state.Previous.ToJson(), state.Current.ToJson());
-            HubContext.BroadcastStateAsync(state.Current);
+            ApplicationHub.BroadcastStateAsync(state.Current);
         }
 
         /// <summary>

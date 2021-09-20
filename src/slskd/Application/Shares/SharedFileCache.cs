@@ -18,7 +18,7 @@
 using System.IO;
 using Microsoft.Extensions.Options;
 
-namespace slskd
+namespace slskd.Shares
 {
     using System;
     using System.Collections.Concurrent;

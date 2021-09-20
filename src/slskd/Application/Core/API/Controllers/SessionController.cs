@@ -17,7 +17,7 @@
 
 using Microsoft.Extensions.Options;
 
-namespace slskd.Management.API
+namespace slskd.Core.API
 {
     using System;
     using System.Collections.Generic;

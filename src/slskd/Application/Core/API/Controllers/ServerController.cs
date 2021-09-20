@@ -17,7 +17,7 @@
 
 using Microsoft.Extensions.Options;
 
-namespace slskd.Management.API
+namespace slskd.Core.API
 {
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.Authorization;

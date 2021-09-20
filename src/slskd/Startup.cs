@@ -34,11 +34,13 @@ namespace slskd
     using Prometheus.SystemMetrics;
     using Serilog;
     using slskd.Authentication;
+    using slskd.Core;
     using slskd.Cryptography;
     using slskd.Integrations.FTP;
     using slskd.Integrations.Pushbullet;
     using slskd.Messaging;
     using slskd.Search;
+    using slskd.Shares;
     using slskd.Transfers;
     using slskd.Users;
     using slskd.Validation;
@@ -313,7 +315,8 @@ namespace slskd
             app.UseAuthorization();
             app.UseEndpoints(endpoints =>
             {
-                endpoints.MapHub<Hub>("/hub");
+                endpoints.MapHub<ApplicationHub>("/hub/application");
+
                 endpoints.MapControllers();
                 endpoints.MapHealthChecks("/health");
 

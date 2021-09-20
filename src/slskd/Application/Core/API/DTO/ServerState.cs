@@ -1,4 +1,4 @@
-﻿// <copyright file="LoginRequest.cs" company="slskd Team">
+﻿// <copyright file="ServerState.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -15,11 +15,19 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-namespace slskd.Management.API
+namespace slskd.Core
 {
-    public class LoginRequest
+    using System.Net;
+    using Soulseek;
+
+    public class ServerState
     {
+        public string Address { get; set; }
+        public IPEndPoint IPEndPoint { get; set; }
+        public SoulseekClientStates State { get; set; }
         public string Username { get; set; }
-        public string Password { get; set; }
+        public bool IsConnected => State.HasFlag(SoulseekClientStates.Connected);
+        public bool IsLoggedIn => State.HasFlag(SoulseekClientStates.LoggedIn);
+        public bool IsTransitioning => State.HasFlag(SoulseekClientStates.Connecting) || State.HasFlag(SoulseekClientStates.Disconnecting) || State.HasFlag(SoulseekClientStates.LoggingIn);
     }
 }

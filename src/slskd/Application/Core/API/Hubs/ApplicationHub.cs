@@ -1,4 +1,4 @@
-﻿// <copyright file="Hub.cs" company="slskd Team">
+﻿// <copyright file="ApplicationHub.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -15,7 +15,7 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-namespace slskd
+namespace slskd.Core
 {
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.SignalR;
@@ -23,7 +23,7 @@ namespace slskd
     /// <summary>
     ///     Extension methods for the application SignalR hub.
     /// </summary>
-    public static class HubExtensions
+    public static class ApplicationHubExtensions
     {
         /// <summary>
         ///     Broadcast the present application state.
@@ -31,7 +31,7 @@ namespace slskd
         /// <param name="hub">The hub.</param>
         /// <param name="state">The state to broadcast.</param>
         /// <returns>The operation context.</returns>
-        public static Task BroadcastStateAsync(this IHubContext<Hub> hub, State state)
+        public static Task BroadcastStateAsync(this IHubContext<ApplicationHub> hub, State state)
         {
             return hub.Clients.All.SendAsync(Methods.State, state);
         }
@@ -45,7 +45,7 @@ namespace slskd
     /// <summary>
     ///     The application SignalR hub.
     /// </summary>
-    public class Hub : Microsoft.AspNetCore.SignalR.Hub
+    public class ApplicationHub : Hub
     {
     }
 }

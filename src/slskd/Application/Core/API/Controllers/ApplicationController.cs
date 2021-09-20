@@ -15,7 +15,7 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-namespace slskd.Management.API
+namespace slskd.Core.API
 {
     using System;
     using System.Diagnostics;
