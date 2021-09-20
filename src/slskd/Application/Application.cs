@@ -17,7 +17,7 @@
 
 using Microsoft.Extensions.Options;
 
-namespace slskd.Core
+namespace slskd
 {
     using System;
     using System.Collections.Concurrent;
@@ -32,6 +32,7 @@ namespace slskd.Core
     using Serilog;
     using Serilog.Events;
     using slskd.Configuration;
+    using slskd.Core;
     using slskd.Integrations.Pushbullet;
     using slskd.Messaging;
     using slskd.Search;
