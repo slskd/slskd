@@ -54,6 +54,7 @@
 #       read: 16384
 #       write: 16384
 #     proxy:
+#		enabled: false
 #       address: ~
 #       port: ~
 #       username: ~
