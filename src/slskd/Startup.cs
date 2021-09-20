@@ -39,7 +39,7 @@ namespace slskd
     using slskd.Integrations.Pushbullet;
     using slskd.Messaging;
     using slskd.Search;
-    using slskd.Transfer;
+    using slskd.Transfers;
     using slskd.Users;
     using slskd.Validation;
     using Soulseek;

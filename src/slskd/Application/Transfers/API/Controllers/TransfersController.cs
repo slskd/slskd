@@ -17,7 +17,7 @@
 
 using Microsoft.Extensions.Options;
 
-namespace slskd.Transfer.API
+namespace slskd.Transfers.API
 {
     using System;
     using System.ComponentModel.DataAnnotations;

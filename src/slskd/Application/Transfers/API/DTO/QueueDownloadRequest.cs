@@ -15,7 +15,7 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-namespace slskd.Transfer.API
+namespace slskd.Transfers.API
 {
     public class QueueDownloadRequest
     {

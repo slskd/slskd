@@ -15,7 +15,7 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-namespace slskd.Transfer
+namespace slskd.Transfers
 {
     using System.Collections.Concurrent;
     using System.Linq;
