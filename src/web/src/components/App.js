@@ -44,12 +44,13 @@ class App extends Component {
         const { login } = this.state;
 
         try {
-            await this.fetchApplicationState();
             const securityEnabled = await session.getSecurityEnabled();
     
             if (!securityEnabled) {
                 this.setToken(sessionStorage, tokenPassthroughValue)
             }
+
+            await this.fetchApplicationState();
             
             this.setState({
                 token: this.getToken(),
@@ -123,7 +124,7 @@ class App extends Component {
                 error: false,
             });
         } catch (err) {
-            this.setState({ error: true })
+            this.setState({ error: err?.response?.status !== 401 })
         }
     };
 

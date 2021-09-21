@@ -452,11 +452,13 @@ namespace slskd.Shares
                     LocalPath = share;
                 }
 
-                Mask = Compute.MaskHash(System.IO.Directory.GetParent(LocalPath).FullName);
+                var parent = System.IO.Directory.GetParent(LocalPath).FullName.TrimEnd('/', '\\');
 
-                var maskedPath = LocalPath.ReplaceFirst(System.IO.Directory.GetParent(LocalPath).FullName, Mask);
+                Mask = Compute.MaskHash(parent);
 
-                var aliasedSegment = LocalPath[(System.IO.Directory.GetParent(LocalPath).FullName.Length + 1)..];
+                var maskedPath = LocalPath.ReplaceFirst(parent, Mask);
+
+                var aliasedSegment = LocalPath[(parent.Length + 1)..];
                 RemotePath = maskedPath.ReplaceFirst(aliasedSegment, Alias);
             }
 

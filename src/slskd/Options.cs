@@ -300,15 +300,25 @@ namespace slskd
 
                     if (matches.Any())
                     {
-                        return (share, Compute.MaskHash(Directory.GetParent(matches[0].Groups[3].Value).FullName), matches[0].Groups[2].Value, matches[0].Groups[3].Value);
+                        return (share, Compute.MaskHash(Directory.GetParent(matches[0].Groups[3].Value)?.FullName ?? share), matches[0].Groups[2].Value, matches[0].Groups[3].Value);
                     }
 
-                    return (share, Compute.MaskHash(Directory.GetParent(share).FullName), share.Split(new[] { '/', '\\' }).Last(), share);
+                    return (share, Compute.MaskHash(Directory.GetParent(share)?.FullName ?? share), share.Split(new[] { '/', '\\' }).Last(), share);
                 }
+
+                bool IsRoot((string Raw, string Mask, string Alias, string Path) share) => share.Path == "/" || share.Path == "\\" || Path.GetPathRoot(share.Path) == share.Path;
 
                 var digestedShared = Shared
                     .Select(share => Digest(Path.TrimEndingDirectorySeparator(share)))
                     .ToHashSet();
+
+                var roots = digestedShared.Where(share => IsRoot(share));
+                foreach (var root in roots)
+                {
+                    results.Add(new ValidationResult($"Share {root.Raw} is a root path, which is not supported."));
+                }
+
+                digestedShared = digestedShared.Where(share => !IsRoot(share)).ToHashSet();
 
                 var overlapping = digestedShared.GroupBy(share => share.Mask + share.Alias).Where(group => group.Count() > 1);
                 foreach (var overlap in overlapping)
