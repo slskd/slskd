@@ -216,10 +216,10 @@ namespace slskd
             services.AddSingleton<ISoulseekClient, SoulseekClient>(_ =>
                 new SoulseekClient(options: new SoulseekClientOptions(minimumDiagnosticLevel: OptionsAtStartup.Soulseek.DiagnosticLevel)));
 
-            // add Application to DI as well as a hosted service so that other services can
+            // add the core application service to DI as well as a hosted service so that other services can
             // access instance methods
-            services.AddSingleton<IApplication, Application>();
-            services.AddHostedService(p => p.GetRequiredService<IApplication>());
+            services.AddSingleton<IService, Application>();
+            services.AddHostedService(p => p.GetRequiredService<IService>());
 
             services.AddSingleton<ITransferTracker, TransferTracker>();
             services.AddSingleton<IBrowseTracker, BrowseTracker>();

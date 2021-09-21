@@ -15,7 +15,7 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-namespace slskd.Core
+namespace slskd.Core.API
 {
     using System.Net;
     using Soulseek;
