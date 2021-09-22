@@ -17,7 +17,7 @@
 
 using Microsoft.Extensions.Options;
 
-namespace slskd.Core
+namespace slskd
 {
     using System;
     using System.Collections.Concurrent;

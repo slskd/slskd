@@ -35,6 +35,7 @@ namespace slskd
     using Serilog;
     using slskd.Authentication;
     using slskd.Core;
+    using slskd.Core.API;
     using slskd.Cryptography;
     using slskd.Integrations.FTP;
     using slskd.Integrations.Pushbullet;
@@ -218,8 +219,8 @@ namespace slskd
 
             // add the core application service to DI as well as a hosted service so that other services can
             // access instance methods
-            services.AddSingleton<IService, Application>();
-            services.AddHostedService(p => p.GetRequiredService<IService>());
+            services.AddSingleton<IApplication, Application>();
+            services.AddHostedService(p => p.GetRequiredService<IApplication>());
 
             services.AddSingleton<ITransferTracker, TransferTracker>();
             services.AddSingleton<IBrowseTracker, BrowseTracker>();
