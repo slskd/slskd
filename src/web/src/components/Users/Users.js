@@ -8,7 +8,7 @@ import {
 
 import User from './User';
 import { activeUserInfoKey } from '../../config';
-import * as peers from '../../lib/peers';
+import * as users from '../../lib/users';
 
 import './Users.css';
 import PlaceholderSegment from '../Shared/PlaceholderSegment';
@@ -45,9 +45,9 @@ const Users = (props) => {
 
       try {
         const [info, status, endpoint] = await Promise.all([
-          peers.getInfo({ username: selectedUsername, bypassCache: true }),
-          peers.getStatus({ username: selectedUsername }),
-          peers.getEndpoint({ username: selectedUsername })
+          users.getInfo({ username: selectedUsername, bypassCache: true }),
+          users.getStatus({ username: selectedUsername }),
+          users.getEndpoint({ username: selectedUsername })
         ]);
       
         localStorage.setItem(activeUserInfoKey, selectedUsername);

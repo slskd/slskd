@@ -26,6 +26,7 @@ namespace slskd
     using System.Diagnostics;
     using System.IO;
     using System.Linq;
+    using System.Text.Json.Serialization;
     using System.Text.RegularExpressions;
     using FluentFTP;
     using slskd.Configuration;
@@ -442,6 +443,7 @@ namespace slskd
             [EnvironmentVariable("SLSK_PASSWORD")]
             [Description("password for the Soulseek network")]
             [RequiresReconnect]
+            [JsonIgnore]
             public string Password { get; private set; } = null;
 
             /// <summary>
@@ -592,6 +594,7 @@ namespace slskd
                     [EnvironmentVariable("SLSK_PROXY_PASSWORD")]
                     [Description("connection proxy password")]
                     [StringLength(255, MinimumLength = 1)]
+                    [JsonIgnore]
                     public string Password { get; private set; }
 
                     /// <summary>
@@ -719,6 +722,7 @@ namespace slskd
                 [EnvironmentVariable("PASSWORD")]
                 [Description("password for web UI")]
                 [StringLength(255, MinimumLength = 1)]
+                [JsonIgnore]
                 public string Password { get; private set; } = Program.AppName;
 
                 /// <summary>
@@ -809,6 +813,7 @@ namespace slskd
                     [EnvironmentVariable("HTTPS_CERT_PASSWORD")]
                     [Description("X509 certificate password")]
                     [RequiresRestart]
+                    [JsonIgnore]
                     public string Password { get; private set; }
                 }
             }
@@ -892,6 +897,7 @@ namespace slskd
                 [Argument(default, "ftp-password")]
                 [EnvironmentVariable("FTP_PASSWORD")]
                 [Description("FTP password")]
+                [JsonIgnore]
                 public string Password { get; private set; }
 
                 /// <summary>

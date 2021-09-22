@@ -34,15 +34,18 @@ namespace slskd
     using Prometheus.SystemMetrics;
     using Serilog;
     using slskd.Authentication;
+    using slskd.Core;
+    using slskd.Core.API;
     using slskd.Cryptography;
     using slskd.Integrations.FTP;
     using slskd.Integrations.Pushbullet;
-    using slskd.Management;
     using slskd.Messaging;
-    using slskd.Peer;
     using slskd.Search;
-    using slskd.Transfer;
+    using slskd.Shares;
+    using slskd.Transfers;
+    using slskd.Users;
     using slskd.Validation;
+    using Soulseek;
 
     /// <summary>
     ///     ASP.NET Startup.
@@ -104,12 +107,13 @@ namespace slskd
                     return true;
                 });
 
-            // add IStateMonitor instance to DI, to track application state in an observable way.
-            // similar to IOptionsMonitor, but state is managed by the application itself.
-            // Usage is roughly the same.
-            services.AddSingleton<IStateMonitor<ApplicationState>, StateMonitor<ApplicationState>>();
+            services.AddManagedState<State>();
 
-            services.AddCors(options => options.AddPolicy("AllowAll", builder => builder.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader()));
+            services.AddCors(options => options.AddPolicy("AllowAll", builder => builder
+                .AllowAnyHeader()
+                .AllowAnyMethod()
+                .SetIsOriginAllowed((host) => true)
+                .AllowCredentials()));
 
             services.AddSingleton(JwtSigningKey);
 
@@ -150,6 +154,12 @@ namespace slskd
                 options.JsonSerializerOptions.Converters.Add(new IPAddressConverter());
                 options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
                 options.JsonSerializerOptions.IgnoreNullValues = true;
+            });
+
+            services.AddSignalR().AddJsonProtocol(options =>
+            {
+                options.PayloadSerializerOptions.Converters.Add(new IPAddressConverter());
+                options.PayloadSerializerOptions.Converters.Add(new JsonStringEnumConverter());
             });
 
             services.AddHealthChecks();
@@ -195,12 +205,22 @@ namespace slskd
                 options.UseSqlite($"Data Source={Path.Combine(OptionsAtStartup.Directories.App, "search.db")}");
             });
 
-            services.AddDbContextFactory<PeerDbContext>(options =>
+            services.AddDbContextFactory<UserDbContext>(options =>
             {
-                options.UseSqlite($"Data Source={Path.Combine(OptionsAtStartup.Directories.App, "peer.db")}");
+                options.UseSqlite($"Data Source={Path.Combine(OptionsAtStartup.Directories.App, "users.db")}");
             });
 
             services.AddHttpClient();
+
+            // add a partially configured instance of SoulseekClient. the Application instance will
+            // complete configuration at startup.
+            services.AddSingleton<ISoulseekClient, SoulseekClient>(_ =>
+                new SoulseekClient(options: new SoulseekClientOptions(minimumDiagnosticLevel: OptionsAtStartup.Soulseek.DiagnosticLevel)));
+
+            // add the core application service to DI as well as a hosted service so that other services can
+            // access instance methods
+            services.AddSingleton<IApplication, Application>();
+            services.AddHostedService(p => p.GetRequiredService<IApplication>());
 
             services.AddSingleton<ITransferTracker, TransferTracker>();
             services.AddSingleton<IBrowseTracker, BrowseTracker>();
@@ -210,19 +230,13 @@ namespace slskd
             services.AddSingleton<ISharedFileCache, SharedFileCache>();
 
             services.AddSingleton<ISearchService, SearchService>();
-            services.AddSingleton<IPeerService, PeerService>();
-            services.AddSingleton<IManagementService, ManagementService>();
+            services.AddSingleton<IUserService, UserService>();
+            services.AddSingleton<IRoomService, RoomService>();
 
             services.AddSingleton<IFTPClientFactory, FTPClientFactory>();
             services.AddSingleton<IFTPService, FTPService>();
 
             services.AddSingleton<IPushbulletService, PushbulletService>();
-
-            services.AddSingleton<IApplication, Application>();
-            services.AddHostedService(p => p.GetRequiredService<IApplication>());
-
-            // todo: add public methods to Application until this is no longer necessary
-            services.AddSingleton(_ => Application.SoulseekClient);
         }
 
         /// <summary>
@@ -270,7 +284,7 @@ namespace slskd
 
             FileServerOptions fileServerOptions = default;
 
-            if (!Directory.Exists(ContentPath))
+            if (!System.IO.Directory.Exists(ContentPath))
             {
                 logger.Warning($"Static content disabled; cannot find content path '{ContentPath}'");
             }
@@ -302,12 +316,14 @@ namespace slskd
             app.UseAuthorization();
             app.UseEndpoints(endpoints =>
             {
+                endpoints.MapHub<ApplicationHub>("/hub/application");
+
                 endpoints.MapControllers();
                 endpoints.MapHealthChecks("/health");
 
                 if (OptionsAtStartup.Feature.Prometheus)
                 {
-                    endpoints.MapMetrics();
+                    endpoints.MapMetrics("/metrics");
                 }
             });
 
@@ -335,7 +351,7 @@ namespace slskd
 
             // finally, hit the fileserver again. if the path was modified to return the index above, the index document will be
             // returned. otherwise it will throw a final 404 back to the client.
-            if (Directory.Exists(ContentPath))
+            if (System.IO.Directory.Exists(ContentPath))
             {
                 app.UseFileServer(fileServerOptions);
             }
@@ -354,7 +370,7 @@ namespace slskd
             try
             {
                 using var search = GetFactory<SearchDbContext>().CreateDbContext();
-                using var peer = GetFactory<PeerDbContext>().CreateDbContext();
+                using var peer = GetFactory<UserDbContext>().CreateDbContext();
             }
             catch (Exception ex)
             {

@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import * as peers from '../../lib/peers';
+import * as users from '../../lib/users';
 
 import './Browse.css';
 
@@ -40,7 +40,7 @@ class Browse extends Component {
     let username = this.inputtext.inputRef.current.value;
 
     this.setState({ username , browseState: 'pending', browseError: undefined }, () => {
-      peers.browse({ username })
+      users.browse({ username })
         .then(response => {
           let { directories, lockedDirectories } = response;
           
@@ -116,7 +116,7 @@ class Browse extends Component {
   fetchStatus = () => {
     const { browseState, username } = this.state;
     if (browseState === 'pending') {
-      peers.getBrowseStatus({ username })
+      users.getBrowseStatus({ username })
         .then(response => this.setState({
           browseStatus: response.data
         }));
