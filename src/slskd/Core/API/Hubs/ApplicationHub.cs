@@ -18,6 +18,7 @@
 namespace slskd.Core.API
 {
     using System.Threading.Tasks;
+    using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.SignalR;
 
     /// <summary>
@@ -45,6 +46,7 @@ namespace slskd.Core.API
     /// <summary>
     ///     The application SignalR hub.
     /// </summary>
+    [Authorize]
     public class ApplicationHub : Hub
     {
     }
