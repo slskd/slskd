@@ -21,6 +21,7 @@ namespace slskd
     using System.IO;
     using System.Linq;
     using System.Text.Json.Serialization;
+    using System.Threading.Tasks;
     using Microsoft.AspNetCore.Authentication.JwtBearer;
     using Microsoft.AspNetCore.Builder;
     using Microsoft.AspNetCore.Mvc.ApiExplorer;
@@ -34,7 +35,6 @@ namespace slskd
     using Prometheus.SystemMetrics;
     using Serilog;
     using slskd.Authentication;
-    using slskd.Core;
     using slskd.Core.API;
     using slskd.Cryptography;
     using slskd.Integrations.FTP;
@@ -133,6 +133,22 @@ namespace slskd
                             ValidateAudience = false,
                             IssuerSigningKey = JwtSigningKey,
                             ValidateIssuerSigningKey = true,
+                        };
+
+                        options.Events = new JwtBearerEvents
+                        {
+                            OnMessageReceived = context =>
+                            {
+                                // assign the request token from the access_token query parameter
+                                // but only if the destination is a SignalR hub
+                                // https://docs.microsoft.com/en-us/aspnet/core/signalr/authn-and-authz?view=aspnetcore-5.0
+                                if (context.HttpContext.Request.Path.StartsWithSegments("/hub"))
+                                {
+                                    context.Token = context.Request.Query["access_token"];
+                                }
+
+                                return Task.CompletedTask;
+                            },
                         };
                     });
             }
