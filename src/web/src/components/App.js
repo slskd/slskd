@@ -1,9 +1,11 @@
 import React, { Component } from 'react';
 import { Route, Link, Switch } from "react-router-dom";
-import { tokenKey, tokenPassthroughValue } from '../config';
+
 import * as session from '../lib/session';
 import * as server from '../lib/server';
 import * as application from '../lib/application';
+
+import { createApplicationHubConnection } from '../lib/hubFactory';
 
 import './App.css';
 import Search from './Search/Search';
@@ -26,7 +28,6 @@ import Rooms from './Rooms/Rooms';
 import ErrorSegment from './Shared/ErrorSegment';
 
 const initialState = {
-    token: undefined,
     login: {
         initialized: false,
         pending: false,
@@ -35,6 +36,9 @@ const initialState = {
     applicationStateInterval: undefined,
     applicationState: {},
     error: false,
+    hubs: {
+        application: undefined,
+    }
 };
 
 class App extends Component {
@@ -47,21 +51,28 @@ class App extends Component {
             const securityEnabled = await session.getSecurityEnabled();
     
             if (!securityEnabled) {
-                this.setToken(sessionStorage, tokenPassthroughValue)
+                console.debug('application security is not enabled, per api call')
+                session.enablePassthrough()
             }
+
+            const appHub = createApplicationHubConnection();
+            appHub.on('state', (state) => console.log(state))
+            appHub.start();
 
             await this.fetchApplicationState();
             
             this.setState({
-                token: this.getToken(),
                 login: {
                     ...login,
                     initialized: true
                 },
-                applicationStateInterval: window.setInterval(this.fetchApplicationState, 5000)
+                applicationStateInterval: window.setInterval(this.fetchApplicationState, 5000),
+                hubs: {
+                    application: appHub
+                }
             });
     
-            await this.checkToken();
+            await session.check();
         } catch (err) {
             console.error(err)
             this.setState({ error: true })
@@ -73,22 +84,10 @@ class App extends Component {
         this.setState({ applicationStateInterval: undefined });
     };
 
-    checkToken = async () => {
-        try {
-            await session.check();
-        } catch (error) {
-            this.logout();
-        }
-    };
-
-    getToken = () => JSON.parse(sessionStorage.getItem(tokenKey) || localStorage.getItem(tokenKey));
-    setToken = (storage, token) => storage.setItem(tokenKey, JSON.stringify(token));
-
     login = (username, password, rememberMe) => {
         this.setState({ login: { ...this.state.login, pending: true, error: undefined }}, async () => {
             try {
-                const response = await session.login({ username, password });
-                this.setToken(rememberMe ? localStorage : sessionStorage, response.data.token);
+                await session.login({ username, password, rememberMe });
                 window.location.reload();
             } catch (error) {
                 this.setState({ login: { ...this.state.login, pending: false, error }});
@@ -97,13 +96,12 @@ class App extends Component {
     };
     
     logout = () => {
-        localStorage.removeItem(tokenKey);
-        sessionStorage.removeItem(tokenKey);
+        session.logout();
         this.setState({ ...initialState, login: { ...initialState.login, initialized: true }});
     };
 
     withTokenCheck = (component) => {
-        this.checkToken(); // async, runs in the background
+        session.check(); // async, runs in the background
         return { ...component };
     };
 
@@ -129,13 +127,13 @@ class App extends Component {
     };
 
     render = () => {
-        const { token, login, applicationState = {}, error } = this.state;
+        const { login, applicationState = {}, error } = this.state;
         const { version = {}, server } = applicationState;
         const { isUpdateAvailable, current, latest } = version;
 
         return (
             <>
-                {error ? <ErrorSegment caption='slskd appears to be offline' /> : !token ? 
+                {error ? <ErrorSegment caption='slskd appears to be offline' /> : !session.isLoggedIn() && !session.isPassthroughEnabled() ? 
                     <LoginForm 
                         onLoginAttempt={this.login} 
                         initialized={login.initialized}
@@ -223,7 +221,7 @@ class App extends Component {
                                             href="https://github.com/slskd/slskd/releases">See Release Notes</Button>
                                     </Modal.Actions>
                                 </Modal>}
-                                {token !== tokenPassthroughValue && <Modal
+                                {session.isLoggedIn() && <Modal
                                     trigger={
                                         <Menu.Item>
                                             <Icon name='sign-out'/>Log Out
@@ -233,7 +231,7 @@ class App extends Component {
                                     size='mini'
                                     header={<Header icon='sign-out' content='Confirm Log Out' />}
                                     content='Are you sure you want to log out?'
-                                    actions={['Cancel', { key: 'done', content: 'Log Out', negative: true, onClick: this.logout }]}
+                                    actions={['Cancel', { key: 'done', content: 'Log Out', negative: true, onClick: session.logout }]}
                                 />}
                             </Menu>
                         </Sidebar>
