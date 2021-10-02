@@ -13,6 +13,13 @@ export const enablePassthrough = () => {
   setToken(sessionStorage, tokenPassthroughValue)
 }
 
+export const isPassthroughEnabled = () => getToken() === tokenPassthroughValue;
+
+export const isLoggedIn = () => {
+  const token = getToken();
+  return token !== undefined && token !== tokenPassthroughValue;
+} 
+
 export const login = async ({ username, password, rememberMe = false }) => {
   const { token } = (await api.post('/session', { username, password })).data;
   setToken(rememberMe ? localStorage : sessionStorage, token);
