@@ -17,9 +17,15 @@
 
 namespace slskd.Core.API
 {
+    using System;
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.SignalR;
+
+    public static class ApplicationHubMethods
+    {
+        public static readonly string State = "STATE";
+    }
 
     /// <summary>
     ///     Extension methods for the application SignalR hub.
@@ -34,12 +40,7 @@ namespace slskd.Core.API
         /// <returns>The operation context.</returns>
         public static Task BroadcastStateAsync(this IHubContext<ApplicationHub> hub, State state)
         {
-            return hub.Clients.All.SendAsync(Methods.State, state);
-        }
-
-        private static class Methods
-        {
-            public static readonly string State = "STATE";
+            return hub.Clients.All.SendAsync(ApplicationHubMethods.State, state);
         }
     }
 
@@ -49,5 +50,16 @@ namespace slskd.Core.API
     [Authorize]
     public class ApplicationHub : Hub
     {
+        public ApplicationHub(IStateMonitor<State> stateMonitor)
+        {
+            StateMonitor = stateMonitor;
+        }
+
+        IStateMonitor<State> StateMonitor { get; }
+
+        public override async Task OnConnectedAsync()
+        {
+            await Clients.Caller.SendAsync(ApplicationHubMethods.State, StateMonitor.CurrentValue);
+        }
     }
 }
