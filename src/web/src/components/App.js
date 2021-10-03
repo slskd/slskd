@@ -3,7 +3,6 @@ import { Route, Link, Switch } from "react-router-dom";
 
 import * as session from '../lib/session';
 import * as server from '../lib/server';
-import * as application from '../lib/application';
 
 import { createApplicationHubConnection } from '../lib/hubFactory';
 
@@ -33,12 +32,8 @@ const initialState = {
         pending: false,
         error: undefined
     },
-    applicationStateInterval: undefined,
     applicationState: {},
     error: false,
-    hubs: {
-        application: undefined,
-    }
 };
 
 class App extends Component {
@@ -55,33 +50,26 @@ class App extends Component {
                 session.enablePassthrough()
             }
 
+            await session.check();
+
             const appHub = createApplicationHubConnection();
-            appHub.on('state', (state) => console.log(state))
+            appHub.on('state', (state) => {
+                console.debug(state)
+                this.setState({ applicationState: state });
+            });
+
             appHub.start();
 
-            await this.fetchApplicationState();
-            
             this.setState({
                 login: {
                     ...login,
                     initialized: true
                 },
-                applicationStateInterval: window.setInterval(this.fetchApplicationState, 5000),
-                hubs: {
-                    application: appHub
-                }
             });
-    
-            await session.check();
         } catch (err) {
             console.error(err)
             this.setState({ error: true })
         }
-    };
-
-    componentWillUnmount = () => {
-        clearInterval(this.state.applicationStateInterval);
-        this.setState({ applicationStateInterval: undefined });
     };
 
     login = (username, password, rememberMe) => {
@@ -107,24 +95,11 @@ class App extends Component {
 
     connect = async () => {
         await server.connect();
-        this.fetchApplicationState();
     };
     
     disconnect = async () => {
         await server.disconnect();
-        this.fetchApplicationState();
     }
-
-    fetchApplicationState = async () => {
-        try {
-            this.setState({ 
-                applicationState: await application.getState(),
-                error: false,
-            });
-        } catch (err) {
-            this.setState({ error: err?.response?.status !== 401 })
-        }
-    };
 
     render = () => {
         const { login, applicationState = {}, error } = this.state;
@@ -186,12 +161,12 @@ class App extends Component {
                                 </Menu.Item>
                             </Link>
                             <Menu className='right' inverted>
-                                {server.isConnected && <Menu.Item
+                                {server?.isConnected && <Menu.Item
                                     onClick={() => this.disconnect()}
                                 >
                                     <Icon name='plug' color='green'/>Connected
                                 </Menu.Item>}
-                                {(!server.isConnected || server.isTransitioning) && <Menu.Item 
+                                {(!server?.isConnected || server?.isTransitioning) && <Menu.Item 
                                     onClick={() => this.connect()}
                                 >
                                     <Icon.Group className='menu-icon-group'>
