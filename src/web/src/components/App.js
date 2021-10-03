@@ -2,7 +2,7 @@ import React, { Component } from 'react';
 import { Route, Link, Switch } from "react-router-dom";
 
 import * as session from '../lib/session';
-import * as server from '../lib/server';
+import { connect, disconnect } from '../lib/server';
 
 import { createApplicationHubConnection } from '../lib/hubFactory';
 
@@ -39,7 +39,11 @@ const initialState = {
 class App extends Component {
     state = initialState;
 
-    componentDidMount = async () => {
+    componentDidMount = () => {
+        this.init();
+    };
+
+    init = async () => {
         const { login } = this.state;
 
         try {
@@ -53,10 +57,15 @@ class App extends Component {
             await session.check();
 
             const appHub = createApplicationHubConnection();
+
             appHub.on('state', (state) => {
                 console.debug(state)
                 this.setState({ applicationState: state });
             });
+
+            appHub.onreconnecting(() => this.setState({ error: true }));
+            appHub.onclose(() => this.setState({ error: true }));
+            appHub.onreconnected(() => this.setState({ error: false }));
 
             appHub.start();
 
@@ -65,12 +74,13 @@ class App extends Component {
                     ...login,
                     initialized: true
                 },
+                error: false,
             });
         } catch (err) {
             console.error(err)
-            this.setState({ error: true })
+            this.setState({ error: true }, () => setTimeout(() => this.init(), 1000))
         }
-    };
+    }
 
     login = (username, password, rememberMe) => {
         this.setState({ login: { ...this.state.login, pending: true, error: undefined }}, async () => {
@@ -92,14 +102,6 @@ class App extends Component {
         session.check(); // async, runs in the background
         return { ...component };
     };
-
-    connect = async () => {
-        await server.connect();
-    };
-    
-    disconnect = async () => {
-        await server.disconnect();
-    }
 
     render = () => {
         const { login, applicationState = {}, error } = this.state;
@@ -162,12 +164,12 @@ class App extends Component {
                             </Link>
                             <Menu className='right' inverted>
                                 {server?.isConnected && <Menu.Item
-                                    onClick={() => this.disconnect()}
+                                    onClick={() => disconnect()}
                                 >
                                     <Icon name='plug' color='green'/>Connected
                                 </Menu.Item>}
-                                {(!server?.isConnected || server?.isTransitioning) && <Menu.Item 
-                                    onClick={() => this.connect()}
+                                {(!server?.isConnected) && <Menu.Item 
+                                    onClick={() => connect()}
                                 >
                                     <Icon.Group className='menu-icon-group'>
                                         <Icon name='plug' color='grey'/>
