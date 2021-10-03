@@ -1,15 +1,12 @@
 import axios from 'axios';
-import { baseUrl, tokenKey, tokenPassthroughValue } from '../config';
-
-const getToken = () => {
-  return JSON.parse(sessionStorage.getItem(tokenKey) || localStorage.getItem(tokenKey));
-}
+import { baseUrl, tokenPassthroughValue } from '../config';
+import * as session from './session';
 
 axios.defaults.baseURL = baseUrl;
 const api = axios.create();
 
 api.interceptors.request.use(config => {
-    const token = getToken();
+    const token = session.getToken();
 
     config.headers['Content-Type'] = 'application/json';
 
@@ -24,9 +21,8 @@ api.interceptors.response.use(response => {
   return response;
 }, error => {
   if (error.response.status === 401 && !['/session', '/server', '/application'].includes(error.response.config.url)) {
-    sessionStorage.removeItem(tokenKey);
-    localStorage.removeItem(tokenKey);
-
+    console.debug('received 401 from api route, logging out')
+    session.logout();
     window.location.reload(true);
 
     return Promise.reject(error);
