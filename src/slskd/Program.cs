@@ -84,6 +84,11 @@ namespace slskd
         public static readonly string XmlDocumentationFile = Path.Combine(AppContext.BaseDirectory, "etc", $"{AppName}.xml");
 
         /// <summary>
+        ///     Occurs when a new log event is emitted.
+        /// </summary>
+        public static event EventHandler<LogEvent> LogEmitted;
+
+        /// <summary>
         ///     Gets the assembly version of the application.
         /// </summary>
         /// <remarks>
@@ -118,6 +123,11 @@ namespace slskd
         ///     Gets a value indicating whether the current version is a Canary build.
         /// </summary>
         public static bool IsCanary { get; } = InformationalVersion.EndsWith("65534");
+
+        /// <summary>
+        ///     Gets a buffer containing the last few log events.
+        /// </summary>
+        public static ConcurrentFixedSizeQueue<LogEvent> LogBuffer { get; } = new ConcurrentFixedSizeQueue<LogEvent>(size: 500);
 
         private static IConfigurationRoot Configuration { get; set; }
         private static OptionsAtStartup OptionsAtStartup { get; } = new OptionsAtStartup();
@@ -221,6 +231,11 @@ namespace slskd
                 .Enrich.WithProperty("InvocationId", InvocationId)
                 .Enrich.WithProperty("ProcessId", ProcessId)
                 .Enrich.FromLogContext()
+                .WriteTo.Sink(new DelegatingSink(logEvent =>
+                {
+                    LogBuffer.Enqueue(logEvent);
+                    LogEmitted?.Invoke(null, logEvent);
+                }))
                 .WriteTo.Console(
                     outputTemplate: (OptionsAtStartup.Debug ? "[{SourceContext}] [{SoulseekContext}] " : string.Empty) + "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
                 .WriteTo.Async(config =>
