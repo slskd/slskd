@@ -86,7 +86,7 @@ namespace slskd
         /// <summary>
         ///     Occurs when a new log event is emitted.
         /// </summary>
-        public static event EventHandler<LogEvent> LogEmitted;
+        public static event EventHandler<LogRecord> LogEmitted;
 
         /// <summary>
         ///     Gets the assembly version of the application.
@@ -127,7 +127,7 @@ namespace slskd
         /// <summary>
         ///     Gets a buffer containing the last few log events.
         /// </summary>
-        public static ConcurrentFixedSizeQueue<LogEvent> LogBuffer { get; } = new ConcurrentFixedSizeQueue<LogEvent>(size: 500);
+        public static ConcurrentFixedSizeQueue<LogRecord> LogBuffer { get; } = new ConcurrentFixedSizeQueue<LogRecord>(size: 500);
 
         private static IConfigurationRoot Configuration { get; set; }
         private static OptionsAtStartup OptionsAtStartup { get; } = new OptionsAtStartup();
@@ -231,11 +231,6 @@ namespace slskd
                 .Enrich.WithProperty("InvocationId", InvocationId)
                 .Enrich.WithProperty("ProcessId", ProcessId)
                 .Enrich.FromLogContext()
-                .WriteTo.Sink(new DelegatingSink(logEvent =>
-                {
-                    LogBuffer.Enqueue(logEvent);
-                    LogEmitted?.Invoke(null, logEvent);
-                }))
                 .WriteTo.Console(
                     outputTemplate: (OptionsAtStartup.Debug ? "[{SourceContext}] [{SoulseekContext}] " : string.Empty) + "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
                 .WriteTo.Async(config =>
@@ -248,6 +243,19 @@ namespace slskd
                     config => config.GrafanaLoki(
                         OptionsAtStartup.Logger.Loki ?? string.Empty,
                         outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}"))
+                .WriteTo.Sink(new DelegatingSink(logEvent =>
+                {
+                    var record = new LogRecord()
+                    {
+                        Timestamp = logEvent.Timestamp.LocalDateTime,
+                        Context = logEvent.Properties["SourceContext"].ToString().TrimStart('"').TrimEnd('"'),
+                        Level = logEvent.Level.ToString(),
+                        Message = logEvent.RenderMessage().TrimStart('"').TrimEnd('"'),
+                    };
+
+                    LogBuffer.Enqueue(record);
+                    LogEmitted?.Invoke(null, record);
+                }))
                 .CreateLogger();
 
             var logger = Log.ForContext(typeof(Program));
