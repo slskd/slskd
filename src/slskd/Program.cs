@@ -225,7 +225,7 @@ namespace slskd
                     outputTemplate: (OptionsAtStartup.Debug ? "[{SourceContext}] [{SoulseekContext}] " : string.Empty) + "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
                 .WriteTo.Async(config =>
                     config.File(
-                        Path.Combine(AppContext.BaseDirectory, "logs", $"{AppName}-.log"),
+                        Path.Combine(OptionsAtStartup.Directories.App, "logs", $"{AppName}-.log"),
                         outputTemplate: (OptionsAtStartup.Debug ? "[{SourceContext}] " : string.Empty) + "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}",
                         rollingInterval: RollingInterval.Day))
                 .WriteTo.Conditional(
