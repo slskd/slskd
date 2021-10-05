@@ -1,4 +1,4 @@
-﻿// <copyright file="LogsController.cs" company="slskd Team">
+﻿// <copyright file="LogRecord.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -17,32 +17,22 @@
 
 namespace slskd.Core.API
 {
-    using System.Linq;
-    using Microsoft.AspNetCore.Authorization;
-    using Microsoft.AspNetCore.Mvc;
+    using System;
+    using Serilog.Events;
 
-    /// <summary>
-    ///     Logs.
-    /// </summary>
-    [Route("api/v{version:apiVersion}/[controller]")]
-    [ApiVersion("0")]
-    [ApiController]
-    [Produces("application/json")]
-    [Consumes("application/json")]
-    public class LogsController : ControllerBase
+    public class LogRecord
     {
-        /// <summary>
-        ///     Gets the last few application logs.
-        /// </summary>
-        /// <returns></returns>
-        [HttpGet]
-        [Authorize]
-        public IActionResult Logs()
-        {
-            var logs = Program.LogBuffer
-                .Select(logEvent => LogRecord.FromLogEvent(logEvent));
+        public DateTime Timestamp { get; set; }
+        public string Context { get; set; }
+        public string Level { get; set; }
+        public string Message { get; set; }
 
-            return Ok(logs);
-        }
+        public static LogRecord FromLogEvent(LogEvent e) => new LogRecord()
+        {
+            Timestamp = e.Timestamp.LocalDateTime,
+            Context = e.Properties["SourceContext"].ToString().TrimStart('"').TrimEnd('"'),
+            Level = e.Level.ToString(),
+            Message = e.RenderMessage(),
+        };
     }
 }
