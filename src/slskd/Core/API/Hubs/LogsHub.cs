@@ -1,4 +1,4 @@
-﻿// <copyright file="LogHub.cs" company="slskd Team">
+﻿// <copyright file="LogsHub.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -38,7 +38,7 @@ namespace slskd.Core.API
         /// <param name="hub">The hub.</param>
         /// <param name="record">The log record to broadcast.</param>
         /// <returns>The operation context.</returns>
-        public static Task EmitLogAsync(this IHubContext<LogHub> hub, LogRecord record)
+        public static Task EmitLogAsync(this IHubContext<LogsHub> hub, LogRecord record)
         {
             return hub.Clients.All.SendAsync(LogHubMethods.Log, record);
         }
@@ -48,7 +48,7 @@ namespace slskd.Core.API
     ///     The logs SignalR hub.
     /// </summary>
     [Authorize]
-    public class LogHub : Hub
+    public class LogsHub : Hub
     {
         public override async Task OnConnectedAsync()
         {
