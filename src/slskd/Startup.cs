@@ -333,6 +333,7 @@ namespace slskd
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapHub<ApplicationHub>("/hub/application");
+                endpoints.MapHub<LogHub>("/hub/log");
 
                 endpoints.MapControllers();
                 endpoints.MapHealthChecks("/health");
