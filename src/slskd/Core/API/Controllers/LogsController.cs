@@ -17,7 +17,6 @@
 
 namespace slskd.Core.API
 {
-    using System.Linq;
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
 
@@ -39,10 +38,7 @@ namespace slskd.Core.API
         [Authorize]
         public IActionResult Logs()
         {
-            var logs = Program.LogBuffer
-                .Select(logEvent => LogRecord.FromLogEvent(logEvent));
-
-            return Ok(logs);
+            return Ok(Program.LogBuffer);
         }
     }
 }
