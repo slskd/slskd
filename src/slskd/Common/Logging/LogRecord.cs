@@ -15,24 +15,15 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-namespace slskd.Core.API
+namespace slskd
 {
     using System;
-    using Serilog.Events;
 
-    public class LogRecord
+    public record LogRecord
     {
-        public DateTime Timestamp { get; set; }
-        public string Context { get; set; }
-        public string Level { get; set; }
-        public string Message { get; set; }
-
-        public static LogRecord FromLogEvent(LogEvent e) => new LogRecord()
-        {
-            Timestamp = e.Timestamp.LocalDateTime,
-            Context = e.Properties["SourceContext"].ToString().TrimStart('"').TrimEnd('"'),
-            Level = e.Level.ToString(),
-            Message = e.RenderMessage(),
-        };
+        public DateTime Timestamp { get; init; }
+        public string Context { get; init; }
+        public string Level { get; init; }
+        public string Message { get; init; }
     }
 }
