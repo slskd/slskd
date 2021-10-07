@@ -12,6 +12,7 @@ import Browse from './Browse/Browse';
 import Users from './Users/Users';
 import Transfers from './Transfers/Transfers';
 import Chat from './Chat/Chat';
+import System from './System/System';
 import LoginForm from './LoginForm';
 
 import { 
@@ -198,6 +199,11 @@ class App extends Component {
                                             href="https://github.com/slskd/slskd/releases">See Release Notes</Button>
                                     </Modal.Actions>
                                 </Modal>}
+                                <Link to='system'>
+                                    <Menu.Item>
+                                        <Icon name='cogs'/>System
+                                    </Menu.Item>
+                                </Link>
                                 {session.isLoggedIn() && <Modal
                                     trigger={
                                         <Menu.Item>
@@ -220,6 +226,7 @@ class App extends Component {
                                 <Route path='*/rooms' render={(props) => this.withTokenCheck(<Rooms {...props}/>)}/>
                                 <Route path='*/uploads' render={(props) => this.withTokenCheck(<Transfers {...props} direction='upload'/>)}/>
                                 <Route path='*/downloads' render={(props) => this.withTokenCheck(<Transfers {...props} direction='download'/>)}/>
+                                <Route path='*/system' render={(props) => this.withTokenCheck(<System state={this.state.applicationState}/>)}/>
                                 <Route path='*/' render={(props) => this.withTokenCheck(<Search {...props}/>)}/>
                             </Switch>
                         </Sidebar.Pusher>
