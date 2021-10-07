@@ -1,4 +1,4 @@
-﻿// <copyright file="ApplicationHub.cs" company="slskd Team">
+﻿// <copyright file="LogsHub.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -21,44 +21,38 @@ namespace slskd.Core.API
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.SignalR;
 
-    public static class ApplicationHubMethods
+    public static class LogHubMethods
     {
-        public static readonly string State = "STATE";
+        public static readonly string Buffer = "BUFFER";
+        public static readonly string Log = "LOG";
     }
 
     /// <summary>
-    ///     Extension methods for the application SignalR hub.
+    ///     Extension methods for the logs SignalR hub.
     /// </summary>
-    public static class ApplicationHubExtensions
+    public static class LogHubExtensions
     {
         /// <summary>
-        ///     Broadcast the present application state.
+        ///     Broadcast a log record.
         /// </summary>
         /// <param name="hub">The hub.</param>
-        /// <param name="state">The state to broadcast.</param>
+        /// <param name="record">The log record to broadcast.</param>
         /// <returns>The operation context.</returns>
-        public static Task BroadcastStateAsync(this IHubContext<ApplicationHub> hub, State state)
+        public static Task EmitLogAsync(this IHubContext<LogsHub> hub, LogRecord record)
         {
-            return hub.Clients.All.SendAsync(ApplicationHubMethods.State, state);
+            return hub.Clients.All.SendAsync(LogHubMethods.Log, record);
         }
     }
 
     /// <summary>
-    ///     The application SignalR hub.
+    ///     The logs SignalR hub.
     /// </summary>
     [Authorize]
-    public class ApplicationHub : Hub
+    public class LogsHub : Hub
     {
-        public ApplicationHub(IStateMonitor<State> stateMonitor)
-        {
-            StateMonitor = stateMonitor;
-        }
-
-        IStateMonitor<State> StateMonitor { get; }
-
         public override async Task OnConnectedAsync()
         {
-            await Clients.Caller.SendAsync(ApplicationHubMethods.State, StateMonitor.CurrentValue);
+            await Clients.Caller.SendAsync(LogHubMethods.Buffer, Program.LogBuffer);
         }
     }
 }

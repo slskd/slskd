@@ -64,7 +64,8 @@ namespace slskd
             IRoomService roomService,
             ISharedFileCache sharedFileCache,
             IPushbulletService pushbulletService,
-            IHubContext<ApplicationHub> applicationHub)
+            IHubContext<ApplicationHub> applicationHub,
+            IHubContext<LogsHub> logHub)
         {
             OptionsAtStartup = optionsAtStartup;
 
@@ -86,6 +87,9 @@ namespace slskd
 
             RoomService = roomService;
             ApplicationHub = applicationHub;
+
+            LogHub = logHub;
+            Program.LogEmitted += (_, log) => LogHub.EmitLogAsync(log);
 
             Client = soulseekClient;
 
@@ -128,6 +132,7 @@ namespace slskd
         private IManagedState<State> State { get; }
         private ITransferTracker TransferTracker { get; set; }
         private IHubContext<ApplicationHub> ApplicationHub { get; set; }
+        private IHubContext<LogsHub> LogHub { get; set; }
 
         /// <summary>
         ///     Gets the version of the latest application release.

@@ -84,6 +84,11 @@ namespace slskd
         public static readonly string XmlDocumentationFile = Path.Combine(AppContext.BaseDirectory, "etc", $"{AppName}.xml");
 
         /// <summary>
+        ///     Occurs when a new log event is emitted.
+        /// </summary>
+        public static event EventHandler<LogRecord> LogEmitted;
+
+        /// <summary>
         ///     Gets the assembly version of the application.
         /// </summary>
         /// <remarks>
@@ -118,6 +123,11 @@ namespace slskd
         ///     Gets a value indicating whether the current version is a Canary build.
         /// </summary>
         public static bool IsCanary { get; } = InformationalVersion.EndsWith("65534");
+
+        /// <summary>
+        ///     Gets a buffer containing the last few log events.
+        /// </summary>
+        public static ConcurrentFixedSizeQueue<LogRecord> LogBuffer { get; } = new ConcurrentFixedSizeQueue<LogRecord>(size: 500);
 
         private static IConfigurationRoot Configuration { get; set; }
         private static OptionsAtStartup OptionsAtStartup { get; } = new OptionsAtStartup();
@@ -245,6 +255,19 @@ namespace slskd
                     config => config.GrafanaLoki(
                         OptionsAtStartup.Logger.Loki ?? string.Empty,
                         outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}"))
+                .WriteTo.Sink(new DelegatingSink(logEvent =>
+                {
+                    var record = new LogRecord()
+                    {
+                        Timestamp = logEvent.Timestamp.LocalDateTime,
+                        Context = logEvent.Properties["SourceContext"].ToString().TrimStart('"').TrimEnd('"'),
+                        Level = logEvent.Level.ToString(),
+                        Message = logEvent.RenderMessage().TrimStart('"').TrimEnd('"'),
+                    };
+
+                    LogBuffer.Enqueue(record);
+                    LogEmitted?.Invoke(null, record);
+                }))
                 .CreateLogger();
 
             var logger = Log.ForContext(typeof(Program));
