@@ -212,6 +212,18 @@ namespace slskd
                 return;
             }
 
+            try
+            {
+                VerifyDirectory(OptionsAtStartup.Directories.App, createIfMissing: true, verifyWriteable: true);
+                VerifyDirectory(OptionsAtStartup.Directories.Incomplete, createIfMissing: true, verifyWriteable: true);
+                VerifyDirectory(OptionsAtStartup.Directories.Downloads, createIfMissing: true, verifyWriteable: true);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Filesystem exception: {ex.Message}");
+                return;
+            }
+
             Log.Logger = (OptionsAtStartup.Debug ? new LoggerConfiguration().MinimumLevel.Debug() : new LoggerConfiguration().MinimumLevel.Information())
                 .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
                 .MinimumLevel.Override("System.Net.Http.HttpClient", OptionsAtStartup.Debug ? LogEventLevel.Warning : LogEventLevel.Fatal)
@@ -236,18 +248,6 @@ namespace slskd
                 .CreateLogger();
 
             var logger = Log.ForContext(typeof(Program));
-
-            try
-            {
-                VerifyDirectory(OptionsAtStartup.Directories.App, createIfMissing: true, verifyWriteable: true);
-                VerifyDirectory(OptionsAtStartup.Directories.Incomplete, createIfMissing: true, verifyWriteable: true);
-                VerifyDirectory(OptionsAtStartup.Directories.Downloads, createIfMissing: true, verifyWriteable: true);
-            }
-            catch (Exception ex)
-            {
-                logger.Error(ex, "Filesystem exception: {Message}", ex.Message);
-                return;
-            }
 
             if (!OptionsAtStartup.NoLogo)
             {
