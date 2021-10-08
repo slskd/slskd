@@ -14,7 +14,9 @@ export const createHubConnection = ({ url }) =>
     })
     .withAutomaticReconnect()
     .withHubProtocol(new JsonHubProtocol())
-    .configureLogging(LogLevel.Information)
+    .configureLogging(LogLevel.Warning)
     .build();
 
 export const createApplicationHubConnection = () => createHubConnection({ url: `${rootUrl}/hub/application` });
+
+export const createLogsHubConnection = () => createHubConnection({ url: `${rootUrl}/hub/logs` });
