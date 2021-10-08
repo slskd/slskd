@@ -7,3 +7,19 @@
   margin-top: 15px !important;
   margin-bottom: 17px;
 }
+
+.logs-table {
+  font-size: smaller;
+}
+
+.logs-table-body {
+  font-family: monospace;
+}
+
+.logs-table-message {
+  word-break: break-all;
+}
+
+.logs {
+  min-height: 100px;
+}
