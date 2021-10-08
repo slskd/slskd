@@ -50,7 +50,7 @@ class Logs extends Component {
 
     return (
       <div className='logs'>
-        {!connected && <Dimmer active inverted><Loader inverted/>foo</Dimmer>}
+        {!connected && <Dimmer active inverted><Loader inverted/></Dimmer>}
         {connected &&
           <Table compact='very' className='logs-table'>
             <Table.Header>
