@@ -1,0 +1,25 @@
+.system {
+  padding-left: 15px;
+  padding-right: 15px;
+  max-width: 1200px !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  margin-top: 15px !important;
+  margin-bottom: 17px;
+}
+
+.logs-table {
+  font-size: smaller;
+}
+
+.logs-table-body {
+  font-family: monospace;
+}
+
+.logs-table-message {
+  word-break: break-all;
+}
+
+.logs {
+  min-height: 100px;
+}
