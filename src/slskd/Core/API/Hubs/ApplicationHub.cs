@@ -15,6 +15,8 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
+using Microsoft.Extensions.Options;
+
 namespace slskd.Core.API
 {
     using System.Threading.Tasks;
@@ -24,6 +26,7 @@ namespace slskd.Core.API
     public static class ApplicationHubMethods
     {
         public static readonly string State = "STATE";
+        public static readonly string Options = "OPTIONS";
     }
 
     /// <summary>
@@ -41,6 +44,17 @@ namespace slskd.Core.API
         {
             return hub.Clients.All.SendAsync(ApplicationHubMethods.State, state);
         }
+
+        /// <summary>
+        ///     Broadcast the present application options.
+        /// </summary>
+        /// <param name="hub">The hub.</param>
+        /// <param name="options">The options to broadcast.</param>
+        /// <returns>The operation context.</returns>
+        public static Task BroadcastOptionsAsync(this IHubContext<ApplicationHub> hub, Options options)
+        {
+            return hub.Clients.All.SendAsync(ApplicationHubMethods.Options, options);
+        }
     }
 
     /// <summary>
@@ -49,16 +63,21 @@ namespace slskd.Core.API
     [Authorize]
     public class ApplicationHub : Hub
     {
-        public ApplicationHub(IStateMonitor<State> stateMonitor)
+        public ApplicationHub(
+            IStateMonitor<State> stateMonitor,
+            IOptionsMonitor<Options> optionsMonitor)
         {
             StateMonitor = stateMonitor;
+            OptionsMonitor = optionsMonitor;
         }
 
         IStateMonitor<State> StateMonitor { get; }
+        IOptionsMonitor<Options> OptionsMonitor { get; }
 
         public override async Task OnConnectedAsync()
         {
             await Clients.Caller.SendAsync(ApplicationHubMethods.State, StateMonitor.CurrentValue);
+            await Clients.Caller.SendAsync(ApplicationHubMethods.Options, OptionsMonitor.CurrentValue);
         }
     }
 }
