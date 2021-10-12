@@ -34,6 +34,7 @@ const initialState = {
         error: undefined
     },
     applicationState: {},
+    applicationOptions: {},
     error: false,
 };
 
@@ -63,6 +64,11 @@ class App extends Component {
                 console.debug(state)
                 this.setState({ applicationState: state });
             });
+
+            appHub.on('options', (options) => {
+                console.debug(options);
+                this.setState({ applicationOptions: options });
+            })
 
             appHub.onreconnecting(() => this.setState({ error: true }));
             appHub.onclose(() => this.setState({ error: true }));
@@ -226,7 +232,7 @@ class App extends Component {
                                 <Route path='*/rooms' render={(props) => this.withTokenCheck(<Rooms {...props}/>)}/>
                                 <Route path='*/uploads' render={(props) => this.withTokenCheck(<Transfers {...props} direction='upload'/>)}/>
                                 <Route path='*/downloads' render={(props) => this.withTokenCheck(<Transfers {...props} direction='download'/>)}/>
-                                <Route path='*/system' render={(props) => this.withTokenCheck(<System state={this.state.applicationState}/>)}/>
+                                <Route path='*/system' render={(props) => this.withTokenCheck(<System state={this.state.applicationState} options={this.state.applicationOptions} />)}/>
                                 <Route path='*/' render={(props) => this.withTokenCheck(<Search {...props}/>)}/>
                             </Switch>
                         </Sidebar.Pusher>
