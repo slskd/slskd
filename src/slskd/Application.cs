@@ -638,6 +638,9 @@ namespace slskd
                     Logger.Information("One or more updated options requires an application restart to take effect.");
                 }
 
+                PreviousOptions = newOptions;
+                _ = ApplicationHub.BroadcastOptionsAsync(newOptions);
+
                 Logger.Information("Options updated successfully.");
             }
             catch (Exception ex)
@@ -646,7 +649,6 @@ namespace slskd
             }
             finally
             {
-                PreviousOptions = OptionsMonitor.CurrentValue;
                 OptionsSyncRoot.ExitWriteLock();
             }
         }
@@ -740,7 +742,7 @@ namespace slskd
         private void State_OnChange((State Previous, State Current) state)
         {
             Logger.Debug("State changed from {Previous} to {Current}", state.Previous.ToJson(), state.Current.ToJson());
-            ApplicationHub.BroadcastStateAsync(state.Current);
+            _ = ApplicationHub.BroadcastStateAsync(state.Current);
         }
 
         /// <summary>
