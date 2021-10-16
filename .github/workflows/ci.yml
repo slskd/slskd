@@ -216,19 +216,10 @@ jobs:
           cd dist/osx-x64
           zip -r ../../slskd-${{ env.TAG }}-osx-x64.zip .
 
-      - name: Build Changelog
-        id: build_changelog
-        uses: mikepenz/release-changelog-builder-action@v1.4.0
-        with:
-          configuration: .github/configuration/changelog.json
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Create Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          body: ${{ steps.build_changelog.outputs.changelog }}
           files: |
             slskd-${{ env.TAG }}-win-x64.zip
             slskd-${{ env.TAG }}-linux-x64.zip
