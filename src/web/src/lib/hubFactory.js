@@ -12,7 +12,7 @@ export const createHubConnection = ({ url }) =>
     .withUrl(url, {
         accessTokenFactory: session.getToken
     })
-    .withAutomaticReconnect()
+    .withAutomaticReconnect([0, 500, 1000, 3000, 5000, 5000, 5000, 5000, 5000])
     .withHubProtocol(new JsonHubProtocol())
     .configureLogging(LogLevel.Warning)
     .build();

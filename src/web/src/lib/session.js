@@ -37,8 +37,12 @@ export const check = async () => {
     await api.get('/session');
     return true;
   } catch (error) {
-    console.error('session error; not logged in or session has expired')
-    logout();
-    return false;
+    if (error.response.status === 401) {
+      console.error('session error; not logged in or session has expired')
+      logout();
+      return false;
+    } else {
+      throw error;
+    }
   }
 };

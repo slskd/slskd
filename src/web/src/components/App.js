@@ -36,6 +36,7 @@ const initialState = {
   applicationState: {},
   initialized: false,
   error: false,
+  retriesExhausted: false,
 };
 
 class App extends Component {
@@ -48,36 +49,32 @@ class App extends Component {
   init = async () => {
     try {
       const securityEnabled = await session.getSecurityEnabled();
-  
+
       if (!securityEnabled) {
         console.debug('application security is not enabled, per api call')
         session.enablePassthrough()
       }
 
-      const sessionOk = await session.check();
-
-      if (!sessionOk) {
-        return;
+      if (await session.check()) {        
+        const appHub = createApplicationHubConnection();
+        
+        appHub.on('state', (state) => {
+          this.setState({ applicationState: state });
+        });
+        
+        appHub.onreconnecting(() => this.setState({ error: true, retriesExhausted: false }));
+        appHub.onclose(() => this.setState({ error: true, retriesExhausted: true }));
+        appHub.onreconnected(() => this.setState({ error: false, retriesExhausted: false }));
+        
+        await appHub.start();
       }
-
-      const appHub = createApplicationHubConnection();
-
-      appHub.on('state', (state) => {
-        this.setState({ applicationState: state });
-      });
-
-      appHub.onreconnecting(() => this.setState({ error: true }));
-      appHub.onclose(() => this.setState({ error: true }));
-      appHub.onreconnected(() => this.setState({ error: false }));
-
-      await appHub.start();
 
       this.setState({
         error: false,
       });
     } catch (err) {
       console.error(err)
-      this.setState({ error: true }, () => setTimeout(() => this.init(), 1000))
+      this.setState({ error: true, retriesExhausted: true })
     } finally {
       this.setState({ initialized: true });
     }
@@ -105,7 +102,7 @@ class App extends Component {
   };
 
   render = () => {
-    const { login, applicationState = {}, error, initialized } = this.state;
+    const { login, applicationState = {}, error, initialized, retriesExhausted } = this.state;
     const { version = {}, server } = applicationState;
     const { isUpdateAvailable, current, latest } = version;
 
@@ -114,7 +111,10 @@ class App extends Component {
     }
 
     if (error) {
-      return <ErrorSegment suppressPrefix icon='attention' caption='Lost connection to slskd' />;
+      return <ErrorSegment 
+      suppressPrefix 
+      icon='attention' 
+      caption={<><span>Lost connection to slskd</span><br/><span>{(retriesExhausted ? 'Refresh to reconnect' : 'Retrying...')}</span></>}/>;
     }
 
     if (!session.isLoggedIn() && !session.isPassthroughEnabled()) {
