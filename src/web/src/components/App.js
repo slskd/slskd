@@ -34,6 +34,7 @@ const initialState = {
     error: undefined
   },
   applicationState: {},
+  applicationOptions: {},
   initialized: false,
   error: false,
   retriesExhausted: false,
@@ -61,6 +62,10 @@ class App extends Component {
         appHub.on('state', (state) => {
           this.setState({ applicationState: state });
         });
+
+        appHub.on('options', (options) => {
+          this.setState({ applicationOptions: options })
+        })
         
         appHub.onreconnecting(() => this.setState({ error: true, retriesExhausted: false }));
         appHub.onclose(() => this.setState({ error: true, retriesExhausted: true }));
@@ -102,7 +107,7 @@ class App extends Component {
   };
 
   render = () => {
-    const { login, applicationState = {}, error, initialized, retriesExhausted } = this.state;
+    const { login, applicationState = {}, applicationOptions = {}, error, initialized, retriesExhausted } = this.state;
     const { version = {}, server } = applicationState;
     const { isUpdateAvailable, current, latest } = version;
 
@@ -237,7 +242,7 @@ class App extends Component {
             <Route path='*/rooms' render={(props) => this.withTokenCheck(<Rooms {...props}/>)}/>
             <Route path='*/uploads' render={(props) => this.withTokenCheck(<Transfers {...props} direction='upload'/>)}/>
             <Route path='*/downloads' render={(props) => this.withTokenCheck(<Transfers {...props} direction='download'/>)}/>
-            <Route path='*/system' render={(props) => this.withTokenCheck(<System state={this.state.applicationState}/>)}/>
+            <Route path='*/system' render={(props) => this.withTokenCheck(<System state={applicationState} options={applicationOptions}/>)}/>
             <Route path='*/' render={(props) => this.withTokenCheck(<Search {...props}/>)}/>
           </Switch>
         </Sidebar.Pusher>
