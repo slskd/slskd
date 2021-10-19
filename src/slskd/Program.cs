@@ -289,7 +289,7 @@ namespace slskd
 
             logger.Information("Version: {Version}", Version);
 
-            if (!IsCanary)
+            if (IsCanary)
             {
                 logger.Warning("This is a canary build");
                 logger.Warning("Canary builds are considered UNSTABLE and may be completely BROKEN");
@@ -537,7 +537,7 @@ namespace slskd
 │                                                        │
 │{centeredVersion}│";
 
-            if (!IsCanary)
+            if (IsCanary)
             {
                 banner += "\n│■■■■■■■■■■■■■■■■■■■■■■■► CANARY ◄■■■■■■■■■■■■■■■■■■■■■■■│";
             }
