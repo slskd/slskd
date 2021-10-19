@@ -162,10 +162,6 @@ namespace slskd
         /// <param name="args">Command line arguments.</param>
         public static void Main(string[] args)
         {
-            Console.WriteLine(AssemblyVersion.Revision);
-            Console.WriteLine(AssemblyVersion.Revision == 65534);
-            Console.WriteLine(IsCanary);
-
             // populate the properties above so that we can override the default config file if needed, and to
             // check if the application is being run in command mode (run task and quit).
             EnvironmentVariables.Populate(prefix: EnvironmentVariablePrefix);
