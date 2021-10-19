@@ -79,6 +79,11 @@ namespace slskd
         public static readonly string EnvironmentVariablePrefix = $"{AppName.ToUpperInvariant()}_";
 
         /// <summary>
+        ///     The url to the issues/support site.
+        /// </summary>
+        public static readonly string IssuesUrl = "https://github.com/slskd/slskd/issues";
+
+        /// <summary>
         ///     The default XML documentation filename.
         /// </summary>
         public static readonly string XmlDocumentationFile = Path.Combine(AppContext.BaseDirectory, "etc", $"{AppName}.xml");
@@ -283,6 +288,14 @@ namespace slskd
             }
 
             logger.Information("Version: {Version}", Version);
+
+            if (!IsCanary)
+            {
+                logger.Warning("This is a canary build");
+                logger.Warning("Canary builds are considered UNSTABLE and may be completely BROKEN");
+                logger.Warning($"Please report any issues here: {IssuesUrl}");
+            }
+
             logger.Information("Instance Name: {InstanceName}", OptionsAtStartup.InstanceName);
             logger.Information("Invocation ID: {InvocationId}", InvocationId);
             logger.Information("Process ID: {ProcessId}", ProcessId);
@@ -522,8 +535,14 @@ namespace slskd
 │           GNU AFFERO GENERAL PUBLIC LICENSE            │
 │                   https://slskd.org                    │
 │                                                        │
-│{centeredVersion}│
-└────────────────────────────────────────────────────────┘";
+│{centeredVersion}│";
+
+            if (!IsCanary)
+            {
+                banner += "\n│■■■■■■■■■■■■■■■■■■■■■■■► CANARY ◄■■■■■■■■■■■■■■■■■■■■■■■│";
+            }
+
+            banner += "\n└────────────────────────────────────────────────────────┘";
 
             Console.WriteLine(banner);
         }
