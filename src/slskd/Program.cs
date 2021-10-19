@@ -122,7 +122,7 @@ namespace slskd
         /// <summary>
         ///     Gets a value indicating whether the current version is a Canary build.
         /// </summary>
-        public static bool IsCanary { get; } = AssemblyVersion.Build == 65534;
+        public static bool IsCanary { get; } = AssemblyVersion.Revision == 65534;
 
         /// <summary>
         ///     Gets a buffer containing the last few log events.
