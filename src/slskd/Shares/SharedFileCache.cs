@@ -180,7 +180,7 @@ namespace slskd.Shares
                 sw.Start();
 
                 Shares = OptionsMonitor.CurrentValue.Directories.Shared
-                    .Select(share => Path.TrimEndingDirectorySeparator(share))
+                    .Select(share => share.TrimEnd('/', '\\'))
                     .ToHashSet() // remove duplicates
                     .Select(share => new Share(share)) // convert to Shares
                     .OrderByDescending(share => share.LocalPath.Length) // process subdirectories first.  this allows them to be aliased separately from their parent
@@ -189,6 +189,11 @@ namespace slskd.Shares
                 if (!Shares.Any())
                 {
                     Log.Warning("Aborting shared file scan; no shares configured.");
+                }
+
+                foreach (var share in Shares)
+                {
+                    Log.Debug($"Share: Alias: {share.Alias} Mask: {share.Mask} Local Path: {share.LocalPath} Remote Path: {share.RemotePath} Raw: {share.Raw}");
                 }
 
                 Log.Debug("Enumerating shared directories");
@@ -327,6 +332,7 @@ namespace slskd.Shares
         /// <returns>The unmasked filename.</returns>
         public string Resolve(string filename)
         {
+            filename = filename.ToLocalOSPath();
             var resolved = filename;
 
             // a well-formed path will consist of a mask, either an alias or a local directory, and a fully qualified path to a
@@ -335,6 +341,7 @@ namespace slskd.Shares
 
             if (parts.Length < 2)
             {
+                Log.Warning($"Failed to resolve shared file {filename}; filename is badly formed");
                 return resolved;
             }
 
@@ -343,10 +350,18 @@ namespace slskd.Shares
 
             if (share == default)
             {
+                Log.Warning($"Failed to resolve shared file {filename}; unable to resolve share from mask and alias");
                 return resolved;
             }
 
-            return resolved.ReplaceFirst(share.RemotePath, share.LocalPath);
+            resolved = resolved.ReplaceFirst(share.RemotePath, share.LocalPath);
+
+            if (resolved == filename) {
+                Log.Warning($"Failed to resolve shared file {filename}");
+            }
+
+            Log.Debug($"Resolved requested shared file {filename} to {resolved}");
+            return resolved;
         }
 
         /// <summary>
