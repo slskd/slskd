@@ -341,6 +341,7 @@ namespace slskd.Shares
 
             if (parts.Length < 2)
             {
+                Log.Warning($"Failed to resolve shared file {filename}; filename is badly formed");
                 return resolved;
             }
 
@@ -349,10 +350,18 @@ namespace slskd.Shares
 
             if (share == default)
             {
+                Log.Warning($"Failed to resolve shared file {filename}; unable to resolve share from mask and alias");
                 return resolved;
             }
 
-            return resolved.ReplaceFirst(share.RemotePath, share.LocalPath);
+            resolved = resolved.ReplaceFirst(share.RemotePath, share.LocalPath);
+
+            if (resolved == filename) {
+                Log.Warning($"Failed to resolve shared file {filename}");
+            }
+
+            Log.Debug($"Resolved requested shared file {filename} to {resolved}");
+            return resolved;
         }
 
         /// <summary>
