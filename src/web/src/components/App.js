@@ -144,6 +144,9 @@ class App extends Component {
           direction='top' 
           visible width='thin'
         >
+          {version.isCanary && <Menu.Item>
+            <Icon name='flask' color='yellow'/>Canary
+          </Menu.Item>}
           <Link to='.'>
             <Menu.Item>
               <Icon name='search'/>Search
