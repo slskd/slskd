@@ -310,7 +310,7 @@ namespace slskd
                 bool IsRoot((string Raw, string Mask, string Alias, string Path) share) => share.Path == "/" || share.Path == "\\" || Path.GetPathRoot(share.Path) == share.Path;
 
                 var digestedShared = Shared
-                    .Select(share => Digest(Path.TrimEndingDirectorySeparator(share)))
+                    .Select(share => Digest(share.TrimEnd('/', '\\')))
                     .ToHashSet();
 
                 var roots = digestedShared.Where(share => IsRoot(share));
