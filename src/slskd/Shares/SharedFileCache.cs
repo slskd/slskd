@@ -332,6 +332,7 @@ namespace slskd.Shares
         /// <returns>The unmasked filename.</returns>
         public string Resolve(string filename)
         {
+            filename = filename.ToLocalOSPath();
             var resolved = filename;
 
             // a well-formed path will consist of a mask, either an alias or a local directory, and a fully qualified path to a
