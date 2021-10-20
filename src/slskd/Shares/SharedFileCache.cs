@@ -1,4 +1,4 @@
-﻿// <copyright file="SharedFileCache.cs" company="slskd Team">
+// <copyright file="SharedFileCache.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -180,7 +180,7 @@ namespace slskd.Shares
                 sw.Start();
 
                 Shares = OptionsMonitor.CurrentValue.Directories.Shared
-                    .Select(share => Path.TrimEndingDirectorySeparator(share))
+                    .Select(share => share.TrimEnd('/', '\\'))
                     .ToHashSet() // remove duplicates
                     .Select(share => new Share(share)) // convert to Shares
                     .OrderByDescending(share => share.LocalPath.Length) // process subdirectories first.  this allows them to be aliased separately from their parent
