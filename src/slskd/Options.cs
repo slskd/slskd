@@ -752,7 +752,7 @@ namespace slskd
                     [Argument(default, "jwt-key")]
                     [EnvironmentVariable("JWT_KEY")]
                     [Description("JWT signing key")]
-                    [StringLength(255, MinimumLength = 1)]
+                    [StringLength(255, MinimumLength = 16)]
                     [RequiresRestart]
                     public string Key { get; private set; } = Guid.NewGuid().ToString();
 
