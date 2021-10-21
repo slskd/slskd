@@ -1,5 +1,5 @@
-const rootUrl = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:5000';
-const baseUrl = `${rootUrl}/api/v0`;
+const rootUrl = process.env.NODE_ENV === 'production' ? window.location.href : 'http://localhost:5000/';
+const baseUrl = `${rootUrl}api/v0`;
 const tokenKey = 'slskd-token';
 const tokenPassthroughValue = 'n/a';
 const activeChatKey = 'slskd-active-chat';
