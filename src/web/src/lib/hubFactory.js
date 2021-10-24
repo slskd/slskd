@@ -17,6 +17,6 @@ export const createHubConnection = ({ url }) =>
     .configureLogging(LogLevel.Warning)
     .build();
 
-export const createApplicationHubConnection = () => createHubConnection({ url: `${rootUrl}/hub/application` });
+export const createApplicationHubConnection = () => createHubConnection({ url: `${rootUrl}hub/application` });
 
-export const createLogsHubConnection = () => createHubConnection({ url: `${rootUrl}/hub/logs` });
+export const createLogsHubConnection = () => createHubConnection({ url: `${rootUrl}hub/logs` });
