@@ -20,6 +20,7 @@ namespace slskd
     using System;
     using System.IO;
     using System.Linq;
+    using System.Text;
     using System.Text.Json.Serialization;
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -36,7 +37,6 @@ namespace slskd
     using Serilog;
     using slskd.Authentication;
     using slskd.Core.API;
-    using slskd.Cryptography;
     using slskd.Integrations.FTP;
     using slskd.Integrations.Pushbullet;
     using slskd.Messaging;
@@ -71,7 +71,7 @@ namespace slskd
 
             ContentPath = Path.GetFullPath(OptionsAtStartup.Web.ContentPath);
 
-            JwtSigningKey = new SymmetricSecurityKey(Pbkdf2.GetKey(OptionsAtStartup.Web.Authentication.Jwt.Key));
+            JwtSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(OptionsAtStartup.Web.Authentication.Jwt.Key));
         }
 
         private IConfiguration Configuration { get; }
