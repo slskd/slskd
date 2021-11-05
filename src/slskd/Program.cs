@@ -547,7 +547,7 @@ namespace slskd
             Console.WriteLine(banner);
         }
 
-        private static bool VerifyDirectory(string directory, bool createIfMissing = true, bool verifyWriteable = true)
+        private static void VerifyDirectory(string directory, bool createIfMissing = true, bool verifyWriteable = true)
         {
             if (!Directory.Exists(directory))
             {
@@ -564,7 +564,7 @@ namespace slskd
                 }
                 else
                 {
-                    return false;
+                    throw new IOException($"Directory {directory} does not exist");
                 }
             }
 
@@ -582,8 +582,6 @@ namespace slskd
                     throw new IOException($"Directory {directory} is not writeable: {ex.Message}", ex);
                 }
             }
-
-            return true;
         }
     }
 }

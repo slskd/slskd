@@ -111,45 +111,42 @@ namespace slskd.Configuration
                         var longName = (string)attribute.ConstructorArguments[1].Value;
                         var arguments = new[] { shortName, longName }.Where(i => !string.IsNullOrEmpty(i));
 
-                        foreach (var argument in arguments)
+                        foreach (var argument in arguments.Where(argument => dictionary.ContainsKey(argument)))
                         {
-                            if (dictionary.ContainsKey(argument))
+                            // if the backing type is an array, it supports multiple values.
+                            if (property.PropertyType.IsArray)
                             {
-                                // if the backing type is an array, it supports multiple values.
-                                if (property.PropertyType.IsArray)
+                                var value = dictionary[argument];
+
+                                // Parse() will stuff multiple values into a List<T> if the argument name is
+                                // in the list of those supporting multiple values, and more than one value was supplied.
+                                // detect this, and add the values to the target.
+                                if (value.GetType().IsGenericType && value.GetType().GetGenericTypeDefinition() == typeof(List<>))
                                 {
-                                    var value = dictionary[argument];
+                                    var elements = (List<object>)dictionary[argument];
 
-                                    // Parse() will stuff multiple values into a List<T> if the argument name is
-                                    // in the list of those supporting multiple values, and more than one value was supplied.
-                                    // detect this, and add the values to the target.
-                                    if (value.GetType().IsGenericType && value.GetType().GetGenericTypeDefinition() == typeof(List<>))
+                                    for (int i = 0; i < elements.Count; i++)
                                     {
-                                        var elements = (List<object>)dictionary[argument];
-
-                                        for (int i = 0; i < elements.Count; i++)
-                                        {
-                                            Data[ConfigurationPath.Combine(key, i.ToString())] = elements[i].ToString();
-                                        }
-                                    }
-                                    else
-                                    {
-                                        // there may have only been one value supplied, in which case the value is just a
-                                        // string.  stick it in index 0 of the target.
-                                        Data[ConfigurationPath.Combine(key, "0")] = value.ToString();
+                                        Data[ConfigurationPath.Combine(key, i.ToString())] = elements[i].ToString();
                                     }
                                 }
                                 else
                                 {
-                                    var value = dictionary[argument].ToString();
-
-                                    if (property.PropertyType == typeof(bool) && string.IsNullOrEmpty(value))
-                                    {
-                                        value = "true";
-                                    }
-
-                                    Data[key] = value;
+                                    // there may have only been one value supplied, in which case the value is just a
+                                    // string.  stick it in index 0 of the target.
+                                    Data[ConfigurationPath.Combine(key, "0")] = value.ToString();
                                 }
+                            }
+                            else
+                            {
+                                var value = dictionary[argument].ToString();
+
+                                if (property.PropertyType == typeof(bool) && string.IsNullOrEmpty(value))
+                                {
+                                    value = "true";
+                                }
+
+                                Data[key] = value;
                             }
                         }
                     }

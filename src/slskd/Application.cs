@@ -441,9 +441,9 @@ namespace slskd
             }
         }
 
-        private void Client_UserStatusChanged(object sender, UserStatusChangedEventArgs args)
+        private void Client_UserStatusChanged(object sender, UserStatus args)
         {
-            Console.WriteLine($"[USER] {args.Username}: {args.Status}");
+            Console.WriteLine($"[USER] {args.Username}: {args.Presence}");
         }
 
         /// <summary>
