@@ -5,7 +5,7 @@
   "homepage": ".",
   "dependencies": {
     "@microsoft/signalr": "^5.0.10",
-    "axios": "^0.21.1",
+    "axios": "^0.21.2",
     "react": "^16.8.6",
     "react-dom": "^16.8.6",
     "react-router-dom": "^5.0.0",
