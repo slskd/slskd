@@ -23,6 +23,7 @@ namespace slskd
     using System.Linq;
     using System.Reflection;
     using System.Text.Json;
+    using System.Text.Json.Serialization;
     using System.Text.RegularExpressions;
 
     /// <summary>
@@ -30,88 +31,6 @@ namespace slskd
     /// </summary>
     public static class Extensions
     {
-        /// <summary>
-        ///     Serializes this object to json.
-        /// </summary>
-        /// <param name="obj">The object to serialize.</param>
-        /// <returns>A string containing the serialized object.</returns>
-        public static string ToJson(this object obj) => JsonSerializer.Serialize(obj);
-
-        /// <summary>
-        ///     Deserializes this string from json to an object of type <typeparamref name="T"/>.
-        /// </summary>
-        /// <typeparam name="T">The type to which to deserialize the string.</typeparam>
-        /// <param name="str">The string to deserialize.</param>
-        /// <returns>The new object deserialzied from the string.</returns>
-        public static T ToObject<T>(this string str) => JsonSerializer.Deserialize<T>(str);
-
-        /// <summary>
-        ///     Recursively retrieves all properties.
-        /// </summary>
-        /// <param name="type">The type from which to retrieve properties.</param>
-        /// <returns>The list of properties.</returns>
-        public static IEnumerable<PropertyInfo> GetPropertiesRecursively(this Type type)
-        {
-            var props = new List<PropertyInfo>();
-
-            foreach (var prop in type.GetProperties())
-            {
-                if (prop.PropertyType.IsPrimitive || prop.PropertyType.IsArray || Nullable.GetUnderlyingType(prop.PropertyType) != null || new[] { typeof(string), typeof(decimal) }.Contains(prop.PropertyType))
-                {
-                    props.Add(prop);
-                }
-                else
-                {
-                    props.AddRange(prop.PropertyType.GetPropertiesRecursively());
-                }
-            }
-
-            return props;
-        }
-
-        /// <summary>
-        ///     Replaces the first occurance of <paramref name="phrase"/> in the string with <paramref name="replacement"/>.
-        /// </summary>
-        /// <param name="str">The string on which to perform the replacement.</param>
-        /// <param name="phrase">The phrase or substring to replace.</param>
-        /// <param name="replacement">The replacement string.</param>
-        /// <returns>The string, with the desired phrase replaced.</returns>
-        public static string ReplaceFirst(this string str, string phrase, string replacement)
-        {
-            int pos = str.IndexOf(phrase);
-
-            if (pos < 0)
-            {
-                return str;
-            }
-
-            return str.Substring(0, pos) + replacement + str.Substring(pos + phrase.Length);
-        }
-
-        /// <summary>
-        ///     Determines whether the string is a valid regular expression.
-        /// </summary>
-        /// <param name="pattern">The string to validate.</param>
-        /// <returns>A value indicating whether the string is a valid regular expression.</returns>
-        public static bool IsValidRegex(this string pattern)
-        {
-            if (string.IsNullOrWhiteSpace(pattern))
-            {
-                return false;
-            }
-
-            try
-            {
-                Regex.Match(string.Empty, pattern);
-            }
-            catch (ArgumentException)
-            {
-                return false;
-            }
-
-            return true;
-        }
-
         /// <summary>
         ///     Deeply compares this object with the specified object and returns a list of properties that are different.
         /// </summary>
@@ -171,14 +90,70 @@ namespace slskd
         }
 
         /// <summary>
-        ///     Returns a "pretty" string representation of the provided Type;  specifically, corrects the naming of generic Types
-        ///     and appends the type parameters for the type to the name as it appears in the code editor.
+        ///     Recursively retrieves all properties.
         /// </summary>
-        /// <param name="type">The type for which the colloquial name should be created.</param>
-        /// <returns>A "pretty" string representation of the provided Type.</returns>
-        public static string ToColloquialString(this Type type)
+        /// <param name="type">The type from which to retrieve properties.</param>
+        /// <returns>The list of properties.</returns>
+        public static IEnumerable<PropertyInfo> GetPropertiesRecursively(this Type type)
         {
-            return !type.IsGenericType ? type.Name : type.Name.Split('`')[0] + "<" + string.Join(", ", type.GetGenericArguments().Select(a => a.ToColloquialString())) + ">";
+            var props = new List<PropertyInfo>();
+
+            foreach (var prop in type.GetProperties())
+            {
+                if (prop.PropertyType.IsPrimitive || prop.PropertyType.IsArray || Nullable.GetUnderlyingType(prop.PropertyType) != null || new[] { typeof(string), typeof(decimal) }.Contains(prop.PropertyType))
+                {
+                    props.Add(prop);
+                }
+                else
+                {
+                    props.AddRange(prop.PropertyType.GetPropertiesRecursively());
+                }
+            }
+
+            return props;
+        }
+
+        /// <summary>
+        ///     Determines whether the string is a valid regular expression.
+        /// </summary>
+        /// <param name="pattern">The string to validate.</param>
+        /// <returns>A value indicating whether the string is a valid regular expression.</returns>
+        public static bool IsValidRegex(this string pattern)
+        {
+            if (string.IsNullOrWhiteSpace(pattern))
+            {
+                return false;
+            }
+
+            try
+            {
+                Regex.Match(string.Empty, pattern);
+            }
+            catch (ArgumentException)
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        ///     Replaces the first occurance of <paramref name="phrase"/> in the string with <paramref name="replacement"/>.
+        /// </summary>
+        /// <param name="str">The string on which to perform the replacement.</param>
+        /// <param name="phrase">The phrase or substring to replace.</param>
+        /// <param name="replacement">The replacement string.</param>
+        /// <returns>The string, with the desired phrase replaced.</returns>
+        public static string ReplaceFirst(this string str, string phrase, string replacement)
+        {
+            int pos = str.IndexOf(phrase);
+
+            if (pos < 0)
+            {
+                return str;
+            }
+
+            return str.Substring(0, pos) + replacement + str.Substring(pos + phrase.Length);
         }
 
         /// <summary>
@@ -221,6 +196,48 @@ namespace slskd
         }
 
         /// <summary>
+        ///     Returns a "pretty" string representation of the provided Type; specifically, corrects the naming of generic Types
+        ///     and appends the type parameters for the type to the name as it appears in the code editor.
+        /// </summary>
+        /// <param name="type">The type for which the colloquial name should be created.</param>
+        /// <returns>A "pretty" string representation of the provided Type.</returns>
+        public static string ToColloquialString(this Type type)
+        {
+            return !type.IsGenericType ? type.Name : type.Name.Split('`')[0] + "<" + string.Join(", ", type.GetGenericArguments().Select(a => a.ToColloquialString())) + ">";
+        }
+
+        /// <summary>
+        ///     Serializes this object to json.
+        /// </summary>
+        /// <param name="obj">The object to serialize.</param>
+        /// <returns>A string containing the serialized object.</returns>
+        public static string ToJson(this object obj) => JsonSerializer.Serialize(obj, GetJsonSerializerOptions());
+
+        /// <summary>
+        ///     Converts a fully qualified remote filename to a local filename based in the provided
+        ///     <paramref name="baseDirectory"/>, swapping directory characters for those specific to the local OS, removing any
+        ///     characters that are invalid for the local OS, and making the path relative to the remote store (including the
+        ///     filename and the parent folder).
+        /// </summary>
+        /// <param name="remoteFilename">The fully qualified remote filename to convert.</param>
+        /// <param name="baseDirectory">The base directory for the local filename.</param>
+        /// <returns>The converted filename.</returns>
+        public static string ToLocalFilename(this string remoteFilename, string baseDirectory)
+        {
+            return Path.Combine(baseDirectory, remoteFilename.ToLocalRelativeFilename());
+        }
+
+        /// <summary>
+        ///     Converts the given path to the local format (normalizes path separators).
+        /// </summary>
+        /// <param name="path">The path to convert.</param>
+        /// <returns>The converted path.</returns>
+        public static string ToLocalOSPath(this string path)
+        {
+            return path.Replace('\\', Path.DirectorySeparatorChar).Replace('/', Path.DirectorySeparatorChar);
+        }
+
+        /// <summary>
         ///     Converts a fully qualified remote filename to a local filename, swapping directory characters for those specific
         ///     to the local OS, removing any characters that are invalid for the local OS, and making the path relative to the
         ///     remote store (including the filename and the parent folder).
@@ -243,26 +260,20 @@ namespace slskd
         }
 
         /// <summary>
-        ///     Converts a fully qualified remote filename to a local filename based in the provided <paramref name="baseDirectory"/>, swapping directory characters for those specific
-        ///     to the local OS, removing any characters that are invalid for the local OS, and making the path relative to the
-        ///     remote store (including the filename and the parent folder).
+        ///     Deserializes this string from json to an object of type <typeparamref name="T"/>.
         /// </summary>
-        /// <param name="remoteFilename">The fully qualified remote filename to convert.</param>
-        /// <param name="baseDirectory">The base directory for the local filename.</param>
-        /// <returns>The converted filename.</returns>
-        public static string ToLocalFilename(this string remoteFilename, string baseDirectory)
-        {
-            return Path.Combine(baseDirectory, remoteFilename.ToLocalRelativeFilename());
-        }
+        /// <typeparam name="T">The type to which to deserialize the string.</typeparam>
+        /// <param name="str">The string to deserialize.</param>
+        /// <returns>The new object deserialzied from the string.</returns>
+        public static T ToObject<T>(this string str) => JsonSerializer.Deserialize<T>(str, GetJsonSerializerOptions());
 
-        /// <summary>
-        ///     Converts the given path to the local format (normalizes path separators).
-        /// </summary>
-        /// <param name="path">The path to convert.</param>
-        /// <returns>The converted path.</returns>
-        public static string ToLocalOSPath(this string path)
+        private static JsonSerializerOptions GetJsonSerializerOptions()
         {
-            return path.Replace('\\', Path.DirectorySeparatorChar).Replace('/', Path.DirectorySeparatorChar);
+            var options = new JsonSerializerOptions();
+            options.Converters.Add(new IPAddressConverter());
+            options.Converters.Add(new JsonStringEnumConverter());
+            options.IgnoreNullValues = true;
+            return options;
         }
     }
 }
