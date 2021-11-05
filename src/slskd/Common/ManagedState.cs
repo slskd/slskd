@@ -193,7 +193,9 @@ namespace slskd
         }
 
 #pragma warning disable CS0693 // Type parameter has the same name as the type parameter from outer type
+#pragma warning disable S3260 // Non-derived "private" classes and records should be "sealed"
         private class ManagedStateDisposable<T> : IDisposable
+#pragma warning restore S3260 // Non-derived "private" classes and records should be "sealed"
 #pragma warning restore CS0693 // Type parameter has the same name as the type parameter from outer type
         {
             public ManagedStateDisposable(ManagedState<T> stateMonitor, Action<(T Previous, T Current)> listener)

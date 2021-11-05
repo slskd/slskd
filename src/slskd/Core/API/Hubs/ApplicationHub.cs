@@ -71,8 +71,8 @@ namespace slskd.Core.API
             OptionsMonitor = optionsMonitor;
         }
 
-        IStateMonitor<State> StateMonitor { get; }
-        IOptionsMonitor<Options> OptionsMonitor { get; }
+        private IStateMonitor<State> StateMonitor { get; }
+        private IOptionsMonitor<Options> OptionsMonitor { get; }
 
         public override async Task OnConnectedAsync()
         {

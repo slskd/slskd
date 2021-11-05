@@ -51,7 +51,6 @@ namespace slskd.Core.API
         [Authorize]
         public IActionResult GetOptions()
         {
-            // todo: sanitize this to remove passwords
             return Ok(OptionsShapshot.Value);
         }
 

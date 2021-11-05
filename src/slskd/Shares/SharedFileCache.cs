@@ -356,7 +356,8 @@ namespace slskd.Shares
 
             resolved = resolved.ReplaceFirst(share.RemotePath, share.LocalPath);
 
-            if (resolved == filename) {
+            if (resolved == filename)
+            {
                 Log.Warning($"Failed to resolve shared file {filename}");
             }
 
@@ -439,7 +440,7 @@ namespace slskd.Shares
             State.SetValue(state => state with { Directories = 0, Files = 0 });
         }
 
-        private class Share
+        private sealed class Share
         {
             public Share(string share)
             {
