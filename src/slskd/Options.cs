@@ -119,13 +119,14 @@ namespace slskd
         public bool GenerateCertificate { get; private set; } = false;
 
         /// <summary>
-        ///     Gets the path to the application configuration file.
+        ///     Gets the path where application data is saved.
         /// </summary>
-        [Argument('c', "config")]
-        [EnvironmentVariable("CONFIG")]
-        [Description("path to configuration file")]
+        [Argument(default, "appdir")]
+        [EnvironmentVariable("APP_DIR")]
+        [Description("path where application data is saved")]
         [Obsolete("Used only for documentation; see Program for actual implementation")]
-        public string ConfigurationFile { get; private set; } = Program.DefaultConfigurationFile;
+        public string AppDirectory { get; private set; } = Program.DefaultAppDirectory;
+
 
         /// <summary>
         ///     Gets a value indicating whether the application should run in debug mode.
@@ -248,16 +249,6 @@ namespace slskd
         /// </summary>
         public class DirectoriesOptions : IValidatableObject
         {
-            /// <summary>
-            ///     Gets the path where application data is saved.
-            /// </summary>
-            [Argument(default, "app")]
-            [EnvironmentVariable("APP_DIR")]
-            [Description("path where application data is saved")]
-            [DirectoryExists]
-            [RequiresRestart]
-            public string App { get; private set; } = Program.DefaultAppDirectory;
-
             /// <summary>
             ///     Gets the path where incomplete downloads are saved.
             /// </summary>
