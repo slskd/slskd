@@ -59,19 +59,14 @@ namespace slskd
         public static readonly string DefaultAppDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData, Environment.SpecialFolderOption.DoNotVerify), AppName);
 
         /// <summary>
-        ///     The default configuration filename.
-        /// </summary>
-        public static readonly string DefaultConfigurationFile = Path.Combine(DefaultAppDirectory, $"{AppName}.yml");
-
-        /// <summary>
         ///     The default incomplete download directory.
         /// </summary>
-        public static readonly string DefaultIncompleteDirectory = Path.Combine(DefaultAppDirectory, "incomplete");
+        public static string DefaultIncompleteDirectory => Path.Combine(AppDirectory, "incomplete");
 
         /// <summary>
         ///     The default downloads directory.
         /// </summary>
-        public static readonly string DefaultDownloadsDirectory = Path.Combine(DefaultAppDirectory, "downloads");
+        public static string DefaultDownloadsDirectory => Path.Combine(AppDirectory, "downloads");
 
         /// <summary>
         ///     The global prefix for environment variables.
@@ -92,6 +87,13 @@ namespace slskd
         ///     Occurs when a new log event is emitted.
         /// </summary>
         public static event EventHandler<LogRecord> LogEmitted;
+
+        /// <summary>
+        ///     Gets the path where application data is saved.
+        /// </summary>
+        [Argument(default, "appdir", "path where application data is saved")]
+        [EnvironmentVariable("APP_DIR")]
+        public static string AppDirectory { get; private set; } = DefaultAppDirectory;
 
         /// <summary>
         ///     Gets the assembly version of the application.
@@ -135,11 +137,9 @@ namespace slskd
         public static ConcurrentFixedSizeQueue<LogRecord> LogBuffer { get; } = new ConcurrentFixedSizeQueue<LogRecord>(size: 500);
 
         private static IConfigurationRoot Configuration { get; set; }
+        private static string ConfigurationFile => Path.Combine(AppDirectory, $"{AppName}.yml");
         private static OptionsAtStartup OptionsAtStartup { get; } = new OptionsAtStartup();
 
-        [EnvironmentVariable("CONFIG")]
-        [Argument('c', "config", "path to configuration file")]
-        private static string ConfigurationFile { get; set; } = DefaultConfigurationFile;
 
         [Argument('g', "generate-cert", "generate X509 certificate and password for HTTPs")]
         private static bool GenerateCertificate { get; set; }
@@ -229,8 +229,8 @@ namespace slskd
 
             try
             {
-                VerifyDirectory(OptionsAtStartup.Directories.App, createIfMissing: true, verifyWriteable: true);
-                VerifyDirectory(Path.Combine(OptionsAtStartup.Directories.App, "data"), createIfMissing: true, verifyWriteable: true);
+                VerifyDirectory(AppDirectory, createIfMissing: true, verifyWriteable: true);
+                VerifyDirectory(Path.Combine(AppDirectory, "data"), createIfMissing: true, verifyWriteable: true);
 
                 VerifyDirectory(OptionsAtStartup.Directories.Incomplete, createIfMissing: true, verifyWriteable: true);
                 VerifyDirectory(OptionsAtStartup.Directories.Downloads, createIfMissing: true, verifyWriteable: true);
@@ -247,7 +247,7 @@ namespace slskd
                 // if any part fails, just move on silently.
                 var exampleFileName = $"{AppName}.example.yml";
                 var source = Path.Combine(AppContext.BaseDirectory, "config", exampleFileName);
-                var destination = Path.Combine(OptionsAtStartup.Directories.App, exampleFileName);
+                var destination = Path.Combine(AppDirectory, exampleFileName);
                 File.Copy(source, destination);
             }
             catch
@@ -268,7 +268,7 @@ namespace slskd
                     outputTemplate: (OptionsAtStartup.Debug ? "[{SourceContext}] [{SoulseekContext}] " : string.Empty) + "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
                 .WriteTo.Async(config =>
                     config.File(
-                        Path.Combine(OptionsAtStartup.Directories.App, "logs", $"{AppName}-.log"),
+                        Path.Combine(AppDirectory, "logs", $"{AppName}-.log"),
                         outputTemplate: (OptionsAtStartup.Debug ? "[{SourceContext}] " : string.Empty) + "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}",
                         rollingInterval: RollingInterval.Day))
                 .WriteTo.Conditional(
@@ -298,9 +298,9 @@ namespace slskd
                 PrintLogo(Version);
             }
 
-            if (ConfigurationFile != DefaultConfigurationFile && !IOFile.Exists(ConfigurationFile))
+            if (!IOFile.Exists(ConfigurationFile))
             {
-                logger.Warning($"Specified configuration file '{ConfigurationFile}' could not be found and was not loaded.");
+                logger.Warning($"Configuration file '{ConfigurationFile}' could not be found and was not loaded.");
             }
 
             logger.Information("Version: {Version}", Version);
