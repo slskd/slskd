@@ -1,4 +1,4 @@
-// <copyright file="Program.cs" company="slskd Team">
+﻿// <copyright file="Program.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -61,7 +61,7 @@ namespace slskd
         /// <summary>
         ///     The default configuration filename.
         /// </summary>
-        public static readonly string DefaultConfigurationFile = Path.Combine(AppContext.BaseDirectory, "config", $"{AppName}.yml");
+        public static readonly string DefaultConfigurationFile = Path.Combine(DefaultAppDirectory, $"{AppName}.yml");
 
         /// <summary>
         ///     The default incomplete download directory.
@@ -230,9 +230,7 @@ namespace slskd
             try
             {
                 VerifyDirectory(OptionsAtStartup.Directories.App, createIfMissing: true, verifyWriteable: true);
-                VerifyDirectory(Path.Combine(OptionsAtStartup.Directories.App, "config"), createIfMissing: true, verifyWriteable: true);
                 VerifyDirectory(Path.Combine(OptionsAtStartup.Directories.App, "data"), createIfMissing: true, verifyWriteable: true);
-                VerifyDirectory(Path.Combine(OptionsAtStartup.Directories.App, "files"), createIfMissing: true, verifyWriteable: true);
 
                 VerifyDirectory(OptionsAtStartup.Directories.Incomplete, createIfMissing: true, verifyWriteable: true);
                 VerifyDirectory(OptionsAtStartup.Directories.Downloads, createIfMissing: true, verifyWriteable: true);
@@ -241,6 +239,20 @@ namespace slskd
             {
                 Console.WriteLine($"Filesystem exception: {ex.Message}");
                 return;
+            }
+
+            try
+            {
+                // for convenience, try to copy the example configuration file to the application directory
+                // if any part fails, just move on silently.
+                var exampleFileName = $"{AppName}.example.yml";
+                var source = Path.Combine(AppContext.BaseDirectory, "config", exampleFileName);
+                var destination = Path.Combine(OptionsAtStartup.Directories.App, exampleFileName);
+                File.Copy(source, destination);
+            }
+            catch
+            {
+                // no-op
             }
 
             Log.Logger = (OptionsAtStartup.Debug ? new LoggerConfiguration().MinimumLevel.Debug() : new LoggerConfiguration().MinimumLevel.Information())
