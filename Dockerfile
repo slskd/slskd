@@ -20,6 +20,7 @@ WORKDIR /slskd
 
 COPY LICENSE .
 COPY bin bin/.
+COPY config config/.
 COPY src/slskd src/slskd/.
 COPY tests tests/.
 
@@ -55,6 +56,9 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /slskd
 COPY --from=publish /slskd/dist/${TARGETPLATFORM} .
+
+RUN bash -c 'mkdir -p /app/{incomplete,downloads} \ 
+  && chmod -R 777 /app'
 
 ENV DOTNET_BUNDLE_EXTRACT_BASE_DIR=/var/tmp/.net \
     SLSKD_HTTP_PORT=5000 \
