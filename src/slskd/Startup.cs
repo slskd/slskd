@@ -218,12 +218,12 @@ namespace slskd
 
             services.AddDbContextFactory<SearchDbContext>(options =>
             {
-                options.UseSqlite($"Data Source={Path.Combine(OptionsAtStartup.Directories.App, "data", "search.db")}");
+                options.UseSqlite($"Data Source={Path.Combine(Program.AppDirectory, "data", "search.db")}");
             });
 
             services.AddDbContextFactory<UserDbContext>(options =>
             {
-                options.UseSqlite($"Data Source={Path.Combine(OptionsAtStartup.Directories.App, "data", "users.db")}");
+                options.UseSqlite($"Data Source={Path.Combine(Program.AppDirectory, "data", "users.db")}");
             });
 
             services.AddHttpClient();
