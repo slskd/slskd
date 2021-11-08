@@ -61,4 +61,4 @@ A full list of the environment variables and command line arguments supported by
 ./slskd --help --envars
 ```
 
-An example of the yaml configuration file can be reviewed [here](https://github.com/slskd/slskd/blob/master/src/slskd/Properties/slskd.yml).
+An example of the yaml configuration file can be reviewed [here](https://github.com/slskd/slskd/blob/master/config/slskd.example.yml).

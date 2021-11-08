@@ -42,6 +42,11 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "configuration", "configurat
 		.github\configuration\changelog.json = .github\configuration\changelog.json
 	EndProjectSection
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "config", "config", "{98F684AE-507B-475A-92FE-AB4273A9F11A}"
+	ProjectSection(SolutionItems) = preProject
+		config\slskd.example.yml = config\slskd.example.yml
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
