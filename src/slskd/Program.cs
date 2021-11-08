@@ -1,4 +1,4 @@
-﻿// <copyright file="Program.cs" company="slskd Team">
+// <copyright file="Program.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -230,6 +230,10 @@ namespace slskd
             try
             {
                 VerifyDirectory(OptionsAtStartup.Directories.App, createIfMissing: true, verifyWriteable: true);
+                VerifyDirectory(Path.Combine(OptionsAtStartup.Directories.App, "config"), createIfMissing: true, verifyWriteable: true);
+                VerifyDirectory(Path.Combine(OptionsAtStartup.Directories.App, "data"), createIfMissing: true, verifyWriteable: true);
+                VerifyDirectory(Path.Combine(OptionsAtStartup.Directories.App, "files"), createIfMissing: true, verifyWriteable: true);
+
                 VerifyDirectory(OptionsAtStartup.Directories.Incomplete, createIfMissing: true, verifyWriteable: true);
                 VerifyDirectory(OptionsAtStartup.Directories.Downloads, createIfMissing: true, verifyWriteable: true);
             }
