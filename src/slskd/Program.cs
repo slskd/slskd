@@ -198,8 +198,23 @@ namespace slskd
                 return;
             }
 
-            // the application isn't being run in command mode. load all configuration values and proceed
-            // with bootstrapping.
+            // the application isn't being run in command mode. verify (create if needed) default application
+            // directories. if the downloads or complete directories are overridden in config, those will be
+            // validated after the config is loaded.
+            try
+            {
+                VerifyDirectory(AppDirectory, createIfMissing: true, verifyWriteable: true);
+                VerifyDirectory(Path.Combine(AppDirectory, "data"), createIfMissing: true, verifyWriteable: true);
+                VerifyDirectory(DefaultDownloadsDirectory, createIfMissing: true, verifyWriteable: true);
+                VerifyDirectory(DefaultIncompleteDirectory, createIfMissing: true, verifyWriteable: true);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Filesystem exception: {ex.Message}");
+                return;
+            }
+
+            // load and validate the configuration
             try
             {
                 Configuration = new ConfigurationBuilder()
@@ -224,36 +239,6 @@ namespace slskd
             {
                 Console.WriteLine($"Invalid configuration: {(!OptionsAtStartup.Debug ? ex : ex.Message)}");
                 return;
-            }
-
-            try
-            {
-                VerifyDirectory(AppDirectory, createIfMissing: true, verifyWriteable: true);
-                VerifyDirectory(Path.Combine(AppDirectory, "data"), createIfMissing: true, verifyWriteable: true);
-
-                VerifyDirectory(OptionsAtStartup.Directories.Incomplete, createIfMissing: true, verifyWriteable: true);
-                VerifyDirectory(OptionsAtStartup.Directories.Downloads, createIfMissing: true, verifyWriteable: true);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Filesystem exception: {ex.Message}");
-                return;
-            }
-
-            // for convenience, try to copy the example configuration file to the application directory if no configuration
-            // file exists. if any part fails, just move on silently.
-            if (!IOFile.Exists(ConfigurationFile))
-            {
-                try
-                {
-                    var source = Path.Combine(AppContext.BaseDirectory, "config", $"{AppName}.example.yml");
-                    var destination = ConfigurationFile;
-                    IOFile.Copy(source, destination);
-                }
-                catch
-                {
-                    // no-op
-                }
             }
 
             Log.Logger = (OptionsAtStartup.Debug ? new LoggerConfiguration().MinimumLevel.Debug() : new LoggerConfiguration().MinimumLevel.Information())
@@ -299,11 +284,6 @@ namespace slskd
                 PrintLogo(Version);
             }
 
-            if (!IOFile.Exists(ConfigurationFile))
-            {
-                logger.Warning($"Configuration file '{ConfigurationFile}' could not be found and was not loaded.");
-            }
-
             logger.Information("Version: {Version}", Version);
 
             if (IsCanary)
@@ -313,9 +293,29 @@ namespace slskd
                 logger.Warning($"Please report any issues here: {IssuesUrl}");
             }
 
-            logger.Information("Instance Name: {InstanceName}", OptionsAtStartup.InstanceName);
             logger.Information("Invocation ID: {InvocationId}", InvocationId);
             logger.Information("Process ID: {ProcessId}", ProcessId);
+            logger.Information("Instance Name: {InstanceName}", OptionsAtStartup.InstanceName);
+
+            logger.Information("Using application directory {AppDirectory}", AppDirectory);
+            logger.Information("Using configuration file {ConfigurationFile}", ConfigurationFile);
+
+            // for convenience, try to copy the example configuration file to the application directory if no configuration
+            // file exists. if any part fails, just move on silently.
+            if (!IOFile.Exists(ConfigurationFile))
+            {
+                try
+                {
+                    logger.Warning("Configuration file {ConfigurationFile} does not exist; creating from example", ConfigurationFile);
+                    var source = Path.Combine(AppContext.BaseDirectory, "config", $"{AppName}.example.yml");
+                    var destination = ConfigurationFile;
+                    IOFile.Copy(source, destination);
+                }
+                catch (Exception ex)
+                {
+                    logger.Error("Failed to create configuration file {ConfigurationFile}: {Message}", ConfigurationFile, ex.Message);
+                }
+            }
 
             if (!string.IsNullOrEmpty(OptionsAtStartup.Logger.Loki))
             {
