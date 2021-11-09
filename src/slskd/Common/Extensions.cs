@@ -25,6 +25,8 @@ namespace slskd
     using System.Text.Json;
     using System.Text.Json.Serialization;
     using System.Text.RegularExpressions;
+    using YamlDotNet.Serialization;
+    using YamlDotNet.Serialization.NamingConventions;
 
     /// <summary>
     ///     Extensions.
@@ -212,6 +214,16 @@ namespace slskd
         /// <param name="obj">The object to serialize.</param>
         /// <returns>A string containing the serialized object.</returns>
         public static string ToJson(this object obj) => JsonSerializer.Serialize(obj, GetJsonSerializerOptions());
+
+        /// <summary>
+        ///     Serializes this object to yaml.
+        /// </summary>
+        /// <param name="obj">The object to serialize.</param>
+        /// <returns>A string containing the serialized object.</returns>
+        public static string ToYaml(this object obj) => new SerializerBuilder()
+            .WithNamingConvention(UnderscoredNamingConvention.Instance)
+            .Build()
+            .Serialize(obj);
 
         /// <summary>
         ///     Converts a fully qualified remote filename to a local filename based in the provided
