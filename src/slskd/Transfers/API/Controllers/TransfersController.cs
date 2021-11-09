@@ -137,7 +137,7 @@ namespace slskd.Transfers.API
 
                     MoveFile(request.Filename, Options.Directories.Incomplete, Options.Directories.Downloads);
 
-                    if (Options.Integration.FTP.Enabled)
+                    if (Options.Integration.Ftp.Enabled)
                     {
                         _ = FTP.UploadAsync(request.Filename.ToLocalFilename(Options.Directories.Downloads));
                     }
