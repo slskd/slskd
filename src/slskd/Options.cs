@@ -34,6 +34,7 @@ namespace slskd
     using Soulseek.Diagnostics;
     using Utility.CommandLine;
     using Utility.EnvironmentVariables;
+    using YamlDotNet.Serialization;
 
     /// <summary>
     ///     Disambiguates options derived at startup from options that may update at run time.
@@ -92,6 +93,7 @@ namespace slskd
         [Argument('v', "version")]
         [Description("display version information")]
         [Obsolete("Used only for documentation; see Program for actual implementation")]
+        [YamlIgnore]
         public bool ShowVersion { get; private set; } = false;
 
         /// <summary>
@@ -100,6 +102,7 @@ namespace slskd
         [Argument('h', "help")]
         [Description("display command line usage")]
         [Obsolete("Used only for documentation; see Program for actual implementation")]
+        [YamlIgnore]
         public bool ShowHelp { get; private set; } = false;
 
         /// <summary>
@@ -108,6 +111,7 @@ namespace slskd
         [Argument('e', "envars")]
         [Description("display environment variables")]
         [Obsolete("Used only for documentation; see Program for actual implementation")]
+        [YamlIgnore]
         public bool ShowEnvironmentVariables { get; private set; } = false;
 
         /// <summary>
@@ -116,16 +120,8 @@ namespace slskd
         [Argument('g', "generate-cert")]
         [Description("generate X509 certificate and password for HTTPs")]
         [Obsolete("Used only for documentation; see Program for actual implementation")]
+        [YamlIgnore]
         public bool GenerateCertificate { get; private set; } = false;
-
-        /// <summary>
-        ///     Gets the path to the application configuration file.
-        /// </summary>
-        [Argument('c', "config")]
-        [EnvironmentVariable("CONFIG")]
-        [Description("path to configuration file")]
-        [Obsolete("Used only for documentation; see Program for actual implementation")]
-        public string ConfigurationFile { get; private set; } = Program.DefaultConfigurationFile;
 
         /// <summary>
         ///     Gets a value indicating whether the application should run in debug mode.
@@ -191,6 +187,16 @@ namespace slskd
         public string InstanceName { get; private set; } = "default";
 
         /// <summary>
+        ///     Gets the path where application data is saved.
+        /// </summary>
+        [Argument(default, "app")]
+        [EnvironmentVariable("APP_DIR")]
+        [Description("path where application data is saved")]
+        [Obsolete("Used only for documentation; see Program for actual implementation")]
+        [YamlIgnore]
+        public string AppDirectory { get; private set; } = Program.DefaultAppDirectory;
+
+        /// <summary>
         ///     Gets directory options.
         /// </summary>
         [Validate]
@@ -248,16 +254,6 @@ namespace slskd
         /// </summary>
         public class DirectoriesOptions : IValidatableObject
         {
-            /// <summary>
-            ///     Gets the path where application data is saved.
-            /// </summary>
-            [Argument(default, "app")]
-            [EnvironmentVariable("APP_DIR")]
-            [Description("path where application data is saved")]
-            [DirectoryExists]
-            [RequiresRestart]
-            public string App { get; private set; } = Program.DefaultAppDirectory;
-
             /// <summary>
             ///     Gets the path where incomplete downloads are saved.
             /// </summary>
@@ -837,7 +833,7 @@ namespace slskd
             ///     Gets FTP options.
             /// </summary>
             [Validate]
-            public FTPOptions FTP { get; private set; } = new FTPOptions();
+            public FtpOptions Ftp { get; private set; } = new FtpOptions();
 
             /// <summary>
             ///     Gets Pushbullet options.
@@ -848,7 +844,7 @@ namespace slskd
             /// <summary>
             ///     FTP options.
             /// </summary>
-            public class FTPOptions : IValidatableObject
+            public class FtpOptions : IValidatableObject
             {
                 /// <summary>
                 ///     Gets a value indicating whether the FTP integration is enabled.

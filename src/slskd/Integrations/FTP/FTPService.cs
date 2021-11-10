@@ -49,7 +49,7 @@ namespace slskd.Integrations.FTP
         }
 
         private IFTPClientFactory Factory { get; set; }
-        private FTPOptions FTPOptions => OptionsMonitor.CurrentValue.Integration.FTP;
+        private FtpOptions FtpOptions => OptionsMonitor.CurrentValue.Integration.Ftp;
         private ILogger<FTPService> Log { get; set; }
         private IOptionsMonitor<Options> OptionsMonitor { get; }
 
@@ -60,7 +60,7 @@ namespace slskd.Integrations.FTP
         /// <returns>The operation context.</returns>
         public async Task UploadAsync(string filename)
         {
-            if (!FTPOptions.Enabled)
+            if (!FtpOptions.Enabled)
             {
                 Log.LogDebug("Skipping FTP upload of {filename}; FTP integration is disabled");
                 return;
@@ -74,7 +74,7 @@ namespace slskd.Integrations.FTP
                     task: () => AttemptUploadAsync(filename),
                     isRetryable: (attempts, ex) => true,
                     onFailure: (attempts, ex) => Log.LogInformation("Failed attempt {Attempts} to upload {Filename} to FTP: {Message}", attempts, fileAndParentDirectory, ex.Message),
-                    maxAttempts: FTPOptions.RetryAttempts,
+                    maxAttempts: FtpOptions.RetryAttempts,
                     maxDelayInMilliseconds: 30000);
             }
             catch (RetryException ex)
@@ -84,7 +84,7 @@ namespace slskd.Integrations.FTP
             }
             catch (Exception ex)
             {
-                Log.LogWarning("Failed to upload {Filename} to FTP after {Attempts} attempts: {Message}", fileAndParentDirectory, FTPOptions.RetryAttempts, ex.Message);
+                Log.LogWarning("Failed to upload {Filename} to FTP after {Attempts} attempts: {Message}", fileAndParentDirectory, FtpOptions.RetryAttempts, ex.Message);
                 throw;
             }
         }
@@ -92,15 +92,15 @@ namespace slskd.Integrations.FTP
         private async Task AttemptUploadAsync(string filename)
         {
             var fileAndParentDirectory = GetFileAndParentDirectoryFromFilename(filename);
-            var remotePath = FTPOptions.RemotePath.TrimEnd('/').TrimEnd('\\');
+            var remotePath = FtpOptions.RemotePath.TrimEnd('/').TrimEnd('\\');
             var remoteFilename = $"{remotePath}/{fileAndParentDirectory}";
 
-            var existsMode = FTPOptions.OverwriteExisting ? FtpRemoteExists.Overwrite : FtpRemoteExists.Skip;
+            var existsMode = FtpOptions.OverwriteExisting ? FtpRemoteExists.Overwrite : FtpRemoteExists.Skip;
 
             using var client = Factory.CreateFtpClient();
 
             var timeoutTaskCompletionSource = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            using var timeoutCancellationTokenSource = new CancellationTokenSource(TimeSpan.FromMilliseconds(FTPOptions.ConnectionTimeout));
+            using var timeoutCancellationTokenSource = new CancellationTokenSource(TimeSpan.FromMilliseconds(FtpOptions.ConnectionTimeout));
             using var timeoutCancellationTokenRegistration =
                 timeoutCancellationTokenSource.Token.Register(() => timeoutTaskCompletionSource.TrySetResult(true));
 
@@ -111,7 +111,7 @@ namespace slskd.Integrations.FTP
 
             if (completedTask == timeoutTaskCompletionSource.Task)
             {
-                throw new TimeoutException($"Failed to connect to server after {FTPOptions.ConnectionTimeout}ms");
+                throw new TimeoutException($"Failed to connect to server after {FtpOptions.ConnectionTimeout}ms");
             }
 
             if (connectTask.Exception != null)
@@ -119,7 +119,7 @@ namespace slskd.Integrations.FTP
                 throw connectTask.Exception;
             }
 
-            Log.LogInformation("Uploading {Filename} to FTP {Address}:{Port} as {RemoteFilename}", fileAndParentDirectory, FTPOptions.Address, FTPOptions.Port, remoteFilename);
+            Log.LogInformation("Uploading {Filename} to FTP {Address}:{Port} as {RemoteFilename}", fileAndParentDirectory, FtpOptions.Address, FtpOptions.Port, remoteFilename);
             var status = await client.UploadFileAsync(filename, remoteFilename, existsMode, createRemoteDir: true);
 
             if (status == FtpStatus.Failed)
@@ -127,7 +127,7 @@ namespace slskd.Integrations.FTP
                 throw new FtpException("FTP client reported a failed transfer");
             }
 
-            Log.LogInformation("FTP upload of {Filename} to {Address}:{Port} complete", fileAndParentDirectory, FTPOptions.Address, FTPOptions.Port);
+            Log.LogInformation("FTP upload of {Filename} to {Address}:{Port} complete", fileAndParentDirectory, FtpOptions.Address, FtpOptions.Port);
         }
 
         private string GetFileAndParentDirectoryFromFilename(string filename)

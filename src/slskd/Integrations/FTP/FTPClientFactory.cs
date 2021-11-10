@@ -37,7 +37,7 @@ namespace slskd.Integrations.FTP
             OptionsMonitor = optionsMonitor;
         }
 
-        private FTPOptions FTPOptions => OptionsMonitor.CurrentValue.Integration.FTP;
+        private FtpOptions FtpOptions => OptionsMonitor.CurrentValue.Integration.Ftp;
         private IOptionsMonitor<Options> OptionsMonitor { get; set; }
 
         /// <summary>
@@ -46,9 +46,9 @@ namespace slskd.Integrations.FTP
         /// <returns>The created instance.</returns>
         public FtpClient CreateFtpClient()
         {
-            var client = new FtpClient(FTPOptions.Address, FTPOptions.Port, FTPOptions.Username, FTPOptions.Password);
-            client.EncryptionMode = ParseFtpEncryptionMode(FTPOptions.EncryptionMode);
-            client.ValidateAnyCertificate = FTPOptions.IgnoreCertificateErrors;
+            var client = new FtpClient(FtpOptions.Address, FtpOptions.Port, FtpOptions.Username, FtpOptions.Password);
+            client.EncryptionMode = ParseFtpEncryptionMode(FtpOptions.EncryptionMode);
+            client.ValidateAnyCertificate = FtpOptions.IgnoreCertificateErrors;
 
             return client;
         }

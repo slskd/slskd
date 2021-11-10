@@ -54,24 +54,9 @@ namespace slskd
         public static readonly string AppName = "slskd";
 
         /// <summary>
-        ///     The default application data directory.
+        ///     The url to the issues/support site.
         /// </summary>
-        public static readonly string DefaultAppDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData, Environment.SpecialFolderOption.DoNotVerify), AppName);
-
-        /// <summary>
-        ///     The default configuration filename.
-        /// </summary>
-        public static readonly string DefaultConfigurationFile = Path.Combine(AppContext.BaseDirectory, "config", $"{AppName}.yml");
-
-        /// <summary>
-        ///     The default incomplete download directory.
-        /// </summary>
-        public static readonly string DefaultIncompleteDirectory = Path.Combine(DefaultAppDirectory, "incomplete");
-
-        /// <summary>
-        ///     The default downloads directory.
-        /// </summary>
-        public static readonly string DefaultDownloadsDirectory = Path.Combine(DefaultAppDirectory, "downloads");
+        public static readonly string IssuesUrl = "https://github.com/slskd/slskd/issues";
 
         /// <summary>
         ///     The global prefix for environment variables.
@@ -79,19 +64,14 @@ namespace slskd
         public static readonly string EnvironmentVariablePrefix = $"{AppName.ToUpperInvariant()}_";
 
         /// <summary>
-        ///     The url to the issues/support site.
-        /// </summary>
-        public static readonly string IssuesUrl = "https://github.com/slskd/slskd/issues";
-
-        /// <summary>
         ///     The default XML documentation filename.
         /// </summary>
         public static readonly string XmlDocumentationFile = Path.Combine(AppContext.BaseDirectory, "etc", $"{AppName}.xml");
 
         /// <summary>
-        ///     Occurs when a new log event is emitted.
+        ///     The default application data directory.
         /// </summary>
-        public static event EventHandler<LogRecord> LogEmitted;
+        public static readonly string DefaultAppDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData, Environment.SpecialFolderOption.DoNotVerify), AppName);
 
         /// <summary>
         ///     Gets the assembly version of the application.
@@ -99,7 +79,7 @@ namespace slskd
         /// <remarks>
         ///     Inaccurate when running locally.
         /// </remarks>
-        public static Version AssemblyVersion { get; } = Assembly.GetExecutingAssembly().GetName().Version.Equals(new Version(1, 0, 0, 0)) ? new Version(0, 0, 0, 0) : Assembly.GetExecutingAssembly().GetName().Version;
+        public static readonly Version AssemblyVersion = Assembly.GetExecutingAssembly().GetName().Version.Equals(new Version(1, 0, 0, 0)) ? new Version(0, 0, 0, 0) : Assembly.GetExecutingAssembly().GetName().Version;
 
         /// <summary>
         ///     Gets the informational version of the application, including the git sha at the latest commit.
@@ -107,27 +87,49 @@ namespace slskd
         /// <remarks>
         ///     Inaccurate when running locally.
         /// </remarks>
-        public static string InformationalVersion { get; } = Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>().InformationalVersion == "1.0.0" ? "0.0.0" : Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>().InformationalVersion;
-
-        /// <summary>
-        ///     Gets the unique Id of this application invocation.
-        /// </summary>
-        public static Guid InvocationId { get; } = Guid.NewGuid();
-
-        /// <summary>
-        ///     Gets the Id of the current application process.
-        /// </summary>
-        public static int ProcessId { get; } = Environment.ProcessId;
+        public static readonly string InformationalVersion = Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>().InformationalVersion == "1.0.0" ? "0.0.0" : Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>().InformationalVersion;
 
         /// <summary>
         ///     Gets the full application version, including both assembly and informational versions.
         /// </summary>
-        public static string Version { get; } = $"{AssemblyVersion} ({InformationalVersion})";
+        public static readonly string Version = $"{AssemblyVersion} ({InformationalVersion})";
 
         /// <summary>
         ///     Gets a value indicating whether the current version is a Canary build.
         /// </summary>
-        public static bool IsCanary { get; } = AssemblyVersion.Revision == 65534;
+        public static readonly bool IsCanary = AssemblyVersion.Revision == 65534;
+
+        /// <summary>
+        ///     Gets the unique Id of this application invocation.
+        /// </summary>
+        public static readonly Guid InvocationId = Guid.NewGuid();
+
+        /// <summary>
+        ///     Gets the Id of the current application process.
+        /// </summary>
+        public static readonly int ProcessId = Environment.ProcessId;
+
+        /// <summary>
+        ///     Occurs when a new log event is emitted.
+        /// </summary>
+        public static event EventHandler<LogRecord> LogEmitted;
+
+        /// <summary>
+        ///     Gets the path where application data is saved.
+        /// </summary>
+        [Argument(default, "app", "path where application data is saved")]
+        [EnvironmentVariable("APP_DIR")]
+        public static string AppDirectory { get; private set; } = DefaultAppDirectory;
+
+        /// <summary>
+        ///     Gets the default downloads directory.
+        /// </summary>
+        public static string DefaultDownloadsDirectory => Path.Combine(AppDirectory, "downloads");
+
+        /// <summary>
+        ///     Gets the default incomplete download directory.
+        /// </summary>
+        public static string DefaultIncompleteDirectory => Path.Combine(AppDirectory, "incomplete");
 
         /// <summary>
         ///     Gets a buffer containing the last few log events.
@@ -135,11 +137,8 @@ namespace slskd
         public static ConcurrentFixedSizeQueue<LogRecord> LogBuffer { get; } = new ConcurrentFixedSizeQueue<LogRecord>(size: 500);
 
         private static IConfigurationRoot Configuration { get; set; }
+        private static string ConfigurationFile => Path.Combine(AppDirectory, $"{AppName}.yml");
         private static OptionsAtStartup OptionsAtStartup { get; } = new OptionsAtStartup();
-
-        [EnvironmentVariable("CONFIG")]
-        [Argument('c', "config", "path to configuration file")]
-        private static string ConfigurationFile { get; set; } = DefaultConfigurationFile;
 
         [Argument('g', "generate-cert", "generate X509 certificate and password for HTTPs")]
         private static bool GenerateCertificate { get; set; }
@@ -199,8 +198,23 @@ namespace slskd
                 return;
             }
 
-            // the application isn't being run in command mode. load all configuration values and proceed
-            // with bootstrapping.
+            // the application isn't being run in command mode. verify (create if needed) default application
+            // directories. if the downloads or complete directories are overridden in config, those will be
+            // validated after the config is loaded.
+            try
+            {
+                VerifyDirectory(AppDirectory, createIfMissing: true, verifyWriteable: true);
+                VerifyDirectory(Path.Combine(AppDirectory, "data"), createIfMissing: true, verifyWriteable: true);
+                VerifyDirectory(DefaultDownloadsDirectory, createIfMissing: true, verifyWriteable: true);
+                VerifyDirectory(DefaultIncompleteDirectory, createIfMissing: true, verifyWriteable: true);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Filesystem exception: {ex.Message}");
+                return;
+            }
+
+            // load and validate the configuration
             try
             {
                 Configuration = new ConfigurationBuilder()
@@ -227,18 +241,6 @@ namespace slskd
                 return;
             }
 
-            try
-            {
-                VerifyDirectory(OptionsAtStartup.Directories.App, createIfMissing: true, verifyWriteable: true);
-                VerifyDirectory(OptionsAtStartup.Directories.Incomplete, createIfMissing: true, verifyWriteable: true);
-                VerifyDirectory(OptionsAtStartup.Directories.Downloads, createIfMissing: true, verifyWriteable: true);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Filesystem exception: {ex.Message}");
-                return;
-            }
-
             Log.Logger = (OptionsAtStartup.Debug ? new LoggerConfiguration().MinimumLevel.Debug() : new LoggerConfiguration().MinimumLevel.Information())
                 .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
                 .MinimumLevel.Override("System.Net.Http.HttpClient", OptionsAtStartup.Debug ? LogEventLevel.Warning : LogEventLevel.Fatal)
@@ -252,7 +254,7 @@ namespace slskd
                     outputTemplate: (OptionsAtStartup.Debug ? "[{SourceContext}] [{SoulseekContext}] " : string.Empty) + "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
                 .WriteTo.Async(config =>
                     config.File(
-                        Path.Combine(OptionsAtStartup.Directories.App, "logs", $"{AppName}-.log"),
+                        Path.Combine(AppDirectory, "logs", $"{AppName}-.log"),
                         outputTemplate: (OptionsAtStartup.Debug ? "[{SourceContext}] " : string.Empty) + "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}",
                         rollingInterval: RollingInterval.Day))
                 .WriteTo.Conditional(
@@ -282,11 +284,6 @@ namespace slskd
                 PrintLogo(Version);
             }
 
-            if (ConfigurationFile != DefaultConfigurationFile && !IOFile.Exists(ConfigurationFile))
-            {
-                logger.Warning($"Specified configuration file '{ConfigurationFile}' could not be found and was not loaded.");
-            }
-
             logger.Information("Version: {Version}", Version);
 
             if (IsCanary)
@@ -296,9 +293,29 @@ namespace slskd
                 logger.Warning($"Please report any issues here: {IssuesUrl}");
             }
 
-            logger.Information("Instance Name: {InstanceName}", OptionsAtStartup.InstanceName);
             logger.Information("Invocation ID: {InvocationId}", InvocationId);
             logger.Information("Process ID: {ProcessId}", ProcessId);
+            logger.Information("Instance Name: {InstanceName}", OptionsAtStartup.InstanceName);
+
+            logger.Information("Using application directory {AppDirectory}", AppDirectory);
+            logger.Information("Using configuration file {ConfigurationFile}", ConfigurationFile);
+
+            // for convenience, try to copy the example configuration file to the application directory if no configuration
+            // file exists. if any part fails, just move on silently.
+            if (!IOFile.Exists(ConfigurationFile))
+            {
+                try
+                {
+                    logger.Warning("Configuration file {ConfigurationFile} does not exist; creating from example", ConfigurationFile);
+                    var source = Path.Combine(AppContext.BaseDirectory, "config", $"{AppName}.example.yml");
+                    var destination = ConfigurationFile;
+                    IOFile.Copy(source, destination);
+                }
+                catch (Exception ex)
+                {
+                    logger.Error("Failed to create configuration file {ConfigurationFile}: {Message}", ConfigurationFile, ex.Message);
+                }
+            }
 
             if (!string.IsNullOrEmpty(OptionsAtStartup.Logger.Loki))
             {
