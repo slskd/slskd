@@ -184,6 +184,7 @@ jobs:
       - name: Zip linux-x64 Binaries
         run: |
           cd dist/linux-x64
+          chmod +x slskd
           zip -r ../../slskd-${{ env.TAG }}-linux-x64.zip .
 
       - name: Download linux-arm Binaries
@@ -194,6 +195,7 @@ jobs:
       - name: Zip linux-arm Binaries
         run: |
           cd dist/linux-arm
+          chmod +x slskd
           zip -r ../../slskd-${{ env.TAG }}-linux-arm.zip .
 
       - name: Download linux-arm64 Binaries
@@ -204,6 +206,7 @@ jobs:
       - name: Zip linux-arm64 Binaries
         run: |
           cd dist/linux-arm64
+          chmod +x slskd
           zip -r ../../slskd-${{ env.TAG }}-linux-arm64.zip .
 
       - name: Download osx-x64 Binaries
@@ -214,6 +217,7 @@ jobs:
       - name: Zip osx-x64 Binaries
         run: |
           cd dist/osx-x64
+          chmod +x slskd
           zip -r ../../slskd-${{ env.TAG }}-osx-x64.zip .
 
       - name: Create Release
