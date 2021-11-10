@@ -110,6 +110,6 @@ cd $output
 echo $'\n\t📍  '$(pwd)$'\n'
 
 echo $'\n\t📦  artifacts:\n'
-find .
+ls -la .
 
 echo $'\n\t🎉  publish succeeded!\n'
