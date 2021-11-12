@@ -19,8 +19,11 @@ using Microsoft.Extensions.Options;
 
 namespace slskd.Core.API
 {
+    using System;
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
+    using Serilog;
+    using IOFile = System.IO.File;
 
     /// <summary>
     ///     Configuration.
@@ -38,20 +41,57 @@ namespace slskd.Core.API
             IStateMonitor<State> applicationStateMonitor)
         {
             Application = application;
-            OptionsShapshot = optionsShapshot;
+            OptionsSnapshot = optionsShapshot;
             ApplicationStateMonitor = applicationStateMonitor;
         }
 
         private IApplication Application { get; }
-        private IOptionsSnapshot<Options> OptionsShapshot { get; }
+        private IOptionsSnapshot<Options> OptionsSnapshot { get; }
         private IStateMonitor<State> ApplicationStateMonitor { get; }
+        private ILogger Logger { get; set; } = Log.ForContext(typeof(Program));
 
         [HttpGet]
         [Route("")]
         [Authorize]
         public IActionResult GetOptions()
         {
-            return Ok(OptionsShapshot.Value);
+            return Ok(OptionsSnapshot.Value);
+        }
+
+        [HttpGet]
+        [Route("yaml")]
+        public IActionResult GetYamlFile()
+        {
+            if (!OptionsSnapshot.Value.RemoteConfiguration)
+            {
+                return Forbid();
+            }
+
+            var yaml = IOFile.ReadAllText(Program.ConfigurationFile);
+            return Ok(yaml);
+        }
+
+        [HttpPost]
+        [Route("yaml")]
+        public IActionResult UpdateYamlFile([FromBody]string yaml)
+        {
+            if (!OptionsSnapshot.Value.RemoteConfiguration)
+            {
+                return Forbid();
+            }
+
+            try
+            {
+                _ = yaml.FromYaml<Options>();
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "Failed to validate YAML configuration");
+                return BadRequest($"{ex.Message}: {ex.InnerException.Message}");
+            }
+
+            IOFile.WriteAllText(Program.ConfigurationFile, yaml);
+            return Ok();
         }
 
         [HttpPut]
