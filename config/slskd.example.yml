@@ -25,6 +25,7 @@
 #       password: ~
 #   url_base: /
 #   content_path: wwwroot
+#   logging: false
 #   authentication:
 #     disable: false
 #     username: slskd

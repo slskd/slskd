@@ -324,7 +324,10 @@ namespace slskd
                 logger.Information("Publishing Prometheus metrics to /metrics");
             }
 
-            app.UseSerilogRequestLogging();
+            if (OptionsAtStartup.Web.Logging)
+            {
+                app.UseSerilogRequestLogging();
+            }
 
             app.UseAuthentication();
 
