@@ -19,6 +19,7 @@ namespace slskd.Core.API
 {
     using System;
     using System.Diagnostics;
+    using System.Runtime;
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
@@ -110,6 +111,20 @@ namespace slskd.Core.API
             }
 
             return Ok(ApplicationStateMonitor.CurrentValue.Version);
+        }
+
+        /// <summary>
+        ///     Forces garbage collection.
+        /// </summary>
+        /// <returns></returns>
+        [HttpPost("gc")]
+        [Authorize]
+        public async Task<IActionResult> CollectGarbage()
+        {
+            GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
+            GC.Collect(2, GCCollectionMode.Forced, blocking: false, compacting: true);
+
+            return Ok();
         }
     }
 }
