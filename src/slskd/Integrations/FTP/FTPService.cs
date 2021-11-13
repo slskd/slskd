@@ -62,7 +62,7 @@ namespace slskd.Integrations.FTP
         {
             if (!FtpOptions.Enabled)
             {
-                Log.LogDebug("Skipping FTP upload of {filename}; FTP integration is disabled");
+                Log.LogDebug("Skipping FTP upload of {filename}; FTP integration is disabled", filename);
                 return;
             }
 
