@@ -120,7 +120,7 @@ class TransferGroup extends Component {
                             icon='redo' 
                             color='green' 
                             content={`Retry${all}`} 
-                            onClick={() => this.retryAll(direction, user.username, selected)}
+                            onClick={() => this.retryAll(selected)}
                         />}
                         {allRetryable && anyCancellable && <Button.Or/>}
                         {anyCancellable && 
