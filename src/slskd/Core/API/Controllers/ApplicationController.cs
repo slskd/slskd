@@ -119,7 +119,7 @@ namespace slskd.Core.API
         /// <returns></returns>
         [HttpPost("gc")]
         [Authorize]
-        public async Task<IActionResult> CollectGarbage()
+        public IActionResult CollectGarbage()
         {
             GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
             GC.Collect(2, GCCollectionMode.Forced, blocking: false, compacting: true);
