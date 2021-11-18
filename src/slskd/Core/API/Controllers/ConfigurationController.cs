@@ -80,17 +80,25 @@ namespace slskd.Core.API
                 return Forbid();
             }
 
-            try
+            if (!TryValidateYaml(yaml, out var error))
             {
-                _ = yaml.FromYaml<Options>();
-            }
-            catch (Exception ex)
-            {
-                Logger.Error(ex, "Failed to validate YAML configuration");
-                return BadRequest($"{ex.Message}: {ex.InnerException.Message}");
+                Logger.Error(error, "Failed to validate YAML configuration");
+                return BadRequest(error);
             }
 
             IOFile.WriteAllText(Program.ConfigurationFile, yaml);
+            return Ok();
+        }
+
+        [HttpPost]
+        [Route("yaml/validate")]
+        public IActionResult ValidateYamlFile([FromBody] string yaml)
+        {
+            if (!TryValidateYaml(yaml, out var error))
+            {
+                return BadRequest(error);
+            }
+
             return Ok();
         }
 
@@ -107,6 +115,23 @@ namespace slskd.Core.API
             _ = Application.RescanSharesAsync();
 
             return Ok();
+        }
+
+        private bool TryValidateYaml(string yaml, out string error)
+        {
+            error = null;
+
+            try
+            {
+                _ = yaml.FromYaml<Options>();
+            }
+            catch (Exception ex)
+            {
+                error = $"{ex.Message}: {ex.InnerException.Message}";
+                return false;
+            }
+
+            return true;
         }
     }
 }
