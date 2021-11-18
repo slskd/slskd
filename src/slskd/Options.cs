@@ -700,6 +700,15 @@ namespace slskd
             public string ContentPath { get; private set; } = "wwwroot";
 
             /// <summary>
+            ///     Gets a value indicating whether HTTP request logging should be enabled.
+            /// </summary>
+            [Argument(default, "http-logging")]
+            [EnvironmentVariable("HTTP_LOGGING")]
+            [Description("enable http request logging")]
+            [RequiresRestart]
+            public bool Logging { get; private set; } = false;
+
+            /// <summary>
             ///     Gets authentication options.
             /// </summary>
             [Validate]

@@ -755,7 +755,6 @@ namespace slskd
         {
             var info = new UserInfo(
                 description: $"Soulseek.NET Web Example! also, your username is {username}, and IP endpoint is {endpoint}",
-                picture: Array.Empty<byte>(),
                 uploadSlots: 1,
                 queueLength: 0,
                 hasFreeUploadSlot: false);
