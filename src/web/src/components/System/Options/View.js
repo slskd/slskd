@@ -1,10 +1,16 @@
 import React from 'react';
+import { Button, Table } from 'semantic-ui-react';
 
-const View = ({ options }) => {
+const View = ({ options, editAction }) => {
+  const { remoteConfiguration } = options;
+
   return (
-    <div>
+    <>
+      {remoteConfiguration && <div style={{textAlign: 'right'}}>
+        <Button primary disabled={!remoteConfiguration} onClick={() => editAction()}>Edit</Button>
+      </div>}
       <pre>{JSON.stringify(options, null, 2)}</pre>
-    </div>
+    </>
   );
 }
 

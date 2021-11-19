@@ -6,7 +6,7 @@ import CodeEditor from '@uiw/react-textarea-code-editor';
 import { getYaml, validateYaml, updateYaml } from '../../../lib/options';
 import PlaceholderSegment from '../../Shared/PlaceholderSegment';
 
-const Edit = ({ options }) => {
+const Edit = ({ cancelAction }) => {
   const [{ loading, error }, setLoading] = useState({ loading: true, error: false });
   const [{ yaml, isDirty }, setYaml] = useState({ yaml: undefined, isDirty: false });
   const [yamlError, setYamlError] = useState();
@@ -42,11 +42,9 @@ const Edit = ({ options }) => {
 
     if (!yamlError) {
       await updateYaml({ yaml });
-      await get();
+      cancelAction();
     }
   }
-
-  const cancel = () => get();
 
   if (loading) {
     return <PlaceholderSegment loading={true}/>
@@ -60,7 +58,7 @@ const Edit = ({ options }) => {
     <>
       <div style={{textAlign: 'right'}}>
         <Button primary disabled={!isDirty} onClick={() => save(yaml)}><Icon name='save'/>Save</Button>
-        {isDirty && <Button onClick={cancel}><Icon name='close'/>Cancel</Button>}
+        <Button onClick={() => cancelAction()}><Icon name='close'/>Cancel</Button>
       </div>
       {yamlError && <Message icon='x' negative>{yamlError}</Message>}
       <CodeEditor

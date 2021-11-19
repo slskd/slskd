@@ -3,8 +3,7 @@ import { Segment, Tab } from 'semantic-ui-react';
 import './System.css';
 import Info from './Info';
 import Logs from './Logs';
-import OptionsView from './Options/View';
-import OptionsEdit from './Options/Edit';
+import Options from './Options';
 
 class System extends Component {
   componentDidMount = () => {
@@ -20,8 +19,7 @@ class System extends Component {
         <Segment raised>
           <Tab panes={[
             { menuItem: 'Info', render: () => <Tab.Pane><Info state={this.props.state}/></Tab.Pane> },
-            { menuItem: 'Options', render: () => <Tab.Pane><OptionsView options={this.props.options}/></Tab.Pane> },
-            { menuItem: 'Edit', render: () => <Tab.Pane><OptionsEdit/></Tab.Pane> },
+            { menuItem: 'Options', render: () => <Tab.Pane><Options options={this.props.options}/></Tab.Pane> },
             { menuItem: 'Logs', render: () => <Tab.Pane><Logs/></Tab.Pane> },
           ]}/>
         </Segment>
