@@ -19,8 +19,12 @@ using Microsoft.Extensions.Options;
 
 namespace slskd.Core.API
 {
+    using System;
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
+    using Serilog;
+    using slskd.Validation;
+    using IOFile = System.IO.File;
 
     /// <summary>
     ///     Options.
@@ -42,6 +46,7 @@ namespace slskd.Core.API
 
         private IOptionsSnapshot<Options> OptionsSnapshot { get; }
         private OptionsAtStartup OptionsAtStartup { get; }
+        private ILogger Logger { get; } = Log.ForContext(typeof(OptionsController));
 
         /// <summary>
         ///     Gets the current application options.
@@ -66,6 +71,79 @@ namespace slskd.Core.API
         public IActionResult Startup()
         {
             return Ok(OptionsAtStartup);
+        }
+
+        [HttpGet]
+        [Route("yaml")]
+        public IActionResult GetYamlFile()
+        {
+            if (!OptionsSnapshot.Value.RemoteConfiguration)
+            {
+                return Forbid();
+            }
+
+            var yaml = IOFile.ReadAllText(Program.ConfigurationFile);
+            return Ok(yaml);
+        }
+
+        [HttpPost]
+        [Route("yaml")]
+        public IActionResult UpdateYamlFile([FromBody] string yaml)
+        {
+            if (!OptionsSnapshot.Value.RemoteConfiguration)
+            {
+                return Forbid();
+            }
+
+            if (!TryValidateYaml(yaml, out var error))
+            {
+                Logger.Error(error, "Failed to validate YAML configuration");
+                return BadRequest(error);
+            }
+
+            IOFile.WriteAllText(Program.ConfigurationFile, yaml);
+            return Ok();
+        }
+
+        [HttpPost]
+        [Route("yaml/validate")]
+        public IActionResult ValidateYamlFile([FromBody] string yaml)
+        {
+            if (!TryValidateYaml(yaml, out var error))
+            {
+                return Ok(error);
+            }
+
+            return Ok();
+        }
+
+        private bool TryValidateYaml(string yaml, out string error)
+        {
+            error = null;
+
+            try
+            {
+                var options = yaml.FromYaml<Options>();
+
+                if (!options.TryValidate(out var result))
+                {
+                    error = result.GetResultView();
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                error = ex.Message;
+
+                if (ex.InnerException != null)
+                {
+                    error += $": {ex.InnerException.Message}";
+                }
+
+                return false;
+            }
+
+            return true;
         }
     }
 }

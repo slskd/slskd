@@ -58,50 +58,6 @@ namespace slskd.Core.API
             return Ok(OptionsSnapshot.Value);
         }
 
-        [HttpGet]
-        [Route("yaml")]
-        public IActionResult GetYamlFile()
-        {
-            if (!OptionsSnapshot.Value.RemoteConfiguration)
-            {
-                return Forbid();
-            }
-
-            var yaml = IOFile.ReadAllText(Program.ConfigurationFile);
-            return Ok(yaml);
-        }
-
-        [HttpPost]
-        [Route("yaml")]
-        public IActionResult UpdateYamlFile([FromBody]string yaml)
-        {
-            if (!OptionsSnapshot.Value.RemoteConfiguration)
-            {
-                return Forbid();
-            }
-
-            if (!TryValidateYaml(yaml, out var error))
-            {
-                Logger.Error(error, "Failed to validate YAML configuration");
-                return BadRequest(error);
-            }
-
-            IOFile.WriteAllText(Program.ConfigurationFile, yaml);
-            return Ok();
-        }
-
-        [HttpPost]
-        [Route("yaml/validate")]
-        public IActionResult ValidateYamlFile([FromBody] string yaml)
-        {
-            if (!TryValidateYaml(yaml, out var error))
-            {
-                return BadRequest(error);
-            }
-
-            return Ok();
-        }
-
         [HttpPut]
         [Route("shares")]
         [Authorize]
@@ -115,23 +71,6 @@ namespace slskd.Core.API
             _ = Application.RescanSharesAsync();
 
             return Ok();
-        }
-
-        private bool TryValidateYaml(string yaml, out string error)
-        {
-            error = null;
-
-            try
-            {
-                _ = yaml.FromYaml<Options>();
-            }
-            catch (Exception ex)
-            {
-                error = $"{ex.Message}: {ex.InnerException.Message}";
-                return false;
-            }
-
-            return true;
         }
     }
 }
