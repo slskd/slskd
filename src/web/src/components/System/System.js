@@ -19,7 +19,7 @@ class System extends Component {
         <Segment raised>
           <Tab panes={[
             { menuItem: 'Info', render: () => <Tab.Pane><Info state={this.props.state}/></Tab.Pane> },
-            { menuItem: 'Options', render: () => <Tab.Pane><Options options={this.props.options}/></Tab.Pane> },
+            { menuItem: 'Options', render: () => <Tab.Pane className='full-height'><Options options={this.props.options}/></Tab.Pane> },
             { menuItem: 'Logs', render: () => <Tab.Pane><Logs/></Tab.Pane> },
           ]}/>
         </Segment>
