@@ -5,6 +5,7 @@
   "homepage": ".",
   "dependencies": {
     "@microsoft/signalr": "^5.0.10",
+    "@uiw/react-textarea-code-editor": "^1.4.14",
     "axios": "^0.21.2",
     "react": "^16.8.6",
     "react-dom": "^16.8.6",
