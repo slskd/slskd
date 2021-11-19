@@ -27,3 +27,13 @@
 .full-height {
   height: calc(100vh - 175px);
 }
+
+.yaml-error {
+  white-space: nowrap;
+  overflow: overlay;
+}
+
+.footer-buttons {
+  margin-top: 14px;
+  text-align: right;
+}

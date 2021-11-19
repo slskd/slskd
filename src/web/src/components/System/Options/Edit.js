@@ -56,23 +56,25 @@ const Edit = ({ cancelAction }) => {
 
   return (
     <>
-      <div style={{textAlign: 'right'}}>
-        <Button primary disabled={!isDirty} onClick={() => save(yaml)}><Icon name='save'/>Save</Button>
-        <Button onClick={() => cancelAction()}><Icon name='close'/>Cancel</Button>
-      </div>
-      {yamlError && <Message icon='x' negative>{yamlError}</Message>}
       <CodeEditor
         value={yaml}
         language='yaml'
         onChange={(e) => update(e.target.value)}
         padding={10}
         style={{
-          marginTop: 14,
           border: '1px solid #d4d4d5',
-          backgroundColor: '#f5f5f5',
+          backgroundColor: 'rgb(250, 250, 250)',
+          fontSize: '1em',
           fontFamily: 'ui-monospace,SFMono-Regular,SF Mono,Consolas,Liberation Mono,Menlo,monospace',
+          overflow: 'auto',
+          height: yamlError ? 'calc(100vh - 316px)' : 'calc(100vh - 254px)'
         }}
       />
+      {yamlError && <Message className='yaml-error' icon='x' negative>{yamlError}</Message>}
+      <div className='footer-buttons'>
+        <Button primary disabled={!isDirty} onClick={() => save(yaml)}><Icon name='save'/>Save</Button>
+        <Button onClick={() => cancelAction()}><Icon name='close'/>Cancel</Button>
+      </div>
     </>
   );
 }
