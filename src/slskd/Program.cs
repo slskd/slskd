@@ -122,6 +122,11 @@ namespace slskd
         public static string AppDirectory { get; private set; } = DefaultAppDirectory;
 
         /// <summary>
+        ///     Gets the fully qualified path to the application configuration file.
+        /// </summary>
+        public static string ConfigurationFile => Path.Combine(AppDirectory, $"{AppName}.yml");
+
+        /// <summary>
         ///     Gets the default downloads directory.
         /// </summary>
         public static string DefaultDownloadsDirectory => Path.Combine(AppDirectory, "downloads");
@@ -134,10 +139,9 @@ namespace slskd
         /// <summary>
         ///     Gets a buffer containing the last few log events.
         /// </summary>
-        public static ConcurrentFixedSizeQueue<LogRecord> LogBuffer { get; } = new ConcurrentFixedSizeQueue<LogRecord>(size: 500);
+        public static ConcurrentFixedSizeQueue<LogRecord> LogBuffer { get; } = new ConcurrentFixedSizeQueue<LogRecord>(size: 100);
 
         private static IConfigurationRoot Configuration { get; set; }
-        private static string ConfigurationFile => Path.Combine(AppDirectory, $"{AppName}.yml");
         private static OptionsAtStartup OptionsAtStartup { get; } = new OptionsAtStartup();
 
         [Argument('g', "generate-cert", "generate X509 certificate and password for HTTPs")]

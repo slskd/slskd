@@ -4,15 +4,22 @@
   "private": true,
   "homepage": ".",
   "dependencies": {
+    "@codemirror/highlight": "^0.19.6",
+    "@codemirror/legacy-modes": "^0.19.0",
+    "@codemirror/stream-parser": "^0.19.2",
     "@microsoft/signalr": "^5.0.10",
+    "@uiw/react-codemirror": "^4.2.4",
+    "@uiw/react-textarea-code-editor": "^1.4.14",
     "axios": "^0.21.2",
+    "codemirror": "^5.64.0",
     "react": "^16.8.6",
     "react-dom": "^16.8.6",
     "react-router-dom": "^5.0.0",
     "semantic-ui-css": "^2.4.1",
     "semantic-ui-react": "^2.0.0",
     "signalr": "^2.4.1",
-    "uuid": "^8.3.0"
+    "uuid": "^8.3.0",
+    "yaml": "^1.10.2"
   },
   "devDependencies": {
     "react-scripts": "^4.0.3"
