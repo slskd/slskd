@@ -19,8 +19,11 @@ using Microsoft.Extensions.Options;
 
 namespace slskd.Core.API
 {
+    using System;
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
+    using Serilog;
+    using IOFile = System.IO.File;
 
     /// <summary>
     ///     Configuration.
@@ -38,20 +41,21 @@ namespace slskd.Core.API
             IStateMonitor<State> applicationStateMonitor)
         {
             Application = application;
-            OptionsShapshot = optionsShapshot;
+            OptionsSnapshot = optionsShapshot;
             ApplicationStateMonitor = applicationStateMonitor;
         }
 
         private IApplication Application { get; }
-        private IOptionsSnapshot<Options> OptionsShapshot { get; }
+        private IOptionsSnapshot<Options> OptionsSnapshot { get; }
         private IStateMonitor<State> ApplicationStateMonitor { get; }
+        private ILogger Logger { get; set; } = Log.ForContext(typeof(Program));
 
         [HttpGet]
         [Route("")]
         [Authorize]
         public IActionResult GetOptions()
         {
-            return Ok(OptionsShapshot.Value);
+            return Ok(OptionsSnapshot.Value);
         }
 
         [HttpPut]

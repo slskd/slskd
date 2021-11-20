@@ -226,6 +226,17 @@ namespace slskd
             .Serialize(obj);
 
         /// <summary>
+        ///     Deserializes this string from yaml to an object of type <typeparamref name="T"/>.
+        /// </summary>
+        /// <typeparam name="T">The type to which to deserialize the string.</typeparam>
+        /// <param name="str">The string to deserialize.</param>
+        /// <returns>The new object deserialzied from the string.</returns>
+        public static T FromYaml<T>(this string str) => new DeserializerBuilder()
+            .WithNamingConvention(UnderscoredNamingConvention.Instance)
+            .Build()
+            .Deserialize<T>(str);
+
+        /// <summary>
         ///     Converts a fully qualified remote filename to a local filename based in the provided
         ///     <paramref name="baseDirectory"/>, swapping directory characters for those specific to the local OS, removing any
         ///     characters that are invalid for the local OS, and making the path relative to the remote store (including the
@@ -277,7 +288,7 @@ namespace slskd
         /// <typeparam name="T">The type to which to deserialize the string.</typeparam>
         /// <param name="str">The string to deserialize.</param>
         /// <returns>The new object deserialzied from the string.</returns>
-        public static T ToObject<T>(this string str) => JsonSerializer.Deserialize<T>(str, GetJsonSerializerOptions());
+        public static T FromJson<T>(this string str) => JsonSerializer.Deserialize<T>(str, GetJsonSerializerOptions());
 
         private static JsonSerializerOptions GetJsonSerializerOptions()
         {
