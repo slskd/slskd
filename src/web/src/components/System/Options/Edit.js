@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 
 import { Button, Icon, Message } from 'semantic-ui-react';
-import CodeEditor from '@uiw/react-textarea-code-editor';
+import CodeEditor from './CodeEditor';
 
 import { getYaml, validateYaml, updateYaml } from '../../../lib/options';
 import PlaceholderSegment from '../../Shared/PlaceholderSegment';
@@ -56,20 +56,15 @@ const Edit = ({ cancelAction }) => {
 
   return (
     <>
-      <CodeEditor
-        value={yaml}
-        language='yaml'
-        onChange={(e) => update(e.target.value)}
-        padding={10}
-        style={{
-          border: '1px solid #d4d4d5',
-          backgroundColor: 'rgb(250, 250, 250)',
-          fontSize: '1em',
-          fontFamily: 'ui-monospace,SFMono-Regular,SF Mono,Consolas,Liberation Mono,Menlo,monospace',
-          overflow: 'auto',
-          height: yamlError ? 'calc(100vh - 316px)' : 'calc(100vh - 254px)'
-        }}
-      />
+      <div 
+        className='code-container' 
+        style={{height: yamlError ? 'calc(100vh - 316px)' : undefined}}
+      >
+        <CodeEditor
+          value={yaml}
+          onChange={(value) => update(value)}
+        />
+      </div>
       {yamlError && <Message className='yaml-error' icon='x' negative>{yamlError}</Message>}
       <div className='footer-buttons'>
         <Button primary disabled={!isDirty} onClick={() => save(yaml)}><Icon name='save'/>Save</Button>
