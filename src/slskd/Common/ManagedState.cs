@@ -184,7 +184,7 @@ namespace slskd
         {
             lock (Lock)
             {
-                var previous = CurrentValue.ToJson().ToObject<T>();
+                var previous = CurrentValue.ToJson().FromJson<T>();
                 CurrentValue = setter(CurrentValue);
 
                 Changed?.Invoke((previous, CurrentValue));

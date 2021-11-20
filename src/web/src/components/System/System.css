@@ -23,3 +23,23 @@
 .logs {
   min-height: 100px;
 }
+
+.full-height {
+  height: calc(100vh - 175px);
+}
+
+.yaml-error {
+  white-space: nowrap;
+  overflow: overlay;
+}
+
+.footer-buttons {
+  margin-top: 14px;
+  text-align: right;
+}
+
+.code-container {
+  border: 1px solid #d4d4d5;
+  overflow: auto;
+  height: calc(100vh - 254px);
+}
