@@ -74,6 +74,7 @@ namespace slskd.Core.API
         }
 
         [HttpGet]
+        [Authorize]
         [Route("yaml")]
         public IActionResult GetYamlFile()
         {
@@ -87,6 +88,7 @@ namespace slskd.Core.API
         }
 
         [HttpPost]
+        [Authorize]
         [Route("yaml")]
         public IActionResult UpdateYamlFile([FromBody] string yaml)
         {
@@ -106,6 +108,7 @@ namespace slskd.Core.API
         }
 
         [HttpPost]
+        [Authorize]
         [Route("yaml/validate")]
         public IActionResult ValidateYamlFile([FromBody] string yaml)
         {
