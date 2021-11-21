@@ -295,7 +295,7 @@ namespace slskd
             var options = new JsonSerializerOptions();
             options.Converters.Add(new IPAddressConverter());
             options.Converters.Add(new JsonStringEnumConverter());
-            options.IgnoreNullValues = true;
+            options.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
             return options;
         }
     }

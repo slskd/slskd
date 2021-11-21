@@ -41,7 +41,7 @@ namespace slskd
 
         public static string Sha1Hash(string str)
         {
-            using var sha1 = new SHA1Managed();
+            using var sha1 = SHA1.Create();
             return BitConverter.ToString(sha1.ComputeHash(Encoding.UTF8.GetBytes(str))).Replace("-", string.Empty);
         }
 
