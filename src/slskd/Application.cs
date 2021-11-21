@@ -201,6 +201,13 @@ namespace slskd
                 inactivityTimeout: OptionsAtStartup.Soulseek.Connection.Timeout.Inactivity,
                 proxyOptions: proxyOptions);
 
+            var transferOptions = new ConnectionOptions(
+                readBufferSize: OptionsAtStartup.Soulseek.Connection.Buffer.Transfer,
+                writeBufferSize: OptionsAtStartup.Soulseek.Connection.Buffer.Transfer,
+                connectTimeout: OptionsAtStartup.Soulseek.Connection.Timeout.Connect,
+                inactivityTimeout: -1,
+                proxyOptions: proxyOptions);
+
             var patch = new SoulseekClientOptionsPatch(
                 listenPort: OptionsAtStartup.Soulseek.ListenPort,
                 enableListener: true,
@@ -211,7 +218,7 @@ namespace slskd
                 acceptPrivateRoomInvitations: true,
                 serverConnectionOptions: connectionOptions,
                 peerConnectionOptions: connectionOptions,
-                transferConnectionOptions: connectionOptions,
+                transferConnectionOptions: transferOptions,
                 distributedConnectionOptions: connectionOptions,
                 userInfoResponseResolver: UserInfoResponseResolver,
                 browseResponseResolver: BrowseResponseResolver,
