@@ -10,7 +10,7 @@
 #   incomplete: ~
 #   downloads: ~
 #   shared:
-#	  - ~
+#     - ~
 # filters:
 #   share:
 #     - \.ini$
@@ -28,7 +28,7 @@
 #   content_path: wwwroot
 #   logging: false
 #   authentication:
-#     disable: false
+#     disabled: false
 #     username: slskd
 #     password: slskd
 #     jwt:
@@ -54,8 +54,9 @@
 #     buffer:
 #       read: 16384
 #       write: 16384
+#       transfer: 262144
 #     proxy:
-#		enabled: false
+#       enabled: false
 #       address: ~
 #       port: ~
 #       username: ~

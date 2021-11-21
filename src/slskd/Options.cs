@@ -534,6 +534,15 @@ namespace slskd
                     [Description("write buffer size for connections")]
                     [Range(1024, int.MaxValue)]
                     public int Write { get; private set; } = 16384;
+
+                    /// <summary>
+                    ///     Gets the read/write buffer size for transfers.
+                    /// </summary>
+                    [Argument(default, "slsk-transfer-buffer")]
+                    [EnvironmentVariable("SLSK_TRANSFER_BUFFER")]
+                    [Description("read/write buffer size for transfers")]
+                    [Range(81920, int.MaxValue)]
+                    public int Transfer { get; private set; } = 262144;
                 }
 
                 /// <summary>
