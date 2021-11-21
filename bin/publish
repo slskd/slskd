@@ -98,7 +98,6 @@ dotnet publish \
     --configuration Release \
     -p:PublishSingleFile=true \
     -p:ReadyToRun=true \
-    -p:PublishTrimmed=false \
     -p:IncludeNativeLibrariesForSelfExtract=true \
     -p:CopyOutputSymbolsToPublishDirectory=false \
     -p:Version=$version \
