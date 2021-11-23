@@ -197,6 +197,7 @@ namespace slskd
             var connectionOptions = new ConnectionOptions(
                 readBufferSize: OptionsAtStartup.Soulseek.Connection.Buffer.Read,
                 writeBufferSize: OptionsAtStartup.Soulseek.Connection.Buffer.Write,
+                writeQueueSize: OptionsAtStartup.Soulseek.Connection.Buffer.WriteQueue,
                 connectTimeout: OptionsAtStartup.Soulseek.Connection.Timeout.Connect,
                 inactivityTimeout: OptionsAtStartup.Soulseek.Connection.Timeout.Inactivity,
                 proxyOptions: proxyOptions);
@@ -204,6 +205,7 @@ namespace slskd
             var transferOptions = new ConnectionOptions(
                 readBufferSize: OptionsAtStartup.Soulseek.Connection.Buffer.Transfer,
                 writeBufferSize: OptionsAtStartup.Soulseek.Connection.Buffer.Transfer,
+                writeQueueSize: OptionsAtStartup.Soulseek.Connection.Buffer.WriteQueue,
                 connectTimeout: OptionsAtStartup.Soulseek.Connection.Timeout.Connect,
                 inactivityTimeout: -1,
                 proxyOptions: proxyOptions);
@@ -592,6 +594,7 @@ namespace slskd
                     var connectionDiff = old.Connection.DiffWith(update.Connection);
 
                     ConnectionOptions connectionPatch = null;
+                    ConnectionOptions transferPatch = null;
 
                     if (connectionDiff.Any())
                     {
@@ -602,17 +605,26 @@ namespace slskd
                         if (connection.Proxy.Enabled)
                         {
                             proxyPatch = new ProxyOptions(
-                                connection.Proxy.Address,
-                                connection.Proxy.Port.Value,
-                                connection.Proxy.Username,
-                                connection.Proxy.Password);
+                                address: connection.Proxy.Address,
+                                port: connection.Proxy.Port.Value,
+                                username: connection.Proxy.Username,
+                                password: connection.Proxy.Password);
                         }
 
                         connectionPatch = new ConnectionOptions(
-                            connection.Buffer.Read,
-                            connection.Buffer.Write,
-                            connection.Timeout.Connect,
-                            connection.Timeout.Inactivity,
+                            readBufferSize: connection.Buffer.Read,
+                            writeBufferSize: connection.Buffer.Write,
+                            writeQueueSize: connection.Buffer.WriteQueue,
+                            connectTimeout: connection.Timeout.Connect,
+                            inactivityTimeout: connection.Timeout.Inactivity,
+                            proxyOptions: proxyPatch);
+
+                        transferPatch = new ConnectionOptions(
+                            readBufferSize: connection.Buffer.Transfer,
+                            writeBufferSize: connection.Buffer.Transfer,
+                            writeQueueSize: connection.Buffer.WriteQueue,
+                            connectTimeout: connection.Timeout.Connect,
+                            inactivityTimeout: -1,
                             proxyOptions: proxyPatch);
                     }
 
@@ -622,7 +634,7 @@ namespace slskd
                         distributedChildLimit: old.DistributedNetwork.ChildLimit == update.DistributedNetwork.ChildLimit ? null : update.DistributedNetwork.ChildLimit,
                         serverConnectionOptions: connectionPatch,
                         peerConnectionOptions: connectionPatch,
-                        transferConnectionOptions: connectionPatch,
+                        transferConnectionOptions: transferPatch,
                         incomingConnectionOptions: connectionPatch,
                         distributedConnectionOptions: connectionPatch);
 

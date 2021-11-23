@@ -543,6 +543,15 @@ namespace slskd
                     [Description("read/write buffer size for transfers")]
                     [Range(81920, int.MaxValue)]
                     public int Transfer { get; private set; } = 262144;
+
+                    /// <summary>
+                    ///     Gets the size of the queue for double buffered writes.
+                    /// </summary>
+                    [Argument(default, "slsk-write-queue")]
+                    [EnvironmentVariable("SLSK_WRITE_QUEUE")]
+                    [Description("queue size for double buffered writes")]
+                    [Range(5, 5000)]
+                    public int WriteQueue { get; private set; } = 250;
                 }
 
                 /// <summary>
