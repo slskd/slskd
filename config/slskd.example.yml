@@ -55,6 +55,7 @@
 #       read: 16384
 #       write: 16384
 #       transfer: 262144
+#       write_queue: 250
 #     proxy:
 #       enabled: false
 #       address: ~
