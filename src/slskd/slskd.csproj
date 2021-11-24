@@ -16,19 +16,6 @@
     <IsTransformWebConfigDisabled>true</IsTransformWebConfigDisabled>
   </PropertyGroup>
 
-  <!-- https://docs.microsoft.com/en-us/dotnet/core/deploying/trimming/trimming-options -->
-  <PropertyGroup>
-    <PublishTrimmed>true</PublishTrimmed>
-    <TrimMode>copyused</TrimMode>
-    <DebuggerSupport>false</DebuggerSupport>
-    <TrimmerRemoveSymbols>true</TrimmerRemoveSymbols>
-    <EnableUnsafeBinaryFormatterSerialization>false</EnableUnsafeBinaryFormatterSerialization>
-    <EnableUnsafeUTF7Encoding>false</EnableUnsafeUTF7Encoding>
-    <EventSourceSupport>false</EventSourceSupport>
-    <HttpActivityPropagationSupport>false</HttpActivityPropagationSupport>
-    <UseSystemResourceKeys>true</UseSystemResourceKeys>
-  </PropertyGroup>
-
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <NoWarn>1701;1702;1591</NoWarn>
   </PropertyGroup>
