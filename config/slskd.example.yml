@@ -50,6 +50,7 @@
 #   connection:
 #     timeout:
 #       connect: 10000
+#       write: 5000
 #       inactivity: 15000
 #     buffer:
 #       read: 16384
