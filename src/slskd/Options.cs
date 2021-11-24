@@ -675,6 +675,14 @@ namespace slskd
                 public bool Disabled { get; private set; } = false;
 
                 /// <summary>
+                ///     Gets a value indicating whether to accept distributed child connections.
+                /// </summary>
+                [Argument(default, "slsk-dnet-no-children")]
+                [EnvironmentVariable("SLSK_DNET_NO_CHILDREN")]
+                [Description("do not accept distributed children")]
+                public bool DisableChildren { get; private set; } = false;
+
+                /// <summary>
                 ///     Gets the distributed child connection limit.
                 /// </summary>
                 [Argument(default, "slsk-dnet-children")]
