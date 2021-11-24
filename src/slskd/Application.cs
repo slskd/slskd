@@ -199,6 +199,7 @@ namespace slskd
                 writeBufferSize: OptionsAtStartup.Soulseek.Connection.Buffer.Write,
                 writeQueueSize: OptionsAtStartup.Soulseek.Connection.Buffer.WriteQueue,
                 connectTimeout: OptionsAtStartup.Soulseek.Connection.Timeout.Connect,
+                writeTimeout: OptionsAtStartup.Soulseek.Connection.Timeout.Write,
                 inactivityTimeout: OptionsAtStartup.Soulseek.Connection.Timeout.Inactivity,
                 proxyOptions: proxyOptions);
 
@@ -207,7 +208,9 @@ namespace slskd
                 writeBufferSize: OptionsAtStartup.Soulseek.Connection.Buffer.Transfer,
                 writeQueueSize: OptionsAtStartup.Soulseek.Connection.Buffer.WriteQueue,
                 connectTimeout: OptionsAtStartup.Soulseek.Connection.Timeout.Connect,
+                writeTimeout: 0,
                 inactivityTimeout: -1,
+                keepAlive: true,
                 proxyOptions: proxyOptions);
 
             var patch = new SoulseekClientOptionsPatch(
@@ -616,6 +619,7 @@ namespace slskd
                             writeBufferSize: connection.Buffer.Write,
                             writeQueueSize: connection.Buffer.WriteQueue,
                             connectTimeout: connection.Timeout.Connect,
+                            writeTimeout: connection.Timeout.Write,
                             inactivityTimeout: connection.Timeout.Inactivity,
                             proxyOptions: proxyPatch);
 
@@ -624,7 +628,9 @@ namespace slskd
                             writeBufferSize: connection.Buffer.Transfer,
                             writeQueueSize: connection.Buffer.WriteQueue,
                             connectTimeout: connection.Timeout.Connect,
+                            writeTimeout: 0,
                             inactivityTimeout: -1,
+                            keepAlive: true,
                             proxyOptions: proxyPatch);
                     }
 
