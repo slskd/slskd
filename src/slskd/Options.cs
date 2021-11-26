@@ -569,15 +569,6 @@ namespace slskd
                     public int Connect { get; private set; } = 10000;
 
                     /// <summary>
-                    ///     Gets the write timeout value, in milliseconds.
-                    /// </summary>
-                    [Argument(default, "slsk-write-timeout")]
-                    [EnvironmentVariable("SLSK_WRITE_TIMEOUT")]
-                    [Description("write timeout, in milliseconds")]
-                    [Range(500, int.MaxValue)]
-                    public int Write { get; private set; } = 5000;
-
-                    /// <summary>
                     ///     Gets the connection inactivity timeout, in milliseconds.
                     /// </summary>
                     [Argument(default, "slsk-inactivity-timeout")]
