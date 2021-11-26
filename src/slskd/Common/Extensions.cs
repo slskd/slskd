@@ -21,10 +21,12 @@ namespace slskd
     using System.Collections.Generic;
     using System.IO;
     using System.Linq;
+    using System.Net.Sockets;
     using System.Reflection;
     using System.Text.Json;
     using System.Text.Json.Serialization;
     using System.Text.RegularExpressions;
+    using Soulseek;
     using YamlDotNet.Serialization;
     using YamlDotNet.Serialization.NamingConventions;
 
@@ -281,6 +283,36 @@ namespace slskd
 
             return Path.Combine(path, sanitizedFilename).TrimStart('\\').TrimStart('/');
         }
+
+        /// <summary>
+        ///     Creates a copy of this instance with the specified parameters changed.
+        /// </summary>
+        /// <param name="o">The options instance to copy.</param>
+        /// <param name="readBufferSize">The read buffer size for underlying TCP connections.</param>
+        /// <param name="writeBufferSize">The write buffer size for underlying TCP connections.</param>
+        /// <param name="writeQueueSize">The size of the write queue for double buffered writes.</param>
+        /// <param name="connectTimeout">The connection timeout, in milliseconds, for client and peer TCP connections.</param>
+        /// <param name="inactivityTimeout">The inactivity timeout, in milliseconds, for peer TCP connections.</param>
+        /// <param name="proxyOptions">Optional SOCKS 5 proxy configuration options.</param>
+        /// <param name="configureSocketAction">
+        ///     The delegate invoked during instantiation to configure the server Socket instance.
+        /// </param>
+        /// <returns>The new instance.</returns>
+        public static ConnectionOptions With(
+            this ConnectionOptions o,
+            int? readBufferSize = null,
+            int? writeBufferSize = null,
+            int? writeQueueSize = null,
+            int? connectTimeout = null,
+            int? inactivityTimeout = null,
+            ProxyOptions proxyOptions = null,
+            Action<Socket> configureSocketAction = null) => new ConnectionOptions(
+                readBufferSize: readBufferSize ?? o.ReadBufferSize,
+                writeBufferSize: writeBufferSize ?? o.WriteBufferSize,
+                writeQueueSize: writeQueueSize ?? o.WriteQueueSize,
+                connectTimeout: connectTimeout ?? o.ConnectTimeout,
+                inactivityTimeout: inactivityTimeout ?? o.InactivityTimeout,
+                configureSocketAction: configureSocketAction ?? o.ConfigureSocketAction);
 
         /// <summary>
         ///     Deserializes this string from json to an object of type <typeparamref name="T"/>.
