@@ -24,6 +24,7 @@ namespace slskd
     using System.IO;
     using System.Linq;
     using System.Net;
+    using System.Net.Sockets;
     using System.Reflection;
     using System.Threading;
     using System.Threading.Tasks;
@@ -199,19 +200,23 @@ namespace slskd
                 writeBufferSize: OptionsAtStartup.Soulseek.Connection.Buffer.Write,
                 writeQueueSize: OptionsAtStartup.Soulseek.Connection.Buffer.WriteQueue,
                 connectTimeout: OptionsAtStartup.Soulseek.Connection.Timeout.Connect,
-                writeTimeout: OptionsAtStartup.Soulseek.Connection.Timeout.Write,
                 inactivityTimeout: OptionsAtStartup.Soulseek.Connection.Timeout.Inactivity,
                 proxyOptions: proxyOptions);
 
-            var transferOptions = new ConnectionOptions(
+            var configureKeepAlive = new Action<Socket>(socket =>
+            {
+                socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
+                socket.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveTime, OptionsAtStartup.Soulseek.Connection.Timeout.Inactivity / 1000);
+                socket.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveInterval, OptionsAtStartup.Soulseek.Connection.Timeout.Inactivity / 1000);
+                socket.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveRetryCount, 3);
+            });
+
+            var serverOptions = connectionOptions.With(configureSocketAction: configureKeepAlive);
+            var distributedOptions = connectionOptions.With(configureSocketAction: configureKeepAlive);
+
+            var transferOptions = connectionOptions.With(
                 readBufferSize: OptionsAtStartup.Soulseek.Connection.Buffer.Transfer,
-                writeBufferSize: OptionsAtStartup.Soulseek.Connection.Buffer.Transfer,
-                writeQueueSize: OptionsAtStartup.Soulseek.Connection.Buffer.WriteQueue,
-                connectTimeout: OptionsAtStartup.Soulseek.Connection.Timeout.Connect,
-                writeTimeout: 0,
-                inactivityTimeout: -1,
-                keepAlive: true,
-                proxyOptions: proxyOptions);
+                writeBufferSize: OptionsAtStartup.Soulseek.Connection.Buffer.Transfer);
 
             var patch = new SoulseekClientOptionsPatch(
                 listenPort: OptionsAtStartup.Soulseek.ListenPort,
@@ -222,10 +227,10 @@ namespace slskd
                 acceptDistributedChildren: !OptionsAtStartup.Soulseek.DistributedNetwork.DisableChildren,
                 autoAcknowledgePrivateMessages: false,
                 acceptPrivateRoomInvitations: true,
-                serverConnectionOptions: connectionOptions,
+                serverConnectionOptions: serverOptions,
                 peerConnectionOptions: connectionOptions,
                 transferConnectionOptions: transferOptions,
-                distributedConnectionOptions: connectionOptions,
+                distributedConnectionOptions: distributedOptions,
                 userInfoResponseResolver: UserInfoResponseResolver,
                 browseResponseResolver: BrowseResponseResolver,
                 directoryContentsResponseResolver: DirectoryContentsResponseResolver,
@@ -598,6 +603,8 @@ namespace slskd
                     var connectionDiff = old.Connection.DiffWith(update.Connection);
 
                     ConnectionOptions connectionPatch = null;
+                    ConnectionOptions serverPatch = null;
+                    ConnectionOptions distributedPatch = null;
                     ConnectionOptions transferPatch = null;
 
                     if (connectionDiff.Any())
@@ -620,19 +627,23 @@ namespace slskd
                             writeBufferSize: connection.Buffer.Write,
                             writeQueueSize: connection.Buffer.WriteQueue,
                             connectTimeout: connection.Timeout.Connect,
-                            writeTimeout: connection.Timeout.Write,
                             inactivityTimeout: connection.Timeout.Inactivity,
                             proxyOptions: proxyPatch);
 
-                        transferPatch = new ConnectionOptions(
-                            readBufferSize: connection.Buffer.Transfer,
-                            writeBufferSize: connection.Buffer.Transfer,
-                            writeQueueSize: connection.Buffer.WriteQueue,
-                            connectTimeout: connection.Timeout.Connect,
-                            writeTimeout: 0,
-                            inactivityTimeout: -1,
-                            keepAlive: true,
-                            proxyOptions: proxyPatch);
+                        var configureKeepAlive = new Action<Socket>(socket =>
+                        {
+                            socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
+                            socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.TcpKeepAliveTime, connection.Timeout.Inactivity / 1000);
+                            socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.TcpKeepAliveInterval, connection.Timeout.Inactivity / 1000);
+                            socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.TcpKeepAliveRetryCount, 3);
+                        });
+
+                        serverPatch = connectionPatch.With(configureSocketAction: configureKeepAlive);
+                        distributedPatch = connectionPatch.With(configureSocketAction: configureKeepAlive);
+
+                        transferPatch = connectionPatch.With(
+                            readBufferSize: OptionsAtStartup.Soulseek.Connection.Buffer.Transfer,
+                            writeBufferSize: OptionsAtStartup.Soulseek.Connection.Buffer.Transfer);
                     }
 
                     var patch = new SoulseekClientOptionsPatch(
@@ -640,11 +651,11 @@ namespace slskd
                         enableDistributedNetwork: old.DistributedNetwork.Disabled == update.DistributedNetwork.Disabled ? null : !update.DistributedNetwork.Disabled,
                         distributedChildLimit: old.DistributedNetwork.ChildLimit == update.DistributedNetwork.ChildLimit ? null : update.DistributedNetwork.ChildLimit,
                         acceptDistributedChildren: old.DistributedNetwork.DisableChildren == update.DistributedNetwork.DisableChildren ? null : !update.DistributedNetwork.DisableChildren,
-                        serverConnectionOptions: connectionPatch,
+                        serverConnectionOptions: serverPatch,
                         peerConnectionOptions: connectionPatch,
                         transferConnectionOptions: transferPatch,
                         incomingConnectionOptions: connectionPatch,
-                        distributedConnectionOptions: connectionPatch);
+                        distributedConnectionOptions: distributedPatch);
 
                     Logger.Debug("Patching Soulseek options with {Patch}", patch.ToJson());
 
