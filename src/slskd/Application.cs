@@ -633,9 +633,9 @@ namespace slskd
                         var configureKeepAlive = new Action<Socket>(socket =>
                         {
                             socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
-                            socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.TcpKeepAliveTime, connection.Timeout.Inactivity / 1000);
-                            socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.TcpKeepAliveInterval, connection.Timeout.Inactivity / 1000);
-                            socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.TcpKeepAliveRetryCount, 3);
+                            socket.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveTime, connection.Timeout.Inactivity / 1000);
+                            socket.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveInterval, connection.Timeout.Inactivity / 1000);
+                            socket.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveRetryCount, 3);
                         });
 
                         serverPatch = connectionPatch.With(configureSocketAction: configureKeepAlive);
@@ -656,8 +656,6 @@ namespace slskd
                         transferConnectionOptions: transferPatch,
                         incomingConnectionOptions: connectionPatch,
                         distributedConnectionOptions: distributedPatch);
-
-                    Logger.Debug("Patching Soulseek options with {Patch}", patch.ToJson());
 
                     soulseekRequiresReconnect = await Client.ReconfigureOptionsAsync(patch);
                 }
