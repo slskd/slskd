@@ -1,5 +1,5 @@
 import React from 'react';
-import yaml from 'yaml';
+import YAML from 'yaml';
 
 import { Icon, Button } from 'semantic-ui-react';
 import CodeEditor from './CodeEditor';
@@ -7,10 +7,7 @@ import CodeEditor from './CodeEditor';
 const View = ({ options, editAction }) => {
   const { remoteConfiguration } = options;
 
-  const doc = new yaml.Document();
-  doc.contents = options;
-
-  const optionsAsYaml = doc.toString();
+  const optionsAsYaml = YAML.stringify(options, { simpleKeys: true })
 
   return (
     <>
