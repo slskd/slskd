@@ -6,7 +6,7 @@ import CodeEditor from '../../Shared/CodeEditor';
 import { getYamlLocation, getYaml, validateYaml, updateYaml } from '../../../lib/options';
 import PlaceholderSegment from '../../Shared/PlaceholderSegment';
 
-const Edit = ({ filename, cancelAction }) => {
+const Edit = ({ cancelAction }) => {
   const [{ loading, error }, setLoading] = useState({ loading: true, error: false });
   const [{ location, yaml, isDirty }, setYaml] = useState({ location: undefined, yaml: undefined, isDirty: false });
   const [yamlError, setYamlError] = useState();
@@ -62,7 +62,6 @@ const Edit = ({ filename, cancelAction }) => {
       </Message>
       <div 
         {...{ className: yamlError ? 'edit-code-container-error' : 'edit-code-container' }} 
-        //style={{height: yamlError ? 'calc(100vh - 316px)' : undefined}}
       >
         <CodeEditor
           value={yaml}
