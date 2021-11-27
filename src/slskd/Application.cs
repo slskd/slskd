@@ -657,8 +657,6 @@ namespace slskd
                         incomingConnectionOptions: connectionPatch,
                         distributedConnectionOptions: distributedPatch);
 
-                    Logger.Debug("Patching Soulseek options with {Patch}", patch.ToJson());
-
                     soulseekRequiresReconnect = await Client.ReconfigureOptionsAsync(patch);
                 }
 
