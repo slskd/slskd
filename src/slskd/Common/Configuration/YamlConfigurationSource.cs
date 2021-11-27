@@ -132,11 +132,6 @@ namespace slskd.Configuration
 
             if (root is YamlScalarNode scalar)
             {
-                if (Data.ContainsKey(Normalize(path)))
-                {
-                    throw new FormatException($"A duplicate key '{Normalize(path)}' was found.");
-                }
-
                 var value = NullValues.Contains(scalar.Value.ToLower()) ? null : scalar.Value;
 
                 if (value != null)
