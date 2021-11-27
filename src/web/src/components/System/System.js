@@ -6,13 +6,6 @@ import Logs from './Logs';
 import Options from './Options';
 
 class System extends Component {
-  componentDidMount = () => {
-  }
-
-  componentWillUnmount = () => {
-
-  }
-
   render = () => {
     return (
       <div className='system'>

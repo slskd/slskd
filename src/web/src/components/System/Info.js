@@ -1,13 +1,20 @@
-import React, { Component } from 'react';
+import React from 'react';
+import YAML from 'yaml';
 
-class Info extends Component {
-  render = () => {
-    return (
-      <div>
-        <pre>{JSON.stringify(this.props.state, null, 2)}</pre>
-      </div>
-    );
-  }
+import CodeEditor from '../Shared/CodeEditor';
+
+const Info = ({ state }) => {
+  const stateAsYaml = YAML.stringify(state, { simpleKeys: true, sortMapEntries: true })
+
+  return (
+    <div className='state-code-container'>
+      <CodeEditor
+        value={stateAsYaml}
+        basicSetup={false}
+        editable={false}
+      />
+    </div>
+  );
 }
 
 export default Info;

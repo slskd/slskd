@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 
 import { Button, Icon, Message } from 'semantic-ui-react';
-import CodeEditor from './CodeEditor';
+import CodeEditor from '../../Shared/CodeEditor';
 
-import { getYaml, validateYaml, updateYaml } from '../../../lib/options';
+import { getYamlLocation, getYaml, validateYaml, updateYaml } from '../../../lib/options';
 import PlaceholderSegment from '../../Shared/PlaceholderSegment';
 
-const Edit = ({ cancelAction }) => {
+const Edit = ({ filename, cancelAction }) => {
   const [{ loading, error }, setLoading] = useState({ loading: true, error: false });
-  const [{ yaml, isDirty }, setYaml] = useState({ yaml: undefined, isDirty: false });
+  const [{ location, yaml, isDirty }, setYaml] = useState({ location: undefined, yaml: undefined, isDirty: false });
   const [yamlError, setYamlError] = useState();
 
   useEffect(() => {
@@ -19,8 +19,9 @@ const Edit = ({ cancelAction }) => {
     setLoading({ loading: true, error: false });
 
     try {
-      const yaml = await getYaml();
-      setYaml({ yaml: yaml, isDirty: false })
+      const [location, yaml] = await Promise.all([getYamlLocation(), getYaml()]);
+
+      setYaml({ location, yaml, isDirty: false })
       setLoading({ loading: false, error: false })
     } catch (error) {
       setLoading({ loading: false, error: error.message })
@@ -28,7 +29,7 @@ const Edit = ({ cancelAction }) => {
   }
 
   const update = async (yaml) => {
-    setYaml({ yaml, isDirty: true });
+    setYaml({ location, yaml, isDirty: true });
     validate(yaml);
   }
 
@@ -56,16 +57,19 @@ const Edit = ({ cancelAction }) => {
 
   return (
     <>
+      <Message warning>
+        <Icon name='warning sign'/>Editing {location}
+      </Message>
       <div 
-        className='code-container' 
-        style={{height: yamlError ? 'calc(100vh - 316px)' : undefined}}
+        {...{ className: yamlError ? 'edit-code-container-error' : 'edit-code-container' }} 
+        //style={{height: yamlError ? 'calc(100vh - 316px)' : undefined}}
       >
         <CodeEditor
           value={yaml}
           onChange={(value) => update(value)}
         />
       </div>
-      {yamlError && <Message className='yaml-error' icon='x' negative>{yamlError}</Message>}
+      {yamlError && <Message className='yaml-error' negative><Icon name='x'/>{yamlError}</Message>}
       <div className='footer-buttons'>
         <Button primary disabled={!isDirty} onClick={() => save(yaml)}><Icon name='save'/>Save</Button>
         <Button onClick={() => cancelAction()}><Icon name='close'/>Cancel</Button>

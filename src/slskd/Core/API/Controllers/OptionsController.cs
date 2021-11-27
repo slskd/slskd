@@ -75,6 +75,14 @@ namespace slskd.Core.API
 
         [HttpGet]
         [Authorize]
+        [Route("yaml/location")]
+        public IActionResult GetYamlFileLocation()
+        {
+            return Ok(Program.ConfigurationFile);
+        }
+
+        [HttpGet]
+        [Authorize]
         [Route("yaml")]
         public IActionResult GetYamlFile()
         {
