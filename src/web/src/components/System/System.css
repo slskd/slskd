@@ -38,9 +38,13 @@
   text-align: right;
 }
 
-.view-code-container, .edit-code-container, .edit-code-container-error {
+.state-code-editor, .view-code-container, .edit-code-container, .edit-code-container-error {
   border: 1px solid #d4d4d5;
   overflow: auto;
+}
+
+.state-code-container {
+  height: calc(100vh - 204px);  
 }
 
 .view-code-container {
