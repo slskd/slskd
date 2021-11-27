@@ -38,8 +38,19 @@
   text-align: right;
 }
 
-.code-container {
+.view-code-container, .edit-code-container, .edit-code-container-error {
   border: 1px solid #d4d4d5;
   overflow: auto;
-  height: calc(100vh - 254px);
+}
+
+.view-code-container {
+  height: calc(100vh - 254px);  
+}
+
+.edit-code-container {
+  height: calc(100vh - 316px);  
+}
+
+.edit-code-container-error {
+  height: calc(100vh - 378px);  
 }

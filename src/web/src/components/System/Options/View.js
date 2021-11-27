@@ -2,16 +2,16 @@ import React from 'react';
 import YAML from 'yaml';
 
 import { Icon, Button } from 'semantic-ui-react';
-import CodeEditor from './CodeEditor';
+import CodeEditor from '../../Shared/CodeEditor';
 
 const View = ({ options, editAction }) => {
   const { remoteConfiguration } = options;
 
-  const optionsAsYaml = YAML.stringify(options, { simpleKeys: true })
+  const optionsAsYaml = YAML.stringify(options, { simpleKeys: true, sortMapEntries: true })
 
   return (
     <>
-      <div className='code-container'>
+      <div className='view-code-container'>
         <CodeEditor
           value={optionsAsYaml}
           basicSetup={false}
