@@ -8,6 +8,10 @@ export const getYaml = async () => {
   return (await api.get('/options/yaml')).data;
 };
 
+export const getYamlLocation = async () => {
+  return (await api.get('/options/yaml/location')).data;
+}
+
 export const validateYaml = async ({ yaml }) => {
   return (await api.post('/options/yaml/validate', yaml)).data;
 };
