@@ -86,7 +86,7 @@ namespace slskd.Core.API
         [Route("yaml")]
         public IActionResult GetYamlFile()
         {
-            if (!OptionsSnapshot.Value.RemoteConfiguration)
+            if (!OptionsSnapshot.Value.NoRemoteConfiguration)
             {
                 return Forbid();
             }
@@ -100,7 +100,7 @@ namespace slskd.Core.API
         [Route("yaml")]
         public IActionResult UpdateYamlFile([FromBody] string yaml)
         {
-            if (!OptionsSnapshot.Value.RemoteConfiguration)
+            if (!OptionsSnapshot.Value.NoRemoteConfiguration)
             {
                 return Forbid();
             }
