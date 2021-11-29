@@ -93,6 +93,7 @@ namespace slskd
         [Argument('v', "version")]
         [Description("display version information")]
         [Obsolete("Used only for documentation; see Program for actual implementation")]
+        [JsonIgnore]
         [YamlIgnore]
         public bool ShowVersion { get; private set; } = false;
 
@@ -102,6 +103,7 @@ namespace slskd
         [Argument('h', "help")]
         [Description("display command line usage")]
         [Obsolete("Used only for documentation; see Program for actual implementation")]
+        [JsonIgnore]
         [YamlIgnore]
         public bool ShowHelp { get; private set; } = false;
 
@@ -111,6 +113,7 @@ namespace slskd
         [Argument('e', "envars")]
         [Description("display environment variables")]
         [Obsolete("Used only for documentation; see Program for actual implementation")]
+        [JsonIgnore]
         [YamlIgnore]
         public bool ShowEnvironmentVariables { get; private set; } = false;
 
@@ -120,6 +123,7 @@ namespace slskd
         [Argument('g', "generate-cert")]
         [Description("generate X509 certificate and password for HTTPS")]
         [Obsolete("Used only for documentation; see Program for actual implementation")]
+        [JsonIgnore]
         [YamlIgnore]
         public bool GenerateCertificate { get; private set; } = false;
 
@@ -201,6 +205,7 @@ namespace slskd
         [EnvironmentVariable("APP_DIR")]
         [Description("path where application data is saved")]
         [Obsolete("Used only for documentation; see Program for actual implementation")]
+        [JsonIgnore]
         [YamlIgnore]
         public string AppDirectory { get; private set; } = Program.DefaultAppDirectory;
 
@@ -457,6 +462,7 @@ namespace slskd
             [Description("password for the Soulseek network")]
             [RequiresReconnect]
             [JsonIgnore]
+            [YamlIgnore]
             public string Password { get; private set; } = null;
 
             /// <summary>
@@ -626,6 +632,7 @@ namespace slskd
                     [Description("connection proxy password")]
                     [StringLength(255, MinimumLength = 1)]
                     [JsonIgnore]
+                    [YamlIgnore]
                     public string Password { get; private set; }
 
                     /// <summary>
@@ -771,6 +778,7 @@ namespace slskd
                 [Description("password for web UI")]
                 [StringLength(255, MinimumLength = 1)]
                 [JsonIgnore]
+                [YamlIgnore]
                 public string Password { get; private set; } = Program.AppName;
 
                 /// <summary>
@@ -862,6 +870,7 @@ namespace slskd
                     [Description("X509 certificate password")]
                     [RequiresRestart]
                     [JsonIgnore]
+                    [YamlIgnore]
                     public string Password { get; private set; }
                 }
             }
@@ -946,6 +955,7 @@ namespace slskd
                 [EnvironmentVariable("FTP_PASSWORD")]
                 [Description("FTP password")]
                 [JsonIgnore]
+                [YamlIgnore]
                 public string Password { get; private set; }
 
                 /// <summary>
