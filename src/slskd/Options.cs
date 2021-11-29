@@ -118,7 +118,7 @@ namespace slskd
         ///     Gets a value indicating whether to generate an X509 certificate and password.
         /// </summary>
         [Argument('g', "generate-cert")]
-        [Description("generate X509 certificate and password for HTTPs")]
+        [Description("generate X509 certificate and password for HTTPS")]
         [Obsolete("Used only for documentation; see Program for actual implementation")]
         [YamlIgnore]
         public bool GenerateCertificate { get; private set; } = false;
