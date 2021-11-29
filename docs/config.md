@@ -44,7 +44,7 @@ Command line arguments are useful for security options, such as remote configura
 
 The application directory configuration option determines the location of the YAML file, the default locations of the download and incomplete directories, and the location of application working data, such as logs and SQLite databases.
 
-Because the location of the YAML file is derived from this value, it can't be specified within the YAML file and must instead be specified with the `APP_DIR` environment variable or `--app` command line argument.
+Because the location of the YAML file is derived from this value, it can't be specified within the YAML file and must instead be specified with the `APP_DIR` environment variable or `--app-dir` command line argument.
 
 If no value is specified, the location defaults to either `~/.local/share/slskd` (on Linux and macOS) or `%localappdata%/slskd` (on Windows).
 
