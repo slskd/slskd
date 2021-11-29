@@ -86,8 +86,8 @@ Changing these values may require the server connection to be reset, depending o
 
 |Option|Environment Variable|Description|
 |----|-----|-----------|
-|`--slsk-no-dnet`|`SLSK_NO_DNET`|Determines whether the distribute network is disabled.  If disabled, the client will not obtain a parent or any child connections, and will not receive distributed search requests.|
-|`--slsk-dnet-no-children`|`SLSK_DNET_NO_CHILDREN`|Determines whether to accept distributed children|
+|`--slsk-no-dnet`|`SLSK_NO_DNET`|Determines whether the distributed network is disabled.  If disabled, the client will not obtain a parent or any child connections, and will not receive distributed search requests.|
+|`--slsk-dnet-no-children`|`SLSK_DNET_NO_CHILDREN`|Determines whether to disallow distributed children|
 |`--slsk-dnet-children`|`SLSK_DNET_CHILDREN`|The maximum number of distributed children to accept|
 
 #### **YAML**
