@@ -213,6 +213,22 @@ soulseek:
 
 ## Basic
 
+The default HTTP listen port is 5000, typical for a .NET application, but can be anything between 1 and 65535.
+
+The url base option allows the application to operate behind a reverse proxy. Setting a base of "slskd" would make the web UI accessible at `http://<host>:<port>/slskd`.
+
+The content path can be used to force the application to serve static web content from a location other than the default (`wwwroot`).  The application is designed such that the web UI is decoupled from the rest of the application, and can be swapped for another.
+
+Logging of HTTP requests is disabled by default.
+
+|Command Line|Environment Variable|Description|
+|----|-----|-----------|
+|`-l\--http-port`|`HTTP_PORT`|The HTTP listen port|
+|`--url-base`|`URL_BASE`|The base url for web requests|
+|`--content-path`|`CONTENT_PATH`|The path to static web content|
+|`--http-logging`|`HTTP_LOGGING`|Determines whether HTTP requests are to be logged|
+
+#### **YAML**
 ```yaml
 web:
   port: 5000
@@ -223,18 +239,25 @@ web:
 
 ## HTTPS
 
+The default HTTPS port is 5001, which again is typical for a .NET application, but can be anything between 1 and 65535.
+
+By default, the application generates a new, self-signed X509 certificate at each startup.  If for whatever reason a self-signed certificate isn't sufficient, or if the certificate needs to be shared among systems or applications, a certificate `.pfx` and password can be defined.
+
+The application can produce a self-signed `.pfx` file and random password using the `--generate-cert` command.
+
+|Command Line|Environment Variable|Description|
+|----|-----|-----------|
+|`-L\|--https-port`|`HTTPS_PORT`|The HTTPS listen port|
+|`-f\|--force-https`|`HTTPS_FORCE`|Determines whether HTTP requests are to be redirected to HTTPS|
+|`--https-cert-pfx`|`HTTPS_CERT_PFX`|The path to the X509 certificate .pfx file|
+|`--https-cert-password`|`HTTPS_CERT_PASSWORD`|The password for the X509 certificate|
+
+#### **YAML**
 ```yaml
 web:
   https:
     port: 5001
     force: false
-```
-
-### Certificate
-
-```yaml
-web:
-  https:
     certificate:
       pfx: ~
       password: ~
