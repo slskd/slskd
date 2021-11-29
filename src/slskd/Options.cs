@@ -524,7 +524,7 @@ namespace slskd
                 public class BufferOptions
                 {
                     /// <summary>
-                    ///     Gets the connection read buffer size.
+                    ///     Gets the connection read buffer size, in bytes.
                     /// </summary>
                     [Argument(default, "slsk-read-buffer")]
                     [EnvironmentVariable("SLSK_READ_BUFFER")]
@@ -533,7 +533,7 @@ namespace slskd
                     public int Read { get; private set; } = 16384;
 
                     /// <summary>
-                    ///     Gets the connection write buffer size.
+                    ///     Gets the connection write buffer size, in bytes.
                     /// </summary>
                     [Argument(default, "slsk-write-buffer")]
                     [EnvironmentVariable("SLSK_WRITE_BUFFER")]
@@ -542,7 +542,7 @@ namespace slskd
                     public int Write { get; private set; } = 16384;
 
                     /// <summary>
-                    ///     Gets the read/write buffer size for transfers.
+                    ///     Gets the read/write buffer size for transfers, in bytes.
                     /// </summary>
                     [Argument(default, "slsk-transfer-buffer")]
                     [EnvironmentVariable("SLSK_TRANSFER_BUFFER")]

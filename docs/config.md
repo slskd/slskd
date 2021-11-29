@@ -62,7 +62,7 @@ Changing either of these values requires the server connection to be reset.
 
 The password field is not included when serializing options to Json or YAML to avoid inadvertently exposing the value.
 
-|Option|Environment Variable|Description|
+|Command Line|Environment Variable|Description|
 |----|-----|-----------|
 |`--slsk-username`|`SLSK_USERNAME`|The username for the Soulseek network|
 |`--slsk-password`|`SLSK_PASSWORD`|The password for the Soulseek network|
@@ -84,7 +84,7 @@ Child connections should generally only be disabled on low spec systems or situa
 
 Changing these values may require the server connection to be reset, depending on the current state.
 
-|Option|Environment Variable|Description|
+|Command Line|Environment Variable|Description|
 |----|-----|-----------|
 |`--slsk-no-dnet`|`SLSK_NO_DNET`|Determines whether the distributed network is disabled.  If disabled, the client will not obtain a parent or any child connections, and will not receive distributed search requests.|
 |`--slsk-dnet-no-children`|`SLSK_DNET_NO_CHILDREN`|Determines whether to disallow distributed children|
@@ -107,7 +107,7 @@ As with any other Soulseek client, properly configuring the listen port and port
 
 Symptoms of a misconfigured listen port include poor search results and inability to browse or retrieve user information for some users.
 
-|Option|Environment Variable|Description|
+|Command Line|Environment Variable|Description|
 |----|-----|-----------|
 |`--slsk-listen-port`|`SLSK_LISTEN_PORT`|The port on which to listen for incoming connections|
 
@@ -119,10 +119,20 @@ soulseek:
 
 ## Connection
 
-
-
 ### Timeouts
 
+Timeout options control how long the application waits for connections to connect, and how long connections can be inactive before they are disconnected.
+
+Higher connect timeout values will help ensure that operations (browse, download requests, etc) are successful the first time, but also decrease responsiveness of commands that will ultimately fail.
+
+Inactivity timeouts help the application determine when a distributed parent connection has stopped sending data, and when connections that have delivered search results (and are unlikely to be used further) from remaining open longer than needed.  Reducing this timeout can help on low spec systems if port exhaustion is a concern, but may result in the application "hunting" for a distributed parent connection needlessly.
+
+|Command Line|Environment Variable|Description|
+|----|-----|-----------|
+|`--slsk-connection-timeout`|`SLSK_CONNECTION_TIMEOUT`|The connection timeout value, in milliseconds|
+|`--slsk-inactivity-timeout`|`SLSK_INACTIVITY_TIMEOUT`|The connection inactivity value, in milliseconds|
+
+#### **YAML**
 ```yaml
 soulseek:
   connection:
@@ -133,6 +143,22 @@ soulseek:
 
 ### Buffers
 
+Buffer options control the internal buffer the application uses to batch socket reads and writes.  Actual socket buffer sizes are controlled by the OS (.NET is not great in this department currently, and the behavior of these is not consistent cross-platform).
+
+Larger buffer sizes can improve performance, especially for file transfers, but result in increased memory usage.
+
+The transfer buffer size is used for file transfers (both read and write), and the read and write buffer sizes are used for all other connection types.  The transfer buffer size is directly correlated with transfer speed; setting this value much lower than the default will result in slow uploads (which may be a good thing for low spec hardware).
+
+The write queue option is the hard limit for the number of concurrent writes for a connection.  This generally only applies to distributed child connections, and prevents a memory leak if the application continues to try and send data after a connection has gone "bad".  This value can be set as low as 5 if memory is a constraint, though the default has been tested extensively and should be good for most scenarios, including low spec.
+
+|Command Line|Environment Variable|Description|
+|----|-----|-----------|
+|`--slsk-read-buffer`|`SLSK_READ_BUFFER`|The connection read buffer size, in bytes|
+|`--slsk-write-buffer`|`SLSK_WRITE_BUFFER`|The connection write buffer size, in bytes|
+|`--slsk-transfer-buffer`|`SLSK_TRANSFER_BUFFER`|The read/write buffer size for transfers, in bytes|
+|`--slsk-write-queue`|`SLSK_WRITE_QUEUE`|The connection write buffer size, in bytes|
+
+#### **YAML**
 ```yaml
 soulseek:
   connection:
@@ -145,6 +171,19 @@ soulseek:
 
 ### Proxy
 
+Connections can optionally use a SOCKS5 proxy, with or without username and password authentication.
+
+If the proxy is enabled, an address and port must also be specified.
+
+|Command Line|Environment Variable|Description|
+|----|-----|-----------|
+|`--slsk-proxy`|`SLSK_PROXY`|Determines whether a proxy is to be used|
+|`--slsk-proxy-address`|`SLSK_PROXY_ADDRESS`|The proxy address|
+|`--slsk-proxy-port`|`SLSK_PROXY_PORT`|The proxy port|
+|`--slsk-proxy-username`|`SLSK_PROXY_USERNAME`|The proxy username, if applicable|
+|`--slsk-proxy-password`|`SLSK_PROXY_PASSWORD`|The proxy password, if applicable|
+
+#### **YAML**
 ```yaml
 soulseek:
   connection:
@@ -158,6 +197,13 @@ soulseek:
 
 ## Diagnostic Level
 
+The diagnostic level option is passed to the Soulseek.NET configuration, and determines the level of detail at which the library produces diagnostic messages.  This should generally be left set to `Info` or `Warning`, but can be set to `Debug` if more verbose logging is desired.
+
+|Command Line|Environment Variable|Description|
+|----|-----|-----------|
+|`--slsk-diag-level`|`SLSK_DIAG_LEVEL`|The minimum diagnostic level (None, Warning, Info, Debug)|
+
+#### **YAML**
 ```yaml
 soulseek:
   diagnostic_level: Info
