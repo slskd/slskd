@@ -22,6 +22,12 @@ Environment variables are loaded after defaults.  Each environment variable name
 
 Environment variables are ideal for use cases involving Docker where remote configuration will be disabled, and where configuration is not expected to change often.
 
+Some options are backed by arrays or lists and allow multiple options to be set via a single environment variable.  To achieve this, separate each list item by a semicolon `;` in the value:
+
+```
+SLSKD_SOME_OPTION=1;2;3
+```
+
 ## YAML Configuration File
 
 Configuration is loaded from the YAML file located at `<application directory>/slskd.yml` after environment variables.
@@ -40,6 +46,12 @@ Command line arguments are loaded last, override all other configuration options
 
 Command line arguments are useful for security options, such as remote configuration, HTTPS JWT secret and certificate.  Choosing this source for sensitive options can prevent a remote attacker from gaining full control over the application.
 
+Some options are backed by arrays or lists and allow multiple options to be set via command line.  To achieve this, repeat the command line argument:
+
+```
+--some-option 1 --some-option 2 --some-option 3
+```
+
 # Application Directory Configuration
 
 The application directory configuration option determines the location of the YAML file, the default locations of the download and incomplete directories, and the location of application working data, such as logs and SQLite databases.
@@ -49,6 +61,12 @@ Because the location of the YAML file is derived from this value, it can't be sp
 If no value is specified, the location defaults to either `~/.local/share/slskd` (on Linux and macOS) or `%localappdata%/slskd` (on Windows).
 
 Within the official Docker image, this value is set to `/app`.
+
+# Other Directory Configuration
+
+## Incomplete and Downloads
+
+## Shares
 
 # Soulseek Configuration
 
@@ -223,7 +241,7 @@ Logging of HTTP requests is disabled by default.
 
 |Command Line|Environment Variable|Description|
 |----|-----|-----------|
-|`-l\--http-port`|`HTTP_PORT`|The HTTP listen port|
+|`-l\|--http-port`|`HTTP_PORT`|The HTTP listen port|
 |`--url-base`|`URL_BASE`|The base url for web requests|
 |`--content-path`|`CONTENT_PATH`|The path to static web content|
 |`--http-logging`|`HTTP_LOGGING`|Determines whether HTTP requests are to be logged|
@@ -265,6 +283,21 @@ web:
 
 ## Authentication
 
+Authentication for the web UI (and underlying API) is enabled by default, and the default username and password are both `slskd`.  Changing both the username and password during initial configuration are highly recommended.
+
+By default, a random JWT secret key is generated at each start.  This is convenient and secure, but it means that restarting the application will invalidate any issued JWTs, causing users to have to sign in again.  To avoid this supply a custom secret at least 16 characters in length.  Note that the secret can be used to generate valid JWTs for the application, so keep this value secret.
+
+The JWT TTL option determines how long issued JWTs are valid, defaulting to 7 days.
+
+|Command Line|Environment Variable|Description|
+|----|-----|-----------|
+|`-X\|--no-auth`|`NO_AUTH`|Determines whether authentication is to be disabled|
+|`-u\|--username`|`USERNAME`|The username for the web UI|
+|`-p\|--password`|`PASSWORD`|The password for the web UI|
+|`--jwt-key`|`JWT_KEY`|The secret key used to sign JWTs|
+|`--jwt-ttl`|`JWT_TTL`|The TTL (duration) of JWTs, in milliseconds|
+
+#### **YAML**
 ```yaml
 web:
   authentication:
@@ -274,6 +307,25 @@ web:
     jwt:
       key: ~
       ttl: 604800000
+```
+
+# Filters
+
+A number of filters can be configured to control various aspects of how the application interacts with the Soulseek network.
+
+The share filters can be used to prevent certain types of files from being shared.  This option is an array that can take any number of filters.  Filters must be a valid regular expression; a few examples are included below and in the example configuration included with the application, but the list is empty by default.
+
+|Command Line|Environment Variable|Description|
+|----|-----|-----------|
+|`--share-filter`|`SHARE_FILTER`|A list of regular expressions used to filter files from shares|
+
+#### **YAML**
+```yaml
+filters:
+  share:
+    - \.ini$
+    - Thumbs.db$
+    - \.DS_Store$
 ```
 
 # Integrations
@@ -286,15 +338,52 @@ web:
 
 ## Instance Name
 
+The instance name uniquely identifies the running instance of the application.  This is primarily useful for structured logging in cases where multiple instances are logging to the same remote source.
+
+|Command Line|Environment Variable|Description|
+|----|-----|-----------|
+|`-i\|--instance-name`|`INSTANCE_NAME`|The unique name for the running instance|
+
+#### **YAML**
+```yaml
+instance_name: default
+```
+
 ## Loggers
 
-### Loki
+The application logs to disk (`/logs` in the application directory) by default.  Logs can optionally be forwarded to external services, and the targets can be expanded to any service supported by a [Serilog Sink](https://github.com/serilog/serilog/wiki/Provided-Sinks).  Support for targets are added on an as-needed basis, and within reason.
+
+The current list of available targets is:
+
+|Command Line|Environment Variable|Description|
+|----|-----|-----------|
+|`--loki`|`LOKI`|The URL to a Grafana Loki instance|
+
+#### **YAML**
+```yaml
+logger:
+  loki: ~
+```
 
 ## Features
 
-### Swagger
+Several features have been added that aid in the development, debugging and operation of the application, but are generally not of much use to most users.
 
-### Prometheus
+The application can publish Prometheus metrics to `/metrics` using [prometheus-net](https://github.com/prometheus-net/prometheus-net).  This is especially useful for anyone attempting to tune performance characteristics.
+
+The application can publish a Swagger (OpenAPI) definition and host SwaggerUI at `/swagger` using [Swashbuckle](https://github.com/domaindrivendev/Swashbuckle.AspNetCore).  This is useful for anyone developing against the application API and/or creating a new web interface.
+
+|Command Line|Environment Variable|Description|
+|----|-----|-----------|
+|`--prometheus`|`PROMETHEUS`|Determines whether Prometheus metrics are published to `/metrics`|
+|`--swagger`|`SWAGGER`|Determines whether Swagger (OpenAPI) definitions and UI should be available at `/swagger`|
+
+#### **YAML**
+```yaml
+feature:
+  prometheus: false
+  swagger: false
+```
 
 ## Development Flags
 

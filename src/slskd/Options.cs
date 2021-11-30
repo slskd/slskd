@@ -755,7 +755,7 @@ namespace slskd
                 /// <summary>
                 ///     Gets a value indicating whether authentication should be disabled.
                 /// </summary>
-                [Argument('x', "no-auth")]
+                [Argument('X', "no-auth")]
                 [EnvironmentVariable("NO_AUTH")]
                 [Description("disable authentication for web requests")]
                 [RequiresRestart]
@@ -804,7 +804,7 @@ namespace slskd
                     public string Key { get; private set; } = Guid.NewGuid().ToString();
 
                     /// <summary>
-                    ///     Gets the TTL for JWTs.
+                    ///     Gets the TTL for JWTs, in milliseconds.
                     /// </summary>
                     [Argument(default, "jwt-ttl")]
                     [EnvironmentVariable("JWT_TTL")]
