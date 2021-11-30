@@ -332,6 +332,41 @@ filters:
 
 ## FTP
 
+Files can be uploaded to a remote FTP server upon completion.  Files are uploaded to the server and remote path specified using the directory and filename with which they were downloaded; the FTP will match the layout of the local disk.
+
+Uploads are attempted up to the maximum configured retry count, and then discarded.
+
+|Command Line|Environment Variable|Description|
+|----|-----|-----------|
+|`--ftp`|`FTP`|Determines whether FTP integration is enabled|
+|`--ftp-address`|`FTP_ADDRESS`|The FTP address|
+|`--ftp-port`|`FTP_PORT`|The FTP port|
+|`--ftp-username`|`FTP_USERNAME`|The FTP username|
+|`--ftp-password`|`FTP_PASSWORD`|The FTP password|
+|`--ftp-remote-path`|`FTP_REMOTE_PATH`|The remote path for uploads|
+|`--ftp-encryption-mode`|`FTP_ENCRYPTION_MODE`|The FTP encryption mode (none, implicit, explicit, auto)|
+|`--ftp-ignore-certificate-errors`|`FTP_IGNORE_CERTIFICATE_ERRORS`|Determines whether to ignore FTP certificate errors|
+|`--ftp-overwrite-existing`|`FTP_OVERWRITE_EXISTING`|Determines whether existing files should be overwritten|
+|`--ftp-connection-timeout`|`FTP_CONNECTION_TIMEOUT`|The connection timeout value, in milliseconds|
+|`--ftp-retry-attempts`|`FTP_RETRY_ATTEMPTS`|The number of times failing uploads will be retried|
+
+#### **YAML**
+```yaml
+integration:
+  ftp:
+    enabled: false
+    address: ~
+    port: ~
+    username: ~
+    password: ~
+    remote_path: /
+    encryption_mode: auto
+    ignore_certificate_errors: false
+    overwrite_existing: true
+    connection_timeout: 5000
+    retry_attempts: 3
+```
+
 ## Pushbullet
 
 # Other Configuration
