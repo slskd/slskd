@@ -52,6 +52,12 @@ Some options are backed by arrays or lists and allow multiple options to be set 
 --some-option 1 --some-option 2 --some-option 3
 ```
 
+# Remote Configuration
+
+The application contains APIs for retrieving and updating the YAML configuration file.  By default, this option is enabled.  Applications that will be run within untrusted networks, especially those where the application is internet-facing, should strongly consider disabling this option.
+
+If an attacker were to gain access to the application and retrieve the YAML file, any secrets contained within it will be exposed.
+
 # Application Directory Configuration
 
 The application directory configuration option determines the location of the YAML file, the default locations of the download and incomplete directories, and the location of application working data, such as logs and SQLite databases.
@@ -368,6 +374,37 @@ integration:
 ```
 
 ## Pushbullet
+
+Pushbullet notifications can be sent when a private message is sent, or when the current user's username is mentioned in a chat room.  Notifications are prefixed with a user-definable string to differentiate these notifications from others.  
+
+A Pushbullet account must be created, and users must create an API key within the Pushbullet application and configure it through options. Complete documentation for the Pushbullet API, including the latest instructions for obtaining an API key or "Access Token" can be found [here](https://docs.pushbullet.com/).
+
+The Pushbullet integration is one-way, meaning the application has no way of knowing whether a user is active or receiving notifications.  To prevent an inappropriate number of notifications from being sent, for example, if a user is carrying on an active conversation, a "cooldown" option is provided to ensure that notifications are sent only after the cooldown has expired.  By default, this is every 15 minutes.
+
+Notification API calls are made up to the maximum configured retry count, and then discarded.
+
+|Command Line|Environment Variable|Description|
+|----|-----|-----------|
+|`--pushbullet`|`PUSHBULLET`|Determines whether Pushbullet integration is enabled|
+|`--pushbullet-token`|`PUSHBULLET_TOKEN`|The Pushbullet API access token|
+|`--pushbullet-prefix`|`PUSHBULLET_PREFIX`|The prefix for notification titles|
+|`--pushbullet-notify-on-pm`|`PUSHBULLET_NOTIFY_ON_PRIVATE_MESSAGE`|Determines whether to send a notification when a private message is received|
+|`--pushbullet-notify-on-room-mention`|`PUSHBULLET_NOTIFY_ON_ROOM_MENTION`|Determines whether to send a notification when the current user's name is mentioned in a chat room|
+|`--pushbullet-retry-attempts`|`PUSHBULLET_RETRY_ATTEMPTS`|The number of times failing API calls will be retried|
+|`--pushbullet-cooldown`|`PUSHBULLET_COOLDOWN_TIME`|The cooldown time for notifications, in milliseconds|
+
+#### **YAML**
+```yaml
+integration:
+  pushbullet:
+    enabled: false
+    access_token: ~
+    notification_prefix: "From slskd:"
+    notify_on_private_message: true
+    notify_on_room_mention: true
+    retry_attempts: 3
+    cooldown_time: 900000
+```
 
 # Other Configuration
 
