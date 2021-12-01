@@ -1029,6 +1029,8 @@ namespace slskd
                 [Argument(default, "pushbullet-token")]
                 [EnvironmentVariable("PUSHBULLET_ACCESS_TOKEN")]
                 [Description("Pushbullet access token")]
+                [JsonIgnore]
+                [YamlIgnore]
                 public string AccessToken { get; private set; }
 
                 /// <summary>
