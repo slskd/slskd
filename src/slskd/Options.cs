@@ -184,10 +184,10 @@ namespace slskd
         /// <summary>
         ///     Gets a value indicating whether remote configuration of options is allowed.
         /// </summary>
-        [Argument(default, "no-remote-configuration")]
-        [EnvironmentVariable("NO_REMOTE_CONFIGURATION")]
-        [Description("do not allow remote configuration")]
-        public bool NoRemoteConfiguration { get; private set; } = false;
+        [Argument(default, "remote-configuration")]
+        [EnvironmentVariable("REMOTE_CONFIGURATION")]
+        [Description("allow remote configuration")]
+        public bool RemoteConfiguration { get; private set; } = false;
 
         /// <summary>
         ///     Gets the unique name for this instance.

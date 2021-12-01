@@ -4,7 +4,7 @@
 # no_connect: false
 # no_share_scan: false
 # no_version_check: false
-# no_remote_configuration: false
+# remote_configuration: false
 # instance_name: default
 # directories:
 #   incomplete: ~
