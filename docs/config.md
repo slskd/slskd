@@ -54,9 +54,18 @@ Some options are backed by arrays or lists and allow multiple options to be set 
 
 # Remote Configuration
 
-The application contains APIs for retrieving and updating the YAML configuration file.  By default, this option is enabled.  Applications that will be run within untrusted networks, especially those where the application is internet-facing, should strongly consider disabling this option.
+The application contains APIs for retrieving and updating the YAML configuration file.  By default, this option is disabled.  Applications that will be run within untrusted networks, especially those where the application is internet-facing, should consider the risks of enabling this option.
 
 If an attacker were to gain access to the application and retrieve the YAML file, any secrets contained within it will be exposed.
+
+|Command Line|Environment Variable|Description|
+|----|-----|-----------|
+|`--remote-configuration`|`REMOTE_CONFIGURATION`|Determines whether remote configuration of options is allowed|
+
+#### **YAML**
+```yaml
+remote_configuration: false
+```
 
 # Application Directory Configuration
 
@@ -72,7 +81,36 @@ Within the official Docker image, this value is set to `/app`.
 
 ## Incomplete and Downloads
 
+By default, incomplete and downloaded files are saved in `APP_DIR/incomplete` and `APP_DIR/downloads`, respectively.  The application will create these directories on startup if they don't exist.
+
+Alternative locations can be specified for each directory.  Directories must exist and must be writable by the application.
+
+|Command Line|Environment Variable|Description|
+|----|-----|-----------|
+|`-o\|--downloads`|`DOWNLOADS_DIR`|The path where downloaded files are saved|
+|`--incomplete`|`INCOMPLETE_DIR`|The path where incomplete downloads are saved|
+
+#### **YAML**
+```yaml
+directories:
+  incomplete: ~
+  downloads: ~
+```
+
 ## Shares
+
+
+
+|Command Line|Environment Variable|Description|
+|----|-----|-----------|
+|`-s\|--shared`|`SHARED_DIR`|The list of paths to shared files|
+
+#### **YAML**
+```yaml
+directories:
+  shared:
+    - ~
+```
 
 # Soulseek Configuration
 
@@ -141,7 +179,7 @@ soulseek:
   listen_port: 50000
 ```
 
-## Connection
+## Connection Options
 
 ### Timeouts
 
