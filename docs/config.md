@@ -83,7 +83,7 @@ Within the official Docker image, this value is set to `/app`.
 
 By default, incomplete and downloaded files are saved in `APP_DIR/incomplete` and `APP_DIR/downloads`, respectively.  The application will create these directories on startup if they don't exist.
 
-Alternative locations can be specified for each directory.  Directories must exist and must be writable by the application.
+Alternative locations can be specified for each directory.  Directories must exist and must be writable by the application; the application will not attempt create them.
 
 |Command Line|Environment Variable|Description|
 |----|-----|-----------|
@@ -99,7 +99,33 @@ directories:
 
 ## Shares
 
+Any number of shared directories can be configured.
 
+Paths must be absolute, meaning they must begin with `/`, `X:\`, or `\\`, depending on the system. Relative paths, such as `~/directory` or `../directory`, and root paths (e.g. an entire drive, mount or network share) are not supported.
+
+Shares can be excluded by prefixing them with `-` or `!`.  This is useful in situations where sharing a subdirectory of a share isn't desired, for example, if a user wanted to share their entire music library, but not their personal recordings:
+
+```yaml
+directories:
+  shared:
+    - 'D:\Music'
+    - '!D:\Music\Personal Recordings`
+```
+
+Shares can be aliased to improve privacy (for example, if a username is present in the path).  A share alias can be specified by prefixing the share with the alias in square brackets, for example:
+
+```yaml
+directories:
+  shared:
+    - '[Music]\users\John Doe\Music'
+```
+
+To a remote user, any files within the aliased path will appear as though they are shared from a directory named as the alias.
+
+Aliases:
+* Must be unique
+* Must be at least 1 character in length
+* Must not contain path separators (`\` or `/`)
 
 |Command Line|Environment Variable|Description|
 |----|-----|-----------|
