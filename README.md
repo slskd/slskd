@@ -37,6 +37,8 @@ services:
 
 This command or docker-compose file (depending on your choice) starts a container instance of slskd on ports 5000 (http) and 5001 (https), begins listening for incoming connections on port 50000, and maps the application directory to the provided path.
 
+A more in-depth guide to running slskd in Docker can be found [here](https://github.com/slskd/slskd/blob/master/docs/docker.md).
+
 ### With Binaries
 
 The latest stable binaries can be downloaded from the [releases](https://github.com/slskd/slskd/releases) page.  Platform specific binaries, along with the static content for the web UI, are produced as artifacts from every [build](https://github.com/slskd/slskd/actions?query=workflow%3ACI), if you'd prefer to use a canary release.
