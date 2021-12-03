@@ -1,6 +1,14 @@
+# Configuration 
+
+The application is designed to be highly configurable, but to also come 'out of the box' with sensible defaults.
+
+The defaults that have been chosen should cover the vast majority of users, but deployments on low spec hardware (such as a single board computer, or a shared system) should monitor resource usage and adjust as necessary.
+
+Credentials (username and password) for the Soulseek network are the only required configuration, but it is advised to also change the credentials for the web UI.
+
 # Sources
 
-slskd supports several different configuration sources in order to make it easy for users to deploy the application in a variety of situations.
+The application supports several different configuration sources in order to make it easy for users to deploy the application in a variety of situations.
 
 The configuration options used by the application are derived from the values specified by each of the sources, with sources higher in the heirarchy overwriting (or sometimes adding to) configuration specified lower in the heirarchy.  The heirarchy is:
 
@@ -8,9 +16,7 @@ The configuration options used by the application are derived from the values sp
 Default Values < Environment Variables < YAML Configuraiton File < Command Line Arguments
 ```
 
-The defaults that have been chosen should cover the vast majority of users, but deployments on low spec hardware (such as a single board computer, or a shared system) should monitor resource usage and adjust as necessary.  Memory usage is the key metric.
-
-Credentials (username and password) for the Soulseek network are the only required configuration.
+Some options can be specified as lists.  In these cases, care should be taken when combining configuration from multiple sources, as the way the .NET framework overlays configuration from different sources is additive, but it also overwrites, meaning that if a list of `one;two;three` is defined in an environment variable for an option, and the YAML configuration specifies a list of `foo` and `bar`, the resulting configuration will be a list containing `foo, bar, three`.
 
 ## Default Values
 
