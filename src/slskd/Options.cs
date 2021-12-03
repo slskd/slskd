@@ -557,7 +557,7 @@ namespace slskd
                     [EnvironmentVariable("SLSK_WRITE_QUEUE")]
                     [Description("queue size for double buffered writes")]
                     [Range(5, 5000)]
-                    public int WriteQueue { get; private set; } = 250;
+                    public int WriteQueue { get; private set; } = 50;
                 }
 
                 /// <summary>
