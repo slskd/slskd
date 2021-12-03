@@ -93,6 +93,7 @@ namespace slskd
         [Argument('v', "version")]
         [Description("display version information")]
         [Obsolete("Used only for documentation; see Program for actual implementation")]
+        [JsonIgnore]
         [YamlIgnore]
         public bool ShowVersion { get; private set; } = false;
 
@@ -102,6 +103,7 @@ namespace slskd
         [Argument('h', "help")]
         [Description("display command line usage")]
         [Obsolete("Used only for documentation; see Program for actual implementation")]
+        [JsonIgnore]
         [YamlIgnore]
         public bool ShowHelp { get; private set; } = false;
 
@@ -111,6 +113,7 @@ namespace slskd
         [Argument('e', "envars")]
         [Description("display environment variables")]
         [Obsolete("Used only for documentation; see Program for actual implementation")]
+        [JsonIgnore]
         [YamlIgnore]
         public bool ShowEnvironmentVariables { get; private set; } = false;
 
@@ -118,8 +121,9 @@ namespace slskd
         ///     Gets a value indicating whether to generate an X509 certificate and password.
         /// </summary>
         [Argument('g', "generate-cert")]
-        [Description("generate X509 certificate and password for HTTPs")]
+        [Description("generate X509 certificate and password for HTTPS")]
         [Obsolete("Used only for documentation; see Program for actual implementation")]
+        [JsonIgnore]
         [YamlIgnore]
         public bool GenerateCertificate { get; private set; } = false;
 
@@ -180,10 +184,10 @@ namespace slskd
         /// <summary>
         ///     Gets a value indicating whether remote configuration of options is allowed.
         /// </summary>
-        [Argument(default, "no-remote-configuration")]
-        [EnvironmentVariable("NO_REMOTE_CONFIGURATION")]
-        [Description("do not allow remote configuration")]
-        public bool NoRemoteConfiguration { get; private set; } = false;
+        [Argument(default, "remote-configuration")]
+        [EnvironmentVariable("REMOTE_CONFIGURATION")]
+        [Description("allow remote configuration")]
+        public bool RemoteConfiguration { get; private set; } = false;
 
         /// <summary>
         ///     Gets the unique name for this instance.
@@ -201,6 +205,7 @@ namespace slskd
         [EnvironmentVariable("APP_DIR")]
         [Description("path where application data is saved")]
         [Obsolete("Used only for documentation; see Program for actual implementation")]
+        [JsonIgnore]
         [YamlIgnore]
         public string AppDirectory { get; private set; } = Program.DefaultAppDirectory;
 
@@ -457,6 +462,7 @@ namespace slskd
             [Description("password for the Soulseek network")]
             [RequiresReconnect]
             [JsonIgnore]
+            [YamlIgnore]
             public string Password { get; private set; } = null;
 
             /// <summary>
@@ -518,7 +524,7 @@ namespace slskd
                 public class BufferOptions
                 {
                     /// <summary>
-                    ///     Gets the connection read buffer size.
+                    ///     Gets the connection read buffer size, in bytes.
                     /// </summary>
                     [Argument(default, "slsk-read-buffer")]
                     [EnvironmentVariable("SLSK_READ_BUFFER")]
@@ -527,7 +533,7 @@ namespace slskd
                     public int Read { get; private set; } = 16384;
 
                     /// <summary>
-                    ///     Gets the connection write buffer size.
+                    ///     Gets the connection write buffer size, in bytes.
                     /// </summary>
                     [Argument(default, "slsk-write-buffer")]
                     [EnvironmentVariable("SLSK_WRITE_BUFFER")]
@@ -536,7 +542,7 @@ namespace slskd
                     public int Write { get; private set; } = 16384;
 
                     /// <summary>
-                    ///     Gets the read/write buffer size for transfers.
+                    ///     Gets the read/write buffer size for transfers, in bytes.
                     /// </summary>
                     [Argument(default, "slsk-transfer-buffer")]
                     [EnvironmentVariable("SLSK_TRANSFER_BUFFER")]
@@ -551,7 +557,7 @@ namespace slskd
                     [EnvironmentVariable("SLSK_WRITE_QUEUE")]
                     [Description("queue size for double buffered writes")]
                     [Range(5, 5000)]
-                    public int WriteQueue { get; private set; } = 250;
+                    public int WriteQueue { get; private set; } = 50;
                 }
 
                 /// <summary>
@@ -626,6 +632,7 @@ namespace slskd
                     [Description("connection proxy password")]
                     [StringLength(255, MinimumLength = 1)]
                     [JsonIgnore]
+                    [YamlIgnore]
                     public string Password { get; private set; }
 
                     /// <summary>
@@ -748,7 +755,7 @@ namespace slskd
                 /// <summary>
                 ///     Gets a value indicating whether authentication should be disabled.
                 /// </summary>
-                [Argument('x', "no-auth")]
+                [Argument('X', "no-auth")]
                 [EnvironmentVariable("NO_AUTH")]
                 [Description("disable authentication for web requests")]
                 [RequiresRestart]
@@ -771,6 +778,7 @@ namespace slskd
                 [Description("password for web UI")]
                 [StringLength(255, MinimumLength = 1)]
                 [JsonIgnore]
+                [YamlIgnore]
                 public string Password { get; private set; } = Program.AppName;
 
                 /// <summary>
@@ -796,7 +804,7 @@ namespace slskd
                     public string Key { get; private set; } = Guid.NewGuid().ToString();
 
                     /// <summary>
-                    ///     Gets the TTL for JWTs.
+                    ///     Gets the TTL for JWTs, in milliseconds.
                     /// </summary>
                     [Argument(default, "jwt-ttl")]
                     [EnvironmentVariable("JWT_TTL")]
@@ -862,6 +870,7 @@ namespace slskd
                     [Description("X509 certificate password")]
                     [RequiresRestart]
                     [JsonIgnore]
+                    [YamlIgnore]
                     public string Password { get; private set; }
                 }
             }
@@ -946,6 +955,7 @@ namespace slskd
                 [EnvironmentVariable("FTP_PASSWORD")]
                 [Description("FTP password")]
                 [JsonIgnore]
+                [YamlIgnore]
                 public string Password { get; private set; }
 
                 /// <summary>
@@ -1019,6 +1029,8 @@ namespace slskd
                 [Argument(default, "pushbullet-token")]
                 [EnvironmentVariable("PUSHBULLET_ACCESS_TOKEN")]
                 [Description("Pushbullet access token")]
+                [JsonIgnore]
+                [YamlIgnore]
                 public string AccessToken { get; private set; }
 
                 /// <summary>

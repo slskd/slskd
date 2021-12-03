@@ -4,7 +4,7 @@
 # no_connect: false
 # no_share_scan: false
 # no_version_check: false
-# no_remote_configuration: false
+# remote_configuration: false
 # instance_name: default
 # directories:
 #   incomplete: ~
@@ -68,11 +68,11 @@
 #     enabled: false
 #     address: ~
 #     port: ~
-#     encryption_mode: auto
-#     ignore_certificate_errors: false
 #     username: ~
 #     password: ~
 #     remote_path: /
+#     encryption_mode: auto
+#     ignore_certificate_errors: false
 #     overwrite_existing: true
 #     connection_timeout: 5000
 #     retry_attempts: 3
