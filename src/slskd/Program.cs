@@ -198,7 +198,7 @@ namespace slskd
 
             if (GenerateCertificate)
             {
-                GenerateX509Certificate(password: Guid.NewGuid().ToString(), filename: $"{AppName}.pfx");
+                GenerateX509Certificate(password: Cryptography.Random.GetBytes(16).ToBase62String(), filename: $"{AppName}.pfx");
                 return;
             }
 
@@ -548,7 +548,7 @@ namespace slskd
                █▄▄▄▄▄█▄▄█▄▄▄▄▄█▄▄█▄▄█▄▄▄▄▄█",
             };
 
-            var logo = logos[new Random().Next(0, logos.Length)];
+            var logo = logos[new System.Random().Next(0, logos.Length)];
 
             var banner = @$"
 {logo}

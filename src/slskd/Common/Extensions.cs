@@ -22,7 +22,9 @@ namespace slskd
     using System.IO;
     using System.Linq;
     using System.Net.Sockets;
+    using System.Numerics;
     using System.Reflection;
+    using System.Text;
     using System.Text.Json;
     using System.Text.Json.Serialization;
     using System.Text.RegularExpressions;
@@ -282,6 +284,27 @@ namespace slskd
             }
 
             return Path.Combine(path, sanitizedFilename).TrimStart('\\').TrimStart('/');
+        }
+
+        /// <summary>
+        ///     Converts the byte array into a base 62 encoded string.
+        /// </summary>
+        /// <param name="bytes">The bytes to convert.</param>
+        /// <returns>The converted bytes as a base 62 string.</returns>
+        public static string ToBase62String(this byte[] bytes)
+        {
+            const string alphabet = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+            BigInteger dividend = new BigInteger(bytes);
+            var builder = new StringBuilder();
+
+            while (dividend != 0)
+            {
+                dividend = BigInteger.DivRem(dividend, alphabet.Length, out BigInteger remainder);
+                builder.Insert(0, alphabet[Math.Abs((int)remainder)]);
+            }
+
+            return builder.ToString();
         }
 
         /// <summary>
