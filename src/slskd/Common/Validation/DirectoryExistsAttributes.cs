@@ -17,23 +17,60 @@
 
 namespace slskd.Validation
 {
+    using System;
     using System.ComponentModel.DataAnnotations;
     using System.IO;
+    using System.Linq;
 
     /// <summary>
     ///     Validates that the directory at the specified path exists.
     /// </summary>
     public class DirectoryExistsAttribute : ValidationAttribute
     {
+        public DirectoryExistsAttribute(bool ensureWriteable = false)
+        {
+            EnsureWriteable = ensureWriteable;
+        }
+
+        private bool EnsureWriteable { get; set; }
+
         protected override ValidationResult IsValid(object value, ValidationContext validationContext)
         {
             if (value != null)
             {
                 var dir = Path.GetFullPath(value?.ToString());
 
-                if (!dir.StartsWith(Program.DefaultAppDirectory) && !string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                // default directories are exempt from validation, as there's an additional check (and creation)
+                // at startup for these directories.
+                if (new[] { Program.DefaultDownloadsDirectory, Program.DefaultIncompleteDirectory }.Contains(dir))
+                {
+                    return ValidationResult.Success;
+                }
+
+                // empty values are valid, because they will fall back to defaults
+                if (string.IsNullOrEmpty(dir))
+                {
+                    return ValidationResult.Success;
+                }
+
+                if (!Directory.Exists(dir))
                 {
                     return new ValidationResult($"The {validationContext.DisplayName} field specifies a non-existent directory '{dir}'.");
+                }
+
+                if (EnsureWriteable)
+                {
+                    try
+                    {
+                        var file = Guid.NewGuid().ToString();
+                        var probe = Path.Combine(dir, file);
+                        File.WriteAllText(probe, string.Empty);
+                        File.Delete(probe);
+                    }
+                    catch (Exception)
+                    {
+                        return new ValidationResult($"The {validationContext.DisplayName} field specifies a directory '{dir}' that exists, but is not writeable.");
+                    }
                 }
             }
 
