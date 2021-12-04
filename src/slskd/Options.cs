@@ -801,7 +801,7 @@ namespace slskd
                     [Description("JWT signing key")]
                     [StringLength(255, MinimumLength = 16)]
                     [RequiresRestart]
-                    public string Key { get; private set; } = Guid.NewGuid().ToString();
+                    public string Key { get; private set; } = Cryptography.Random.GetBytes(16).ToBase62String();
 
                     /// <summary>
                     ///     Gets the TTL for JWTs, in milliseconds.
