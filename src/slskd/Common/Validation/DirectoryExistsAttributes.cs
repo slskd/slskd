@@ -17,8 +17,8 @@
 
 namespace slskd.Validation
 {
-    using System.ComponentModel.DataAnnotations;
     using System;
+    using System.ComponentModel.DataAnnotations;
     using System.IO;
     using System.Linq;
 
@@ -42,7 +42,7 @@ namespace slskd.Validation
 
                 // default directories are exempt from validation, as there's an additional check (and creation)
                 // at startup for these directories.
-                if (new [] { Program.DefaultDownloadsDirectory, Program.DefaultIncompleteDirectory }.Contains(dir))
+                if (new[] { Program.DefaultDownloadsDirectory, Program.DefaultIncompleteDirectory }.Contains(dir))
                 {
                     return ValidationResult.Success;
                 }
