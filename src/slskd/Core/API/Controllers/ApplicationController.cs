@@ -101,7 +101,7 @@ namespace slskd.Core.API
         [Authorize]
         public IActionResult GetVersion()
         {
-            return Ok(Program.InformationalVersion);
+            return Ok(Program.SemanticVersion);
         }
 
         /// <summary>
