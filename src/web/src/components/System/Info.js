@@ -20,21 +20,21 @@ const Info = ({ state }) => {
       </div>
       <div className='footer-buttons'>
         <div style={{float: 'left'}}>
-          <Button onClick={() => getVersion({ forceCheck: true })}><Icon name='search'/>Check for Updates</Button>
+          <Button primary onClick={() => getVersion({ forceCheck: true })}><Icon name='refresh'/>Check for Updates</Button>
         </div>
         <Modal
           trigger={
-            <Button><Icon name='shutdown'/>Shut Down</Button>
+            <Button negative><Icon name='shutdown'/>Shut Down</Button>
           }
           centered
           size='mini'
           header={<Header icon='redo' content='Confirm Shutdown' />}
-          content="Are you sure you want shut the application down?  You'll need to manually start it again."
+          content="Are you sure you want to shut the application down?  You'll need to manually start it again."
           actions={['Cancel', { key: 'done', content: 'Shut Down', negative: true, onClick: shutdown }]}
         />
         <Modal
           trigger={
-            <Button><Icon name='redo'/>Restart</Button>
+            <Button negative><Icon name='redo'/>Restart</Button>
           }
           centered
           size='mini'
