@@ -141,6 +141,12 @@ namespace slskd
         /// <returns>The operation context.</returns>
         public async Task CheckVersionAsync()
         {
+            if (Program.IsDevelopment)
+            {
+                Logger.Information("Skipping version check for Development build");
+                return;
+            }
+
             if (Program.IsCanary)
             {
                 // todo: use the docker hub API to find the latest canary tag

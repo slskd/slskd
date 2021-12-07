@@ -43,6 +43,7 @@ namespace slskd
         public string Latest { get; init; } = null;
         public bool? IsUpdateAvailable { get; init; } = null;
         public bool IsCanary { get; init; } = Program.IsCanary;
+        public bool IsDevelopment { get; init; } = Program.IsDevelopment;
     }
 
     public record ServerState

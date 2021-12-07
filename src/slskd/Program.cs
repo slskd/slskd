@@ -114,6 +114,11 @@ namespace slskd
         public static bool IsCanary => AssemblyVersion.Revision == 65534;
 
         /// <summary>
+        ///     Gets a value indicating whether the current version is a Development build.
+        /// </summary>
+        public static bool IsDevelopment => new Version(0, 0, 0, 0) == AssemblyVersion;
+
+        /// <summary>
         ///     Gets the path where application data is saved.
         /// </summary>
         [Argument(default, "app-dir", "path where application data is saved")]
@@ -287,6 +292,11 @@ namespace slskd
             }
 
             logger.Information("Version: {Version}", FullVersion);
+
+            if (IsDevelopment)
+            {
+                logger.Warning("This is a Development build; YMMV");
+            }
 
             if (IsCanary)
             {
@@ -555,6 +565,11 @@ namespace slskd
 │                   https://slskd.org                    │
 │                                                        │
 │{centeredVersion}│";
+
+            if (IsDevelopment)
+            {
+                banner += "\n│■■■■■■■■■■■■■■■■■■■■► DEVELOPMENT ◄■■■■■■■■■■■■■■■■■■■■■│";
+            }
 
             if (IsCanary)
             {
