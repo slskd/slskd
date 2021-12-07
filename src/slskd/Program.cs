@@ -74,37 +74,6 @@ namespace slskd
         public static readonly string DefaultAppDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData, Environment.SpecialFolderOption.DoNotVerify), AppName);
 
         /// <summary>
-        ///     Gets the assembly version of the application.
-        /// </summary>
-        /// <remarks>
-        ///     Inaccurate when running locally.
-        /// </remarks>
-        public static readonly Version AssemblyVersion = Assembly.GetExecutingAssembly().GetName().Version.Equals(new Version(1, 0, 0, 0)) ? new Version(0, 0, 0, 0) : Assembly.GetExecutingAssembly().GetName().Version;
-
-        /// <summary>
-        ///     Gets the informational version of the application, including the git sha at the latest commit.
-        /// </summary>
-        /// <remarks>
-        ///     Inaccurate when running locally.
-        /// </remarks>
-        public static readonly string InformationalVersion = Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>().InformationalVersion == "1.0.0" ? "0.0.0" : Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>().InformationalVersion;
-
-        /// <summary>
-        ///     Gets the full application version, including both assembly and informational versions.
-        /// </summary>
-        public static readonly string FullVersion = $"{AssemblyVersion} ({InformationalVersion})";
-
-        /// <summary>
-        ///     Gets the semantic application version.
-        /// </summary>
-        public static readonly string SemanticVersion = InformationalVersion.Split('-').First();
-
-        /// <summary>
-        ///     Gets a value indicating whether the current version is a Canary build.
-        /// </summary>
-        public static readonly bool IsCanary = AssemblyVersion.Revision == 65534;
-
-        /// <summary>
         ///     Gets the unique Id of this application invocation.
         /// </summary>
         public static readonly Guid InvocationId = Guid.NewGuid();
@@ -114,10 +83,35 @@ namespace slskd
         /// </summary>
         public static readonly int ProcessId = Environment.ProcessId;
 
+        /// <remarks>
+        ///     Inaccurate when running locally.
+        /// </remarks>
+        private static readonly Version AssemblyVersion = Assembly.GetExecutingAssembly().GetName().Version.Equals(new Version(1, 0, 0, 0)) ? new Version(0, 0, 0, 0) : Assembly.GetExecutingAssembly().GetName().Version;
+
+        /// <remarks>
+        ///     Inaccurate when running locally.
+        /// </remarks>
+        private static readonly string InformationalVersion = Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>().InformationalVersion == "1.0.0" ? "0.0.0" : Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>().InformationalVersion;
+
         /// <summary>
         ///     Occurs when a new log event is emitted.
         /// </summary>
         public static event EventHandler<LogRecord> LogEmitted;
+
+        /// <summary>
+        ///     Gets the semantic application version.
+        /// </summary>
+        public static string SemanticVersion => InformationalVersion.Split('-').First();
+
+        /// <summary>
+        ///     Gets the full application version, including both assembly and informational versions.
+        /// </summary>
+        public static string FullVersion => $"{SemanticVersion} ({InformationalVersion})";
+
+        /// <summary>
+        ///     Gets a value indicating whether the current version is a Canary build.
+        /// </summary>
+        public static bool IsCanary => AssemblyVersion.Revision == 65534;
 
         /// <summary>
         ///     Gets the path where application data is saved.
