@@ -92,7 +92,12 @@ namespace slskd
         /// <summary>
         ///     Gets the full application version, including both assembly and informational versions.
         /// </summary>
-        public static readonly string Version = $"{AssemblyVersion} ({InformationalVersion})";
+        public static readonly string FullVersion = $"{AssemblyVersion} ({InformationalVersion})";
+
+        /// <summary>
+        ///     Gets the semantic application version.
+        /// </summary>
+        public static readonly string SemanticVersion = InformationalVersion.Split('-').First();
 
         /// <summary>
         ///     Gets a value indicating whether the current version is a Canary build.
@@ -172,7 +177,7 @@ namespace slskd
 
             if (ShowVersion)
             {
-                Console.WriteLine(Version);
+                Console.WriteLine(FullVersion);
                 return;
             }
 
@@ -180,7 +185,7 @@ namespace slskd
             {
                 if (!NoLogo)
                 {
-                    PrintLogo(Version);
+                    PrintLogo(FullVersion);
                 }
 
                 if (ShowHelp)
@@ -249,7 +254,6 @@ namespace slskd
                 .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
                 .MinimumLevel.Override("System.Net.Http.HttpClient", OptionsAtStartup.Debug ? LogEventLevel.Warning : LogEventLevel.Fatal)
                 .MinimumLevel.Override("slskd.Authentication.PassthroughAuthenticationHandler", LogEventLevel.Warning)
-                .Enrich.WithProperty("Version", Version)
                 .Enrich.WithProperty("InstanceName", OptionsAtStartup.InstanceName)
                 .Enrich.WithProperty("InvocationId", InvocationId)
                 .Enrich.WithProperty("ProcessId", ProcessId)
@@ -285,10 +289,10 @@ namespace slskd
 
             if (!OptionsAtStartup.NoLogo)
             {
-                PrintLogo(Version);
+                PrintLogo(FullVersion);
             }
 
-            logger.Information("Version: {Version}", Version);
+            logger.Information("Version: {Version}", FullVersion);
 
             if (IsCanary)
             {

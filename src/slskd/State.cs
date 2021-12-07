@@ -38,7 +38,8 @@ namespace slskd
 
     public record VersionState
     {
-        public string Current { get; init; } = Program.InformationalVersion;
+        public string Full { get; init; } = Program.FullVersion;
+        public string Current { get; init; } = Program.SemanticVersion;
         public string Latest { get; init; } = null;
         public bool? IsUpdateAvailable { get; init; } = null;
         public bool IsCanary { get; init; } = Program.IsCanary;
