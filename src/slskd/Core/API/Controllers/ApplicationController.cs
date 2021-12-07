@@ -69,6 +69,13 @@ namespace slskd.Core.API
         public IActionResult Shutdown()
         {
             Lifetime.StopApplication();
+
+            Task.Run(async () =>
+            {
+                await Task.Delay(500);
+                Environment.Exit(0);
+            });
+
             return NoContent();
         }
 
@@ -123,6 +130,21 @@ namespace slskd.Core.API
         {
             GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
             GC.Collect(2, GCCollectionMode.Forced, blocking: false, compacting: true);
+
+            return Ok();
+        }
+
+        [HttpPut]
+        [Route("shares")]
+        [Authorize]
+        public IActionResult RescanSharesAsync()
+        {
+            if (ApplicationStateMonitor.CurrentValue.SharedFileCache.Filling)
+            {
+                return Conflict("A share scan is already in progress.");
+            }
+
+            _ = Application.RescanSharesAsync();
 
             return Ok();
         }
