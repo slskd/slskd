@@ -140,7 +140,7 @@ namespace slskd.Integrations.Pushbullet
 
                 using var http = HttpClientFactory.CreateClient();
 
-                http.DefaultRequestHeaders.UserAgent.TryParseAdd($"{Program.AppName} v{Program.Version}");
+                http.DefaultRequestHeaders.UserAgent.TryParseAdd($"{Program.AppName} v{Program.FullVersion}");
 
                 Log.LogDebug("Sending Pushbullet notification {Title} {Body}", title, body);
 
