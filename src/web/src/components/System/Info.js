@@ -3,8 +3,9 @@ import YAML from 'yaml';
 
 import { restart, shutdown, getVersion } from '../../lib/application';
 
-import { Button, Icon, Modal, Header } from 'semantic-ui-react';
+import { Modal, Header } from 'semantic-ui-react';
 import CodeEditor from '../Shared/CodeEditor';
+import ShrinkableButton from '../Shared/ShrinkableButton';
 
 const Info = ({ state }) => {
   const stateAsYaml = YAML.stringify(state, { simpleKeys: true, sortMapEntries: true })
@@ -20,11 +21,24 @@ const Info = ({ state }) => {
       </div>
       <div className='footer-buttons'>
         <div style={{float: 'left'}}>
-          <Button primary onClick={() => getVersion({ forceCheck: true })}><Icon name='refresh'/>Check for Updates</Button>
+          <ShrinkableButton
+            iconName='refresh'
+            mediaQuery='(max-width: 516px)'
+            primary
+            onClick={() => getVersion({ forceCheck: true })}
+          >
+            Check for Updates
+          </ShrinkableButton>
         </div>
         <Modal
           trigger={
-            <Button negative><Icon name='shutdown'/>Shut Down</Button>
+            <ShrinkableButton
+              iconName='shutdown'
+              mediaQuery='(max-width: 516px)'
+              negative
+            >
+              Shut Down
+            </ShrinkableButton>
           }
           centered
           size='mini'
@@ -34,7 +48,13 @@ const Info = ({ state }) => {
         />
         <Modal
           trigger={
-            <Button negative><Icon name='redo'/>Restart</Button>
+            <ShrinkableButton
+              iconName='redo'
+              mediaQuery='(max-width: 516px)'
+              negative
+            >
+              Restart
+            </ShrinkableButton>
           }
           centered
           size='mini'
