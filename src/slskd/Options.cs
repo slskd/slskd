@@ -460,9 +460,8 @@ namespace slskd
             [Argument(default, "slsk-password")]
             [EnvironmentVariable("SLSK_PASSWORD")]
             [Description("password for the Soulseek network")]
+            [Secret]
             [RequiresReconnect]
-            [JsonIgnore]
-            [YamlIgnore]
             public string Password { get; private set; } = null;
 
             /// <summary>
@@ -631,8 +630,7 @@ namespace slskd
                     [EnvironmentVariable("SLSK_PROXY_PASSWORD")]
                     [Description("connection proxy password")]
                     [StringLength(255, MinimumLength = 1)]
-                    [JsonIgnore]
-                    [YamlIgnore]
+                    [Secret]
                     public string Password { get; private set; }
 
                     /// <summary>
@@ -777,8 +775,7 @@ namespace slskd
                 [EnvironmentVariable("PASSWORD")]
                 [Description("password for web UI")]
                 [StringLength(255, MinimumLength = 1)]
-                [JsonIgnore]
-                [YamlIgnore]
+                [Secret]
                 public string Password { get; private set; } = Program.AppName;
 
                 /// <summary>
@@ -800,6 +797,7 @@ namespace slskd
                     [EnvironmentVariable("JWT_KEY")]
                     [Description("JWT signing key")]
                     [StringLength(255, MinimumLength = 16)]
+                    [Secret]
                     [RequiresRestart]
                     public string Key { get; private set; } = Cryptography.Random.GetBytes(16).ToBase62String();
 
@@ -869,8 +867,7 @@ namespace slskd
                     [EnvironmentVariable("HTTPS_CERT_PASSWORD")]
                     [Description("X509 certificate password")]
                     [RequiresRestart]
-                    [JsonIgnore]
-                    [YamlIgnore]
+                    [Secret]
                     public string Password { get; private set; }
                 }
             }
@@ -954,8 +951,7 @@ namespace slskd
                 [Argument(default, "ftp-password")]
                 [EnvironmentVariable("FTP_PASSWORD")]
                 [Description("FTP password")]
-                [JsonIgnore]
-                [YamlIgnore]
+                [Secret]
                 public string Password { get; private set; }
 
                 /// <summary>
@@ -1029,8 +1025,7 @@ namespace slskd
                 [Argument(default, "pushbullet-token")]
                 [EnvironmentVariable("PUSHBULLET_ACCESS_TOKEN")]
                 [Description("Pushbullet access token")]
-                [JsonIgnore]
-                [YamlIgnore]
+                [Secret]
                 public string AccessToken { get; private set; }
 
                 /// <summary>
