@@ -135,7 +135,8 @@ class App extends Component {
 
     return (
       <Sidebar.Pushable as={Segment} className='app'>
-        <Sidebar 
+        <Sidebar
+          className='navigation'
           as={Menu} 
           animation='overlay' 
           icon='labeled' 
