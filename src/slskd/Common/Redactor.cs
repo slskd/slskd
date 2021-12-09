@@ -44,18 +44,20 @@ namespace slskd
                 return;
             }
 
-            var props = target.GetType().GetProperties();
-
-            foreach (var prop in props)
+            foreach (var prop in target.GetType().GetProperties())
             {
                 var value = prop.GetValue(target);
 
-                if (prop.GetCustomAttributes().Any(attr => attr.GetType() == typeof(SecretAttribute)) && prop.PropertyType == typeof(string) && value != null)
+                if (value == null)
+                {
+                    continue;
+                }
+
+                if (prop.GetCustomAttributes().Any(attr => attr.GetType() == typeof(SecretAttribute)) && prop.PropertyType == typeof(string))
                 {
                     prop.SetValue(target, redactWith);
                 }
-
-                if (value != null)
+                else
                 {
                     if (value.GetType().IsAssignableTo(typeof(IEnumerable)))
                     {

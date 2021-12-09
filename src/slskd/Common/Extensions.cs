@@ -318,7 +318,7 @@ namespace slskd
         public static Options Redact(this Options options)
         {
             var redacted = options.ToJson().FromJson<Options>();
-            Redactor.Redact(redacted);
+            Redactor.Redact(redacted, redactWith: "*****");
             return redacted;
         }
 
