@@ -308,6 +308,21 @@ namespace slskd
         }
 
         /// <summary>
+        ///     Redacts this instance of Options, replacing properties marked with <see cref="SecretAttribute"/> with '*****'.
+        /// </summary>
+        /// <remarks>
+        ///     Creates a deep clone before redacting.
+        /// </remarks>
+        /// <param name="options">The Options instance to redact.</param>
+        /// <returns>A redacted instance.</returns>
+        public static Options Redact(this Options options)
+        {
+            var redacted = options.ToJson().FromJson<Options>();
+            Redactor.Redact(redacted);
+            return redacted;
+        }
+
+        /// <summary>
         ///     Creates a copy of this instance with the specified parameters changed.
         /// </summary>
         /// <param name="o">The options instance to copy.</param>
@@ -350,6 +365,7 @@ namespace slskd
             var options = new JsonSerializerOptions();
             options.Converters.Add(new IPAddressConverter());
             options.Converters.Add(new JsonStringEnumConverter());
+            options.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
             options.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
             return options;
         }
