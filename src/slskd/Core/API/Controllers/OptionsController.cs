@@ -57,7 +57,7 @@ namespace slskd.Core.API
         [ProducesResponseType(typeof(Options), 200)]
         public IActionResult Current()
         {
-            return Ok(OptionsSnapshot.Value);
+            return Ok(OptionsSnapshot.Value.Redact());
         }
 
         /// <summary>
@@ -70,7 +70,7 @@ namespace slskd.Core.API
         [ProducesResponseType(typeof(Options), 200)]
         public IActionResult Startup()
         {
-            return Ok(OptionsAtStartup);
+            return Ok(OptionsAtStartup.Redact());
         }
 
         [HttpGet]
