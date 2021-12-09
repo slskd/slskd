@@ -53,7 +53,7 @@ namespace slskd.Core.API
         /// <returns>The operation context.</returns>
         public static Task BroadcastOptionsAsync(this IHubContext<ApplicationHub> hub, Options options)
         {
-            return hub.Clients.All.SendAsync(ApplicationHubMethods.Options, options);
+            return hub.Clients.All.SendAsync(ApplicationHubMethods.Options, options.Redact());
         }
     }
 
@@ -77,7 +77,7 @@ namespace slskd.Core.API
         public override async Task OnConnectedAsync()
         {
             await Clients.Caller.SendAsync(ApplicationHubMethods.State, StateMonitor.CurrentValue);
-            await Clients.Caller.SendAsync(ApplicationHubMethods.Options, OptionsMonitor.CurrentValue);
+            await Clients.Caller.SendAsync(ApplicationHubMethods.Options, OptionsMonitor.CurrentValue.Redact());
         }
     }
 }
