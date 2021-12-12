@@ -43,16 +43,16 @@ class Response extends Component {
     }
 
     download = (username, files) => {
-        this.setState({ downloadRequest: 'inProgress' }, () => {
-            Promise.all((files || []).map(f => this.downloadOne(username, f)))
-            .then(() => this.setState({ downloadRequest: 'complete' }))
-            .catch(err => this.setState({ downloadRequest: 'error', downloadError: err.response }))
-        });
-    }
+        this.setState({ downloadRequest: 'inProgress' }, async () => {
+            try {
+                const requests = (files || []).map(({ filename, size }) => ({ filename, size }))
+                await transfers.download({ username, files: requests })
 
-    downloadOne = (username, file) => {
-        const { filename, size } = file;
-        return transfers.download({ username, filename, size });
+                this.setState({ downloadRequest: 'complete' })
+            } catch (err) {
+                this.setState({ downloadRequest: 'error', downloadError: err.response })
+            }
+        });
     }
 
     render = () => {
