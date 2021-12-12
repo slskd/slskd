@@ -29,11 +29,16 @@ class Directory extends Component {
   }
 
   download = (username, files) => {
-    this.setState({ downloadRequest: 'inProgress' }, () => {
-      Promise.all(files.map(f => this.downloadOne(username, f)))
-      .then(() => this.setState({ downloadRequest: 'complete' }))
-      .catch(err => this.setState({ downloadRequest: 'error', downloadError: err.response }))
-    });
+    this.setState({ downloadRequest: 'inProgress' }, async () => {
+      try {
+          const requests = (files || []).map(({ filename, size }) => ({ filename, size }))
+          await transfers.download({ username, files: requests })
+
+          this.setState({ downloadRequest: 'complete' })
+      } catch (err) {
+          this.setState({ downloadRequest: 'error', downloadError: err.response })
+      }
+  });
   }
 
   componentDidUpdate = (prevProps) => {
