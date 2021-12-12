@@ -20,6 +20,7 @@ using Microsoft.Extensions.Options;
 namespace slskd.Transfers.API
 {
     using System;
+    using System.Collections.Generic;
     using System.ComponentModel.DataAnnotations;
     using System.IO;
     using System.Linq;
@@ -104,7 +105,7 @@ namespace slskd.Transfers.API
         ///     Enqueues the specified download.
         /// </summary>
         /// <param name="username">The username of the download source.</param>
-        /// <param name="request">The download request.</param>
+        /// <param name="requests">The list of download requests.</param>
         /// <returns></returns>
         /// <response code="201">The download was successfully enqueued.</response>
         /// <response code="403">The download was rejected.</response>
@@ -114,54 +115,59 @@ namespace slskd.Transfers.API
         [ProducesResponseType(201)]
         [ProducesResponseType(typeof(string), 403)]
         [ProducesResponseType(typeof(string), 500)]
-        public async Task<IActionResult> Enqueue([FromRoute, Required]string username, [FromBody]QueueDownloadRequest request)
+        public async Task<IActionResult> Enqueue([FromRoute, Required]string username, [FromBody]IEnumerable<QueueDownloadRequest> requests)
         {
             try
             {
-                var waitUntilEnqueue = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-                var stream = GetLocalFileStream(request.Filename, Options.Directories.Incomplete);
+                await Client.ConnectToUserAsync(username, invalidateCache: true);
 
-                var cts = new CancellationTokenSource();
-
-                var downloadTask = Task.Run(async () =>
+                foreach (var request in requests)
                 {
-                    await Client.DownloadAsync(username, request.Filename, stream, request.Size, 0, request.Token, new TransferOptions(disposeOutputStreamOnCompletion: true, stateChanged: (e) =>
-                    {
-                        Tracker.AddOrUpdate(e, cts);
+                    var waitUntilEnqueue = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                    var stream = GetLocalFileStream(request.Filename, Options.Directories.Incomplete);
 
-                        if (e.Transfer.State == TransferStates.Queued || e.Transfer.State == TransferStates.Initializing)
+                    var cts = new CancellationTokenSource();
+
+                    var downloadTask = Task.Run(async () =>
+                    {
+                        await Client.DownloadAsync(username, request.Filename, stream, request.Size, 0, request.Token, new TransferOptions(disposeOutputStreamOnCompletion: true, stateChanged: (e) =>
                         {
-                            waitUntilEnqueue.TrySetResult(true);
-                        }
-                    }, progressUpdated: (e) => Tracker.AddOrUpdate(e, cts)), cts.Token);
+                            Tracker.AddOrUpdate(e, cts);
 
-                    MoveFile(request.Filename, Options.Directories.Incomplete, Options.Directories.Downloads);
+                            if (e.Transfer.State == TransferStates.Queued || e.Transfer.State == TransferStates.Initializing)
+                            {
+                                waitUntilEnqueue.TrySetResult(true);
+                            }
+                        }, progressUpdated: (e) => Tracker.AddOrUpdate(e, cts)), cts.Token);
 
-                    if (Options.Integration.Ftp.Enabled)
-                    {
-                        _ = FTP.UploadAsync(request.Filename.ToLocalFilename(Options.Directories.Downloads));
-                    }
-                });
+                        MoveFile(request.Filename, Options.Directories.Incomplete, Options.Directories.Downloads);
 
-                // wait until either the waitUntilEnqueue task completes because the download was successfully queued, or the
-                // downloadTask throws due to an error prior to successfully queueing.
-                var task = await Task.WhenAny(waitUntilEnqueue.Task, downloadTask);
-
-                if (task == downloadTask)
-                {
-                    if (downloadTask.Exception is AggregateException)
-                    {
-                        var rejected = downloadTask.Exception?.InnerExceptions.Where(e => e is TransferRejectedException) ?? Enumerable.Empty<Exception>();
-                        if (rejected.Any())
+                        if (Options.Integration.Ftp.Enabled)
                         {
-                            return StatusCode(403, rejected.First().Message);
+                            _ = FTP.UploadAsync(request.Filename.ToLocalFilename(Options.Directories.Downloads));
                         }
-                    }
+                    });
 
-                    return StatusCode(500, downloadTask.Exception.Message);
+                    // wait until either the waitUntilEnqueue task completes because the download was successfully queued, or the
+                    // downloadTask throws due to an error prior to successfully queueing.
+                    var task = await Task.WhenAny(waitUntilEnqueue.Task, downloadTask);
+
+                    if (task == downloadTask)
+                    {
+                        if (downloadTask.Exception is AggregateException)
+                        {
+                            var rejected = downloadTask.Exception?.InnerExceptions.Where(e => e is TransferRejectedException) ?? Enumerable.Empty<Exception>();
+                            if (rejected.Any())
+                            {
+                                return StatusCode(403, rejected.First().Message);
+                            }
+                        }
+
+                        return StatusCode(500, downloadTask.Exception.Message);
+                    }
                 }
 
-                // if it didn't throw, just return ok. the download will continue waiting in the background.
+                // if nothing threw, just return ok. the download will continue waiting in the background.
                 return StatusCode(201);
             }
             catch (Exception ex)
