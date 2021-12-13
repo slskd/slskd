@@ -193,7 +193,7 @@ namespace slskd.Shares
 
                 foreach (var share in Shares)
                 {
-                    Log.Debug($"Share: Alias: {share.Alias} Mask: {share.Mask} Local Path: {share.LocalPath} Remote Path: {share.RemotePath} Raw: {share.Raw}");
+                    Log.Information($"Share: Alias: {share.Alias} Mask: {share.Mask} Local Path: {share.LocalPath} Remote Path: {share.RemotePath} Raw: {share.Raw}");
                 }
 
                 Log.Debug("Enumerating shared directories");
