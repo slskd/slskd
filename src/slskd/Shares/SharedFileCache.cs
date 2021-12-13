@@ -350,7 +350,7 @@ namespace slskd.Shares
 
             if (share == default)
             {
-                Log.Warning($"Failed to resolve shared file {filename}; unable to resolve share from mask and alias");
+                Log.Warning("Failed to resolve shared file {Filename}; unable to resolve share from mask '{Mask}' and alias '{Alias}'", filename, parts[0], parts[1]);
                 return resolved;
             }
 
@@ -402,12 +402,34 @@ namespace slskd.Shares
                 {
                     results.Add(reader.GetString(0));
                 }
-
-                return results.Select(r => MaskedFiles[r.Replace("''", "'")]);
             }
             catch (Exception ex)
             {
                 Log.Warning(ex, "Failed to execute shared file query '{Query}': {Message}", query, ex.Message);
+                return Enumerable.Empty<File>();
+            }
+
+            try
+            {
+                return results.Select(r => MaskedFiles[r.Replace("''", "'")]).ToList();
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "Failed to map shared file result: {Message}", ex.Message);
+
+                // temporarily log the share state when we hit this error, to help debug
+                foreach (var share in Shares)
+                {
+                    Log.Information($"Share: Alias: {share.Alias} Mask: {share.Mask} Local Path: {share.LocalPath} Remote Path: {share.RemotePath} Raw: {share.Raw}");
+                }
+
+                Log.Information("Sample shared file keys:");
+
+                foreach (var key in MaskedFiles.Keys.Take(10))
+                {
+                    Log.Information(key);
+                }
+
                 return Enumerable.Empty<File>();
             }
         }
