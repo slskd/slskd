@@ -193,7 +193,8 @@ namespace slskd.Shares
 
                 foreach (var share in Shares)
                 {
-                    Log.Information($"Share: Alias: {share.Alias} Mask: {share.Mask} Local Path: {share.LocalPath} Remote Path: {share.RemotePath} Raw: {share.Raw}");
+                    Log.Information($"Sharing {share.LocalPath} as {share.RemotePath}");
+                    Log.Debug($"Raw: {share.Raw}, Alias: {share.Alias}, Mask: {share.Mask}, Remote: {share.RemotePath})");
                 }
 
                 Log.Debug("Enumerating shared directories");
@@ -411,25 +412,11 @@ namespace slskd.Shares
 
             try
             {
-                return results.Select(r => MaskedFiles[r.Replace("''", "'")]).ToList();
+                return results.Select(r => MaskedFiles[r]).ToList();
             }
             catch (Exception ex)
             {
                 Log.Warning(ex, "Failed to map shared file result: {Message}", ex.Message);
-
-                // temporarily log the share state when we hit this error, to help debug
-                foreach (var share in Shares)
-                {
-                    Log.Information($"Share: Alias: {share.Alias} Mask: {share.Mask} Local Path: {share.LocalPath} Remote Path: {share.RemotePath} Raw: {share.Raw}");
-                }
-
-                Log.Information("Sample shared file keys:");
-
-                foreach (var key in MaskedFiles.Keys.Take(10))
-                {
-                    Log.Information(key);
-                }
-
                 return Enumerable.Empty<File>();
             }
         }
@@ -450,7 +437,8 @@ namespace slskd.Shares
 
         private void InsertFilename(string filename)
         {
-            using var cmd = new SqliteCommand($"INSERT INTO cache(filename) VALUES('{filename.Replace("'", "''")}')", SQLite);
+            using var cmd = new SqliteCommand($"INSERT INTO cache(filename) VALUES(@filename)", SQLite);
+            cmd.Parameters.AddWithValue("filename", filename);
             cmd.ExecuteNonQuery();
         }
 
