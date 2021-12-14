@@ -411,7 +411,7 @@ namespace slskd.Shares
 
             try
             {
-                return results.Select(r => MaskedFiles[r.Replace("''", "'")]).ToList();
+                return results.Select(r => MaskedFiles[r]).ToList();
             }
             catch (Exception ex)
             {
@@ -450,7 +450,8 @@ namespace slskd.Shares
 
         private void InsertFilename(string filename)
         {
-            using var cmd = new SqliteCommand($"INSERT INTO cache(filename) VALUES('{filename.Replace("'", "''")}')", SQLite);
+            using var cmd = new SqliteCommand($"INSERT INTO cache(filename) VALUES(@filename)", SQLite);
+            cmd.Parameters.AddWithValue("filename", filename);
             cmd.ExecuteNonQuery();
         }
 
