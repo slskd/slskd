@@ -45,16 +45,19 @@ namespace slskd.Search
         /// </summary>
         /// <param name="optionsMonitor"></param>
         /// <param name="soulseekClient"></param>
+        /// <param name="application"></param>
         /// <param name="contextFactory">The database context to use.</param>
         /// <param name="log">The logger.</param>
         public SearchService(
             IOptionsMonitor<Options> optionsMonitor,
             ISoulseekClient soulseekClient,
+            IApplication application,
             IDbContextFactory<SearchDbContext> contextFactory,
             ILogger<SearchService> log)
         {
             OptionsMonitor = optionsMonitor;
             Client = soulseekClient;
+            Application = application;
             ContextFactory = contextFactory;
             Log = log;
         }
@@ -63,6 +66,7 @@ namespace slskd.Search
             = new ConcurrentDictionary<Guid, CancellationTokenSource>();
 
         private IOptionsMonitor<Options> OptionsMonitor { get; }
+        private IApplication Application { get; }
         private ISoulseekClient Client { get; }
         private IDbContextFactory<SearchDbContext> ContextFactory { get; }
         private ILogger<SearchService> Log { get; set; }
@@ -130,6 +134,7 @@ namespace slskd.Search
             finally
             {
                 CancellationTokens.TryRemove(id, out _);
+                Application.CollectGarbage();
             }
         }
 
