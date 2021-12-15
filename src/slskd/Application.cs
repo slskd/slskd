@@ -21,6 +21,7 @@ namespace slskd
 {
     using System;
     using System.Collections.Concurrent;
+    using System.Diagnostics;
     using System.IO;
     using System.Linq;
     using System.Net;
@@ -139,10 +140,20 @@ namespace slskd
 
         public void CollectGarbage()
         {
+            var sw = new Stopwatch();
+
+            Log.Debug("Collecting garbage");
+
+            sw.Start();
+
             GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
 #pragma warning disable S1215 // "GC.Collect" should not be called
             GC.Collect(2, GCCollectionMode.Forced, blocking: false, compacting: true);
 #pragma warning restore S1215 // "GC.Collect" should not be called
+
+            sw.Stop();
+
+            Log.Debug("Garbage collection completed in {Duration}ms", sw.ElapsedMilliseconds);
         }
 
         /// <summary>
