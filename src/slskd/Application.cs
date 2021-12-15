@@ -26,6 +26,7 @@ namespace slskd
     using System.Net;
     using System.Net.Sockets;
     using System.Reflection;
+    using System.Runtime;
     using System.Threading;
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.SignalR;
@@ -47,6 +48,7 @@ namespace slskd
     {
         public Task CheckVersionAsync();
         public Task RescanSharesAsync();
+        public void CollectGarbage();
     }
 
     public sealed class Application : IApplication
@@ -120,7 +122,7 @@ namespace slskd
         private IRoomService RoomService { get; set; }
         private IBrowseTracker BrowseTracker { get; set; }
         private IConversationTracker ConversationTracker { get; set; }
-        private ILogger Logger { get; set; } = Log.ForContext<Application>();
+        private ILogger Log { get; set; } = Serilog.Log.ForContext<Application>();
         private ConcurrentDictionary<string, ILogger> Loggers { get; } = new ConcurrentDictionary<string, ILogger>();
         private Options Options => OptionsMonitor.CurrentValue;
         private OptionsAtStartup OptionsAtStartup { get; set; }
@@ -135,6 +137,14 @@ namespace slskd
         private IHubContext<ApplicationHub> ApplicationHub { get; set; }
         private IHubContext<LogsHub> LogHub { get; set; }
 
+        public void CollectGarbage()
+        {
+            GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
+#pragma warning disable S1215 // "GC.Collect" should not be called
+            GC.Collect(2, GCCollectionMode.Forced, blocking: false, compacting: true);
+#pragma warning restore S1215 // "GC.Collect" should not be called
+        }
+
         /// <summary>
         ///     Gets the version of the latest application release.
         /// </summary>
@@ -143,18 +153,18 @@ namespace slskd
         {
             if (Program.IsDevelopment)
             {
-                Logger.Information("Skipping version check for Development build");
+                Log.Information("Skipping version check for Development build");
                 return;
             }
 
             if (Program.IsCanary)
             {
                 // todo: use the docker hub API to find the latest canary tag
-                Logger.Information("Skipping version check for Canary build; check for updates manually.");
+                Log.Information("Skipping version check for Canary build; check for updates manually.");
                 return;
             }
 
-            Logger.Information("Checking GitHub Releases for latest version");
+            Log.Information("Checking GitHub Releases for latest version");
 
             try
             {
@@ -166,17 +176,17 @@ namespace slskd
                 if (latestVersion > Version.Parse(Program.SemanticVersion))
                 {
                     State.SetValue(state => state with { Version = state.Version with { Latest = latestVersion.ToString(), IsUpdateAvailable = true } });
-                    Logger.Information("A new version is available! {CurrentVersion} -> {LatestVersion}", Program.SemanticVersion, latestVersion);
+                    Log.Information("A new version is available! {CurrentVersion} -> {LatestVersion}", Program.SemanticVersion, latestVersion);
                 }
                 else
                 {
                     State.SetValue(state => state with { Version = state.Version with { Latest = Program.SemanticVersion, IsUpdateAvailable = false } });
-                    Logger.Information("Version {CurrentVersion} is up to date.", Program.SemanticVersion);
+                    Log.Information("Version {CurrentVersion} is up to date.", Program.SemanticVersion);
                 }
             }
             catch (Exception ex)
             {
-                Logger.Warning("Failed to check version: {Message}", ex.Message);
+                Log.Warning("Failed to check version: {Message}", ex.Message);
                 throw;
             }
         }
@@ -189,7 +199,7 @@ namespace slskd
 
         async Task IHostedService.StartAsync(CancellationToken cancellationToken)
         {
-            Logger.Information("Configuring client");
+            Log.Information("Configuring client");
 
             ProxyOptions proxyOptions = default;
 
@@ -247,12 +257,12 @@ namespace slskd
 
             await Client.ReconfigureOptionsAsync(patch);
 
-            Logger.Information("Client configured");
-            Logger.Information("Listening on port {Port}", OptionsAtStartup.Soulseek.ListenPort);
+            Log.Information("Client configured");
+            Log.Information("Listening on port {Port}", OptionsAtStartup.Soulseek.ListenPort);
 
             if (OptionsAtStartup.Soulseek.Connection.Proxy.Enabled)
             {
-                Logger.Information($"Using Proxy {OptionsAtStartup.Soulseek.Connection.Proxy.Address}:{OptionsAtStartup.Soulseek.Connection.Proxy.Port}");
+                Log.Information($"Using Proxy {OptionsAtStartup.Soulseek.Connection.Proxy.Address}:{OptionsAtStartup.Soulseek.Connection.Proxy.Port}");
             }
 
             if (!OptionsAtStartup.NoVersionCheck)
@@ -262,7 +272,7 @@ namespace slskd
 
             if (OptionsAtStartup.NoShareScan)
             {
-                Logger.Warning("Not scanning shares; 'no-share-scan' option is enabled.  Search and browse results will remain disabled until a manual scan is completed.");
+                Log.Warning("Not scanning shares; 'no-share-scan' option is enabled.  Search and browse results will remain disabled until a manual scan is completed.");
             }
             else
             {
@@ -271,11 +281,11 @@ namespace slskd
 
             if (OptionsAtStartup.NoConnect)
             {
-                Logger.Warning("Not connecting to the Soulseek server; 'no-connect' option is enabled");
+                Log.Warning("Not connecting to the Soulseek server; 'no-connect' option is enabled");
             }
             else if (string.IsNullOrEmpty(OptionsAtStartup.Soulseek.Username) || string.IsNullOrEmpty(OptionsAtStartup.Soulseek.Password))
             {
-                Logger.Warning($"Not connecting to the Soulseek server; username and/or password invalid.  Specify valid credentials and manually connect, or update config and restart.");
+                Log.Warning($"Not connecting to the Soulseek server; username and/or password invalid.  Specify valid credentials and manually connect, or update config and restart.");
             }
             else
             {
@@ -287,7 +297,7 @@ namespace slskd
         {
             Client.Disconnect("Shutting down", new ApplicationShutdownException("Shutting down"));
             Client.Dispose();
-            Logger.Information("Client stopped");
+            Log.Information("Client stopped");
             return Task.CompletedTask;
         }
 
@@ -312,7 +322,7 @@ namespace slskd
 
         private void Client_Connected(object sender, EventArgs e)
         {
-            Logger.Information("Connected to the Soulseek server");
+            Log.Information("Connected to the Soulseek server");
         }
 
         private void Client_DiagnosticGenerated(object sender, DiagnosticEventArgs args)
@@ -340,27 +350,27 @@ namespace slskd
 
             if (args.Exception is ObjectDisposedException || args.Exception is ApplicationShutdownException)
             {
-                Logger.Information("Disconnected from the Soulseek server: the client is shutting down");
+                Log.Information("Disconnected from the Soulseek server: the client is shutting down");
             }
             else if (args.Exception is IntentionalDisconnectException)
             {
-                Logger.Information("Disconnected from the Soulseek server: disconnected by the user");
+                Log.Information("Disconnected from the Soulseek server: disconnected by the user");
             }
             else if (args.Exception is LoginRejectedException)
             {
-                Logger.Error("Disconnected from the Soulseek server: invalid username or password");
+                Log.Error("Disconnected from the Soulseek server: invalid username or password");
             }
             else if (args.Exception is KickedFromServerException)
             {
-                Logger.Error("Disconnected from the Soulseek server: another client logged in using the username {Username}", Client.Username);
+                Log.Error("Disconnected from the Soulseek server: another client logged in using the username {Username}", Client.Username);
             }
             else
             {
-                Logger.Error("Disconnected from the Soulseek server: {Message}", args.Exception?.Message ?? args.Message);
+                Log.Error("Disconnected from the Soulseek server: {Message}", args.Exception?.Message ?? args.Message);
 
                 if (string.IsNullOrEmpty(Options.Soulseek.Username) || string.IsNullOrEmpty(Options.Soulseek.Password))
                 {
-                    Logger.Warning($"Not reconnecting to the Soulseek server; username and/or password invalid.  Specify valid credentials and manually connect, or update config and restart.");
+                    Log.Warning($"Not reconnecting to the Soulseek server; username and/or password invalid.  Specify valid credentials and manually connect, or update config and restart.");
                     return;
                 }
 
@@ -373,10 +383,10 @@ namespace slskd
                         maxDelayInMilliseconds: ReconnectMaxDelayMilliseconds);
 
                     var approximateDelay = (int)Math.Ceiling((double)(delay + jitter) / 1000);
-                    Logger.Information($"Waiting about {(approximateDelay == 1 ? "a second" : $"{approximateDelay} seconds")} before reconnecting");
+                    Log.Information($"Waiting about {(approximateDelay == 1 ? "a second" : $"{approximateDelay} seconds")} before reconnecting");
                     await Task.Delay(delay + jitter);
 
-                    Logger.Information($"Attempting to reconnect (#{attempts})...", attempts);
+                    Log.Information($"Attempting to reconnect (#{attempts})...", attempts);
 
                     try
                     {
@@ -389,7 +399,7 @@ namespace slskd
                     catch (Exception ex)
                     {
                         attempts++;
-                        Logger.Error("Failed to reconnect: {Message}", ex.Message);
+                        Log.Error("Failed to reconnect: {Message}", ex.Message);
                     }
                 }
             }
@@ -397,7 +407,7 @@ namespace slskd
 
         private void Client_LoggedIn(object sender, EventArgs e)
         {
-            Logger.Information("Logged in to the Soulseek server as {Username}", Client.Username);
+            Log.Information("Logged in to the Soulseek server as {Username}", Client.Username);
 
             // send whatever counts we have currently. we'll probably connect before the cache is primed, so these will be zero
             // initially, but we'll update them when the cache is filled.
@@ -567,7 +577,7 @@ namespace slskd
                     var requiresRestart = HasAttribute<RequiresRestartAttribute>(property);
                     var requiresReconnect = HasAttribute<RequiresReconnectAttribute>(property);
 
-                    Logger.Debug($"{fqn} changed from '{left.ToJson() ?? "<null>"}' to '{right.ToJson() ?? "<null>"}'{(requiresRestart ? "; Restart required to take effect." : string.Empty)}{(requiresReconnect ? "; Reconnect required to take effect." : string.Empty)}");
+                    Log.Debug($"{fqn} changed from '{left.ToJson() ?? "<null>"}' to '{right.ToJson() ?? "<null>"}'{(requiresRestart ? "; Restart required to take effect." : string.Empty)}{(requiresReconnect ? "; Reconnect required to take effect." : string.Empty)}");
 
                     pendingRestart |= requiresRestart;
                     pendingReconnect |= requiresReconnect;
@@ -577,20 +587,20 @@ namespace slskd
                     || newOptions.Directories.Shared.Except(PreviousOptions.Directories.Shared).Any())
                 {
                     State.SetValue(state => state with { PendingShareRescan = true });
-                    Logger.Information("Shared directory configuration changed.  Shares must be re-scanned for changes to take effect.");
+                    Log.Information("Shared directory configuration changed.  Shares must be re-scanned for changes to take effect.");
                 }
 
                 if (PreviousOptions.Filters.Share.Except(newOptions.Filters.Share).Any()
                     || newOptions.Filters.Share.Except(PreviousOptions.Filters.Share).Any())
                 {
                     State.SetValue(state => state with { PendingShareRescan = true });
-                    Logger.Information("File filter configuration changed.  Shares must be re-scanned for changes to take effect.");
+                    Log.Information("File filter configuration changed.  Shares must be re-scanned for changes to take effect.");
                 }
 
                 if (PreviousOptions.Rooms.Except(newOptions.Rooms).Any()
                     || newOptions.Rooms.Except(PreviousOptions.Rooms).Any())
                 {
-                    Logger.Information("Room configuration changed.  Joining any newly added rooms.");
+                    Log.Information("Room configuration changed.  Joining any newly added rooms.");
                     _ = RoomService.TryJoinAsync(newOptions.Rooms);
                 }
 
@@ -602,7 +612,7 @@ namespace slskd
                     var old = PreviousOptions.Soulseek;
                     var update = newOptions.Soulseek;
 
-                    Logger.Debug("Soulseek options changed from {Previous} to {Current}", old.ToJson(), update.ToJson());
+                    Log.Debug("Soulseek options changed from {Previous} to {Current}", old.ToJson(), update.ToJson());
 
                     // determine whether any Connection options changed. if so, replace the whole object. Soulseek.NET doesn't
                     // offer a way to patch parts of connection options. the updates only affect new connections, so a partial
@@ -672,23 +682,23 @@ namespace slskd
                 if ((Client.State.HasFlag(SoulseekClientStates.Connected) && pendingReconnect) || soulseekRequiresReconnect)
                 {
                     State.SetValue(state => state with { PendingReconnect = true });
-                    Logger.Information("One or more updated Soulseek options requires the client to be disconnected, then reconnected to the network to take effect.");
+                    Log.Information("One or more updated Soulseek options requires the client to be disconnected, then reconnected to the network to take effect.");
                 }
 
                 if (pendingRestart)
                 {
                     State.SetValue(state => state with { PendingRestart = true });
-                    Logger.Information("One or more updated options requires an application restart to take effect.");
+                    Log.Information("One or more updated options requires an application restart to take effect.");
                 }
 
                 PreviousOptions = newOptions;
                 _ = ApplicationHub.BroadcastOptionsAsync(newOptions);
 
-                Logger.Information("Options updated successfully.");
+                Log.Information("Options updated successfully.");
             }
             catch (Exception ex)
             {
-                Logger.Error(ex, "Failed to apply option update: {Message}", ex.Message);
+                Log.Error(ex, "Failed to apply option update: {Message}", ex.Message);
             }
             finally
             {
@@ -747,7 +757,7 @@ namespace slskd
                 SharesRefreshStarted = DateTime.UtcNow;
 
                 State.SetValue(s => s with { SharedFileCache = current });
-                Logger.Information("Scanning shares");
+                Log.Information("Scanning shares");
             }
 
             var lastProgress = Math.Round(previous.FillProgress * 100);
@@ -756,7 +766,7 @@ namespace slskd
             if (lastProgress != currentProgress && Math.Round(currentProgress, 0) % 10 == 0)
             {
                 State.SetValue(s => s with { SharedFileCache = current });
-                Logger.Information("Scanned {Percent}% of shared directories.  Found {Files} files so far.", currentProgress, current.Files);
+                Log.Information("Scanned {Percent}% of shared directories.  Found {Files} files so far.", currentProgress, current.Files);
             }
 
             if (previous.Filling && !current.Filling)
@@ -765,12 +775,12 @@ namespace slskd
 
                 if (current.Faulted)
                 {
-                    Logger.Error("Failed to scan shares.");
+                    Log.Error("Failed to scan shares.");
                 }
                 else
                 {
                     State.SetValue(s => s with { PendingShareRescan = false });
-                    Logger.Information("Shares scanned successfully. Found {Directories} directories and {Files} files in {Duration}ms", current.Directories, current.Files, (DateTime.UtcNow - SharesRefreshStarted).TotalMilliseconds);
+                    Log.Information("Shares scanned successfully. Found {Directories} directories and {Files} files in {Duration}ms", current.Directories, current.Files, (DateTime.UtcNow - SharesRefreshStarted).TotalMilliseconds);
 
                     SharesRefreshStarted = default;
 
@@ -784,7 +794,7 @@ namespace slskd
 
         private void State_OnChange((State Previous, State Current) state)
         {
-            Logger.Debug("State changed from {Previous} to {Current}", state.Previous.ToJson(), state.Current.ToJson());
+            Log.Debug("State changed from {Previous} to {Current}", state.Previous.ToJson(), state.Current.ToJson());
             _ = ApplicationHub.BroadcastStateAsync(state.Current);
         }
 
