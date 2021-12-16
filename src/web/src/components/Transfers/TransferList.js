@@ -31,19 +31,21 @@ const getColor = (state) => {
     }
 }
 
-const isRetryable = (state) => getColor(state).color === 'red';
+const isRetryableState = (state) => getColor(state).color === 'red';
 
 class TransferList extends Component {
     handleClick = (file) => {
-        const { state } = file;
-        
-        if (isRetryable(state)) {
-            return this.props.onRetryRequested(file);
-        }
+        const { state, direction } = file;
 
-        if (state === 'Queued') {
-            return this.props.onPlaceInQueueRequested(file);
-        }
+        if (direction === 'Download') {
+            if (isRetryableState(state)) {
+                return this.props.onRetryRequested(file);
+            }
+    
+            if (state === 'Queued') {
+                return this.props.onPlaceInQueueRequested(file);
+            }
+        }    
     }
 
     render = () => {
@@ -95,12 +97,13 @@ class TransferList extends Component {
                                         <Button 
                                             fluid 
                                             size='mini' 
-                                            style={{ margin: 0, padding: 7 }} 
+                                            style={{ margin: 0, padding: 7, cursor: f.direction === 'Upload' ? 'unset' : '' }} 
                                             {...getColor(f.state)} 
                                             onClick={() => this.handleClick(f)}
+                                            active={f.direction === 'Upload'}
                                         >
-                                            {f.state === 'Queued' && <Icon name='refresh'/>}
-                                            {isRetryable(f.state) && <Icon name='redo'/>}
+                                            {f.direction === 'Download' && f.state === 'Queued' && <Icon name='refresh'/>}
+                                            {f.direction === 'Download' && isRetryableState(f.state) && <Icon name='redo'/>}
                                             {f.state}{f.placeInQueue ? ` (#${f.placeInQueue})` : ''}
                                         </Button>}
                                     </Table.Cell>
