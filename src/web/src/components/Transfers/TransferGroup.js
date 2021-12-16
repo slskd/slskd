@@ -68,7 +68,7 @@ class TransferGroup extends Component {
         const { username, filename, size } = file;
         
         try {
-            await transfers.download({username, filename, size });
+            await transfers.download({username, files: [{filename, size }] });
         } catch (error) {
             console.log(error);
         }
