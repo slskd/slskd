@@ -47,11 +47,6 @@ class Directory extends Component {
     }
   }
 
-  downloadOne = (username, file) => {
-    const { filename, size } = file;
-    return transfers.download({ username, filename, size });
-  }
-
   render = () => {
     let { username, name, locked, marginTop, onClose } = this.props;
     let { files, downloadRequest, downloadError } = this.state;
