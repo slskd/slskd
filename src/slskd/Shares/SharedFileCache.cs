@@ -112,10 +112,14 @@ namespace slskd.Shares
         /// <returns>The contents of the cache.</returns>
         public IEnumerable<Directory> Browse()
         {
-            // ignore requests while the cache is building
-            if (SyncRoot.CurrentCount == 0)
+            if (!State.CurrentValue.Filled)
             {
-                return new[] { new Directory("Scanning shares, please check back in a few minutes.") };
+                if (State.CurrentValue.Filling)
+                {
+                    return new[] { new Directory("Scanning shares, please check back in a few minutes.") };
+                }
+
+                return Enumerable.Empty<Directory>();
             }
 
             var directories = new ConcurrentDictionary<string, Directory>();
@@ -168,12 +172,12 @@ namespace slskd.Shares
 
             try
             {
+                State.SetValue(state => state with { Filling = true, Filled = false, FillProgress = 0 });
+                Log.Debug("Starting shared file scan");
+
                 await Task.Yield();
 
                 ResetCache();
-
-                State.SetValue(state => state with { Filling = true, FillProgress = 0 });
-                Log.Debug("Starting shared file scan");
 
                 var sw = new Stopwatch();
                 var swSnapshot = 0L;
@@ -289,12 +293,12 @@ namespace slskd.Shares
                 MaskedDirectories = maskedDirectories;
                 MaskedFiles = files;
 
-                State.SetValue(state => state with { Filling = false, Faulted = false, FillProgress = 1, Directories = MaskedDirectories.Count, Files = MaskedFiles.Count });
+                State.SetValue(state => state with { Filling = false, Faulted = false, Filled = true, FillProgress = 1, Directories = MaskedDirectories.Count, Files = MaskedFiles.Count });
                 Log.Debug($"Shared file cache recreated in {sw.ElapsedMilliseconds}ms.  Directories: {unmaskedDirectories.Count}, Files: {files.Count}");
             }
             catch (Exception ex)
             {
-                State.SetValue(state => state with { Filling = false, Faulted = true, FillProgress = 0 });
+                State.SetValue(state => state with { Filling = false, Faulted = true, Filled = false, FillProgress = 0 });
                 Log.Warning(ex, "Encountered error during scan of shared files: {Message}", ex.Message);
                 throw;
             }
@@ -311,6 +315,16 @@ namespace slskd.Shares
         /// <returns>The contents of the directory.</returns>
         public Directory List(string directory)
         {
+            if (!State.CurrentValue.Filled)
+            {
+                if (State.CurrentValue.Filling)
+                {
+                    return new Directory(directory, new[] { new File(1, "Scanning shares, please check back in a few minutes.", 0, string.Empty) });
+                }
+
+                return null;
+            }
+
             var files = MaskedFiles.Where(f => f.Key.StartsWith(directory)).Select(kvp =>
             {
                 var f = kvp.Value;
@@ -373,8 +387,7 @@ namespace slskd.Shares
         /// <returns>The matching files.</returns>
         public async Task<IEnumerable<File>> SearchAsync(SearchQuery query)
         {
-            // ignore requests while the cache is building
-            if (SyncRoot.CurrentCount == 0)
+            if (!State.CurrentValue.Filled)
             {
                 return Enumerable.Empty<File>();
             }
