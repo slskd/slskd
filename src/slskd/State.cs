@@ -70,6 +70,11 @@ namespace slskd
         public bool Filling { get; init; } = false;
 
         /// <summary>
+        ///     Gets a value indicating whether the cache is filled.
+        /// </summary>
+        public bool Filled { get; init; } = false;
+
+        /// <summary>
         ///     Gets a value indicating whether the cache is faulted.
         /// </summary>
         public bool Faulted { get; init; } = false;
