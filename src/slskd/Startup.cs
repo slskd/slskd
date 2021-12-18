@@ -41,6 +41,7 @@ namespace slskd
     using slskd.Integrations.Pushbullet;
     using slskd.Messaging;
     using slskd.Search;
+    using slskd.Search.API;
     using slskd.Shares;
     using slskd.Transfers;
     using slskd.Users;
@@ -337,6 +338,7 @@ namespace slskd
             {
                 endpoints.MapHub<ApplicationHub>("/hub/application");
                 endpoints.MapHub<LogsHub>("/hub/logs");
+                endpoints.MapHub<SearchHub>("/hub/search");
 
                 endpoints.MapControllers();
                 endpoints.MapHealthChecks("/health");

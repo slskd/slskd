@@ -26,8 +26,10 @@ namespace slskd.Search
     using System.Linq.Expressions;
     using System.Threading;
     using System.Threading.Tasks;
+    using Microsoft.AspNetCore.SignalR;
     using Microsoft.EntityFrameworkCore;
     using Microsoft.Extensions.Logging;
+    using slskd.Search.API;
     using Soulseek;
     using SearchOptions = Soulseek.SearchOptions;
     using SearchQuery = Soulseek.SearchQuery;
@@ -43,18 +45,21 @@ namespace slskd.Search
         /// <summary>
         ///     Initializes a new instance of the <see cref="SearchService"/> class.
         /// </summary>
+        /// <param name="searchHub"></param>
         /// <param name="optionsMonitor"></param>
         /// <param name="soulseekClient"></param>
         /// <param name="application"></param>
         /// <param name="contextFactory">The database context to use.</param>
         /// <param name="log">The logger.</param>
         public SearchService(
+            IHubContext<SearchHub> searchHub,
             IOptionsMonitor<Options> optionsMonitor,
             ISoulseekClient soulseekClient,
             IApplication application,
             IDbContextFactory<SearchDbContext> contextFactory,
             ILogger<SearchService> log)
         {
+            SearchHub = searchHub;
             OptionsMonitor = optionsMonitor;
             Client = soulseekClient;
             Application = application;
@@ -70,6 +75,7 @@ namespace slskd.Search
         private ISoulseekClient Client { get; }
         private IDbContextFactory<SearchDbContext> ContextFactory { get; }
         private ILogger<SearchService> Log { get; set; }
+        private IHubContext<SearchHub> SearchHub { get; set; }
 
         /// <summary>
         ///     Performs a search for the specified <paramref name="query"/> and <paramref name="scope"/>.
@@ -96,7 +102,7 @@ namespace slskd.Search
             options ??= new SearchOptions();
             options = options.WithActions(
                 stateChanged: (args) => UpdateSearchState(search, args.Search),
-                responseReceived: (args) => UpdateSearchState(search, args.Search));
+                responseReceived: (args) => UpdateSearchResponses(search, args.Search, args.Response));
 
             try
             {
@@ -201,7 +207,17 @@ namespace slskd.Search
                 search.ResponseCount = soulseekSearch.ResponseCount;
                 search.State = soulseekSearch.State;
 
+                SearchHub.BroadcastUpdateAsync(search);
                 SaveSearchState(search);
+            }
+        }
+
+        private void UpdateSearchResponses(Search search, SoulseekSearch soulseekSearch, Soulseek.SearchResponse response)
+        {
+            if (CancellationTokens.ContainsKey(search.Id))
+            {
+                SearchHub.BroadcastResponseAsync(search.Id, response);
+                UpdateSearchState(search, soulseekSearch);
             }
         }
 
