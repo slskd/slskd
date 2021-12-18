@@ -20,6 +20,7 @@ using Microsoft.Extensions.Options;
 namespace slskd.Core.API
 {
     using System;
+    using System.IO;
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
     using Serilog;
@@ -111,8 +112,15 @@ namespace slskd.Core.API
                 return BadRequest(error);
             }
 
-            IOFile.WriteAllText(Program.ConfigurationFile, yaml);
-            return Ok();
+            try
+            {
+                IOFile.WriteAllText(Program.ConfigurationFile, yaml);
+                return Ok();
+            }
+            catch (Exception ex)
+            {
+                throw new IOException($"Failed to write configuration file {Program.ConfigurationFile}: {ex.Message}");
+            }
         }
 
         [HttpPost]
