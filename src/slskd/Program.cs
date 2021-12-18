@@ -123,12 +123,19 @@ namespace slskd
         /// </summary>
         [Argument(default, "app-dir", "path where application data is saved")]
         [EnvironmentVariable("APP_DIR")]
-        public static string AppDirectory { get; private set; } = DefaultAppDirectory;
+        public static string AppDirectory { get; private set; } = null;
 
         /// <summary>
         ///     Gets the fully qualified path to the application configuration file.
         /// </summary>
-        public static string ConfigurationFile => Path.Combine(AppDirectory, $"{AppName}.yml");
+        [Argument('c', "config", "path to configuration file")]
+        [EnvironmentVariable("CONFIG")]
+        public static string ConfigurationFile { get; private set; } = null;
+
+        /// <summary>
+        ///     Gets the default fully qualified path to the configuration file.
+        /// </summary>
+        public static string DefaultConfigurationFile => Path.Combine(AppDirectory, $"{AppName}.yml");
 
         /// <summary>
         ///     Gets the default downloads directory.
@@ -173,6 +180,9 @@ namespace slskd
             // check if the application is being run in command mode (run task and quit).
             EnvironmentVariables.Populate(prefix: EnvironmentVariablePrefix);
             Arguments.Populate(clearExistingValues: false);
+
+            AppDirectory ??= DefaultAppDirectory;
+            ConfigurationFile ??= DefaultConfigurationFile;
 
             if (ShowVersion)
             {
