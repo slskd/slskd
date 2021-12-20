@@ -128,7 +128,7 @@ namespace slskd
         private Options Options => OptionsMonitor.CurrentValue;
         private OptionsAtStartup OptionsAtStartup { get; set; }
         private IOptionsMonitor<Options> OptionsMonitor { get; set; }
-        private ReaderWriterLockSlim OptionsSyncRoot { get; } = new ReaderWriterLockSlim();
+        private SemaphoreSlim OptionsSyncRoot { get; } = new SemaphoreSlim(1, 1);
         private Options PreviousOptions { get; set; }
         private IPushbulletService Pushbullet { get; }
         private ISharedFileCache SharedFileCache { get; set; }
@@ -565,7 +565,7 @@ namespace slskd
             // this code is known to fire more than once per update. i'm not sure whether these might be executed concurrently.
             // lock to be safe, because we need to accurately track the last value of Options for diffing purposes. threading
             // shenanigans here could lead to missed updates.
-            OptionsSyncRoot.EnterWriteLock();
+            await OptionsSyncRoot.WaitAsync();
 
             try
             {
@@ -713,7 +713,7 @@ namespace slskd
             }
             finally
             {
-                OptionsSyncRoot.ExitWriteLock();
+                OptionsSyncRoot.Release();
             }
         }
 
