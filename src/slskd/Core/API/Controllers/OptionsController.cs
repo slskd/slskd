@@ -119,7 +119,7 @@ namespace slskd.Core.API
             }
             catch (Exception ex)
             {
-                throw new IOException($"Failed to write configuration file {Program.ConfigurationFile}: {ex.Message}");
+                throw new IOException($"Failed to update configuration file: {ex.Message}");
             }
         }
 
