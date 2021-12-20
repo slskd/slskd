@@ -25,6 +25,8 @@ namespace slskd
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.Authentication.JwtBearer;
     using Microsoft.AspNetCore.Builder;
+    using Microsoft.AspNetCore.Diagnostics;
+    using Microsoft.AspNetCore.Http;
     using Microsoft.AspNetCore.Mvc.ApiExplorer;
     using Microsoft.EntityFrameworkCore;
     using Microsoft.Extensions.Configuration;
@@ -270,6 +272,11 @@ namespace slskd
             // created from scratch. note that this method needs to be updated to include each
             // DbContext explicitly.
             InitializeDbContexts(app);
+
+            app.UseExceptionHandler(a => a.Run(async context =>
+            {
+                await context.Response.WriteAsJsonAsync(context.Features.Get<IExceptionHandlerPathFeature>().Error.Message);
+            }));
 
             app.UseCors("AllowAll");
 
