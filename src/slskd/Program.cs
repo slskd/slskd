@@ -121,7 +121,7 @@ namespace slskd
         /// <summary>
         ///     Gets the path where application data is saved.
         /// </summary>
-        [Argument(default, "app-dir", "path where application data is saved")]
+        [Argument('a', "app-dir", "path where application data is saved")]
         [EnvironmentVariable("APP_DIR")]
         public static string AppDirectory { get; private set; } = null;
 
