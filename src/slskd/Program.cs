@@ -101,44 +101,51 @@ namespace slskd
         /// <summary>
         ///     Gets the semantic application version.
         /// </summary>
-        public static string SemanticVersion => InformationalVersion.Split('-').First();
+        public static string SemanticVersion { get; } = InformationalVersion.Split('-').First();
 
         /// <summary>
         ///     Gets the full application version, including both assembly and informational versions.
         /// </summary>
-        public static string FullVersion => $"{SemanticVersion} ({InformationalVersion})";
+        public static string FullVersion { get; } = $"{SemanticVersion} ({InformationalVersion})";
 
         /// <summary>
         ///     Gets a value indicating whether the current version is a Canary build.
         /// </summary>
-        public static bool IsCanary => AssemblyVersion.Revision == 65534;
+        public static bool IsCanary { get; } = AssemblyVersion.Revision == 65534;
 
         /// <summary>
         ///     Gets a value indicating whether the current version is a Development build.
         /// </summary>
-        public static bool IsDevelopment => new Version(0, 0, 0, 0) == AssemblyVersion;
+        public static bool IsDevelopment { get; } = new Version(0, 0, 0, 0) == AssemblyVersion;
 
         /// <summary>
         ///     Gets the path where application data is saved.
         /// </summary>
-        [Argument(default, "app-dir", "path where application data is saved")]
+        [Argument('a', "app-dir", "path where application data is saved")]
         [EnvironmentVariable("APP_DIR")]
-        public static string AppDirectory { get; private set; } = DefaultAppDirectory;
+        public static string AppDirectory { get; private set; } = null;
 
         /// <summary>
         ///     Gets the fully qualified path to the application configuration file.
         /// </summary>
-        public static string ConfigurationFile => Path.Combine(AppDirectory, $"{AppName}.yml");
+        [Argument('c', "config", "path to configuration file")]
+        [EnvironmentVariable("CONFIG")]
+        public static string ConfigurationFile { get; private set; } = null;
+
+        /// <summary>
+        ///     Gets the default fully qualified path to the configuration file.
+        /// </summary>
+        public static string DefaultConfigurationFile { get; private set; }
 
         /// <summary>
         ///     Gets the default downloads directory.
         /// </summary>
-        public static string DefaultDownloadsDirectory => Path.Combine(AppDirectory, "downloads");
+        public static string DefaultDownloadsDirectory { get; private set; }
 
         /// <summary>
         ///     Gets the default incomplete download directory.
         /// </summary>
-        public static string DefaultIncompleteDirectory => Path.Combine(AppDirectory, "incomplete");
+        public static string DefaultIncompleteDirectory { get; private set; }
 
         /// <summary>
         ///     Gets a buffer containing the last few log events.
@@ -206,7 +213,19 @@ namespace slskd
                 return;
             }
 
-            // the application isn't being run in command mode. verify (create if needed) default application
+            // the application isn't being run in command mode. derive the application directory value
+            // and defaults that are dependent upon it
+            AppDirectory ??= DefaultAppDirectory;
+
+            DefaultConfigurationFile = Path.Combine(AppDirectory, $"{AppName}.yml");
+            DefaultDownloadsDirectory = Path.Combine(AppDirectory, "downloads");
+            DefaultIncompleteDirectory = Path.Combine(AppDirectory, "incomplete");
+
+            // the location of the configuration file might have been overriden by command line or envar.
+            // if not, set it to the default.
+            ConfigurationFile ??= DefaultConfigurationFile;
+
+            // verify(create if needed) default application
             // directories. if the downloads or complete directories are overridden in config, those will be
             // validated after the config is loaded.
             try

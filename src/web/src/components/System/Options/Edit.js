@@ -10,6 +10,7 @@ const Edit = ({ cancelAction }) => {
   const [{ loading, error }, setLoading] = useState({ loading: true, error: false });
   const [{ location, yaml, isDirty }, setYaml] = useState({ location: undefined, yaml: undefined, isDirty: false });
   const [yamlError, setYamlError] = useState();
+  const [updateError, setUpdateError] = useState();
 
   useEffect(() => {
     get();
@@ -42,8 +43,13 @@ const Edit = ({ cancelAction }) => {
     await validate(yaml);
 
     if (!yamlError) {
-      await updateYaml({ yaml });
-      cancelAction();
+      try {
+        await updateYaml({ yaml });
+        cancelAction();
+      }
+      catch (error) {
+        setUpdateError(error.response.data);
+      }
     }
   }
 
@@ -61,14 +67,14 @@ const Edit = ({ cancelAction }) => {
         <Icon name='warning sign'/>Editing {location}
       </Message>
       <div 
-        {...{ className: yamlError ? 'edit-code-container-error' : 'edit-code-container' }} 
+        {...{ className: (yamlError || updateError) ? 'edit-code-container-error' : 'edit-code-container' }} 
       >
         <CodeEditor
           value={yaml}
           onChange={(value) => update(value)}
         />
       </div>
-      {yamlError && <Message className='no-grow' negative><Icon name='x'/>{yamlError}</Message>}
+      {(yamlError || updateError) && <Message className='no-grow' negative><Icon name='x'/>{(yamlError ?? '') + (updateError ?? '')}</Message>}
       <div className='footer-buttons'>
         <Button primary disabled={!isDirty} onClick={() => save(yaml)}><Icon name='save'/>Save</Button>
         <Button negative onClick={() => cancelAction()}><Icon name='close'/>Cancel</Button>
