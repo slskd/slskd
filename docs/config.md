@@ -36,7 +36,7 @@ SLSKD_SOME_OPTION=1;2;3
 
 ## YAML Configuration File
 
-Configuration is loaded from the YAML file located at `<application directory>/slskd.yml` after environment variables.
+Configuration is loaded from the YAML file located at `<application directory>/slskd.yml` after environment variables.  The location can be changed by specifying the path in the `CONFIG` environment variable or `--config` command line argument.
 
 The application watches for changes in the YAML file and will reload configuration when they are detected.  Options will be updated in real time and transmitted to the web UI.  If a server reconnect or application restart is required for changes to fully take effect, a flag will be set indicating so.
 
