@@ -179,7 +179,7 @@ namespace slskd
             // populate the properties above so that we can override the default config file if needed, and to
             // check if the application is being run in command mode (run task and quit).
             EnvironmentVariables.Populate(prefix: EnvironmentVariablePrefix);
-            Arguments.Populate(clearExistingValues: false);
+            Arguments.Populate(clearExistingValues: true);
 
             if (ShowVersion)
             {
