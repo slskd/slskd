@@ -210,6 +210,17 @@ namespace slskd
         public string AppDirectory { get; init; } = Program.DefaultAppDirectory;
 
         /// <summary>
+        ///     Gets the path where application data is saved.
+        /// </summary>
+        [Argument('c', "config")]
+        [EnvironmentVariable("CONFIG")]
+        [Description("path to configuration file")]
+        [Obsolete("Used only for documentation; see Program for actual implementation")]
+        [JsonIgnore]
+        [YamlIgnore]
+        public string ConfigurationFile { get; init; } = Program.DefaultConfigurationFile;
+
+        /// <summary>
         ///     Gets directory options.
         /// </summary>
         [Validate]
