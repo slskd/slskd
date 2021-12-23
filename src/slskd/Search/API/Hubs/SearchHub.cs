@@ -75,9 +75,5 @@ namespace slskd.Search.API
 
         private IStateMonitor<State> StateMonitor { get; }
         private IOptionsMonitor<Options> OptionsMonitor { get; }
-
-        public override async Task OnConnectedAsync()
-        {
-        }
     }
 }
