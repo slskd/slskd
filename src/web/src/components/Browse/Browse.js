@@ -1,4 +1,5 @@
 import React, { Component } from 'react';
+import * as lzString from 'lz-string';
 import * as users from '../../lib/users';
 
 import './Browse.css';
@@ -87,14 +88,14 @@ class Browse extends Component {
     this.inputtext.inputRef.current.disabled = this.state.browseState !== 'idle';
 
     try {
-      localStorage.setItem('soulseek-example-browse-state', JSON.stringify(this.state));
+      localStorage.setItem('soulseek-example-browse-state', lzString.compress(JSON.stringify(this.state)));
     } catch (error) {
       console.log(error);
     }
   }
 
   loadState = () => {
-    this.setState(JSON.parse(localStorage.getItem('soulseek-example-browse-state')) || initialState);
+    this.setState(JSON.parse(lzString.decompress(localStorage.getItem('soulseek-example-browse-state'))) || initialState);
   }
 
   componentDidMount = () => {
