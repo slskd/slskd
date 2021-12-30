@@ -12,6 +12,7 @@
     "@uiw/react-textarea-code-editor": "^1.4.14",
     "axios": "^0.21.2",
     "codemirror": "^5.64.0",
+    "lz-string": "^1.4.4",
     "react": "^16.8.6",
     "react-dom": "^16.8.6",
     "react-responsive": "^9.0.0-beta.5",
