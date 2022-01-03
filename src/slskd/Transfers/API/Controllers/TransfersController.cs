@@ -28,6 +28,7 @@ namespace slskd.Transfers.API
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
+    using Serilog;
     using slskd.Integrations.FTP;
     using Soulseek;
 
@@ -64,6 +65,7 @@ namespace slskd.Transfers.API
         private ISoulseekClient Client { get; }
         private ITransferTracker Tracker { get; }
         private IFTPService FTP { get; }
+        private ILogger Log { get; } = Serilog.Log.ForContext<TransfersController>();
 
         /// <summary>
         ///     Cancels the specified download.
@@ -119,10 +121,16 @@ namespace slskd.Transfers.API
         {
             try
             {
+                Log.Information("Downloading {Count} files from user {Username}", requests.Count(), username);
+
+                Log.Debug("Priming connection for user {Username}", username);
                 await Client.ConnectToUserAsync(username, invalidateCache: true);
+                Log.Debug("Connection for user '{Username}' primed", username);
 
                 foreach (var request in requests)
                 {
+                    Log.Debug("Attempting to enqueue {Filename} from user {Username}", request.Filename, username);
+
                     var waitUntilEnqueue = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
                     var stream = GetLocalFileStream(request.Filename, Options.Directories.Incomplete);
 
@@ -159,19 +167,25 @@ namespace slskd.Transfers.API
                             var rejected = downloadTask.Exception?.InnerExceptions.Where(e => e is TransferRejectedException) ?? Enumerable.Empty<Exception>();
                             if (rejected.Any())
                             {
+                                Log.Error("Download of {Filename} from {Username} was rejected: {Reason}", request.Filename, username, rejected.First().Message);
                                 return StatusCode(403, rejected.First().Message);
                             }
                         }
 
+                        Log.Error("Failed to download {Filename} from {Username}: Message", request.Filename, username, downloadTask.Exception.Message);
                         return StatusCode(500, downloadTask.Exception.Message);
                     }
+
+                    Log.Debug("Successfully enqueued {Filename} from user {Username}", request.Filename, username);
                 }
 
                 // if nothing threw, just return ok. the download will continue waiting in the background.
+                Log.Information("Successfully enqueued {Count} files from user {Username}", requests.Count(), username);
                 return StatusCode(201);
             }
             catch (Exception ex)
             {
+                Log.Error(ex, "Failed to download file(s) from user {Username}: {Message}", username, ex.Message);
                 return StatusCode(500, ex.Message);
             }
         }
