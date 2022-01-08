@@ -259,10 +259,10 @@ namespace slskd
                 peerConnectionOptions: connectionOptions,
                 transferConnectionOptions: transferOptions,
                 distributedConnectionOptions: distributedOptions,
-                userInfoResponseResolver: UserInfoResponseResolver,
+                userInfoResolver: UserInfoResolver,
                 browseResponseResolver: BrowseResponseResolver,
-                directoryContentsResponseResolver: DirectoryContentsResponseResolver,
-                enqueueDownloadAction: (username, endpoint, filename) => EnqueueDownloadAction(username, endpoint, filename, TransferTracker),
+                directoryContentsResolver: DirectoryContentsResponseResolver,
+                enqueueDownload: (username, endpoint, filename) => EnqueueDownloadAction(username, endpoint, filename, TransferTracker),
                 searchResponseCache: new SearchResponseCache(),
                 searchResponseResolver: SearchResponseResolver);
 
@@ -550,7 +550,7 @@ namespace slskd
             Task.Run(async () =>
             {
                 using var stream = new FileStream(fileInfo.FullName, FileMode.Open, FileAccess.Read);
-                await Client.UploadAsync(username, filename, fileInfo.Length, stream, options: topts, cancellationToken: cts.Token);
+                await Client.UploadAsync(username, filename, fileInfo.FullName, options: topts, cancellationToken: cts.Token);
             }).ContinueWith(t =>
             {
                 Console.WriteLine($"[UPLOAD FAILED] {t.Exception}");
@@ -815,7 +815,7 @@ namespace slskd
         /// <param name="username">The username of the requesting user.</param>
         /// <param name="endpoint">The IP endpoint of the requesting user.</param>
         /// <returns>A Task resolving the UserInfo instance.</returns>
-        private Task<UserInfo> UserInfoResponseResolver(string username, IPEndPoint endpoint)
+        private Task<UserInfo> UserInfoResolver(string username, IPEndPoint endpoint)
         {
             var info = new UserInfo(
                 description: $"Soulseek.NET Web Example! also, your username is {username}, and IP endpoint is {endpoint}",
