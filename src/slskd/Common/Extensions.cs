@@ -350,7 +350,8 @@ namespace slskd
                 writeQueueSize: writeQueueSize ?? o.WriteQueueSize,
                 connectTimeout: connectTimeout ?? o.ConnectTimeout,
                 inactivityTimeout: inactivityTimeout ?? o.InactivityTimeout,
-                configureSocketAction: configureSocketAction ?? o.ConfigureSocketAction);
+                proxyOptions: proxyOptions ?? o.ProxyOptions,
+                configureSocket: configureSocketAction ?? o.ConfigureSocket);
 
         /// <summary>
         ///     Deserializes this string from json to an object of type <typeparamref name="T"/>.

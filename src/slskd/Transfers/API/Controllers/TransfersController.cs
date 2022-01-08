@@ -132,13 +132,11 @@ namespace slskd.Transfers.API
                     Log.Debug("Attempting to enqueue {Filename} from user {Username}", request.Filename, username);
 
                     var waitUntilEnqueue = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-                    var stream = GetLocalFileStream(request.Filename, Options.Directories.Incomplete);
-
                     var cts = new CancellationTokenSource();
 
                     var downloadTask = Task.Run(async () =>
                     {
-                        await Client.DownloadAsync(username, request.Filename, stream, request.Size, 0, request.Token, new TransferOptions(disposeOutputStreamOnCompletion: true, stateChanged: (e) =>
+                        await Client.DownloadAsync(username, request.Filename, () => GetLocalFileStream(request.Filename, Options.Directories.Incomplete), request.Size, 0, request.Token, new TransferOptions(disposeOutputStreamOnCompletion: true, stateChanged: (e) =>
                         {
                             Tracker.AddOrUpdate(e, cts);
 
