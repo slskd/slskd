@@ -228,6 +228,12 @@ namespace slskd
         public DirectoriesOptions Directories { get; init; } = new DirectoriesOptions();
 
         /// <summary>
+        ///     Gets queue options.
+        /// </summary>
+        [Validate]
+        public QueuesOptions Queues { get; init; } = new QueuesOptions();
+
+        /// <summary>
         ///     Gets filter options.
         /// </summary>
         [Validate]
@@ -375,6 +381,61 @@ namespace slskd
                 }
 
                 return results;
+            }
+        }
+
+        public class QueuesOptions : IValidatableObject
+        {
+            [Validate]
+            public QueueOptions Default { get; init; } = new QueueOptions();
+
+            [Validate]
+            public Dictionary<string, QueueOptions> Custom { get; init; } = new Dictionary<string, QueueOptions>();
+
+            /// <summary>
+            ///     Extended validation.
+            /// </summary>
+            /// <param name="validationContext"></param>
+            /// <returns></returns>
+            public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+            {
+                var validationResults = new List<ValidationResult>();
+
+                var customResults = new CompositeValidationResult("Custom");
+
+                foreach (var (key, value) in Custom)
+                {
+                    var results = new List<ValidationResult>();
+                    var context = new ValidationContext(value, null, null);
+
+                    Validator.TryValidateObject(value, context, results, true);
+
+                    if (results.Count != 0)
+                    {
+                        var keyResults = new CompositeValidationResult(key);
+                        results.ForEach(keyResults.AddResult);
+
+                        customResults.AddResult(keyResults);
+                    }
+                }
+
+                if (customResults.Results.Any())
+                {
+                    validationResults.Add(customResults);
+                }
+
+                return validationResults;
+            }
+
+            public class QueueOptions
+            {
+                [Enum(typeof(QueueStrategy))]
+                public string Strategy { get; init; } = "roundrobin";
+
+                [Range(1, int.MaxValue)]
+                public int Slots { get; init; } = 10;
+
+                public bool Priority { get; init; } = true;
             }
         }
 
