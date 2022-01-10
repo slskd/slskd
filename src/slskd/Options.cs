@@ -387,11 +387,11 @@ namespace slskd
         public class QueuesOptions : IValidatableObject
         {
             [Validate]
-            public QueueOptions Default { get; init; } = new QueueOptions();
+            public DefaultQueueOptions Default { get; init; } = new DefaultQueueOptions();
 
             [Validate]
             [RequiresRestart]
-            public Dictionary<string, QueueOptions> Custom { get; init; } = new Dictionary<string, QueueOptions>();
+            public Dictionary<string, CustomQueueOptions> Custom { get; init; } = new Dictionary<string, CustomQueueOptions>();
 
             /// <summary>
             ///     Extended validation.
@@ -428,7 +428,22 @@ namespace slskd
                 return validationResults;
             }
 
-            public class QueueOptions
+            public class DefaultQueueOptions
+            {
+                [Argument(default, "queue-strategy")]
+                [Enum(typeof(QueueStrategy))]
+                public string Strategy { get; init; } = "roundrobin";
+
+                [Argument(default, "queue-slots")]
+                [RequiresRestart]
+                [Range(1, int.MaxValue)]
+                public int Slots { get; init; } = 10;
+
+                [Argument(default, "disable-queue-priorty")]
+                public bool DisablePriority { get; init; } = false;
+            }
+
+            public class CustomQueueOptions
             {
                 [Enum(typeof(QueueStrategy))]
                 public string Strategy { get; init; } = "roundrobin";
@@ -437,7 +452,7 @@ namespace slskd
                 [Range(1, int.MaxValue)]
                 public int Slots { get; init; } = 10;
 
-                public bool Priority { get; init; } = true;
+                public bool DisablePriority { get; init; } = false;
             }
         }
 
