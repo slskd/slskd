@@ -109,6 +109,11 @@ namespace slskd.Configuration
         {
             try
             {
+                // clear the data collection before we populate
+                // not doing this will cause array and dictionary keys
+                // to get "stuck"
+                Data.Clear();
+
                 using var reader = new StreamReader(stream);
 
                 var yaml = new YamlStream();
