@@ -390,6 +390,7 @@ namespace slskd
             public QueueOptions Default { get; init; } = new QueueOptions();
 
             [Validate]
+            [RequiresRestart]
             public Dictionary<string, QueueOptions> Custom { get; init; } = new Dictionary<string, QueueOptions>();
 
             /// <summary>
@@ -432,6 +433,7 @@ namespace slskd
                 [Enum(typeof(QueueStrategy))]
                 public string Strategy { get; init; } = "roundrobin";
 
+                [RequiresRestart]
                 [Range(1, int.MaxValue)]
                 public int Slots { get; init; } = 10;
 
