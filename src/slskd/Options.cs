@@ -390,7 +390,6 @@ namespace slskd
             public DefaultQueueOptions Default { get; init; } = new DefaultQueueOptions();
 
             [Validate]
-            [RequiresRestart]
             public Dictionary<string, CustomQueueOptions> Custom { get; init; } = new Dictionary<string, CustomQueueOptions>();
 
             /// <summary>

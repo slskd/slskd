@@ -615,6 +615,8 @@ namespace slskd
                     _ = RoomService.TryJoinAsync(newOptions.Rooms);
                 }
 
+                // todo: determine if any custom queues were deleted, and require a restart if so
+
                 // determine whether any Soulseek options changed. if so, we need to construct a patch and invoke ReconfigureOptionsAsync().
                 var slskDiff = PreviousOptions.Soulseek.DiffWith(newOptions.Soulseek);
 
