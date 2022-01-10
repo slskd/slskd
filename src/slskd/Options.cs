@@ -435,7 +435,6 @@ namespace slskd
                 public string Strategy { get; init; } = "roundrobin";
 
                 [Argument(default, "queue-slots")]
-                [RequiresRestart]
                 [Range(1, int.MaxValue)]
                 public int Slots { get; init; } = 10;
 
@@ -448,7 +447,6 @@ namespace slskd
                 [Enum(typeof(QueueStrategy))]
                 public string Strategy { get; init; } = "roundrobin";
 
-                [RequiresRestart]
                 [Range(1, int.MaxValue)]
                 public int Slots { get; init; } = 10;
 

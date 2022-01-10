@@ -111,7 +111,7 @@ namespace slskd.Configuration
             {
                 // clear the data collection before we populate
                 // not doing this will cause array and dictionary keys
-                // to get "stuck"
+                // to get "stuck" when the config is reloaded
                 Data.Clear();
 
                 using var reader = new StreamReader(stream);
