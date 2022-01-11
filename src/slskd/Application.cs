@@ -588,7 +588,7 @@ namespace slskd
                     var requiresRestart = HasAttribute<RequiresRestartAttribute>(property);
                     var requiresReconnect = HasAttribute<RequiresReconnectAttribute>(property);
 
-                    Log.Debug($"{fqn} changed from '{left.ToJson() ?? "<null>"}' to '{right.ToJson() ?? "<null>"}'{(requiresRestart ? "; Restart required to take effect." : string.Empty)}{(requiresReconnect ? "; Reconnect required to take effect." : string.Empty)}");
+                    Log.Debug($"{fqn} changed from '{left.ToJson() ?? "<null>"}' to '{right.ToJson() ?? "<null>"}'{(requiresRestart ? ". Restart required to take effect." : string.Empty)}{(requiresReconnect ? "; Reconnect required to take effect." : string.Empty)}");
 
                     pendingRestart |= requiresRestart;
                     pendingReconnect |= requiresReconnect;
@@ -599,6 +599,13 @@ namespace slskd
                 {
                     State.SetValue(state => state with { PendingShareRescan = true });
                     Log.Information("Shared directory configuration changed.  Shares must be re-scanned for changes to take effect.");
+                }
+
+                var removedQueues = PreviousOptions.Queues.Custom.Keys.Where(key => !newOptions.Queues.Custom.ContainsKey(key));
+                if (removedQueues.Any())
+                {
+                    Log.Information("Custom queue(s) {Queues} removed or renamed. Restart required to take effect.", string.Join(", ", removedQueues));
+                    pendingRestart = true;
                 }
 
                 if (PreviousOptions.Filters.Share.Except(newOptions.Filters.Share).Any()
@@ -614,8 +621,6 @@ namespace slskd
                     Log.Information("Room configuration changed.  Joining any newly added rooms.");
                     _ = RoomService.TryJoinAsync(newOptions.Rooms);
                 }
-
-                // todo: determine if any custom queues were deleted, and require a restart if so
 
                 // determine whether any Soulseek options changed. if so, we need to construct a patch and invoke ReconfigureOptionsAsync().
                 var slskDiff = PreviousOptions.Soulseek.DiffWith(newOptions.Soulseek);
