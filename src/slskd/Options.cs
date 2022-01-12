@@ -1,4 +1,4 @@
-﻿// <copyright file="Options.cs" company="slskd Team">
+// <copyright file="Options.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -228,10 +228,11 @@ namespace slskd
         public DirectoriesOptions Directories { get; init; } = new DirectoriesOptions();
 
         /// <summary>
-        ///     Gets limits.
+        ///     Gets global options.
         /// </summary>
         [Validate]
-        public LimitsOptions Limits { get; init; } = new LimitsOptions();
+        public GlobalOptions Global { get; init; } = new GlobalOptions();
+
 
         /// <summary>
         ///     Gets filter options.
@@ -385,27 +386,27 @@ namespace slskd
         }
 
         /// <summary>
-        ///     Limits.
+        ///     Global options.
         /// </summary>
-        public class LimitsOptions
+        public class GlobalOptions
         {
             /// <summary>
-            ///     Gets queue limits.
+            ///     Gets global upload options.
             /// </summary>
             [Validate]
-            public LimitsQueueOptions Queue { get; init; } = new LimitsQueueOptions();
+            public GlobalUploadOptions Upload { get; init; } = new GlobalUploadOptions();
 
             /// <summary>
-            ///     Queue limits.
+            ///     Global upload options.
             /// </summary>
-            public class LimitsQueueOptions
+            public class GlobalUploadOptions
             {
                 /// <summary>
                 ///     Gets the limit for the total number of queue slots.
                 /// </summary>
-                [Argument(default, "queue-slot-limit")]
-                [EnvironmentVariable("QUEUE_SLOT_LIMIT")]
-                [Description("the limit for the total number of queue slots")]
+                [Argument(default, "upload-slots")]
+                [EnvironmentVariable("UPLOAD_SLOTS")]
+                [Description("the total number of upload slots")]
                 [RequiresRestart]
                 [Range(1, int.MaxValue)]
                 public int Slots { get; init; } = 10;

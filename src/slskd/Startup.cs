@@ -1,4 +1,4 @@
-﻿// <copyright file="Startup.cs" company="slskd Team">
+// <copyright file="Startup.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -235,7 +235,7 @@ namespace slskd
             // complete configuration at startup.
             services.AddSingleton<ISoulseekClient, SoulseekClient>(_ =>
                 new SoulseekClient(options: new SoulseekClientOptions(
-                    maximumConcurrentUploads: OptionsAtStartup.Limits.Queue.Slots,
+                    maximumConcurrentUploads: OptionsAtStartup.Global.Upload.Slots,
                     minimumDiagnosticLevel: OptionsAtStartup.Soulseek.DiagnosticLevel)));
 
             // add the core application service to DI as well as a hosted service so that other services can

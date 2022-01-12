@@ -11,8 +11,8 @@
 #   downloads: ~
 #   shared:
 #     - ~
-# limits:
-#   queue:
+# global:
+#   upload:
 #     slots: 20
 # filters:
 #   share:
