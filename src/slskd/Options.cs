@@ -1,4 +1,4 @@
-// <copyright file="Options.cs" company="slskd Team">
+﻿// <copyright file="Options.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -233,6 +233,11 @@ namespace slskd
         [Validate]
         public GlobalOptions Global { get; init; } = new GlobalOptions();
 
+        /// <summary>
+        ///     Gets user groups.
+        /// </summary>
+        [Validate]
+        public GroupsOptions Groups { get; init; } = new GroupsOptions();
 
         /// <summary>
         ///     Gets filter options.
@@ -408,6 +413,38 @@ namespace slskd
                 [EnvironmentVariable("UPLOAD_SLOTS")]
                 [Description("the total number of upload slots")]
                 [RequiresRestart]
+                [Range(1, int.MaxValue)]
+                public int Slots { get; init; } = 10;
+            }
+        }
+
+        /// <summary>
+        ///     User groups.
+        /// </summary>
+        public class GroupsOptions
+        {
+            public BuiltInGroupOptions Default { get; init; } = new BuiltInGroupOptions();
+            public BuiltInGroupOptions Leechers { get; init; } = new BuiltInGroupOptions();
+
+            public class BuiltInGroupOptions
+            {
+                public GroupUploadOptions Upload { get; init; } = new GroupUploadOptions();
+            }
+
+            public class UserDefinedGroupOptions
+            {
+                public GroupUploadOptions Upload { get; init; } = new GroupUploadOptions();
+                public string[] Members { get; init; } = Array.Empty<string>();
+            }
+
+            public class GroupUploadOptions
+            {
+                [Range(1, int.MaxValue)]
+                public int Priority { get; init; }
+
+                [Enum(typeof(QueueStrategy))]
+                public string QueueStrategy { get; init; } = slskd.QueueStrategy.RoundRobin.ToString().ToLowerInvariant();
+
                 [Range(1, int.MaxValue)]
                 public int Slots { get; init; } = 10;
             }
@@ -973,7 +1010,7 @@ namespace slskd
                 [EnvironmentVariable("FTP_ENCRYPTION_MODE")]
                 [Description("FTP encryption mode; none, implicit, explicit, auto")]
                 [Enum(typeof(FtpEncryptionMode))]
-                public string EncryptionMode { get; init; } = "auto";
+                public string EncryptionMode { get; init; } = FtpEncryptionMode.Auto.ToString().ToLowerInvariant();
 
                 /// <summary>
                 ///     Gets a value indicating whether FTP certificate errors should be ignored.
