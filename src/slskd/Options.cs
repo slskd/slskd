@@ -228,6 +228,12 @@ namespace slskd
         public DirectoriesOptions Directories { get; init; } = new DirectoriesOptions();
 
         /// <summary>
+        ///     Gets limits.
+        /// </summary>
+        [Validate]
+        public LimitsOptions Limits { get; init; } = new LimitsOptions();
+
+        /// <summary>
         ///     Gets filter options.
         /// </summary>
         [Validate]
@@ -375,6 +381,34 @@ namespace slskd
                 }
 
                 return results;
+            }
+        }
+
+        /// <summary>
+        ///     Limits.
+        /// </summary>
+        public class LimitsOptions
+        {
+            /// <summary>
+            ///     Gets queue limits.
+            /// </summary>
+            [Validate]
+            public LimitsQueueOptions Queue { get; init; } = new LimitsQueueOptions();
+
+            /// <summary>
+            ///     Queue limits.
+            /// </summary>
+            public class LimitsQueueOptions
+            {
+                /// <summary>
+                ///     Gets the limit for the total number of queue slots.
+                /// </summary>
+                [Argument(default, "queue-slot-limit")]
+                [EnvironmentVariable("QUEUE_SLOT_LIMIT")]
+                [Description("the limit for the total number of queue slots")]
+                [RequiresRestart]
+                [Range(1, int.MaxValue)]
+                public int Slots { get; init; } = 10;
             }
         }
 

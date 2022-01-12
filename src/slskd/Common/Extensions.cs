@@ -60,7 +60,7 @@ namespace slskd
                 var propType = prop.PropertyType;
                 var fqn = string.IsNullOrEmpty(parentFqn) ? prop.Name : string.Join(".", parentFqn, prop.Name);
 
-                if (propType.IsArray)
+                if (propType.IsArray || (propType.IsGenericType && propType.GetGenericTypeDefinition() == typeof(Dictionary<,>)))
                 {
                     if (leftVal.ToJson() != rightVal.ToJson())
                     {

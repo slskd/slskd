@@ -11,6 +11,9 @@
 #   downloads: ~
 #   shared:
 #     - ~
+# limits:
+#   queue:
+#     slots: 20
 # filters:
 #   share:
 #     - \.ini$

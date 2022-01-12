@@ -27,6 +27,11 @@ namespace slskd.Validation
     {
         protected override ValidationResult IsValid(object value, ValidationContext validationContext)
         {
+            if (value == null)
+            {
+                return ValidationResult.Success;
+            }
+
             var results = new List<ValidationResult>();
             var context = new ValidationContext(value, null, null);
 

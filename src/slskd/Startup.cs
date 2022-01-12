@@ -234,7 +234,9 @@ namespace slskd
             // add a partially configured instance of SoulseekClient. the Application instance will
             // complete configuration at startup.
             services.AddSingleton<ISoulseekClient, SoulseekClient>(_ =>
-                new SoulseekClient(options: new SoulseekClientOptions(minimumDiagnosticLevel: OptionsAtStartup.Soulseek.DiagnosticLevel)));
+                new SoulseekClient(options: new SoulseekClientOptions(
+                    maximumConcurrentUploads: OptionsAtStartup.Limits.Queue.Slots,
+                    minimumDiagnosticLevel: OptionsAtStartup.Soulseek.DiagnosticLevel)));
 
             // add the core application service to DI as well as a hosted service so that other services can
             // access instance methods
