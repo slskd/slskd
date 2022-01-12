@@ -408,7 +408,7 @@ namespace slskd
                 [Description("the limit for the total number of queue slots")]
                 [RequiresRestart]
                 [Range(1, int.MaxValue)]
-                public int Slots { get; init; } = 20;
+                public int Slots { get; init; } = 10;
             }
         }
 
