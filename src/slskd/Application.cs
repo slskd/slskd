@@ -601,13 +601,6 @@ namespace slskd
                     Log.Information("Shared directory configuration changed.  Shares must be re-scanned for changes to take effect.");
                 }
 
-                var removedQueues = PreviousOptions.Queues.Custom.Keys.Where(key => !newOptions.Queues.Custom.ContainsKey(key));
-                if (removedQueues.Any())
-                {
-                    Log.Information("Custom queue(s) {Queues} removed or renamed. Restart required to take effect.", string.Join(", ", removedQueues));
-                    pendingRestart = true;
-                }
-
                 if (PreviousOptions.Filters.Share.Except(newOptions.Filters.Share).Any()
                     || newOptions.Filters.Share.Except(PreviousOptions.Filters.Share).Any())
                 {
