@@ -11,16 +11,9 @@
 #   downloads: ~
 #   shared:
 #     - ~
-# queues:
-#   default:
-#     strategy: roundrobin
-#     slots: 10
-#     priority: true
-#   custom:
-#     my_custom_fifo_queue:
-#       strategy: firstinfirstout
-#       slots: 5
-#       priority: true
+# limits:
+#   queue:
+#     slots: 20
 # filters:
 #   share:
 #     - \.ini$
