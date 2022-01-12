@@ -228,10 +228,10 @@ namespace slskd
         public DirectoriesOptions Directories { get; init; } = new DirectoriesOptions();
 
         /// <summary>
-        ///     Gets queue options.
+        ///     Gets limits.
         /// </summary>
         [Validate]
-        public QueuesOptions Queues { get; init; } = new QueuesOptions();
+        public LimitsOptions Limits { get; init; } = new LimitsOptions();
 
         /// <summary>
         ///     Gets filter options.
@@ -384,72 +384,31 @@ namespace slskd
             }
         }
 
-        public class QueuesOptions : IValidatableObject
+        /// <summary>
+        ///     Limits.
+        /// </summary>
+        public class LimitsOptions
         {
+            /// <summary>
+            ///     Gets queue limits.
+            /// </summary>
             [Validate]
-            public DefaultQueueOptions Default { get; init; } = new DefaultQueueOptions();
-
-            [Validate]
-            public Dictionary<string, CustomQueueOptions> Custom { get; init; } = new Dictionary<string, CustomQueueOptions>();
+            public LimitsQueueOptions Queue { get; init; } = new LimitsQueueOptions();
 
             /// <summary>
-            ///     Extended validation.
+            ///     Queue limits.
             /// </summary>
-            /// <param name="validationContext"></param>
-            /// <returns></returns>
-            public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+            public class LimitsQueueOptions
             {
-                var validationResults = new List<ValidationResult>();
-
-                var customResults = new CompositeValidationResult("Custom");
-
-                foreach (var (key, value) in Custom)
-                {
-                    var results = new List<ValidationResult>();
-                    var context = new ValidationContext(value, null, null);
-
-                    Validator.TryValidateObject(value, context, results, true);
-
-                    if (results.Count != 0)
-                    {
-                        var keyResults = new CompositeValidationResult(key);
-                        results.ForEach(keyResults.AddResult);
-
-                        customResults.AddResult(keyResults);
-                    }
-                }
-
-                if (customResults.Results.Any())
-                {
-                    validationResults.Add(customResults);
-                }
-
-                return validationResults;
-            }
-
-            public class DefaultQueueOptions
-            {
-                [Argument(default, "queue-strategy")]
-                [Enum(typeof(QueueStrategy))]
-                public string Strategy { get; init; } = "roundrobin";
-
-                [Argument(default, "queue-slots")]
+                /// <summary>
+                ///     Gets the limit for the total number of queue slots.
+                /// </summary>
+                [Argument(default, "queue-slot-limit")]
+                [EnvironmentVariable("QUEUE_SLOT_LIMIT")]
+                [Description("the limit for the total number of queue slots")]
+                [RequiresRestart]
                 [Range(1, int.MaxValue)]
-                public int Slots { get; init; } = 10;
-
-                [Argument(default, "disable-queue-priorty")]
-                public bool DisablePriority { get; init; } = false;
-            }
-
-            public class CustomQueueOptions
-            {
-                [Enum(typeof(QueueStrategy))]
-                public string Strategy { get; init; } = "roundrobin";
-
-                [Range(1, int.MaxValue)]
-                public int Slots { get; init; } = 10;
-
-                public bool DisablePriority { get; init; } = false;
+                public int Slots { get; init; } = 20;
             }
         }
 
