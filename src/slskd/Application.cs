@@ -117,6 +117,8 @@ namespace slskd
             Client.Connected += Client_Connected;
             Client.LoggedIn += Client_LoggedIn;
             Client.StateChanged += Client_StateChanged;
+            Client.DownloadDenied += (e, args) => Log.Information("Download of {Filename} from {Username} was denied: {Message}", args.Filename, args.Username, args.Message);
+            Client.DownloadFailed += (e, args) => Log.Information("Download of {Filename} from {Username} failed", args.Filename, args.Username);
         }
 
         private ISoulseekClient Client { get; set; }
