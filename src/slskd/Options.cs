@@ -407,7 +407,7 @@ namespace slskd
             public class GlobalUploadOptions
             {
                 /// <summary>
-                ///     Gets the limit for the total number of queue slots.
+                ///     Gets the limit for the total number of upload slots.
                 /// </summary>
                 [Argument(default, "upload-slots")]
                 [EnvironmentVariable("UPLOAD_SLOTS")]
@@ -423,28 +423,67 @@ namespace slskd
         /// </summary>
         public class GroupsOptions
         {
+            /// <summary>
+            ///     Gets options for the default user group.
+            /// </summary>
+            [Validate]
             public BuiltInGroupOptions Default { get; init; } = new BuiltInGroupOptions();
-            public BuiltInGroupOptions Leechers { get; init; } = new BuiltInGroupOptions();
 
+            /// <summary>
+            ///     Gets options for the leecher user group.
+            /// </summary>
+            [Validate]
+            public BuiltInGroupOptions Leechers { get; init; } = new BuiltInGroupOptions() { Upload = new GroupUploadOptions() { Priority = 99, Slots = 1 } };
+
+            /// <summary>
+            ///     Built in user group options.
+            /// </summary>
             public class BuiltInGroupOptions
             {
+                /// <summary>
+                ///     Gets upload options.
+                /// </summary>
+                [Validate]
                 public GroupUploadOptions Upload { get; init; } = new GroupUploadOptions();
             }
 
+            /// <summary>
+            ///     User defined user group options.
+            /// </summary>
             public class UserDefinedGroupOptions
             {
+                /// <summary>
+                ///     Gets upload options.
+                /// </summary>
+                [Validate]
                 public GroupUploadOptions Upload { get; init; } = new GroupUploadOptions();
+
+                /// <summary>
+                ///     Gets the list of group member usernames.
+                /// </summary>
                 public string[] Members { get; init; } = Array.Empty<string>();
             }
 
+            /// <summary>
+            ///     User group upload options.
+            /// </summary>
             public class GroupUploadOptions
             {
+                /// <summary>
+                ///     Gets the priority of the group.
+                /// </summary>
                 [Range(1, int.MaxValue)]
-                public int Priority { get; init; }
+                public int Priority { get; init; } = 1;
 
+                /// <summary>
+                ///     Gets the queue strategy for the group.
+                /// </summary>
                 [Enum(typeof(QueueStrategy))]
-                public string QueueStrategy { get; init; } = slskd.QueueStrategy.RoundRobin.ToString().ToLowerInvariant();
+                public string Strategy { get; init; } = slskd.QueueStrategy.RoundRobin.ToString().ToLowerInvariant();
 
+                /// <summary>
+                ///     Gets the limit for the total number of upload slots for the group.
+                /// </summary>
                 [Range(1, int.MaxValue)]
                 public int Slots { get; init; } = 10;
             }
