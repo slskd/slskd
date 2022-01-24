@@ -402,6 +402,12 @@ namespace slskd
             public GlobalUploadOptions Upload { get; init; } = new GlobalUploadOptions();
 
             /// <summary>
+            ///     Gets global download options.
+            /// </summary>
+            [Validate]
+            public GlobalDownloadOptions Download { get; init; } = new GlobalDownloadOptions();
+
+            /// <summary>
             ///     Global upload options.
             /// </summary>
             public class GlobalUploadOptions
@@ -415,6 +421,30 @@ namespace slskd
                 [RequiresRestart]
                 [Range(1, int.MaxValue)]
                 public int Slots { get; init; } = 10;
+
+                /// <summary>
+                ///     Gets the total upload speed limit.
+                /// </summary>
+                [Argument(default, "upload-speed-limit")]
+                [EnvironmentVariable("UPLOAD_SPEED_LIMIT")]
+                [Description("the total upload speed limit")]
+                [Range(1, int.MaxValue)]
+                public int SpeedLimit { get; init; } = int.MaxValue;
+            }
+
+            /// <summary>
+            ///     Gets global download options.
+            /// </summary>
+            public class GlobalDownloadOptions
+            {
+                /// <summary>
+                ///     Gets the total download speed limit.
+                /// </summary>
+                [Argument(default, "download-speed-limit")]
+                [EnvironmentVariable("DOWNLOAD_SPEED_LIMIT")]
+                [Description("the total download speed limit")]
+                [Range(1, int.MaxValue)]
+                public int SpeedLimit { get; init; } = int.MaxValue;
             }
         }
 
