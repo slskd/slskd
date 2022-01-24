@@ -14,6 +14,9 @@
 # global:
 #   upload:
 #     slots: 20
+#     speed_limit: 1000
+#   download:
+#     speed_limit: 1000
 # groups:
 #   default:
 #     upload:
