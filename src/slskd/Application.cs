@@ -255,6 +255,8 @@ namespace slskd
                 distributedChildLimit: OptionsAtStartup.Soulseek.DistributedNetwork.ChildLimit,
                 enableDistributedNetwork: !OptionsAtStartup.Soulseek.DistributedNetwork.Disabled,
                 acceptDistributedChildren: !OptionsAtStartup.Soulseek.DistributedNetwork.DisableChildren,
+                maximumUploadSpeed: OptionsAtStartup.Global.Upload.SpeedLimit,
+                maximumDownloadSpeed: OptionsAtStartup.Global.Download.SpeedLimit,
                 autoAcknowledgePrivateMessages: false,
                 acceptPrivateRoomInvitations: true,
                 serverConnectionOptions: serverOptions,
@@ -545,7 +547,7 @@ namespace slskd
 
             // create a new cancellation token source so that we can cancel the upload from the UI.
             var cts = new CancellationTokenSource();
-            var topts = new TransferOptions(stateChanged: (e) => tracker.AddOrUpdate(e, cts), progressUpdated: (e) => tracker.AddOrUpdate(e, cts), governor: (t, c) => Task.Delay(1, c));
+            var topts = new TransferOptions(stateChanged: (e) => tracker.AddOrUpdate(e, cts), progressUpdated: (e) => tracker.AddOrUpdate(e, cts));
 
             // accept all download requests, and begin the upload immediately. normally there would be an internal queue, and
             // uploads would be handled separately.
@@ -619,8 +621,9 @@ namespace slskd
 
                 // determine whether any Soulseek options changed. if so, we need to construct a patch and invoke ReconfigureOptionsAsync().
                 var slskDiff = PreviousOptions.Soulseek.DiffWith(newOptions.Soulseek);
+                var globalDiff = PreviousOptions.Global.DiffWith(newOptions.Global);
 
-                if (slskDiff.Any())
+                if (slskDiff.Any() || globalDiff.Any())
                 {
                     var old = PreviousOptions.Soulseek;
                     var update = newOptions.Soulseek;
@@ -681,6 +684,8 @@ namespace slskd
                         enableDistributedNetwork: old.DistributedNetwork.Disabled == update.DistributedNetwork.Disabled ? null : !update.DistributedNetwork.Disabled,
                         distributedChildLimit: old.DistributedNetwork.ChildLimit == update.DistributedNetwork.ChildLimit ? null : update.DistributedNetwork.ChildLimit,
                         acceptDistributedChildren: old.DistributedNetwork.DisableChildren == update.DistributedNetwork.DisableChildren ? null : !update.DistributedNetwork.DisableChildren,
+                        maximumUploadSpeed: newOptions.Global.Upload.SpeedLimit,
+                        maximumDownloadSpeed: newOptions.Global.Download.SpeedLimit,
                         serverConnectionOptions: serverPatch,
                         peerConnectionOptions: connectionPatch,
                         transferConnectionOptions: transferPatch,
