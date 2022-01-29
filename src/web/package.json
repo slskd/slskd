@@ -10,7 +10,7 @@
     "@microsoft/signalr": "^5.0.10",
     "@uiw/react-codemirror": "^4.2.4",
     "@uiw/react-textarea-code-editor": "^1.4.14",
-    "axios": "^0.21.2",
+    "axios": "^0.24.0",
     "codemirror": "^5.64.0",
     "lz-string": "^1.4.4",
     "react": "^16.8.6",
