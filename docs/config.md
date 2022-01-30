@@ -144,6 +144,32 @@ directories:
     - ~
 ```
 
+# Limits and User Groups
+
+## Global
+
+Global limits behave as a hard limit, additive across all groups.  These values should be set as high as practical for the environment in which the application is running; more granular controls should be defined at the group level.
+
+A change to slot limits require an application restart to take effect, while speed limits can be adjusted at runtime.
+
+|Command Line|Environment Variable|Description|
+|----|-----|-----------|
+|`--upload-slots`|`UPLOAD_SLOTS`|The limit for the total number of upload slots|
+|`--upload-speed-limit`|`UPLOAD_SPEED_LIMIT`|The total upload speed limit|
+|`--download-slots`|`DOWNLOAD_SLOTS`|The limit for the total number of download slots|
+|`--download-speed-limit`|`DOWNLOAD_SPEED_LIMIT`|The total download speed limit|
+
+#### **YAML**
+```yaml
+global:
+  upload:
+    slots: 20
+    speed_limit: 1000
+  download:
+    slots: 500
+    speed_limit: 1000
+```
+
 # Soulseek Configuration
 
 The Soulseek configuration determines how slskd will interact with the Soulseek network and underlying [Soulseek.NET](https://github.com/jpdillingham/Soulseek.NET) library.
