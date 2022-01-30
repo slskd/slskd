@@ -18,6 +18,7 @@
 namespace slskd
 {
     using System;
+    using System.Collections;
     using System.Collections.Generic;
     using System.IO;
     using System.Linq;
@@ -305,6 +306,23 @@ namespace slskd
             }
 
             return builder.ToString();
+        }
+
+        /// <summary>
+        ///     Determines whether the given object is a <see cref="Dictionary{TKey, TValue}"/>.
+        /// </summary>
+        /// <param name="obj">The object to check.</param>
+        /// <returns>A value indicating whether the given object is a dictionary.</returns>
+        public static bool IsDictionary(this object obj)
+        {
+            if (obj == null)
+            {
+                return false;
+            }
+
+            return obj is IDictionary &&
+                   obj.GetType().IsGenericType &&
+                   obj.GetType().GetGenericTypeDefinition().IsAssignableFrom(typeof(Dictionary<,>));
         }
 
         /// <summary>
