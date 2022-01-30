@@ -236,6 +236,7 @@ namespace slskd
             services.AddSingleton<ISoulseekClient, SoulseekClient>(_ =>
                 new SoulseekClient(options: new SoulseekClientOptions(
                     maximumConcurrentUploads: OptionsAtStartup.Global.Upload.Slots,
+                    maximumConcurrentDownloads: OptionsAtStartup.Global.Download.Slots,
                     minimumDiagnosticLevel: OptionsAtStartup.Soulseek.DiagnosticLevel)));
 
             // add the core application service to DI as well as a hosted service so that other services can

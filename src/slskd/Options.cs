@@ -438,6 +438,16 @@ namespace slskd
             public class GlobalDownloadOptions
             {
                 /// <summary>
+                ///     Gets the limit for the total number of download slots.
+                /// </summary>
+                [Argument(default, "download-slots")]
+                [EnvironmentVariable("DOWNLOAD_SLOTS")]
+                [Description("the total number of download slots")]
+                [RequiresRestart]
+                [Range(1, int.MaxValue)]
+                public int Slots { get; init; } = int.MaxValue;
+
+                /// <summary>
                 ///     Gets the total download speed limit.
                 /// </summary>
                 [Argument(default, "download-speed-limit")]
