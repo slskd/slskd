@@ -470,12 +470,6 @@ namespace slskd
             public BuiltInGroupOptions Default { get; init; } = new BuiltInGroupOptions();
 
             /// <summary>
-            ///     Gets options for the leecher user group.
-            /// </summary>
-            [Validate]
-            public BuiltInGroupOptions Leechers { get; init; } = new BuiltInGroupOptions() { Upload = new GroupUploadOptions() { Priority = 99, Slots = 1 } };
-
-            /// <summary>
             ///     Built in user group options.
             /// </summary>
             public class BuiltInGroupOptions
@@ -519,7 +513,7 @@ namespace slskd
                 ///     Gets the queue strategy for the group.
                 /// </summary>
                 [Enum(typeof(QueueStrategy))]
-                public string Strategy { get; init; } = slskd.QueueStrategy.RoundRobin.ToString().ToLowerInvariant();
+                public string Strategy { get; init; } = QueueStrategy.RoundRobin.ToString().ToLowerInvariant();
 
                 /// <summary>
                 ///     Gets the limit for the total number of upload slots for the group.

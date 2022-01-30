@@ -24,11 +24,6 @@
 #       priority: 500
 #       strategy: roundrobin
 #       slots: 10
-#   leechers:
-#     upload:
-#       priority: 1000
-#       queue_strategy: roundrobin
-#       slots: 1
 #   user_defined:
 #     my_buddies:
 #       upload:
