@@ -399,18 +399,18 @@ namespace slskd
             ///     Gets global upload options.
             /// </summary>
             [Validate]
-            public GlobalUploadOptions Upload { get; init; } = new GlobalUploadOptions();
+            public UploadOptions Upload { get; init; } = new UploadOptions();
 
             /// <summary>
             ///     Gets global download options.
             /// </summary>
             [Validate]
-            public GlobalDownloadOptions Download { get; init; } = new GlobalDownloadOptions();
+            public DownloadOptions Download { get; init; } = new DownloadOptions();
 
             /// <summary>
             ///     Global upload options.
             /// </summary>
-            public class GlobalUploadOptions
+            public class UploadOptions
             {
                 /// <summary>
                 ///     Gets the limit for the total number of upload slots.
@@ -435,7 +435,7 @@ namespace slskd
             /// <summary>
             ///     Gets global download options.
             /// </summary>
-            public class GlobalDownloadOptions
+            public class DownloadOptions
             {
                 /// <summary>
                 ///     Gets the limit for the total number of download slots.
@@ -467,30 +467,36 @@ namespace slskd
             ///     Gets options for the default user group.
             /// </summary>
             [Validate]
-            public BuiltInGroupOptions Default { get; init; } = new BuiltInGroupOptions();
+            public BuiltInOptions Default { get; init; } = new BuiltInOptions();
+
+            /// <summary>
+            ///     Gets user defined groups and options.
+            /// </summary>
+            [Validate]
+            public Dictionary<string, UserDefinedOptions> UserDefined { get; init; } = new Dictionary<string, UserDefinedOptions>();
 
             /// <summary>
             ///     Built in user group options.
             /// </summary>
-            public class BuiltInGroupOptions
+            public class BuiltInOptions
             {
                 /// <summary>
                 ///     Gets upload options.
                 /// </summary>
                 [Validate]
-                public GroupUploadOptions Upload { get; init; } = new GroupUploadOptions();
+                public UploadOptions Upload { get; init; } = new UploadOptions();
             }
 
             /// <summary>
             ///     User defined user group options.
             /// </summary>
-            public class UserDefinedGroupOptions
+            public class UserDefinedOptions
             {
                 /// <summary>
                 ///     Gets upload options.
                 /// </summary>
                 [Validate]
-                public GroupUploadOptions Upload { get; init; } = new GroupUploadOptions();
+                public UploadOptions Upload { get; init; } = new UploadOptions();
 
                 /// <summary>
                 ///     Gets the list of group member usernames.
@@ -501,7 +507,7 @@ namespace slskd
             /// <summary>
             ///     User group upload options.
             /// </summary>
-            public class GroupUploadOptions
+            public class UploadOptions
             {
                 /// <summary>
                 ///     Gets the priority of the group.
