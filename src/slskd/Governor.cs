@@ -28,7 +28,7 @@ namespace slskd
 
     public interface IGovernor
     {
-        Task<int> GetBytes(Transfer transfer, int requestedBytes, CancellationToken cancellationToken);
+        Task<int> GetBytesAsync(Transfer transfer, int requestedBytes, CancellationToken cancellationToken);
         public void ReturnBytes(Transfer transfer, int attemptedBytes, int grantedBytes, int actualBytes);
     }
 
@@ -52,7 +52,7 @@ namespace slskd
         private ITokenBucket DefaultTokenBucket { get; set; }
         private Dictionary<string, ITokenBucket> TokenBuckets { get; set; } = new Dictionary<string, ITokenBucket>();
 
-        public Task<int> GetBytes(Transfer transfer, int requestedBytes, CancellationToken cancellationToken)
+        public Task<int> GetBytesAsync(Transfer transfer, int requestedBytes, CancellationToken cancellationToken)
         {
             var group = UserService.GetGroup(transfer.Username);
             var bucket = TokenBuckets.GetValueOrDefault(group, DefaultTokenBucket);

@@ -554,7 +554,7 @@ namespace slskd
             var topts = new TransferOptions(
                 stateChanged: (e) => tracker.AddOrUpdate(e, cts),
                 progressUpdated: (e) => tracker.AddOrUpdate(e, cts),
-                governor: (tx, req, ct) => Governor.GetBytes(tx, req, ct),
+                governor: (tx, req, ct) => Governor.GetBytesAsync(tx, req, ct),
                 reporter: (tx, att, grant, act) => Governor.ReturnBytes(tx, att, grant, act));
 
             // accept all download requests, and begin the upload immediately. normally there would be an internal queue, and
