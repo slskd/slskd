@@ -68,6 +68,7 @@ namespace slskd
             IRoomService roomService,
             ISharedFileCache sharedFileCache,
             IPushbulletService pushbulletService,
+            IGovernor governor,
             IHubContext<ApplicationHub> applicationHub,
             IHubContext<LogsHub> logHub)
         {
@@ -88,6 +89,8 @@ namespace slskd
             BrowseTracker = browseTracker;
             ConversationTracker = conversationTracker;
             Pushbullet = pushbulletService;
+
+            Governor = governor;
 
             RoomService = roomService;
             ApplicationHub = applicationHub;
@@ -125,6 +128,7 @@ namespace slskd
         private IRoomService RoomService { get; set; }
         private IBrowseTracker BrowseTracker { get; set; }
         private IConversationTracker ConversationTracker { get; set; }
+        private IGovernor Governor { get; set; }
         private ILogger Log { get; set; } = Serilog.Log.ForContext<Application>();
         private ConcurrentDictionary<string, ILogger> Loggers { get; } = new ConcurrentDictionary<string, ILogger>();
         private Options Options => OptionsMonitor.CurrentValue;
@@ -547,7 +551,11 @@ namespace slskd
 
             // create a new cancellation token source so that we can cancel the upload from the UI.
             var cts = new CancellationTokenSource();
-            var topts = new TransferOptions(stateChanged: (e) => tracker.AddOrUpdate(e, cts), progressUpdated: (e) => tracker.AddOrUpdate(e, cts));
+            var topts = new TransferOptions(
+                stateChanged: (e) => tracker.AddOrUpdate(e, cts),
+                progressUpdated: (e) => tracker.AddOrUpdate(e, cts),
+                governor: (tx, req, ct) => Governor.GetBytes(tx, req, ct),
+                reporter: (tx, att, grant, act) => Governor.ReturnBytes(tx, att, grant, act));
 
             // accept all download requests, and begin the upload immediately. normally there would be an internal queue, and
             // uploads would be handled separately.

@@ -259,6 +259,8 @@ namespace slskd
             services.AddSingleton<IFTPService, FTPService>();
 
             services.AddSingleton<IPushbulletService, PushbulletService>();
+
+            services.AddSingleton<IGovernor, Governor>();
         }
 
         /// <summary>
