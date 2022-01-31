@@ -526,6 +526,12 @@ namespace slskd
                 /// </summary>
                 [Range(1, int.MaxValue)]
                 public int Slots { get; init; } = 10;
+
+                /// <summary>
+                ///     Gets the total upload speed limit for the group.
+                /// </summary>
+                [Range(1, int.MaxValue)]
+                public int SpeedLimit { get; init; } = int.MaxValue;
             }
         }
 
