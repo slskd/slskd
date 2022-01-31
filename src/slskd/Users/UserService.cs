@@ -15,13 +15,16 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
+using Microsoft.Extensions.Options;
+
 namespace slskd.Users
 {
     using System;
+    using System.Collections.Generic;
     using System.Net;
     using System.Threading.Tasks;
     using Microsoft.EntityFrameworkCore;
-    using Microsoft.Extensions.Logging;
+    using Serilog;
     using Soulseek;
 
     /// <summary>
@@ -30,26 +33,55 @@ namespace slskd.Users
     public class UserService : IUserService
     {
         private const int CacheTTLSeconds = 300;
+        private static readonly string DefaultGroup = "default";
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="UserService"/> class.
         /// </summary>
         /// <param name="soulseekClient"></param>
         /// <param name="contextFactory">The database context to use.</param>
+        /// <param name="optionsMonitor"></param>
         /// <param name="log">The logger.</param>
         public UserService(
             ISoulseekClient soulseekClient,
             IDbContextFactory<UserDbContext> contextFactory,
-            ILogger<UserService> log)
+            IOptionsMonitor<Options> optionsMonitor)
         {
             Client = soulseekClient;
             ContextFactory = contextFactory;
-            Log = log;
+
+            OptionsMonitor = optionsMonitor;
+            OptionsMonitor.OnChange(Configure);
+
+            Configure(OptionsMonitor.CurrentValue);
         }
 
         private ISoulseekClient Client { get; }
         private IDbContextFactory<UserDbContext> ContextFactory { get; }
-        private ILogger<UserService> Log { get; set; }
+        private IOptionsMonitor<Options> OptionsMonitor { get; }
+        private ILogger Log { get; set; } = Serilog.Log.ForContext<UserService>();
+        private Dictionary<string, string> Map { get; set; } = new Dictionary<string, string>();
+
+        private void Configure(Options options)
+        {
+            var map = new Dictionary<string, string>();
+
+            foreach (var group in options.Groups.UserDefined)
+            {
+                foreach (var user in group.Value.Members)
+                {
+                    map.Add(user, group.Key);
+                }
+            }
+
+            Map = map;
+            Log.Debug("Updated user/group map with {Count} entries", Map.Count);
+        }
+
+        public string GetGroup(string username)
+        {
+            return Map.GetValueOrDefault(username, DefaultGroup);
+        }
 
         /// <summary>
         ///     Retrieves peer <see cref="Info"/>.

@@ -26,6 +26,13 @@ namespace slskd.Users
     public interface IUserService
     {
         /// <summary>
+        ///     Gets the name of the group for the specified <paramref name="username"/>.
+        /// </summary>
+        /// <param name="username">The username of the peer.</param>
+        /// <returns>The group for the specified username.</returns>
+        string GetGroup(string username);
+
+        /// <summary>
         ///     Retrieves peer <see cref="Info"/>.
         /// </summary>
         /// <param name="username">The username of the peer.</param>
