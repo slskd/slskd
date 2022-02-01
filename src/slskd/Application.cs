@@ -69,6 +69,7 @@ namespace slskd
             ISharedFileCache sharedFileCache,
             IPushbulletService pushbulletService,
             IGovernor governor,
+            IUploadQueue uploadQueue,
             IHubContext<ApplicationHub> applicationHub,
             IHubContext<LogsHub> logHub)
         {
@@ -91,6 +92,7 @@ namespace slskd
             Pushbullet = pushbulletService;
 
             Governor = governor;
+            UploadQueue = uploadQueue;
 
             RoomService = roomService;
             ApplicationHub = applicationHub;
@@ -129,6 +131,7 @@ namespace slskd
         private IBrowseTracker BrowseTracker { get; set; }
         private IConversationTracker ConversationTracker { get; set; }
         private IGovernor Governor { get; set; }
+        private IUploadQueue UploadQueue { get; set; }
         private ILogger Log { get; set; } = Serilog.Log.ForContext<Application>();
         private ConcurrentDictionary<string, ILogger> Loggers { get; } = new ConcurrentDictionary<string, ILogger>();
         private Options Options => OptionsMonitor.CurrentValue;
@@ -552,10 +555,20 @@ namespace slskd
             // create a new cancellation token source so that we can cancel the upload from the UI.
             var cts = new CancellationTokenSource();
             var topts = new TransferOptions(
-                stateChanged: (e) => tracker.AddOrUpdate(e, cts),
+                stateChanged: (e) =>
+                {
+                    tracker.AddOrUpdate(e, cts);
+
+                    if (e.Transfer.State.HasFlag(TransferStates.Queued))
+                    {
+                        UploadQueue.Enqueue(e.Transfer);
+                    }
+                },
                 progressUpdated: (e) => tracker.AddOrUpdate(e, cts),
                 governor: (tx, req, ct) => Governor.GetBytesAsync(tx, req, ct),
-                reporter: (tx, att, grant, act) => Governor.ReturnBytes(tx, att, grant, act));
+                reporter: (tx, att, grant, act) => Governor.ReturnBytes(tx, att, grant, act),
+                slotAwaiter: (tx, ct) => UploadQueue.StartAsync(tx),
+                slotReleased: (tx) => UploadQueue.Complete(tx));
 
             // accept all download requests, and begin the upload immediately. normally there would be an internal queue, and
             // uploads would be handled separately.
@@ -563,6 +576,7 @@ namespace slskd
             {
                 using var stream = new FileStream(fileInfo.FullName, FileMode.Open, FileAccess.Read);
                 await Client.UploadAsync(username, filename, fileInfo.FullName, options: topts, cancellationToken: cts.Token);
+
             }).ContinueWith(t =>
             {
                 Console.WriteLine($"[UPLOAD FAILED] {t.Exception}");

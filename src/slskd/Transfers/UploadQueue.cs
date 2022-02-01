@@ -48,34 +48,39 @@ namespace slskd.Transfers
             IOptionsMonitor<Options> optionsMonitor)
         {
             Users = userService;
+
             OptionsMonitor = optionsMonitor;
+            OptionsMonitor.OnChange(Configure);
+
+            Configure(OptionsMonitor.CurrentValue);
         }
 
         private IUserService Users { get; }
         private IOptionsMonitor<Options> OptionsMonitor { get; }
         private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1, 1);
-        private ConcurrentDictionary<string, int> ActiveUploadCounts { get; } = new ConcurrentDictionary<string, int>();
-        private ConcurrentDictionary<string, List<Entry>> WaitingUploads { get; } = new ConcurrentDictionary<string, List<Entry>>();
+        private int MaxSlots { get; set; } = 0;
+        private Dictionary<string, Group> Groups { get; set; } = new Dictionary<string, Group>();
+        private ConcurrentDictionary<string, List<Upload>> Uploads { get; } = new ConcurrentDictionary<string, List<Upload>>();
 
         public void Enqueue(Transfer transfer)
         {
             var group = Users.GetGroup(transfer.Username);
-
-            var entry = new Entry() { Username = transfer.Username, Filename = transfer.Filename };
+            var upload = new Upload() { Username = transfer.Username, Filename = transfer.Filename };
 
             SyncRoot.Wait();
 
             try
             {
-                WaitingUploads.AddOrUpdate(
+                Uploads.AddOrUpdate(
                     key: group,
-                    addValue: new List<Entry>(new[] { entry }),
-                    updateValueFactory: (key, bag) =>
+                    addValue: new List<Upload>(new[] { upload }),
+                    updateValueFactory: (key, list) =>
                     {
-                        bag.Add(entry);
-                        return bag;
+                        list.Add(upload);
+                        return list;
                     });
 
+                Console.WriteLine($"[ENQUEUED]: {upload.ToJson()}");
             }
             finally
             {
@@ -92,7 +97,7 @@ namespace slskd.Transfers
 
             try
             {
-                if (!WaitingUploads.TryGetValue(group, out var list))
+                if (!Uploads.TryGetValue(group, out var list))
                 {
                     throw new Exception($"No such group: {group}");
                 }
@@ -105,6 +110,8 @@ namespace slskd.Transfers
                 }
 
                 entry.Ready = DateTime.UtcNow;
+
+                Console.WriteLine($"[READY]: {entry.ToJson()}");
 
                 return entry.TaskCompletionSource.Task;
             }
@@ -123,19 +130,8 @@ namespace slskd.Transfers
 
             try
             {
-                if (!WaitingUploads.TryGetValue(group, out var list))
-                {
-                    throw new Exception($"No such group: {group}");
-                }
-
-                var entry = list.FirstOrDefault(e => e.Username == transfer.Username && e.Filename == transfer.Filename);
-
-                list.Remove(entry);
-
-                ActiveUploadCounts.AddOrUpdate(
-                    key: group,
-                    addValue: 0,
-                    updateValueFactory: (key, count) => Math.Min(0, --count));
+                Groups[group].UsedSlots = Math.Min(0, Groups[group].UsedSlots - 1);
+                Console.WriteLine($"Slot returned to group {group}");
             }
             finally
             {
@@ -150,11 +146,47 @@ namespace slskd.Transfers
 
             try
             {
-                // sort groups in ascending priority order
-                // while slots are available
-                //  take lowest priority group
-                //  sort waiting uploads according to strategy
-                //  release uploads in order, up to the slot limit of the group
+                if (Groups.Values.Sum(g => g.UsedSlots) >= MaxSlots)
+                {
+                    Console.WriteLine($"All global slots are used, nothing to process (used: {Groups.Values.Sum(g => g.UsedSlots)}, max: {MaxSlots})");
+                    return;
+                }
+
+                if (!Uploads.Values.Any(v => v.Any(u => u.Ready.HasValue)))
+                {
+                    Console.WriteLine($"No ready uploads for any group, nothing to process");
+                    return;
+                }
+
+                foreach (var group in Groups.Values.OrderBy(g => g.Priority))
+                {
+                    Console.WriteLine($"Processing group {group.Name} (slots: {group.Slots}, used: {group.UsedSlots}, strategy: {group.Strategy})");
+
+                    if (group.UsedSlots >= group.Slots)
+                    {
+                        Console.WriteLine($"{group.Name} has no available slots, skipping (used: {group.UsedSlots}, max: {group.Slots})");
+                        continue;
+                    }
+
+                    if (!Uploads.TryGetValue(group.Name, out var uploads) || !uploads.Any(u => u.Ready.HasValue))
+                    {
+                        Console.WriteLine($"{group.Name} has no ready uploads, skippling");
+                        continue;
+                    }
+
+                    var ready = uploads.Where(u => u.Ready.HasValue);
+                    Console.WriteLine($"{group.Name} has {uploads.Count} uploads, {ready.Count()} of which are ready");
+
+                    var upload = ready
+                        .OrderBy(u => group.Strategy == QueueStrategy.FirstInFirstOut ? u.Enqueued : u.Ready)
+                        .FirstOrDefault();
+
+                    Console.WriteLine($"Next upload for group {group.Name} using strategy {group.Strategy}: {upload.Filename} to {upload.Username}");
+
+                    uploads.Remove(upload);
+                    upload.TaskCompletionSource.SetResult();
+                    group.UsedSlots++;
+                }
             }
             finally
             {
@@ -162,7 +194,43 @@ namespace slskd.Transfers
             }
         }
 
-        private class Entry
+        private void Configure(Options options)
+        {
+            var o = OptionsMonitor.CurrentValue.Groups;
+
+            var groups = new List<Group>()
+                {
+                    new Group()
+                    {
+                        Name = "default",
+                        Priority = o.Default.Upload.Priority,
+                        Slots = o.Default.Upload.Slots,
+                        Strategy = (QueueStrategy)Enum.Parse(typeof(QueueStrategy), o.Default.Upload.Strategy, true),
+                    },
+                };
+
+            groups.AddRange(o.UserDefined.Select(kvp => new Group()
+            {
+                Name = kvp.Key,
+                Priority = kvp.Value.Upload.Priority,
+                Slots = kvp.Value.Upload.Slots,
+                Strategy = (QueueStrategy)Enum.Parse(typeof(QueueStrategy), kvp.Value.Upload.Strategy, true),
+            }));
+
+            Groups = groups.ToDictionary(g => g.Name);
+            MaxSlots = options.Global.Upload.Slots;
+        }
+
+        private class Group
+        {
+            public string Name { get; set; }
+            public int Slots { get; set; }
+            public int Priority { get; set; }
+            public QueueStrategy Strategy { get; set; }
+            public int UsedSlots { get; set; }
+        }
+
+        private class Upload
         {
             public string Username { get; set; }
             public string Filename { get; set; }

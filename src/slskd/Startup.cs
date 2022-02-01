@@ -261,6 +261,7 @@ namespace slskd
             services.AddSingleton<IPushbulletService, PushbulletService>();
 
             services.AddSingleton<IGovernor, Governor>();
+            services.AddSingleton<IUploadQueue, UploadQueue>();
         }
 
         /// <summary>
