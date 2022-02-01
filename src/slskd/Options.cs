@@ -399,18 +399,18 @@ namespace slskd
             ///     Gets global upload options.
             /// </summary>
             [Validate]
-            public UploadOptions Upload { get; init; } = new UploadOptions();
+            public GlobalUploadOptions Upload { get; init; } = new GlobalUploadOptions();
 
             /// <summary>
             ///     Gets global download options.
             /// </summary>
             [Validate]
-            public DownloadOptions Download { get; init; } = new DownloadOptions();
+            public GlobalDownloadOptions Download { get; init; } = new GlobalDownloadOptions();
 
             /// <summary>
             ///     Global upload options.
             /// </summary>
-            public class UploadOptions
+            public class GlobalUploadOptions
             {
                 /// <summary>
                 ///     Gets the limit for the total number of upload slots.
@@ -435,7 +435,7 @@ namespace slskd
             /// <summary>
             ///     Gets global download options.
             /// </summary>
-            public class DownloadOptions
+            public class GlobalDownloadOptions
             {
                 /// <summary>
                 ///     Gets the limit for the total number of download slots.
