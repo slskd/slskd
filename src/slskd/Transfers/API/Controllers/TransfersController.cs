@@ -124,7 +124,7 @@ namespace slskd.Transfers.API
                 Log.Information("Downloading {Count} files from user {Username}", requests.Count(), username);
 
                 Log.Debug("Priming connection for user {Username}", username);
-                await Client.ConnectToUserAsync(username, invalidateCache: true);
+                await Client.ConnectToUserAsync(username, invalidateCache: false);
                 Log.Debug("Connection for user '{Username}' primed", username);
 
                 foreach (var request in requests)
