@@ -196,29 +196,40 @@ namespace slskd.Transfers
 
         private void Configure(Options options)
         {
-            var o = OptionsMonitor.CurrentValue.Groups;
+            SyncRoot.Wait();
 
-            var groups = new List<Group>()
+            try
+            {
+                var o = OptionsMonitor.CurrentValue.Groups;
+
+                var groups = new List<Group>()
                 {
                     new Group()
                     {
                         Name = "default",
                         Priority = o.Default.Upload.Priority,
                         Slots = o.Default.Upload.Slots,
+                        UsedSlots = 0, // TODO: copy this from existing group
                         Strategy = (QueueStrategy)Enum.Parse(typeof(QueueStrategy), o.Default.Upload.Strategy, true),
                     },
                 };
 
-            groups.AddRange(o.UserDefined.Select(kvp => new Group()
-            {
-                Name = kvp.Key,
-                Priority = kvp.Value.Upload.Priority,
-                Slots = kvp.Value.Upload.Slots,
-                Strategy = (QueueStrategy)Enum.Parse(typeof(QueueStrategy), kvp.Value.Upload.Strategy, true),
-            }));
+                groups.AddRange(o.UserDefined.Select(kvp => new Group()
+                {
+                    Name = kvp.Key,
+                    Priority = kvp.Value.Upload.Priority,
+                    Slots = kvp.Value.Upload.Slots,
+                    UsedSlots = 0, // TODO: copy this from existing group
+                    Strategy = (QueueStrategy)Enum.Parse(typeof(QueueStrategy), kvp.Value.Upload.Strategy, true),
+                }));
 
-            Groups = groups.ToDictionary(g => g.Name);
-            MaxSlots = options.Global.Upload.Slots;
+                Groups = groups.ToDictionary(g => g.Name);
+                MaxSlots = options.Global.Upload.Slots;
+            }
+            finally
+            {
+                SyncRoot.Release();
+            }
         }
 
         private class Group
