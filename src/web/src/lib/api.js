@@ -3,7 +3,10 @@ import { baseUrl, tokenPassthroughValue } from '../config';
 import * as session from './session';
 
 axios.defaults.baseURL = baseUrl;
-const api = axios.create();
+
+const api = axios.create({
+  withCredentials: true
+});
 
 api.interceptors.request.use(config => {
     const token = session.getToken();
