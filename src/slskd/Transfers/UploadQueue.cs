@@ -33,8 +33,23 @@ namespace slskd.Transfers
     /// </summary>
     public interface IUploadQueue
     {
+        /// <summary>
+        ///     Enqueues an upload.
+        /// </summary>
+        /// <param name="transfer">The upload to enqueue.</param>
         void Enqueue(Transfer transfer);
-        Task StartAsync(Transfer transfer);
+
+        /// <summary>
+        ///     Awaits the start of an upload.
+        /// </summary>
+        /// <param name="transfer">The upload for which to wait.</param>
+        /// <returns>The operation context.</returns>
+        Task AwaitStartAsync(Transfer transfer);
+
+        /// <summary>
+        ///     Signals the completion of an upload.
+        /// </summary>
+        /// <param name="transfer">The completed upload.</param>
         void Complete(Transfer transfer);
     }
 
@@ -43,6 +58,11 @@ namespace slskd.Transfers
     /// </summary>
     public class UploadQueue : IUploadQueue
     {
+        /// <summary>
+        ///     Initializes a new instance of the <see cref="UploadQueue"/> class.
+        /// </summary>
+        /// <param name="userService">The UserService instance to use.</param>
+        /// <param name="optionsMonitor">The OptionsMonitor instance to use.</param>
         public UploadQueue(
             IUserService userService,
             IOptionsMonitor<Options> optionsMonitor)
@@ -62,6 +82,10 @@ namespace slskd.Transfers
         private Dictionary<string, Group> Groups { get; set; } = new Dictionary<string, Group>();
         private ConcurrentDictionary<string, List<Upload>> Uploads { get; } = new ConcurrentDictionary<string, List<Upload>>();
 
+        /// <summary>
+        ///     Enqueues an upload.
+        /// </summary>
+        /// <param name="transfer">The upload to enqueue.</param>
         public void Enqueue(Transfer transfer)
         {
             var group = Users.GetGroup(transfer.Username);
@@ -89,7 +113,12 @@ namespace slskd.Transfers
             }
         }
 
-        public Task StartAsync(Transfer transfer)
+        /// <summary>
+        ///     Awaits the start of an upload.
+        /// </summary>
+        /// <param name="transfer">The upload for which to wait.</param>
+        /// <returns>The operation context.</returns>
+        public Task AwaitStartAsync(Transfer transfer)
         {
             var group = Users.GetGroup(transfer.Username);
 
@@ -122,6 +151,10 @@ namespace slskd.Transfers
             }
         }
 
+        /// <summary>
+        ///     Signals the completion of an upload.
+        /// </summary>
+        /// <param name="transfer">The completed upload.</param>
         public void Complete(Transfer transfer)
         {
             var group = Users.GetGroup(transfer.Username);
@@ -232,7 +265,7 @@ namespace slskd.Transfers
             }
         }
 
-        private class Group
+        private sealed class Group
         {
             public string Name { get; set; }
             public int Slots { get; set; }
@@ -241,7 +274,7 @@ namespace slskd.Transfers
             public int UsedSlots { get; set; }
         }
 
-        private class Upload
+        private sealed class Upload
         {
             public string Username { get; set; }
             public string Filename { get; set; }
