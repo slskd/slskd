@@ -20,7 +20,9 @@ using Microsoft.Extensions.Options;
 namespace slskd.Users
 {
     using System;
+    using System.Collections.Concurrent;
     using System.Collections.Generic;
+    using System.Linq;
     using System.Net;
     using System.Threading.Tasks;
     using Microsoft.EntityFrameworkCore;
@@ -60,17 +62,21 @@ namespace slskd.Users
         private IDbContextFactory<UserDbContext> ContextFactory { get; }
         private IOptionsMonitor<Options> OptionsMonitor { get; }
         private ILogger Log { get; set; } = Serilog.Log.ForContext<UserService>();
-        private Dictionary<string, string> Map { get; set; } = new Dictionary<string, string>();
+        private ConcurrentDictionary<string, string> Map { get; set; } = new ConcurrentDictionary<string, string>();
 
         private void Configure(Options options)
         {
-            var map = new Dictionary<string, string>();
+            var map = new ConcurrentDictionary<string, string>();
 
-            foreach (var group in options.Groups.UserDefined)
+            // sort by priority, ascending
+            foreach (var group in options.Groups.UserDefined.OrderBy(kvp => kvp.Value.Upload.Priority))
             {
                 foreach (var user in group.Value.Members)
                 {
-                    map.Add(user, group.Key);
+                    // if the key already exists, leave the existing entry.
+                    // if a user appears in more than one group, the higher priority (lower numbered)
+                    // group is their effective group.
+                    map.TryAdd(user, group.Key);
                 }
             }
 
