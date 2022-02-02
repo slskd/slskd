@@ -254,14 +254,12 @@ namespace slskd
             services.AddSingleton<ISearchService, SearchService>();
             services.AddSingleton<IUserService, UserService>();
             services.AddSingleton<IRoomService, RoomService>();
+            services.AddSingleton<ITransferService, TransferService>();
 
             services.AddSingleton<IFTPClientFactory, FTPClientFactory>();
             services.AddSingleton<IFTPService, FTPService>();
 
             services.AddSingleton<IPushbulletService, PushbulletService>();
-
-            services.AddSingleton<IGovernor, Governor>();
-            services.AddSingleton<IUploadQueue, UploadQueue>();
         }
 
         /// <summary>
