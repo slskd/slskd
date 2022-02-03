@@ -25,6 +25,7 @@ namespace slskd
     using System.Net.Sockets;
     using System.Numerics;
     using System.Reflection;
+    using System.Security.Cryptography;
     using System.Text;
     using System.Text.Json;
     using System.Text.Json.Serialization;
@@ -323,6 +324,17 @@ namespace slskd
             return obj is IDictionary &&
                    obj.GetType().IsGenericType &&
                    obj.GetType().GetGenericTypeDefinition().IsAssignableFrom(typeof(Dictionary<,>));
+        }
+
+        /// <summary>
+        ///     Returns the SHA1 hash of the input string.
+        /// </summary>
+        /// <param name="str">The string to hash.</param>
+        /// <returns>The computed SHA1 hash.</returns>
+        public static string ToSHA1(this string str)
+        {
+            using var sha = SHA1.Create();
+            return BitConverter.ToString(sha.ComputeHash(Encoding.UTF8.GetBytes(str))).Replace("-", string.Empty);
         }
 
         /// <summary>
