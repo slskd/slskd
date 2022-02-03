@@ -35,7 +35,6 @@ namespace slskd.Users
     public class UserService : IUserService
     {
         private const int CacheTTLSeconds = 300;
-        private static readonly string DefaultGroup = "default";
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="UserService"/> class.
@@ -43,7 +42,6 @@ namespace slskd.Users
         /// <param name="soulseekClient"></param>
         /// <param name="contextFactory">The database context to use.</param>
         /// <param name="optionsMonitor"></param>
-        /// <param name="log">The logger.</param>
         public UserService(
             ISoulseekClient soulseekClient,
             IDbContextFactory<UserDbContext> contextFactory,
@@ -86,7 +84,7 @@ namespace slskd.Users
 
         public string GetGroup(string username)
         {
-            return Map.GetValueOrDefault(username, DefaultGroup);
+            return Map.GetValueOrDefault(username, Application.DefaultGroup);
         }
 
         /// <summary>
