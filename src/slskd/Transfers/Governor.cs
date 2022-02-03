@@ -131,10 +131,15 @@ namespace slskd.Transfers
 
         private void Configure(Options options)
         {
+            // todo: only do this if the speed changed
             DefaultTokenBucket = new TokenBucket((options.Groups.Default.Upload.SpeedLimit * 1024L) / 10, 100);
 
             var tokenBuckets = new Dictionary<string, ITokenBucket>();
 
+            // todo: diff the existing dictionary and:
+            // todo: remove groups that no longer exist
+            // todo: add new groups
+            // todo: update existing groups with a new token bucket, but only if the speed for that group changed
             foreach (var group in options.Groups.UserDefined)
             {
                 tokenBuckets.Add(group.Key, new TokenBucket((group.Value.Upload.SpeedLimit * 1024L) / 10, 100));
