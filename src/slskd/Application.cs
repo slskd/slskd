@@ -54,6 +54,21 @@ namespace slskd
 
     public sealed class Application : IApplication
     {
+        /// <summary>
+        ///     The name of the default user group.
+        /// </summary>
+        public static readonly string DefaultGroup = "default";
+
+        /// <summary>
+        ///     The name of the priviledged user group.
+        /// </summary>
+        public static readonly string PriviledgedGroup = "priviledged";
+
+        /// <summary>
+        ///     The name of the leecher user group.
+        /// </summary>
+        public static readonly string LeecherGroup = "leechers";
+
         private static readonly int ReconnectMaxDelayMilliseconds = 300000; // 5 minutes
 
         public Application(
