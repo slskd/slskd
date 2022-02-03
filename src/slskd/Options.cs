@@ -461,19 +461,45 @@ namespace slskd
         /// <summary>
         ///     User groups.
         /// </summary>
-        public class GroupsOptions
+        public class GroupsOptions : IValidatableObject
         {
             /// <summary>
             ///     Gets options for the default user group.
             /// </summary>
+            /// <remarks>
+            ///     These options apply to users that are not priviledged, have not been identified as leechers,
+            ///     and have not been added as a member of any group.
+            /// </remarks>
             [Validate]
             public BuiltInOptions Default { get; init; } = new BuiltInOptions();
+
+            /// <summary>
+            ///     Gets options for the leecher user group.
+            /// </summary>
+            /// <remarks>
+            ///     These options apply to users that have been identified as leechers, and have not been added as a member of any group.
+            /// </remarks>
+            [Validate]
+            public BuiltInOptions Leechers { get; init; } = new BuiltInOptions();
 
             /// <summary>
             ///     Gets user defined groups and options.
             /// </summary>
             [Validate]
             public Dictionary<string, UserDefinedOptions> UserDefined { get; init; } = new Dictionary<string, UserDefinedOptions>();
+
+            /// <summary>
+            ///     Extended validation.
+            /// </summary>
+            /// <param name="validationContext"></param>
+            /// <returns></returns>
+            public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+            {
+                var builtInGroups = new[] { Application.PriviledgedGroup, Application.DefaultGroup, Application.LeecherGroup };
+                var intersection = UserDefined.Keys.Intersect(builtInGroups);
+
+                return intersection.Select(group => new ValidationResult($"User defined group '{group}' collides with a built in group.  Choose a different name."));
+            }
 
             /// <summary>
             ///     Built in user group options.
