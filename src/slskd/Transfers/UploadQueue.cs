@@ -77,6 +77,7 @@ namespace slskd.Transfers
 
         private IUserService Users { get; }
         private IOptionsMonitor<Options> OptionsMonitor { get; }
+        private string LastOptionsHash { get; set; }
         private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1, 1);
         private int MaxSlots { get; set; } = 0;
         private Dictionary<string, Group> Groups { get; set; } = new Dictionary<string, Group>();
@@ -103,8 +104,6 @@ namespace slskd.Transfers
                         list.Add(upload);
                         return list;
                     });
-
-                Console.WriteLine($"[ENQUEUED]: {upload.ToJson()}");
             }
             finally
             {
@@ -128,20 +127,17 @@ namespace slskd.Transfers
             {
                 if (!Uploads.TryGetValue(group, out var list))
                 {
-                    throw new Exception($"No such group: {group}");
+                    throw new SlskdException($"Error resolving list for upload group '{group}'");
                 }
 
                 var entry = list.FirstOrDefault(e => e.Username == transfer.Username && e.Filename == transfer.Filename);
 
                 if (entry == default)
                 {
-                    throw new Exception($"No such transfer: {transfer.Username}/{transfer.Filename}");
+                    throw new SlskdException($"No such transfer: {transfer.Filename} to {transfer.Username}");
                 }
 
                 entry.Ready = DateTime.UtcNow;
-
-                Console.WriteLine($"[READY]: {entry.ToJson()}");
-
                 return entry.TaskCompletionSource.Task;
             }
             finally
@@ -164,7 +160,6 @@ namespace slskd.Transfers
             try
             {
                 Groups[group].UsedSlots = Math.Min(0, Groups[group].UsedSlots - 1);
-                Console.WriteLine($"Slot returned to group {group}");
             }
             finally
             {
@@ -181,13 +176,11 @@ namespace slskd.Transfers
             {
                 if (Groups.Values.Sum(g => g.UsedSlots) >= MaxSlots)
                 {
-                    Console.WriteLine($"All global slots are used, nothing to process (used: {Groups.Values.Sum(g => g.UsedSlots)}, max: {MaxSlots})");
                     return;
                 }
 
                 if (!Uploads.Values.Any(v => v.Any(u => u.Ready.HasValue)))
                 {
-                    Console.WriteLine($"No ready uploads for any group, nothing to process");
                     return;
                 }
 
@@ -229,35 +222,63 @@ namespace slskd.Transfers
 
         private void Configure(Options options)
         {
+            int GetExistingUsedSlotsOrDefault(string group)
+                => Groups.ContainsKey(group) ? Groups[group].UsedSlots : 0;
+
             SyncRoot.Wait();
 
             try
             {
-                var o = OptionsMonitor.CurrentValue.Groups;
+                MaxSlots = options.Global.Upload.Slots;
 
+                // don't rebuild everything if nothing changed
+                if (options.Groups.ToJson().ToSHA1() == LastOptionsHash)
+                {
+                    return;
+                }
+
+                // statically add built-in groups
                 var groups = new List<Group>()
                 {
                     new Group()
                     {
-                        Name = "default",
-                        Priority = o.Default.Upload.Priority,
-                        Slots = o.Default.Upload.Slots,
-                        UsedSlots = 0, // TODO: copy this from existing group
-                        Strategy = (QueueStrategy)Enum.Parse(typeof(QueueStrategy), o.Default.Upload.Strategy, true),
+                        Name = Application.PriviledgedGroup,
+                        Priority = 0,
+                        Slots = MaxSlots,
+                        UsedSlots = GetExistingUsedSlotsOrDefault(Application.PriviledgedGroup),
+                        Strategy = QueueStrategy.RoundRobin,
+                    },
+                    new Group()
+                    {
+                        Name = Application.DefaultGroup,
+                        Priority = options.Groups.Default.Upload.Priority,
+                        Slots = options.Groups.Default.Upload.Slots,
+                        UsedSlots = GetExistingUsedSlotsOrDefault(Application.DefaultGroup),
+                        Strategy = (QueueStrategy)Enum.Parse(typeof(QueueStrategy), options.Groups.Default.Upload.Strategy, true),
+                    },
+                    new Group()
+                    {
+                        Name = Application.LeecherGroup,
+                        Priority = options.Groups.Leechers.Upload.Priority,
+                        Slots = options.Groups.Leechers.Upload.Slots,
+                        UsedSlots = GetExistingUsedSlotsOrDefault(Application.LeecherGroup),
+                        Strategy = (QueueStrategy)Enum.Parse(typeof(QueueStrategy), options.Groups.Leechers.Upload.Strategy, true),
                     },
                 };
 
-                groups.AddRange(o.UserDefined.Select(kvp => new Group()
+                // dynamically add user-defined groups
+                groups.AddRange(options.Groups.UserDefined.Select(kvp => new Group()
                 {
                     Name = kvp.Key,
                     Priority = kvp.Value.Upload.Priority,
                     Slots = kvp.Value.Upload.Slots,
-                    UsedSlots = 0, // TODO: copy this from existing group
+                    UsedSlots = GetExistingUsedSlotsOrDefault(kvp.Key),
                     Strategy = (QueueStrategy)Enum.Parse(typeof(QueueStrategy), kvp.Value.Upload.Strategy, true),
                 }));
 
                 Groups = groups.ToDictionary(g => g.Name);
-                MaxSlots = options.Global.Upload.Slots;
+
+                LastOptionsHash = options.Groups.ToJson().ToSHA1();
             }
             finally
             {
