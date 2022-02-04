@@ -550,6 +550,8 @@ namespace slskd
 
             var fileInfo = new FileInfo(localFilename);
 
+            Console.WriteLine($"[UPLOAD REQUESTED] [{username}/{filename}]");
+
             if (!fileInfo.Exists)
             {
                 Console.WriteLine($"[UPLOAD REJECTED] File {localFilename} not found.");
