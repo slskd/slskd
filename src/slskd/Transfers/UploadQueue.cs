@@ -1,4 +1,4 @@
-// <copyright file="UploadQueue.cs" company="slskd Team">
+﻿// <copyright file="UploadQueue.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -25,6 +25,7 @@ namespace slskd.Transfers
     using System.Linq;
     using System.Threading;
     using System.Threading.Tasks;
+    using Serilog;
     using slskd.Users;
     using Soulseek;
 
@@ -75,6 +76,7 @@ namespace slskd.Transfers
             Configure(OptionsMonitor.CurrentValue);
         }
 
+        private ILogger Log { get; set; } = Serilog.Log.ForContext<UploadQueue>();
         private IUserService Users { get; }
         private IOptionsMonitor<Options> OptionsMonitor { get; }
         private string LastOptionsHash { get; set; }
@@ -103,6 +105,8 @@ namespace slskd.Transfers
                         list.Add(upload);
                         return list;
                     });
+
+                Console.WriteLine($"[QUEUE] [ENQUEUE] {transfer.Username} {transfer.Filename}");
             }
             finally
             {
@@ -127,12 +131,14 @@ namespace slskd.Transfers
                     throw new SlskdException($"No enqueued uploads for user {transfer.Username}");
                 }
 
-                var entry = list.FirstOrDefault(e => e.Username == transfer.Username && e.Filename == transfer.Filename);
+                var entry = list.FirstOrDefault(e => e.Filename == transfer.Filename);
 
                 if (entry == default)
                 {
                     throw new SlskdException($"File {transfer.Filename} is not enqueued for user {transfer.Username}");
                 }
+
+                Console.WriteLine($"[QUEUE] [READY] {transfer.Username} {transfer.Filename}");
 
                 entry.Ready = DateTime.UtcNow;
                 return entry.TaskCompletionSource.Task;
@@ -159,7 +165,7 @@ namespace slskd.Transfers
                     throw new SlskdException($"No enqueued uploads for user {transfer.Username}");
                 }
 
-                var entry = list.FirstOrDefault(e => e.Username == transfer.Username && e.Filename == transfer.Filename);
+                var entry = list.FirstOrDefault(e => e.Filename == transfer.Filename);
 
                 if (entry == default)
                 {
@@ -170,7 +176,7 @@ namespace slskd.Transfers
                 // the group may have been removed during the transfer. if so, do nothing.
                 if (Groups.ContainsKey(entry.Group))
                 {
-                    Groups[entry.Group].UsedSlots = Math.Min(0, Groups[entry.Group].UsedSlots - 1);
+                    Groups[entry.Group].UsedSlots = Math.Max(0, Groups[entry.Group].UsedSlots - 1);
                 }
 
                 list.Remove(entry);
@@ -179,6 +185,8 @@ namespace slskd.Transfers
                 {
                     Uploads.TryRemove(transfer.Username, out _);
                 }
+
+                Console.WriteLine($"[QUEUE] [COMPLETE] {transfer.Username} {transfer.Filename}");
             }
             finally
             {
@@ -194,41 +202,59 @@ namespace slskd.Transfers
             try
             {
                 var maxSlotsReached = Groups.Values.Sum(g => g.UsedSlots) >= MaxSlots;
-                var atLeastOneUploadReady = Uploads.Values.Any(v => v.Any(u => u.Ready.HasValue));
 
-                if (!maxSlotsReached && atLeastOneUploadReady)
+                if (maxSlotsReached)
                 {
-                    foreach (var group in Groups.Values.OrderBy(g => g.Priority))
+                    return;
+                }
+
+                var readyUploadsByGroup = Uploads.Aggregate(
+                    seed: new ConcurrentDictionary<string, List<Upload>>(),
+                    func: (groups, user) =>
                     {
-                        Console.WriteLine($"Processing group {group.Name} (slots: {group.Slots}, used: {group.UsedSlots}, strategy: {group.Strategy})");
+                        var ready = user.Value.Where(u => u.Ready.HasValue && !u.Started.HasValue);
 
-                        if (group.UsedSlots >= group.Slots)
+                        if (ready.Any())
                         {
-                            Console.WriteLine($"{group.Name} has no available slots, skipping (used: {group.UsedSlots}, max: {group.Slots})");
-                            continue;
+                            var group = Users.GetGroup(user.Key);
+
+                            groups.AddOrUpdate(
+                                key: group,
+                                addValue: new List<Upload>(ready),
+                                updateValueFactory: (group, list) =>
+                                {
+                                    list.AddRange(ready);
+                                    return list;
+                                });
                         }
 
-                        // todo: make this work with username as key
-                        if (!Uploads.TryGetValue(group.Name, out var uploads) || !uploads.Any(u => u.Ready.HasValue))
-                        {
-                            Console.WriteLine($"{group.Name} has no ready uploads, skippling");
-                            continue;
-                        }
+                        return groups;
+                    });
 
-                        var ready = uploads.Where(u => u.Ready.HasValue && !u.Started.HasValue);
-                        Console.WriteLine($"{group.Name} has {uploads.Count} uploads, {ready.Count()} of which are ready");
-
-                        var upload = ready
-                            .OrderBy(u => group.Strategy == QueueStrategy.FirstInFirstOut ? u.Enqueued : u.Ready)
-                            .FirstOrDefault();
-
-                        Console.WriteLine($"Next upload for group {group.Name} using strategy {group.Strategy}: {upload.Filename} to {upload.Username}");
-
-                        upload.Started = DateTime.UtcNow;
-                        upload.Group = group.Name;
-                        upload.TaskCompletionSource.SetResult();
-                        group.UsedSlots++;
+                foreach (var group in Groups.Values.OrderBy(g => g.Priority))
+                {
+                    if (!readyUploadsByGroup.TryGetValue(group.Name, out var uploads))
+                    {
+                        continue;
                     }
+
+                    if (group.UsedSlots >= group.Slots)
+                    {
+                        continue;
+                    }
+
+                    Console.WriteLine($"[QUEUE] {group.Name} has {group.Slots} available and {group.UsedSlots} are used");
+
+                    var upload = uploads
+                        .OrderBy(u => group.Strategy == QueueStrategy.FirstInFirstOut ? u.Enqueued : u.Ready)
+                        .FirstOrDefault();
+
+                    Console.WriteLine($"Next upload for group {group.Name} using strategy {group.Strategy}: {upload.Filename} to {upload.Username}");
+
+                    upload.Started = DateTime.UtcNow;
+                    upload.Group = group.Name;
+                    upload.TaskCompletionSource.SetResult();
+                    group.UsedSlots++;
                 }
             }
             finally
