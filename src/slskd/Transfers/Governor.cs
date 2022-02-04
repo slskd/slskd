@@ -77,9 +77,9 @@ namespace slskd.Transfers
             Configure(OptionsMonitor.CurrentValue);
         }
 
-        private ITokenBucket DefaultTokenBucket { get; set; } = new TokenBucket((int.MaxValue * 1024L) / 10, 100);
-        private ILogger Log { get; } = Serilog.Log.ForContext<Governor>();
         private IOptionsMonitor<Options> OptionsMonitor { get; }
+        private string LastOptionsHash { get; set; }
+        private int LastGlobalSpeedLimit { get; set; }
         private Dictionary<string, ITokenBucket> TokenBuckets { get; set; } = new Dictionary<string, ITokenBucket>();
         private IUserService Users { get; }
 
@@ -97,7 +97,7 @@ namespace slskd.Transfers
         public Task<int> GetBytesAsync(Transfer transfer, int requestedBytes, CancellationToken cancellationToken)
         {
             var group = Users.GetGroup(transfer.Username);
-            var bucket = TokenBuckets.GetValueOrDefault(group, DefaultTokenBucket);
+            var bucket = TokenBuckets.GetValueOrDefault(group, TokenBuckets[Application.DefaultGroup]);
 
             return bucket.GetAsync(requestedBytes, cancellationToken);
         }
@@ -119,7 +119,7 @@ namespace slskd.Transfers
             }
 
             var group = Users.GetGroup(transfer.Username);
-            var bucket = TokenBuckets.GetValueOrDefault(group, DefaultTokenBucket);
+            var bucket = TokenBuckets.GetValueOrDefault(group, TokenBuckets[Application.DefaultGroup]);
 
             // we don't have enough information to tell whether grantedBytes was reduced by the global limiter within
             // Soulseek.NET, so we just return the bytes that we know for sure that were wasted, which is grantedBytes - actualBytes.
@@ -131,22 +131,38 @@ namespace slskd.Transfers
 
         private void Configure(Options options)
         {
-            // todo: only do this if the speed changed
-            DefaultTokenBucket = new TokenBucket((options.Groups.Default.Upload.SpeedLimit * 1024L) / 10, 100);
+            static long ComputeBucketCapacity(int speed)
+                => speed * 1024L / 10;
 
-            var tokenBuckets = new Dictionary<string, ITokenBucket>();
+            static TokenBucket CreateBucket(int speed)
+                => new(ComputeBucketCapacity(speed), 100);
 
-            // todo: diff the existing dictionary and:
-            // todo: remove groups that no longer exist
-            // todo: add new groups
-            // todo: update existing groups with a new token bucket, but only if the speed for that group changed
+            if (options.Groups.ToJson().ToSHA1() == LastOptionsHash && options.Global.Upload.SpeedLimit == LastGlobalSpeedLimit)
+            {
+                return;
+            }
+
+            // build a new dictionary of token buckets based on the current groups, then
+            // swap it in for the existing dictionary.  there's risk of inaccuracy here if
+            // groups are deleted or users are moved around, as bytes may be taken from or returned
+            // to the wrong bucket.  this is acceptable.  reconfiguring buckets replenishes them,
+            // also, so transfers in progress will briefly exceed the intended speeds.
+            var tokenBuckets = new Dictionary<string, ITokenBucket>()
+            {
+                { Application.PriviledgedGroup, CreateBucket(options.Global.Upload.SpeedLimit) },
+                { Application.DefaultGroup, CreateBucket(options.Groups.Default.Upload.SpeedLimit) },
+                { Application.LeecherGroup, CreateBucket(options.Groups.Leechers.Upload.SpeedLimit) },
+            };
+
             foreach (var group in options.Groups.UserDefined)
             {
-                tokenBuckets.Add(group.Key, new TokenBucket((group.Value.Upload.SpeedLimit * 1024L) / 10, 100));
+                tokenBuckets.Add(group.Key, CreateBucket(group.Value.Upload.SpeedLimit));
             }
 
             TokenBuckets = tokenBuckets;
-            Log.Debug("Reconfigured governor for {Count} groups", TokenBuckets.Count);
+
+            LastGlobalSpeedLimit = options.Global.Upload.SpeedLimit;
+            LastOptionsHash = options.Groups.ToJson().ToSHA1();
         }
     }
 }
