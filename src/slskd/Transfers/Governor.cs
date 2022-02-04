@@ -23,7 +23,6 @@ namespace slskd.Transfers
     using System.Collections.Generic;
     using System.Threading;
     using System.Threading.Tasks;
-    using Serilog;
     using slskd.Users;
     using Soulseek;
 
