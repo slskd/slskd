@@ -1,4 +1,4 @@
-﻿// <copyright file="UploadQueue.cs" company="slskd Team">
+// <copyright file="UploadQueue.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -251,6 +251,7 @@ namespace slskd.Transfers
                 // don't rebuild everything if nothing changed
                 if (options.Groups.ToJson().ToSHA1() == LastOptionsHash)
                 {
+                    Log.Debug($"Skipped upload queue reconfiguration; no changes.");
                     return;
                 }
 
@@ -296,10 +297,13 @@ namespace slskd.Transfers
                 Groups = groups.ToDictionary(g => g.Name);
 
                 LastOptionsHash = options.Groups.ToJson().ToSHA1();
+
+                Log.Debug("Reconfigured upload queue.  Groups: {Groups}", Groups.ToJson());
             }
             finally
             {
                 SyncRoot.Release();
+                Process();
             }
         }
 
