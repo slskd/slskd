@@ -327,17 +327,6 @@ namespace slskd
         }
 
         /// <summary>
-        ///     Returns the SHA1 hash of the input string.
-        /// </summary>
-        /// <param name="str">The string to hash.</param>
-        /// <returns>The computed SHA1 hash.</returns>
-        public static string ToSHA1(this string str)
-        {
-            using var sha = SHA1.Create();
-            return BitConverter.ToString(sha.ComputeHash(Encoding.UTF8.GetBytes(str))).Replace("-", string.Empty);
-        }
-
-        /// <summary>
         ///     Redacts this instance of Options, replacing properties marked with <see cref="SecretAttribute"/> with '*****'.
         /// </summary>
         /// <remarks>
