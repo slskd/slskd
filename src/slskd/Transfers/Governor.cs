@@ -136,7 +136,9 @@ namespace slskd.Transfers
             static TokenBucket CreateBucket(int speed)
                 => new(ComputeBucketCapacity(speed), 100);
 
-            if (Compute.Sha1Hash(options.Groups.ToJson()) == LastOptionsHash && options.Global.Upload.SpeedLimit == LastGlobalSpeedLimit)
+            var optionsHash = Compute.Sha1Hash(options.Groups.ToJson());
+
+            if (optionsHash == LastOptionsHash && options.Global.Upload.SpeedLimit == LastGlobalSpeedLimit)
             {
                 return;
             }
@@ -161,7 +163,7 @@ namespace slskd.Transfers
             TokenBuckets = tokenBuckets;
 
             LastGlobalSpeedLimit = options.Global.Upload.SpeedLimit;
-            LastOptionsHash = Compute.Sha1Hash(options.Groups.ToJson());
+            LastOptionsHash = optionsHash;
         }
     }
 }

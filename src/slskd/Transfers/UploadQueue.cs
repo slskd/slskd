@@ -274,10 +274,11 @@ namespace slskd.Transfers
             {
                 MaxSlots = options.Global.Upload.Slots;
 
+                var optionsHash = Compute.Sha1Hash(options.Groups.ToJson());
+
                 // don't rebuild everything if nothing changed
-                if (Compute.Sha1Hash(options.Groups.ToJson()) == LastOptionsHash)
+                if (optionsHash == LastOptionsHash)
                 {
-                    Log.Debug($"Skipped upload queue reconfiguration; no changes.");
                     return;
                 }
 
@@ -321,10 +322,7 @@ namespace slskd.Transfers
                 }));
 
                 Groups = groups.ToDictionary(g => g.Name);
-
-                LastOptionsHash = Compute.Sha1Hash(options.Groups.ToJson());
-
-                Log.Debug("Reconfigured upload queue.  Groups: {Groups}", Groups.ToJson());
+                LastOptionsHash = optionsHash;
             }
             finally
             {

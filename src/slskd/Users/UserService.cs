@@ -59,11 +59,19 @@ namespace slskd.Users
         private ISoulseekClient Client { get; }
         private IDbContextFactory<UserDbContext> ContextFactory { get; }
         private IOptionsMonitor<Options> OptionsMonitor { get; }
+        private string LastOptionsHash { get; set; }
         private ILogger Log { get; set; } = Serilog.Log.ForContext<UserService>();
         private ConcurrentDictionary<string, string> Map { get; set; } = new ConcurrentDictionary<string, string>();
 
         private void Configure(Options options)
         {
+            var optionsHash = Compute.Sha1Hash(options.Groups.UserDefined.ToJson());
+
+            if (optionsHash == LastOptionsHash)
+            {
+                return;
+            }
+
             var map = new ConcurrentDictionary<string, string>();
 
             // sort by priority, ascending
@@ -79,7 +87,7 @@ namespace slskd.Users
             }
 
             Map = map;
-            Log.Debug("Updated user/group map with {Count} entries", Map.Count);
+            LastOptionsHash = optionsHash;
         }
 
         public string GetGroup(string username)
