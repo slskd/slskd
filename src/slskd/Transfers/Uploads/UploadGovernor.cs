@@ -1,4 +1,4 @@
-﻿// <copyright file="Governor.cs" company="slskd Team">
+﻿// <copyright file="UploadGovernor.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -27,9 +27,9 @@ namespace slskd.Transfers
     using Soulseek;
 
     /// <summary>
-    ///     Governs transfer speed.
+    ///     Governs upload transfer speed.
     /// </summary>
-    public interface IGovernor
+    public interface IUploadGovernor
     {
         /// <summary>
         ///     Asynchronously obtains a grant of <paramref name="requestedBytes"/> for the specified <paramref name="transfer"/>.
@@ -55,16 +55,16 @@ namespace slskd.Transfers
     }
 
     /// <summary>
-    ///     Governs transfer speed.
+    ///     Governs upload transfer speed.
     /// </summary>
-    public class Governor : IGovernor
+    public class UploadGovernor : IUploadGovernor
     {
         /// <summary>
-        ///     Initializes a new instance of the <see cref="Governor"/> class.
+        ///     Initializes a new instance of the <see cref="UploadGovernor"/> class.
         /// </summary>
         /// <param name="userService">The UserService instance to use.</param>
         /// <param name="optionsMonitor">The OptionsMonitor instance to use.</param>
-        public Governor(
+        public UploadGovernor(
             IUserService userService,
             IOptionsMonitor<Options> optionsMonitor)
         {

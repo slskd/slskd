@@ -1,4 +1,4 @@
-﻿namespace slskd.Tests.Unit.Transfers
+﻿namespace slskd.Tests.Unit.Transfers.Uploads
 {
     using System.Collections.Generic;
     using AutoFixture.Xunit2;
@@ -82,10 +82,10 @@
             }
         }
 
-        private static (Governor governor, Mocks mocks) GetFixture(Options options = null)
+        private static (UploadGovernor governor, Mocks mocks) GetFixture(Options options = null)
         {
             var mocks = new Mocks(options);
-            var governor = new Governor(
+            var governor = new UploadGovernor(
                 mocks.UserService.Object,
                 mocks.OptionsMonitor);
 

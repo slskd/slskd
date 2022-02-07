@@ -574,14 +574,14 @@ namespace slskd
 
                     if (e.Transfer.State.HasFlag(TransferStates.Queued))
                     {
-                        Transfers.Uploads.Enqueue(e.Transfer);
+                        Transfers.Uploads.Queue.Enqueue(e.Transfer);
                     }
                 },
                 progressUpdated: (e) => tracker.AddOrUpdate(e, cts),
-                governor: (tx, req, ct) => Transfers.Governor.GetBytesAsync(tx, req, ct),
-                reporter: (tx, att, grant, act) => Transfers.Governor.ReturnBytes(tx, att, grant, act),
-                slotAwaiter: (tx, ct) => Transfers.Uploads.AwaitStartAsync(tx),
-                slotReleased: (tx) => Transfers.Uploads.Complete(tx));
+                governor: (tx, req, ct) => Transfers.Uploads.Governor.GetBytesAsync(tx, req, ct),
+                reporter: (tx, att, grant, act) => Transfers.Uploads.Governor.ReturnBytes(tx, att, grant, act),
+                slotAwaiter: (tx, ct) => Transfers.Uploads.Queue.AwaitStartAsync(tx),
+                slotReleased: (tx) => Transfers.Uploads.Queue.Complete(tx));
 
             // accept all download requests, and begin the upload immediately. normally there would be an internal queue, and
             // uploads would be handled separately.

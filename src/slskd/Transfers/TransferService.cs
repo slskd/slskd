@@ -19,6 +19,7 @@ using Microsoft.Extensions.Options;
 
 namespace slskd.Transfers
 {
+    using slskd.Transfers.Uploads;
     using slskd.Users;
 
     /// <summary>
@@ -27,14 +28,9 @@ namespace slskd.Transfers
     public interface ITransferService
     {
         /// <summary>
-        ///     Gets the upload governor.
+        ///     Gets the upload service.
         /// </summary>
-        IGovernor Governor { get; }
-
-        /// <summary>
-        ///     Gets the upload queue.
-        /// </summary>
-        IUploadQueue Uploads { get; }
+        IUploadService Uploads { get; }
     }
 
     /// <summary>
@@ -47,30 +43,26 @@ namespace slskd.Transfers
         /// </summary>
         /// <param name="userService">The UserService instance to use.</param>
         /// <param name="optionsMonitor">The OptionsMonitor instance to use.</param>
-        /// <param name="governor">The optional Governor instance to use.</param>
-        /// <param name="uploadQueue">The optional UploadQueue instance to use.</param>
+        /// <param name="uploadService">The optional UploadService instance to use.</param>
         public TransferService(
             IUserService userService,
             IOptionsMonitor<Options> optionsMonitor,
-            IGovernor governor = null,
-            IUploadQueue uploadQueue = null)
+            IUploadService uploadService = null)
         {
             Users = userService;
             OptionsMonitor = optionsMonitor;
 
-            Governor = governor ?? new Governor(userService: Users, optionsMonitor: OptionsMonitor);
-            Uploads = uploadQueue ?? new UploadQueue(userService: Users, optionsMonitor: OptionsMonitor);
+            Uploads = uploadService ?? new UploadService()
+            {
+                Governor = new UploadGovernor(userService: Users, optionsMonitor: OptionsMonitor),
+                Queue = new UploadQueue(userService: Users, optionsMonitor: OptionsMonitor),
+            };
         }
 
         /// <summary>
-        ///     Gets the upload governor.
+        ///     Gets the upload service.
         /// </summary>
-        public IGovernor Governor { get; init; }
-
-        /// <summary>
-        ///     Gets the upload queue.
-        /// </summary>
-        public IUploadQueue Uploads { get; init; }
+        public IUploadService Uploads { get; init; }
 
         private IOptionsMonitor<Options> OptionsMonitor { get; init; }
         private IUserService Users { get; init; }
