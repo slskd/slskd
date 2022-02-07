@@ -58,38 +58,16 @@ namespace slskd.Users
 
         private ISoulseekClient Client { get; }
         private IDbContextFactory<UserDbContext> ContextFactory { get; }
-        private IOptionsMonitor<Options> OptionsMonitor { get; }
         private string LastOptionsHash { get; set; }
         private ILogger Log { get; set; } = Serilog.Log.ForContext<UserService>();
         private ConcurrentDictionary<string, string> Map { get; set; } = new ConcurrentDictionary<string, string>();
+        private IOptionsMonitor<Options> OptionsMonitor { get; }
 
-        private void Configure(Options options)
-        {
-            var optionsHash = Compute.Sha1Hash(options.Groups.UserDefined.ToJson());
-
-            if (optionsHash == LastOptionsHash)
-            {
-                return;
-            }
-
-            var map = new ConcurrentDictionary<string, string>();
-
-            // sort by priority, ascending
-            foreach (var group in options.Groups.UserDefined.OrderBy(kvp => kvp.Value.Upload.Priority))
-            {
-                foreach (var user in group.Value.Members)
-                {
-                    // if the key already exists, leave the existing entry.
-                    // if a user appears in more than one group, the higher priority (lower numbered)
-                    // group is their effective group.
-                    map.TryAdd(user, group.Key);
-                }
-            }
-
-            Map = map;
-            LastOptionsHash = optionsHash;
-        }
-
+        /// <summary>
+        ///     Gets the name of the group for the specified <paramref name="username"/>.
+        /// </summary>
+        /// <param name="username">The username of the peer.</param>
+        /// <returns>The group for the specified username.</returns>
         public string GetGroup(string username)
         {
             return Map.GetValueOrDefault(username, Application.DefaultGroup);
@@ -177,6 +155,32 @@ namespace slskd.Users
         public async Task WatchAsync(string username)
         {
             await Client.AddUserAsync(username);
+        }
+
+        private void Configure(Options options)
+        {
+            var optionsHash = Compute.Sha1Hash(options.Groups.UserDefined.ToJson());
+
+            if (optionsHash == LastOptionsHash)
+            {
+                return;
+            }
+
+            var map = new ConcurrentDictionary<string, string>();
+
+            // sort by priority, ascending
+            foreach (var group in options.Groups.UserDefined.OrderBy(kvp => kvp.Value.Upload.Priority))
+            {
+                foreach (var user in group.Value.Members)
+                {
+                    // if the key already exists, leave the existing entry. if a user appears in more than one group, the higher
+                    // priority (lower numbered) group is their effective group.
+                    map.TryAdd(user, group.Key);
+                }
+            }
+
+            Map = map;
+            LastOptionsHash = optionsHash;
         }
     }
 }

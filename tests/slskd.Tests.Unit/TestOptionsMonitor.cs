@@ -32,7 +32,7 @@ namespace slskd.Tests.Unit
             return new Mock<IDisposable>().Object;
         }
 
-        public void RaiseOnchange(TOptions options)
+        public void RaiseOnChange(TOptions options)
         {
             _listener(options, null);
         }
