@@ -13,11 +13,19 @@
         public class GetGroup
         {
             [Theory, AutoData]
-            public void Returns_Default_For_All_Users_If_No_User_Defined(string username)
+            public void Returns_Default_For_All_Users_If_No_User_Defined_Groups_Configured(string username)
             {
                 var (service, _) = GetFixture();
 
                 Assert.Equal(Application.DefaultGroup, service.GetGroup(username));
+            }
+
+            [Fact]
+            public void Returns_Default_If_Username_Is_Null()
+            {
+                var (service, _) = GetFixture();
+
+                Assert.Equal(Application.DefaultGroup, service.GetGroup(null));
             }
 
             [Theory, AutoData]
