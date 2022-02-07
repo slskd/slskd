@@ -70,7 +70,7 @@ namespace slskd.Users
         /// <returns>The group for the specified username.</returns>
         public string GetGroup(string username)
         {
-            return Map.GetValueOrDefault(username, Application.DefaultGroup);
+            return Map.GetValueOrDefault(username ?? string.Empty, Application.DefaultGroup);
         }
 
         /// <summary>

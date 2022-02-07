@@ -96,7 +96,7 @@ namespace slskd.Transfers
         public Task<int> GetBytesAsync(Transfer transfer, int requestedBytes, CancellationToken cancellationToken)
         {
             var group = Users.GetGroup(transfer.Username);
-            var bucket = TokenBuckets.GetValueOrDefault(group, TokenBuckets[Application.DefaultGroup]);
+            var bucket = TokenBuckets.GetValueOrDefault(group ?? string.Empty, TokenBuckets[Application.DefaultGroup]);
 
             return bucket.GetAsync(requestedBytes, cancellationToken);
         }
@@ -110,7 +110,7 @@ namespace slskd.Transfers
         /// <param name="actualBytes">The actual number of bytes transferred.</param>
         public void ReturnBytes(Transfer transfer, int attemptedBytes, int grantedBytes, int actualBytes)
         {
-            var waste = Math.Min(0, grantedBytes - actualBytes);
+            var waste = Math.Max(0, grantedBytes - actualBytes);
 
             if (waste == 0)
             {
@@ -118,7 +118,7 @@ namespace slskd.Transfers
             }
 
             var group = Users.GetGroup(transfer.Username);
-            var bucket = TokenBuckets.GetValueOrDefault(group, TokenBuckets[Application.DefaultGroup]);
+            var bucket = TokenBuckets.GetValueOrDefault(group ?? string.Empty, TokenBuckets[Application.DefaultGroup]);
 
             // we don't have enough information to tell whether grantedBytes was reduced by the global limiter within
             // Soulseek.NET, so we just return the bytes that we know for sure that were wasted, which is grantedBytes - actualBytes.
