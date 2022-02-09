@@ -95,7 +95,7 @@ class Browse extends Component {
   }
 
   loadState = () => {
-    this.setState(JSON.parse(lzString.decompress(localStorage.getItem('soulseek-example-browse-state'))) || initialState);
+    this.setState(JSON.parse(lzString.decompress(localStorage.getItem('soulseek-example-browse-state') || '')) || initialState);
   }
 
   componentDidMount = () => {
