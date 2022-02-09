@@ -10,7 +10,7 @@
     using Soulseek;
     using Xunit;
 
-    public class GovernorTests
+    public class UploadGovernorTests
     {
         [Fact]
         public void Instantiates_With_BuiltIn_Buckets()
