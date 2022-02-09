@@ -22,6 +22,7 @@ namespace slskd.Transfers
     using System;
     using System.Collections.Concurrent;
     using System.Collections.Generic;
+    using System.IO;
     using System.Linq;
     using System.Threading;
     using System.Threading.Tasks;
@@ -80,6 +81,7 @@ namespace slskd.Transfers
         private IUserService Users { get; }
         private IOptionsMonitor<Options> OptionsMonitor { get; }
         private string LastOptionsHash { get; set; }
+        private int LastGlobalSlots { get; set; }
         private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1, 1);
         private int MaxSlots { get; set; } = 0;
         private Dictionary<string, Group> Groups { get; set; } = new Dictionary<string, Group>();
@@ -106,7 +108,7 @@ namespace slskd.Transfers
                         return list;
                     });
 
-                Console.WriteLine($"[QUEUE] [ENQUEUE] {transfer.Username} {transfer.Filename}");
+                Log.Debug("Enqueued: {File} for {User} at {Time}", Path.GetFileName(upload.Filename), upload.Username, upload.Enqueued);
             }
             finally
             {
@@ -131,17 +133,17 @@ namespace slskd.Transfers
                     throw new SlskdException($"No enqueued uploads for user {transfer.Username}");
                 }
 
-                var entry = list.FirstOrDefault(e => e.Filename == transfer.Filename);
+                var upload = list.FirstOrDefault(e => e.Filename == transfer.Filename);
 
-                if (entry == default)
+                if (upload == default)
                 {
                     throw new SlskdException($"File {transfer.Filename} is not enqueued for user {transfer.Username}");
                 }
 
-                Console.WriteLine($"[QUEUE] [READY] {transfer.Username} {transfer.Filename}");
+                upload.Ready = DateTime.UtcNow;
+                Log.Debug("Ready: {File} for {User} at {Time}", Path.GetFileName(upload.Filename), upload.Username, upload.Enqueued);
 
-                entry.Ready = DateTime.UtcNow;
-                return entry.TaskCompletionSource.Task;
+                return upload.TaskCompletionSource.Task;
             }
             finally
             {
@@ -165,28 +167,30 @@ namespace slskd.Transfers
                     throw new SlskdException($"No enqueued uploads for user {transfer.Username}");
                 }
 
-                var entry = list.FirstOrDefault(e => e.Filename == transfer.Filename);
+                var upload = list.FirstOrDefault(e => e.Filename == transfer.Filename);
 
-                if (entry == default)
+                if (upload == default)
                 {
                     throw new SlskdException($"File {transfer.Filename} is not enqueued for user {transfer.Username}");
                 }
 
+                list.Remove(upload);
+                Log.Debug("Complete: {File} for {User} at {Time}", Path.GetFileName(upload.Filename), upload.Username, upload.Enqueued);
+
                 // ensure the slot is returned to the group from which it was acquired
                 // the group may have been removed during the transfer. if so, do nothing.
-                if (Groups.ContainsKey(entry.Group))
+                if (Groups.ContainsKey(upload.Group))
                 {
-                    Groups[entry.Group].UsedSlots = Math.Max(0, Groups[entry.Group].UsedSlots - 1);
+                    var group = Groups[upload.Group];
+
+                    group.UsedSlots = Math.Max(0, group.UsedSlots - 1);
+                    Log.Debug("Group {Group} slots: {Used}/{Available}", group.Name, group.UsedSlots, group.Slots);
                 }
 
-                list.Remove(entry);
-
-                if (!list.Any())
+                if (!list.Any() && Uploads.TryRemove(transfer.Username, out _))
                 {
-                    Uploads.TryRemove(transfer.Username, out _);
+                    Log.Debug("Cleaned up tracking list for {User}; no more queued uploads to track", transfer.Username);
                 }
-
-                Console.WriteLine($"[QUEUE] [COMPLETE] {transfer.Username} {transfer.Filename}");
             }
             finally
             {
@@ -201,13 +205,15 @@ namespace slskd.Transfers
 
             try
             {
-                var maxSlotsReached = Groups.Values.Sum(g => g.UsedSlots) >= MaxSlots;
-
-                if (maxSlotsReached)
+                if (Groups.Values.Sum(g => g.UsedSlots) >= MaxSlots)
                 {
                     return;
                 }
 
+                // flip the uploads dictionary so that it is keyed by group instead of user.
+                // wait until just before we process the queue to do this, and fetch each user's
+                // group as we do, to allow users to move between groups at run time. we delay
+                // "pinning" an upload to a group (via UsedSlots, below) for the same reason.
                 var readyUploadsByGroup = Uploads.Aggregate(
                     seed: new ConcurrentDictionary<string, List<Upload>>(),
                     func: (groups, user) =>
@@ -231,30 +237,32 @@ namespace slskd.Transfers
                         return groups;
                     });
 
+                // process each group in ascending order of priority, and stop after the first
+                // ready upload is released.
                 foreach (var group in Groups.Values.OrderBy(g => g.Priority))
                 {
-                    if (!readyUploadsByGroup.TryGetValue(group.Name, out var uploads))
+                    if (group.UsedSlots >= group.Slots || !readyUploadsByGroup.TryGetValue(group.Name, out var uploads) || !uploads.Any())
                     {
                         continue;
                     }
-
-                    if (group.UsedSlots >= group.Slots)
-                    {
-                        continue;
-                    }
-
-                    Console.WriteLine($"[QUEUE] {group.Name} has {group.Slots} available and {group.UsedSlots} are used");
 
                     var upload = uploads
                         .OrderBy(u => group.Strategy == QueueStrategy.FirstInFirstOut ? u.Enqueued : u.Ready)
-                        .FirstOrDefault();
+                        .First();
 
-                    Console.WriteLine($"Next upload for group {group.Name} using strategy {group.Strategy}: {upload.Filename} to {upload.Username}");
-
+                    // mark the upload as started, and "pin" it to the group from which
+                    // the slot is obtained, so the slot can be returned to the proper place
+                    // upon completion
                     upload.Started = DateTime.UtcNow;
                     upload.Group = group.Name;
-                    upload.TaskCompletionSource.SetResult();
                     group.UsedSlots++;
+
+                    // release the upload
+                    upload.TaskCompletionSource.SetResult();
+                    Log.Debug("Started: {File} for {User} at {Time}", Path.GetFileName(upload.Filename), upload.Username, upload.Enqueued);
+                    Log.Debug("Group {Group} slots: {Used}/{Available}", group.Name, group.UsedSlots, group.Slots);
+
+                    break;
                 }
             }
             finally
@@ -272,26 +280,30 @@ namespace slskd.Transfers
 
             try
             {
-                MaxSlots = options.Global.Upload.Slots;
-
                 var optionsHash = Compute.Sha1Hash(options.Groups.ToJson());
 
-                // don't rebuild everything if nothing changed
-                if (optionsHash == LastOptionsHash)
+                if (optionsHash == LastOptionsHash && options.Global.Upload.Slots == LastGlobalSlots)
                 {
                     return;
                 }
 
+                MaxSlots = options.Global.Upload.Slots;
+
                 // statically add built-in groups
                 var groups = new List<Group>()
                 {
+                    // the priority group is hard-coded with priority 0, slot count equivalent to the overall max,
+                    // and a FIFO strategy. all other groups have a minimum priority of 1 (enforced by options validation)
+                    // to ensure that priviledged users always take priority, regardless of user configuration.
+                    // the strategy is fixed to FIFO because that gives priviledged users the closest experience
+                    // to the official client, as well as the appearance of fairness once the first upload begins.
                     new Group()
                     {
                         Name = Application.PriviledgedGroup,
                         Priority = 0,
                         Slots = MaxSlots,
                         UsedSlots = GetExistingUsedSlotsOrDefault(Application.PriviledgedGroup),
-                        Strategy = QueueStrategy.RoundRobin,
+                        Strategy = QueueStrategy.FirstInFirstOut,
                     },
                     new Group()
                     {
@@ -322,6 +334,8 @@ namespace slskd.Transfers
                 }));
 
                 Groups = groups.ToDictionary(g => g.Name);
+
+                LastGlobalSlots = options.Global.Upload.Slots;
                 LastOptionsHash = optionsHash;
             }
             finally
