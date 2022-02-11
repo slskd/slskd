@@ -77,6 +77,8 @@ namespace slskd
     /// </summary>
     public class TokenBucket : ITokenBucket, IDisposable
     {
+        private TaskCompletionSource<bool> waitForReset = new();
+
         /// <summary>
         ///     Initializes a new instance of the <see cref="TokenBucket"/> class.
         /// </summary>
@@ -98,7 +100,7 @@ namespace slskd
             CurrentCount = Capacity;
 
             Clock = new System.Timers.Timer(interval);
-            Clock.Elapsed += (sender, e) => _ = Reset();
+            Clock.Elapsed += (sender, e) => Reset();
             Clock.Start();
         }
 
@@ -111,7 +113,6 @@ namespace slskd
         private long CurrentCount { get; set; }
         private bool Disposed { get; set; }
         private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1, 1);
-        private TaskCompletionSource<bool> WaitForReset { get; set; } = new TaskCompletionSource<bool>();
 
         /// <summary>
         ///     Disposes this instance.
@@ -196,55 +197,32 @@ namespace slskd
 
         private async Task<int> GetInternalAsync(int count, CancellationToken cancellationToken = default)
         {
-            Task waitTask = Task.CompletedTask;
-
             await SyncRoot.WaitAsync(cancellationToken).ConfigureAwait(false);
 
             try
             {
-                // if the bucket has enough tokens to fulfil the request, return them and decrement the bucket
-                if (CurrentCount >= count)
+                // if the bucket is empty, wait for a reset, then replenish it before continuing
+                // this ensures tokens are distributed in the order in which callers obtain the semaphore,
+                // which is as close to a FIFO as .NET synchronization primitives will allow
+                if (CurrentCount == 0)
                 {
-                    CurrentCount -= count;
-                    return count;
+                    await waitForReset.Task.ConfigureAwait(false);
+                    CurrentCount = Capacity;
                 }
 
-                // if the bucket doesn't have enough tokens to fulfil the request, but has some available, return the available
-                // tokens and zero the bucket
-                if (CurrentCount > 0)
-                {
-                    var availableCount = CurrentCount;
-                    CurrentCount = 0;
-                    return (int)availableCount;
-                }
-
-                // if the bucket is empty, make the caller wait until the bucket is replenished
-                waitTask = WaitForReset.Task;
-            }
-            finally
-            {
-                SyncRoot.Release();
-            }
-
-            await waitTask.ConfigureAwait(false);
-            return await GetAsync(count, cancellationToken).ConfigureAwait(false);
-        }
-
-        private async Task Reset()
-        {
-            await SyncRoot.WaitAsync().ConfigureAwait(false);
-
-            try
-            {
-                CurrentCount = Capacity;
-
-                WaitForReset.SetResult(true);
-                WaitForReset = new TaskCompletionSource<bool>();
+                // take the minimum of requested count or CurrentCount, deduct it from
+                // CurrentCount (potentially zeroing the bucket), and return it
+                var availableCount = Math.Min(CurrentCount, count);
+                CurrentCount -= availableCount;
+                return (int)availableCount;
             }
             finally
             {
                 SyncRoot.Release();
             }
         }
+
+        private void Reset()
+            => Interlocked.Exchange(ref waitForReset, new TaskCompletionSource<bool>()).SetResult(true);
     }
 }
