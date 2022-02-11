@@ -11,7 +11,7 @@
     "@uiw/react-codemirror": "^4.3.3",
     "@uiw/react-textarea-code-editor": "^1.4.15",
     "axios": "^0.25.0",
-    "codemirror": "^5.64.0",
+    "codemirror": "^5.65.1",
     "lz-string": "^1.4.4",
     "react": "^16.8.6",
     "react-dom": "^16.8.6",
