@@ -77,7 +77,7 @@ namespace slskd.Transfers
             Configure(OptionsMonitor.CurrentValue);
         }
 
-        private ILogger Log { get; set; } = Serilog.Log.ForContext<UploadQueue>();
+        private ILogger Log { get; } = Serilog.Log.ForContext<UploadQueue>();
         private IUserService Users { get; }
         private IOptionsMonitor<Options> OptionsMonitor { get; }
         private string LastOptionsHash { get; set; }
