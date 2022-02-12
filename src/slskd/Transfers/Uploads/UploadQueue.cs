@@ -345,7 +345,7 @@ namespace slskd.Transfers
             }
         }
 
-        private sealed class Group
+        public sealed class Group
         {
             public string Name { get; set; }
             public int Slots { get; set; }
@@ -354,7 +354,7 @@ namespace slskd.Transfers
             public int UsedSlots { get; set; }
         }
 
-        private sealed class Upload
+        public sealed class Upload
         {
             public string Username { get; set; }
             public string Filename { get; set; }
