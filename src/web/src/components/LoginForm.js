@@ -1,6 +1,8 @@
 import React, { Component } from 'react'
 import { Button, Form, Grid, Header, Icon, Segment, Checkbox, Message } from 'semantic-ui-react'
 
+import Logos from './Shared/Logo';
+
 const initialState = {
   username: '',
   password: '',
@@ -31,8 +33,14 @@ class LoginForm extends Component {
       <>
         <Grid textAlign='center' style={{ height: '100vh' }} verticalAlign='middle'>
           <Grid.Column style={{ maxWidth: 372 }}>
-            <Header as='h2' textAlign='center'>
-              slsk<strong>d</strong>
+            <Header as='h2' textAlign='center' style={{
+              whiteSpace: 'pre',
+              fontFamily: 'monospace',
+              lineHeight: 1.1,
+              fontSize: 'inherit',
+              letterSpacing: -1
+            }}>
+            {Logos[Math.floor(Math.random() * Logos.length)]}
             </Header>
             <Form size='large'>
               <Segment loading={loading}>
