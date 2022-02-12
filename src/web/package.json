@@ -19,7 +19,7 @@
     "react-router-dom": "^5.0.0",
     "semantic-ui-css": "^2.4.1",
     "semantic-ui-react": "^2.0.0",
-    "signalr": "^2.4.1",
+    "signalr": "^2.4.3",
     "uuid": "^8.3.0",
     "yaml": "^1.10.2"
   },
