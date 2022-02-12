@@ -5,4 +5,13 @@ const Logo = `
 █▄▄▄▄▄█▄▄█▄▄▄▄▄█▄▄█▄▄█▄▄▄▄▄█
 `;
 
-export default Logo;
+const Logo2 = `
+           ▄▄▄▄               ▄▄▄▄          ▄▄▄▄
+▄▄▄▄▄▄▄    █  █    ▄▄▄▄▄▄▄    █  █▄▄▄    ▄▄▄█  █
+█__ --█    █  █    █__ --█    █    ◄█    █  -  █
+█▄▄▄▄▄█    █▄▄█    █▄▄▄▄▄█    █▄▄█▄▄█    █▄▄▄▄▄█
+`;
+
+const Logos = [Logo, Logo2];
+
+export default Logos;

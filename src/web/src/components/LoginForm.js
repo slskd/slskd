@@ -1,7 +1,7 @@
 import React, { Component } from 'react'
 import { Button, Form, Grid, Header, Icon, Segment, Checkbox, Message } from 'semantic-ui-react'
 
-import logo from './Shared/Logo';
+import Logos from './Shared/Logo';
 
 const initialState = {
   username: '',
@@ -40,7 +40,7 @@ class LoginForm extends Component {
               fontSize: 'inherit',
               letterSpacing: -1
             }}>
-            {logo}
+            {Logos[Math.floor(Math.random() * Logos.length)]}
             </Header>
             <Form size='large'>
               <Segment loading={loading}>
