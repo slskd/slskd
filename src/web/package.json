@@ -24,14 +24,16 @@
     "yaml": "^1.10.2"
   },
   "devDependencies": {
-    "react-scripts": "^4.0.3"
+    "@semantic-ui-react/css-patch": "^1.0.0",
+    "react-scripts": "^5.0.0"
   },
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
     "test-unattended": "react-scripts test --watchAll false --passWithNoTests",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "postinstall": "semantic-ui-css-patch"
   },
   "eslintConfig": {
     "extends": "react-app"

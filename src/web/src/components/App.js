@@ -89,7 +89,7 @@ class App extends Component {
     this.setState({ login: { ...this.state.login, pending: true, error: undefined }}, async () => {
       try {
         await session.login({ username, password, rememberMe });
-        window.location.reload();
+        this.setState({ login: { ...this.state.login, pending: false, error: false }});
       } catch (error) {
         this.setState({ login: { ...this.state.login, pending: false, error }});
       }
@@ -98,7 +98,7 @@ class App extends Component {
   
   logout = () => {
     session.logout();
-    this.setState({ ...initialState, login: { ...initialState.login, initialized: true }});
+    this.setState({ login: { ...initialState.login }});
   };
 
   withTokenCheck = (component) => {
@@ -234,7 +234,7 @@ class App extends Component {
               size='mini'
               header={<Header icon='sign-out' content='Confirm Log Out' />}
               content='Are you sure you want to log out?'
-              actions={['Cancel', { key: 'done', content: 'Log Out', negative: true, onClick: session.logout }]}
+              actions={['Cancel', { key: 'done', content: 'Log Out', negative: true, onClick: this.logout }]}
             />}
           </Menu>
         </Sidebar>
