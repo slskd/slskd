@@ -89,7 +89,7 @@ class App extends Component {
     this.setState({ login: { ...this.state.login, pending: true, error: undefined }}, async () => {
       try {
         await session.login({ username, password, rememberMe });
-        window.location.reload();
+        this.setState({ login: { ...this.state.login, pending: false, error: false }});
       } catch (error) {
         this.setState({ login: { ...this.state.login, pending: false, error }});
       }
