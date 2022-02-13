@@ -98,7 +98,7 @@ class App extends Component {
   
   logout = () => {
     session.logout();
-    this.setState({ ...initialState, login: { ...initialState.login, initialized: true }});
+    this.setState({ ...initialState, initialized: true, login: { ...initialState.login }});
   };
 
   withTokenCheck = (component) => {
@@ -234,7 +234,7 @@ class App extends Component {
               size='mini'
               header={<Header icon='sign-out' content='Confirm Log Out' />}
               content='Are you sure you want to log out?'
-              actions={['Cancel', { key: 'done', content: 'Log Out', negative: true, onClick: session.logout }]}
+              actions={['Cancel', { key: 'done', content: 'Log Out', negative: true, onClick: this.logout }]}
             />}
           </Menu>
         </Sidebar>
