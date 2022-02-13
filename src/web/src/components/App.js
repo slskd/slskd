@@ -98,7 +98,7 @@ class App extends Component {
   
   logout = () => {
     session.logout();
-    this.setState({ ...initialState, initialized: true, login: { ...initialState.login }});
+    this.setState({ login: { ...initialState.login }});
   };
 
   withTokenCheck = (component) => {
