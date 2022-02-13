@@ -12,6 +12,7 @@ const initialState = {
 const LoginForm = ({ onLoginAttempt, loading, error }) => {
   const [state, setState] = useState(initialState);
   const [ready, setReady] = useState(false);
+  const logo = useMemo(() => Logos[Math.floor(Math.random() * Logos.length)], []);
 
   useEffect(() => {
     if (state.username !== '' && state.password !== '') {
