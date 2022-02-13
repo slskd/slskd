@@ -443,6 +443,53 @@
             }
         }
 
+        public class AwaitStartAsync
+        {
+            [Theory, AutoData]
+            public async Task Throws_If_No_Such_Username(string username, string filename)
+            {
+                var (queue, _) = GetFixture();
+                var tx = GetTransfer(username, filename);
+
+                var ex = await Record.ExceptionAsync(() => queue.AwaitStartAsync(tx));
+
+                Assert.NotNull(ex);
+                Assert.IsType<SlskdException>(ex);
+                Assert.True(ex.Message.Contains("no enqueued uploads for user", System.StringComparison.InvariantCultureIgnoreCase));
+            }
+
+            [Theory, AutoData]
+            public async Task Throws_If_No_Such_Filename(string username, string filename)
+            {
+                var (queue, _) = GetFixture();
+                var tx = GetTransfer(username, filename);
+                var badTx = GetTransfer(username, "foo");
+
+                queue.Enqueue(tx);
+
+                var ex = await Record.ExceptionAsync(() => queue.AwaitStartAsync(badTx));
+
+                Assert.NotNull(ex);
+                Assert.IsType<SlskdException>(ex);
+                Assert.True(ex.Message.Contains("is not enqueued for user", System.StringComparison.InvariantCultureIgnoreCase));
+            }
+
+            [Theory, AutoData]
+            public void Returns_Task_Associated_With_Upload(string username, string filename)
+            {
+                var (queue, _) = GetFixture();
+                var tx = GetTransfer(username, filename);
+
+                queue.Enqueue(tx);
+
+                var uploads = queue.GetProperty<ConcurrentDictionary<string, List<Upload>>>("Uploads");
+
+                var task = queue.AwaitStartAsync(tx);
+
+                Assert.Equal(task, uploads[username][0].TaskCompletionSource.Task);
+            }
+        }
+
         private static (UploadQueue queue, Mocks mocks) GetFixture(Options options = null)
         {
             var mocks = new Mocks(options);
