@@ -179,7 +179,7 @@ namespace slskd.Transfers
 
                 // ensure the slot is returned to the group from which it was acquired
                 // the group may have been removed during the transfer. if so, do nothing.
-                if (Groups.ContainsKey(upload.Group))
+                if (Groups.ContainsKey(upload.Group ?? string.Empty))
                 {
                     var group = Groups[upload.Group];
 

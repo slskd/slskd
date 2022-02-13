@@ -3,6 +3,7 @@
     using System.Collections.Concurrent;
     using System.Collections.Generic;
     using System.Linq;
+    using System.Threading.Tasks;
     using AutoFixture.Xunit2;
     using Moq;
     using slskd.Transfers;
@@ -342,9 +343,113 @@
             }
         }
 
+        public class Complete
+        {
+            [Theory, AutoData]
+            public void Throws_If_No_Such_Username(string username, string filename)
+            {
+                var (queue, _) = GetFixture();
+                var tx = GetTransfer(username, filename);
+
+                var ex = Record.Exception(() => queue.Complete(tx));
+
+                Assert.NotNull(ex);
+                Assert.IsType<SlskdException>(ex);
+                Assert.True(ex.Message.Contains("no enqueued uploads for user", System.StringComparison.InvariantCultureIgnoreCase));
+            }
+
+            [Theory, AutoData]
+            public void Throws_If_No_Such_Filename(string username, string filename)
+            {
+                var (queue, _) = GetFixture();
+                var tx = GetTransfer(username, filename);
+                var badTx = GetTransfer(username, "foo");
+
+                queue.Enqueue(tx);
+
+                var ex = Record.Exception(() => queue.Complete(badTx));
+
+                Assert.NotNull(ex);
+                Assert.IsType<SlskdException>(ex);
+                Assert.True(ex.Message.Contains("is not enqueued for user", System.StringComparison.InvariantCultureIgnoreCase));
+            }
+
+            [Theory, AutoData]
+            public async Task Removes_Filename(string username, string filename, string filename2)
+            {
+                var (queue, _) = GetFixture();
+                var tx = GetTransfer(username, filename);
+                var tx2 = GetTransfer(username, filename2);
+
+                queue.Enqueue(tx);
+                await queue.AwaitStartAsync(tx);
+                queue.Enqueue(tx2);
+                await queue.AwaitStartAsync(tx2);
+
+                queue.Complete(tx);
+
+                var uploads = queue.GetProperty<ConcurrentDictionary<string, List<Upload>>>("Uploads");
+
+                Assert.Single(uploads);
+                Assert.True(uploads.ContainsKey(username));
+                Assert.Single(uploads[username]);
+                Assert.Equal(filename2, uploads[username][0].Filename);
+            }
+
+            [Theory, AutoData]
+            public async Task Decrements_UsedSlots_For_Group(string username, string filename, string filename2)
+            {
+                var (queue, _) = GetFixture();
+                var tx = GetTransfer(username, filename);
+                var tx2 = GetTransfer(username, filename2);
+
+                queue.Enqueue(tx);
+                await queue.AwaitStartAsync(tx);
+
+                queue.Enqueue(tx2);
+                await queue.AwaitStartAsync(tx2);
+
+                var groups = queue.GetProperty<Dictionary<string, UploadQueue.Group>>("Groups");
+
+                Assert.Equal(2, groups[Application.DefaultGroup].UsedSlots);
+
+                queue.Complete(tx);
+
+                groups = queue.GetProperty<Dictionary<string, UploadQueue.Group>>("Groups");
+
+                Assert.Equal(1, groups[Application.DefaultGroup].UsedSlots);
+            }
+
+            [Theory, AutoData]
+            public void Cleans_Up_If_User_Has_No_More_Files_Enqueued(string username, string filename, string filename2)
+            {
+                var (queue, _) = GetFixture();
+                var tx = GetTransfer(username, filename);
+                var tx2 = GetTransfer(username, filename2);
+
+                queue.Enqueue(tx);
+                queue.Enqueue(tx2);
+
+                var uploads = queue.GetProperty<ConcurrentDictionary<string, List<Upload>>>("Uploads");
+
+                Assert.Single(uploads);
+
+                queue.Complete(tx);
+                queue.Complete(tx2);
+
+                uploads = queue.GetProperty<ConcurrentDictionary<string, List<Upload>>>("Uploads");
+
+                Assert.Empty(uploads);
+            }
+        }
+
         private static (UploadQueue queue, Mocks mocks) GetFixture(Options options = null)
         {
             var mocks = new Mocks(options);
+
+            mocks.UserService.Setup(m => m.GetGroup(It.IsAny<string>()))
+                .Returns(Application.DefaultGroup);
+
             var queue = new UploadQueue(
                 mocks.UserService.Object,
                 mocks.OptionsMonitor);
