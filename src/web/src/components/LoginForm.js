@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { Button, Form, Grid, Header, Icon, Segment, Checkbox, Message } from 'semantic-ui-react'
 
 import Logos from './Shared/Logo';
@@ -42,15 +42,16 @@ const LoginForm = ({ onLoginAttempt, loading, error }) => {
             fontSize: 'inherit',
             letterSpacing: -1
           }}>
-          {Logos[Math.floor(Math.random() * Logos.length)]}
+          {logo}
           </Header>
           <Form size='large'>
-            <Segment loading={loading}>
+            <Segment raised>
               <Form.Input 
                 fluid icon='user' 
                 iconPosition='left' 
                 placeholder='Username' 
                 onChange={(event) => handleChange('username', event.target.value)}
+                disabled={loading}
               />
               <Form.Input
                 fluid
@@ -59,11 +60,13 @@ const LoginForm = ({ onLoginAttempt, loading, error }) => {
                 placeholder='Password'
                 type='password'
                 onChange={(event) => handleChange('password', event.target.value)}
+                disabled={loading}
               />
               <Checkbox
                 label='Remember Me'
                 onChange={() => handleChange('rememberMe', !rememberMe)}
                 checked={rememberMe}
+                disabled={loading}
               />
             </Segment>
             <Button 
