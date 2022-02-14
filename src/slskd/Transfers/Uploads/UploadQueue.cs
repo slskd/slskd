@@ -199,7 +199,7 @@ namespace slskd.Transfers
             }
         }
 
-        private void Process()
+        private Upload Process()
         {
             SyncRoot.Wait();
 
@@ -207,7 +207,7 @@ namespace slskd.Transfers
             {
                 if (Groups.Values.Sum(g => g.UsedSlots) >= MaxSlots)
                 {
-                    return;
+                    return null;
                 }
 
                 // flip the uploads dictionary so that it is keyed by group instead of user.
@@ -262,8 +262,10 @@ namespace slskd.Transfers
                     Log.Debug("Started: {File} for {User} at {Time}", Path.GetFileName(upload.Filename), upload.Username, upload.Enqueued);
                     Log.Debug("Group {Group} slots: {Used}/{Available}", group.Name, group.UsedSlots, group.Slots);
 
-                    break;
+                    return upload;
                 }
+
+                return null;
             }
             finally
             {
