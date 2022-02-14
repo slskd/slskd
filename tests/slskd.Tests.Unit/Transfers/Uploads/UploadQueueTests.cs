@@ -490,6 +490,23 @@
             }
         }
 
+        public class Process
+        {
+            [Fact]
+            public void Does_Nothing_If_MaxSlots_Is_Reached()
+            {
+                var (queue, _) = GetFixture();
+                
+                var groups = queue.GetProperty<Dictionary<string, UploadQueue.Group>>("Groups");
+
+                groups[Application.DefaultGroup].UsedSlots = int.MaxValue;
+
+                var result = queue.InvokeMethod<UploadQueue.Group>("Process");
+
+                Assert.Null(result);
+            }
+        }
+
         private static (UploadQueue queue, Mocks mocks) GetFixture(Options options = null)
         {
             var mocks = new Mocks(options);
