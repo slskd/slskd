@@ -6,11 +6,11 @@
   "dependencies": {
     "@codemirror/highlight": "^0.19.7",
     "@codemirror/legacy-modes": "^0.19.0",
-    "@codemirror/stream-parser": "^0.19.2",
+    "@codemirror/stream-parser": "^0.19.4",
     "@microsoft/signalr": "^5.0.10",
-    "@uiw/react-codemirror": "^4.2.4",
+    "@uiw/react-codemirror": "^4.3.3",
     "@uiw/react-textarea-code-editor": "^1.4.15",
-    "axios": "^0.21.2",
+    "axios": "^0.25.0",
     "codemirror": "^5.64.0",
     "lz-string": "^1.4.4",
     "react": "^16.8.6",
@@ -24,14 +24,16 @@
     "yaml": "^1.10.2"
   },
   "devDependencies": {
-    "react-scripts": "^4.0.3"
+    "@semantic-ui-react/css-patch": "^1.0.0",
+    "react-scripts": "^5.0.0"
   },
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
     "test-unattended": "react-scripts test --watchAll false --passWithNoTests",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "postinstall": "semantic-ui-css-patch"
   },
   "eslintConfig": {
     "extends": "react-app"

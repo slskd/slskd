@@ -1,0 +1,8 @@
+#!/bin/bash
+set -e
+
+echo $'\n\t🧪  dotnet test -p:CollectCoverage=true -p:CoverletOutputFormat=lcov -p:CoverletOutput=TestResults/lcov.info\n'
+
+dotnet test -p:CollectCoverage=true -p:CoverletOutputFormat=lcov -p:CoverletOutput=TestResults/lcov.info
+
+echo $'\n\t🎉  coverage collection succeded!\n'
