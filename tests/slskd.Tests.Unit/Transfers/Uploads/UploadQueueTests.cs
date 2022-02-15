@@ -9,6 +9,7 @@
     using slskd.Transfers;
     using slskd.Users;
     using Soulseek;
+    using System;
     using Xunit;
     using static slskd.Transfers.UploadQueue;
 
@@ -302,7 +303,7 @@
                 var (queue, _) = GetFixture();
                 var tx = GetTransfer(username, filename);
                 var tx2 = GetTransfer(username, filename2);
-                
+
                 queue.Enqueue(tx);
                 queue.Enqueue(tx2);
 
@@ -496,14 +497,198 @@
             public void Does_Nothing_If_MaxSlots_Is_Reached()
             {
                 var (queue, _) = GetFixture();
-                
+
                 var groups = queue.GetProperty<Dictionary<string, UploadQueue.Group>>("Groups");
 
                 groups[Application.DefaultGroup].UsedSlots = int.MaxValue;
 
-                var result = queue.InvokeMethod<UploadQueue.Group>("Process");
+                var result = queue.InvokeMethod<UploadQueue.Upload>("Process");
 
                 Assert.Null(result);
+            }
+
+            [Fact]
+            public void Does_Nothing_If_No_Uploads()
+            {
+                var (queue, _) = GetFixture();
+
+                var result = queue.InvokeMethod<UploadQueue.Upload>("Process");
+
+                Assert.Null(result);
+            }
+
+            [Theory, AutoData]
+            public void Sets_Started_And_Group_Properties_Of_Released_Upload(string user1, string file1)
+            {
+                var (queue, mocks) = GetFixture();
+
+                mocks.UserService.Setup(m => m.GetGroup(user1)).Returns(Application.PriviledgedGroup);
+
+                var uploads = new ConcurrentDictionary<string, List<Upload>>();
+
+                uploads.TryAdd(user1, new List<Upload>()
+                {
+                    new Upload() { Username = user1, Filename = file1, Ready = DateTime.UtcNow }
+                });
+
+                queue.SetProperty("Uploads", uploads);
+
+                var result = queue.InvokeMethod<UploadQueue.Upload>("Process");
+
+                Assert.Equal(user1, result.Username);
+                Assert.Equal(file1, result.Filename);
+                Assert.NotNull(result.Started);
+                Assert.Equal(Application.PriviledgedGroup, result.Group);
+            }
+
+            [Theory, AutoData]
+            public void Increments_UsedSlots_Of_Group(string user1, string file1)
+            {
+                var (queue, mocks) = GetFixture();
+
+                mocks.UserService.Setup(m => m.GetGroup(user1)).Returns(Application.PriviledgedGroup);
+
+                var uploads = new ConcurrentDictionary<string, List<Upload>>();
+
+                uploads.TryAdd(user1, new List<Upload>()
+                {
+                    new Upload() { Username = user1, Filename = file1, Ready = DateTime.UtcNow }
+                });
+
+                queue.SetProperty("Uploads", uploads);
+
+                var result = queue.InvokeMethod<UploadQueue.Upload>("Process");
+
+                var groups = queue.GetProperty<Dictionary<string, UploadQueue.Group>>("Groups");
+
+                Assert.Equal(1, groups[Application.PriviledgedGroup].UsedSlots);
+            }
+
+            [Theory, AutoData]
+            public void Releases_Higher_Priority_Upload_First(string user1, string user2, string file1, string file2)
+            {
+                var (queue, mocks) = GetFixture();
+
+                mocks.UserService.Setup(m => m.GetGroup(user1)).Returns(Application.PriviledgedGroup);
+                mocks.UserService.Setup(m => m.GetGroup(user2)).Returns(Application.DefaultGroup);
+
+                var uploads = new ConcurrentDictionary<string, List<Upload>>();
+
+                uploads.TryAdd(user1, new List<Upload>()
+                {
+                    new Upload() { Username = user1, Filename = file1, Ready = DateTime.UtcNow }
+                });
+
+                uploads.TryAdd(user2, new List<Upload>()
+                {
+                    new Upload() { Username = user2, Filename = file2, Ready = DateTime.UtcNow }
+                });
+
+                queue.SetProperty("Uploads", uploads);
+
+                var result = queue.InvokeMethod<UploadQueue.Upload>("Process");
+
+                Assert.Equal(user1, result.Username);
+                Assert.Equal(file1, result.Filename);
+            }
+
+            [Theory, AutoData]
+            public void Releases_Lower_Priority_Upload_First_If_All_Higher_Slots_Consumed_Or_Empty(string user1, string user2, string file1, string file2)
+            {
+                var (queue, mocks) = GetFixture();
+
+                // no privileged uploads
+                mocks.UserService.Setup(m => m.GetGroup(user1)).Returns(Application.DefaultGroup);
+                mocks.UserService.Setup(m => m.GetGroup(user2)).Returns(Application.LeecherGroup);
+
+                var uploads = new ConcurrentDictionary<string, List<Upload>>();
+
+                uploads.TryAdd(user1, new List<Upload>()
+                {
+                    new Upload() { Username = user1, Filename = file1, Ready = DateTime.UtcNow }
+                });
+
+                uploads.TryAdd(user2, new List<Upload>()
+                {
+                    new Upload() { Username = user2, Filename = file2, Ready = DateTime.UtcNow }
+                });
+
+                queue.SetProperty("Uploads", uploads);
+
+                // all default group slots consumed
+                var groups = queue.GetProperty<Dictionary<string, UploadQueue.Group>>("Groups");
+                groups[Application.DefaultGroup].Slots = 1;
+                groups[Application.DefaultGroup].UsedSlots = 1;
+
+                var result = queue.InvokeMethod<UploadQueue.Upload>("Process");
+
+                // leecher group upload released
+                Assert.Equal(user2, result.Username);
+                Assert.Equal(file2, result.Filename);
+            }
+
+            [Theory, AutoData]
+            public void Releases_First_Enqueued_Upload_When_Strategy_Is_FirstInFirstOut(string user1, string user2, string file1, string file2)
+            {
+                var (queue, mocks) = GetFixture();
+
+                mocks.UserService.Setup(m => m.GetGroup(user1)).Returns(Application.DefaultGroup);
+
+                var uploads = new ConcurrentDictionary<string, List<Upload>>();
+                var ready = DateTime.UtcNow;
+                var enqueued = DateTime.UtcNow;
+
+                uploads.TryAdd(user1, new List<Upload>()
+                {
+                    new Upload() { Username = user1, Filename = file1, Enqueued = enqueued.AddHours(-1), Ready = ready }
+                });
+
+                uploads.TryAdd(user2, new List<Upload>()
+                {
+                    new Upload() { Username = user2, Filename = file2, Enqueued = enqueued.AddHours(-2), Ready = ready }
+                });
+
+                queue.SetProperty("Uploads", uploads);
+
+                var groups = queue.GetProperty<Dictionary<string, UploadQueue.Group>>("Groups");
+                groups[Application.DefaultGroup].Strategy = QueueStrategy.FirstInFirstOut;
+
+                var result = queue.InvokeMethod<UploadQueue.Upload>("Process");
+
+                Assert.Equal(user2, result.Username);
+                Assert.Equal(file2, result.Filename);
+            }
+
+            [Theory, AutoData]
+            public void Releases_First_Ready_Upload_When_Strategy_Is_RoundRobin(string user1, string user2, string file1, string file2)
+            {
+                var (queue, mocks) = GetFixture();
+
+                mocks.UserService.Setup(m => m.GetGroup(user1)).Returns(Application.DefaultGroup);
+
+                var uploads = new ConcurrentDictionary<string, List<Upload>>();
+                var ready = DateTime.UtcNow;
+                var enqueued = DateTime.UtcNow;
+
+                uploads.TryAdd(user1, new List<Upload>()
+                {
+                    new Upload() { Username = user1, Filename = file1, Enqueued = enqueued, Ready = ready }
+                });
+
+                uploads.TryAdd(user2, new List<Upload>()
+                {
+                    new Upload() { Username = user2, Filename = file2, Enqueued = enqueued, Ready = ready.AddMinutes(-1) }
+                });
+
+                queue.SetProperty("Uploads", uploads);
+
+                var groups = queue.GetProperty<Dictionary<string, UploadQueue.Group>>("Groups");
+                groups[Application.DefaultGroup].Strategy = QueueStrategy.RoundRobin;
+
+                var result = queue.InvokeMethod<UploadQueue.Upload>("Process");
+
+                Assert.Equal(user2, result.Username);
+                Assert.Equal(file2, result.Filename);
             }
         }
 
