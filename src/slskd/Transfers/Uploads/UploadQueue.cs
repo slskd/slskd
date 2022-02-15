@@ -85,7 +85,7 @@ namespace slskd.Transfers
         private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1, 1);
         private int MaxSlots { get; set; } = 0;
         private Dictionary<string, Group> Groups { get; set; } = new Dictionary<string, Group>();
-        private ConcurrentDictionary<string, List<Upload>> Uploads { get; } = new ConcurrentDictionary<string, List<Upload>>();
+        private ConcurrentDictionary<string, List<Upload>> Uploads { get; set; } = new ConcurrentDictionary<string, List<Upload>>();
 
         /// <summary>
         ///     Enqueues an upload.
