@@ -170,6 +170,62 @@ global:
     speed_limit: 1000
 ```
 
+## Groups
+
+User groups are used to control upload slots, speed limits and queue behavior on a per-user basis.
+
+Each group has a priority, starting from 1, that determines the order in which groups are prioritized in the upload queue.  A lower number translates to higher priority.  Upload slots are granted to higher priority groups before lower priority groups.
+
+Groups have a queue strategy, which can be either `FirstInFirstOut`, or `RoundRobin`.  This setting determines how uploads from multiple users in the same group are processed; `FirstInFirstOut` processes uploads in the order in which they were enqueued, while `RoundRobin` processes uploads in the order in which the user was ready to receive the upload.
+
+Upload slots and speed limits configured at the group level can be used to create constraints in addition to global settings.  If group-level limits exceed global settings, global settings become the constraint.  Slots and speed limit settings default to `int.MaxValue`, effectively deferring to the global limits.
+
+The general configuration for a group is as follows:
+
+#### **YAML**
+```yaml
+groups:
+  group_name:
+    upload:
+      priority: 500
+      strategy: roundrobin
+      slots: 10
+      speed_limit: 100
+    members:
+      - bob
+      - alice
+```
+
+## Built-In Groups
+
+The `default` built-in group is the group to which users that have not been added to any other group are assigned.
+
+The `leechers` built-in group is the group to which users that have been identified as leechers are assigned.
+
+A third built-in group, `priviledged`, is used to prioritize users who have purchased priviledges on the Soulseek network.  This groups is not configurable, has a priority of 0 (the highest), a strategy of `FirstInFirstOut`, and can use any number of slots, up to the global limit.
+
+It is not possible to explicitly assign users to built-in groups.
+
+#### **YAML**
+```yaml
+groups:
+  default:
+    upload:
+      priority: 500
+      strategy: roundrobin
+      slots: 10
+  leechers:
+    upload:
+      priority: 999
+      strategy: roundrobin
+      slots: 1
+      speed_limit: 100
+```
+
+## User Defined Groups
+
+
+
 # Soulseek Configuration
 
 The Soulseek configuration determines how slskd will interact with the Soulseek network and underlying [Soulseek.NET](https://github.com/jpdillingham/Soulseek.NET) library.
