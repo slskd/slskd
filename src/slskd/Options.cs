@@ -551,7 +551,7 @@ namespace slskd
                 ///     Gets the limit for the total number of upload slots for the group.
                 /// </summary>
                 [Range(1, int.MaxValue)]
-                public int Slots { get; init; } = 10;
+                public int Slots { get; init; } = int.MaxValue;
 
                 /// <summary>
                 ///     Gets the total upload speed limit for the group.
