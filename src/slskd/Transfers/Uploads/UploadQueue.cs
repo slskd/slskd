@@ -239,7 +239,7 @@ namespace slskd.Transfers
 
                 // process each group in ascending order of priority, and stop after the first
                 // ready upload is released.
-                foreach (var group in Groups.Values.OrderBy(g => g.Priority))
+                foreach (var group in Groups.Values.OrderBy(g => g.Priority).ThenBy(g => g.Name))
                 {
                     if (group.UsedSlots >= group.Slots || !readyUploadsByGroup.TryGetValue(group.Name, out var uploads) || !uploads.Any())
                     {
