@@ -184,30 +184,79 @@ The general configuration for a group is as follows:
 
 #### **YAML**
 ```yaml
-groups:
-  group_name:
-    upload:
-      priority: 500
-      strategy: roundrobin
-      slots: 10
-      speed_limit: 100
-    members:
-      - bob
-      - alice
+upload:
+  priority: 500 # 1 to int.MaxValue
+  strategy: roundrobin # roundrobin or firstinfirstout
+  slots: 10 # 1 to int.MaxValue
+  speed_limit: 100 # in KiB/s, 1 to int.MaxValue
 ```
 
 ## Built-In Groups
 
-The `default` built-in group is the group to which users that have not been added to any other group are assigned.
+The `default` built-in group contains all users that have not been explicitly added to a user defined group, are not priviledged, and that haven't been identified as leechers.
 
-The `leechers` built-in group is the group to which users that have been identified as leechers are assigned.
+The `leechers` built-in group contains users that have been identified as leechers.
 
-A third built-in group, `priviledged`, is used to prioritize users who have purchased priviledges on the Soulseek network.  This groups is not configurable, has a priority of 0 (the highest), a strategy of `FirstInFirstOut`, and can use any number of slots, up to the global limit.
+The `priviledged` built-in is used to prioritize users who have purchased priviledges on the Soulseek network.  This groups is not configurable, has a priority of 0 (the highest), a strategy of `FirstInFirstOut`, and can use any number of slots, up to the global limit.
 
-It is not possible to explicitly assign users to built-in groups.
+It is not possible to explicitly assign users to built-in groups, but the priority, number of slots, speed and queue strategy can be adjusted (excluding `priviledged`).
 
 #### **YAML**
 ```yaml
+groups:
+  default:
+    upload:
+      priority: 1
+      strategy: roundrobin
+      slots: 10
+      speed_limit: 50000
+  leechers:
+    upload:
+      priority: 99
+      strategy: roundrobin
+      slots: 1
+      speed_limit: 100
+```
+
+## User Defined Groups
+
+Any number of user defined groups can be added under the `user_defined` key in the group configuration.
+
+User defined groups use the same configuration as built-in groups, but additionally allow a list of `members` containing the usernames of the users assigned to the group.
+
+Users can be assigned to multiple groups, with their effective group being the highest priority (lowest numbered) group.  If a user has priviledges on the network, any explicit group membership is superceded, and their effective group is the built-in `priviledged` group.  If a user is explcitly assigned to a group, they will not be identified as a leecher.
+
+#### **YAML***
+```yaml
+groups:
+  user_defined:
+    my_custom_group_name:
+      upload:
+        priority: 500
+        strategy: roundrobin
+        slots: 10
+        speed_limit: 100
+      members:
+        - bob
+        - alice
+```
+
+## Example
+
+In the following example:
+
+* All leechers share 1 slot among them, and can download at a maximum speed of 100 KiB/s.  Leechers can only download if there are fewer than 20 other uploads in progress to other users.
+* Users that aren't leechers and that aren't in the `my_buddies` group (`default` users) share 10 slots among them and can download at the global maximum speed of 1000 KiB/s, but only if fewer than 20 upload slots are being used by users in the `my_buddies` group.
+* Users that are in the `my_buddies` group share 20 slots among them and can download at the global maximum speed.  10 upload slots are reserved for users in this group, and users `alice` and `bob` are members.
+
+```yaml
+global:
+  upload:
+    slots: 20
+    speed_limit: 1000
+  download:
+    slots: 500
+    speed_limit: 1000
 groups:
   default:
     upload:
@@ -220,11 +269,16 @@ groups:
       strategy: roundrobin
       slots: 1
       speed_limit: 100
+  user_defined:
+    my_buddies:
+      upload:
+        priority: 250
+        queue_strategy: firstinfirstout
+        slots: 20
+      members:
+        - alice
+        - bob
 ```
-
-## User Defined Groups
-
-
 
 # Soulseek Configuration
 
