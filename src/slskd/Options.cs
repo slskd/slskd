@@ -228,10 +228,16 @@ namespace slskd
         public DirectoriesOptions Directories { get; init; } = new DirectoriesOptions();
 
         /// <summary>
-        ///     Gets limits.
+        ///     Gets global options.
         /// </summary>
         [Validate]
-        public LimitsOptions Limits { get; init; } = new LimitsOptions();
+        public GlobalOptions Global { get; init; } = new GlobalOptions();
+
+        /// <summary>
+        ///     Gets user groups.
+        /// </summary>
+        [Validate]
+        public GroupsOptions Groups { get; init; } = new GroupsOptions();
 
         /// <summary>
         ///     Gets filter options.
@@ -385,30 +391,173 @@ namespace slskd
         }
 
         /// <summary>
-        ///     Limits.
+        ///     Global options.
         /// </summary>
-        public class LimitsOptions
+        public class GlobalOptions
         {
             /// <summary>
-            ///     Gets queue limits.
+            ///     Gets global upload options.
             /// </summary>
             [Validate]
-            public LimitsQueueOptions Queue { get; init; } = new LimitsQueueOptions();
+            public GlobalUploadOptions Upload { get; init; } = new GlobalUploadOptions();
 
             /// <summary>
-            ///     Queue limits.
+            ///     Gets global download options.
             /// </summary>
-            public class LimitsQueueOptions
+            [Validate]
+            public GlobalDownloadOptions Download { get; init; } = new GlobalDownloadOptions();
+
+            /// <summary>
+            ///     Global upload options.
+            /// </summary>
+            public class GlobalUploadOptions
             {
                 /// <summary>
-                ///     Gets the limit for the total number of queue slots.
+                ///     Gets the limit for the total number of upload slots.
                 /// </summary>
-                [Argument(default, "queue-slot-limit")]
-                [EnvironmentVariable("QUEUE_SLOT_LIMIT")]
-                [Description("the limit for the total number of queue slots")]
+                [Argument(default, "upload-slots")]
+                [EnvironmentVariable("UPLOAD_SLOTS")]
+                [Description("the total number of upload slots")]
                 [RequiresRestart]
                 [Range(1, int.MaxValue)]
                 public int Slots { get; init; } = 10;
+
+                /// <summary>
+                ///     Gets the total upload speed limit.
+                /// </summary>
+                [Argument(default, "upload-speed-limit")]
+                [EnvironmentVariable("UPLOAD_SPEED_LIMIT")]
+                [Description("the total upload speed limit")]
+                [Range(1, int.MaxValue)]
+                public int SpeedLimit { get; init; } = int.MaxValue;
+            }
+
+            /// <summary>
+            ///     Gets global download options.
+            /// </summary>
+            public class GlobalDownloadOptions
+            {
+                /// <summary>
+                ///     Gets the limit for the total number of download slots.
+                /// </summary>
+                [Argument(default, "download-slots")]
+                [EnvironmentVariable("DOWNLOAD_SLOTS")]
+                [Description("the total number of download slots")]
+                [RequiresRestart]
+                [Range(1, int.MaxValue)]
+                public int Slots { get; init; } = int.MaxValue;
+
+                /// <summary>
+                ///     Gets the total download speed limit.
+                /// </summary>
+                [Argument(default, "download-speed-limit")]
+                [EnvironmentVariable("DOWNLOAD_SPEED_LIMIT")]
+                [Description("the total download speed limit")]
+                [Range(1, int.MaxValue)]
+                public int SpeedLimit { get; init; } = int.MaxValue;
+            }
+        }
+
+        /// <summary>
+        ///     User groups.
+        /// </summary>
+        public class GroupsOptions : IValidatableObject
+        {
+            /// <summary>
+            ///     Gets options for the default user group.
+            /// </summary>
+            /// <remarks>
+            ///     These options apply to users that are not priviledged, have not been identified as leechers,
+            ///     and have not been added as a member of any group.
+            /// </remarks>
+            [Validate]
+            public BuiltInOptions Default { get; init; } = new BuiltInOptions();
+
+            /// <summary>
+            ///     Gets options for the leecher user group.
+            /// </summary>
+            /// <remarks>
+            ///     These options apply to users that have been identified as leechers, and have not been added as a member of any group.
+            /// </remarks>
+            [Validate]
+            public BuiltInOptions Leechers { get; init; } = new BuiltInOptions();
+
+            /// <summary>
+            ///     Gets user defined groups and options.
+            /// </summary>
+            [Validate]
+            public Dictionary<string, UserDefinedOptions> UserDefined { get; init; } = new Dictionary<string, UserDefinedOptions>();
+
+            /// <summary>
+            ///     Extended validation.
+            /// </summary>
+            /// <param name="validationContext"></param>
+            /// <returns></returns>
+            public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+            {
+                var builtInGroups = new[] { Application.PriviledgedGroup, Application.DefaultGroup, Application.LeecherGroup };
+                var intersection = UserDefined.Keys.Intersect(builtInGroups);
+
+                return intersection.Select(group => new ValidationResult($"User defined group '{group}' collides with a built in group.  Choose a different name."));
+            }
+
+            /// <summary>
+            ///     Built in user group options.
+            /// </summary>
+            public class BuiltInOptions
+            {
+                /// <summary>
+                ///     Gets upload options.
+                /// </summary>
+                [Validate]
+                public UploadOptions Upload { get; init; } = new UploadOptions();
+            }
+
+            /// <summary>
+            ///     User defined user group options.
+            /// </summary>
+            public class UserDefinedOptions
+            {
+                /// <summary>
+                ///     Gets upload options.
+                /// </summary>
+                [Validate]
+                public UploadOptions Upload { get; init; } = new UploadOptions();
+
+                /// <summary>
+                ///     Gets the list of group member usernames.
+                /// </summary>
+                public string[] Members { get; init; } = Array.Empty<string>();
+            }
+
+            /// <summary>
+            ///     User group upload options.
+            /// </summary>
+            public class UploadOptions
+            {
+                /// <summary>
+                ///     Gets the priority of the group.
+                /// </summary>
+                [Range(1, int.MaxValue)]
+                public int Priority { get; init; } = 1;
+
+                /// <summary>
+                ///     Gets the queue strategy for the group.
+                /// </summary>
+                [Enum(typeof(QueueStrategy))]
+                public string Strategy { get; init; } = QueueStrategy.RoundRobin.ToString().ToLowerInvariant();
+
+                /// <summary>
+                ///     Gets the limit for the total number of upload slots for the group.
+                /// </summary>
+                [Range(1, int.MaxValue)]
+                public int Slots { get; init; } = int.MaxValue;
+
+                /// <summary>
+                ///     Gets the total upload speed limit for the group.
+                /// </summary>
+                [Range(1, int.MaxValue)]
+                public int SpeedLimit { get; init; } = int.MaxValue;
             }
         }
 
@@ -972,7 +1121,7 @@ namespace slskd
                 [EnvironmentVariable("FTP_ENCRYPTION_MODE")]
                 [Description("FTP encryption mode; none, implicit, explicit, auto")]
                 [Enum(typeof(FtpEncryptionMode))]
-                public string EncryptionMode { get; init; } = "auto";
+                public string EncryptionMode { get; init; } = FtpEncryptionMode.Auto.ToString().ToLowerInvariant();
 
                 /// <summary>
                 ///     Gets a value indicating whether FTP certificate errors should be ignored.

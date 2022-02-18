@@ -54,6 +54,21 @@ namespace slskd
 
     public sealed class Application : IApplication
     {
+        /// <summary>
+        ///     The name of the default user group.
+        /// </summary>
+        public static readonly string DefaultGroup = "default";
+
+        /// <summary>
+        ///     The name of the priviledged user group.
+        /// </summary>
+        public static readonly string PriviledgedGroup = "priviledged";
+
+        /// <summary>
+        ///     The name of the leecher user group.
+        /// </summary>
+        public static readonly string LeecherGroup = "leechers";
+
         private static readonly int ReconnectMaxDelayMilliseconds = 300000; // 5 minutes
 
         public Application(
@@ -62,6 +77,7 @@ namespace slskd
             IManagedState<State> state,
             ISoulseekClient soulseekClient,
             ITransferTracker transferTracker,
+            ITransferService transferService,
             IBrowseTracker browseTracker,
             IConversationTracker conversationTracker,
             IRoomTracker roomTracker,
@@ -85,6 +101,7 @@ namespace slskd
             SharedFileCache.StateMonitor.OnChange(state => SharedFileCacheState_OnChange(state));
 
             TransferTracker = transferTracker;
+            Transfers = transferService;
             BrowseTracker = browseTracker;
             ConversationTracker = conversationTracker;
             Pushbullet = pushbulletService;
@@ -137,6 +154,7 @@ namespace slskd
         private DateTime SharesRefreshStarted { get; set; }
         private IManagedState<State> State { get; }
         private ITransferTracker TransferTracker { get; set; }
+        private ITransferService Transfers { get; init; }
         private IHubContext<ApplicationHub> ApplicationHub { get; set; }
         private IHubContext<LogsHub> LogHub { get; set; }
 
@@ -255,6 +273,8 @@ namespace slskd
                 distributedChildLimit: OptionsAtStartup.Soulseek.DistributedNetwork.ChildLimit,
                 enableDistributedNetwork: !OptionsAtStartup.Soulseek.DistributedNetwork.Disabled,
                 acceptDistributedChildren: !OptionsAtStartup.Soulseek.DistributedNetwork.DisableChildren,
+                maximumUploadSpeed: OptionsAtStartup.Global.Upload.SpeedLimit,
+                maximumDownloadSpeed: OptionsAtStartup.Global.Download.SpeedLimit,
                 autoAcknowledgePrivateMessages: false,
                 acceptPrivateRoomInvitations: true,
                 serverConnectionOptions: serverOptions,
@@ -530,6 +550,8 @@ namespace slskd
 
             var fileInfo = new FileInfo(localFilename);
 
+            Console.WriteLine($"[UPLOAD REQUESTED] [{username}/{filename}]");
+
             if (!fileInfo.Exists)
             {
                 Console.WriteLine($"[UPLOAD REJECTED] File {localFilename} not found.");
@@ -545,7 +567,21 @@ namespace slskd
 
             // create a new cancellation token source so that we can cancel the upload from the UI.
             var cts = new CancellationTokenSource();
-            var topts = new TransferOptions(stateChanged: (e) => tracker.AddOrUpdate(e, cts), progressUpdated: (e) => tracker.AddOrUpdate(e, cts));
+            var topts = new TransferOptions(
+                stateChanged: (e) =>
+                {
+                    tracker.AddOrUpdate(e, cts);
+
+                    if (e.Transfer.State.HasFlag(TransferStates.Queued))
+                    {
+                        Transfers.Uploads.Queue.Enqueue(e.Transfer);
+                    }
+                },
+                progressUpdated: (e) => tracker.AddOrUpdate(e, cts),
+                governor: (tx, req, ct) => Transfers.Uploads.Governor.GetBytesAsync(tx, req, ct),
+                reporter: (tx, att, grant, act) => Transfers.Uploads.Governor.ReturnBytes(tx, att, grant, act),
+                slotAwaiter: (tx, ct) => Transfers.Uploads.Queue.AwaitStartAsync(tx),
+                slotReleased: (tx) => Transfers.Uploads.Queue.Complete(tx));
 
             // accept all download requests, and begin the upload immediately. normally there would be an internal queue, and
             // uploads would be handled separately.
@@ -619,8 +655,9 @@ namespace slskd
 
                 // determine whether any Soulseek options changed. if so, we need to construct a patch and invoke ReconfigureOptionsAsync().
                 var slskDiff = PreviousOptions.Soulseek.DiffWith(newOptions.Soulseek);
+                var globalDiff = PreviousOptions.Global.DiffWith(newOptions.Global);
 
-                if (slskDiff.Any())
+                if (slskDiff.Any() || globalDiff.Any())
                 {
                     var old = PreviousOptions.Soulseek;
                     var update = newOptions.Soulseek;
@@ -681,6 +718,8 @@ namespace slskd
                         enableDistributedNetwork: old.DistributedNetwork.Disabled == update.DistributedNetwork.Disabled ? null : !update.DistributedNetwork.Disabled,
                         distributedChildLimit: old.DistributedNetwork.ChildLimit == update.DistributedNetwork.ChildLimit ? null : update.DistributedNetwork.ChildLimit,
                         acceptDistributedChildren: old.DistributedNetwork.DisableChildren == update.DistributedNetwork.DisableChildren ? null : !update.DistributedNetwork.DisableChildren,
+                        maximumUploadSpeed: newOptions.Global.Upload.SpeedLimit,
+                        maximumDownloadSpeed: newOptions.Global.Download.SpeedLimit,
                         serverConnectionOptions: serverPatch,
                         peerConnectionOptions: connectionPatch,
                         transferConnectionOptions: transferPatch,

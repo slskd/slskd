@@ -17,8 +17,10 @@
 
 namespace slskd.Validation
 {
+    using System.Collections;
     using System.Collections.Generic;
     using System.ComponentModel.DataAnnotations;
+    using System.Linq;
 
     /// <summary>
     ///     Indicates that attributed properties should be recursively validated.
@@ -34,6 +36,30 @@ namespace slskd.Validation
 
             var results = new List<ValidationResult>();
             var context = new ValidationContext(value, null, null);
+
+            if (value.IsDictionary())
+            {
+                var compositeResults = new CompositeValidationResult(validationContext.DisplayName);
+
+                // given the context in this application, key type should never be anything but a string
+                foreach (string key in ((IDictionary)value).Keys)
+                {
+                    var val = ((IDictionary)value)[key];
+                    var result = IsValid(val, new ValidationContext(val, null, null));
+
+                    if (result != ValidationResult.Success)
+                    {
+                        compositeResults.AddResult(new CompositeValidationResult(key, new[] { result }.ToList()));
+                    }
+                }
+
+                if (compositeResults.Results.Any())
+                {
+                    return compositeResults;
+                }
+
+                return ValidationResult.Success;
+            }
 
             Validator.TryValidateObject(value, context, results, true);
 
