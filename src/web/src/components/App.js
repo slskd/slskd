@@ -48,48 +48,50 @@ class App extends Component {
   };
 
   init = async () => {
-    try {
-      const securityEnabled = await session.getSecurityEnabled();
+    this.setState({ initialized: false }, async () => {
+      try {
+        const securityEnabled = await session.getSecurityEnabled();
+  
+        if (!securityEnabled) {
+          console.debug('application security is not enabled, per api call')
+          session.enablePassthrough()
+        }
+  
+        if (await session.check()) {
+          const appHub = createApplicationHubConnection();
 
-      if (!securityEnabled) {
-        console.debug('application security is not enabled, per api call')
-        session.enablePassthrough()
-      }
+          appHub.on('state', (state) => {
+            this.setState({ applicationState: state });
+          });
+  
+          appHub.on('options', (options) => {
+            this.setState({ applicationOptions: options })
+          })
 
-      if (await session.check()) {        
-        const appHub = createApplicationHubConnection();
-        
-        appHub.on('state', (state) => {
-          this.setState({ applicationState: state });
+          appHub.onreconnecting(() => this.setState({ error: true, retriesExhausted: false }));
+          appHub.onclose(() => this.setState({ error: true, retriesExhausted: true }));
+          appHub.onreconnected(() => this.setState({ error: false, retriesExhausted: false }));
+
+          await appHub.start();
+        }
+  
+        this.setState({
+          error: false,
         });
-
-        appHub.on('options', (options) => {
-          this.setState({ applicationOptions: options })
-        })
-        
-        appHub.onreconnecting(() => this.setState({ error: true, retriesExhausted: false }));
-        appHub.onclose(() => this.setState({ error: true, retriesExhausted: true }));
-        appHub.onreconnected(() => this.setState({ error: false, retriesExhausted: false }));
-        
-        await appHub.start();
+      } catch (err) {
+        console.error(err)
+        this.setState({ error: true, retriesExhausted: true })
+      } finally {
+        this.setState({ initialized: true });
       }
-
-      this.setState({
-        error: false,
-      });
-    } catch (err) {
-      console.error(err)
-      this.setState({ error: true, retriesExhausted: true })
-    } finally {
-      this.setState({ initialized: true });
-    }
+    })
   }
 
   login = (username, password, rememberMe) => {
     this.setState({ login: { ...this.state.login, pending: true, error: undefined }}, async () => {
       try {
         await session.login({ username, password, rememberMe });
-        this.setState({ login: { ...this.state.login, pending: false, error: false }});
+        this.setState({ login: { ...this.state.login, pending: false, error: false }}, () => this.init());
       } catch (error) {
         this.setState({ login: { ...this.state.login, pending: false, error }});
       }
