@@ -82,6 +82,7 @@ namespace slskd
             IConversationTracker conversationTracker,
             IRoomTracker roomTracker,
             IRoomService roomService,
+            IUserService userService,
             ISharedFileCache sharedFileCache,
             IPushbulletService pushbulletService,
             IHubContext<ApplicationHub> applicationHub,
@@ -107,6 +108,7 @@ namespace slskd
             Pushbullet = pushbulletService;
 
             RoomService = roomService;
+            Users = userService;
             ApplicationHub = applicationHub;
 
             LogHub = logHub;
@@ -157,6 +159,7 @@ namespace slskd
         private ITransferService Transfers { get; init; }
         private IHubContext<ApplicationHub> ApplicationHub { get; set; }
         private IHubContext<LogsHub> LogHub { get; set; }
+        private IUserService Users { get; set; }
 
         public void CollectGarbage()
         {
@@ -587,6 +590,14 @@ namespace slskd
             // uploads would be handled separately.
             Task.Run(async () =>
             {
+                // prime the privileges cache for this user
+                // this must be done prior to each upload, or we risk not correctly categorizing
+                // privileged users as such.
+                if (await Users.IsPrivilegedAsync(username))
+                {
+                    Log.Debug("User {Username} is privileged; upload will be prioritized", username);
+                }
+
                 using var stream = new FileStream(fileInfo.FullName, FileMode.Open, FileAccess.Read);
                 await Client.UploadAsync(username, filename, fileInfo.FullName, options: topts, cancellationToken: cts.Token);
             }).ContinueWith(t =>
