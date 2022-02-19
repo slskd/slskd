@@ -30,7 +30,7 @@ namespace slskd.Users
         /// </summary>
         /// <param name="username">The username of the peer.</param>
         /// <returns>The group for the specified username.</returns>
-        Task<string> GetGroupAsync(string username);
+        string GetGroup(string username);
 
         /// <summary>
         ///     Retrieves peer <see cref="Info"/>.
@@ -66,8 +66,9 @@ namespace slskd.Users
         ///     Retrieves a value indicating whether the specified peer is privileged.
         /// </summary>
         /// <param name="username">The username of the peer.</param>
+        /// <param name="bypassCache">A value indicating whether to bypass the cache and query the server.</param>
         /// <returns>A value indicating whether the specified peer is privileged.</returns>
-        Task<bool> IsPrivilegedAsync(string username);
+        Task<bool> IsPrivilegedAsync(string username, bool bypassCache = false);
 
         /// <summary>
         ///     Adds the specified username to the server-side user list.

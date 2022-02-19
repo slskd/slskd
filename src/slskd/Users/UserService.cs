@@ -24,7 +24,6 @@ namespace slskd.Users
     using System.Collections.Generic;
     using System.Linq;
     using System.Net;
-    using System.Threading;
     using System.Threading.Tasks;
     using Microsoft.EntityFrameworkCore;
     using Microsoft.Extensions.Caching.Memory;
@@ -57,7 +56,15 @@ namespace slskd.Users
                     CachePrivilegedUser(username, privileged: true);
                 }
             };
-            Client.PrivilegeNotificationReceived += (_, e) => CachePrivilegedUser(e.Username, privileged: true);
+            Client.PrivilegeNotificationReceived += (_, e) =>
+            {
+                // note: in testing i wasn't able to get this to fire by gifting privileges
+                // to other users. it isn't harming anything so i'll leave it, but this most
+                // likely means that the initial list we get at login is all the information
+                // the server is going to offer unsolicited.
+                CachePrivilegedUser(e.Username, privileged: true);
+            };
+            Client.Disconnected += (_, _) => ResetPrivilegedUserCache();
 
             ContextFactory = contextFactory;
 
@@ -65,14 +72,15 @@ namespace slskd.Users
             OptionsMonitor.OnChange(Configure);
 
             Configure(OptionsMonitor.CurrentValue);
+            ResetPrivilegedUserCache();
         }
 
         private ISoulseekClient Client { get; }
         private IDbContextFactory<UserDbContext> ContextFactory { get; }
         private string LastOptionsHash { get; set; }
         private ILogger Log { get; set; } = Serilog.Log.ForContext<UserService>();
-        private ConcurrentDictionary<string, string> Map { get; set; } = new ConcurrentDictionary<string, string>();
-        private IMemoryCache PrivilegedUserCache { get; set; } = new MemoryCache(new MemoryCacheOptions());
+        private ConcurrentDictionary<string, string> UserGroupMap { get; set; } = new ConcurrentDictionary<string, string>();
+        private IMemoryCache PrivilegedUserCache { get; set; }
         private IOptionsMonitor<Options> OptionsMonitor { get; }
 
         /// <summary>
@@ -80,17 +88,19 @@ namespace slskd.Users
         /// </summary>
         /// <param name="username">The username of the peer.</param>
         /// <returns>The group for the specified username.</returns>
-        public async Task<string> GetGroupAsync(string username)
+        public string GetGroup(string username)
         {
-            if (await IsPrivilegedAsync(username))
+            // this is a hot path used for upload speed governance and upload orchestration. as such,
+            // check the cache synchronously, instead of looking for stale values and re-querying the server.
+            // consumers of this method are responsible for invoking IsPrivilegedAsync with the bypassCache flag
+            // set to true at least every 12 hours for any usernames that need to be actively tracked in order to
+            // keep this cache warm.
+            if (PrivilegedUserCache.TryGetValue(username, out var privileged) && (bool)privileged)
             {
-                Console.WriteLine($"{username} is privileged");
                 return Application.PrivilegedGroup;
             }
 
-            Console.WriteLine($"{username} is not privileged");
-
-            return Map.GetValueOrDefault(username ?? string.Empty, Application.DefaultGroup);
+            return UserGroupMap.GetValueOrDefault(username ?? string.Empty, Application.DefaultGroup);
         }
 
         /// <summary>
@@ -163,14 +173,24 @@ namespace slskd.Users
         ///     Retrieves a value indicating whether the specified peer is privileged.
         /// </summary>
         /// <param name="username">The username of the peer.</param>
+        /// <param name="bypassCache">A value indicating whether to bypass the cache and query the server.</param>
         /// <returns>A value indicating whether the specified peer is privileged.</returns>
-        public async Task<bool> IsPrivilegedAsync(string username)
+        public async Task<bool> IsPrivilegedAsync(string username, bool bypassCache = false)
         {
-            if (PrivilegedUserCache.TryGetValue(username, out var cachedValue))
+            if (!bypassCache)
             {
-                return (bool)cachedValue;
+                if (PrivilegedUserCache.TryGetValue(username, out var cachedValue))
+                {
+                    Log.Debug("Cache HIT for user {Username} privileges (privileged: {Privileged})", username, cachedValue);
+                    return (bool)cachedValue;
+                }
+                else
+                {
+                    Log.Debug("Cache MISS for user {Username} privileges");
+                }
             }
 
+            Log.Debug("Checking privileged status for user {Username}", username);
             var privileged = await Client.GetUserPrivilegedAsync(username);
 
             CachePrivilegedUser(username, privileged: privileged);
@@ -189,13 +209,10 @@ namespace slskd.Users
         }
 
         private void CachePrivilegedUser(string username, bool privileged = true)
-        {
-            _ = PrivilegedUserCache.GetOrCreate(username, entry =>
-            {
-                entry.AbsoluteExpiration = DateTimeOffset.Now.AddHours(24);
-                return privileged;
-            });
-        }
+            => PrivilegedUserCache.Set(username, privileged, new MemoryCacheEntryOptions() { AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(24) });
+
+        private void ResetPrivilegedUserCache()
+            => PrivilegedUserCache = new MemoryCache(new MemoryCacheOptions());
 
         private void Configure(Options options)
         {
@@ -219,7 +236,7 @@ namespace slskd.Users
                 }
             }
 
-            Map = map;
+            UserGroupMap = map;
             LastOptionsHash = optionsHash;
         }
     }
