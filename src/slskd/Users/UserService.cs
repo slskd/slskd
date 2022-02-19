@@ -24,8 +24,10 @@ namespace slskd.Users
     using System.Collections.Generic;
     using System.Linq;
     using System.Net;
+    using System.Threading;
     using System.Threading.Tasks;
     using Microsoft.EntityFrameworkCore;
+    using Microsoft.Extensions.Caching.Memory;
     using Serilog;
     using Soulseek;
 
@@ -48,6 +50,15 @@ namespace slskd.Users
             IOptionsMonitor<Options> optionsMonitor)
         {
             Client = soulseekClient;
+            Client.PrivilegedUserListReceived += (_, usernames) =>
+            {
+                foreach (var username in usernames)
+                {
+                    CachePrivilegedUser(username, privileged: true);
+                }
+            };
+            Client.PrivilegeNotificationReceived += (_, e) => CachePrivilegedUser(e.Username, privileged: true);
+
             ContextFactory = contextFactory;
 
             OptionsMonitor = optionsMonitor;
@@ -61,6 +72,7 @@ namespace slskd.Users
         private string LastOptionsHash { get; set; }
         private ILogger Log { get; set; } = Serilog.Log.ForContext<UserService>();
         private ConcurrentDictionary<string, string> Map { get; set; } = new ConcurrentDictionary<string, string>();
+        private IMemoryCache PrivilegedUserCache { get; set; } = new MemoryCache(new MemoryCacheOptions());
         private IOptionsMonitor<Options> OptionsMonitor { get; }
 
         /// <summary>
@@ -68,8 +80,16 @@ namespace slskd.Users
         /// </summary>
         /// <param name="username">The username of the peer.</param>
         /// <returns>The group for the specified username.</returns>
-        public string GetGroup(string username)
+        public async Task<string> GetGroupAsync(string username)
         {
+            if (await IsPrivilegedAsync(username))
+            {
+                Console.WriteLine($"{username} is privileged");
+                return Application.PrivilegedGroup;
+            }
+
+            Console.WriteLine($"{username} is not privileged");
+
             return Map.GetValueOrDefault(username ?? string.Empty, Application.DefaultGroup);
         }
 
@@ -144,8 +164,19 @@ namespace slskd.Users
         /// </summary>
         /// <param name="username">The username of the peer.</param>
         /// <returns>A value indicating whether the specified peer is privileged.</returns>
-        public Task<bool> IsPrivilegedAsync(string username)
-            => Client.GetUserPrivilegedAsync(username);
+        public async Task<bool> IsPrivilegedAsync(string username)
+        {
+            if (PrivilegedUserCache.TryGetValue(username, out var cachedValue))
+            {
+                return (bool)cachedValue;
+            }
+
+            var privileged = await Client.GetUserPrivilegedAsync(username);
+
+            CachePrivilegedUser(username, privileged: privileged);
+
+            return privileged;
+        }
 
         /// <summary>
         ///     Adds the specified username to the server-side user list.
@@ -155,6 +186,15 @@ namespace slskd.Users
         public async Task WatchAsync(string username)
         {
             await Client.AddUserAsync(username);
+        }
+
+        private void CachePrivilegedUser(string username, bool privileged = true)
+        {
+            _ = PrivilegedUserCache.GetOrCreate(username, entry =>
+            {
+                entry.AbsoluteExpiration = DateTimeOffset.Now.AddHours(24);
+                return privileged;
+            });
         }
 
         private void Configure(Options options)

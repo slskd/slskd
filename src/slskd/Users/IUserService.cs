@@ -30,7 +30,7 @@ namespace slskd.Users
         /// </summary>
         /// <param name="username">The username of the peer.</param>
         /// <returns>The group for the specified username.</returns>
-        string GetGroup(string username);
+        Task<string> GetGroupAsync(string username);
 
         /// <summary>
         ///     Retrieves peer <see cref="Info"/>.
