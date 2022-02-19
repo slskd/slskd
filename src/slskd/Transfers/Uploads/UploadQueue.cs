@@ -296,15 +296,15 @@ namespace slskd.Transfers
                 {
                     // the priority group is hard-coded with priority 0, slot count equivalent to the overall max,
                     // and a FIFO strategy. all other groups have a minimum priority of 1 (enforced by options validation)
-                    // to ensure that priviledged users always take priority, regardless of user configuration.
-                    // the strategy is fixed to FIFO because that gives priviledged users the closest experience
+                    // to ensure that privileged users always take priority, regardless of user configuration.
+                    // the strategy is fixed to FIFO because that gives privileged users the closest experience
                     // to the official client, as well as the appearance of fairness once the first upload begins.
                     new Group()
                     {
-                        Name = Application.PriviledgedGroup,
+                        Name = Application.PrivilegedGroup,
                         Priority = 0,
                         Slots = MaxSlots,
-                        UsedSlots = GetExistingUsedSlotsOrDefault(Application.PriviledgedGroup),
+                        UsedSlots = GetExistingUsedSlotsOrDefault(Application.PrivilegedGroup),
                         Strategy = QueueStrategy.FirstInFirstOut,
                     },
                     new Group()

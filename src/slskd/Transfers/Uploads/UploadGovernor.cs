@@ -150,7 +150,7 @@ namespace slskd.Transfers
             // also, so transfers in progress will briefly exceed the intended speeds.
             var tokenBuckets = new Dictionary<string, ITokenBucket>()
             {
-                { Application.PriviledgedGroup, CreateBucket(options.Global.Upload.SpeedLimit) },
+                { Application.PrivilegedGroup, CreateBucket(options.Global.Upload.SpeedLimit) },
                 { Application.DefaultGroup, CreateBucket(options.Groups.Default.Upload.SpeedLimit) },
                 { Application.LeecherGroup, CreateBucket(options.Groups.Leechers.Upload.SpeedLimit) },
             };

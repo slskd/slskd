@@ -60,9 +60,9 @@ namespace slskd
         public static readonly string DefaultGroup = "default";
 
         /// <summary>
-        ///     The name of the priviledged user group.
+        ///     The name of the privileged user group.
         /// </summary>
-        public static readonly string PriviledgedGroup = "priviledged";
+        public static readonly string PrivilegedGroup = "privileged";
 
         /// <summary>
         ///     The name of the leecher user group.
