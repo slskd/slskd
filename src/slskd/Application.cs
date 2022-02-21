@@ -590,12 +590,12 @@ namespace slskd
             // uploads would be handled separately.
             Task.Run(async () =>
             {
-                // prime the privileges cache for this user
-                // this must be done prior to each upload, or we risk not correctly categorizing
-                // privileged users as such.
-                if (await Users.IsPrivilegedAsync(username))
+                // users with uploads must be watched so that we can keep informed of their
+                // online status, privileges, and statistics.  this is so that we can accurately
+                // determine their effective group.
+                if (Users.Users.Any(u => u.Username == username))
                 {
-                    Log.Debug("User {Username} is privileged; upload will be prioritized", username);
+                    await Users.WatchAsync(username);
                 }
 
                 using var stream = new FileStream(fileInfo.FullName, FileMode.Open, FileAccess.Read);
@@ -857,7 +857,7 @@ namespace slskd
 
         private void State_OnChange((State Previous, State Current) state)
         {
-            Log.Debug("State changed from {Previous} to {Current}", state.Previous.ToJson(), state.Current.ToJson());
+            //Log.Debug("State changed from {Previous} to {Current}", state.Previous.ToJson(), state.Current.ToJson());
             _ = ApplicationHub.BroadcastStateAsync(state.Current);
         }
 
