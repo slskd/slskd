@@ -20,6 +20,7 @@ namespace slskd
     using System;
     using System.Net;
     using System.Text.Json.Serialization;
+    using slskd.Users;
     using Soulseek;
 
     /// <summary>
@@ -34,6 +35,7 @@ namespace slskd
         public ServerState Server { get; init; } = new ServerState();
         public SharedFileCacheState SharedFileCache { get; init; } = new SharedFileCacheState();
         public string[] Rooms { get; init; } = Array.Empty<string>();
+        public User[] Users { get; init; } = Array.Empty<User>();
     }
 
     public record VersionState
