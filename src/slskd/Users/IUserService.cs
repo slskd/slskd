@@ -17,6 +17,7 @@
 
 namespace slskd.Users
 {
+    using System.Collections.Generic;
     using System.Net;
     using System.Threading.Tasks;
 
@@ -25,6 +26,11 @@ namespace slskd.Users
     /// </summary>
     public interface IUserService
     {
+        /// <summary>
+        ///     Gets the list of tracked users.
+        /// </summary>
+        IReadOnlyList<User> Users { get; }
+
         /// <summary>
         ///     Gets the name of the group for the specified <paramref name="username"/>.
         /// </summary>
@@ -66,9 +72,8 @@ namespace slskd.Users
         ///     Retrieves a value indicating whether the specified peer is privileged.
         /// </summary>
         /// <param name="username">The username of the peer.</param>
-        /// <param name="bypassCache">A value indicating whether to bypass the cache and query the server.</param>
         /// <returns>A value indicating whether the specified peer is privileged.</returns>
-        Task<bool> IsPrivilegedAsync(string username, bool bypassCache = false);
+        Task<bool> IsPrivilegedAsync(string username);
 
         /// <summary>
         ///     Adds the specified username to the server-side user list.
