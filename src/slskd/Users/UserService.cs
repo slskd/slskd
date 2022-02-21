@@ -26,7 +26,6 @@ namespace slskd.Users
     using System.Net;
     using System.Threading.Tasks;
     using Microsoft.EntityFrameworkCore;
-    using Microsoft.Extensions.Caching.Memory;
     using Serilog;
     using Soulseek;
 
@@ -41,46 +40,39 @@ namespace slskd.Users
         ///     Initializes a new instance of the <see cref="UserService"/> class.
         /// </summary>
         /// <param name="soulseekClient"></param>
+        /// <param name="stateMutator"></param>
         /// <param name="contextFactory">The database context to use.</param>
         /// <param name="optionsMonitor"></param>
         public UserService(
             ISoulseekClient soulseekClient,
+            IStateMutator<State> stateMutator,
             IDbContextFactory<UserDbContext> contextFactory,
             IOptionsMonitor<Options> optionsMonitor)
         {
             Client = soulseekClient;
-            Client.PrivilegedUserListReceived += (_, usernames) =>
-            {
-                foreach (var username in usernames)
-                {
-                    CachePrivilegedUser(username, privileged: true);
-                }
-            };
-            Client.PrivilegeNotificationReceived += (_, e) =>
-            {
-                // note: in testing i wasn't able to get this to fire by gifting privileges
-                // to other users. it isn't harming anything so i'll leave it, but this most
-                // likely means that the initial list we get at login is all the information
-                // the server is going to offer unsolicited.
-                CachePrivilegedUser(e.Username, privileged: true);
-            };
-            Client.Disconnected += (_, _) => ResetPrivilegedUserCache();
+
+            StateMutator = stateMutator;
 
             ContextFactory = contextFactory;
 
             OptionsMonitor = optionsMonitor;
             OptionsMonitor.OnChange(Configure);
 
+            BindClientEvents();
             Configure(OptionsMonitor.CurrentValue);
-            ResetPrivilegedUserCache();
         }
 
+        /// <summary>
+        ///     Gets the list of tracked users.
+        /// </summary>
+        public IReadOnlyList<User> Users => UserDictionary.Values.ToList().AsReadOnly();
+
         private ISoulseekClient Client { get; }
+        private IStateMutator<State> StateMutator { get; }
         private IDbContextFactory<UserDbContext> ContextFactory { get; }
         private string LastOptionsHash { get; set; }
         private ILogger Log { get; set; } = Serilog.Log.ForContext<UserService>();
-        private ConcurrentDictionary<string, string> UserGroupMap { get; set; } = new ConcurrentDictionary<string, string>();
-        private IMemoryCache PrivilegedUserCache { get; set; }
+        private ConcurrentDictionary<string, User> UserDictionary { get; set; } = new ConcurrentDictionary<string, User>();
         private IOptionsMonitor<Options> OptionsMonitor { get; }
 
         /// <summary>
@@ -90,17 +82,13 @@ namespace slskd.Users
         /// <returns>The group for the specified username.</returns>
         public string GetGroup(string username)
         {
-            // this is a hot path used for upload speed governance and upload orchestration. as such,
-            // check the cache synchronously, instead of looking for stale values and re-querying the server.
-            // consumers of this method are responsible for invoking IsPrivilegedAsync with the bypassCache flag
-            // set to true at least every 12 hours for any usernames that need to be actively tracked in order to
-            // keep this cache warm.
-            if (PrivilegedUserCache.TryGetValue(username, out var privileged) && (bool)privileged)
+            // note: this is an extremely hot path; keep the work done to an absolute minimum.
+            if (UserDictionary.TryGetValue(username ?? string.Empty, out var user))
             {
-                return Application.PrivilegedGroup;
+                return user.Group ?? Application.DefaultGroup;
             }
 
-            return UserGroupMap.GetValueOrDefault(username ?? string.Empty, Application.DefaultGroup);
+            return Application.DefaultGroup;
         }
 
         /// <summary>
@@ -156,8 +144,36 @@ namespace slskd.Users
         public async Task<Status> GetStatusAsync(string username)
         {
             var soulseekStatus = await Client.GetUserStatusAsync(username);
+            var status = Status.FromSoulseekUserStatus(soulseekStatus);
 
-            return Status.FromSoulseekUserStatus(soulseekStatus);
+            UserDictionary.AddOrUpdate(
+                key: username,
+                addValue: new User() { Status = status },
+                updateValueFactory: (key, user) => user with { Username = username, Status = status });
+
+            StateMutator.SetValue(state => state with { Users = Users.ToArray() });
+
+            return status;
+        }
+
+        /// <summary>
+        ///     Retrieves the current <see cref="Statistics"/> of a peer.
+        /// </summary>
+        /// <param name="username">The username of the peer.</param>
+        /// <returns>The retrieved statistics.</returns>
+        public async Task<Statistics> GetStatisticsAsync(string username)
+        {
+            var soulseekStatistics = await Client.GetUserStatisticsAsync(username);
+            var statistics = Statistics.FromSoulseekUserStatistics(soulseekStatistics);
+
+            UserDictionary.AddOrUpdate(
+                key: username,
+                addValue: new User() { Statistics = statistics },
+                updateValueFactory: (key, user) => user with { Username = username, Statistics = statistics });
+
+            StateMutator.SetValue(state => state with { Users = Users.ToArray() });
+
+            return statistics;
         }
 
         /// <summary>
@@ -173,29 +189,11 @@ namespace slskd.Users
         ///     Retrieves a value indicating whether the specified peer is privileged.
         /// </summary>
         /// <param name="username">The username of the peer.</param>
-        /// <param name="bypassCache">A value indicating whether to bypass the cache and query the server.</param>
         /// <returns>A value indicating whether the specified peer is privileged.</returns>
-        public async Task<bool> IsPrivilegedAsync(string username, bool bypassCache = false)
+        public async Task<bool> IsPrivilegedAsync(string username)
         {
-            if (!bypassCache)
-            {
-                if (PrivilegedUserCache.TryGetValue(username, out var cachedValue))
-                {
-                    Log.Debug("Cache HIT for user {Username} privileges (privileged: {Privileged})", username, cachedValue);
-                    return (bool)cachedValue;
-                }
-                else
-                {
-                    Log.Debug("Cache MISS for user {Username} privileges");
-                }
-            }
-
-            Log.Debug("Checking privileged status for user {Username}", username);
-            var privileged = await Client.GetUserPrivilegedAsync(username);
-
-            CachePrivilegedUser(username, privileged: privileged);
-
-            return privileged;
+            var status = await GetStatusAsync(username);
+            return status.IsPrivileged;
         }
 
         /// <summary>
@@ -206,13 +204,47 @@ namespace slskd.Users
         public async Task WatchAsync(string username)
         {
             await Client.AddUserAsync(username);
+            await GetStatusAsync(username);
+
+            UserDictionary.TryAdd(username, new User());
+            StateMutator.SetValue(state => state with { Users = Users.ToArray() });
+            Log.Information("Added user {Username} to watch list", username);
         }
 
-        private void CachePrivilegedUser(string username, bool privileged = true)
-            => PrivilegedUserCache.Set(username, privileged, new MemoryCacheEntryOptions() { AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(24) });
+        private void BindClientEvents()
+        {
+            Client.UserStatisticsChanged += (_, e) =>
+            {
+                var statistics = Statistics.FromSoulseekUserStatistics(e);
 
-        private void ResetPrivilegedUserCache()
-            => PrivilegedUserCache = new MemoryCache(new MemoryCacheOptions());
+                UserDictionary.AddOrUpdate(
+                    key: e.Username,
+                    addValue: new User() { Statistics = statistics },
+                    updateValueFactory: (key, user) => user with { Username = e.Username, Statistics = statistics });
+
+                StateMutator.SetValue(state => state with { Users = Users.ToArray() });
+            };
+
+            Client.UserStatusChanged += (_, e) =>
+            {
+                var status = Status.FromSoulseekUserStatus(e);
+
+                Console.WriteLine(e.ToJson());
+
+                UserDictionary.AddOrUpdate(
+                    key: e.Username,
+                    addValue: new User() { Status = status },
+                    updateValueFactory: (key, user) => user with { Username = e.Username, Status = status });
+
+                StateMutator.SetValue(state => state with { Users = Users.ToArray() });
+
+                // the server doesn't send statistics events by itself, so
+                // when a user status changes, fetch stats at the same time.
+                _ = GetStatisticsAsync(e.Username);
+            };
+
+            Client.LoggedIn += (_, _) => WatchAllUsers();
+        }
 
         private void Configure(Options options)
         {
@@ -223,21 +255,48 @@ namespace slskd.Users
                 return;
             }
 
-            var map = new ConcurrentDictionary<string, string>();
+            var usernamesBeforeUpdate = UserDictionary.Keys.ToList();
+            var usernamesAfterUpdate = options.Groups.UserDefined.SelectMany(g => g.Value.Members);
+            var usernamesRemoved = usernamesBeforeUpdate.Except(usernamesAfterUpdate);
 
-            // sort by priority, ascending
-            foreach (var group in options.Groups.UserDefined.OrderBy(kvp => kvp.Value.Upload.Priority))
+            foreach (var username in usernamesRemoved)
             {
-                foreach (var user in group.Value.Members)
+                UserDictionary.AddOrUpdate(
+                    key: username,
+                    addValue: new User() { Username = username },
+                    updateValueFactory: (key, user) => user with { Username = username, Group = null });
+            }
+
+            // sort by priority, descending.  this will cause the highest priority group for the user
+            // to be persisted when the operation is complete.
+            foreach (var group in options.Groups.UserDefined.OrderByDescending(kvp => kvp.Value.Upload.Priority))
+            {
+                foreach (var username in group.Value.Members)
                 {
-                    // if the key already exists, leave the existing entry. if a user appears in more than one group, the higher
-                    // priority (lower numbered) group is their effective group.
-                    map.TryAdd(user, group.Key);
+                    UserDictionary.AddOrUpdate(
+                        key: username,
+                        addValue: new User() { Username = username, Group = group.Key },
+                        updateValueFactory: (key, user) => user with { Username = username, Group = group.Key });
                 }
             }
 
-            UserGroupMap = map;
+            Console.WriteLine($"Updating user state: {Users.ToArray().ToJson()}");
+            StateMutator.SetValue(state => state with { Users = Users.ToArray() });
+
+            WatchAllUsers();
+
             LastOptionsHash = optionsHash;
+        }
+
+        private void WatchAllUsers()
+        {
+            if (Client.State.HasFlag(SoulseekClientStates.Connected) && Client.State.HasFlag(SoulseekClientStates.LoggedIn))
+            {
+                foreach (var username in UserDictionary.Keys.ToList())
+                {
+                    _ = WatchAsync(username);
+                }
+            }
         }
     }
 }
