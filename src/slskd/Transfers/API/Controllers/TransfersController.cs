@@ -140,7 +140,7 @@ namespace slskd.Transfers.API
                         {
                             Tracker.AddOrUpdate(e, cts);
 
-                            if (e.Transfer.State == TransferStates.Queued || e.Transfer.State == TransferStates.Initializing)
+                            if (e.Transfer.State.HasFlag(TransferStates.Queued) || e.Transfer.State == TransferStates.Initializing)
                             {
                                 waitUntilEnqueue.TrySetResult(true);
                             }
