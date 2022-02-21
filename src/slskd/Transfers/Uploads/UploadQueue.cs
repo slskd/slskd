@@ -75,20 +75,6 @@ namespace slskd.Transfers
             OptionsMonitor.OnChange(Configure);
 
             Configure(OptionsMonitor.CurrentValue);
-
-            // periodically check the privileged status of users with uploads in the queue
-            // privileges are cached for 24 hours; forcing an update every 4 hours ensures we always
-            // have a relatively fresh value available. the server won't tell us when users gain
-            // or lose privileged status, so we want to be fairly up to date.
-            PrivilegeWatchdog = new System.Timers.Timer(TimeSpan.FromHours(4).TotalMilliseconds);
-            PrivilegeWatchdog.Elapsed += (sender, e) =>
-            {
-                foreach (var username in Uploads.Keys.ToList())
-                {
-                    _ = Users.IsPrivilegedAsync(username, bypassCache: true);
-                }
-            };
-            PrivilegeWatchdog.Start();
         }
 
         private ILogger Log { get; } = Serilog.Log.ForContext<UploadQueue>();
@@ -100,7 +86,6 @@ namespace slskd.Transfers
         private int MaxSlots { get; set; } = 0;
         private Dictionary<string, Group> Groups { get; set; } = new Dictionary<string, Group>();
         private ConcurrentDictionary<string, List<Upload>> Uploads { get; set; } = new ConcurrentDictionary<string, List<Upload>>();
-        private System.Timers.Timer PrivilegeWatchdog { get; set; }
 
         /// <summary>
         ///     Enqueues an upload.
