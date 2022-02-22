@@ -67,13 +67,19 @@ namespace slskd.Users
         /// </summary>
         public IReadOnlyList<User> Users => UserDictionary.Values.ToList().AsReadOnly();
 
+        /// <summary>
+        ///     Gets the list of watched usernames.
+        /// </summary>
+        public IReadOnlyList<string> WatchedUsernames => WatchedUsernamesDictionary.Keys.ToList().AsReadOnly();
+
         private ISoulseekClient Client { get; }
-        private IStateMutator<State> StateMutator { get; }
         private IDbContextFactory<UserDbContext> ContextFactory { get; }
         private string LastOptionsHash { get; set; }
         private ILogger Log { get; set; } = Serilog.Log.ForContext<UserService>();
-        private ConcurrentDictionary<string, User> UserDictionary { get; set; } = new ConcurrentDictionary<string, User>();
         private IOptionsMonitor<Options> OptionsMonitor { get; }
+        private IStateMutator<State> StateMutator { get; }
+        private ConcurrentDictionary<string, User> UserDictionary { get; set; } = new ConcurrentDictionary<string, User>();
+        private ConcurrentDictionary<string, bool> WatchedUsernamesDictionary { get; set; } = new ConcurrentDictionary<string, bool>();
 
         /// <summary>
         ///     Gets the name of the group for the specified <paramref name="username"/>.
@@ -85,6 +91,11 @@ namespace slskd.Users
             // note: this is an extremely hot path; keep the work done to an absolute minimum.
             if (UserDictionary.TryGetValue(username ?? string.Empty, out var user))
             {
+                if (user.Status?.IsPrivileged ?? false)
+                {
+                    return Application.PrivilegedGroup;
+                }
+
                 return user.Group ?? Application.DefaultGroup;
             }
 
@@ -137,26 +148,6 @@ namespace slskd.Users
         }
 
         /// <summary>
-        ///     Retrieves the current <see cref="Status"/> of a peer.
-        /// </summary>
-        /// <param name="username">The username of the peer.</param>
-        /// <returns>The retrieved status.</returns>
-        public async Task<Status> GetStatusAsync(string username)
-        {
-            var soulseekStatus = await Client.GetUserStatusAsync(username);
-            var status = Status.FromSoulseekUserStatus(soulseekStatus);
-
-            UserDictionary.AddOrUpdate(
-                key: username,
-                addValue: new User() { Status = status },
-                updateValueFactory: (key, user) => user with { Username = username, Status = status });
-
-            StateMutator.SetValue(state => state with { Users = Users.ToArray() });
-
-            return status;
-        }
-
-        /// <summary>
         ///     Retrieves the current <see cref="Statistics"/> of a peer.
         /// </summary>
         /// <param name="username">The username of the peer.</param>
@@ -164,16 +155,18 @@ namespace slskd.Users
         public async Task<Statistics> GetStatisticsAsync(string username)
         {
             var soulseekStatistics = await Client.GetUserStatisticsAsync(username);
-            var statistics = Statistics.FromSoulseekUserStatistics(soulseekStatistics);
+            return Statistics.FromSoulseekUserStatistics(soulseekStatistics);
+        }
 
-            UserDictionary.AddOrUpdate(
-                key: username,
-                addValue: new User() { Statistics = statistics },
-                updateValueFactory: (key, user) => user with { Username = username, Statistics = statistics });
-
-            StateMutator.SetValue(state => state with { Users = Users.ToArray() });
-
-            return statistics;
+        /// <summary>
+        ///     Retrieves the current <see cref="Status"/> of a peer.
+        /// </summary>
+        /// <param name="username">The username of the peer.</param>
+        /// <returns>The retrieved status.</returns>
+        public async Task<Status> GetStatusAsync(string username)
+        {
+            var soulseekStatus = await Client.GetUserStatusAsync(username);
+            return Status.FromSoulseekUserStatus(soulseekStatus);
         }
 
         /// <summary>
@@ -197,22 +190,39 @@ namespace slskd.Users
         }
 
         /// <summary>
+        ///     Gets a value indicating whether the specified <paramref name="username"/> is watched.
+        /// </summary>
+        /// <param name="username">The username of the peer.</param>
+        /// <returns>A value indicating whether the username is watched.</returns>
+        public bool IsWatched(string username) => WatchedUsernamesDictionary.ContainsKey(username);
+
+        /// <summary>
         ///     Adds the specified username to the server-side user list.
         /// </summary>
         /// <param name="username">The username of the peer.</param>
         /// <returns>The operation context.</returns>
         public async Task WatchAsync(string username)
         {
-            await Client.AddUserAsync(username);
-            await GetStatusAsync(username);
+            // note that this isn't strictly synchronized, and this may be executed more than once per user. this is acceptable,
+            // and has no side effects other than increased round trips to the server.
+            if (!WatchedUsernamesDictionary.ContainsKey(username))
+            {
+                await Client.AddUserAsync(username);
+                WatchedUsernamesDictionary.TryAdd(username, true);
 
-            UserDictionary.TryAdd(username, new User());
-            StateMutator.SetValue(state => state with { Users = Users.ToArray() });
-            Log.Information("Added user {Username} to watch list", username);
+                Log.Information("Added user {Username} to watch list", username);
+
+                // the server does not send a status update when a user is added, but does when that user's status changes.
+                // request the status explicitly to get the current status.
+                await GetStatusAsync(username);
+            }
         }
 
         private void BindClientEvents()
         {
+            // it isn't completely clear what all causes the server to send this message. we know it is sent following an explicit
+            // request, but it may be sent in an unsolicited manner as well. to be safe, we update internal stats for this user
+            // only on this event, which should cover all bases (both solicited and unsolicited).
             Client.UserStatisticsChanged += (_, e) =>
             {
                 var statistics = Statistics.FromSoulseekUserStatistics(e);
@@ -225,11 +235,11 @@ namespace slskd.Users
                 StateMutator.SetValue(state => state with { Users = Users.ToArray() });
             };
 
+            // the server sends this message in both solicited (we request status), and unsolicited (the user's status changes and
+            // the server informs us without asking). we handle updates in this event handler to cover both cases.
             Client.UserStatusChanged += (_, e) =>
             {
                 var status = Status.FromSoulseekUserStatus(e);
-
-                Console.WriteLine(e.ToJson());
 
                 UserDictionary.AddOrUpdate(
                     key: e.Username,
@@ -238,12 +248,12 @@ namespace slskd.Users
 
                 StateMutator.SetValue(state => state with { Users = Users.ToArray() });
 
-                // the server doesn't send statistics events by itself, so
-                // when a user status changes, fetch stats at the same time.
+                // the server doesn't send statistics events by itself, so when a user status changes, fetch stats at the same time.
                 _ = GetStatisticsAsync(e.Username);
             };
 
             Client.LoggedIn += (_, _) => WatchAllUsers();
+            Client.Disconnected += (_, _) => WatchedUsernamesDictionary.Clear();
         }
 
         private void Configure(Options options)
@@ -267,8 +277,8 @@ namespace slskd.Users
                     updateValueFactory: (key, user) => user with { Username = username, Group = null });
             }
 
-            // sort by priority, descending.  this will cause the highest priority group for the user
-            // to be persisted when the operation is complete.
+            // sort by priority, descending. this will cause the highest priority group for the user to be persisted when the
+            // operation is complete.
             foreach (var group in options.Groups.UserDefined.OrderByDescending(kvp => kvp.Value.Upload.Priority))
             {
                 foreach (var username in group.Value.Members)
@@ -280,7 +290,6 @@ namespace slskd.Users
                 }
             }
 
-            Console.WriteLine($"Updating user state: {Users.ToArray().ToJson()}");
             StateMutator.SetValue(state => state with { Users = Users.ToArray() });
 
             WatchAllUsers();

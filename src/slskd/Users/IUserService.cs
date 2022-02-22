@@ -32,6 +32,11 @@ namespace slskd.Users
         IReadOnlyList<User> Users { get; }
 
         /// <summary>
+        ///     Gets the list of watched usernames.
+        /// </summary>
+        IReadOnlyList<string> WatchedUsernames { get; }
+
+        /// <summary>
         ///     Gets the name of the group for the specified <paramref name="username"/>.
         /// </summary>
         /// <param name="username">The username of the peer.</param>
@@ -74,6 +79,13 @@ namespace slskd.Users
         /// <param name="username">The username of the peer.</param>
         /// <returns>A value indicating whether the specified peer is privileged.</returns>
         Task<bool> IsPrivilegedAsync(string username);
+
+        /// <summary>
+        ///     Gets a value indicating whether the specified <paramref name="username"/> is watched.
+        /// </summary>
+        /// <param name="username">The username of the peer.</param>
+        /// <returns>A value indicating whether the username is watched.</returns>
+        bool IsWatched(string username);
 
         /// <summary>
         ///     Adds the specified username to the server-side user list.

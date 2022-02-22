@@ -593,7 +593,7 @@ namespace slskd
                 // users with uploads must be watched so that we can keep informed of their
                 // online status, privileges, and statistics.  this is so that we can accurately
                 // determine their effective group.
-                if (Users.Users.Any(u => u.Username == username))
+                if (!Users.IsWatched(username))
                 {
                     await Users.WatchAsync(username);
                 }
