@@ -253,7 +253,21 @@ namespace slskd.Users
             };
 
             Client.LoggedIn += (_, _) => WatchAllUsers();
-            Client.Disconnected += (_, _) => WatchedUsernamesDictionary.Clear();
+            Client.Disconnected += (_, _) =>
+            {
+                // when the client is disconnected, the watched user list resets server-side,
+                // so clear the watched dictionary to reflect this
+                WatchedUsernamesDictionary.Clear();
+
+                // over the course of operation the application will watch users which are not explicitly
+                // configured as they enqueue uploads. these are considered transiently-tracked users,
+                // and we want to discard them upon disconnect to avoid re-watching them when the client
+                // is reconnected. to do this, purge the user dictionary of any entry lacking an explicit group.
+                foreach (var user in UserDictionary.Values.Where(user => user.Group == null))
+                {
+                    UserDictionary.TryRemove(user.Username, out _);
+                }
+            };
         }
 
         private void Configure(Options options)
