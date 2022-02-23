@@ -17,9 +17,7 @@
 
 namespace slskd.Users
 {
-    using Soulseek;
-
-    public class Statistics
+    public record Statistics
     {
         /// <summary>
         ///     Gets the average upload speed of the user.
@@ -40,16 +38,5 @@ namespace slskd.Users
         ///     Gets the number of uploads tracked by the server for this user.
         /// </summary>
         public long UploadCount { get; init; }
-
-        public static Statistics FromSoulseekUserStatistics(UserStatistics statistics)
-        {
-            return new Statistics()
-            {
-                AverageSpeed = statistics.AverageSpeed,
-                DirectoryCount = statistics.DirectoryCount,
-                FileCount = statistics.FileCount,
-                UploadCount = statistics.UploadCount,
-            };
-        }
     }
 }

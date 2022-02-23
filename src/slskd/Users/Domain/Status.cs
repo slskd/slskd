@@ -19,18 +19,19 @@ namespace slskd.Users
 {
     using Soulseek;
 
-    public class Status
+    /// <summary>
+    ///     User status.
+    /// </summary>
+    public record Status
     {
+        /// <summary>
+        ///     Gets a value indicating whether the user is privileged.
+        /// </summary>
         public bool IsPrivileged { get; init; }
-        public UserPresence Presence { get; init; }
 
-        public static Status FromSoulseekUserStatus(UserStatus status)
-        {
-            return new Status()
-            {
-                IsPrivileged = status.IsPrivileged,
-                Presence = status.Presence,
-            };
-        }
+        /// <summary>
+        ///     Gets the user's presence.
+        /// </summary>
+        public UserPresence Presence { get; init; }
     }
 }

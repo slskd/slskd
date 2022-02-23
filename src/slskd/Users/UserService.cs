@@ -155,7 +155,7 @@ namespace slskd.Users
         public async Task<Statistics> GetStatisticsAsync(string username)
         {
             var soulseekStatistics = await Client.GetUserStatisticsAsync(username);
-            return Statistics.FromSoulseekUserStatistics(soulseekStatistics);
+            return soulseekStatistics.AsStatistics();
         }
 
         /// <summary>
@@ -166,7 +166,7 @@ namespace slskd.Users
         public async Task<Status> GetStatusAsync(string username)
         {
             var soulseekStatus = await Client.GetUserStatusAsync(username);
-            return Status.FromSoulseekUserStatus(soulseekStatus);
+            return soulseekStatus.AsStatus();
         }
 
         /// <summary>
@@ -223,33 +223,33 @@ namespace slskd.Users
             // it isn't completely clear what all causes the server to send this message. we know it is sent following an explicit
             // request, but it may be sent in an unsolicited manner as well. to be safe, we update internal stats for this user
             // only on this event, which should cover all bases (both solicited and unsolicited).
-            Client.UserStatisticsChanged += (_, e) =>
+            Client.UserStatisticsChanged += (_, userStatistics) =>
             {
-                var statistics = Statistics.FromSoulseekUserStatistics(e);
+                var statistics = userStatistics.AsStatistics();
 
                 UserDictionary.AddOrUpdate(
-                    key: e.Username,
+                    key: userStatistics.Username,
                     addValue: new User() { Statistics = statistics },
-                    updateValueFactory: (key, user) => user with { Username = e.Username, Statistics = statistics });
+                    updateValueFactory: (key, user) => user with { Username = userStatistics.Username, Statistics = statistics });
 
                 StateMutator.SetValue(state => state with { Users = Users.ToArray() });
             };
 
             // the server sends this message in both solicited (we request status), and unsolicited (the user's status changes and
             // the server informs us without asking). we handle updates in this event handler to cover both cases.
-            Client.UserStatusChanged += (_, e) =>
+            Client.UserStatusChanged += (_, userStatus) =>
             {
-                var status = Status.FromSoulseekUserStatus(e);
+                var status = userStatus.AsStatus();
 
                 UserDictionary.AddOrUpdate(
-                    key: e.Username,
+                    key: userStatus.Username,
                     addValue: new User() { Status = status },
-                    updateValueFactory: (key, user) => user with { Username = e.Username, Status = status });
+                    updateValueFactory: (key, user) => user with { Username = userStatus.Username, Status = status });
 
                 StateMutator.SetValue(state => state with { Users = Users.ToArray() });
 
                 // the server doesn't send statistics events by itself, so when a user status changes, fetch stats at the same time.
-                _ = GetStatisticsAsync(e.Username);
+                _ = GetStatisticsAsync(userStatus.Username);
             };
 
             Client.LoggedIn += (_, _) => WatchAllUsers();
