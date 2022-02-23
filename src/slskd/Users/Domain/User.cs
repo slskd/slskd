@@ -19,9 +19,24 @@ namespace slskd.Users
 {
     public record User
     {
+        /// <summary>
+        ///     Gets the username of the user.
+        /// </summary>
         public string Username { get; init; }
+
+        /// <summary>
+        ///     Gets the user's configured group.
+        /// </summary>
         public string Group { get; init; }
+
+        /// <summary>
+        ///     Gets the user's statistics.
+        /// </summary>
         public Statistics Statistics { get; init; }
+
+        /// <summary>
+        ///     Gets the user's status.
+        /// </summary>
         public Status Status { get; init; }
     }
 }
