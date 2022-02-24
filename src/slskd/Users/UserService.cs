@@ -58,7 +58,21 @@ namespace slskd.Users
             OptionsMonitor = optionsMonitor;
             OptionsMonitor.OnChange(options => Configure(options));
 
-            BindClientEvents();
+            // updates may be sent unsolicited from the server, so update when we get them.
+            // binding these events will cause multiple redundant round trips when initially watching a user
+            // or when explicitly requesting via GetStatus/GetStatistics. this is wasteful, but there's no functional side effect.
+            Client.UserStatisticsChanged += (_, userStatistics) => UpdateStatistics(userStatistics.Username, userStatistics.ToStatistics());
+            Client.UserStatusChanged += (_, userStatus) =>
+            {
+                UpdateStatus(userStatus.Username, userStatus.ToStatus());
+
+                // the server doesn't send statistics events by itself, so when a user status changes, fetch stats at the same time.
+                _ = GetStatisticsAsync(userStatus.Username);
+            };
+
+            Client.LoggedIn += (_, _) => Configure(OptionsMonitor.CurrentValue, force: true);
+            Client.Disconnected += (_, _) => Reset();
+
             Configure(OptionsMonitor.CurrentValue);
         }
 
@@ -155,7 +169,11 @@ namespace slskd.Users
         public async Task<Statistics> GetStatisticsAsync(string username)
         {
             var soulseekStatistics = await Client.GetUserStatisticsAsync(username);
-            return soulseekStatistics.AsStatistics();
+            var statistics = soulseekStatistics.ToStatistics();
+
+            UpdateStatistics(username, statistics);
+
+            return statistics;
         }
 
         /// <summary>
@@ -166,7 +184,11 @@ namespace slskd.Users
         public async Task<Status> GetStatusAsync(string username)
         {
             var soulseekStatus = await Client.GetUserStatusAsync(username);
-            return soulseekStatus.AsStatus();
+            var status = soulseekStatus.ToStatus();
+
+            UpdateStatus(username, status);
+
+            return status;
         }
 
         /// <summary>
@@ -212,56 +234,40 @@ namespace slskd.Users
 
                 Log.Information("Added user {Username} to watch list", username);
 
-                // the server does not send a status update when a user is added, but does when that user's status changes.
-                // request the status explicitly to get the current status.
+                // the server does not automatically send status and statistics information
+                // when watching a user initially.  explicitly fetch both, so that the user has been
+                // watched and all information populated when this method returns.
                 await GetStatusAsync(username);
+                await GetStatisticsAsync(username);
             }
         }
 
-        private void BindClientEvents()
+        private void UpdateStatistics(string username, Statistics statistics)
         {
-            // it isn't completely clear what all causes the server to send this message. we know it is sent following an explicit
-            // request, but it may be sent in an unsolicited manner as well. to be safe, we update internal stats for this user
-            // only on this event, which should cover all bases (both solicited and unsolicited).
-            Client.UserStatisticsChanged += (_, userStatistics) =>
-            {
-                var statistics = userStatistics.AsStatistics();
+            UserDictionary.AddOrUpdate(
+                key: username,
+                addValue: new User() { Statistics = statistics },
+                updateValueFactory: (key, user) => user with { Username = username, Statistics = statistics });
 
-                UserDictionary.AddOrUpdate(
-                    key: userStatistics.Username,
-                    addValue: new User() { Statistics = statistics },
-                    updateValueFactory: (key, user) => user with { Username = userStatistics.Username, Statistics = statistics });
+            StateMutator.SetValue(state => state with { Users = Users.ToArray() });
+        }
 
-                StateMutator.SetValue(state => state with { Users = Users.ToArray() });
-            };
+        private void UpdateStatus(string username, Status status)
+        {
+            UserDictionary.AddOrUpdate(
+                key: username,
+                addValue: new User() { Status = status },
+                updateValueFactory: (key, user) => user with { Username = username, Status = status });
 
-            // the server sends this message in both solicited (we request status), and unsolicited (the user's status changes and
-            // the server informs us without asking). we handle updates in this event handler to cover both cases.
-            Client.UserStatusChanged += (_, userStatus) =>
-            {
-                var status = userStatus.AsStatus();
+            StateMutator.SetValue(state => state with { Users = Users.ToArray() });
+        }
 
-                UserDictionary.AddOrUpdate(
-                    key: userStatus.Username,
-                    addValue: new User() { Status = status },
-                    updateValueFactory: (key, user) => user with { Username = userStatus.Username, Status = status });
+        private void Reset()
+        {
+            WatchedUsernamesDictionary.Clear();
+            UserDictionary.Clear();
 
-                StateMutator.SetValue(state => state with { Users = Users.ToArray() });
-
-                // the server doesn't send statistics events by itself, so when a user status changes, fetch stats at the same time.
-                _ = GetStatisticsAsync(userStatus.Username);
-            };
-
-            Client.LoggedIn += (_, _) => Configure(OptionsMonitor.CurrentValue, force: true);
-            Client.Disconnected += (_, _) =>
-            {
-                // when the client is disconnected, the watched user list resets server-side,
-                // so clear the state to reflect this
-                WatchedUsernamesDictionary.Clear();
-                UserDictionary.Clear();
-
-                StateMutator.SetValue(state => state with { Users = Users.ToArray() });
-            };
+            StateMutator.SetValue(state => state with { Users = Users.ToArray() });
         }
 
         private void Configure(Options options, bool force = false)
