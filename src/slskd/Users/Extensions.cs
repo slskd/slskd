@@ -29,7 +29,7 @@ namespace slskd.Users
         /// </summary>
         /// <param name="u">The UserStatistics instance to convert.</param>
         /// <returns>The converted instance.</returns>
-        public static Statistics AsStatistics(this UserStatistics u) => new()
+        public static Statistics ToStatistics(this UserStatistics u) => new()
         {
             AverageSpeed = u.AverageSpeed,
             DirectoryCount = u.DirectoryCount,
@@ -42,7 +42,7 @@ namespace slskd.Users
         /// </summary>
         /// <param name="s">The UserStatus instance to convert.</param>
         /// <returns>The converted instance.</returns>
-        public static Status AsStatus(this UserStatus s) => new()
+        public static Status ToStatus(this UserStatus s) => new()
         {
             IsPrivileged = s.IsPrivileged,
             Presence = s.Presence,
