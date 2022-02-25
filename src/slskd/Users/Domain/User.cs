@@ -1,4 +1,4 @@
-﻿// <copyright file="Status.cs" company="slskd Team">
+﻿// <copyright file="User.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -17,21 +17,26 @@
 
 namespace slskd.Users
 {
-    using Soulseek;
-
-    /// <summary>
-    ///     User status.
-    /// </summary>
-    public record Status
+    public record User
     {
         /// <summary>
-        ///     Gets a value indicating whether the user is privileged.
+        ///     Gets the username of the user.
         /// </summary>
-        public bool IsPrivileged { get; init; }
+        public string Username { get; init; }
 
         /// <summary>
-        ///     Gets the user's presence.
+        ///     Gets the user's configured group.
         /// </summary>
-        public UserPresence Presence { get; init; }
+        public string Group { get; init; }
+
+        /// <summary>
+        ///     Gets the user's statistics.
+        /// </summary>
+        public Statistics Statistics { get; init; }
+
+        /// <summary>
+        ///     Gets the user's status.
+        /// </summary>
+        public Status Status { get; init; }
     }
 }

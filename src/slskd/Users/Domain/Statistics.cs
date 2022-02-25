@@ -1,4 +1,4 @@
-﻿// <copyright file="Status.cs" company="slskd Team">
+﻿// <copyright file="Statistics.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -17,21 +17,26 @@
 
 namespace slskd.Users
 {
-    using Soulseek;
-
-    /// <summary>
-    ///     User status.
-    /// </summary>
-    public record Status
+    public record Statistics
     {
         /// <summary>
-        ///     Gets a value indicating whether the user is privileged.
+        ///     Gets the average upload speed of the user.
         /// </summary>
-        public bool IsPrivileged { get; init; }
+        public int AverageSpeed { get; init; }
 
         /// <summary>
-        ///     Gets the user's presence.
+        ///     Gets the number of directories shared by the user.
         /// </summary>
-        public UserPresence Presence { get; init; }
+        public int DirectoryCount { get; init; }
+
+        /// <summary>
+        ///     Gets the number of files shared by the user.
+        /// </summary>
+        public int FileCount { get; init; }
+
+        /// <summary>
+        ///     Gets the number of uploads tracked by the server for this user.
+        /// </summary>
+        public long UploadCount { get; init; }
     }
 }

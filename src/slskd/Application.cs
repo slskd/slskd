@@ -60,9 +60,9 @@ namespace slskd
         public static readonly string DefaultGroup = "default";
 
         /// <summary>
-        ///     The name of the priviledged user group.
+        ///     The name of the privileged user group.
         /// </summary>
-        public static readonly string PriviledgedGroup = "priviledged";
+        public static readonly string PrivilegedGroup = "privileged";
 
         /// <summary>
         ///     The name of the leecher user group.
@@ -82,6 +82,7 @@ namespace slskd
             IConversationTracker conversationTracker,
             IRoomTracker roomTracker,
             IRoomService roomService,
+            IUserService userService,
             ISharedFileCache sharedFileCache,
             IPushbulletService pushbulletService,
             IHubContext<ApplicationHub> applicationHub,
@@ -107,6 +108,7 @@ namespace slskd
             Pushbullet = pushbulletService;
 
             RoomService = roomService;
+            Users = userService;
             ApplicationHub = applicationHub;
 
             LogHub = logHub;
@@ -157,6 +159,7 @@ namespace slskd
         private ITransferService Transfers { get; init; }
         private IHubContext<ApplicationHub> ApplicationHub { get; set; }
         private IHubContext<LogsHub> LogHub { get; set; }
+        private IUserService Users { get; set; }
 
         public void CollectGarbage()
         {
@@ -587,6 +590,14 @@ namespace slskd
             // uploads would be handled separately.
             Task.Run(async () =>
             {
+                // users with uploads must be watched so that we can keep informed of their
+                // online status, privileges, and statistics.  this is so that we can accurately
+                // determine their effective group.
+                if (!Users.IsWatched(username))
+                {
+                    await Users.WatchAsync(username);
+                }
+
                 using var stream = new FileStream(fileInfo.FullName, FileMode.Open, FileAccess.Read);
                 await Client.UploadAsync(username, filename, fileInfo.FullName, options: topts, cancellationToken: cts.Token);
             }).ContinueWith(t =>
@@ -846,7 +857,7 @@ namespace slskd
 
         private void State_OnChange((State Previous, State Current) state)
         {
-            Log.Debug("State changed from {Previous} to {Current}", state.Previous.ToJson(), state.Current.ToJson());
+            //Log.Debug("State changed from {Previous} to {Current}", state.Previous.ToJson(), state.Current.ToJson());
             _ = ApplicationHub.BroadcastStateAsync(state.Current);
         }
 

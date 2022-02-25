@@ -20,7 +20,7 @@
             var buckets = governor.GetProperty<Dictionary<string, ITokenBucket>>("TokenBuckets");
 
             Assert.Equal(3, buckets.Count);
-            Assert.True(buckets.ContainsKey(Application.PriviledgedGroup));
+            Assert.True(buckets.ContainsKey(Application.PrivilegedGroup));
             Assert.True(buckets.ContainsKey(Application.DefaultGroup));
             Assert.True(buckets.ContainsKey(Application.LeecherGroup));
         }
@@ -126,7 +126,7 @@
                 // mock the default bucket
                 var bucket = new Mock<ITokenBucket>();
                 governor.SetProperty("TokenBuckets", new Dictionary<string, ITokenBucket>()
-                { 
+                {
                     { Application.DefaultGroup, bucket.Object },
                 });
 

@@ -23,7 +23,7 @@
             var groups = queue.GetProperty<Dictionary<string, UploadQueue.Group>>("Groups");
 
             Assert.Equal(3, groups.Count);
-            Assert.True(groups.ContainsKey(Application.PriviledgedGroup));
+            Assert.True(groups.ContainsKey(Application.PrivilegedGroup));
             Assert.True(groups.ContainsKey(Application.DefaultGroup));
             Assert.True(groups.ContainsKey(Application.LeecherGroup));
         }
@@ -35,9 +35,9 @@
 
             var groups = queue.GetProperty<Dictionary<string, UploadQueue.Group>>("Groups");
 
-            var p = groups[Application.PriviledgedGroup];
+            var p = groups[Application.PrivilegedGroup];
 
-            Assert.Equal(Application.PriviledgedGroup, p.Name);
+            Assert.Equal(Application.PrivilegedGroup, p.Name);
             Assert.Equal(0, p.Priority);
             Assert.Equal(new Options().Global.Upload.Slots, p.Slots);
             Assert.Equal(0, p.UsedSlots);
@@ -522,7 +522,7 @@
             {
                 var (queue, mocks) = GetFixture();
 
-                mocks.UserService.Setup(m => m.GetGroup(user1)).Returns(Application.PriviledgedGroup);
+                mocks.UserService.Setup(m => m.GetGroup(user1)).Returns(Application.PrivilegedGroup);
 
                 var uploads = new ConcurrentDictionary<string, List<Upload>>();
 
@@ -538,7 +538,7 @@
                 Assert.Equal(user1, result.Username);
                 Assert.Equal(file1, result.Filename);
                 Assert.NotNull(result.Started);
-                Assert.Equal(Application.PriviledgedGroup, result.Group);
+                Assert.Equal(Application.PrivilegedGroup, result.Group);
             }
 
             [Theory, AutoData]
@@ -546,7 +546,7 @@
             {
                 var (queue, mocks) = GetFixture();
 
-                mocks.UserService.Setup(m => m.GetGroup(user1)).Returns(Application.PriviledgedGroup);
+                mocks.UserService.Setup(m => m.GetGroup(user1)).Returns(Application.PrivilegedGroup);
 
                 var uploads = new ConcurrentDictionary<string, List<Upload>>();
 
@@ -561,7 +561,7 @@
 
                 var groups = queue.GetProperty<Dictionary<string, UploadQueue.Group>>("Groups");
 
-                Assert.Equal(1, groups[Application.PriviledgedGroup].UsedSlots);
+                Assert.Equal(1, groups[Application.PrivilegedGroup].UsedSlots);
             }
 
             [Theory, AutoData]
@@ -569,7 +569,7 @@
             {
                 var (queue, mocks) = GetFixture();
 
-                mocks.UserService.Setup(m => m.GetGroup(user1)).Returns(Application.PriviledgedGroup);
+                mocks.UserService.Setup(m => m.GetGroup(user1)).Returns(Application.PrivilegedGroup);
                 mocks.UserService.Setup(m => m.GetGroup(user2)).Returns(Application.DefaultGroup);
 
                 var uploads = new ConcurrentDictionary<string, List<Upload>>();
