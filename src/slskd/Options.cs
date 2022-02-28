@@ -522,7 +522,7 @@ namespace slskd
                 ///     Gets leecher threshold options.
                 /// </summary>
                 [Validate]
-                public ThresholdOptions Thresholds { get; init } = new ThresholdOptions();
+                public ThresholdOptions Thresholds { get; init; } = new ThresholdOptions();
 
                 /// <summary>
                 ///     Gets upload options.
