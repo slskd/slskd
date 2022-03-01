@@ -10,7 +10,8 @@ import * as session from '../lib/session';
 export const createHubConnection = ({ url }) => 
   new HubConnectionBuilder()
     .withUrl(url, {
-        accessTokenFactory: session.getToken
+        withCredentials: true,
+        accessTokenFactory: session.isPassthroughEnabled() ? undefined : session.getToken
     })
     .withAutomaticReconnect([0, 500, 1000, 3000, 5000, 5000, 5000, 5000, 5000])
     .withHubProtocol(new JsonHubProtocol())
