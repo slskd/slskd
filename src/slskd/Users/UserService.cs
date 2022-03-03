@@ -291,7 +291,7 @@ namespace slskd.Users
             var usernamesAfterUpdate = options.Groups.UserDefined.SelectMany(g => g.Value.Members);
             var usernamesRemoved = usernamesBeforeUpdate.Except(usernamesAfterUpdate);
 
-            // clear the configured group for anyone that was removed from config
+            // clear the configured group for anyone that was removed from config, or that was added transiently
             foreach (var username in usernamesRemoved)
             {
                 UserDictionary.AddOrUpdate(
