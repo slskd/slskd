@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { baseUrl, tokenPassthroughValue } from '../config';
+import { baseUrl } from '../config';
 import * as session from './session';
 
 axios.defaults.baseURL = baseUrl;
@@ -13,7 +13,7 @@ api.interceptors.request.use(config => {
 
     config.headers['Content-Type'] = 'application/json';
 
-    if (token && token !== tokenPassthroughValue) {
+    if (!session.isPassthroughEnabled() && token) {
         config.headers.Authorization = 'Bearer ' + token;
     }
 

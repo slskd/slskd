@@ -27,9 +27,6 @@ services:
       - "5000:5000"
       - "5001:5001"
       - "50000:50000"
-    environment:
-      - PUID=1000
-      - PGID=1000
     volumes:
       - <path/to/application/data>:/app
     restart: always
