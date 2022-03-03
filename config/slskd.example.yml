@@ -25,6 +25,9 @@
 #       strategy: roundrobin
 #       slots: 10
 #   leechers:
+#     thresholds:
+#       files: 1
+#       directories: 1
 #     upload:
 #       priority: 999
 #       strategy: roundrobin

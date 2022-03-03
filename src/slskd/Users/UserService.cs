@@ -110,7 +110,17 @@ namespace slskd.Users
                     return Application.PrivilegedGroup;
                 }
 
-                return user.Group ?? Application.DefaultGroup;
+                if (user.Group != null)
+                {
+                    return user.Group;
+                }
+
+                var thresholds = OptionsMonitor.CurrentValue.Groups.Leechers.Thresholds;
+
+                if (user.Statistics?.FileCount < thresholds.Files || user.Statistics?.DirectoryCount < thresholds.Directories)
+                {
+                    return Application.LeecherGroup;
+                }
             }
 
             return Application.DefaultGroup;
@@ -225,21 +235,16 @@ namespace slskd.Users
         /// <returns>The operation context.</returns>
         public async Task WatchAsync(string username)
         {
-            // note that this isn't strictly synchronized, and this may be executed more than once per user. this is acceptable,
-            // and has no side effects other than increased round trips to the server.
-            if (!WatchedUsernamesDictionary.ContainsKey(username))
-            {
-                await Client.AddUserAsync(username);
-                WatchedUsernamesDictionary.TryAdd(username, true);
+            await Client.AddUserAsync(username);
+            WatchedUsernamesDictionary.TryAdd(username, true);
 
-                Log.Information("Added user {Username} to watch list", username);
+            Log.Information("Added user {Username} to watch list", username);
 
-                // the server does not automatically send status and statistics information
-                // when watching a user initially.  explicitly fetch both, so that the user has been
-                // watched and all information populated when this method returns.
-                await GetStatusAsync(username);
-                await GetStatisticsAsync(username);
-            }
+            // the server does not automatically send status and statistics information
+            // when watching a user initially.  explicitly fetch both, so that the user has been
+            // watched and all information populated when this method returns.
+            await GetStatusAsync(username);
+            await GetStatisticsAsync(username);
         }
 
         private void UpdateStatistics(string username, Statistics statistics)
@@ -279,10 +284,14 @@ namespace slskd.Users
                 return;
             }
 
+
+            // get a list of tracked names that haven't been explicitly added to any group, including
+            // those that were previlously configured but have now been removed
             var usernamesBeforeUpdate = UserDictionary.Keys.ToList();
             var usernamesAfterUpdate = options.Groups.UserDefined.SelectMany(g => g.Value.Members);
             var usernamesRemoved = usernamesBeforeUpdate.Except(usernamesAfterUpdate);
 
+            // clear the configured group for anyone that was removed from config, or that was added transiently
             foreach (var username in usernamesRemoved)
             {
                 UserDictionary.AddOrUpdate(

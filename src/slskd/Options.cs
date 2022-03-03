@@ -480,7 +480,7 @@ namespace slskd
             ///     These options apply to users that have been identified as leechers, and have not been added as a member of any group.
             /// </remarks>
             [Validate]
-            public BuiltInOptions Leechers { get; init; } = new BuiltInOptions();
+            public LeecherOptions Leechers { get; init; } = new LeecherOptions();
 
             /// <summary>
             ///     Gets user defined groups and options.
@@ -511,6 +511,42 @@ namespace slskd
                 /// </summary>
                 [Validate]
                 public UploadOptions Upload { get; init; } = new UploadOptions();
+            }
+
+            /// <summary>
+            ///     Built in leecher group options.
+            /// </summary>
+            public class LeecherOptions
+            {
+                /// <summary>
+                ///     Gets leecher threshold options.
+                /// </summary>
+                [Validate]
+                public ThresholdOptions Thresholds { get; init; } = new ThresholdOptions();
+
+                /// <summary>
+                ///     Gets upload options.
+                /// </summary>
+                [Validate]
+                public UploadOptions Upload { get; init; } = new UploadOptions();
+            }
+
+            /// <summary>
+            ///     Leecher threshold options.
+            /// </summary>
+            public class ThresholdOptions
+            {
+                /// <summary>
+                ///     Gets the minimum number of shared files required to avoid being classified as a leecher.
+                /// </summary>
+                [Range(1, int.MaxValue)]
+                public int Files { get; init; } = 1;
+
+                /// <summary>
+                ///     Gets the minimum number of shared directories required to avoid being classified as a leecher.
+                /// </summary>
+                [Range(1, int.MaxValue)]
+                public int Directories { get; init; } = 1;
             }
 
             /// <summary>

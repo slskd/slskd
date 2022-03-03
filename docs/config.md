@@ -195,7 +195,7 @@ upload:
 
 The `default` built-in group contains all users that have not been explicitly added to a user defined group, are not privileged, and that haven't been identified as leechers.
 
-The `leechers` built-in group contains users that have been identified as leechers.
+The `leechers` built-in group contains users that have not been explicitly added to a user defined group, are not privileged, and that have shared file and/or directory counts that are less than the configured `thresholds` for the group.  By default, users must share at least 1 directory with 1 file to avoid being identified as leechers.
 
 The `privileged` built-in is used to prioritize users who have purchased privileges on the Soulseek network.  This groups is not configurable, has a priority of 0 (the highest), a strategy of `FirstInFirstOut`, and can use any number of slots, up to the global limit.
 
@@ -211,6 +211,9 @@ groups:
       slots: 10
       speed_limit: 50000
   leechers:
+    thresholds:
+      files: 1
+      directories: 1
     upload:
       priority: 99
       strategy: roundrobin

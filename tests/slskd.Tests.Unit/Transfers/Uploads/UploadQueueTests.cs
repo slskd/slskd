@@ -81,8 +81,9 @@
             {
                 Groups = new Options.GroupsOptions()
                 {
-                    Leechers = new Options.GroupsOptions.BuiltInOptions()
+                    Leechers = new Options.GroupsOptions.LeecherOptions()
                     {
+                        Thresholds = new Options.GroupsOptions.ThresholdOptions(),
                         Upload = new Options.GroupsOptions.UploadOptions()
                         {
                             Priority = priority,
