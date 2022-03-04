@@ -44,7 +44,7 @@ namespace slskd
     using slskd.Users;
     using Soulseek;
     using Soulseek.Diagnostics;
-
+    
     public interface IApplication : IHostedService
     {
         public Task CheckVersionAsync();
@@ -508,7 +508,14 @@ namespace slskd
 
             if (xfer.Direction == TransferDirection.Upload && xfer.State.HasFlag(TransferStates.Completed | TransferStates.Succeeded))
             {
-                _ = Client.SendUploadSpeedAsync((int)args.Transfer.AverageSpeed);
+                try
+                {
+                    _ = Client.SendUploadSpeedAsync((int)args.Transfer.AverageSpeed);
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, "Failed to report upload speed");
+                }
             }
         }
 

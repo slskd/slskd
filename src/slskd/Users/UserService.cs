@@ -70,8 +70,8 @@ namespace slskd.Users
                 _ = GetStatisticsAsync(userStatus.Username);
             };
 
+            Client.Connected += (_, _) => Reset();
             Client.LoggedIn += (_, _) => Configure(OptionsMonitor.CurrentValue, force: true);
-            Client.Disconnected += (_, _) => Reset();
 
             Configure(OptionsMonitor.CurrentValue);
         }
@@ -283,7 +283,6 @@ namespace slskd.Users
             {
                 return;
             }
-
 
             // get a list of tracked names that haven't been explicitly added to any group, including
             // those that were previlously configured but have now been removed
