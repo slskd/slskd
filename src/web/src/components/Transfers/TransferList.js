@@ -22,6 +22,8 @@ const getColor = (state) => {
         case 'Completed, Succeeded':
             return { color: 'green' };
         case 'Requested':
+        case 'Queued, Locally':
+        case 'Queued, Remotely':
         case 'Queued':
             return {};
         case 'Initializing':
@@ -32,6 +34,7 @@ const getColor = (state) => {
 }
 
 const isRetryableState = (state) => getColor(state).color === 'red';
+const isQueuedState = (state) => state.includes('Queued');
 
 class TransferList extends Component {
     handleClick = (file) => {
@@ -42,7 +45,7 @@ class TransferList extends Component {
                 return this.props.onRetryRequested(file);
             }
     
-            if (state === 'Queued') {
+            if (isQueuedState(state)) {
                 return this.props.onPlaceInQueueRequested(file);
             }
         }    
@@ -102,7 +105,7 @@ class TransferList extends Component {
                                             onClick={() => this.handleClick(f)}
                                             active={f.direction === 'Upload'}
                                         >
-                                            {f.direction === 'Download' && f.state === 'Queued' && <Icon name='refresh'/>}
+                                            {f.direction === 'Download' && isQueuedState(f.state) && <Icon name='refresh'/>}
                                             {f.direction === 'Download' && isRetryableState(f.state) && <Icon name='redo'/>}
                                             {f.state}{f.placeInQueue ? ` (#${f.placeInQueue})` : ''}
                                         </Button>}
