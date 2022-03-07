@@ -277,11 +277,11 @@ namespace slskd
                 .Enrich.WithProperty("ProcessId", ProcessId)
                 .Enrich.FromLogContext()
                 .WriteTo.Console(
-                    outputTemplate: (OptionsAtStartup.Debug ? "[{SourceContext}] [{SoulseekContext}] " : string.Empty) + "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
+                    outputTemplate: (OptionsAtStartup.Debug ? "[{SubContext}] " : string.Empty) + "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
                 .WriteTo.Async(config =>
                     config.File(
                         Path.Combine(AppDirectory, "logs", $"{AppName}-.log"),
-                        outputTemplate: (OptionsAtStartup.Debug ? "[{SourceContext}] " : string.Empty) + "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}",
+                        outputTemplate: (OptionsAtStartup.Debug ? "[{SubContext}] " : string.Empty) + "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}",
                         rollingInterval: RollingInterval.Day))
                 .WriteTo.Conditional(
                     e => !string.IsNullOrEmpty(OptionsAtStartup.Logger.Loki),
@@ -293,7 +293,8 @@ namespace slskd
                     var record = new LogRecord()
                     {
                         Timestamp = logEvent.Timestamp.LocalDateTime,
-                        Context = logEvent.Properties["SourceContext"].ToString().TrimStart('"').TrimEnd('"'),
+                        Context = logEvent.Properties["Context"].ToString().TrimStart('"').TrimEnd('"'),
+                        SubContext = logEvent.Properties["SubContext"].ToString().TrimStart('"').TrimEnd('"'),
                         Level = logEvent.Level.ToString(),
                         Message = logEvent.RenderMessage().TrimStart('"').TrimEnd('"'),
                     };
