@@ -366,13 +366,13 @@ namespace slskd
             static LogEventLevel TranslateLogLevel(DiagnosticLevel diagnosticLevel) => diagnosticLevel switch
             {
                 DiagnosticLevel.Debug => LogEventLevel.Debug,
-                DiagnosticLevel.Info => LogEventLevel.Information,
+                DiagnosticLevel.Info => LogEventLevel.Debug,
                 DiagnosticLevel.Warning => LogEventLevel.Warning,
                 DiagnosticLevel.None => default,
                 _ => default,
             };
 
-            var logger = Loggers.GetOrAdd(sender.GetType().FullName, Log.ForContext("SourceContext", "Soulseek").ForContext("SoulseekContext", sender.GetType().FullName));
+            var logger = Loggers.GetOrAdd(sender.GetType().FullName, Log.ForContext("Context", "Soulseek").ForContext("SubContext", sender.GetType().FullName));
 
             logger.Write(TranslateLogLevel(args.Level), "{@Message}", args.Message);
         }
