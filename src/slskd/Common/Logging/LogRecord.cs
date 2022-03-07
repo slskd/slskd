@@ -23,6 +23,7 @@ namespace slskd
     {
         public DateTime Timestamp { get; init; }
         public string Context { get; init; }
+        public string SubContext { get; init; }
         public string Level { get; init; }
         public string Message { get; init; }
     }
