@@ -229,7 +229,7 @@ User defined groups use the same configuration as built-in groups, but additiona
 
 Users can be assigned to multiple groups, with their effective group being the highest priority (lowest numbered) group.  If a user has privileges on the network, any explicit group membership is superceded, and their effective group is the built-in `privileged` group.  If a user is explcitly assigned to a group, they will not be identified as a leecher.
 
-#### **YAML***
+#### **YAML**
 ```yaml
 groups:
   user_defined:
