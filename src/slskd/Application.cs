@@ -136,6 +136,7 @@ namespace slskd
             Client.Connected += Client_Connected;
             Client.LoggedIn += Client_LoggedIn;
             Client.StateChanged += Client_StateChanged;
+            Client.DistributedNetworkStateChanged += Client_DistributedNetworkStateChanged;
             Client.DownloadDenied += (e, args) => Log.Information("Download of {Filename} from {Username} was denied: {Message}", args.Filename, args.Username, args.Message);
             Client.DownloadFailed += (e, args) => Log.Information("Download of {Filename} from {Username} failed", args.Filename, args.Username);
         }
@@ -483,7 +484,34 @@ namespace slskd
 
         private void Client_StateChanged(object sender, SoulseekClientStateChangedEventArgs e)
         {
-            State.SetValue(state => state with { Server = state.Server with { Address = Client.Address, IPEndPoint = Client.IPEndPoint, State = Client.State, Username = Client.Username } });
+            State.SetValue(state => state with
+            {
+                Server = state.Server with
+                {
+                    Address = Client.Address,
+                    IPEndPoint = Client.IPEndPoint,
+                    State = Client.State,
+                    Username = Client.Username,
+                },
+            });
+        }
+
+        private void Client_DistributedNetworkStateChanged(object sender, DistributedNetworkInfo e)
+        {
+            State.SetValue(state => state with
+            {
+                DistributedNetwork = new DistributedNetworkState()
+                {
+                    BranchLevel = e.BranchLevel,
+                    BranchRoot = e.BranchRoot,
+                    CanAcceptChildren = e.CanAcceptChildren,
+                    ChildLimit = e.ChildLimit,
+                    Children = e.Children,
+                    HasParent = e.HasParent,
+                    IsBranchRoot = e.IsBranchRoot,
+                    Parent = e.Parent,
+                },
+            });
         }
 
         private void Client_TransferProgressUpdated(object sender, TransferProgressUpdatedEventArgs args)
