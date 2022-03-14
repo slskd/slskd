@@ -69,10 +69,10 @@ namespace slskd
         public string BranchRoot { get; init; }
         public bool CanAcceptChildren { get; init; }
         public int ChildLimit { get; init; }
-        public IReadOnlyCollection<(string Username, IPEndPoint IPEndPoint)> Children { get; init; }
+        public IReadOnlyCollection<string> Children { get; init; }
         public bool HasParent { get; init; }
         public bool IsBranchRoot { get; init; }
-        public (string Username, IPEndPoint IPEndPoint) Parent { get; init; }
+        public string Parent { get; init; }
     }
 
     /// <summary>

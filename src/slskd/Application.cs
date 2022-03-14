@@ -506,10 +506,10 @@ namespace slskd
                     BranchRoot = e.BranchRoot,
                     CanAcceptChildren = e.CanAcceptChildren,
                     ChildLimit = e.ChildLimit,
-                    Children = e.Children,
+                    Children = e.Children.Select(c => c.Username).ToList().AsReadOnly(),
                     HasParent = e.HasParent,
                     IsBranchRoot = e.IsBranchRoot,
-                    Parent = e.Parent,
+                    Parent = e.Parent.Username,
                 },
             });
         }
