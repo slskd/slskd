@@ -18,6 +18,7 @@
 namespace slskd
 {
     using System;
+    using System.Collections.Generic;
     using System.Net;
     using System.Text.Json.Serialization;
     using slskd.Users;
@@ -33,6 +34,7 @@ namespace slskd
         public bool PendingRestart { get; init; }
         public bool PendingShareRescan { get; init; }
         public ServerState Server { get; init; } = new ServerState();
+        public DistributedNetworkState DistributedNetwork { get; init; } = new DistributedNetworkState();
         public SharedFileCacheState SharedFileCache { get; init; } = new SharedFileCacheState();
         public string[] Rooms { get; init; } = Array.Empty<string>();
         public User[] Users { get; init; } = Array.Empty<User>();
@@ -59,6 +61,18 @@ namespace slskd
         public bool IsConnected => State.HasFlag(SoulseekClientStates.Connected);
         public bool IsLoggedIn => State.HasFlag(SoulseekClientStates.LoggedIn);
         public bool IsTransitioning => State.HasFlag(SoulseekClientStates.Connecting) || State.HasFlag(SoulseekClientStates.Disconnecting) || State.HasFlag(SoulseekClientStates.LoggingIn);
+    }
+
+    public record DistributedNetworkState
+    {
+        public int BranchLevel { get; init; }
+        public string BranchRoot { get; init; }
+        public bool CanAcceptChildren { get; init; }
+        public int ChildLimit { get; init; }
+        public IReadOnlyCollection<string> Children { get; init; }
+        public bool HasParent { get; init; }
+        public bool IsBranchRoot { get; init; }
+        public string Parent { get; init; }
     }
 
     /// <summary>
