@@ -19,25 +19,46 @@ using System.IO;
 
 namespace slskd.Shares
 {
+    using System;
     using System.Collections.Generic;
     using System.Linq;
+    using Serilog;
     using Soulseek;
 
+    /// <summary>
+    ///     Creates instances of <see cref="Soulseek.File"/>.
+    /// </summary>
     public interface ISoulseekFileFactory
     {
-        File Create(string filename, string localPath, string remotePath);
+        /// <summary>
+        ///     Creates an instance of <see cref="Soulseek.File"/> from the given path.
+        /// </summary>
+        /// <param name="filename">The fully qualified path to the file.</param>
+        /// <param name="maskedFilename">The masked filename.</param>
+        /// <returns>The created instance.</returns>
+        File Create(string filename, string maskedFilename);
     }
 
+    /// <summary>
+    ///     Creates instances of <see cref="Soulseek.File"/>.
+    /// </summary>
     public class SoulseekFileFactory : ISoulseekFileFactory
     {
-        private static readonly string[] VideoExtensions = { "mkv", "ogv", "avi", "wmv", "asf", "mp4", "m4p", "m4v", "mpg", "mpe", "mpv", "mpg", "m2v" };
         private static readonly string[] AudioExtensions = { "aa", "aax", "aac", "aiff", "ape", "dsf", "flac", "m4a", "m4b", "m4p", "mp3", "mpc", "mpp", "ogg", "oga", "wav", "wma", "wv", "webm" };
+        private static readonly string[] VideoExtensions = { "mkv", "ogv", "avi", "wmv", "asf", "mp4", "m4p", "m4v", "mpg", "mpe", "mpv", "mpg", "m2v" };
         private static readonly HashSet<string> SupportedExtensions = AudioExtensions.Concat(VideoExtensions).ToHashSet();
 
-        public File Create(string filename, string localPath, string remotePath)
+        private ILogger Log { get; } = Serilog.Log.ForContext<SharedFileCache>();
+
+        /// <summary>
+        ///     Creates an instance of <see cref="Soulseek.File"/> from the given path.
+        /// </summary>
+        /// <param name="filename">The fully qualified path to the file.</param>
+        /// <param name="maskedFilename">The masked filename.</param>
+        /// <returns>The created instance.</returns>
+        public File Create(string filename, string maskedFilename)
         {
             var code = 1;
-            var maskedFilename = filename.ReplaceFirst(localPath, remotePath);
             var size = new FileInfo(filename).Length;
             var extension = Path.GetExtension(filename)[1..].ToLowerInvariant();
             List<FileAttribute> attributeList = default;
@@ -60,9 +81,9 @@ namespace slskd.Shares
                         attributeList.Add(new FileAttribute(FileAttributeType.BitDepth, file.Properties.BitsPerSample));
                     }
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // unsupported or corrupt file, noop
+                    Log.Warning("Failed to read metadata from file '{Filename}'; the file is an unsupported format or may be corrupt ({ExceptionType})", filename, ex.GetType().Name);
                 }
                 finally
                 {

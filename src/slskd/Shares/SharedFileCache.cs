@@ -253,7 +253,7 @@ namespace slskd.Shares
                     try
                     {
                         var newFiles = System.IO.Directory.GetFiles(directory, "*", SearchOption.TopDirectoryOnly)
-                            .Select(filename => SoulseekFileFactory.Create(filename, share.LocalPath, share.RemotePath))
+                            .Select(filename => SoulseekFileFactory.Create(filename, maskedFilename: filename.ReplaceFirst(share.LocalPath, share.RemotePath)))
                             .ToDictionary(file => file.Filename, file => file);
 
                         // merge the new dictionary with the rest this will overwrite any duplicate keys, but keys are the fully
