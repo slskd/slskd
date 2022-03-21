@@ -49,7 +49,7 @@ namespace slskd.Shares
 
                 try
                 {
-                    file = TagLib.File.Create(filename, TagLib.ReadStyle.Average);
+                    file = TagLib.File.Create(filename, TagLib.ReadStyle.Average | TagLib.ReadStyle.PictureLazy);
 
                     attributeList.Add(new FileAttribute(FileAttributeType.Length, (int)file.Properties.Duration.TotalSeconds));
                     attributeList.Add(new FileAttribute(FileAttributeType.BitRate, file.Properties.AudioBitrate));
