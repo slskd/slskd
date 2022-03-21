@@ -1,4 +1,4 @@
-﻿// <copyright file="Extensions.cs" company="slskd Team">
+﻿// <copyright file="SoulseekFileFactory.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -23,16 +23,21 @@ namespace slskd.Shares
     using System.Linq;
     using Soulseek;
 
-    public static class Extensions
+    public interface ISoulseekFileFactory
+    {
+        File Create(string filename, string localPath, string remotePath);
+    }
+
+    public class SoulseekFileFactory : ISoulseekFileFactory
     {
         private static readonly string[] VideoExtensions = { "mkv", "ogv", "avi", "wmv", "asf", "mp4", "m4p", "m4v", "mpg", "mpe", "mpv", "mpg", "m2v" };
         private static readonly string[] AudioExtensions = { "aa", "aax", "aac", "aiff", "ape", "dsf", "flac", "m4a", "m4b", "m4p", "mp3", "mpc", "mpp", "ogg", "oga", "wav", "wma", "wv", "webm" };
         private static readonly HashSet<string> SupportedExtensions = AudioExtensions.Concat(VideoExtensions).ToHashSet();
 
-        public static File ToSoulseekFile(this string filename, Share share)
+        public File Create(string filename, string localPath, string remotePath)
         {
             var code = 1;
-            var maskedFilename = filename.ReplaceFirst(share.LocalPath, share.RemotePath);
+            var maskedFilename = filename.ReplaceFirst(localPath, remotePath);
             var size = new FileInfo(filename).Length;
             var extension = Path.GetExtension(filename)[1..].ToLowerInvariant();
             List<FileAttribute> attributeList = default;

@@ -86,10 +86,13 @@ namespace slskd.Shares
         ///     Initializes a new instance of the <see cref="SharedFileCache"/> class.
         /// </summary>
         /// <param name="optionsMonitor"></param>
+        /// <param name="soulseekFileFactory"></param>
         public SharedFileCache(
-            IOptionsMonitor<Options> optionsMonitor)
+            IOptionsMonitor<Options> optionsMonitor,
+            ISoulseekFileFactory soulseekFileFactory = null)
         {
             OptionsMonitor = optionsMonitor;
+            SoulseekFileFactory = soulseekFileFactory ?? new SoulseekFileFactory();
         }
 
         /// <summary>
@@ -105,6 +108,7 @@ namespace slskd.Shares
         private List<Share> Shares { get; set; }
         private SqliteConnection SQLite { get; set; }
         private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1);
+        private ISoulseekFileFactory SoulseekFileFactory { get; }
 
         /// <summary>
         ///     Returns the contents of the cache.
@@ -249,8 +253,8 @@ namespace slskd.Shares
                     try
                     {
                         var newFiles = System.IO.Directory.GetFiles(directory, "*", SearchOption.TopDirectoryOnly)
-                            .Select(f => f.ToSoulseekFile(share))
-                            .ToDictionary(f => f.Filename, f => f);
+                            .Select(filename => SoulseekFileFactory.Create(filename, share.LocalPath, share.RemotePath))
+                            .ToDictionary(file => file.Filename, file => file);
 
                         // merge the new dictionary with the rest this will overwrite any duplicate keys, but keys are the fully
                         // qualified name the only time this *should* cause problems is if one of the shares is a subdirectory of another.
