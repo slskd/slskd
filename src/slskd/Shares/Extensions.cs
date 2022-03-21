@@ -40,10 +40,11 @@ namespace slskd.Shares
             if (SupportedExtensions.Contains(extension))
             {
                 attributeList = new List<FileAttribute>();
+                TagLib.File file = default;
 
                 try
                 {
-                    var file = TagLib.File.Create(filename);
+                    file = TagLib.File.Create(filename, TagLib.ReadStyle.Average);
 
                     attributeList.Add(new FileAttribute(FileAttributeType.Length, (int)file.Properties.Duration.TotalSeconds));
                     attributeList.Add(new FileAttribute(FileAttributeType.BitRate, file.Properties.AudioBitrate));
@@ -57,6 +58,10 @@ namespace slskd.Shares
                 catch
                 {
                     // unsupported or corrupt file, noop
+                }
+                finally
+                {
+                    file?.Dispose();
                 }
             }
 
