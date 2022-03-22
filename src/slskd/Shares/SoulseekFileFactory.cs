@@ -72,11 +72,23 @@ namespace slskd.Shares
                 {
                     file = TagLib.File.Create(filename, TagLib.ReadStyle.Average | TagLib.ReadStyle.PictureLazy);
 
-                    attributeList.Add(new FileAttribute(FileAttributeType.Length, (int)file.Properties.Duration.TotalSeconds));
-                    attributeList.Add(new FileAttribute(FileAttributeType.BitRate, file.Properties.AudioBitrate));
+                    // try to mimick the behavior of existing clients by providing attributes selectively and in a specific order,
+                    // depending on whether files use a lossless or lossy codec. lossless files should have BitsPerSample, while lossy
+                    // will not. this may not be the best way to determine this.
+                    bool isLossless = file.Properties.BitsPerSample > 0;
 
-                    if (file.Properties.BitsPerSample > 0)
+                    if (!isLossless)
                     {
+                        // per Nicotine+ docs, Soulseek NS, Nicotine+, Museek+, SoulSeeX all send bit rate, length, then VBR
+                        attributeList.Add(new FileAttribute(FileAttributeType.BitRate, file.Properties.AudioBitrate));
+                        attributeList.Add(new FileAttribute(FileAttributeType.Length, (int)file.Properties.Duration.TotalSeconds));
+                        attributeList.Add(new FileAttribute(FileAttributeType.VariableBitRate, IsVBR(file) ? 1 : 0));
+                    }
+                    else
+                    {
+                        // SoulseekQt 2015-6-12 and later provides the length, sample rate and bit depth for lossless files
+                        // bitrate can be deduced from this information
+                        attributeList.Add(new FileAttribute(FileAttributeType.Length, (int)file.Properties.Duration.TotalSeconds));
                         attributeList.Add(new FileAttribute(FileAttributeType.SampleRate, file.Properties.AudioSampleRate));
                         attributeList.Add(new FileAttribute(FileAttributeType.BitDepth, file.Properties.BitsPerSample));
                     }
@@ -92,6 +104,17 @@ namespace slskd.Shares
             }
 
             return new File(code, maskedFilename, size, extension, attributeList);
+        }
+
+        private bool IsVBR(TagLib.File file)
+        {
+            static bool HasVBRIHeader(TagLib.Mpeg.AudioHeader header) => header.VBRIHeader.Present && header.VBRIHeader.TotalSize > 0;
+            static bool HasXingHeader(TagLib.Mpeg.AudioHeader header) => header.XingHeader.Present && header.XingHeader.TotalSize > 0;
+
+            return file.Properties.Codecs.Any(c =>
+                (c is TagLib.Mpeg.AudioHeader h && (HasVBRIHeader(h) || HasXingHeader(h)))
+                || c is TagLib.Aac.AudioHeader
+                || c is TagLib.Ogg.Codec);
         }
     }
 }
