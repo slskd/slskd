@@ -86,10 +86,13 @@ namespace slskd.Shares
         ///     Initializes a new instance of the <see cref="SharedFileCache"/> class.
         /// </summary>
         /// <param name="optionsMonitor"></param>
+        /// <param name="soulseekFileFactory"></param>
         public SharedFileCache(
-            IOptionsMonitor<Options> optionsMonitor)
+            IOptionsMonitor<Options> optionsMonitor,
+            ISoulseekFileFactory soulseekFileFactory = null)
         {
             OptionsMonitor = optionsMonitor;
+            SoulseekFileFactory = soulseekFileFactory ?? new SoulseekFileFactory();
         }
 
         /// <summary>
@@ -105,6 +108,7 @@ namespace slskd.Shares
         private List<Share> Shares { get; set; }
         private SqliteConnection SQLite { get; set; }
         private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1);
+        private ISoulseekFileFactory SoulseekFileFactory { get; }
 
         /// <summary>
         ///     Returns the contents of the cache.
@@ -249,8 +253,8 @@ namespace slskd.Shares
                     try
                     {
                         var newFiles = System.IO.Directory.GetFiles(directory, "*", SearchOption.TopDirectoryOnly)
-                            .Select(f => new File(1, f.ReplaceFirst(share.LocalPath, share.RemotePath), new FileInfo(f).Length, Path.GetExtension(f)))
-                            .ToDictionary(f => f.Filename, f => f);
+                            .Select(filename => SoulseekFileFactory.Create(filename, maskedFilename: filename.ReplaceFirst(share.LocalPath, share.RemotePath)))
+                            .ToDictionary(file => file.Filename, file => file);
 
                         // merge the new dictionary with the rest this will overwrite any duplicate keys, but keys are the fully
                         // qualified name the only time this *should* cause problems is if one of the shares is a subdirectory of another.
@@ -461,52 +465,6 @@ namespace slskd.Shares
             MaskedDirectories = new HashSet<string>();
             MaskedFiles = new Dictionary<string, File>();
             State.SetValue(state => state with { Directories = 0, Files = 0 });
-        }
-
-        private sealed class Share
-        {
-            public Share(string share)
-            {
-                Raw = share;
-                IsExcluded = share.StartsWith('-') || share.StartsWith('!');
-
-                if (IsExcluded)
-                {
-                    share = share[1..];
-                }
-
-                // test to see whether an alias has been specified
-                var matches = Regex.Matches(share, @"^\[(.*)\](.*)$");
-
-                if (matches.Any())
-                {
-                    // split the alias from the path, and validate the alias
-                    var groups = matches[0].Groups;
-                    Alias = groups[1].Value;
-                    LocalPath = groups[2].Value;
-                }
-                else
-                {
-                    Alias = share.Split(new[] { '/', '\\' }).Last();
-                    LocalPath = share;
-                }
-
-                var parent = System.IO.Directory.GetParent(LocalPath).FullName.TrimEnd('/', '\\');
-
-                Mask = Compute.MaskHash(parent);
-
-                var maskedPath = LocalPath.ReplaceFirst(parent, Mask);
-
-                var aliasedSegment = LocalPath[(parent.Length + 1)..];
-                RemotePath = maskedPath.ReplaceFirst(aliasedSegment, Alias);
-            }
-
-            public string Alias { get; init; }
-            public bool IsExcluded { get; init; }
-            public string LocalPath { get; init; }
-            public string Mask { get; init; }
-            public string Raw { get; init; }
-            public string RemotePath { get; init; }
         }
     }
 }
