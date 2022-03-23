@@ -19,13 +19,11 @@ using Microsoft.Extensions.Options;
 
 namespace slskd.Users
 {
-    using System;
     using System.Collections.Concurrent;
     using System.Collections.Generic;
     using System.Linq;
     using System.Net;
     using System.Threading.Tasks;
-    using Microsoft.EntityFrameworkCore;
     using Serilog;
     using Soulseek;
 
@@ -34,26 +32,20 @@ namespace slskd.Users
     /// </summary>
     public class UserService : IUserService
     {
-        private const int CacheTTLSeconds = 300;
-
         /// <summary>
         ///     Initializes a new instance of the <see cref="UserService"/> class.
         /// </summary>
         /// <param name="soulseekClient"></param>
         /// <param name="stateMutator"></param>
-        /// <param name="contextFactory">The database context to use.</param>
         /// <param name="optionsMonitor"></param>
         public UserService(
             ISoulseekClient soulseekClient,
             IStateMutator<State> stateMutator,
-            IDbContextFactory<UserDbContext> contextFactory,
             IOptionsMonitor<Options> optionsMonitor)
         {
             Client = soulseekClient;
 
             StateMutator = stateMutator;
-
-            ContextFactory = contextFactory;
 
             OptionsMonitor = optionsMonitor;
             OptionsMonitor.OnChange(options => Configure(options));
@@ -87,7 +79,6 @@ namespace slskd.Users
         public IReadOnlyList<string> WatchedUsernames => WatchedUsernamesDictionary.Keys.ToList().AsReadOnly();
 
         private ISoulseekClient Client { get; }
-        private IDbContextFactory<UserDbContext> ContextFactory { get; }
         private string LastOptionsHash { get; set; }
         private ILogger Log { get; set; } = Serilog.Log.ForContext<UserService>();
         private IOptionsMonitor<Options> OptionsMonitor { get; }
@@ -130,35 +121,11 @@ namespace slskd.Users
         ///     Retrieves peer <see cref="Info"/>.
         /// </summary>
         /// <param name="username">The username of the peer.</param>
-        /// <param name="bypassCache">A value indicating whether the local cache should be bypassed.</param>
-        /// <returns>The cached or retrieved info.</returns>
-        public async Task<Info> GetInfoAsync(string username, bool bypassCache = false)
+        /// <returns>The retrieved info.</returns>
+        public async Task<Info> GetInfoAsync(string username)
         {
-            using var context = ContextFactory.CreateDbContext();
-
-            var info = await context.Info.AsNoTracking().FirstOrDefaultAsync(peer => peer.Username == username);
-            var peerExists = info != default;
-
-            if (!bypassCache && peerExists && info.UpdatedAt < DateTime.UtcNow.AddSeconds(CacheTTLSeconds))
-            {
-                return info;
-            }
-
             var soulseekUserInfo = await Client.GetUserInfoAsync(username);
-            info = Info.FromSoulseekUserInfo(username, soulseekUserInfo);
-
-            if (peerExists)
-            {
-                context.Update(info);
-            }
-            else
-            {
-                context.Add(info);
-            }
-
-            await context.SaveChangesAsync();
-
-            return info;
+            return soulseekUserInfo.ToInfo();
         }
 
         /// <summary>
