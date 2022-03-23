@@ -47,5 +47,20 @@ namespace slskd.Users
             IsPrivileged = s.IsPrivileged,
             Presence = s.Presence,
         };
+
+        /// <summary>
+        ///     Converts <see cref="Soulseek.UserInfo"/> to <see cref="Info"/>.
+        /// </summary>
+        /// <param name="i">The UserInfo instance to convert.</param>
+        /// <returns>The converted instance.</returns>
+        public static Info ToInfo(this UserInfo i) => new()
+        {
+            Description = i.Description,
+            HasFreeUploadSlot = i.HasFreeUploadSlot,
+            HasPicture = i.HasPicture,
+            Picture = i.Picture,
+            QueueLength = i.QueueLength,
+            UploadSlots = i.UploadSlots,
+        };
     }
 }
