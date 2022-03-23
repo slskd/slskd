@@ -40,17 +40,17 @@ namespace slskd.Users.API
         /// </summary>
         /// <param name="soulseekClient"></param>
         /// <param name="browseTracker"></param>
-        /// <param name="peerService"></param>
-        public UsersController(ISoulseekClient soulseekClient, IBrowseTracker browseTracker, IUserService peerService)
+        /// <param name="userService"></param>
+        public UsersController(ISoulseekClient soulseekClient, IBrowseTracker browseTracker, IUserService userService)
         {
             Client = soulseekClient;
             BrowseTracker = browseTracker;
-            Peers = peerService;
+            Users = userService;
         }
 
         private IBrowseTracker BrowseTracker { get; }
         private ISoulseekClient Client { get; }
-        private IUserService Peers { get; }
+        private IUserService Users { get; }
 
         /// <summary>
         ///     Retrieves the address of the specified <paramref name="username"/>.
@@ -66,7 +66,7 @@ namespace slskd.Users.API
         {
             try
             {
-                var endpoint = await Peers.GetIPEndPointAsync(username);
+                var endpoint = await Users.GetIPEndPointAsync(username);
                 return Ok(endpoint);
             }
             catch (UserOfflineException ex)
@@ -127,17 +127,16 @@ namespace slskd.Users.API
         ///     Retrieves information about the specified <paramref name="username"/>.
         /// </summary>
         /// <param name="username">The username of the user.</param>
-        /// <param name="bypassCache">Bypasses the internal cache and requests the latest information from the peer.</param>
         /// <returns></returns>
         [HttpGet("{username}/info")]
         [Authorize]
         [ProducesResponseType(typeof(Info), 200)]
         [ProducesResponseType(404)]
-        public async Task<IActionResult> Info([FromRoute, Required] string username, [FromQuery]bool bypassCache = false)
+        public async Task<IActionResult> Info([FromRoute, Required] string username)
         {
             try
             {
-                var response = await Peers.GetInfoAsync(username, bypassCache);
+                var response = await Users.GetInfoAsync(username);
                 return Ok(response);
             }
             catch (UserOfflineException ex)
@@ -159,7 +158,7 @@ namespace slskd.Users.API
         {
             try
             {
-                var response = await Peers.GetStatusAsync(username);
+                var response = await Users.GetStatusAsync(username);
                 return Ok(response);
             }
             catch (UserOfflineException ex)
