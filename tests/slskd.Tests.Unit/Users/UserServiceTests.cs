@@ -126,7 +126,6 @@
             var service = new UserService(
                 mocks.SoulseekClient.Object,
                 mocks.StateMutator.Object,
-                mocks.ContextFactory.Object,
                 mocks.OptionsMonitor);
 
             return (service, mocks);
@@ -141,7 +140,6 @@
 
             public Mock<ISoulseekClient> SoulseekClient { get; } = new Mock<ISoulseekClient>();
             public Mock<IStateMutator<State>> StateMutator { get; } = new Mock<IStateMutator<State>>();
-            public Mock<IDbContextFactory<UserDbContext>> ContextFactory { get; } = new Mock<IDbContextFactory<UserDbContext>>();
             public TestOptionsMonitor<Options> OptionsMonitor { get; init; }
         }
     }
