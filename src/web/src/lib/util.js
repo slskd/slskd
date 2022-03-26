@@ -34,6 +34,20 @@ export const getDirectoryName = (fullPath) => {
     return path;
 }
 
+export const formatAttributes = ({ bitRate, isVariableBitRate, bitDepth, sampleRate }) => {
+    const isLossless = !!sampleRate && !!bitDepth;
+
+    if (isLossless) {
+        return `${bitDepth}/${sampleRate/1000}kHz`;
+    }
+
+    if (isVariableBitRate) {
+        return `${bitRate}kbps, VBR`
+    }
+
+    return bitRate ? `${bitRate}kbps` : ''
+}
+
 /* https://www.npmjs.com/package/js-file-download
  * 
  * Copyright 2017 Kenneth Jiang
