@@ -1,6 +1,6 @@
 import React from 'react';
 
-import { formatSeconds, formatBytes, getFileName } from '../../lib/util';
+import { formatSeconds, formatBytes, getFileName, formatAttributes } from '../../lib/util';
 
 import { 
     Header, 
@@ -44,7 +44,7 @@ const FileList = ({ directoryName, files, locked, onSelectionChange, disabled, o
               </Table.HeaderCell>
               <Table.HeaderCell className='filelist-filename'>File</Table.HeaderCell>
               <Table.HeaderCell className='filelist-size'>Size</Table.HeaderCell>
-              <Table.HeaderCell className='filelist-bitrate'>Bitrate</Table.HeaderCell>
+              <Table.HeaderCell className='filelist-attributes'>Attributes</Table.HeaderCell>
               <Table.HeaderCell className='filelist-length'>Length</Table.HeaderCell>
             </Table.Row>
           </Table.Header>
@@ -61,7 +61,7 @@ const FileList = ({ directoryName, files, locked, onSelectionChange, disabled, o
                 </Table.Cell>
                 <Table.Cell className='filelist-filename'>{locked ? <Icon name='lock'/> : ''}{getFileName(f.filename)}</Table.Cell>
                 <Table.Cell className='filelist-size'>{formatBytes(f.size)}</Table.Cell>
-                <Table.Cell className='filelist-bitrate'>{f.bitRate}</Table.Cell>
+                <Table.Cell className='filelist-attributes'>{formatAttributes(f)}</Table.Cell>
                 <Table.Cell className='filelist-length'>{formatSeconds(f.length)}</Table.Cell>
               </Table.Row>
             )}
