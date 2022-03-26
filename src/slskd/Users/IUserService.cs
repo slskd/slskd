@@ -47,9 +47,8 @@ namespace slskd.Users
         ///     Retrieves peer <see cref="Info"/>.
         /// </summary>
         /// <param name="username">The username of the peer.</param>
-        /// <param name="bypassCache">A value indicating whether the local cache should be bypassed.</param>
-        /// <returns>The cached or retrieved info.</returns>
-        Task<Info> GetInfoAsync(string username, bool bypassCache = false);
+        /// <returns>The retrieved info.</returns>
+        Task<Info> GetInfoAsync(string username);
 
         /// <summary>
         ///     Retrieves a peer's IP endpoint, including their IP address and listen port.

@@ -17,35 +17,13 @@
 
 namespace slskd.Users
 {
-    using System;
-    using System.ComponentModel.DataAnnotations;
-    using Soulseek;
-
-    public class Info
+    public record Info
     {
-        [Key]
-        public string Username { get; init; }
         public string Description { get; init; }
         public bool HasFreeUploadSlot { get; init; }
         public bool HasPicture { get; init; }
         public byte[] Picture { get; init; }
         public int QueueLength { get; init; }
         public int UploadSlots { get; init; }
-        public DateTime UpdatedAt { get; init; }
-
-        public static Info FromSoulseekUserInfo(string username, UserInfo info)
-        {
-            return new Info()
-            {
-                Username = username,
-                Description = info.Description,
-                HasFreeUploadSlot = info.HasFreeUploadSlot,
-                HasPicture = info.HasPicture,
-                Picture = info.Picture,
-                QueueLength = info.QueueLength,
-                UploadSlots = info.UploadSlots,
-                UpdatedAt = DateTime.UtcNow,
-            };
-        }
     }
 }

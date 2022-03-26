@@ -224,11 +224,6 @@ namespace slskd
                 options.UseSqlite($"Data Source={Path.Combine(Program.AppDirectory, "data", "search.db")}");
             });
 
-            services.AddDbContextFactory<UserDbContext>(options =>
-            {
-                options.UseSqlite($"Data Source={Path.Combine(Program.AppDirectory, "data", "users.db")}");
-            });
-
             services.AddHttpClient();
 
             // add a partially configured instance of SoulseekClient. the Application instance will
@@ -403,7 +398,6 @@ namespace slskd
             try
             {
                 using var search = GetFactory<SearchDbContext>().CreateDbContext();
-                using var peer = GetFactory<UserDbContext>().CreateDbContext();
             }
             catch (Exception ex)
             {
