@@ -19,32 +19,6 @@ export const getResponses = async ({ id }) => {
   return response;
 };
 
-export const isConstantBitRate = (bitRate) => {
-  switch (bitRate) {
-    case 8:
-    case 16:
-    case 24:
-    case 32:
-    case 40:
-    case 48:
-    case 56:
-    case 64:
-    case 80:
-    case 96:
-    case 112:
-    case 128:
-    case 144:
-    case 160:
-    case 192:
-    case 224:
-    case 256:
-    case 320:
-      return true;
-    default:
-      return false;
-  }
-}
-
 export const parseFiltersFromString = (string) => {
   const filters = {
     minBitRate: 0,
@@ -54,7 +28,8 @@ export const parseFiltersFromString = (string) => {
     include: [],
     exclude: [],
     isVBR: false,
-    isCBR: false
+    isCBR: false,
+    isLossless: false,
   };
 
   const getNthMatch = (string, regex, n) => {
@@ -72,9 +47,10 @@ export const parseFiltersFromString = (string) => {
   
   filters.isVBR = !!string.match(/isvbr/i);
   filters.isCBR = !!string.match(/iscbr/i);
+  filters.isLossless = !!string.match(/islossless/i);
 
   let terms = string.toLowerCase().split(' ')
-    .filter(term => !term.includes(':') && term !== 'isvbr' && term !== 'iscbr');
+    .filter(term => !term.includes(':') && term !== 'isvbr' && term !== 'iscbr' && term !== 'islossless');
 
   filters.include = terms.filter(term => !term.startsWith('-'));
   filters.exclude = terms.filter(term => term.startsWith('-')).map(term => term.slice(1));
@@ -90,7 +66,8 @@ export const filterResponse = ({
     include: [],
     exclude: [],
     isVBR: false,
-    isCBR: false
+    isCBR: false,
+    isLossless: false,
   },
   response = { 
     files: [],
@@ -104,11 +81,12 @@ export const filterResponse = ({
   }
 
   const filterFiles = (files) => files.filter(file => {
-    const { bitRate, size, length, filename } = file;
-    const { isCBR, isVBR, minBitRate, minFileSize, minLength, include = [], exclude = [] } = filters;
+    const { bitRate, size, length, filename, sampleRate, bitDepth, isVariableBitRate } = file;
+    const { isCBR, isVBR, isLossless, minBitRate, minFileSize, minLength, include = [], exclude = [] } = filters;
   
-    if (isCBR && !isConstantBitRate(bitRate)) return false;    
-    if (isVBR && isConstantBitRate(bitRate)) return false;
+    if (isCBR && (isVariableBitRate === undefined || isVariableBitRate)) return false;    
+    if (isVBR && (isVariableBitRate === undefined || !isVariableBitRate)) return false;
+    if (isLossless && (!sampleRate || !bitDepth)) return false;
     if (bitRate < minBitRate) return false;
     if (size < minFileSize) return false;
     if (length < minLength) return false;
