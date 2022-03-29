@@ -350,6 +350,18 @@ soulseek:
   listen_port: 50000
 ```
 
+## Other
+
+| Command Line         | Environment Variable | Description                                   |
+| -------------------- | -------------------- | --------------------------------------------- |
+| `--slsk-description` | `SLSK_DESCRIPTION`   | The user description for the Soulseek network |
+
+#### **YAML**
+```yaml
+soulseek:
+  description: A slskd user. https://github.com/slskd/slskd
+```
+
 ## Connection Options
 
 ### Timeouts
