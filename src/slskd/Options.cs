@@ -695,6 +695,15 @@ namespace slskd
             public string Password { get; init; } = null;
 
             /// <summary>
+            ///     Gets the description of the Soulseek user.
+            /// </summary>
+            [Argument(default, "slsk-description")]
+            [EnvironmentVariable("SLSK_DESCRIPTION")]
+            [Description("user description for the Soulseek network")]
+            [RequiresReconnect]
+            public string Description { get; init; } = "A slskd user. https://github.com/slskd/slskd";
+
+            /// <summary>
             ///     Gets the port on which to listen for incoming connections.
             /// </summary>
             [Argument(default, "slsk-listen-port")]
