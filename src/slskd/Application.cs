@@ -905,7 +905,7 @@ namespace slskd
         private Task<UserInfo> UserInfoResolver(string username, IPEndPoint endpoint)
         {
             var info = new UserInfo(
-                description: $"Soulseek.NET Web Example! also, your username is {username}, and IP endpoint is {endpoint}",
+                description: Options.Soulseek.Description,
                 uploadSlots: 1,
                 queueLength: 0,
                 hasFreeUploadSlot: false);
