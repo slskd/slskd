@@ -30,6 +30,7 @@ export const parseFiltersFromString = (string) => {
     isVBR: false,
     isCBR: false,
     isLossless: false,
+    isLossy: false,
   };
 
   const getNthMatch = (string, regex, n) => {
@@ -48,9 +49,10 @@ export const parseFiltersFromString = (string) => {
   filters.isVBR = !!string.match(/isvbr/i);
   filters.isCBR = !!string.match(/iscbr/i);
   filters.isLossless = !!string.match(/islossless/i);
+  filters.isLossy = !!string.match(/islossy/i);
 
   let terms = string.toLowerCase().split(' ')
-    .filter(term => !term.includes(':') && term !== 'isvbr' && term !== 'iscbr' && term !== 'islossless');
+    .filter(term => !term.includes(':') && term !== 'isvbr' && term !== 'iscbr' && term !== 'islossless' && term !== 'islossy');
 
   filters.include = terms.filter(term => !term.startsWith('-'));
   filters.exclude = terms.filter(term => term.startsWith('-')).map(term => term.slice(1));
@@ -68,6 +70,7 @@ export const filterResponse = ({
     isVBR: false,
     isCBR: false,
     isLossless: false,
+    isLossy: false,
   },
   response = { 
     files: [],
@@ -82,11 +85,14 @@ export const filterResponse = ({
 
   const filterFiles = (files) => files.filter(file => {
     const { bitRate, size, length, filename, sampleRate, bitDepth, isVariableBitRate } = file;
-    const { isCBR, isVBR, isLossless, minBitRate, minFileSize, minLength, include = [], exclude = [] } = filters;
-  
+    const { isCBR, isVBR, isLossless, isLossy, minBitRate, minFileSize, minLength, include = [], exclude = [] } = filters;
+
+    console.log(filters);
+
     if (isCBR && (isVariableBitRate === undefined || isVariableBitRate)) return false;    
     if (isVBR && (isVariableBitRate === undefined || !isVariableBitRate)) return false;
     if (isLossless && (!sampleRate || !bitDepth)) return false;
+    if (isLossy && (sampleRate || bitDepth)) return false;
     if (bitRate < minBitRate) return false;
     if (size < minFileSize) return false;
     if (length < minLength) return false;

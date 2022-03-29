@@ -262,7 +262,7 @@ class Search extends Component {
                 </div>
                 <Input 
                   className='search-filter'
-                  placeholder='lackluster container -bothersome iscbr|isvbr islossless minbitrate:320 minfilesize:10 minfilesinfolder:8 minlength:5000'
+                  placeholder='lackluster container -bothersome iscbr|isvbr islossless|islossy minbitrate:320 minfilesize:10 minfilesinfolder:8 minlength:5000'
                   label={{ icon: 'filter', content: 'Filter' }}
                   value={resultFilters}
                   onChange={this.onResultFilterChange}
