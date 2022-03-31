@@ -87,8 +87,6 @@ export const filterResponse = ({
     const { bitRate, size, length, filename, sampleRate, bitDepth, isVariableBitRate } = file;
     const { isCBR, isVBR, isLossless, isLossy, minBitRate, minFileSize, minLength, include = [], exclude = [] } = filters;
 
-    console.log(filters);
-
     if (isCBR && (isVariableBitRate === undefined || isVariableBitRate)) return false;    
     if (isVBR && (isVariableBitRate === undefined || !isVariableBitRate)) return false;
     if (isLossless && (!sampleRate || !bitDepth)) return false;
