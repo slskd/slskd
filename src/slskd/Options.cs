@@ -700,7 +700,6 @@ namespace slskd
             [Argument(default, "slsk-description")]
             [EnvironmentVariable("SLSK_DESCRIPTION")]
             [Description("user description for the Soulseek network")]
-            [RequiresReconnect]
             public string Description { get; init; } = "A slskd user. https://github.com/slskd/slskd";
 
             /// <summary>
