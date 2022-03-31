@@ -1,34 +1,11 @@
 import * as search from './search';
 
-describe('isConstantBitRate', () => {
-  it('returns true given a valid MPEG-3 bitrate', () => {
-    const bitrates = [8,16,24,32,40,48,56,64,80,96,112,128,144,160,192,224,256,320];
-
-    bitrates.forEach(br => {
-      expect(search.isConstantBitRate(br)).toBe(true);
-    });
-  });
-
-  it('returns false given an invalid MPEG-3 bitrate', () => {
-    const bitrates = [5,7,65,150,321];
-
-    bitrates.forEach(br => {
-      expect(search.isConstantBitRate(br)).toBe(false);
-    });
-  });
-
-  it('returns false given null or undefined', () => {
-    expect(search.isConstantBitRate(null)).toBe(false);
-    expect(search.isConstantBitRate()).toBe(false);
-  });
-});
-
 describe('filterResponse', () => {
   it('removes VBR files if "iscbr" is specified', () => {
     const response = {
       files: [
-        { bitRate: 123 },
-        { bitRate: 320 }
+        { bitRate: 123, isVariableBitRate: true },
+        { bitRate: 320, isVariableBitRate: false }
       ]
     };
 
@@ -36,7 +13,7 @@ describe('filterResponse', () => {
 
     expect(search.filterResponse({ response, filters })).toMatchObject({
       files: [
-        { bitRate: 320 }
+        { bitRate: 320, isVariableBitRate: false }
       ]
     });
   });
@@ -44,8 +21,8 @@ describe('filterResponse', () => {
   it('removes CBR files if "isvbr" is specified', () => {
     const response = {
       files: [
-        { bitRate: 123 },
-        { bitRate: 320 }
+        { bitRate: 123, isVariableBitRate: true },
+        { bitRate: 320, isVariableBitRate: false }
       ]
     };
 
@@ -53,7 +30,7 @@ describe('filterResponse', () => {
 
     expect(search.filterResponse({ response, filters })).toMatchObject({
       files: [
-        { bitRate: 123 }
+        { bitRate: 123, isVariableBitRate: true }
       ]
     });
   });
@@ -61,8 +38,8 @@ describe('filterResponse', () => {
   it('removes all files if "iscbr" and "isvbr" are both specified', () => {
     const response = {
       files: [
-        { bitRate: 123 },
-        { bitRate: 320 }
+        { isVariableBitrate: true },
+        { isVariableBitrate: false }
       ]
     };
 
@@ -70,6 +47,40 @@ describe('filterResponse', () => {
 
     expect(search.filterResponse({ response, filters })).toMatchObject({
       files: []
+    });
+  });
+
+  it('removes lossy files if "islossless" is specified', () => {
+    const response = {
+      files: [
+        { sampleRate: 41000, bitDepth: 16 },
+        { bitRate: 320, isVariableBitRate: false }
+      ]
+    };
+
+    const filters = { isLossless: true };
+
+    expect(search.filterResponse({ response, filters })).toMatchObject({
+      files: [
+        { sampleRate: 41000, bitDepth: 16 }
+      ]
+    });
+  });
+
+  it('removes lossless files if "islossy" is specified', () => {
+    const response = {
+      files: [
+        { sampleRate: 41000, bitDepth: 16 },
+        { bitRate: 320, isVariableBitRate: false }
+      ]
+    };
+
+    const filters = { isLossy: true };
+
+    expect(search.filterResponse({ response, filters })).toMatchObject({
+      files: [
+        { bitRate: 320, isVariableBitRate: false }
+      ]
     });
   });
 
