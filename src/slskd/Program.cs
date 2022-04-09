@@ -1,4 +1,4 @@
-﻿// <copyright file="Program.cs" company="slskd Team">
+// <copyright file="Program.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -468,30 +468,37 @@ namespace slskd
 
             void Map(Type type)
             {
-                var defaults = Activator.CreateInstance(type);
-                var props = type.GetProperties(BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
-
-                foreach (PropertyInfo property in props)
+                try
                 {
-                    var attribute = property.CustomAttributes.FirstOrDefault(a => a.AttributeType == typeof(ArgumentAttribute));
-                    var descriptionAttribute = property.CustomAttributes.FirstOrDefault(a => a.AttributeType == typeof(DescriptionAttribute));
-                    var isRequired = property.CustomAttributes.Any(a => a.AttributeType == typeof(RequiredAttribute));
+                    var defaults = Activator.CreateInstance(type);
+                    var props = type.GetProperties(BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
 
-                    if (attribute != default)
+                    foreach (PropertyInfo property in props)
                     {
-                        var shortName = (char)attribute.ConstructorArguments[0].Value;
-                        var longName = (string)attribute.ConstructorArguments[1].Value;
-                        var description = descriptionAttribute?.ConstructorArguments[0].Value;
+                        var attribute = property.CustomAttributes.FirstOrDefault(a => a.AttributeType == typeof(ArgumentAttribute));
+                        var descriptionAttribute = property.CustomAttributes.FirstOrDefault(a => a.AttributeType == typeof(DescriptionAttribute));
+                        var isRequired = property.CustomAttributes.Any(a => a.AttributeType == typeof(RequiredAttribute));
 
-                        var suffix = isRequired ? " (required)" : $" (default: {property.GetValue(defaults) ?? "<null>"})";
-                        var item = $"{(shortName == default ? "  " : $"{shortName}|")}--{GetLongName(longName, property.PropertyType)}";
-                        var desc = $"{description}{(property.PropertyType == typeof(bool) ? string.Empty : suffix)}";
-                        lines.Add(new(item, desc));
+                        if (attribute != default)
+                        {
+                            var shortName = (char)attribute.ConstructorArguments[0].Value;
+                            var longName = (string)attribute.ConstructorArguments[1].Value;
+                            var description = descriptionAttribute?.ConstructorArguments[0].Value;
+
+                            var suffix = isRequired ? " (required)" : $" (default: {property.GetValue(defaults) ?? "<null>"})";
+                            var item = $"{(shortName == default ? "  " : $"{shortName}|")}--{GetLongName(longName, property.PropertyType)}";
+                            var desc = $"{description}{(property.PropertyType == typeof(bool) ? string.Empty : suffix)}";
+                            lines.Add(new(item, desc));
+                        }
+                        else
+                        {
+                            Map(property.PropertyType);
+                        }
                     }
-                    else
-                    {
-                        Map(property.PropertyType);
-                    }
+                }
+                catch
+                {
+                    return;
                 }
             }
 
@@ -516,29 +523,36 @@ namespace slskd
 
             void Map(Type type)
             {
-                var defaults = Activator.CreateInstance(type);
-                var props = type.GetProperties(BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
-
-                foreach (PropertyInfo property in props)
+                try
                 {
-                    var attribute = property.CustomAttributes.FirstOrDefault(a => a.AttributeType == typeof(EnvironmentVariableAttribute));
-                    var descriptionAttribute = property.CustomAttributes.FirstOrDefault(a => a.AttributeType == typeof(DescriptionAttribute));
-                    var isRequired = property.CustomAttributes.Any(a => a.AttributeType == typeof(RequiredAttribute));
+                    var defaults = Activator.CreateInstance(type);
+                    var props = type.GetProperties(BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
 
-                    if (attribute != default)
+                    foreach (PropertyInfo property in props)
                     {
-                        var name = (string)attribute.ConstructorArguments[0].Value;
-                        var description = descriptionAttribute?.ConstructorArguments[0].Value;
+                        var attribute = property.CustomAttributes.FirstOrDefault(a => a.AttributeType == typeof(EnvironmentVariableAttribute));
+                        var descriptionAttribute = property.CustomAttributes.FirstOrDefault(a => a.AttributeType == typeof(DescriptionAttribute));
+                        var isRequired = property.CustomAttributes.Any(a => a.AttributeType == typeof(RequiredAttribute));
 
-                        var suffix = isRequired ? " (required)" : $" (default: {property.GetValue(defaults) ?? "<null>"})";
-                        var item = $"{prefix}{GetName(name, property.PropertyType)}";
-                        var desc = $"{description}{(type == typeof(bool) ? string.Empty : suffix)}";
-                        lines.Add(new(item, desc));
+                        if (attribute != default)
+                        {
+                            var name = (string)attribute.ConstructorArguments[0].Value;
+                            var description = descriptionAttribute?.ConstructorArguments[0].Value;
+
+                            var suffix = isRequired ? " (required)" : $" (default: {property.GetValue(defaults) ?? "<null>"})";
+                            var item = $"{prefix}{GetName(name, property.PropertyType)}";
+                            var desc = $"{description}{(type == typeof(bool) ? string.Empty : suffix)}";
+                            lines.Add(new(item, desc));
+                        }
+                        else
+                        {
+                            Map(property.PropertyType);
+                        }
                     }
-                    else
-                    {
-                        Map(property.PropertyType);
-                    }
+                }
+                catch
+                {
+                    return;
                 }
             }
 
