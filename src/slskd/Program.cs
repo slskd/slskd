@@ -290,17 +290,24 @@ namespace slskd
                         outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}"))
                 .WriteTo.Sink(new DelegatingSink(logEvent =>
                 {
-                    var record = new LogRecord()
+                    try
                     {
-                        Timestamp = logEvent.Timestamp.LocalDateTime,
-                        Context = logEvent.Properties["Context"].ToString().TrimStart('"').TrimEnd('"'),
-                        SubContext = logEvent.Properties["SubContext"].ToString().TrimStart('"').TrimEnd('"'),
-                        Level = logEvent.Level.ToString(),
-                        Message = logEvent.RenderMessage().TrimStart('"').TrimEnd('"'),
-                    };
+                        var record = new LogRecord()
+                        {
+                            Timestamp = logEvent.Timestamp.LocalDateTime,
+                            Context = logEvent.Properties["SourceContext"].ToString().TrimStart('"').TrimEnd('"'),
+                            SubContext = logEvent.Properties.ContainsKey("SubContext") ? logEvent.Properties["SubContext"].ToString().TrimStart('"').TrimEnd('"') : null,
+                            Level = logEvent.Level.ToString(),
+                            Message = logEvent.RenderMessage().TrimStart('"').TrimEnd('"'),
+                        };
 
-                    LogBuffer.Enqueue(record);
-                    LogEmitted?.Invoke(null, record);
+                        LogBuffer.Enqueue(record);
+                        LogEmitted?.Invoke(null, record);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Misconfigured delegating logger: {ex.Message}");
+                    }
                 }))
                 .CreateLogger();
 
