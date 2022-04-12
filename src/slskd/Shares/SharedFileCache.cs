@@ -276,6 +276,7 @@ namespace slskd.Shares
                     }
                     catch (Exception ex)
                     {
+                        Log.Debug("Failed to scan files in directory {Directory}: {Exception}", directory, ex);
                         Log.Warning("Failed to scan files in directory {Directory}: {Message}", directory, ex.Message);
                     }
 
