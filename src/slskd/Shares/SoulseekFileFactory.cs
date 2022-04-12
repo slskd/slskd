@@ -60,7 +60,7 @@ namespace slskd.Shares
         {
             var code = 1;
             var size = new FileInfo(filename).Length;
-            var extension = Path.GetExtension(filename)[1..].ToLowerInvariant();
+            var extension = Path.GetExtension(filename).TrimStart('.').ToLowerInvariant();
             List<FileAttribute> attributeList = default;
 
             if (SupportedExtensions.Contains(extension))
