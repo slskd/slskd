@@ -36,6 +36,26 @@ const getColor = (state) => {
 const isRetryableState = (state) => getColor(state).color === 'red';
 const isQueuedState = (state) => state.includes('Queued');
 
+const formatBytesTransferred = ({ transferred, size }) => {
+    const [t, tExt] = formatBytes(transferred).split(' ')
+    const [s, sExt] = formatBytes(size).split(' ')
+
+    const fmt = (n) => parseFloat(n).toFixed(2);
+
+    // if less than 1 MB has been transferred, don't include decimals
+    if (tExt === 'KB') {
+        return `${t} KB/${fmt(s)} ${sExt}`
+    }
+
+    // if the suffix for size and transferred doesn't match, include
+    // the suffix for each
+    if (tExt !== sExt) {
+        return `${fmt(t)} ${tExt}/${fmt(s)} ${sExt}`
+    }
+
+    return `${fmt(t)}/${fmt(s)} ${sExt}`
+}
+
 class TransferList extends Component {
     handleClick = (file) => {
         const { state, direction } = file;
@@ -111,7 +131,7 @@ class TransferList extends Component {
                                         </Button>}
                                     </Table.Cell>
                                     <Table.Cell className='transferlist-size'>
-                                        {f.bytesTransferred > 0 ? formatBytes(f.bytesTransferred).split(' ', 1) + '/' + formatBytes(f.size) : ''}
+                                        {f.bytesTransferred > 0 ? formatBytesTransferred({ transferred: f.bytesTransferred, size: f.size }) : ''}
                                     </Table.Cell>
                                 </Table.Row>
                             )}

@@ -42,10 +42,10 @@ export const formatAttributes = ({ bitRate, isVariableBitRate, bitDepth, sampleR
     }
 
     if (isVariableBitRate) {
-        return `${bitRate}kbps, VBR`
+        return `${bitRate} Kbps, VBR`
     }
 
-    return bitRate ? `${bitRate}kbps` : ''
+    return bitRate ? `${bitRate} Kbps` : ''
 }
 
 /* https://www.npmjs.com/package/js-file-download
