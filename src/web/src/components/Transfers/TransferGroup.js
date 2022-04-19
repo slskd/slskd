@@ -10,6 +10,7 @@ import TransferList from './TransferList';
 
 class TransferGroup extends Component {
     state = { selections: new Set() }
+    folded = false
 
     onSelectionChange = (directoryName, file, selected) => {
         const { selections } = this.state;
@@ -83,7 +84,11 @@ class TransferGroup extends Component {
             console.log(error);
         }
     }
-    
+
+    toggleFold = () => {
+        this.folded = this.folded ? true : false
+    }
+
     render = () => {
         const { user, direction } = this.props;
 
@@ -97,8 +102,10 @@ class TransferGroup extends Component {
         return (
             <Card key={user.username} className='transfer-card' raised>
                 <Card.Content>
-                    <Card.Header>{user.username}</Card.Header>
-                    {user.directories && user.directories
+                    <Card.Header onClick={this.toggleFold}>
+                        {(this.folded) ? '↳' : '→'} | {user.username}
+                    </Card.Header>
+                    {user.directories && !this.folded && user.directories
                         .map((dir, index) => 
                         <TransferList 
                             key={index} 
