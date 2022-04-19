@@ -28,7 +28,8 @@ class Response extends Component {
     state = { 
         tree: buildTree(this.props.response), 
         downloadRequest: undefined, 
-        downloadError: '' 
+        downloadError: '',
+        isFolded: false
     }
 
     componentDidUpdate = (prevProps) => {
@@ -55,11 +56,15 @@ class Response extends Component {
         });
     }
 
+    toggleFolded = () => {
+        this.setState({'isFolded': !this.state.isFolded});
+    }
+
     render = () => {
         let response = this.props.response;
         let free = response.freeUploadSlots > 0;
 
-        let { tree, downloadRequest, downloadError } = this.state;
+        let { tree, downloadRequest, downloadError, isFolded } = this.state;
 
         let selectedFiles = Object.keys(tree)
             .reduce((list, dict) => list.concat(tree[dict]), [])
@@ -71,6 +76,11 @@ class Response extends Component {
             <Card className='result-card' raised>
                 <Card.Content>
                     <Card.Header>
+                        <Icon
+                            link
+                            name={isFolded ? 'chevron right' : 'chevron down'}
+                            onClick={() => this.toggleFolded()}
+                        />
                         <Icon name='circle' color={free ? 'green' : 'yellow'}/>
                         {response.username}
                         <Icon 
@@ -84,7 +94,7 @@ class Response extends Component {
                     <Card.Meta className='result-meta'>
                         <span>Upload Speed: {formatBytes(response.uploadSpeed)}/s, Free Upload Slot: {free ? 'YES' : 'NO'}, Queue Length: {response.queueLength}</span>
                     </Card.Meta>
-                    {(Object.keys(tree) || []).map((dir, i) => 
+                    {(!isFolded && Object.keys(tree) || []).map((dir, i) => 
                         <FileList 
                             key={i}
                             directoryName={dir}

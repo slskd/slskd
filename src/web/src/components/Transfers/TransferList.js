@@ -1,4 +1,4 @@
-import React, { Component } from 'react';
+import React, { Component, useState } from 'react';
 
 import {
     Checkbox
@@ -57,8 +57,10 @@ const formatBytesTransferred = ({ transferred, size }) => {
 }
 
 class TransferList extends Component {
-    isFolded = false
-
+    state = {
+        isFolded: false
+    }
+    
     handleClick = (file) => {
         const { state, direction } = file;
 
@@ -74,12 +76,12 @@ class TransferList extends Component {
     }
 
     toggleFolded = () => {
-        console.log('folded:', this.isFolded);
-        this.isFolded = this.isFolded ? false : true;
+        this.setState({'isFolded': !this.state.isFolded});
     }
 
     render = () => {
         const { directoryName, onSelectionChange, files } = this.props;
+        const isFolded = this.state.isFolded;
 
         return (
             <div>
@@ -88,13 +90,13 @@ class TransferList extends Component {
                     className='filelist-header'
                 >
                     <Icon
-                        link={true}
-                        name={this.isFolded ? 'chevron right' : 'chevron down'}
+                        link
+                        name={isFolded ? 'chevron right' : 'chevron down'}
                         onClick={() => this.toggleFolded()}
                     />
                     <Icon name='folder'/>{directoryName}
                 </Header>
-                {!this.isFolded &&
+                {!isFolded &&
                 <List>
                     <List.Item>
                     <Table>
