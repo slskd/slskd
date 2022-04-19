@@ -40,9 +40,20 @@ const formatBytesTransferred = ({ transferred, size }) => {
     const [t, tExt] = formatBytes(transferred).split(' ')
     const [s, sExt] = formatBytes(size).split(' ')
 
-    // include the size label for transferred if it differs from size
-    // e.g. 12 KB/3 MB => 2.9/3 MB
-    return `${t}${tExt === sExt ? '' : ' ' + tExt}/${s} ${sExt}`
+    const fmt = (n) => parseFloat(n).toFixed(2);
+
+    // if less than 1 MB has been transferred, don't include decimals
+    if (tExt === 'KB') {
+        return `${t} KB/${fmt(s)} ${sExt}`
+    }
+
+    // if the suffix for size and transferred doesn't match, include
+    // the suffix for each
+    if (tExt !== sExt) {
+        return `${fmt(t)} ${tExt}/${fmt(s)} ${sExt}`
+    }
+
+    return `${fmt(t)}/${fmt(s)} ${sExt}`
 }
 
 class TransferList extends Component {
