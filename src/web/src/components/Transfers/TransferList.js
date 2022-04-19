@@ -57,6 +57,8 @@ const formatBytesTransferred = ({ transferred, size }) => {
 }
 
 class TransferList extends Component {
+    isFolded = false
+
     handleClick = (file) => {
         const { state, direction } = file;
 
@@ -71,6 +73,11 @@ class TransferList extends Component {
         }    
     }
 
+    toggleFolded = () => {
+        console.log('folded:', this.isFolded);
+        this.isFolded = this.isFolded ? false : true;
+    }
+
     render = () => {
         const { directoryName, onSelectionChange, files } = this.props;
 
@@ -80,8 +87,14 @@ class TransferList extends Component {
                     size='small' 
                     className='filelist-header'
                 >
+                    <Icon
+                        link={true}
+                        name={this.isFolded ? 'chevron right' : 'chevron down'}
+                        onClick={() => this.toggleFolded()}
+                    />
                     <Icon name='folder'/>{directoryName}
                 </Header>
+                {!this.isFolded &&
                 <List>
                     <List.Item>
                     <Table>
@@ -138,7 +151,7 @@ class TransferList extends Component {
                         </Table.Body>
                     </Table>
                     </List.Item>
-                </List>
+                </List>}
             </div>
         )
     }
