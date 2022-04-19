@@ -7,7 +7,7 @@ import {
 import { formatBytes, getFileName } from '../../lib/util';
 
 import { 
-    Header, 
+    Card, 
     Table, 
     Icon, 
     List, 
@@ -85,7 +85,7 @@ class TransferList extends Component {
 
         return (
             <div>
-                <Header 
+                <Card.Header 
                     size='small' 
                     className='filelist-header'
                 >
@@ -94,8 +94,9 @@ class TransferList extends Component {
                         name={isFolded ? 'chevron right' : 'chevron down'}
                         onClick={() => this.toggleFolded()}
                     />
-                    <Icon name='folder'/>{directoryName}
-                </Header>
+                    <Icon name='folder'/>
+                    {directoryName}
+                </Card.Header>
                 {!isFolded &&
                 <List>
                     <List.Item>

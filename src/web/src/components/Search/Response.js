@@ -83,13 +83,6 @@ class Response extends Component {
                         />
                         <Icon name='circle' color={free ? 'green' : 'yellow'}/>
                         {response.username}
-                        <Icon 
-                            className='close-button' 
-                            name='close' 
-                            color='red' 
-                            link
-                            onClick={() => this.props.onHide()}
-                        />
                     </Card.Header>
                     <Card.Meta className='result-meta'>
                         <span>Upload Speed: {formatBytes(response.uploadSpeed)}/s, Free Upload Slot: {free ? 'YES' : 'NO'}, Queue Length: {response.queueLength}</span>
