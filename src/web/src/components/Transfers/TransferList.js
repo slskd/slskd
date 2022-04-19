@@ -36,6 +36,15 @@ const getColor = (state) => {
 const isRetryableState = (state) => getColor(state).color === 'red';
 const isQueuedState = (state) => state.includes('Queued');
 
+const formatBytesTransferred = ({ transferred, size }) => {
+    const [t, tExt] = formatBytes(transferred).split(' ')
+    const [s, sExt] = formatBytes(size).split(' ')
+
+    // include the size label for transferred if it differs from size
+    // e.g. 12 KB/3 MB => 2.9/3 MB
+    return `${t}${tExt === sExt ? '' : ' ' + tExt}/${s} ${sExt}`
+}
+
 class TransferList extends Component {
     handleClick = (file) => {
         const { state, direction } = file;
@@ -111,7 +120,7 @@ class TransferList extends Component {
                                         </Button>}
                                     </Table.Cell>
                                     <Table.Cell className='transferlist-size'>
-                                        {f.bytesTransferred > 0 ? formatBytes(f.bytesTransferred).split(' ', 1) + '/' + formatBytes(f.size) : ''}
+                                        {f.bytesTransferred > 0 ? formatBytesTransferred({ transferred: f.bytesTransferred, size: f.size }) : ''}
                                     </Table.Cell>
                                 </Table.Row>
                             )}
