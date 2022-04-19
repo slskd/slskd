@@ -3,14 +3,15 @@ import * as transfers from '../../lib/transfers';
 
 import {
     Card,
-    Button
+    Button,
+    Icon
 } from 'semantic-ui-react';
 
 import TransferList from './TransferList';
 
 class TransferGroup extends Component {
     state = { selections: new Set() }
-    folded = false
+    isFolded = false
 
     onSelectionChange = (directoryName, file, selected) => {
         const { selections } = this.state;
@@ -85,8 +86,9 @@ class TransferGroup extends Component {
         }
     }
 
-    toggleFold = () => {
-        this.folded = this.folded ? true : false
+    toggleFolded = () => {
+        console.log('folded:', this.isFolded);
+        this.isFolded = this.isFolded ? false : true;
     }
 
     render = () => {
@@ -102,10 +104,15 @@ class TransferGroup extends Component {
         return (
             <Card key={user.username} className='transfer-card' raised>
                 <Card.Content>
-                    <Card.Header onClick={this.toggleFold}>
-                        {(this.folded) ? '↳' : '→'} | {user.username}
+                    <Card.Header>
+                        <Icon
+                            link={true}
+                            name={this.isFolded ? 'chevron right' : 'chevron down'}
+                            onClick={() => this.toggleFolded()}
+                        />
+                        {user.username}
                     </Card.Header>
-                    {user.directories && !this.folded && user.directories
+                    {user.directories && !this.isFolded && user.directories
                         .map((dir, index) => 
                         <TransferList 
                             key={index} 
