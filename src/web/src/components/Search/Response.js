@@ -29,12 +29,15 @@ class Response extends Component {
         tree: buildTree(this.props.response), 
         downloadRequest: undefined, 
         downloadError: '',
-        isFolded: this.props.isFolded,
+        isFolded: this.props.isInitiallyFolded,
     }
 
     componentDidUpdate = (prevProps) => {
         if (JSON.stringify(this.props.response) !== JSON.stringify(prevProps.response)) {
             this.setState({ tree: buildTree(this.props.response) });
+        }
+        if (this.props.isInitiallyFolded !== prevProps.isInitiallyFolded) {
+            this.setState({ isFolded: this.props.isInitiallyFolded });
         }
     }
 
@@ -79,7 +82,7 @@ class Response extends Component {
                         <Icon
                             link
                             name={isFolded ? 'chevron right' : 'chevron down'}
-                            onClick={() => this.toggleFolded()}
+                            onClick={this.toggleFolded}
                         />
                         <Icon name='circle' color={free ? 'green' : 'yellow'}/>
                         {response.username}

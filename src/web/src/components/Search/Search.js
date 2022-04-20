@@ -284,7 +284,7 @@ class Search extends Component {
                 response={r}
                 onDownload={this.props.onDownload}
                 onHide={() => this.hideResult(r)}
-                isFolded={foldResults}
+                isInitiallyFolded={foldResults}
               />
             )}
             {remainingCount > 0 ?
