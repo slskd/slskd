@@ -29,7 +29,7 @@ class Response extends Component {
         tree: buildTree(this.props.response), 
         downloadRequest: undefined, 
         downloadError: '',
-        isFolded: false
+        isFolded: this.props.isFolded,
     }
 
     componentDidUpdate = (prevProps) => {
