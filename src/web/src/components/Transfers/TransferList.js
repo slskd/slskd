@@ -7,7 +7,7 @@ import {
 import { formatBytes, getFileName } from '../../lib/util';
 
 import { 
-    Card, 
+    Header, 
     Table, 
     Icon, 
     List, 
@@ -57,10 +57,6 @@ const formatBytesTransferred = ({ transferred, size }) => {
 }
 
 class TransferList extends Component {
-    state = {
-        isFolded: false
-    }
-    
     handleClick = (file) => {
         const { state, direction } = file;
 
@@ -75,29 +71,17 @@ class TransferList extends Component {
         }    
     }
 
-    toggleFolded = () => {
-        this.setState({'isFolded': !this.state.isFolded});
-    }
-
     render = () => {
         const { directoryName, onSelectionChange, files } = this.props;
-        const isFolded = this.state.isFolded;
 
         return (
             <div>
-                <Card.Header 
+                <Header 
                     size='small' 
                     className='filelist-header'
                 >
-                    <Icon
-                        link
-                        name={isFolded ? 'chevron right' : 'chevron down'}
-                        onClick={() => this.toggleFolded()}
-                    />
-                    <Icon name='folder'/>
-                    {directoryName}
-                </Card.Header>
-                {!isFolded &&
+                    <Icon name='folder'/>{directoryName}
+                </Header>
                 <List>
                     <List.Item>
                     <Table>
@@ -154,7 +138,7 @@ class TransferList extends Component {
                         </Table.Body>
                     </Table>
                     </List.Item>
-                </List>}
+                </List>
             </div>
         )
     }
