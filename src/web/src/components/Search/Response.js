@@ -87,7 +87,7 @@ class Response extends Component {
                     <Card.Meta className='result-meta'>
                         <span>Upload Speed: {formatBytes(response.uploadSpeed)}/s, Free Upload Slot: {free ? 'YES' : 'NO'}, Queue Length: {response.queueLength}</span>
                     </Card.Meta>
-                    {(!isFolded && Object.keys(tree) || []).map((dir, i) => 
+                    {((!isFolded && Object.keys(tree)) || []).map((dir, i) => 
                         <FileList 
                             key={i}
                             directoryName={dir}
