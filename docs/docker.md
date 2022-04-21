@@ -1,8 +1,8 @@
 # Running slskd in Docker
 
-For most users, the quick start will be all that is needed:
+For most users, a quick start will be all that is needed:
 
-```
+```shell
 docker run -d \
   -p 5000:5000 \
   -p 5001:5001 \
@@ -14,13 +14,13 @@ docker run -d \
 
 This configuration, however, doesn't include any shared directories.
 
-Each share needs to be mapped to the container as a volume, and then each local directory within the container needs to be added to the configuration.
+First, you need to map each share to the container as a volume. Then each local directory within the container needs to be added to the configuration.
 
-In the following example, assume that the slskd application directory will be `/var/slskd` on the docker host.  Assume that the directories `/home/JohnDoe/Music` and `/home/JohnDoe/eBooks` will be shared.
+In the following example, assume that the slskd application directory will be `/var/slskd` on the docker host. Assume that the directories `/home/JohnDoe/Music` and `/home/JohnDoe/eBooks` will be shared.
 
 For this scenario, the `docker run` command would be:
 
-```
+```shell
 docker run -d \
   -p 5000:5000 \
   -p 5001:5001 \
@@ -41,9 +41,9 @@ directories:
     - /ebooks
 ```
 
-Alternatively, the configuration of these shares could be achieved in the `docker run` command by setting the `SHARED_DIR` environment variable, like so:
+You can achieve the same configuration by setting the `SHARED_DIR` environment variable in the `docker run` command:
 
-```
+```shell
 docker run -d \
   -p 5000:5000 \
   -p 5001:5001 \
