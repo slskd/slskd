@@ -138,6 +138,8 @@ namespace slskd.Transfers.API
                     {
                         await Client.DownloadAsync(username, request.Filename, () => GetLocalFileStream(request.Filename, Options.Directories.Incomplete), request.Size, 0, request.Token, new TransferOptions(disposeOutputStreamOnCompletion: true, stateChanged: (e) =>
                         {
+                            Log.Debug("Download of {Filename} from user {Username} changed state from {Previous} to {New}", request.Filename, username, e.PreviousState, e.Transfer.State);
+
                             Tracker.AddOrUpdate(e, cts);
 
                             if (e.Transfer.State.HasFlag(TransferStates.Queued) || e.Transfer.State == TransferStates.Initializing)
@@ -170,7 +172,7 @@ namespace slskd.Transfers.API
                             }
                         }
 
-                        Log.Error("Failed to download {Filename} from {Username}: Message", request.Filename, username, downloadTask.Exception.Message);
+                        Log.Error("Failed to download {Filename} from {Username}: {Message}", request.Filename, username, downloadTask.Exception.Message);
                         return StatusCode(500, downloadTask.Exception.Message);
                     }
 
