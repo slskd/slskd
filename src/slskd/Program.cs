@@ -369,7 +369,6 @@ namespace slskd
                 }
 
                 var webHost = WebHost.CreateDefaultBuilder(args)
-                    .UseSetting(WebHostDefaults.SuppressStatusMessagesKey, "True")
                     .ConfigureAppConfiguration((hostingContext, builder) =>
                     {
                         builder.Sources.Clear();
