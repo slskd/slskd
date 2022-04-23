@@ -1057,6 +1057,15 @@ namespace slskd
             public class HttpsOptions
             {
                 /// <summary>
+                ///     Gets a value indicating whether HTTPS should be disabled.
+                /// </summary>
+                [Argument(default, "no-https")]
+                [EnvironmentVariable("NO_HTTPS")]
+                [Description("disable HTTPS")]
+                [RequiresRestart]
+                public bool Disabled { get; init; } = false;
+
+                /// <summary>
                 ///     Gets the HTTPS listen port.
                 /// </summary>
                 [Argument('L', "https-port")]

@@ -382,22 +382,25 @@ namespace slskd
                         logger.Information($"Listening for HTTP requests at http://{IPAddress.Any}:{OptionsAtStartup.Web.Port}/");
                         options.Listen(IPAddress.Any, OptionsAtStartup.Web.Port);
 
-                        logger.Information($"Listening for HTTPS requests at https://{IPAddress.Any}:{OptionsAtStartup.Web.Https.Port}/");
-                        options.Listen(IPAddress.Any, OptionsAtStartup.Web.Https.Port, listenOptions =>
+                        if (!OptionsAtStartup.Web.Https.Disabled)
                         {
-                            var cert = OptionsAtStartup.Web.Https.Certificate;
+                            logger.Information($"Listening for HTTPS requests at https://{IPAddress.Any}:{OptionsAtStartup.Web.Https.Port}/");
+                            options.Listen(IPAddress.Any, OptionsAtStartup.Web.Https.Port, listenOptions =>
+                            {
+                                var cert = OptionsAtStartup.Web.Https.Certificate;
 
-                            if (!string.IsNullOrEmpty(cert.Pfx))
-                            {
-                                logger.Information($"Using certificate from {cert.Pfx}");
-                                listenOptions.UseHttps(cert.Pfx, cert.Password);
-                            }
-                            else
-                            {
-                                logger.Information($"Using randomly generated self-signed certificate");
-                                listenOptions.UseHttps(X509.Generate(subject: AppName));
-                            }
-                        });
+                                if (!string.IsNullOrEmpty(cert.Pfx))
+                                {
+                                    logger.Information($"Using certificate from {cert.Pfx}");
+                                    listenOptions.UseHttps(cert.Pfx, cert.Password);
+                                }
+                                else
+                                {
+                                    logger.Information($"Using randomly generated self-signed certificate");
+                                    listenOptions.UseHttps(X509.Generate(subject: AppName));
+                                }
+                            });
+                        }
                     })
                     .UseStartup<Startup>()
                     .Build();

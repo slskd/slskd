@@ -42,6 +42,12 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "config", "config", "{98F684
 		config\slskd.example.yml = config\slskd.example.yml
 	EndProjectSection
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{53D80066-A655-42EC-9C8D-2591C3E4B034}"
+	ProjectSection(SolutionItems) = preProject
+		docs\config.md = docs\config.md
+		docs\docker.md = docs\docker.md
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
