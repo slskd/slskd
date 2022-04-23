@@ -50,6 +50,7 @@
 # web:
 #   port: 5000
 #   https:
+#     disabled: false
 #     port: 5001
 #     force: false
 #     certificate:
