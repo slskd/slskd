@@ -1062,6 +1062,7 @@ namespace slskd
                 [Argument(default, "no-https")]
                 [EnvironmentVariable("NO_HTTPS")]
                 [Description("disable HTTPS")]
+                [RequiresRestart]
                 public bool Disabled { get; init; } = false;
 
                 /// <summary>
