@@ -445,6 +445,8 @@ namespace slskd
             services.AddSingleton<IApplication, Application>();
             services.AddHostedService(p => p.GetRequiredService<IApplication>());
 
+            services.AddDbContext<SearchDbContext>("search.db");
+
             services.AddSingleton<ITransferTracker, TransferTracker>();
             services.AddSingleton<IBrowseTracker, BrowseTracker>();
             services.AddSingleton<IConversationTracker, ConversationTracker>();
@@ -461,15 +463,6 @@ namespace slskd
             services.AddSingleton<IFTPService, FTPService>();
 
             services.AddSingleton<IPushbulletService, PushbulletService>();
-
-            // initialize DbContext instances to avoid race conditions when a db needs to be created from scratch.
-            // important: do this last
-            services.AddDbContextFactory<SearchDbContext>(options =>
-            {
-                options.UseSqlite($"Data Source={Path.Combine(AppDirectory, "data", "search.db")}");
-            });
-
-            services.InitializeDbContext<SearchDbContext>();
 
             return services;
         }
@@ -790,21 +783,28 @@ namespace slskd
                     commandLine: Environment.CommandLine);
         }
 
-        private static void InitializeDbContext<TContext>(this IServiceCollection services)
-            where TContext : DbContext
+        private static IServiceCollection AddDbContext<T>(this IServiceCollection services, string filename)
+            where T : DbContext
         {
-            Log.Debug($"Initializing database context {typeof(TContext).Name}");
+            Log.Debug($"Initializing database context {typeof(T).Name}");
 
             try
             {
+                services.AddDbContextFactory<SearchDbContext>(options =>
+                {
+                    options.UseSqlite($"Data Source={Path.Combine(AppDirectory, "data", filename)}");
+                });
+
                 using var ctx = services
                     .BuildServiceProvider()
-                    .GetRequiredService<IDbContextFactory<TContext>>()
+                    .GetRequiredService<IDbContextFactory<T>>()
                     .CreateDbContext();
+
+                return services;
             }
             catch (Exception ex)
             {
-                Log.Error(ex, $"Failed to initialize database context {typeof(TContext).Name}: ${ex.Message}");
+                Log.Error(ex, $"Failed to initialize database context {typeof(T).Name}: ${ex.Message}");
                 throw;
             }
         }
