@@ -372,14 +372,13 @@ namespace slskd
                         }
                     });
 
-                var services = builder.Services;
-
-                ConfigureAspDotNetServices(services);
-                ConfigureDependencyInjectionContainer(services);
+                builder.Services
+                    .ConfigureAspDotNetServices()
+                    .ConfigureDependencyInjectionContainer();
 
                 var app = builder.Build();
 
-                ConfigureAspDotNetPipeline(app);
+                app.ConfigureAspDotNetPipeline();
 
                 if (OptionsAtStartup.NoStart)
                 {
@@ -399,7 +398,7 @@ namespace slskd
             }
         }
 
-        private static void ConfigureDependencyInjectionContainer(IServiceCollection services)
+        private static IServiceCollection ConfigureDependencyInjectionContainer(this IServiceCollection services)
         {
             // add the instance of OptionsAtStartup to DI as they were at startup. use when Options might change, but
             // the values at startup are to be used (generally anything marked RequiresRestart).
@@ -471,9 +470,11 @@ namespace slskd
             });
 
             services.InitializeDbContext<SearchDbContext>();
+
+            return services;
         }
 
-        private static void ConfigureAspDotNetServices(IServiceCollection services)
+        private static IServiceCollection ConfigureAspDotNetServices(this IServiceCollection services)
         {
             services.AddCors(options => options.AddPolicy("AllowAll", builder => builder
                 .AllowAnyHeader()
@@ -583,9 +584,11 @@ namespace slskd
             {
                 services.AddSystemMetrics();
             }
+
+            return services;
         }
 
-        private static void ConfigureAspDotNetPipeline(WebApplication app)
+        private static WebApplication ConfigureAspDotNetPipeline(this WebApplication app)
         {
             app.UseExceptionHandler(a => a.Run(async context =>
             {
@@ -703,6 +706,8 @@ namespace slskd
             {
                 app.UseFileServer(fileServerOptions);
             }
+
+            return app;
         }
 
         private static void ConfigureGlobalLogger()
