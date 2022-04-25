@@ -45,7 +45,7 @@ const Users = (props) => {
 
       try {
         const [info, status, endpoint] = await Promise.all([
-          users.getInfo({ username: selectedUsername, bypassCache: true }),
+          users.getInfo({ username: selectedUsername }),
           users.getStatus({ username: selectedUsername }),
           users.getEndpoint({ username: selectedUsername })
         ]);
