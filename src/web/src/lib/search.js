@@ -1,5 +1,9 @@
 import api from './api';
 
+export const getAll = async () => {
+  return (await api.get('/searches')).data;
+}
+
 export const search = ({ id, searchText }) => {
   return api.post(`/searches`, { id, searchText });
 };

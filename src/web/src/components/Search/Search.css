@@ -15,6 +15,12 @@
   height: 78px !important;
 }
 
+.search-card {
+  width: 1200px !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
 @media only screen and (min-width: 851px) {
   .search-options-hide-no-slots, .search-options-hide-locked {
       margin-left: 1rem;

@@ -8,6 +8,7 @@ import { createApplicationHubConnection } from '../lib/hubFactory';
 
 import './App.css';
 import Search from './Search/Search';
+import Searches from './Search/Searches';
 import Browse from './Browse/Browse';
 import Users from './Users/Users';
 import Transfers from './Transfers/Transfers';
@@ -242,6 +243,7 @@ class App extends Component {
         </Sidebar>
         <Sidebar.Pusher className='app-content'>
           <Switch>
+            <Route path='*/searches' render={(props) => this.withTokenCheck(<Searches {...props}/>)}/>
             <Route path='*/browse' render={(props) => this.withTokenCheck(<Browse {...props}/>)}/>
             <Route path='*/users' render={(props) => this.withTokenCheck(<Users {...props}/>)}/>
             <Route path='*/chat' render={(props) => this.withTokenCheck(<Chat {...props}/>)}/>
