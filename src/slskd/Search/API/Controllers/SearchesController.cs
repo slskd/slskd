@@ -129,7 +129,60 @@ namespace slskd.Search.API
         [Authorize]
         public async Task<IActionResult> GetAll()
         {
-            return Ok(await Searches.ListAsync());
+            var searches = await Searches.ListAsync();
+            return Ok(searches);
+        }
+
+        /// <summary>
+        ///     Stops the search corresponding to the specified <paramref name="id"/>.
+        /// </summary>
+        /// <param name="id">The unique id of the search.</param>
+        /// <response code="200">The search was stopped.</response>
+        /// <response code="304">The search was not in progress.</response>
+        /// <returns></returns>
+        [HttpPut("{id}")]
+        [Authorize]
+        [ProducesResponseType(200)]
+        [ProducesResponseType(304)]
+        public async Task<IActionResult> Cancel([FromRoute] Guid id)
+        {
+            var search = await Searches.FindAsync(search => search.Id == id);
+
+            if (search == default)
+            {
+                return NotFound();
+            }
+
+            if (Searches.TryCancel(id))
+            {
+                return Ok();
+            }
+
+            return StatusCode(304);
+        }
+
+        /// <summary>
+        ///     Deletes the search corresponding to the specified <paramref name="id"/>.
+        /// </summary>
+        /// <param name="id">The unique id of the search.</param>
+        /// <response code="204">The search was deleted.</response>
+        /// <response code="404">A search with the specified id could not be found.</response>
+        /// <returns></returns>
+        [HttpDelete("{id}")]
+        [Authorize]
+        [ProducesResponseType(204)]
+        [ProducesResponseType(404)]
+        public async Task<IActionResult> Delete([FromRoute] Guid id)
+        {
+            var search = await Searches.FindAsync(search => search.Id == id, includeResponses: true);
+
+            if (search == default)
+            {
+                return NotFound();
+            }
+
+            await Searches.DeleteAsync(search);
+            return NoContent();
         }
     }
 }
