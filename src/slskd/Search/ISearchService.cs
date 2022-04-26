@@ -41,6 +41,13 @@ namespace slskd.Search
         Task<Search> CreateAsync(Guid id, SearchQuery query, SearchScope scope, SearchOptions options = null);
 
         /// <summary>
+        ///     Deletes the specified ssearch.
+        /// </summary>
+        /// <param name="search">The search to delete.</param>
+        /// <returns>The operation context.</returns>
+        Task DeleteAsync(Search search);
+
+        /// <summary>
         ///     Finds a single search matching the specified <paramref name="expression"/>.
         /// </summary>
         /// <param name="expression">The expression to use to match searches.</param>

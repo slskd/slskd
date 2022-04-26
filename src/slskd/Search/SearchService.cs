@@ -67,14 +67,15 @@ namespace slskd.Search
             Log = log;
         }
 
-        private ConcurrentDictionary<Guid, CancellationTokenSource> CancellationTokens { get; }
-            = new ConcurrentDictionary<Guid, CancellationTokenSource>();
-
-        private IOptionsMonitor<Options> OptionsMonitor { get; }
         private IApplication Application { get; }
+
+        private ConcurrentDictionary<Guid, CancellationTokenSource> CancellationTokens { get; }
+                    = new ConcurrentDictionary<Guid, CancellationTokenSource>();
+
         private ISoulseekClient Client { get; }
         private IDbContextFactory<SearchDbContext> ContextFactory { get; }
         private ILogger<SearchService> Log { get; set; }
+        private IOptionsMonitor<Options> OptionsMonitor { get; }
         private IHubContext<SearchHub> SearchHub { get; set; }
 
         /// <summary>
@@ -145,6 +146,23 @@ namespace slskd.Search
         }
 
         /// <summary>
+        ///     Deletes the specified ssearch.
+        /// </summary>
+        /// <param name="search">The search to delete.</param>
+        /// <returns>The operation context.</returns>
+        public async Task DeleteAsync(Search search)
+        {
+            if (search == default)
+            {
+                throw new ArgumentNullException(nameof(search));
+            }
+
+            using var context = ContextFactory.CreateDbContext();
+            context.Searches.Remove(search);
+            await context.SaveChangesAsync();
+        }
+
+        /// <summary>
         ///     Finds a single search matching the specified <paramref name="expression"/>.
         /// </summary>
         /// <param name="expression">The expression to use to match searches.</param>
@@ -198,6 +216,22 @@ namespace slskd.Search
             return false;
         }
 
+        private void SaveSearchState(Search search)
+        {
+            var context = ContextFactory.CreateDbContext();
+            context.Update(search);
+            context.SaveChanges();
+        }
+
+        private void UpdateSearchResponses(Search search, SoulseekSearch soulseekSearch, Soulseek.SearchResponse response)
+        {
+            if (CancellationTokens.ContainsKey(search.Id))
+            {
+                SearchHub.BroadcastResponseAsync(search.Id, response);
+                UpdateSearchState(search, soulseekSearch);
+            }
+        }
+
         private void UpdateSearchState(Search search, SoulseekSearch soulseekSearch)
         {
             if (CancellationTokens.ContainsKey(search.Id))
@@ -210,22 +244,6 @@ namespace slskd.Search
                 SearchHub.BroadcastUpdateAsync(search);
                 SaveSearchState(search);
             }
-        }
-
-        private void UpdateSearchResponses(Search search, SoulseekSearch soulseekSearch, Soulseek.SearchResponse response)
-        {
-            if (CancellationTokens.ContainsKey(search.Id))
-            {
-                SearchHub.BroadcastResponseAsync(search.Id, response);
-                UpdateSearchState(search, soulseekSearch);
-            }
-        }
-
-        private void SaveSearchState(Search search)
-        {
-            var context = ContextFactory.CreateDbContext();
-            context.Update(search);
-            context.SaveChanges();
         }
     }
 }
