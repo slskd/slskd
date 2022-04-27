@@ -1,7 +1,10 @@
+import { orderBy } from 'lodash';
 import React, { useState, useEffect, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 
-import * as search from '../../lib/search';
+
+import * as lib from '../../lib/searches';
+import { createSearchLogHubConnection } from '../../lib/hubFactory';
 
 import './Search.css';
 
@@ -16,12 +19,37 @@ import SearchIcon from './SearchIcon';
 
 const Searches = () => {
   const [{ loading, loadError }, setLoading] = useState({ loading: true, loadError: false });
-  const [{ creating, createError }, setCreating] = useState({ creating: false, createError: false })
+  const [{ creating, createError }, setCreating] = useState({ creating: false, createError: false });
+  const [connected, setConnected] = useState(false);
   const [searches, setSearches] = useState([]);
   const inputRef = useRef();
 
   useEffect(() => {
     get();
+
+    const searchHub = createSearchLogHubConnection();
+
+    searchHub.on('update', search => {
+      setConnected(true);
+      setSearches(old => {
+        const idx = old.findIndex(s => s.id === search.id);
+
+        if (idx < 0) {
+          return [search, ...old]
+        } else {
+          old[idx] = search
+          return [...old];
+        }
+      })
+    });
+
+    searchHub.on('response', () => { });
+
+    searchHub.onreconnecting(() => setConnected(false));
+    searchHub.onclose(() => setConnected(false));
+    searchHub.onreconnected(() => setConnected(true));
+
+    searchHub.start();
   }, []);
 
   const create = async () => {
@@ -30,10 +58,9 @@ const Searches = () => {
 
     try {
       setCreating({ creating: true, createError: false })
-      await search.search({ id, searchText })
+      lib.create({ id, searchText })
       setCreating({ creating: false, createError: false })
       inputRef.current.inputRef.current.value = '';
-      window.location.reload();
     } catch (error) {
       setCreating({ creating: false, createError: error.message })
     }
@@ -43,15 +70,27 @@ const Searches = () => {
     setLoading({ loading: true, error: false });
 
     try {
-      const searches = await search.getAll();
-
-      console.log(searches)
-
-      setSearches(searches);
+      const all = await lib.getAll();
+      setSearches(all);
       setLoading({ loading: false, error: false })
     } catch (error) {
       setLoading({ loading: false, error: error.message })
     }
+  }
+
+  const remove = async (search) => {
+    console.log('remove', searches)
+    try {
+      await lib.remove({ id: search.id })
+      setSearches(old => old.filter(s => s.id !== search.id))
+    } catch (err) {
+      console.error(err)
+      // noop
+    }
+  }
+
+  const stop = async (search) => {
+    await lib.stop({ id: search.id })
   }
 
   const cancelAndDeleteAll = () => {
@@ -109,15 +148,20 @@ const Searches = () => {
                 </Table.Row>
               </Table.Header>
               <Table.Body>
-                {searches.map((search, index) => <Table.Row  style={{ cursor: 'pointer'}} key={index}>
-                  <Table.Cell><SearchIcon state={search.state} alt={search.state}/></Table.Cell>
-                  <Table.Cell>{search.startedAt}</Table.Cell>
-                  <Table.Cell>{search.searchText}</Table.Cell>
-                  <Table.Cell>{search.responseCount}</Table.Cell>
-                  <Table.Cell>{search.fileCount} ({search.lockedFileCount})</Table.Cell>
-                  <Table.Cell>{search.state.includes('Completed') ? 
-                    <Icon name="trash alternate" color='red'/> : 
-                    <Icon name="stop circle" color="red"/>}
+              {searches
+                .sort((a, b) => {
+                  //console.log(new Date(b.startedAt), new Date(a.startedAt))
+                  return new Date(b.startedAt) - new Date(a.startedAt)
+                })
+                .map((s, index) => <Table.Row style={{ cursor: 'pointer' }} key={index}>
+                  <Table.Cell><SearchIcon state={s.state} alt={s.state}/></Table.Cell>
+                  <Table.Cell>{s.startedAt}</Table.Cell>
+                  <Table.Cell>{s.searchText}</Table.Cell>
+                  <Table.Cell>{s.responseCount}</Table.Cell>
+                  <Table.Cell>{s.fileCount} ({s.lockedFileCount})</Table.Cell>
+                  <Table.Cell>{s.state.includes('Completed') ? 
+                    <Icon name="trash alternate" color='red' onClick={() => remove(s)}/> : 
+                    <Icon name="stop circle" color="red" onClick={() => stop(s)}/>}
                   </Table.Cell>
                 </Table.Row>)}
               </Table.Body>
