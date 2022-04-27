@@ -2,24 +2,19 @@ import React, { useState, useEffect, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 
 
-import * as lib from '../../lib/searches';
-import { createSearchLogHubConnection } from '../../lib/hubFactory';
+import * as lib from '../../../lib/searches';
+import { createSearchLogHubConnection } from '../../../lib/hubFactory';
 
-import SearchList from './List/SearchList';
-import SearchListAlt from './List/SearchListAlt';
-
-import './Search.css';
+import SearchListRow from './SearchListRow';
 
 import {
-  Input,
-  Segment,
   Card,
   Table,
   Icon
 } from 'semantic-ui-react';
-import SearchIcon from './SearchIcon';
+import SearchIcon from '../SearchIcon';
 
-const Searches = () => {
+const SearchList = () => {
   const [{ loading, loadError }, setLoading] = useState({ loading: true, loadError: false });
   const [{ creating, createError }, setCreating] = useState({ creating: false, createError: false });
   const [connected, setConnected] = useState(false);
@@ -100,24 +95,57 @@ const Searches = () => {
   }
 
   return (
-    <div className='search-container'>
-        <Segment className='search-segment' raised>
-          <Input
-            input={<input placeholder="Search phrase" type="search" data-lpignore="true"></input>}
-            size='big'
-            ref={inputRef}
-            loading={creating}
-            disabled={creating}
-            className='search-input'
-            placeholder="Search phrase"
-            action={{ icon: 'search', onClick: create }}
-            onKeyUp={(e) => e.key === 'Enter' ? create() : ''}
-          />
-        </Segment>
-        <SearchList/>
-        <SearchListAlt/>
-    </div>
+    <>
+      <Card className='search-card' raised>
+        <Card.Content>
+          <Card.Header>
+            <Icon name='search'/>
+            Searches
+            <Icon.Group className='close-button' style={{ marginLeft: 10 }}>
+              <Icon 
+                name='trash alternate' 
+                color='red' 
+                link
+                onClick={() => cancelAndDeleteAll()}
+              />
+              <Icon corner name='asterisk'/>
+            </Icon.Group>
+            <Icon.Group className='close-button' >
+              <Icon 
+                name='stop circle' 
+                color='black' 
+                link
+                onClick={() => cancelAndDeleteAll()}
+              />
+              <Icon corner name='asterisk'/>
+            </Icon.Group>
+          </Card.Header>
+          <Table size='large' selectable>
+            <Table.Header>
+              <Table.Row>
+                <Table.HeaderCell></Table.HeaderCell>
+                <Table.HeaderCell>Started</Table.HeaderCell>
+                <Table.HeaderCell>Search Phrase</Table.HeaderCell>
+                <Table.HeaderCell>Responses</Table.HeaderCell>
+                <Table.HeaderCell>Files (Locked)</Table.HeaderCell>
+                <Table.HeaderCell></Table.HeaderCell>
+              </Table.Row>
+            </Table.Header>
+            <Table.Body>
+            {searches
+              .sort((a, b) => (new Date(b.startedAt) - new Date(a.startedAt)))
+              .map((search, index) => <SearchListRow
+                search={search}
+                key={index}
+                onRemove={remove}
+                onStop={stop}
+              />)}
+            </Table.Body>
+          </Table>
+        </Card.Content>
+      </Card>
+    </>
   )
 };
 
-export default Searches;
+export default SearchList;
