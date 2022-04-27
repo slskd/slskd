@@ -97,7 +97,7 @@ namespace slskd.Search
                 Token = token,
                 Id = id,
                 State = SearchStates.Requested,
-                StartedAt = DateTime.UtcNow,
+                StartedAt = DateTime.Now,
             };
 
             options ??= new SearchOptions();
