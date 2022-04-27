@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import React, { Component } from 'react';
-import * as search from '../../lib/search';
+import * as searches from '../../lib/searches';
 
 import './Search.css';
 
@@ -54,7 +54,7 @@ class Search extends Component {
 
     this.setState({ searchPhrase, searchId, searchState: 'pending' }, async () => {
       this.saveState();
-      search.search({ id: searchId, searchText: searchPhrase });
+      searches.create({ id: searchId, searchText: searchPhrase });
     });
   }
 
@@ -120,7 +120,7 @@ class Search extends Component {
     if (!!searchId) {
       this.setState({ fetching: true }, async () => {
         try {
-          const responses = await search.getResponses({ id: searchId });
+          const responses = await searches.getResponses({ id: searchId });
 
           this.setState({
             results: responses,
@@ -139,7 +139,7 @@ class Search extends Component {
 
     if (searchState === 'pending') {
       this.setState({ fetching: true }, async () => {
-        const response = await search.getStatus({ id: searchId });
+        const response = await searches.getStatus({ id: searchId });
 
         if (response.isComplete) {
           this.setState({
@@ -163,7 +163,7 @@ class Search extends Component {
     const { results = [], hideNoFreeSlots, resultSort, resultFilters = '', hideLocked, hiddenResults = [] } = this.state;
     const { field, order } = sortOptions[resultSort];
 
-    const filters = search.parseFiltersFromString(resultFilters);
+    const filters = searches.parseFiltersFromString(resultFilters);
 
     return results
       .filter(r => !hiddenResults.includes(r.username))
@@ -173,7 +173,7 @@ class Search extends Component {
         }
         return r;
       })
-      .map(response => search.filterResponse({ response, filters }))
+      .map(response => searches.filterResponse({ response, filters }))
       .filter(r => r.fileCount + r.lockedFileCount > 0)
       .filter(r => !(hideNoFreeSlots && r.freeUploadSlots === 0))
       .sort((a, b) => {
