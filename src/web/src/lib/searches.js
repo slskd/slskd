@@ -4,7 +4,15 @@ export const getAll = async () => {
   return (await api.get('/searches')).data;
 }
 
-export const search = ({ id, searchText }) => {
+export const stop = ({ id }) => {
+  return api.put(`/searches/${encodeURIComponent(id)}`)
+}
+
+export const remove = ({ id }) => {
+  return api.delete(`/searches/${encodeURIComponent(id)}`)
+}
+
+export const create = ({ id, searchText }) => {
   return api.post(`/searches`, { id, searchText });
 };
 
