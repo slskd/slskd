@@ -6,52 +6,75 @@ import * as lib from '../../../lib/searches';
 import { createSearchLogHubConnection } from '../../../lib/hubFactory';
 
 import SearchListRow from './SearchListRow';
+import ErrorSegment from '../../Shared/ErrorSegment';
+import Switch from '../../Shared/Switch';
 
 import {
   Card,
   Table,
-  Icon
+  Icon,
+  Loader
 } from 'semantic-ui-react';
 import SearchIcon from '../SearchIcon';
 
 const SearchList = () => {
-  const [{ loading, loadError }, setLoading] = useState({ loading: true, loadError: false });
+  const [{ connected, connecting, connectError} , setConnected] = useState({ connected: false, connecting: true, connectError: false });
   const [{ creating, createError }, setCreating] = useState({ creating: false, createError: false });
-  const [connected, setConnected] = useState(false);
+  const [error, setError] = useState(undefined);
   const [searches, setSearches] = useState({});
   const inputRef = useRef();
 
+  const onConnecting = () => setConnected({ connected: false, connecting: true, connectError: false })
+  const onConnected = () => setConnected({ connected: true, connecting: false, connectError: false });
+  const onConnectionError = (error) => setConnected({ connected: false, connecting: false, connectError: error })
+
+  const onUpdate = (update) => {
+    onConnected();
+    setSearches(update);
+  }
+
   useEffect(() => {
+    onConnecting();
+    
     const searchHub = createSearchLogHubConnection();
 
-    searchHub.on('load', searches => {
-      setConnected(true);
-      setSearches(searches.reduce((acc, search) => {
+    searchHub.on('list', searches => {
+      onUpdate(searches.reduce((acc, search) => {
         acc[search.id] = search;
         return acc;
       }, {}));
+      onConnected();
     })
 
     searchHub.on('update', search => {
-      setConnected(true);
-      setSearches(old => ({ ...old, [search.id]: search }))
+      onUpdate(old => ({ ...old, [search.id]: search }));
     });
 
     searchHub.on('delete', search => {
-      setConnected(true);
-      setSearches(old => {
+      onUpdate(old => {
         delete old[search.id];
         return { ...old }
       });
     });
 
-    searchHub.on('response', () => { });
+    searchHub.onreconnecting((error) => onConnectionError(error?.message ?? 'Disconnected'));
+    searchHub.onreconnected(() => onConnected());
+    searchHub.onclose((error) => onConnectionError(error?.message ?? 'Disconnected'));
 
-    searchHub.onreconnecting(() => setConnected(false));
-    searchHub.onclose(() => setConnected(false));
-    searchHub.onreconnected(() => setConnected(true));
+    const connect = async () => {
+      try {
+        onConnecting();
+        await searchHub.start();
+      } catch (error) {
+        onConnectionError(error?.message ?? 'Failed to connect')
+      }
+    }
 
-    searchHub.start();
+    connect();
+
+    return () => {
+      searchHub.stop();
+    }
   }, []);
 
   const create = async () => {
@@ -69,18 +92,7 @@ const SearchList = () => {
   }
 
   const get = async () => {
-    setLoading({ loading: true, error: false });
-
-    try {
-      const all = await lib.getAll();
-      setSearches(all.reduce((acc, search) => {
-        acc[search.id] = search;
-        return acc;
-      }, {}));
-      setLoading({ loading: false, error: false })
-    } catch (error) {
-      setLoading({ loading: false, error: error.message })
-    }
+    
   }
 
   const remove = async (search) => {
@@ -105,6 +117,19 @@ const SearchList = () => {
     // todo
   }
 
+  const TableContents = () => (
+    <>
+      {Object.values(searches)
+      .sort((a, b) => (new Date(b.startedAt) - new Date(a.startedAt)))
+      .map((search, index) => <SearchListRow
+        search={search}
+        key={index}
+        onRemove={remove}
+        onStop={stop}
+      />)}
+    </>
+  );
+
   return (
     <>
       <Card className='search-card' raised>
@@ -116,44 +141,46 @@ const SearchList = () => {
               <Icon 
                 name='trash alternate' 
                 color='red' 
-                link
+                link={connected}
+                disabled={!connected}
                 onClick={() => cancelAndDeleteAll()}
               />
-              <Icon corner name='asterisk'/>
+              <Icon corner name='asterisk' disabled={!connected}/>
             </Icon.Group>
             <Icon.Group className='close-button' >
               <Icon 
                 name='stop circle' 
                 color='black' 
-                link
+                link={connected}
+                disabled={!connected}
                 onClick={() => cancelAndDeleteAll()}
               />
-              <Icon corner name='asterisk'/>
+              <Icon corner name='asterisk' disabled={!connected}/>
             </Icon.Group>
           </Card.Header>
-          <Table size='large' selectable>
-            <Table.Header>
-              <Table.Row>
-                <Table.HeaderCell className="search-list-icon"></Table.HeaderCell>
-                <Table.HeaderCell className="search-list-phrase">Search Phrase</Table.HeaderCell>
-                <Table.HeaderCell className="search-list-files">Files</Table.HeaderCell>
-                <Table.HeaderCell className="search-list-locked">Locked</Table.HeaderCell>
-                <Table.HeaderCell className="search-list-responses">Responses</Table.HeaderCell>
-                <Table.HeaderCell className="search-list-started">Started</Table.HeaderCell>
-                <Table.HeaderCell className="search-list-action"></Table.HeaderCell>
-              </Table.Row>
-            </Table.Header>
-            <Table.Body>
-            {Object.values(searches)
-              .sort((a, b) => (new Date(b.startedAt) - new Date(a.startedAt)))
-              .map((search, index) => <SearchListRow
-                search={search}
-                key={index}
-                onRemove={remove}
-                onStop={stop}
-              />)}
-            </Table.Body>
-          </Table>
+          <Card.Description>
+            <Switch
+              connecting={connecting && <Loader active inline='centered' size='small'/>}
+              error={error && <ErrorSegment caption={error}/>}
+            >
+              <Table selectable>
+                <Table.Header>
+                  <Table.Row>
+                    <Table.HeaderCell className="search-list-icon"></Table.HeaderCell>
+                    <Table.HeaderCell className="search-list-phrase">Search Phrase</Table.HeaderCell>
+                    <Table.HeaderCell className="search-list-files">Files</Table.HeaderCell>
+                    <Table.HeaderCell className="search-list-locked">Locked</Table.HeaderCell>
+                    <Table.HeaderCell className="search-list-responses">Responses</Table.HeaderCell>
+                    <Table.HeaderCell className="search-list-started">Started</Table.HeaderCell>
+                    <Table.HeaderCell className="search-list-action"></Table.HeaderCell>
+                  </Table.Row>
+                </Table.Header>
+                <Table.Body>
+                  <TableContents/>
+                </Table.Body>
+              </Table>
+            </Switch>
+          </Card.Description>
         </Card.Content>
       </Card>
     </>

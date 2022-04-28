@@ -31,7 +31,7 @@ const SearchListRow = ({ search, index, onRemove, onStop }) => {
     }
 
     return (<Icon
-      name="stop circle"
+      name="stop"
       color="red"
       onClick={() => invoke(() => onStop(search))}
       {...props}
