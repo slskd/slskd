@@ -46,6 +46,7 @@ namespace slskd.Search.API
         /// <returns>The operation context.</returns>
         public static Task BroadcastUpdateAsync(this IHubContext<SearchHub> hub, Search search)
         {
+            // todo: throttle updates to at most 1 per 100ms or so
             return hub.Clients.All.SendAsync(SearchHubMethods.Update, search);
         }
 
@@ -79,23 +80,24 @@ namespace slskd.Search.API
     public class SearchHub : Hub
     {
         public SearchHub(
-            ISearchService searchService,
-            IStateMonitor<State> stateMonitor,
-            IOptionsMonitor<Options> optionsMonitor)
+            ISearchService searchService)
         {
             Searches = searchService;
-            StateMonitor = stateMonitor;
-            OptionsMonitor = optionsMonitor;
         }
 
         private ISearchService Searches { get; }
-        private IStateMonitor<State> StateMonitor { get; }
-        private IOptionsMonitor<Options> OptionsMonitor { get; }
 
         public override async Task OnConnectedAsync()
         {
             var searches = await Searches.ListAsync();
             await Clients.Caller.SendAsync(SearchHubMethods.Load, searches);
+            // todo: create buffer specific to this client
+        }
+
+        public override Task OnDisconnectedAsync(Exception exception)
+        {
+            // todo: destroy buffer specific to this client
+            return Task.CompletedTask;
         }
     }
 }
