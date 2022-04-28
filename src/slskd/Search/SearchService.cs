@@ -105,22 +105,18 @@ namespace slskd.Search
                 stateChanged: (args) => UpdateSearchState(search, args.Search),
                 responseReceived: (args) => UpdateSearchResponses(search, args.Search, args.Response));
 
-            try
+            using var context = ContextFactory.CreateDbContext();
+
+            context.Add(search);
+            await context.SaveChangesAsync();
+            await SearchHub.BroadcastCreateAsync(search);
+
+            CancellationTokens.TryAdd(id, cancellationTokenSource);
+
+            _ = Task.Run(async () =>
             {
-                using var context = ContextFactory.CreateDbContext();
-
-                context.Add(search);
-                await context.SaveChangesAsync();
-
-                CancellationTokens.TryAdd(id, cancellationTokenSource);
-                var responses = new List<Response>();
-
-                var soulseekSearch = await Client.SearchAsync(
+                var (soulseekSearch, responses) = await Client.SearchAsync(
                     query,
-                    responseReceived: (response) =>
-                    {
-                        responses.Add(Response.FromSoulseekSearchResponse(response));
-                    },
                     scope,
                     token,
                     options,
@@ -133,16 +129,11 @@ namespace slskd.Search
                 search.ResponseCount = soulseekSearch.ResponseCount;
                 search.State = soulseekSearch.State;
                 search.EndedAt = DateTime.UtcNow;
-                search.Responses = responses;
+                search.Responses = responses.Select(r => Response.FromSoulseekSearchResponse(r));
                 SaveSearchState(search);
+            }, cancellationToken: cancellationTokenSource.Token);
 
-                return search;
-            }
-            finally
-            {
-                CancellationTokens.TryRemove(id, out _);
-                Application.CollectGarbage();
-            }
+            return search;
         }
 
         /// <summary>
@@ -160,6 +151,7 @@ namespace slskd.Search
             using var context = ContextFactory.CreateDbContext();
             context.Searches.Remove(search);
             await context.SaveChangesAsync();
+            await SearchHub.BroadcastDeleteAsync(search);
         }
 
         /// <summary>
@@ -227,7 +219,7 @@ namespace slskd.Search
         {
             if (CancellationTokens.ContainsKey(search.Id))
             {
-                SearchHub.BroadcastResponseAsync(search.Id, response);
+                //SearchHub.BroadcastResponseAsync(search.Id, response);
                 UpdateSearchState(search, soulseekSearch);
             }
         }
@@ -242,7 +234,7 @@ namespace slskd.Search
                 search.State = soulseekSearch.State;
 
                 SearchHub.BroadcastUpdateAsync(search);
-                SaveSearchState(search);
+                //SaveSearchState(search);
             }
         }
     }
