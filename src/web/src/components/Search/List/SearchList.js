@@ -22,9 +22,15 @@ const SearchList = () => {
   const inputRef = useRef();
 
   useEffect(() => {
-    get();
-
     const searchHub = createSearchLogHubConnection();
+
+    searchHub.on('load', searches => {
+      setConnected(true);
+      setSearches(searches.reduce((acc, search) => {
+        acc[search.id] = search;
+        return acc;
+      }, {}));
+    })
 
     searchHub.on('update', search => {
       setConnected(true);
