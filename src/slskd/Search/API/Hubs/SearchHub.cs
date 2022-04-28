@@ -26,8 +26,10 @@ namespace slskd.Search.API
 
     public static class SearchHubMethods
     {
+        public static readonly string Create = "CREATE";
         public static readonly string Response = "RESPONSE";
         public static readonly string Update = "UPDATE";
+        public static readonly string Delete = "DELETE";
     }
 
     /// <summary>
@@ -56,6 +58,16 @@ namespace slskd.Search.API
         public static Task BroadcastResponseAsync(this IHubContext<SearchHub> hub, Guid searchId, Soulseek.SearchResponse response)
         {
             return hub.Clients.All.SendAsync(SearchHubMethods.Response, new { searchId, response });
+        }
+
+        public static Task BroadcastCreateAsync(this IHubContext<SearchHub> hub, Search search)
+        {
+            return hub.Clients.All.SendAsync(SearchHubMethods.Create, search);
+        }
+
+        public static Task BroadcastDeleteAsync(this IHubContext<SearchHub> hub, Search search)
+        {
+            return hub.Clients.All.SendAsync(SearchHubMethods.Delete, search);
         }
     }
 
