@@ -5,6 +5,7 @@ import * as searches from '../../lib/searches';
 import './Search.css';
 
 import Response from './Response';
+import SearchList from './List/SearchList';
 import PlaceholderSegment from '../Shared/PlaceholderSegment';
 
 import {
@@ -268,7 +269,7 @@ class Search extends Component {
                   onChange={this.onResultFilterChange}
                   action={!!resultFilters && { icon: 'x', color: 'red', onClick: this.clearResultFilter }}
                 />
-              </Segment> : <PlaceholderSegment icon='search'/>
+              </Segment> : <SearchList/>
             }
             {sortedAndFilteredResults.slice(0, displayCount).map((r, i) =>
               <Response

@@ -9,27 +9,27 @@ import { Icon, Popup } from 'semantic-ui-react';
 //   good: Completed, [TimedOut | ResponseLimitReached | FileLimitReached]
 //   bad: Completed, [Errored | Cancelled]
 
-const getIcon = (state) => {
+const getIcon = ({ state, ...props }) => {
   switch (state) {
     case 'None':
     case 'Requested':
-      return <Icon name='time'/>
+      return <Icon name='time' {...props}/>
     case 'InProgress':
-      return <Icon name='spinner' loading color='green'/>
+      return <Icon name='spinner' loading color='green' {...props}/>
     case 'Completed, TimedOut':
     case 'Completed, ResponseLimitReached':
     case 'Completed, FileLimitReached':
-      return <Icon name='check' color='green'/>
+      return <Icon name='check' color='green' {...props}/>
     case 'Completed, Cancelled':
-      return <Icon name='stop circle' color='green'/>
+      return <Icon name='stop circle' color='green' {...props}/>
     case 'Completed, Errored':
-      return <Icon name='x' color='red'/>
+      return <Icon name='x' color='red' {...props}/>
     default:
-      return <Icon name='question circle' color='yellow'/>
+      return <Icon name='question circle' color='yellow' {...props}/>
   }
 }
 
 const SearchIcon = ({ state, ...props }) => 
-  <Popup content={state} trigger={getIcon(state)} {...props}/>
+  <Popup content={state} trigger={getIcon({ state, ...props })}/>
 
 export default SearchIcon;

@@ -18,7 +18,7 @@ const SearchList = () => {
   const [{ loading, loadError }, setLoading] = useState({ loading: true, loadError: false });
   const [{ creating, createError }, setCreating] = useState({ creating: false, createError: false });
   const [connected, setConnected] = useState(false);
-  const [searches, setSearches] = useState([]);
+  const [searches, setSearches] = useState({});
   const inputRef = useRef();
 
   useEffect(() => {
@@ -28,16 +28,15 @@ const SearchList = () => {
 
     searchHub.on('update', search => {
       setConnected(true);
-      setSearches(old => {
-        const idx = old.findIndex(s => s.id === search.id);
+      setSearches(old => ({ ...old, [search.id]: search }))
+    });
 
-        if (idx < 0) {
-          return [search, ...old]
-        } else {
-          old[idx] = search
-          return [...old];
-        }
-      })
+    searchHub.on('delete', search => {
+      setConnected(true);
+      setSearches(old => {
+        delete old[search.id];
+        return { ...old }
+      });
     });
 
     searchHub.on('response', () => { });
@@ -68,7 +67,10 @@ const SearchList = () => {
 
     try {
       const all = await lib.getAll();
-      setSearches(all);
+      setSearches(all.reduce((acc, search) => {
+        acc[search.id] = search;
+        return acc;
+      }, {}));
       setLoading({ loading: false, error: false })
     } catch (error) {
       setLoading({ loading: false, error: error.message })
@@ -79,7 +81,10 @@ const SearchList = () => {
     console.log('remove', searches)
     try {
       await lib.remove({ id: search.id })
-      setSearches(old => old.filter(s => s.id !== search.id))
+      setSearches(old => {
+        delete old[search.id];
+        return { ...old }
+      });
     } catch (err) {
       console.error(err)
       // noop
@@ -123,16 +128,17 @@ const SearchList = () => {
           <Table size='large' selectable>
             <Table.Header>
               <Table.Row>
-                <Table.HeaderCell></Table.HeaderCell>
-                <Table.HeaderCell>Started</Table.HeaderCell>
-                <Table.HeaderCell>Search Phrase</Table.HeaderCell>
-                <Table.HeaderCell>Responses</Table.HeaderCell>
-                <Table.HeaderCell>Files (Locked)</Table.HeaderCell>
-                <Table.HeaderCell></Table.HeaderCell>
+                <Table.HeaderCell className="search-list-icon"></Table.HeaderCell>
+                <Table.HeaderCell className="search-list-phrase">Search Phrase</Table.HeaderCell>
+                <Table.HeaderCell className="search-list-files">Files</Table.HeaderCell>
+                <Table.HeaderCell className="search-list-locked">Locked</Table.HeaderCell>
+                <Table.HeaderCell className="search-list-responses">Responses</Table.HeaderCell>
+                <Table.HeaderCell className="search-list-started">Started</Table.HeaderCell>
+                <Table.HeaderCell className="search-list-action"></Table.HeaderCell>
               </Table.Row>
             </Table.Header>
             <Table.Body>
-            {searches
+            {Object.values(searches)
               .sort((a, b) => (new Date(b.startedAt) - new Date(a.startedAt)))
               .map((search, index) => <SearchListRow
                 search={search}

@@ -32,6 +32,7 @@ const Searches = () => {
     const searchHub = createSearchLogHubConnection();
 
     searchHub.on('update', search => {
+      console.log(search)
       setConnected(true);
       setSearches(old => {
         const idx = old.findIndex(s => s.id === search.id);
@@ -115,7 +116,6 @@ const Searches = () => {
           />
         </Segment>
         <SearchList/>
-        <SearchListAlt/>
     </div>
   )
 };
