@@ -26,7 +26,7 @@ namespace slskd.Search.API
 
     public static class SearchHubMethods
     {
-        public static readonly string Load = "LOAD";
+        public static readonly string List = "LIST";
         public static readonly string Create = "CREATE";
         public static readonly string Response = "RESPONSE";
         public static readonly string Update = "UPDATE";
@@ -90,7 +90,7 @@ namespace slskd.Search.API
         public override async Task OnConnectedAsync()
         {
             var searches = await Searches.ListAsync();
-            await Clients.Caller.SendAsync(SearchHubMethods.Load, searches);
+            await Clients.Caller.SendAsync(SearchHubMethods.List, searches);
             // todo: create buffer specific to this client
         }
 
