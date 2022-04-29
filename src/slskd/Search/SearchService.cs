@@ -35,7 +35,6 @@ namespace slskd.Search
     using SearchQuery = Soulseek.SearchQuery;
     using SearchScope = Soulseek.SearchScope;
     using SearchStates = Soulseek.SearchStates;
-    using SoulseekSearch = Soulseek.Search;
 
     /// <summary>
     ///     Handles the lifecycle and persistence of searches.
@@ -48,29 +47,24 @@ namespace slskd.Search
         /// <param name="searchHub"></param>
         /// <param name="optionsMonitor"></param>
         /// <param name="soulseekClient"></param>
-        /// <param name="application"></param>
         /// <param name="contextFactory">The database context to use.</param>
         /// <param name="log">The logger.</param>
         public SearchService(
             IHubContext<SearchHub> searchHub,
             IOptionsMonitor<Options> optionsMonitor,
             ISoulseekClient soulseekClient,
-            IApplication application,
             IDbContextFactory<SearchDbContext> contextFactory,
             ILogger<SearchService> log)
         {
             SearchHub = searchHub;
             OptionsMonitor = optionsMonitor;
             Client = soulseekClient;
-            Application = application;
             ContextFactory = contextFactory;
             Log = log;
         }
 
-        private IApplication Application { get; }
-
         private ConcurrentDictionary<Guid, CancellationTokenSource> CancellationTokens { get; }
-                    = new ConcurrentDictionary<Guid, CancellationTokenSource>();
+            = new ConcurrentDictionary<Guid, CancellationTokenSource>();
 
         private ISoulseekClient Client { get; }
         private IDbContextFactory<SearchDbContext> ContextFactory { get; }
@@ -102,13 +96,14 @@ namespace slskd.Search
 
             options ??= new SearchOptions();
             options = options.WithActions(
-                stateChanged: (args) => UpdateSearchState(search, args.Search),
-                responseReceived: (args) => UpdateSearchResponses(search, args.Search, args.Response));
+                stateChanged: (args) => SearchHub.BroadcastUpdateAsync(search.WithSoulseekSearch(args.Search)),
+                responseReceived: (args) => SearchHub.BroadcastUpdateAsync(search.WithSoulseekSearch(args.Search)));
 
             using var context = ContextFactory.CreateDbContext();
 
             context.Add(search);
             await context.SaveChangesAsync();
+
             await SearchHub.BroadcastCreateAsync(search);
 
             CancellationTokens.TryAdd(id, cancellationTokenSource);
@@ -124,13 +119,12 @@ namespace slskd.Search
 
                 CancellationTokens.TryRemove(id, out _);
 
-                search.FileCount = soulseekSearch.FileCount;
-                search.LockedFileCount = soulseekSearch.LockedFileCount;
-                search.ResponseCount = soulseekSearch.ResponseCount;
-                search.State = soulseekSearch.State;
-                search.EndedAt = DateTime.UtcNow;
+                search = search.WithSoulseekSearch(soulseekSearch);
                 search.Responses = responses.Select(r => Response.FromSoulseekSearchResponse(r));
-                SaveSearchState(search);
+
+                using var context = ContextFactory.CreateDbContext();
+                context.Update(search);
+                context.SaveChanges();
             }, cancellationToken: cancellationTokenSource.Token);
 
             return search;
@@ -151,6 +145,7 @@ namespace slskd.Search
             using var context = ContextFactory.CreateDbContext();
             context.Searches.Remove(search);
             await context.SaveChangesAsync();
+
             await SearchHub.BroadcastDeleteAsync(search);
         }
 
@@ -206,36 +201,6 @@ namespace slskd.Search
             }
 
             return false;
-        }
-
-        private void SaveSearchState(Search search)
-        {
-            var context = ContextFactory.CreateDbContext();
-            context.Update(search);
-            context.SaveChanges();
-        }
-
-        private void UpdateSearchResponses(Search search, SoulseekSearch soulseekSearch, Soulseek.SearchResponse response)
-        {
-            if (CancellationTokens.ContainsKey(search.Id))
-            {
-                //SearchHub.BroadcastResponseAsync(search.Id, response);
-                UpdateSearchState(search, soulseekSearch);
-            }
-        }
-
-        private void UpdateSearchState(Search search, SoulseekSearch soulseekSearch)
-        {
-            if (CancellationTokens.ContainsKey(search.Id))
-            {
-                search.FileCount = soulseekSearch.FileCount;
-                search.LockedFileCount = soulseekSearch.LockedFileCount;
-                search.ResponseCount = soulseekSearch.ResponseCount;
-                search.State = soulseekSearch.State;
-
-                SearchHub.BroadcastUpdateAsync(search);
-                //SaveSearchState(search);
-            }
         }
     }
 }
