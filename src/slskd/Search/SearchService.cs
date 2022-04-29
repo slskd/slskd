@@ -94,19 +94,20 @@ namespace slskd.Search
                 StartedAt = DateTime.Now,
             };
 
+            var rateLimiter = new RateLimiter(250);
+
             options ??= new SearchOptions();
             options = options.WithActions(
                 stateChanged: (args) => SearchHub.BroadcastUpdateAsync(search.WithSoulseekSearch(args.Search)),
-                responseReceived: (args) => SearchHub.BroadcastUpdateAsync(search.WithSoulseekSearch(args.Search)));
+                responseReceived: (args) => rateLimiter.Invoke(() => SearchHub.BroadcastUpdateAsync(search.WithSoulseekSearch(args.Search))));
 
             using var context = ContextFactory.CreateDbContext();
-
             context.Add(search);
             await context.SaveChangesAsync();
 
-            await SearchHub.BroadcastCreateAsync(search);
-
             CancellationTokens.TryAdd(id, cancellationTokenSource);
+
+            await SearchHub.BroadcastCreateAsync(search);
 
             _ = Task.Run(async () =>
             {
@@ -117,9 +118,11 @@ namespace slskd.Search
                     options,
                     cancellationToken: cancellationTokenSource.Token);
 
+                rateLimiter.Dispose();
                 CancellationTokens.TryRemove(id, out _);
 
                 search = search.WithSoulseekSearch(soulseekSearch);
+                await SearchHub.BroadcastUpdateAsync(search);
                 search.Responses = responses.Select(r => Response.FromSoulseekSearchResponse(r));
 
                 using var context = ContextFactory.CreateDbContext();
