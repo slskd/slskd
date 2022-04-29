@@ -118,5 +118,21 @@ namespace slskd.Search
                 Token = s.Token,
             });
         }
+
+        public static Search WithSoulseekSearch(this Search search, Soulseek.Search s)
+        {
+            return new Search()
+            {
+                Id = search.Id,
+                StartedAt = search.StartedAt,
+                EndedAt = search.EndedAt,
+                FileCount = s.FileCount,
+                LockedFileCount = s.LockedFileCount,
+                ResponseCount = s.ResponseCount,
+                SearchText = search.SearchText,
+                State = s.State,
+                Token = search.Token,
+            };
+        }
     }
 }
