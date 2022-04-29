@@ -15,8 +15,6 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-using Microsoft.Extensions.Options;
-
 namespace slskd.Search.API
 {
     using System;
@@ -46,7 +44,6 @@ namespace slskd.Search.API
         /// <returns>The operation context.</returns>
         public static Task BroadcastUpdateAsync(this IHubContext<SearchHub> hub, Search search)
         {
-            // todo: throttle updates to at most 1 per 100ms or so
             return hub.Clients.All.SendAsync(SearchHubMethods.Update, search);
         }
 
@@ -91,13 +88,6 @@ namespace slskd.Search.API
         {
             var searches = await Searches.ListAsync();
             await Clients.Caller.SendAsync(SearchHubMethods.List, searches);
-            // todo: create buffer specific to this client
-        }
-
-        public override Task OnDisconnectedAsync(Exception exception)
-        {
-            // todo: destroy buffer specific to this client
-            return Task.CompletedTask;
         }
     }
 }
