@@ -59,6 +59,14 @@ class Search extends Component {
     });
   }
 
+  backgroundSearch = async () => {
+    const searchPhrase = this.inputtext.inputRef.current.value;
+    const searchId = uuidv4();
+    await searches.create({ id: searchId, searchText: searchPhrase });
+    this.setSearchText();
+    this.inputtext.focus();
+  }
+
   clear = () => {
     this.setState(initialState, () => {
       this.saveState();
@@ -217,7 +225,11 @@ class Search extends Component {
             disabled={pending}
             className='search-input'
             placeholder="Search phrase"
-            action={!pending && (searchState === 'idle' ? { icon: 'search', onClick: this.search } : { icon: 'x', color: 'red', onClick: this.clear })}
+            action={!pending && (searchState === 'idle' ? 
+              <>
+                <Button icon='plus' onClick={this.backgroundSearch} />
+                <Button icon='search' onClick={this.search} />
+              </> : <Button icon='x' color='red' onClick={this.clear} />)}
             onKeyUp={(e) => e.key === 'Enter' ? this.search() : ''}
           />
         </Segment>
