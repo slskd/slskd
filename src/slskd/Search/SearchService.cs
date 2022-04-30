@@ -121,8 +121,11 @@ namespace slskd.Search
                 rateLimiter.Dispose();
                 CancellationTokens.TryRemove(id, out _);
 
+                search.EndedAt = DateTime.Now;
                 search = search.WithSoulseekSearch(soulseekSearch);
+
                 await SearchHub.BroadcastUpdateAsync(search);
+
                 search.Responses = responses.Select(r => Response.FromSoulseekSearchResponse(r));
 
                 using var context = ContextFactory.CreateDbContext();
