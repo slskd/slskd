@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { isEmpty } from 'lodash';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 
 
@@ -13,7 +14,9 @@ import {
   Card,
   Table,
   Icon,
-  Loader
+  Loader,
+  Segment,
+  Checkbox
 } from 'semantic-ui-react';
 import SearchIcon from '../SearchIcon';
 
@@ -27,6 +30,10 @@ const SearchList = () => {
   const onConnecting = () => setConnected({ connected: false, connecting: true, connectError: false })
   const onConnected = () => setConnected({ connected: true, connecting: false, connectError: false });
   const onConnectionError = (error) => setConnected({ connected: false, connecting: false, connectError: error })
+
+  const searchCount = useMemo(() => {
+    return Object.values(searches).length
+  }, [searches])
 
   const onUpdate = (update) => {
     onConnected();
@@ -113,77 +120,55 @@ const SearchList = () => {
     await lib.stop({ id: search.id })
   }
 
-  const cancelAndDeleteAll = () => {
-    // todo
-  }
-
-  const TableContents = () => (
-    <>
-      {Object.values(searches)
-      .sort((a, b) => (new Date(b.startedAt) - new Date(a.startedAt)))
-      .map((search, index) => <SearchListRow
-        search={search}
-        key={index}
-        onRemove={remove}
-        onStop={stop}
-      />)}
-    </>
-  );
+  console.log(searches)
 
   return (
-    <>
       <Card className='search-card' raised>
         <Card.Content>
           <Card.Header>
             <Icon name='search'/>
             Searches
-            <Icon.Group className='close-button' style={{ marginLeft: 10 }}>
-              <Icon 
-                name='trash alternate' 
-                color='red' 
-                link={connected}
-                disabled={!connected}
-                onClick={() => cancelAndDeleteAll()}
-              />
-              <Icon corner name='asterisk' disabled={!connected}/>
-            </Icon.Group>
-            <Icon.Group className='close-button' >
-              <Icon 
-                name='stop circle' 
-                color='black' 
-                link={connected}
-                disabled={!connected}
-                onClick={() => cancelAndDeleteAll()}
-              />
-              <Icon corner name='asterisk' disabled={!connected}/>
-            </Icon.Group>
           </Card.Header>
           <Card.Description>
             <Switch
               connecting={connecting && <Loader active inline='centered' size='small'/>}
-              error={error && <ErrorSegment caption={error}/>}
+              error={error && <ErrorSegment caption={error} />}
             >
               <Table selectable>
                 <Table.Header>
                   <Table.Row>
-                    <Table.HeaderCell className="search-list-icon"></Table.HeaderCell>
-                    <Table.HeaderCell className="search-list-phrase">Search Phrase</Table.HeaderCell>
+                    <Table.HeaderCell className="search-list-icon"><Checkbox/></Table.HeaderCell>
+                    <Table.HeaderCell className="search-list-action"><Icon name="info circle"/></Table.HeaderCell>
+                    <Table.HeaderCell className="search-list-phrase">Search</Table.HeaderCell>
                     <Table.HeaderCell className="search-list-files">Files</Table.HeaderCell>
                     <Table.HeaderCell className="search-list-locked">Locked</Table.HeaderCell>
                     <Table.HeaderCell className="search-list-responses">Responses</Table.HeaderCell>
-                    <Table.HeaderCell className="search-list-started">Started</Table.HeaderCell>
-                    <Table.HeaderCell className="search-list-action"></Table.HeaderCell>
+                    <Table.HeaderCell className="search-list-started">Ended</Table.HeaderCell>
                   </Table.Row>
                 </Table.Header>
                 <Table.Body>
-                  <TableContents/>
+                  <Switch
+                    noSearches={!searchCount && <Table.Row>
+                      <Table.Cell colspan='7'>
+                        <Segment basic style={{opacity: .5}} textAlign='center'>No searches to display</Segment>
+                      </Table.Cell>
+                    </Table.Row>}
+                  >
+                    {Object.values(searches)
+                      .sort((a, b) => (new Date(b.startedAt) - new Date(a.startedAt)))
+                      .map((search, index) => <SearchListRow
+                        search={search}
+                        key={index}
+                        onRemove={remove}
+                        onStop={stop}
+                      />)}
+                  </Switch>
                 </Table.Body>
               </Table>
             </Switch>
           </Card.Description>
         </Card.Content>
       </Card>
-    </>
   )
 };
 
