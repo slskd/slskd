@@ -84,6 +84,9 @@ namespace slskd
             {
                 if (disposing)
                 {
+                    // if an action is staged, invoke it to 'flush'
+                    Staged?.Invoke();
+
                     Timer.Dispose();
                 }
 
