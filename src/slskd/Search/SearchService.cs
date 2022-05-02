@@ -28,7 +28,7 @@ namespace slskd.Search
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.SignalR;
     using Microsoft.EntityFrameworkCore;
-    using Microsoft.Extensions.Logging;
+    using Serilog;
     using slskd.Search.API;
     using Soulseek;
     using SearchOptions = Soulseek.SearchOptions;
@@ -53,14 +53,12 @@ namespace slskd.Search
             IHubContext<SearchHub> searchHub,
             IOptionsMonitor<Options> optionsMonitor,
             ISoulseekClient soulseekClient,
-            IDbContextFactory<SearchDbContext> contextFactory,
-            ILogger<SearchService> log)
+            IDbContextFactory<SearchDbContext> contextFactory)
         {
             SearchHub = searchHub;
             OptionsMonitor = optionsMonitor;
             Client = soulseekClient;
             ContextFactory = contextFactory;
-            Log = log;
         }
 
         private ConcurrentDictionary<Guid, CancellationTokenSource> CancellationTokens { get; }
@@ -68,7 +66,7 @@ namespace slskd.Search
 
         private ISoulseekClient Client { get; }
         private IDbContextFactory<SearchDbContext> ContextFactory { get; }
-        private ILogger<SearchService> Log { get; set; }
+        private ILogger Log { get; set; } = Serilog.Log.ForContext<Application>();
         private IOptionsMonitor<Options> OptionsMonitor { get; }
         private IHubContext<SearchHub> SearchHub { get; set; }
 
@@ -83,7 +81,11 @@ namespace slskd.Search
         public async Task<Search> CreateAsync(Guid id, SearchQuery query, SearchScope scope, SearchOptions options = null)
         {
             var token = Client.GetNextToken();
+
             var cancellationTokenSource = new CancellationTokenSource();
+            CancellationTokens.TryAdd(id, cancellationTokenSource);
+
+            var rateLimiter = new RateLimiter(250);
 
             var search = new Search()
             {
@@ -94,44 +96,59 @@ namespace slskd.Search
                 StartedAt = DateTime.Now,
             };
 
-            var rateLimiter = new RateLimiter(250);
-
-            options ??= new SearchOptions();
-            options = options.WithActions(
-                stateChanged: (args) => SearchHub.BroadcastUpdateAsync(search.WithSoulseekSearch(args.Search)),
-                responseReceived: (args) => rateLimiter.Invoke(() => SearchHub.BroadcastUpdateAsync(search.WithSoulseekSearch(args.Search))));
-
             using var context = ContextFactory.CreateDbContext();
             context.Add(search);
             await context.SaveChangesAsync();
-
-            CancellationTokens.TryAdd(id, cancellationTokenSource);
-
             await SearchHub.BroadcastCreateAsync(search);
+
+            List<SearchResponse> responses = new();
 
             _ = Task.Run(async () =>
             {
-                var (soulseekSearch, responses) = await Client.SearchAsync(
-                    query,
-                    scope,
-                    token,
-                    options,
-                    cancellationToken: cancellationTokenSource.Token);
+                try
+                {
+                    options ??= new SearchOptions();
+                    options = options.WithActions(
+                        stateChanged: (args) =>
+                        {
+                            search = search.WithSoulseekSearch(args.Search);
+                            SearchHub.BroadcastUpdateAsync(search);
+                        },
+                        responseReceived: (args) =>
+                            rateLimiter.Invoke(() => SearchHub.BroadcastUpdateAsync(search.WithSoulseekSearch(args.Search))));
 
-                rateLimiter.Dispose();
-                CancellationTokens.TryRemove(id, out _);
+                    var soulseekSearch = await Client.SearchAsync(
+                        query,
+                        responseReceived: (response) => responses.Add(response),
+                        scope,
+                        token,
+                        options,
+                        cancellationToken: cancellationTokenSource.Token);
 
-                search.EndedAt = DateTime.Now;
-                search = search.WithSoulseekSearch(soulseekSearch);
+                    search = search.WithSoulseekSearch(soulseekSearch);
+                }
+                finally
+                {
+                    rateLimiter.Dispose();
+                    CancellationTokens.TryRemove(id, out _);
 
-                await SearchHub.BroadcastUpdateAsync(search);
+                    try
+                    {
+                        using var context = ContextFactory.CreateDbContext();
 
-                search.Responses = responses.Select(r => Response.FromSoulseekSearchResponse(r));
+                        search.EndedAt = DateTime.Now;
+                        search.Responses = responses.Select(r => Response.FromSoulseekSearchResponse(r));
 
-                using var context = ContextFactory.CreateDbContext();
-                context.Update(search);
-                context.SaveChanges();
-            }, cancellationToken: cancellationTokenSource.Token);
+                        context.Update(search);
+                        await context.SaveChangesAsync();
+                        await SearchHub.BroadcastUpdateAsync(search);
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Error(ex, "Failed to persist search for {SearchQuery} ({Id})", query, id);
+                    }
+                }
+            });
 
             return search;
         }
