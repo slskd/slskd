@@ -21,7 +21,7 @@ const getIcon = ({ state, ...props }) => {
     case 'Completed, FileLimitReached':
       return <Icon name='check' color='green' {...props}/>
     case 'Completed, Cancelled':
-      return <Icon name='stop' color='green' {...props}/>
+      return <Icon name='stop circle' color='green' {...props}/>
     case 'Completed, Errored':
       return <Icon name='x' color='red' {...props}/>
     default:

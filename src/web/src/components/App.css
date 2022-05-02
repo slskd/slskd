@@ -31,7 +31,11 @@ body {
     width: 100% !important;
 }
 
-.result-card:last-child, .transfer-card:last-child {
+.search-list-card {
+    width: 100% !important;
+}
+
+.result-card:last-child, .transfer-card:last-child, .search-list-card:last-child {
     margin-bottom: 17px !important;
 }
 

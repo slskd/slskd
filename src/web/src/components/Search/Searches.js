@@ -6,7 +6,6 @@ import * as lib from '../../lib/searches';
 import { createSearchLogHubConnection } from '../../lib/hubFactory';
 
 import SearchList from './List/SearchList';
-import SearchListAlt from './List/SearchListAlt';
 
 import './Search.css';
 
