@@ -16,7 +16,8 @@ import {
   Icon,
   Loader,
   Segment,
-  Checkbox
+  Header,
+  List
 } from 'semantic-ui-react';
 import SearchIcon from '../SearchIcon';
 
@@ -120,53 +121,55 @@ const SearchList = () => {
     await lib.stop({ id: search.id })
   }
 
-  console.log(searches)
-
   return (
-      <Card className='search-card' raised>
+      <Card className='search-list-card' raised>
         <Card.Content>
-          <Card.Header>
-            <Icon name='search'/>
-            Searches
-          </Card.Header>
-          <Card.Description>
+          <div style={{marginTop: -20 }}>
             <Switch
               connecting={connecting && <Loader active inline='centered' size='small'/>}
               error={error && <ErrorSegment caption={error} />}
             >
-              <Table selectable>
-                <Table.Header>
-                  <Table.Row>
-                    <Table.HeaderCell className="search-list-icon"><Checkbox/></Table.HeaderCell>
-                    <Table.HeaderCell className="search-list-action"><Icon name="info circle"/></Table.HeaderCell>
-                    <Table.HeaderCell className="search-list-phrase">Search</Table.HeaderCell>
-                    <Table.HeaderCell className="search-list-files">Files</Table.HeaderCell>
-                    <Table.HeaderCell className="search-list-locked">Locked</Table.HeaderCell>
-                    <Table.HeaderCell className="search-list-responses">Responses</Table.HeaderCell>
-                    <Table.HeaderCell className="search-list-started">Ended</Table.HeaderCell>
-                  </Table.Row>
-                </Table.Header>
-                <Table.Body>
+              <Header size='small' className='filelist-header'>
+                <div>
+                  <Icon size='large' name='search'/>
+                  Searches
+                </div>
+              </Header>
+              <List>
+                <List.Item>
                   <Switch
-                    noSearches={!searchCount && <Table.Row>
-                      <Table.Cell colspan='7'>
-                        <Segment basic style={{opacity: .5}} textAlign='center'>No searches to display</Segment>
-                      </Table.Cell>
-                    </Table.Row>}
+                    noSearches={!searchCount && 
+                      <Segment basic style={{opacity: .5}} textAlign='center'>No searches to display</Segment>
+                    }
                   >
-                    {Object.values(searches)
-                      .sort((a, b) => (new Date(b.startedAt) - new Date(a.startedAt)))
-                      .map((search, index) => <SearchListRow
-                        search={search}
-                        key={index}
-                        onRemove={remove}
-                        onStop={stop}
-                      />)}
+                  <Table selectable>
+                    <Table.Header>
+                      <Table.Row>
+                        <Table.HeaderCell className="search-list-action"><Icon name="info circle"/></Table.HeaderCell>
+                        <Table.HeaderCell className="search-list-phrase">Search</Table.HeaderCell>
+                        <Table.HeaderCell className="search-list-files">Files</Table.HeaderCell>
+                        <Table.HeaderCell className="search-list-locked">Locked</Table.HeaderCell>
+                        <Table.HeaderCell className="search-list-responses">Responses</Table.HeaderCell>
+                        <Table.HeaderCell className="search-list-started">Ended</Table.HeaderCell>
+                        <Table.HeaderCell className="search-list-action"></Table.HeaderCell>
+                      </Table.Row>
+                    </Table.Header>
+                    <Table.Body>
+                      {Object.values(searches)
+                        .sort((a, b) => (new Date(b.startedAt) - new Date(a.startedAt)))
+                        .map((search, index) => <SearchListRow
+                          search={search}
+                          key={index}
+                          onRemove={remove}
+                          onStop={stop}
+                        />)}
+                    </Table.Body>
+                  </Table>
                   </Switch>
-                </Table.Body>
-              </Table>
+                </List.Item>
+              </List>
             </Switch>
-          </Card.Description>
+          </div>
         </Card.Content>
       </Card>
   )
