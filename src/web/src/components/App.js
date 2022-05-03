@@ -157,37 +157,37 @@ class App extends Component {
           {version.isCanary && <Menu.Item>
             <Icon name='flask' color='yellow'/>Canary
           </Menu.Item>}
-          <Link to={`${urlBase}`}>
+          <Link to={`searches`}>
             <Menu.Item>
               <Icon name='search'/>Search
             </Menu.Item>
           </Link>
-          <Link to={`${urlBase}/downloads`}>
+          <Link to={`downloads`}>
             <Menu.Item>
               <Icon name='download'/>Downloads
             </Menu.Item>
           </Link>
-          <Link to={`${urlBase}/uploads`}>
+          <Link to={`uploads`}>
             <Menu.Item>
               <Icon name='upload'/>Uploads
             </Menu.Item>
           </Link>
-          <Link to={`${urlBase}/rooms`}>
+          <Link to={`rooms`}>
             <Menu.Item>
               <Icon name='comments'/>Rooms
             </Menu.Item>
           </Link>
-          <Link to={`${urlBase}/chat`}>
+          <Link to={`chat`}>
             <Menu.Item>
               <Icon name='comment'/>Chat
             </Menu.Item>
           </Link>
-          <Link to={`${urlBase}/users`}>
+          <Link to={`users`}>
             <Menu.Item>
               <Icon name='users'/>Users
             </Menu.Item>
           </Link>
-          <Link to={`${urlBase}/browse`}>
+          <Link to={`browse`}>
             <Menu.Item>
               <Icon name='folder open'/>Browse
             </Menu.Item>
@@ -228,7 +228,7 @@ class App extends Component {
                   href="https://github.com/slskd/slskd/releases">See Release Notes</Button>
               </Modal.Actions>
             </Modal>}
-            <Link to={`${urlBase}/system`}>
+            <Link to={`/system`}>
               <Menu.Item>
                 <Icon name='cogs'/>System
               </Menu.Item>
@@ -256,8 +256,8 @@ class App extends Component {
             <Route path='*/rooms' render={(props) => this.withTokenCheck(<Rooms {...props}/>)}/>
             <Route path='*/uploads' render={(props) => this.withTokenCheck(<Transfers {...props} direction='upload'/>)}/>
             <Route path='*/downloads' render={(props) => this.withTokenCheck(<Transfers {...props} direction='download'/>)}/>
-            <Route path='*/system/:tab?' render={(props) => this.withTokenCheck(<System state={applicationState} options={applicationOptions}/>)}/>
-            <Redirect from='*' to={`${urlBase}/searches`}/>
+            <Route path='*/system' render={(props) => this.withTokenCheck(<System {...props} state={applicationState} options={applicationOptions}/>)}/>
+            <Redirect from='*' to={`/searches`}/>
           </Switch>
         </Sidebar.Pusher>
       </Sidebar.Pushable>
