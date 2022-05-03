@@ -12,11 +12,7 @@ import './Search.css';
 import {
   Input,
   Segment,
-  Card,
-  Table,
-  Icon
 } from 'semantic-ui-react';
-import SearchIcon from './SearchIcon';
 
 const Searches = () => {
   const [{ loading, loadError }, setLoading] = useState({ loading: true, loadError: false });

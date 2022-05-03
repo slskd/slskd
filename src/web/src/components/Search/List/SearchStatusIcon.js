@@ -29,7 +29,7 @@ const getIcon = ({ state, ...props }) => {
   }
 }
 
-const SearchIcon = ({ state, ...props }) => 
+const SearchStatusIcon = ({ state, ...props }) => 
   <Popup content={state} trigger={getIcon({ state, ...props })}/>
 
-export default SearchIcon;
+export default SearchStatusIcon;

@@ -1,4 +1,3 @@
-import { isEmpty } from 'lodash';
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -19,7 +18,6 @@ import {
   Header,
   List
 } from 'semantic-ui-react';
-import SearchIcon from '../SearchIcon';
 
 const SearchList = () => {
   const [{ connected, connecting, connectError} , setConnected] = useState({ connected: false, connecting: true, connectError: false });
@@ -99,10 +97,6 @@ const SearchList = () => {
     }
   }
 
-  const get = async () => {
-    
-  }
-
   const remove = async (search) => {
     console.log('remove', searches)
     try {
@@ -142,7 +136,7 @@ const SearchList = () => {
                       <Segment basic style={{opacity: .5}} textAlign='center'>No searches to display</Segment>
                     }
                   >
-                  <Table selectable>
+                  <Table>
                     <Table.Header>
                       <Table.Row>
                         <Table.HeaderCell className="search-list-action"><Icon name="info circle"/></Table.HeaderCell>
