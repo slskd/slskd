@@ -15,39 +15,63 @@ import {
 } from 'semantic-ui-react';
 
 const Searches = () => {
-  const [{ loading, loadError }, setLoading] = useState({ loading: true, loadError: false });
+  const [{ connected, connecting, connectError } , setConnected] = useState({ connected: false, connecting: true, connectError: false });
   const [{ creating, createError }, setCreating] = useState({ creating: false, createError: false });
-  const [connected, setConnected] = useState(false);
-  const [searches, setSearches] = useState([]);
+  const [error, setError] = useState(undefined);
+  const [searches, setSearches] = useState({});
   const inputRef = useRef();
 
-  useEffect(() => {
-    get();
+  const onConnecting = () => setConnected({ connected: false, connecting: true, connectError: false })
+  const onConnected = () => setConnected({ connected: true, connecting: false, connectError: false });
+  const onConnectionError = (error) => setConnected({ connected: false, connecting: false, connectError: error })
 
+  const onUpdate = (update) => {
+    onConnected();
+    setSearches(update);
+  }
+
+  useEffect(() => {
+    onConnecting();
+    
     const searchHub = createSearchLogHubConnection();
 
-    searchHub.on('update', search => {
-      console.log(search)
-      setConnected(true);
-      setSearches(old => {
-        const idx = old.findIndex(s => s.id === search.id);
+    searchHub.on('list', searches => {
+      onUpdate(searches.reduce((acc, search) => {
+        acc[search.id] = search;
+        return acc;
+      }, {}));
+      onConnected();
+    })
 
-        if (idx < 0) {
-          return [search, ...old]
-        } else {
-          old[idx] = search
-          return [...old];
-        }
-      })
+    searchHub.on('update', search => {
+      onUpdate(old => ({ ...old, [search.id]: search }));
     });
 
-    searchHub.on('response', () => { });
+    searchHub.on('delete', search => {
+      onUpdate(old => {
+        delete old[search.id];
+        return { ...old }
+      });
+    });
 
-    searchHub.onreconnecting(() => setConnected(false));
-    searchHub.onclose(() => setConnected(false));
-    searchHub.onreconnected(() => setConnected(true));
+    searchHub.onreconnecting((error) => onConnectionError(error?.message ?? 'Disconnected'));
+    searchHub.onreconnected(() => onConnected());
+    searchHub.onclose((error) => onConnectionError(error?.message ?? 'Disconnected'));
 
-    searchHub.start();
+    const connect = async () => {
+      try {
+        onConnecting();
+        await searchHub.start();
+      } catch (error) {
+        onConnectionError(error?.message ?? 'Failed to connect')
+      }
+    }
+
+    connect();
+
+    return () => {
+      searchHub.stop();
+    }
   }, []);
 
   const create = async () => {
@@ -64,53 +88,44 @@ const Searches = () => {
     }
   }
 
-  const get = async () => {
-    setLoading({ loading: true, error: false });
-
-    try {
-      const all = await lib.getAll();
-      setSearches(all);
-      setLoading({ loading: false, error: false })
-    } catch (error) {
-      setLoading({ loading: false, error: error.message })
-    }
-  }
-
   const remove = async (search) => {
-    console.log('remove', searches)
     try {
       await lib.remove({ id: search.id })
-      setSearches(old => old.filter(s => s.id !== search.id))
+      setSearches(old => {
+        delete old[search.id];
+        return { ...old }
+      });
     } catch (err) {
-      console.error(err)
-      // noop
+      setError(error.message);
     }
-  }
+  };
 
   const stop = async (search) => {
     await lib.stop({ id: search.id })
   }
 
-  const cancelAndDeleteAll = () => {
-    // todo
-  }
-
   return (
     <div className='search-container'>
-        <Segment className='search-segment' raised>
-          <Input
-            input={<input placeholder="Search phrase" type="search" data-lpignore="true"></input>}
-            size='big'
-            ref={inputRef}
-            loading={creating}
-            disabled={creating}
-            className='search-input'
-            placeholder="Search phrase"
-            action={{ icon: 'search', onClick: create }}
-            onKeyUp={(e) => e.key === 'Enter' ? create() : ''}
-          />
-        </Segment>
-        <SearchList/>
+      <Segment className='search-segment' raised>
+        <Input
+          input={<input placeholder="Search phrase" type="search" data-lpignore="true"></input>}
+          size='big'
+          ref={inputRef}
+          loading={creating}
+          disabled={creating}
+          className='search-input'
+          placeholder="Search phrase"
+          action={{ icon: 'search', onClick: create }}
+          onKeyUp={(e) => e.key === 'Enter' ? create() : ''}
+        />
+      </Segment>
+      <SearchList
+        connecting={connecting}
+        error={error}
+        searches={searches}
+        onRemove={remove}
+        onStop={stop}
+      />
     </div>
   )
 };
