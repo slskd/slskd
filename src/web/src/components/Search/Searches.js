@@ -1,4 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
+import {
+  BrowserRouter as Router,
+  Switch,
+  Route,
+  Link,
+  useParams
+} from "react-router-dom";
 import { v4 as uuidv4 } from 'uuid';
 
 
@@ -19,6 +26,7 @@ const Searches = () => {
   const [{ creating, createError }, setCreating] = useState({ creating: false, createError: false });
   const [error, setError] = useState(undefined);
   const [searches, setSearches] = useState({});
+  const params = useParams();
   const inputRef = useRef();
 
   const onConnecting = () => setConnected({ connected: false, connecting: true, connectError: false })

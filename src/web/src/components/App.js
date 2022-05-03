@@ -1,5 +1,7 @@
 import React, { Component } from 'react';
-import { Route, Link, Switch } from "react-router-dom";
+import { Route, Link, Switch, Redirect } from "react-router-dom";
+
+import { reactRouterBaseUrl } from '../config';
 
 import * as session from '../lib/session';
 import { connect, disconnect } from '../lib/server';
@@ -151,37 +153,37 @@ class App extends Component {
           {version.isCanary && <Menu.Item>
             <Icon name='flask' color='yellow'/>Canary
           </Menu.Item>}
-          <Link to='.'>
+          <Link to={`${reactRouterBaseUrl}/searches`}>
             <Menu.Item>
               <Icon name='search'/>Search
             </Menu.Item>
           </Link>
-          <Link to='downloads'>
+          <Link to={`${reactRouterBaseUrl}/downloads`}>
             <Menu.Item>
               <Icon name='download'/>Downloads
             </Menu.Item>
           </Link>
-          <Link to='uploads'>
+          <Link to={`${reactRouterBaseUrl}/uploads`}>
             <Menu.Item>
               <Icon name='upload'/>Uploads
             </Menu.Item>
           </Link>
-          <Link to='rooms'>
+          <Link to={`${reactRouterBaseUrl}/rooms`}>
             <Menu.Item>
               <Icon name='comments'/>Rooms
             </Menu.Item>
           </Link>
-          <Link to='chat'>
+          <Link to={`${reactRouterBaseUrl}/chat`}>
             <Menu.Item>
               <Icon name='comment'/>Chat
             </Menu.Item>
           </Link>
-          <Link to='users'>
+          <Link to={`${reactRouterBaseUrl}/users`}>
             <Menu.Item>
               <Icon name='users'/>Users
             </Menu.Item>
           </Link>
-          <Link to='browse'>
+          <Link to={`${reactRouterBaseUrl}/browse`}>
             <Menu.Item>
               <Icon name='folder open'/>Browse
             </Menu.Item>
@@ -251,7 +253,7 @@ class App extends Component {
             <Route path='*/uploads' render={(props) => this.withTokenCheck(<Transfers {...props} direction='upload'/>)}/>
             <Route path='*/downloads' render={(props) => this.withTokenCheck(<Transfers {...props} direction='download'/>)}/>
             <Route path='*/system' render={(props) => this.withTokenCheck(<System state={applicationState} options={applicationOptions}/>)}/>
-            <Route path='*/' render={(props) => this.withTokenCheck(<Search {...props}/>)}/>
+            <Redirect from='*' to='/searches'/>
           </Switch>
         </Sidebar.Pusher>
       </Sidebar.Pushable>

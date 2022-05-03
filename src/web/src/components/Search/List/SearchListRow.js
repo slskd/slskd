@@ -1,4 +1,8 @@
 import React, { useState } from 'react';
+import {
+  Link,
+  useRouteMatch,
+} from "react-router-dom";
 
 import SearchStatusIcon from './SearchStatusIcon';
 import SearchActionIcon from './SearchActionIcon';
@@ -10,6 +14,7 @@ import {
 
 const SearchListRow = ({ search, onRemove, onStop }) => {
   const [working, setWorking] = useState(false);
+  const match = useRouteMatch();
 
   const invoke = async (func) => {
     setWorking(true);
@@ -27,7 +32,7 @@ const SearchListRow = ({ search, onRemove, onStop }) => {
           state={search.state}
         />
       </Table.Cell>
-      <Table.Cell><a href={`searches/${search.id}`}>{search.searchText}</a></Table.Cell>
+      <Table.Cell><Link to={`${match.url}/${search.id}`}>{search.searchText}</Link></Table.Cell>
       <Table.Cell>{search.fileCount}</Table.Cell>
       <Table.Cell><Icon name="lock" color="yellow" size="small"/>{search.lockedFileCount}</Table.Cell>
       <Table.Cell>{search.responseCount}</Table.Cell>
