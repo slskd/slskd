@@ -15,6 +15,8 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
+using Microsoft.Extensions.Options;
+
 namespace slskd.Core.API
 {
     using System;
@@ -37,15 +39,18 @@ namespace slskd.Core.API
         public ApplicationController(
             IHostApplicationLifetime lifetime,
             IApplication application,
+            IOptionsMonitor<Options> optionsMonitor,
             IStateMonitor<State> applicationStateMonitor)
         {
             Lifetime = lifetime;
             Application = application;
+            OptionsMonitor = optionsMonitor;
             ApplicationStateMonitor = applicationStateMonitor;
         }
 
         private IApplication Application { get; }
         private IStateMonitor<State> ApplicationStateMonitor { get; }
+        private IOptionsMonitor<Options> OptionsMonitor { get; }
         private IHostApplicationLifetime Lifetime { get; }
 
         /// <summary>
@@ -145,6 +150,12 @@ namespace slskd.Core.API
             _ = Application.RescanSharesAsync();
 
             return Ok();
+        }
+
+        [HttpGet("urlbase")]
+        public IActionResult GetUrlBase()
+        {
+            return Ok(OptionsMonitor.CurrentValue.Web.UrlBase);
         }
     }
 }

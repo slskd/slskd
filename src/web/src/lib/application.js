@@ -4,6 +4,10 @@ export const getState = async () => {
   return (await api.get('/application')).data;
 };
 
+export const getUrlBase = async () => {
+  return (await api.get('/application/urlbase')).data;
+}
+
 export const restart = async () => {
   return api.put('/application');
 };
