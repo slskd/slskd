@@ -1,5 +1,5 @@
 import React from 'react';
-import { useRouteMatch } from "react-router-dom";
+import { useRouteMatch, useHistory, Redirect } from "react-router-dom";
 
 import { Segment, Tab } from 'semantic-ui-react';
 
@@ -10,7 +10,8 @@ import Logs from './Logs';
 import Options from './Options';
 
 const System = ({ state = {}, options = {} }) => {
-  const { params: { tab }} = useRouteMatch();
+  const { params: { tab }, ...route } = useRouteMatch();
+  const history = useHistory();
 
   const panes = [
     { route: 'info', menuItem: 'Info', render: () => <Tab.Pane><Info state={state}/></Tab.Pane> },
@@ -20,12 +21,21 @@ const System = ({ state = {}, options = {} }) => {
 
   const activeIndex = panes.findIndex(pane => pane.route === tab)
 
+  const onTabChange = (e, { activeIndex }) => {
+    history.push(panes[activeIndex].route)
+  }
+
+  if (tab === undefined) {
+    return <Redirect to={`${route.url}/${panes[0].route}`}/>
+  }
+
   return (
     <div className='system'>
       <Segment raised>
         <Tab
           activeIndex={activeIndex > -1 ? activeIndex : 0} 
           panes={panes}
+          onTabChange={onTabChange}
         />
       </Segment>
     </div>
