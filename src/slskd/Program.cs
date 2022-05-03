@@ -470,10 +470,11 @@ namespace slskd
         private static IServiceCollection ConfigureAspDotNetServices(this IServiceCollection services)
         {
             services.AddCors(options => options.AddPolicy("AllowAll", builder => builder
+                .SetIsOriginAllowed((host) => true)
                 .AllowAnyHeader()
                 .AllowAnyMethod()
-                .SetIsOriginAllowed((host) => true)
-                .AllowCredentials()));
+                .AllowCredentials()
+                .WithExposedHeaders("X-URL-Base")));
 
             var jwtSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(OptionsAtStartup.Web.Authentication.Jwt.Key));
 
@@ -603,6 +604,19 @@ namespace slskd
             urlBase = urlBase.StartsWith("/") ? urlBase : "/" + urlBase;
 
             app.UsePathBase(urlBase);
+            app.Use((context, next) =>
+            {
+                context.Response.OnStarting(() =>
+                {
+                    // the UI needs to be aware of what the URL base is,
+                    // so that react-router can use explicit paths.
+                    context.Response.Headers.Add("X-URL-Base", urlBase);
+                    return Task.CompletedTask;
+                });
+
+                return next();
+            });
+
             Log.Information("Using base url {UrlBase}", urlBase);
 
             // remove any errant double forward slashes which may have been introduced by manipulating the path base
