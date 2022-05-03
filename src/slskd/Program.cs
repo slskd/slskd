@@ -602,6 +602,10 @@ namespace slskd
             var urlBase = OptionsAtStartup.Web.UrlBase;
             urlBase = urlBase.StartsWith("/") ? urlBase : "/" + urlBase;
 
+            // 404 if a custom urlBase is set, but the request doesn't include it
+            app.EnforceUrlBase(urlBase);
+
+            // use urlBase. this effectively just removes urlBase from the path
             app.UsePathBase(urlBase);
             Log.Information("Using base url {UrlBase}", urlBase);
 
