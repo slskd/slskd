@@ -2,8 +2,8 @@ import React, { Component } from 'react';
 import { Route, Link, Switch, Redirect } from "react-router-dom";
 
 import * as session from '../lib/session';
-import * as application from '../lib/application';
 import { connect, disconnect } from '../lib/server';
+import { urlBase } from '../config';
 
 import { createApplicationHubConnection } from '../lib/hubFactory';
 
@@ -39,7 +39,6 @@ const initialState = {
   initialized: false,
   error: false,
   retriesExhausted: false,
-  urlBase: '',
 };
 
 class App extends Component {
@@ -52,12 +51,7 @@ class App extends Component {
   init = async () => {
     this.setState({ initialized: false }, async () => {
       try {
-        const [urlBase, securityEnabled] = await Promise.all([
-          application.getUrlBase(),
-          session.getSecurityEnabled()]
-        );
-
-        this.setState({ urlBase });
+        const securityEnabled = await session.getSecurityEnabled();
   
         if (!securityEnabled) {
           console.debug('application security is not enabled, per api call')
@@ -116,7 +110,7 @@ class App extends Component {
   };
 
   render = () => {
-    const { login, applicationState = {}, applicationOptions = {}, error, initialized, retriesExhausted, urlBase = '' } = this.state;
+    const { login, applicationState = {}, applicationOptions = {}, error, initialized, retriesExhausted } = this.state;
     const { version = {}, server } = applicationState;
     const { isUpdateAvailable, current, latest } = version;
 
@@ -157,37 +151,37 @@ class App extends Component {
           {version.isCanary && <Menu.Item>
             <Icon name='flask' color='yellow'/>Canary
           </Menu.Item>}
-          <Link to={`searches`}>
+          <Link to={`${urlBase}/searches`}>
             <Menu.Item>
               <Icon name='search'/>Search
             </Menu.Item>
           </Link>
-          <Link to={`downloads`}>
+          <Link to={`${urlBase}/downloads`}>
             <Menu.Item>
               <Icon name='download'/>Downloads
             </Menu.Item>
           </Link>
-          <Link to={`uploads`}>
+          <Link to={`${urlBase}/uploads`}>
             <Menu.Item>
               <Icon name='upload'/>Uploads
             </Menu.Item>
           </Link>
-          <Link to={`rooms`}>
+          <Link to={`${urlBase}/rooms`}>
             <Menu.Item>
               <Icon name='comments'/>Rooms
             </Menu.Item>
           </Link>
-          <Link to={`chat`}>
+          <Link to={`${urlBase}/chat`}>
             <Menu.Item>
               <Icon name='comment'/>Chat
             </Menu.Item>
           </Link>
-          <Link to={`users`}>
+          <Link to={`${urlBase}/users`}>
             <Menu.Item>
               <Icon name='users'/>Users
             </Menu.Item>
           </Link>
-          <Link to={`browse`}>
+          <Link to={`${urlBase}/browse`}>
             <Menu.Item>
               <Icon name='folder open'/>Browse
             </Menu.Item>
@@ -228,7 +222,7 @@ class App extends Component {
                   href="https://github.com/slskd/slskd/releases">See Release Notes</Button>
               </Modal.Actions>
             </Modal>}
-            <Link to={`/system`}>
+            <Link to={`${urlBase}/system`}>
               <Menu.Item>
                 <Icon name='cogs'/>System
               </Menu.Item>
@@ -249,15 +243,15 @@ class App extends Component {
         </Sidebar>
         <Sidebar.Pusher className='app-content'>
           <Switch>
-            <Route path='*/searches' render={(props) => this.withTokenCheck(<Search {...props}/>)}/>
-            <Route path='*/browse' render={(props) => this.withTokenCheck(<Browse {...props}/>)}/>
-            <Route path='*/users' render={(props) => this.withTokenCheck(<Users {...props}/>)}/>
-            <Route path='*/chat' render={(props) => this.withTokenCheck(<Chat {...props}/>)}/>
-            <Route path='*/rooms' render={(props) => this.withTokenCheck(<Rooms {...props}/>)}/>
-            <Route path='*/uploads' render={(props) => this.withTokenCheck(<Transfers {...props} direction='upload'/>)}/>
-            <Route path='*/downloads' render={(props) => this.withTokenCheck(<Transfers {...props} direction='download'/>)}/>
-            <Route path='*/system' render={(props) => this.withTokenCheck(<System {...props} state={applicationState} options={applicationOptions}/>)}/>
-            <Redirect from='*' to={`/searches`}/>
+            <Route path={`${urlBase}/searches`} render={(props) => this.withTokenCheck(<Search {...props}/>)}/>
+            <Route path={`${urlBase}/browse`} render={(props) => this.withTokenCheck(<Browse {...props}/>)}/>
+            <Route path={`${urlBase}/users`} render={(props) => this.withTokenCheck(<Users {...props}/>)}/>
+            <Route path={`${urlBase}/chat`} render={(props) => this.withTokenCheck(<Chat {...props}/>)}/>
+            <Route path={`${urlBase}/rooms`} render={(props) => this.withTokenCheck(<Rooms {...props}/>)}/>
+            <Route path={`${urlBase}/uploads`} render={(props) => this.withTokenCheck(<Transfers {...props} direction='upload'/>)}/>
+            <Route path={`${urlBase}/downloads`} render={(props) => this.withTokenCheck(<Transfers {...props} direction='download'/>)}/>
+            <Route path={`${urlBase}/system/:tab?`} render={(props) => this.withTokenCheck(<System {...props} state={applicationState} options={applicationOptions}/>)}/>
+            <Redirect from='*' to={`${urlBase}/searches`}/>
           </Switch>
         </Sidebar.Pusher>
       </Sidebar.Pushable>
