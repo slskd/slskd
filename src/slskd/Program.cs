@@ -633,6 +633,8 @@ namespace slskd
             }
             else
             {
+                RewriteStaticContentUrls(contentPath, urlBase);
+
                 fileServerOptions = new FileServerOptions
                 {
                     FileProvider = new PhysicalFileProvider(contentPath),
@@ -829,6 +831,54 @@ namespace slskd
                     Log.Error("Failed to create configuration file {ConfigurationFile}: {Message}", configurationFile, ex.Message);
                 }
             }
+        }
+
+        private static void RewriteStaticContentUrls(string contentPath, string urlBase)
+        {
+            if (string.IsNullOrEmpty(urlBase) || urlBase == "/")
+            {
+                // nothing to rewrite
+                return;
+            }
+
+            // Log.Warning("Rewriting URLs in static content to reflect custom base url {UrlBase}", urlBase);
+            // Log.Warning("This is a one-time operation");
+
+            // var rewrittenFiles = 0;
+            // var files = System.IO.Directory.GetFiles(contentPath, "*", SearchOption.AllDirectories);
+
+            // foreach (var file in files)
+            // {
+            //     bool rewritten = false;
+            //     var contents = System.IO.File.ReadAllText(file);
+
+            //     if (contents.Contains("../../static") || contents.Contains("./static"))
+            //     {
+            //         contents = contents.Replace("../../static", $"{urlBase}/static");
+            //         contents = contents.Replace("./static", $"{urlBase}/static");
+            //         System.IO.File.WriteAllText(file, contents);
+            //         Log.Warning("Rewrote paths in {File}", Path.GetFileName(file));
+            //         rewritten = true;
+            //     }
+
+            //     if (contents.Contains("window.urlBase=\"/\""))
+            //     {
+            //         contents = contents.Replace("window.urlBase=\"/\"", $"window.urlBase=\"{urlBase}\"");
+            //         System.IO.File.WriteAllText(file, contents);
+            //         Log.Warning("Rewrote urlBase in {File}", Path.GetFileName(file));
+            //         rewritten = true;
+            //     }
+
+            //     if (rewritten)
+            //     {
+            //         rewrittenFiles++;
+            //     }
+            // }
+
+            // if (rewrittenFiles == 0)
+            // {
+            //     Log.Warning("No files were rewritten.");
+            // }
         }
 
         private static void GenerateX509Certificate(string password, string filename)
