@@ -114,7 +114,7 @@ namespace slskd.Core.API
         /// <returns></returns>
         [HttpGet("version/latest")]
         [Authorize]
-        public async Task<IActionResult> CheckVersion([FromQuery]bool forceCheck = false)
+        public async Task<IActionResult> CheckVersion([FromQuery] bool forceCheck = false)
         {
             if (forceCheck)
             {
@@ -150,12 +150,6 @@ namespace slskd.Core.API
             _ = Application.RescanSharesAsync();
 
             return Ok();
-        }
-
-        [HttpGet("urlbase")]
-        public IActionResult GetUrlBase()
-        {
-            return Ok(OptionsMonitor.CurrentValue.Web.UrlBase);
         }
     }
 }
