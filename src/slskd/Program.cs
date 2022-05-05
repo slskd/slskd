@@ -602,50 +602,46 @@ namespace slskd
             var urlBase = OptionsAtStartup.Web.UrlBase;
             urlBase = urlBase.StartsWith("/") ? urlBase : "/" + urlBase;
 
-            // 404 if a custom urlBase is set, but the request doesn't include it
+            // 404 if a custom urlBase is set, but the request doesn't include it.
+            // this is necessary to make sure the development-time and run-time behavior
+            // are consistent.
             app.EnforceUrlBase(urlBase);
 
-            // use urlBase. this effectively just removes urlBase from the path
+            // use urlBase. this effectively just removes urlBase from the path, which is
+            // why the enforcement behavior exists above (the actually requested path becomes ambiguous)
             app.UsePathBase(urlBase);
             Log.Information("Using base url {UrlBase}", urlBase);
 
             // remove any errant double forward slashes which may have been introduced by manipulating the path base
-            app.Use(async (context, next) =>
-            {
-                var path = context.Request.Path.ToString();
+            //app.Use(async (context, next) =>
+            //{
+            //    var path = context.Request.Path.ToString();
 
-                if (path.StartsWith("//"))
-                {
-                    context.Request.Path = new string(path.Skip(1).ToArray());
-                }
+            //    if (path.StartsWith("//"))
+            //    {
+            //        Console.WriteLine("!!!!!!!!!!!!!!!!!!!!!!! fixing path");
+            //        context.Request.Path = new string(path.Skip(1).ToArray());
+            //    }
 
-                await next();
-            });
+            //    await next();
+            //});
 
             // serve static content from the configured path
             FileServerOptions fileServerOptions = default;
-
             var contentPath = Path.GetFullPath(OptionsAtStartup.Web.ContentPath);
 
-            if (!System.IO.Directory.Exists(contentPath))
-            {
-                Log.Warning($"Static content disabled; cannot find content path '{contentPath}'");
-            }
-            else
-            {
-                RewriteStaticContentUrls(contentPath, urlBase);
+            InjectUrlBaseIntoIndex(contentPath, urlBase);
 
-                fileServerOptions = new FileServerOptions
-                {
-                    FileProvider = new PhysicalFileProvider(contentPath),
-                    RequestPath = string.Empty,
-                    EnableDirectoryBrowsing = false,
-                    EnableDefaultFiles = true,
-                };
+            fileServerOptions = new FileServerOptions
+            {
+                FileProvider = new PhysicalFileProvider(contentPath),
+                RequestPath = string.Empty,
+                EnableDirectoryBrowsing = false,
+                EnableDefaultFiles = true,
+            };
 
-                app.UseFileServer(fileServerOptions);
-                Log.Information("Serving static content from {ContentPath}", contentPath);
-            }
+            app.UseFileServer(fileServerOptions);
+            Log.Information("Serving static content from {ContentPath}", contentPath);
 
             if (OptionsAtStartup.Feature.Prometheus)
             {
@@ -677,6 +673,18 @@ namespace slskd
                 }
             });
 
+            // if this is an /api route and no API controller was matched, give up and return a 404.
+            app.Use(async (context, next) =>
+            {
+                if (context.Request.Path.StartsWithSegments("/api"))
+                {
+                    context.Response.StatusCode = 404;
+                    return;
+                }
+
+                await next();
+            });
+
             if (OptionsAtStartup.Feature.Swagger)
             {
                 app.UseSwagger();
@@ -686,25 +694,48 @@ namespace slskd
                 Log.Information("Publishing Swagger documentation to /swagger");
             }
 
-            // if we made it this far and the route still wasn't matched, return the index unless it's an api route. this is
-            // required so that SPA routing (React Router, etc) can work properly
+            // if we made it this far, the caller is either looking for a route that was synthesized with a SPA router, or is genuinely confused.
+            // optimistically search the dictionary of static files to see if we have a file that matches, and serve it if so.
             app.Use(async (context, next) =>
             {
-                // exclude API routes which are not matched or return a 404
-                if (!context.Request.Path.StartsWithSegments("/api"))
+                var path = context.Request.Path.ToString();
+
+                // if there is no extension, the caller is looking for a directory (an index file)
+                // modify the request to get the canonical default index
+                if (Path.GetExtension(path) == string.Empty)
                 {
                     context.Request.Path = "/";
+                }
+                else
+                {
+                    // the caller is looking for a specific file; try and find it among the known files in the content directory
+                    var knownFiles = System.IO.Directory.GetFiles(contentPath, "*", SearchOption.AllDirectories)
+                        .Select(file => file.Replace(contentPath, string.Empty).TrimStart('/', '\\').Replace('\\', '/'))
+                        .ToHashSet();
+
+                    var pathParts = path.Split('/');
+
+                    for (int i = 1; i <= pathParts.Length; i++)
+                    {
+                        path = string.Join('/', pathParts.Skip(i));
+
+                        if (knownFiles.Contains(path, StringComparer.InvariantCultureIgnoreCase))
+                        {
+                            // the request is for a static file we have, but the route contains extra segments
+                            // correct the route and continue to the next middleware, which should serve the file from
+                            // disk.
+                            context.Request.Path = '/' + path;
+                            break;
+                        }
+                    }
                 }
 
                 await next();
             });
 
-            // finally, hit the fileserver again. if the path was modified to return the index above, the index document will be
-            // returned. otherwise it will throw a final 404 back to the client.
-            if (System.IO.Directory.Exists(contentPath))
-            {
-                app.UseFileServer(fileServerOptions);
-            }
+            // the request path may have been rewritten above, in which case we're likely to have better luck finding
+            // a match with the file server middleware.  let it try, and if it fails let it return a 404.
+            app.UseFileServer(fileServerOptions);
 
             return app;
         }
@@ -833,7 +864,7 @@ namespace slskd
             }
         }
 
-        private static void RewriteStaticContentUrls(string contentPath, string urlBase)
+        private static void InjectUrlBaseIntoIndex(string contentPath, string urlBase)
         {
             if (string.IsNullOrEmpty(urlBase) || urlBase == "/")
             {
@@ -841,44 +872,12 @@ namespace slskd
                 return;
             }
 
-            // Log.Warning("Rewriting URLs in static content to reflect custom base url {UrlBase}", urlBase);
-            // Log.Warning("This is a one-time operation");
+            var files = System.IO.Directory.GetFiles(contentPath, "*", SearchOption.AllDirectories);
 
-            // var rewrittenFiles = 0;
-            // var files = System.IO.Directory.GetFiles(contentPath, "*", SearchOption.AllDirectories);
-
-            // foreach (var file in files)
-            // {
-            //     bool rewritten = false;
-            //     var contents = System.IO.File.ReadAllText(file);
-
-            //     if (contents.Contains("../../static") || contents.Contains("./static"))
-            //     {
-            //         contents = contents.Replace("../../static", $"{urlBase}/static");
-            //         contents = contents.Replace("./static", $"{urlBase}/static");
-            //         System.IO.File.WriteAllText(file, contents);
-            //         Log.Warning("Rewrote paths in {File}", Path.GetFileName(file));
-            //         rewritten = true;
-            //     }
-
-            //     if (contents.Contains("window.urlBase=\"/\""))
-            //     {
-            //         contents = contents.Replace("window.urlBase=\"/\"", $"window.urlBase=\"{urlBase}\"");
-            //         System.IO.File.WriteAllText(file, contents);
-            //         Log.Warning("Rewrote urlBase in {File}", Path.GetFileName(file));
-            //         rewritten = true;
-            //     }
-
-            //     if (rewritten)
-            //     {
-            //         rewrittenFiles++;
-            //     }
-            // }
-
-            // if (rewrittenFiles == 0)
-            // {
-            //     Log.Warning("No files were rewritten.");
-            // }
+            foreach (var file in files)
+            {
+                Console.WriteLine(file);
+            }
         }
 
         private static void GenerateX509Certificate(string password, string filename)
