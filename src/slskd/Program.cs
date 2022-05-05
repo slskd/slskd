@@ -28,6 +28,7 @@ namespace slskd
     using System.Security.Cryptography.X509Certificates;
     using System.Text;
     using System.Text.Json.Serialization;
+    using System.Text.RegularExpressions;
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.Authentication.JwtBearer;
     using Microsoft.AspNetCore.Builder;
@@ -36,6 +37,7 @@ namespace slskd
     using Microsoft.AspNetCore.Http;
     using Microsoft.AspNetCore.Mvc.ApiExplorer;
     using Microsoft.EntityFrameworkCore;
+    using Microsoft.Extensions.Caching.Memory;
     using Microsoft.Extensions.Configuration;
     using Microsoft.Extensions.DependencyInjection;
     using Microsoft.Extensions.FileProviders;
@@ -178,6 +180,7 @@ namespace slskd
         private static IConfigurationRoot Configuration { get; set; }
         private static OptionsAtStartup OptionsAtStartup { get; } = new OptionsAtStartup();
         private static ILogger Log { get; set; } = new ConsoleWriteLineLogger();
+        private static MemoryCache Cache { get; } = new MemoryCache(new MemoryCacheOptions());
 
         [Argument('g', "generate-cert", "generate X509 certificate and password for HTTPs")]
         private static bool GenerateCertificate { get; set; }
@@ -612,25 +615,18 @@ namespace slskd
             app.UsePathBase(urlBase);
             Log.Information("Using base url {UrlBase}", urlBase);
 
-            // remove any errant double forward slashes which may have been introduced by manipulating the path base
-            //app.Use(async (context, next) =>
-            //{
-            //    var path = context.Request.Path.ToString();
-
-            //    if (path.StartsWith("//"))
-            //    {
-            //        Console.WriteLine("!!!!!!!!!!!!!!!!!!!!!!! fixing path");
-            //        context.Request.Path = new string(path.Skip(1).ToArray());
-            //    }
-
-            //    await next();
-            //});
-
             // serve static content from the configured path
             FileServerOptions fileServerOptions = default;
             var contentPath = Path.GetFullPath(OptionsAtStartup.Web.ContentPath);
 
-            InjectUrlBaseIntoIndex(contentPath, urlBase);
+            if (TryPatchIndexWithUrlBase(contentPath, urlBase, out var index))
+            {
+                Log.Information("Patched static index file {Index} with base url {UrlBase}", index, urlBase);
+            }
+            else
+            {
+                Log.Warning("Failed to patch static content with custom base url {UrlBase}; the UI may not work properly.");
+            }
 
             fileServerOptions = new FileServerOptions
             {
@@ -708,10 +704,16 @@ namespace slskd
                 }
                 else
                 {
-                    // the caller is looking for a specific file; try and find it among the known files in the content directory
-                    var knownFiles = System.IO.Directory.GetFiles(contentPath, "*", SearchOption.AllDirectories)
-                        .Select(file => file.Replace(contentPath, string.Empty).TrimStart('/', '\\').Replace('\\', '/'))
-                        .ToHashSet();
+                    HashSet<string> staticFiles;
+
+                    if (!Cache.TryGetValue(CacheKey.StaticFiles, out staticFiles))
+                    {
+                        staticFiles = System.IO.Directory.GetFiles(contentPath, "*", SearchOption.AllDirectories)
+                            .Select(file => file.Replace(contentPath, string.Empty).TrimStart('/', '\\').Replace('\\', '/'))
+                            .ToHashSet();
+
+                        Cache.Set(CacheKey.StaticFiles, staticFiles);
+                    }
 
                     var pathParts = path.Split('/');
 
@@ -719,7 +721,7 @@ namespace slskd
                     {
                         path = string.Join('/', pathParts.Skip(i));
 
-                        if (knownFiles.Contains(path, StringComparer.InvariantCultureIgnoreCase))
+                        if (staticFiles.Contains(path, StringComparer.InvariantCultureIgnoreCase))
                         {
                             // the request is for a static file we have, but the route contains extra segments
                             // correct the route and continue to the next middleware, which should serve the file from
@@ -864,20 +866,62 @@ namespace slskd
             }
         }
 
-        private static void InjectUrlBaseIntoIndex(string contentPath, string urlBase)
+        private static bool TryPatchIndexWithUrlBase(string contentPath, string urlBase, out string index)
         {
-            if (string.IsNullOrEmpty(urlBase) || urlBase == "/")
+            index = null;
+
+            bool exists(string file) => System.IO.File.Exists(Path.Combine(contentPath, file));
+
+            if (exists("index.html"))
             {
-                // nothing to rewrite
-                return;
+                index = "index.html";
+            }
+            else if (exists("index.htm"))
+            {
+                index = "index.htm";
+            }
+            else if (exists("Default.htm"))
+            {
+                index = "Default.htm";
+            }
+            else
+            {
+                Log.Warning("Failed to locate an index file in content path {ContentPath}; expected one of: {Defaults}", contentPath, "index.html, index.htm, Default.htm");
+                return false;
             }
 
-            var files = System.IO.Directory.GetFiles(contentPath, "*", SearchOption.AllDirectories);
+            var indexFQN = Path.Combine(contentPath, index);
+            var pattern = "<script id=[\"|']urlBase[\"|']>(.*?)<\\/script>";
 
-            foreach (var file in files)
+            try
             {
-                Console.WriteLine(file);
+                var contents = System.IO.File.ReadAllText(indexFQN)
+                    .Replace("\n", string.Empty)
+                    .Replace("\r", string.Empty);
+
+                var patch = $"<script id=\"urlBase\">window.urlBase=\"{urlBase}\"</script>";
+
+                if (!Regex.IsMatch(contents, pattern, RegexOptions.Multiline))
+                {
+                    Log.Debug("Index does not contain a urlBase script tag; appending {Patch} to the end of the file", patch);
+                    contents += patch;
+                }
+                else
+                {
+                    var code = $"window.urlBase=\"{urlBase}\"";
+                    Log.Debug("Index contains a urlBase script tag; replacing tag contents with {Patch}", patch);
+                    contents = Regex.Replace(contents, pattern, patch);
+                }
+
+                System.IO.File.WriteAllText(indexFQN, contents);
             }
+            catch (Exception ex)
+            {
+                Log.Warning("Failed to patch index file {File}: {Message}", index, ex.Message);
+                return false;
+            }
+
+            return true;
         }
 
         private static void GenerateX509Certificate(string password, string filename)
