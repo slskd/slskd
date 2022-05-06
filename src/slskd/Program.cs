@@ -612,21 +612,14 @@ namespace slskd
 
             // use urlBase. this effectively just removes urlBase from the path, which is
             // why the enforcement behavior exists above (the actually requested path becomes ambiguous)
+            // inject urlBase into any html files we serve
             app.UsePathBase(urlBase);
+            app.UseHTMLInjection($"<script>window.urlBase=\"{urlBase}\"</script>");
             Log.Information("Using base url {UrlBase}", urlBase);
 
             // serve static content from the configured path
             FileServerOptions fileServerOptions = default;
             var contentPath = Path.GetFullPath(OptionsAtStartup.Web.ContentPath);
-
-            if (TryPatchIndexWithUrlBase(contentPath, urlBase, out var index))
-            {
-                Log.Information("Patched static index file {Index} with base url {UrlBase}", index, urlBase);
-            }
-            else
-            {
-                Log.Warning("Failed to patch static content with custom base url {UrlBase}; the UI may not work properly.");
-            }
 
             fileServerOptions = new FileServerOptions
             {
@@ -864,64 +857,6 @@ namespace slskd
                     Log.Error("Failed to create configuration file {ConfigurationFile}: {Message}", configurationFile, ex.Message);
                 }
             }
-        }
-
-        private static bool TryPatchIndexWithUrlBase(string contentPath, string urlBase, out string index)
-        {
-            index = null;
-
-            bool exists(string file) => System.IO.File.Exists(Path.Combine(contentPath, file));
-
-            if (exists("index.html"))
-            {
-                index = "index.html";
-            }
-            else if (exists("index.htm"))
-            {
-                index = "index.htm";
-            }
-            else if (exists("Default.htm"))
-            {
-                index = "Default.htm";
-            }
-            else
-            {
-                Log.Warning("Failed to locate an index file in content path {ContentPath}; expected one of: {Defaults}", contentPath, "index.html, index.htm, Default.htm");
-                return false;
-            }
-
-            var indexFQN = Path.Combine(contentPath, index);
-            var pattern = "<script id=[\"|']urlBase[\"|']>(.*?)<\\/script>";
-
-            try
-            {
-                var contents = System.IO.File.ReadAllText(indexFQN)
-                    .Replace("\n", string.Empty)
-                    .Replace("\r", string.Empty);
-
-                var patch = $"<script id=\"urlBase\">window.urlBase=\"{urlBase}\"</script>";
-
-                if (!Regex.IsMatch(contents, pattern, RegexOptions.Multiline))
-                {
-                    Log.Debug("Index does not contain a urlBase script tag; appending {Patch} to the end of the file", patch);
-                    contents += patch;
-                }
-                else
-                {
-                    var code = $"window.urlBase=\"{urlBase}\"";
-                    Log.Debug("Index contains a urlBase script tag; replacing tag contents with {Patch}", patch);
-                    contents = Regex.Replace(contents, pattern, patch);
-                }
-
-                System.IO.File.WriteAllText(indexFQN, contents);
-            }
-            catch (Exception ex)
-            {
-                Log.Warning("Failed to patch index file {File}: {Message}", index, ex.Message);
-                return false;
-            }
-
-            return true;
         }
 
         private static void GenerateX509Certificate(string password, string filename)
