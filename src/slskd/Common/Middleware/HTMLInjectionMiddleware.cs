@@ -18,8 +18,8 @@
 namespace slskd
 {
     using System;
+    using System.IO;
     using System.Linq;
-    using System.Text;
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.Builder;
     using Microsoft.AspNetCore.Http;
@@ -81,14 +81,33 @@ namespace slskd
 
             if (!isApiRoute && isGET && isInjectableType)
             {
-                context.Request.EnableBuffering();
+                var originalStream = context.Response.Body;
+
+                // swap the response body out with a memory stream so we can manipulate it later
+                // the downstream middleware will write the response to it
+                var stream = new MemoryStream();
+                context.Response.Body = stream;
 
                 await Next.Invoke(context);
 
                 if (context.Response.StatusCode == 200)
                 {
-                    await context.Response.Body.WriteAsync(Encoding.UTF8.GetBytes(HTML));
+                    // something downstream responded with a 200, meaning there's data in the body
+                    // we need to read it, so we can reset then play it back with the appended HTML
+                    context.Response.Body.Seek(0, SeekOrigin.Begin);
+                    var body = await new StreamReader(context.Response.Body).ReadToEndAsync();
+
+                    context.Response.Clear();
+                    await context.Response.WriteAsync(body + HTML);
                 }
+
+                // rewind the stream we injected to the beginning, then replay the data to the 
+                // original stream
+                stream.Seek(0, SeekOrigin.Begin);
+                await stream.CopyToAsync(originalStream);
+
+                // swap the original stream back in
+                context.Response.Body = originalStream;
             }
             else
             {
