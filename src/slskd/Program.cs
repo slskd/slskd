@@ -614,6 +614,7 @@ namespace slskd
             // why the enforcement behavior exists above (the actually requested path becomes ambiguous)
             // inject urlBase into any html files we serve
             app.UsePathBase(urlBase);
+            app.UseHTMLRewrite("((\\.)?\\/static)", $"{urlBase}/static");
             app.UseHTMLInjection($"<script>window.urlBase=\"{urlBase}\"</script>");
             Log.Information("Using base url {UrlBase}", urlBase);
 
@@ -694,35 +695,6 @@ namespace slskd
                 if (Path.GetExtension(path) == string.Empty)
                 {
                     context.Request.Path = "/";
-                }
-                else
-                {
-                    HashSet<string> staticFiles;
-
-                    if (!Cache.TryGetValue(CacheKey.StaticFiles, out staticFiles))
-                    {
-                        staticFiles = System.IO.Directory.GetFiles(contentPath, "*", SearchOption.AllDirectories)
-                            .Select(file => file.Replace(contentPath, string.Empty).TrimStart('/', '\\').Replace('\\', '/'))
-                            .ToHashSet();
-
-                        Cache.Set(CacheKey.StaticFiles, staticFiles);
-                    }
-
-                    var pathParts = path.Split('/');
-
-                    for (int i = 1; i <= pathParts.Length; i++)
-                    {
-                        path = string.Join('/', pathParts.Skip(i));
-
-                        if (staticFiles.Contains(path, StringComparer.InvariantCultureIgnoreCase))
-                        {
-                            // the request is for a static file we have, but the route contains extra segments
-                            // correct the route and continue to the next middleware, which should serve the file from
-                            // disk.
-                            context.Request.Path = '/' + path;
-                            break;
-                        }
-                    }
                 }
 
                 await next();

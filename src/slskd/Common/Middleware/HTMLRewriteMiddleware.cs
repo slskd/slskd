@@ -1,4 +1,4 @@
-﻿// <copyright file="HTMLInjectionMiddleware.cs" company="slskd Team">
+﻿// <copyright file="HTMLRewriteMiddleware.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -20,48 +20,53 @@ namespace slskd
     using System;
     using System.IO;
     using System.Linq;
+    using System.Text.RegularExpressions;
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.Builder;
     using Microsoft.AspNetCore.Http;
 
     /// <summary>
-    ///     Adds the <see cref="HTMLInjectionMiddleware"/>.
+    ///     Adds the <see cref="HTMLRewriteMiddleware"/>.
     /// </summary>
-    public static class HTMLInjectionMiddlewareExtensions
+    public static class HTMLRewriteMiddlewareExtensions
     {
         /// <summary>
-        ///     Injects the specified <paramref name="html"/> into html files.
+        ///     Replaces the specified <paramref name="pattern"/> with the specified <paramref name="replacement"/>.
         /// </summary>
         /// <param name="builder"></param>
-        /// <param name="html"></param>
+        /// <param name="pattern"></param>
+        /// <param name="replacement"></param>
         /// <returns></returns>
-        public static IApplicationBuilder UseHTMLInjection(this IApplicationBuilder builder, string html)
+        public static IApplicationBuilder UseHTMLRewrite(this IApplicationBuilder builder, string pattern, string replacement)
         {
-            return builder.UseMiddleware<HTMLInjectionMiddleware>(html);
+            return builder.UseMiddleware<HTMLRewriteMiddleware>(pattern, replacement);
         }
     }
 
     /// <summary>
-    ///     Injects content into html files.
+    ///     Replaces parts of HTML files.
     /// </summary>
-    public class HTMLInjectionMiddleware
+    public class HTMLRewriteMiddleware
     {
         /// <summary>
-        ///     Initializes a new instance of the <see cref="HTMLInjectionMiddleware"/> class.
+        ///     Initializes a new instance of the <see cref="HTMLRewriteMiddleware"/> class.
         /// </summary>
         /// <param name="next"></param>
-        /// <param name="html"></param>
-        public HTMLInjectionMiddleware(RequestDelegate next, string html)
+        /// <param name="pattern"></param>
+        /// <param name="replacement"></param>
+        public HTMLRewriteMiddleware(RequestDelegate next, string pattern, string replacement)
         {
             Next = next;
-            HTML = html;
+            Pattern = pattern;
+            Replacement = replacement;
         }
 
-        private string HTML { get; }
+        private string Pattern { get; }
+        private string Replacement { get; }
         private RequestDelegate Next { get; }
 
         /// <summary>
-        ///     Executes this middleware, returning the contents of the requested HTML file with the specified HTML appended.
+        ///     Executes this middleware, returning the contents of the requested HTML file with the specified replacesments made.
         /// </summary>
         /// <param name="context"></param>
         /// <returns></returns>
@@ -70,16 +75,16 @@ namespace slskd
             context.Request.Headers.TryGetValue("accept", out var accept);
             var requestedTypes = accept.ToString().Split(',');
 
-            var injectableTypes = new[] { "text/html", "application/xhtml + xml", "application/xml" };
+            var rewriteableType = new[] { "text/html", "application/xhtml + xml", "application/xml" };
 
             var isApiRoute = context.Request.Path.ToString().StartsWith("/api");
             var isGET = context.Request.Method == "GET";
 
-            var isInjectableType = requestedTypes
-                .Intersect(injectableTypes, StringComparer.InvariantCultureIgnoreCase)
+            var isRewriteableType = requestedTypes
+                .Intersect(rewriteableType, StringComparer.InvariantCultureIgnoreCase)
                 .Any();
 
-            if (!isApiRoute && isGET && isInjectableType)
+            if (!isApiRoute && isGET && isRewriteableType)
             {
                 var originalStream = context.Response.Body;
 
@@ -98,10 +103,11 @@ namespace slskd
                     var body = await new StreamReader(context.Response.Body).ReadToEndAsync();
 
                     context.Response.Clear();
-                    await context.Response.WriteAsync(body + HTML);
+
+                    await context.Response.WriteAsync(Regex.Replace(body, Pattern, Replacement));
                 }
 
-                // rewind the stream we injected to the beginning, then replay the data to the 
+                // rewind the stream we injected to the beginning, then replay the data to the
                 // original stream
                 stream.Seek(0, SeekOrigin.Begin);
                 await stream.CopyToAsync(originalStream);
