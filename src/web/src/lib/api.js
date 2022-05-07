@@ -1,8 +1,8 @@
 import axios from 'axios';
-import { baseUrl } from '../config';
+import { apiBaseUrl } from '../config';
 import * as session from './session';
 
-axios.defaults.baseURL = baseUrl;
+axios.defaults.baseURL = apiBaseUrl;
 
 const api = axios.create({
   withCredentials: true
