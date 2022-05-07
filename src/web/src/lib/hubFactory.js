@@ -4,7 +4,7 @@ import {
   LogLevel
 } from '@microsoft/signalr'
 
-import { rootUrl } from '../config';
+import { hubBaseUrl } from '../config';
 import * as session from '../lib/session';
 
 export const createHubConnection = ({ url }) => 
@@ -18,8 +18,6 @@ export const createHubConnection = ({ url }) =>
     .configureLogging(LogLevel.Warning)
     .build();
 
-export const createApplicationHubConnection = () => createHubConnection({ url: `${rootUrl}hub/application` });
+export const createApplicationHubConnection = () => createHubConnection({ url: `${hubBaseUrl}/application` });
 
-export const createLogsHubConnection = () => createHubConnection({ url: `${rootUrl}hub/logs` });
-
-export const createSearchLogHubConnection = () => createHubConnection({ url: `${rootUrl}hub/search` });
+export const createLogsHubConnection = () => createHubConnection({ url: `${hubBaseUrl}/logs` });

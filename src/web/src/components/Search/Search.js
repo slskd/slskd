@@ -33,7 +33,8 @@ const initialState = {
   hiddenResults: [],
   hideLocked: true,
   fetching: false,
-  resultFilters: ''
+  resultFilters: '',
+  foldResults: false,
 };
 
 const sortOptions = {
@@ -205,7 +206,7 @@ class Search extends Component {
   }
 
   render = () => {
-    let { searchState, searchStatus, results = [], displayCount, resultSort, hideNoFreeSlots, hideLocked, hiddenResults = [], fetching, resultFilters } = this.state;
+    let { searchState, searchStatus, results = [], displayCount, resultSort, hideNoFreeSlots, hideLocked, hiddenResults = [], fetching, resultFilters, foldResults } = this.state;
     let pending = fetching || searchState === 'pending';
 
     const sortedAndFilteredResults = this.sortAndFilterResults();
@@ -272,6 +273,13 @@ class Search extends Component {
                     checked={hideNoFreeSlots}
                     label='Hide Results with No Free Slots'
                   />
+                  <Checkbox
+                    className='search-options-fold-results'
+                    toggle
+                    onChange={() => this.setState({ foldResults: !foldResults }, () => this.saveState())}
+                    checked={foldResults}
+                    label='Fold Results'
+                  />
                 </div>
                 <Input 
                   className='search-filter'
@@ -289,6 +297,7 @@ class Search extends Component {
                 response={r}
                 onDownload={this.props.onDownload}
                 onHide={() => this.hideResult(r)}
+                isInitiallyFolded={foldResults}
               />
             )}
             {remainingCount > 0 ?

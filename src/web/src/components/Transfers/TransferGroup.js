@@ -3,16 +3,20 @@ import * as transfers from '../../lib/transfers';
 
 import {
     Card,
-    Button
+    Button,
+    Icon
 } from 'semantic-ui-react';
 
 import TransferList from './TransferList';
 
 class TransferGroup extends Component {
-    state = { selections: new Set() }
+    state = {
+        selections: new Set(),
+        isFolded: false
+    }
 
     onSelectionChange = (directoryName, file, selected) => {
-        const { selections } = this.state;
+        const selections = this.state.selections;
         const obj = JSON.stringify({ directory: directoryName, filename: file.filename });
         selected ? selections.add(obj) : selections.delete(obj);
 
@@ -34,7 +38,7 @@ class TransferGroup extends Component {
     }
 
     removeFileSelection = (file) => {
-        const { selections } = this.state;
+        const selections = this.state.selections;
 
         const match = Array.from(selections)
             .map(s => JSON.parse(s))
@@ -83,9 +87,14 @@ class TransferGroup extends Component {
             console.log(error);
         }
     }
-    
+
+    toggleFolded = () => {
+        this.setState({'isFolded': !this.state.isFolded});
+    }
+
     render = () => {
         const { user, direction } = this.props;
+        const isFolded = this.state.isFolded;
 
         const selected = this.getSelectedFiles();
         const all = selected.length > 1 ? ' Selected' : '';
@@ -97,8 +106,15 @@ class TransferGroup extends Component {
         return (
             <Card key={user.username} className='transfer-card' raised>
                 <Card.Content>
-                    <Card.Header>{user.username}</Card.Header>
-                    {user.directories && user.directories
+                    <Card.Header>
+                        <Icon
+                            link
+                            name={isFolded ? 'chevron right' : 'chevron down'}
+                            onClick={() => this.toggleFolded()}
+                        />
+                        {user.username}
+                    </Card.Header>
+                    {user.directories && !isFolded && user.directories
                         .map((dir, index) => 
                         <TransferList 
                             key={index} 

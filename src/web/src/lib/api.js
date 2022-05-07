@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { apiBaseUrl, setReactRouterBaseUrl } from '../config';
+import { apiBaseUrl } from '../config';
 import * as session from './session';
 
 axios.defaults.baseURL = apiBaseUrl;
@@ -21,10 +21,6 @@ api.interceptors.request.use(config => {
 });
 
 api.interceptors.response.use(response => {
-  // when behind a reverse proxy, we need the configured url base
-  // so that we can be explicit with react-router.  every API response
-  // should contain this header, and it should be the same.
-  setReactRouterBaseUrl(response.headers['x-url-base']);
   return response;
 }, error => {
   if (error.response.status === 401 && !['/session', '/server', '/application'].includes(error.response.config.url)) {
