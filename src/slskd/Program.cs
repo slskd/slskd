@@ -609,7 +609,8 @@ namespace slskd
 
             // use urlBase. this effectively just removes urlBase from the path, which is
             // why the enforcement behavior exists above (the actually requested path becomes ambiguous)
-            // inject urlBase into any html files we serve
+            // inject urlBase into any html files we serve, and rewrite links to ./static or /static to
+            // prepend the url base.
             app.UsePathBase(urlBase);
             app.UseHTMLRewrite("((\\.)?\\/static)", $"{urlBase}/static");
             app.UseHTMLInjection($"<script>window.urlBase=\"{urlBase}\"</script>");
