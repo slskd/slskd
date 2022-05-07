@@ -612,7 +612,7 @@ namespace slskd
             // inject urlBase into any html files we serve, and rewrite links to ./static or /static to
             // prepend the url base.
             app.UsePathBase(urlBase);
-            app.UseHTMLRewrite("((\\.)?\\/static)", $"{urlBase}/static");
+            app.UseHTMLRewrite("((\\.)?\\/static)", $"{(urlBase == "/" ? string.Empty : urlBase)}/static");
             app.UseHTMLInjection($"<script>window.urlBase=\"{urlBase}\"</script>");
             Log.Information("Using base url {UrlBase}", urlBase);
 
@@ -683,14 +683,11 @@ namespace slskd
             }
 
             // if we made it this far, the caller is either looking for a route that was synthesized with a SPA router, or is genuinely confused.
-            // optimistically search the dictionary of static files to see if we have a file that matches, and serve it if so.
+            // if the request is for a directory, modify the request to redirect it to the index, otherwise leave it alone and let it 404 in the next 
+            // middleware
             app.Use(async (context, next) =>
             {
-                var path = context.Request.Path.ToString();
-
-                // if there is no extension, the caller is looking for a directory (an index file)
-                // modify the request to get the canonical default index
-                if (Path.GetExtension(path) == string.Empty)
+                if (Path.GetExtension(context.Request.Path.ToString()) == string.Empty)
                 {
                     context.Request.Path = "/";
                 }
@@ -698,8 +695,7 @@ namespace slskd
                 await next();
             });
 
-            // the request path may have been rewritten above, in which case we're likely to have better luck finding
-            // a match with the file server middleware.  let it try, and if it fails let it return a 404.
+            // either serve the index, or 404
             app.UseFileServer(fileServerOptions);
 
             return app;
