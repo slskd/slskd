@@ -1,4 +1,4 @@
-﻿// <copyright file="UploadService.cs" company="slskd Team">
+﻿// <copyright file="ConsoleWriteLineLogger.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -15,37 +15,20 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-namespace slskd.Transfers.Uploads
+namespace slskd
 {
-    /// <summary>
-    ///     Manages uploads.
-    /// </summary>
-    public interface IUploadService
-    {
-        /// <summary>
-        ///     Gets the upload governor.
-        /// </summary>
-        IUploadGovernor Governor { get; }
-
-        /// <summary>
-        ///     Gets the upload queue.
-        /// </summary>
-        IUploadQueue Queue { get; }
-    }
+    using System;
+    using Serilog.Events;
 
     /// <summary>
-    ///     Manages uploads.
+    ///     Logs messages to stdout via <see cref="Console.WriteLine(string)"/>.
     /// </summary>
-    public class UploadService : IUploadService
+    public class ConsoleWriteLineLogger : Serilog.ILogger
     {
-        /// <summary>
-        ///     Gets the upload governor.
-        /// </summary>
-        public IUploadGovernor Governor { get; init; }
-
-        /// <summary>
-        ///     Gets the upload queue.
-        /// </summary>
-        public IUploadQueue Queue { get; init; }
+        /// <inheritdoc/>
+        public void Write(LogEvent logEvent)
+        {
+            Console.WriteLine(logEvent.RenderMessage());
+        }
     }
 }

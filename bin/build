@@ -65,16 +65,14 @@ else
   echo $'\n\t🛠️  npm run build\n'
   npm run build
 
-  if [ "$web_only" == false ]; then
-    # remove old build, but keep .gitkeep
-    rm -rf ../slskd/wwwroot
-    mkdir ../slskd/wwwroot
-    touch ../slskd/wwwroot/.gitkeep
+  # remove old build, but keep .gitkeep
+  rm -rf ../slskd/wwwroot
+  mkdir ../slskd/wwwroot
+  touch ../slskd/wwwroot/.gitkeep
 
-    # copy new files
-    echo $'\n\t🛠️  cp -r build/* ../slskd/wwwroot/\n'
-    cp -r build/* ../slskd/wwwroot/
-  fi
+  # copy new files
+  echo $'\n\t🛠️  cp -r build/* ../slskd/wwwroot/\n'
+  cp -r build/* ../slskd/wwwroot/
 
   cd ../..
 fi

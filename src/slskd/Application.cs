@@ -44,7 +44,7 @@ namespace slskd
     using slskd.Users;
     using Soulseek;
     using Soulseek.Diagnostics;
-    
+
     public interface IApplication : IHostedService
     {
         public Task CheckVersionAsync();
@@ -892,7 +892,6 @@ namespace slskd
 
         private void State_OnChange((State Previous, State Current) state)
         {
-            //Log.Debug("State changed from {Previous} to {Current}", state.Previous.ToJson(), state.Current.ToJson());
             _ = ApplicationHub.BroadcastStateAsync(state.Current);
         }
 
