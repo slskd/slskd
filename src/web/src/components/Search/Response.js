@@ -60,7 +60,7 @@ class Response extends Component {
     }
 
     toggleFolded = () => {
-        this.setState({'isFolded': !this.state.isFolded});
+        this.setState({ isFolded: !this.state.isFolded });
     }
 
     render = () => {
