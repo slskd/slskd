@@ -236,11 +236,11 @@ namespace slskd.Messaging.API
         /// <returns></returns>
         /// <response code="201">The request completed successfully.</response>
         /// <response code="304">The room has already been joined.</response>
-        [HttpPost("joined/{roomName}")]
+        [HttpPost("joined")]
         [Authorize]
         [ProducesResponseType(typeof(Room), 201)]
         [ProducesResponseType(304)]
-        public async Task<IActionResult> JoinRoom([FromRoute]string roomName)
+        public async Task<IActionResult> JoinRoom([FromBody]string roomName)
         {
             if (Tracker.Rooms.ContainsKey(roomName))
             {

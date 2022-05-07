@@ -54,7 +54,7 @@ namespace slskd.Users
             // binding these events will cause multiple redundant round trips when initially watching a user
             // or when explicitly requesting via GetStatus/GetStatistics. this is wasteful, but there's no functional side effect.
             Client.UserStatisticsChanged += (_, userStatistics) => UpdateStatistics(userStatistics.Username, userStatistics.ToStatistics());
-            Client.UserStatusChanged += (_, userStatus) =>
+            Client.UserStatusChanged += (sender, userStatus) =>
             {
                 UpdateStatus(userStatus.Username, userStatus.ToStatus());
 

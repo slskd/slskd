@@ -496,6 +496,7 @@ The application can produce a self-signed `.pfx` file and random password using 
 | `-f\|--force-https`     | `HTTPS_FORCE`         | Determines whether HTTP requests are to be redirected to HTTPS |
 | `--https-cert-pfx`      | `HTTPS_CERT_PFX`      | The path to the X509 certificate .pfx file                     |
 | `--https-cert-password` | `HTTPS_CERT_PASSWORD` | The password for the X509 certificate                          |
+| `--no-https`            | `NO_HTTPS`            | Determines whether HTTPS is to be disabled                     |
 
 #### **YAML**
 ```yaml
