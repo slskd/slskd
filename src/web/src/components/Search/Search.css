@@ -15,8 +15,8 @@
   height: 78px !important;
 }
 
-@media only screen and (min-width: 851px) {
-  .search-options-hide-no-slots, .search-options-hide-locked {
+@media only screen and (min-width: 991px) {
+  .search-options-hide-no-slots, .search-options-hide-locked, .search-options-fold-results {
       margin-left: 1rem;
   }
 
@@ -25,28 +25,28 @@
   }
 }
 
-@media only screen and (max-width: 850px) {
+@media only screen and (max-width: 685px) {
   .search-options-sort {
       width: 100%;
   }
 }
 
-@media only screen and (max-width: 850px) {
+@media only screen and (max-width: 990px) {
   .search-option-toggles {
     margin-top: 1rem;
   }
 
-  .search-options-hide-no-slots {
+  .search-options-hide-no-slots, .search-options-fold-results {
     margin-left: 1rem;
   }
 }
 
-@media only screen and (max-width: 537px) {
+@media only screen and (max-width: 684px) {
   .search-option-toggles {
     display: grid;
   }
 
-  .search-options-hide-no-slots {
+  .search-options-hide-no-slots, .search-options-fold-results {
     margin-top: 1rem;
     margin-left: 0px;
   }
