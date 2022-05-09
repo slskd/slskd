@@ -21,3 +21,5 @@ export const createHubConnection = ({ url }) =>
 export const createApplicationHubConnection = () => createHubConnection({ url: `${hubBaseUrl}/application` });
 
 export const createLogsHubConnection = () => createHubConnection({ url: `${hubBaseUrl}/logs` });
+
+export const createSearchHubConnection = () => createHubConnection({ url: `${hubBaseUrl}/search`})
