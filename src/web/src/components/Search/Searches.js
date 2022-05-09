@@ -1,13 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import {
-  BrowserRouter as Router,
-  Switch,
-  Route,
-  Link,
-  useParams
-} from "react-router-dom";
 import { v4 as uuidv4 } from 'uuid';
-
 
 import * as lib from '../../lib/searches';
 import { createSearchHubConnection } from '../../lib/hubFactory';
@@ -19,6 +11,7 @@ import './Search.css';
 import {
   Input,
   Segment,
+  Button,
 } from 'semantic-ui-react';
 
 const Searches = () => {
@@ -26,7 +19,6 @@ const Searches = () => {
   const [{ creating, createError }, setCreating] = useState({ creating: false, createError: false });
   const [error, setError] = useState(undefined);
   const [searches, setSearches] = useState({});
-  const params = useParams();
   const inputRef = useRef();
 
   const onConnecting = () => setConnected({ connected: false, connecting: true, connectError: false })
@@ -61,6 +53,8 @@ const Searches = () => {
         return { ...old }
       });
     });
+
+    searchHub.on('create', () => {});
 
     searchHub.onreconnecting((error) => onConnectionError(error?.message ?? 'Disconnected'));
     searchHub.onreconnected(() => onConnected());
@@ -123,7 +117,10 @@ const Searches = () => {
           disabled={creating}
           className='search-input'
           placeholder="Search phrase"
-          action={{ icon: 'search', onClick: create }}
+          action={<>
+            <Button icon='plus' onClick={create}/>
+            <Button icon='search' onClick={create}/>
+          </>}
           onKeyUp={(e) => e.key === 'Enter' ? create() : ''}
         />
       </Segment>
