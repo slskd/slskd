@@ -18,5 +18,4 @@ export {
     activeChatKey,
     activeRoomKey,
     activeUserInfoKey,
-    setReactRouterBaseUrl,
 };
