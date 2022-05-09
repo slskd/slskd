@@ -10,7 +10,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 
 import * as lib from '../../lib/searches';
-import { createSearchLogHubConnection } from '../../lib/hubFactory';
+import { createSearchHubConnection } from '../../lib/hubFactory';
 
 import SearchList from './List/SearchList';
 
@@ -41,7 +41,7 @@ const Searches = () => {
   useEffect(() => {
     onConnecting();
     
-    const searchHub = createSearchLogHubConnection();
+    const searchHub = createSearchHubConnection();
 
     searchHub.on('list', searches => {
       onUpdate(searches.reduce((acc, search) => {
