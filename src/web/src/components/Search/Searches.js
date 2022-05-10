@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import { useParams } from 'react-router-dom';
 
 import * as lib from '../../lib/searches';
 import { createSearchHubConnection } from '../../lib/hubFactory';
 
+import Switch from '../Shared/Switch';
 import SearchList from './List/SearchList';
 
 import './Search.css';
@@ -14,12 +16,15 @@ import {
   Button,
 } from 'semantic-ui-react';
 
+import SearchDetail from './Detail/SearchDetail';
+
 const Searches = () => {
   const [{ connected, connecting, connectError } , setConnected] = useState({ connected: false, connecting: true, connectError: false });
   const [{ creating, createError }, setCreating] = useState({ creating: false, createError: false });
   const [error, setError] = useState(undefined);
   const [searches, setSearches] = useState({});
   const inputRef = useRef();
+  const { id: searchId } = useParams();
 
   const onConnecting = () => setConnected({ connected: false, connecting: true, connectError: false })
   const onConnected = () => setConnected({ connected: true, connecting: false, connectError: false });
@@ -36,6 +41,7 @@ const Searches = () => {
     const searchHub = createSearchHubConnection();
 
     searchHub.on('list', searches => {
+      console.log('list of searches received', searches);
       onUpdate(searches.reduce((acc, search) => {
         acc[search.id] = search;
         return acc;
@@ -44,6 +50,7 @@ const Searches = () => {
     })
 
     searchHub.on('update', search => {
+      console.log(search.responses)
       onUpdate(old => ({ ...old, [search.id]: search }));
     });
 
@@ -62,8 +69,10 @@ const Searches = () => {
 
     const connect = async () => {
       try {
+        console.log('connecting to search hub');
         onConnecting();
         await searchHub.start();
+        console.log('search hub connected');
       } catch (error) {
         onConnectionError(error?.message ?? 'Failed to connect')
       }
@@ -72,7 +81,9 @@ const Searches = () => {
     connect();
 
     return () => {
+      console.log('stopping search hub');
       searchHub.stop();
+      console.log('search hub stopped');
     }
   }, []);
 
@@ -124,13 +135,17 @@ const Searches = () => {
           onKeyUp={(e) => e.key === 'Enter' ? create() : ''}
         />
       </Segment>
-      <SearchList
-        connecting={connecting}
-        error={error}
-        searches={searches}
-        onRemove={remove}
-        onStop={stop}
-      />
+      <Switch
+        detail={searchId && <SearchDetail search={searches[searchId]}/>}
+      >
+        <SearchList
+          connecting={connecting}
+          error={error}
+          searches={searches}
+          onRemove={remove}
+          onStop={stop}
+        />
+      </Switch>
     </div>
   )
 };
