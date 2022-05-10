@@ -1,16 +1,17 @@
 import React, { useState } from 'react';
+
 import {
   Link,
   useRouteMatch,
 } from "react-router-dom";
 
-import SearchStatusIcon from './SearchStatusIcon';
-import SearchActionIcon from './SearchActionIcon';
-
 import {
   Table,
   Icon,
 } from 'semantic-ui-react';
+
+import SearchStatusIcon from './SearchStatusIcon';
+import SearchActionIcon from './SearchActionIcon';
 
 const SearchListRow = ({ search, onRemove, onStop }) => {
   const [working, setWorking] = useState(false);
@@ -18,8 +19,14 @@ const SearchListRow = ({ search, onRemove, onStop }) => {
 
   const invoke = async (func) => {
     setWorking(true);
-    await func();
-    setWorking(false);
+
+    try {
+      await func();
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setWorking(false);
+    }
   }
 
   return (
