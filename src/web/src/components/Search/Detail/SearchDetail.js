@@ -8,18 +8,18 @@ const SearchDetail = ({ search }) => {
   useEffect(() => {
     const get = async () => {
       console.log('fetching responses')
-      const responses = await getResponses({ id: search.id });
+      const responses = await getResponses({ id: search?.id });
       console.log('responses', responses)
       setResponses(responses);
     }
 
     get();
-  }, [search.id])
+  }, [search?.id, search?.state])
 
   return (
     <>
       <span>{JSON.stringify(search)}</span>
-      {responses.map(r => <li>{JSON.stringify(r)}</li>)}
+      {responses.map((r, index) => <li key={index}>{JSON.stringify(r)}</li>)}
     </>
   )
 }
