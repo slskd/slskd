@@ -141,6 +141,9 @@ namespace slskd.Search
 
                         context.Update(search);
                         await context.SaveChangesAsync();
+
+                        // zero responses before broadcasting
+                        search.Responses = Enumerable.Empty<Response>();
                         await SearchHub.BroadcastUpdateAsync(search);
                     }
                     catch (Exception ex)
