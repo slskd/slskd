@@ -1,6 +1,13 @@
 # slskd
 
-slskd is a modern client-server application for the Soulseek file sharing network.
+[![Build](https://github.com/slskd/slskd/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/slskd/slskd/actions/workflows/ci.yml)
+[![Docker Pulls](https://img.shields.io/docker/pulls/slskd/slskd)](https://hub.docker.com/r/slskd/slskd)
+[![GitHub all releases](https://img.shields.io/github/downloads/slskd/slskd/total)](https://github.com/slskd/slskd/releases)
+[![Activity](https://img.shields.io/github/commit-activity/m/slskd/slskd)](https://github.com/slskd/slskd/pulse)
+[![Contributors](https://img.shields.io/github/contributors/slskd/slskd)](https://github.com/slskd/slskd/graphs/contributors)
+[![Discord](https://img.shields.io/discord/971446666257391616?logo=discord)](https://slskd.org/discord)
+
+A modern client-server application for the Soulseek file sharing network.
 
 ## Quick Start
 
