@@ -5,7 +5,7 @@
 [![Activity](https://img.shields.io/github/commit-activity/m/slskd/slskd?logo=github)](https://github.com/slskd/slskd/pulse)
 [![Contributors](https://img.shields.io/github/contributors/slskd/slskd?logo=github)](https://github.com/slskd/slskd/graphs/contributors)
 [![Discord](https://img.shields.io/discord/971446666257391616?label=Discord&logo=discord)](https://slskd.org/discord)
-[![Matrix](https://img.shields.io/badge/Matrix-%3F%20online-na?logo=matrix&color=brightgreen)](https://matrix.to/#/#slskd:matrix.org)
+[![Matrix](https://img.shields.io/badge/Matrix-%3F%20online-na?logo=matrix&color=brightgreen)](https://slskd.org/matrix)
 
 A modern client-server application for the Soulseek file sharing network.
 
