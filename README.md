@@ -1,11 +1,11 @@
 # slskd
-
-[![Build](https://github.com/slskd/slskd/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/slskd/slskd/actions/workflows/ci.yml)
-[![Docker Pulls](https://img.shields.io/docker/pulls/slskd/slskd)](https://hub.docker.com/r/slskd/slskd)
-[![GitHub all releases](https://img.shields.io/github/downloads/slskd/slskd/total)](https://github.com/slskd/slskd/releases)
-[![Activity](https://img.shields.io/github/commit-activity/m/slskd/slskd)](https://github.com/slskd/slskd/pulse)
-[![Contributors](https://img.shields.io/github/contributors/slskd/slskd)](https://github.com/slskd/slskd/graphs/contributors)
-[![Discord](https://img.shields.io/discord/971446666257391616?logo=discord)](https://slskd.org/discord)
+[![Build](https://img.shields.io/github/checks-status/slskd/slskd/master?label=build&logo=github)](https://github.com/slskd/slskd/actions/workflows/ci.yml)
+[![Docker Pulls](https://img.shields.io/docker/pulls/slskd/slskd?logo=docker)](https://hub.docker.com/r/slskd/slskd)
+[![GitHub all releases](https://img.shields.io/github/downloads/slskd/slskd/total?logo=github)](https://github.com/slskd/slskd/releases)
+[![Activity](https://img.shields.io/github/commit-activity/m/slskd/slskd?logo=github)](https://github.com/slskd/slskd/pulse)
+[![Contributors](https://img.shields.io/github/contributors/slskd/slskd?logo=github)](https://github.com/slskd/slskd/graphs/contributors)
+[![Discord](https://img.shields.io/discord/971446666257391616?label=Discord&logo=discord)](https://slskd.org/discord)
+[![Matrix](https://img.shields.io/badge/Matrix-%3F%20online-na?logo=matrix&color=brightgreen)](https://matrix.to/#/#slskd:matrix.org)
 
 A modern client-server application for the Soulseek file sharing network.
 
