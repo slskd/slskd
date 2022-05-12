@@ -1,5 +1,6 @@
 # slskd
-[![Build](https://img.shields.io/github/checks-status/slskd/slskd/master?label=build&logo=github)](https://github.com/slskd/slskd/actions/workflows/ci.yml)
+
+[![Build](https://img.shields.io/github/workflow/status/slskd/slskd/CI/master?logo=github)](https://github.com/slskd/slskd/actions/workflows/ci.yml)
 [![Docker Pulls](https://img.shields.io/docker/pulls/slskd/slskd?logo=docker)](https://hub.docker.com/r/slskd/slskd)
 [![GitHub all releases](https://img.shields.io/github/downloads/slskd/slskd/total?logo=github)](https://github.com/slskd/slskd/releases)
 [![Activity](https://img.shields.io/github/commit-activity/m/slskd/slskd?logo=github)](https://github.com/slskd/slskd/pulse)
