@@ -2,8 +2,7 @@
 
 [![Build](https://img.shields.io/github/workflow/status/slskd/slskd/CI/master?logo=github)](https://github.com/slskd/slskd/actions/workflows/ci.yml)
 [![Docker Pulls](https://img.shields.io/docker/pulls/slskd/slskd?logo=docker)](https://hub.docker.com/r/slskd/slskd)
-[![GitHub all releases](https://img.shields.io/github/downloads/slskd/slskd/total?logo=github)](https://github.com/slskd/slskd/releases)
-[![Activity](https://img.shields.io/github/commit-activity/m/slskd/slskd?logo=github)](https://github.com/slskd/slskd/pulse)
+[![GitHub all releases](https://img.shields.io/github/downloads/slskd/slskd/total?logo=github&color=brightgreen)](https://github.com/slskd/slskd/releases)
 [![Contributors](https://img.shields.io/github/contributors/slskd/slskd?logo=github)](https://github.com/slskd/slskd/graphs/contributors)
 [![Discord](https://img.shields.io/discord/971446666257391616?label=Discord&logo=discord)](https://slskd.org/discord)
 [![Matrix](https://img.shields.io/badge/Matrix-%3F%20online-na?logo=matrix&color=brightgreen)](https://slskd.org/matrix)
