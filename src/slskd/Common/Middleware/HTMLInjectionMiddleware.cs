@@ -69,15 +69,13 @@ namespace slskd
         {
             context.Request.Headers.TryGetValue("accept", out var accept);
             var requestedTypes = accept.ToString().Split(',');
-
             var injectableTypes = new[] { "text/html", "application/xhtml + xml", "application/xml" };
-
-            var isApiRoute = context.Request.Path.ToString().StartsWith("/api");
-            var isGET = context.Request.Method == "GET";
-
             var isInjectableType = requestedTypes
                 .Intersect(injectableTypes, StringComparer.InvariantCultureIgnoreCase)
                 .Any();
+
+            var isApiRoute = context.Request.Path.ToString().StartsWith("/api");
+            var isGET = context.Request.Method == "GET";
 
             if (!isApiRoute && isGET && isInjectableType)
             {
@@ -93,15 +91,25 @@ namespace slskd
                 if (context.Response.StatusCode == 200)
                 {
                     // something downstream responded with a 200, meaning there's data in the body
-                    // we need to read it, so we can reset then play it back with the appended HTML
+                    // we need to read it, so we can reset then play it back with the modified HTML
                     context.Response.Body.Seek(0, SeekOrigin.Begin);
                     var body = await new StreamReader(context.Response.Body).ReadToEndAsync();
 
+                    var headers = context.Response.Headers
+                        .ToDictionary(kvp => kvp.Key, kvp => kvp.Value)
+                        .Where(kvp => !string.Equals(kvp.Key, "Content-Length", StringComparison.InvariantCultureIgnoreCase));
+
                     context.Response.Clear();
+
+                    foreach (var header in headers)
+                    {
+                        context.Response.Headers.Add(header);
+                    }
+
                     await context.Response.WriteAsync(body + HTML);
                 }
 
-                // rewind the stream we injected to the beginning, then replay the data to the 
+                // rewind the stream we injected to the beginning, then replay the data to the
                 // original stream
                 stream.Seek(0, SeekOrigin.Begin);
                 await stream.CopyToAsync(originalStream);
