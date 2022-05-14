@@ -7,7 +7,7 @@ WORKDIR /slskd
 COPY bin bin/.
 COPY src/web src/web/.
 
-RUN sh ./bin/build --web-only --skip-tests --version $VERSION
+RUN sh ./bin/build --web-only --version $VERSION
 
 # build, test, and publish application binaries
 # note: this needs to be pinned to an amd64 image in order to publish armv7 binaries
@@ -26,7 +26,7 @@ COPY tests tests/.
 
 COPY --from=web /slskd/src/web/build /slskd/src/slskd/wwwroot/.
 
-#RUN bash ./bin/build --dotnet-only --version $VERSION
+RUN bash ./bin/build --dotnet-only --version $VERSION
 
 RUN bash ./bin/publish --no-prebuild --platform $TARGETPLATFORM --version $VERSION --output ../../dist/${TARGETPLATFORM}
 
