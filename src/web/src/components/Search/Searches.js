@@ -1,11 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { useParams } from 'react-router-dom';
+import { useParams, useHistory, useRouteMatch } from 'react-router-dom';
 
 import * as lib from '../../lib/searches';
 import { createSearchHubConnection } from '../../lib/hubFactory';
 
-import Switch from '../Shared/Switch';
 import SearchList from './List/SearchList';
 
 import './Search.css';
@@ -14,9 +13,11 @@ import {
   Input,
   Segment,
   Button,
+  Loader,
 } from 'semantic-ui-react';
 
 import SearchDetail from './Detail/SearchDetail';
+import ErrorSegment from '../Shared/ErrorSegment';
 
 const Searches = () => {
   const [{ connected, connecting, connectError } , setConnected] = useState({ connected: false, connecting: true, connectError: false });
@@ -24,7 +25,11 @@ const Searches = () => {
   const [error, setError] = useState(undefined);
   const [searches, setSearches] = useState({});
   const inputRef = useRef();
+  const searchRef = useRef();
+
   const { id: searchId } = useParams();
+  const history = useHistory();
+  const match = useRouteMatch();
 
   const onConnecting = () => setConnected({ connected: false, connecting: true, connectError: false })
   const onConnected = () => setConnected({ connected: true, connecting: false, connectError: false });
@@ -87,15 +92,19 @@ const Searches = () => {
     }
   }, []);
 
-  const create = async () => {
+  const create = async ({ navigate = false } = {}) => {
     const searchText = inputRef.current.inputRef.current.value;
     const id = uuidv4();
-
+    
     try {
       setCreating({ creating: true, createError: false })
-      lib.create({ id, searchText })
+      await lib.create({ id, searchText })
       setCreating({ creating: false, createError: false })
       inputRef.current.inputRef.current.value = '';
+
+      if (navigate) {
+        history.push(`${match.url}/${id}`)
+      }
     } catch (error) {
       setCreating({ creating: false, createError: error.message })
     }
@@ -117,27 +126,62 @@ const Searches = () => {
     await lib.stop({ id: search.id })
   }
 
+  if (connecting) {
+    return <Loader active size='big'/>;
+  }
+
+  if (connectError) {
+    return <ErrorSegment caption={connectError}/>;
+  }
+
+  if (searchId) {
+    if (searches[searchId]) {
+      const { searchText } = searches[searchId];
+
+      return (
+        <div className='search-container'>
+          <Segment className='search-segment' raised>
+            {/* <Input
+              input={<input placeholder="Search phrase" type="search" data-lpignore="true"></input>}
+              size='big'
+              ref={searchRef}
+              disabled={true}
+              className='search-input'
+              placeholder="Search phrase"
+              action={<Button icon='x' color='red' onClick={() => history.push(`/searches`)}/>}
+            /> */}
+            <Button icon="trash"/>
+          </Segment>
+          <SearchDetail search={searches[searchId]}/>
+        </div>
+      );
+    }
+
+    return (
+      <div className='search-container'>
+        <ErrorSegment caption='Invalid Search ID'/>
+      </div>
+    );
+  }
+
   return (
     <div className='search-container'>
-      <Segment className='search-segment' raised>
-        <Input
-          input={<input placeholder="Search phrase" type="search" data-lpignore="true"></input>}
-          size='big'
-          ref={inputRef}
-          loading={creating}
-          disabled={creating}
-          className='search-input'
-          placeholder="Search phrase"
-          action={<>
-            <Button icon='plus' onClick={create}/>
-            <Button icon='search' onClick={create}/>
-          </>}
-          onKeyUp={(e) => e.key === 'Enter' ? create() : ''}
-        />
-      </Segment>
-      <Switch
-        detail={searchId && <SearchDetail search={searches[searchId]}/>}
-      >
+        <Segment className='search-segment' raised>
+          <Input
+            input={<input placeholder="Search phrase" type="search" data-lpignore="true"></input>}
+            size='big'
+            ref={inputRef}
+            loading={creating}
+            disabled={creating}
+            className='search-input'
+            placeholder="Search phrase"
+            action={<>
+              <Button icon='plus' onClick={create}/>
+              <Button icon='search' onClick={() => create({ navigate: true })}/>
+            </>}
+            onKeyUp={(e) => e.key === 'Enter' ? create() : ''}
+          />
+        </Segment>
         <SearchList
           connecting={connecting}
           error={error}
@@ -145,7 +189,6 @@ const Searches = () => {
           onRemove={remove}
           onStop={stop}
         />
-      </Switch>
     </div>
   )
 };
