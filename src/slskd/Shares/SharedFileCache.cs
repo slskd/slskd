@@ -199,11 +199,13 @@ namespace slskd.Shares
                     Log.Warning("Aborting shared file scan; no shares configured.");
                 }
 
-                foreach (var share in Shares)
-                {
-                    Log.Information($"Sharing {share.LocalPath} as {share.RemotePath}");
-                    Log.Debug($"Raw: {share.Raw}, Alias: {share.Alias}, Mask: {share.Mask}, Remote: {share.RemotePath})");
-                }
+                Shares.ForEach(s => Log.Debug(s.ToJson()));
+
+                Shares.Where(s => !s.IsExcluded).ToList()
+                    .ForEach(s => Log.Information("Sharing {Local} as {Remote}", s.LocalPath, s.RemotePath));
+
+                Shares.Where(s => s.IsExcluded).ToList()
+                    .ForEach(s => Log.Information("Excluding {Local}", s.LocalPath));
 
                 Log.Debug("Enumerating shared directories");
                 swSnapshot = sw.ElapsedMilliseconds;
