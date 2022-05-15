@@ -342,7 +342,7 @@ namespace slskd
                 bool IsRoot((string Raw, string Mask, string Alias, string Path) share) => share.Path == "/" || share.Path == "\\" || Path.GetPathRoot(share.Path) == share.Path;
 
                 // starts with '/', 'X:\', or '\\'
-                bool IsAbsolutePath(string share) => Regex.IsMatch(share.ToLocalOSPath(), @"^(\[.*\])?(\/|[a-zA-Z]:\\|\\\\).*$");
+                bool IsAbsolutePath(string share) => Regex.IsMatch(share.ToLocalOSPath(), @"^(!|-){0,1}(\[.*\])?(\/|[a-zA-Z]:\\|\\\\).*$");
 
                 var relativePaths = Shared.Where(share => !IsAbsolutePath(share));
                 foreach (var relativePath in relativePaths)
