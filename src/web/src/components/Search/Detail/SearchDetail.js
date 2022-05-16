@@ -13,6 +13,7 @@ import ErrorSegment from '../../Shared/ErrorSegment';
 import Response from '../Response';
 import { getResponses, parseFiltersFromString, filterResponse } from '../../../lib/searches';
 import LoaderSegment from '../../Shared/LoaderSegment';
+import SearchDetailHeader from './SearchDetailHeader';
 
 const sortDropdownOptions = [
   { key: 'uploadSpeed', text: 'Upload Speed (Fastest to Slowest)', value: 'uploadSpeed' },
@@ -106,28 +107,7 @@ const SearchDetail = ({ search, onStop, onBack }) => {
 
   return (
     <>
-        <Segment className='search-segment' raised>
-          {/* <Input
-            input={<input placeholder="Search phrase" type="search" data-lpignore="true"></input>}
-            size='big'
-            ref={searchRef}
-            disabled={true}
-            className='search-input'
-            placeholder="Search phrase"
-            action={<Button icon='x' color='red' onClick={() => history.push(`/searches`)}/>}
-          /> */}
-          <Button
-            negative
-            icon={isComplete ? 'arrow left' : 'stop circle'}
-            onClick={() => {
-              if (isComplete) {
-                onBack();
-              } else {
-                onStop(search);
-              }
-            }}
-          />
-        </Segment>
+        <SearchDetailHeader search={search} onStop={onStop} onBack={onBack}/>
         {(results && results.length > 0) && 
           <Segment className='search-options' raised>
             <Dropdown
