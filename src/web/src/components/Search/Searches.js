@@ -5,6 +5,7 @@ import { useParams, useHistory, useRouteMatch } from 'react-router-dom';
 import * as lib from '../../lib/searches';
 import { createSearchHubConnection } from '../../lib/hubFactory';
 
+import LoaderSegment from '../Shared/LoaderSegment';
 import SearchList from './List/SearchList';
 
 import './Search.css';
@@ -127,7 +128,7 @@ const Searches = () => {
   }
 
   if (connecting) {
-    return <Loader active size='big'/>;
+    return <LoaderSegment/>
   }
 
   if (connectError) {
@@ -136,60 +137,46 @@ const Searches = () => {
 
   if (searchId) {
     if (searches[searchId]) {
-      const { searchText } = searches[searchId];
-
       return (
-        <div className='search-container'>
-          <Segment className='search-segment' raised>
-            {/* <Input
-              input={<input placeholder="Search phrase" type="search" data-lpignore="true"></input>}
-              size='big'
-              ref={searchRef}
-              disabled={true}
-              className='search-input'
-              placeholder="Search phrase"
-              action={<Button icon='x' color='red' onClick={() => history.push(`/searches`)}/>}
-            /> */}
-            <Button icon="trash"/>
-          </Segment>
-          <SearchDetail search={searches[searchId]}/>
-        </div>
+        <SearchDetail
+          search={searches[searchId]}
+          onStop={stop}
+          onBack={() => history.push('/searches')}
+        />
       );
     }
 
     return (
-      <div className='search-container'>
-        <ErrorSegment caption='Invalid Search ID'/>
-      </div>
+      <ErrorSegment caption='Invalid Search ID'/>
     );
   }
 
   return (
-    <div className='search-container'>
-        <Segment className='search-segment' raised>
-          <Input
-            input={<input placeholder="Search phrase" type="search" data-lpignore="true"></input>}
-            size='big'
-            ref={inputRef}
-            loading={creating}
-            disabled={creating}
-            className='search-input'
-            placeholder="Search phrase"
-            action={<>
-              <Button icon='plus' onClick={create}/>
-              <Button icon='search' onClick={() => create({ navigate: true })}/>
-            </>}
-            onKeyUp={(e) => e.key === 'Enter' ? create() : ''}
-          />
-        </Segment>
-        <SearchList
-          connecting={connecting}
-          error={error}
-          searches={searches}
-          onRemove={remove}
-          onStop={stop}
+    <>
+      <Segment className='search-segment' raised>
+        <Input
+          input={<input placeholder="Search phrase" type="search" data-lpignore="true"></input>}
+          size='big'
+          ref={inputRef}
+          loading={creating}
+          disabled={creating}
+          className='search-input'
+          placeholder="Search phrase"
+          action={<>
+            <Button icon='plus' onClick={create}/>
+            <Button icon='search' onClick={() => create({ navigate: true })}/>
+          </>}
+          onKeyUp={(e) => e.key === 'Enter' ? create() : ''}
         />
-    </div>
+      </Segment>
+      <SearchList
+        connecting={connecting}
+        error={error}
+        searches={searches}
+        onRemove={remove}
+        onStop={stop}
+      />
+    </>
   )
 };
 

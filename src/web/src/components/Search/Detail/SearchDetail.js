@@ -12,13 +12,14 @@ import {
 import ErrorSegment from '../../Shared/ErrorSegment';
 import Response from '../Response';
 import { getResponses, parseFiltersFromString, filterResponse } from '../../../lib/searches';
+import LoaderSegment from '../../Shared/LoaderSegment';
 
 const sortDropdownOptions = [
   { key: 'uploadSpeed', text: 'Upload Speed (Fastest to Slowest)', value: 'uploadSpeed' },
   { key: 'queueLength', text: 'Queue Depth (Least to Most)', value: 'queueLength' }
 ];
 
-const SearchDetail = ({ search }) => {
+const SearchDetail = ({ search, onStop, onBack }) => {
   const { id, state, isComplete, fileCount, lockedFileCount, responseCount } = search;
 
   const [loading, setLoading] = useState(false);
@@ -100,11 +101,33 @@ const SearchDetail = ({ search }) => {
   }
 
   if (loading) {
-    return (<Loader active size='big' inline='centered'/>)
+    return (<LoaderSegment/>)
   }
 
   return (
     <>
+        <Segment className='search-segment' raised>
+          {/* <Input
+            input={<input placeholder="Search phrase" type="search" data-lpignore="true"></input>}
+            size='big'
+            ref={searchRef}
+            disabled={true}
+            className='search-input'
+            placeholder="Search phrase"
+            action={<Button icon='x' color='red' onClick={() => history.push(`/searches`)}/>}
+          /> */}
+          <Button
+            negative
+            icon={isComplete ? 'arrow left' : 'stop circle'}
+            onClick={() => {
+              if (isComplete) {
+                onBack();
+              } else {
+                onStop(search);
+              }
+            }}
+          />
+        </Segment>
         {(results && results.length > 0) && 
           <Segment className='search-options' raised>
             <Dropdown

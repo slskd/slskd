@@ -146,3 +146,7 @@ body {
     font-size: 1rem !important;
     text-shadow: unset !important;
 }
+
+.loader-segment.ui.placeholder > :before {
+    background-color: transparent !important;
+}

@@ -244,7 +244,7 @@ class App extends Component {
         </Sidebar>
         <Sidebar.Pusher className='app-content'>
           <Switch>
-            <Route path={`${urlBase}/searches/:id?`} render={(props) => this.withTokenCheck(<Searches {...props}/>)}/>
+            <Route path={`${urlBase}/searches/:id?`} render={(props) => this.withTokenCheck(<div className='search-container'><Searches {...props}/></div>)}/>
             <Route path={`${urlBase}/browse`} render={(props) => this.withTokenCheck(<Browse {...props}/>)}/>
             <Route path={`${urlBase}/users`} render={(props) => this.withTokenCheck(<Users {...props}/>)}/>
             <Route path={`${urlBase}/chat`} render={(props) => this.withTokenCheck(<Chat {...props}/>)}/>
