@@ -15,7 +15,7 @@ const getIcon = ({ state, ...props }) => {
     case 'Requested':
       return <Icon name='time' {...props}/>
     case 'InProgress':
-      return <Icon name='spinner' loading color='green' {...props}/>
+      return <Icon name='circle notch' loading color='green' {...props}/>
     case 'Completed, TimedOut':
     case 'Completed, ResponseLimitReached':
     case 'Completed, FileLimitReached':
