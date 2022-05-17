@@ -119,7 +119,7 @@ const Searches = () => {
         return { ...old }
       });
     } catch (err) {
-      setError(error.message);
+      setError(error?.message ?? error);
     }
   };
 
@@ -141,7 +141,7 @@ const Searches = () => {
         <SearchDetail
           search={searches[searchId]}
           onStop={stop}
-          onBack={() => history.push('/searches')}
+          onRemove={remove}
         />
       );
     }

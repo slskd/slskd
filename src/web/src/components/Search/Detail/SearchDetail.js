@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 
 import {
-  Loader,
   Checkbox,
   Input,
   Segment,
@@ -9,6 +8,7 @@ import {
   Button,
 } from 'semantic-ui-react';
 
+import Switch from '../../Shared/Switch';
 import ErrorSegment from '../../Shared/ErrorSegment';
 import Response from '../Response';
 import { getResponses, parseFiltersFromString, filterResponse } from '../../../lib/searches';
@@ -20,7 +20,7 @@ const sortDropdownOptions = [
   { key: 'queueLength', text: 'Queue Depth (Least to Most)', value: 'queueLength' }
 ];
 
-const SearchDetail = ({ search, onStop, onBack }) => {
+const SearchDetail = ({ search, onStop, onRemove }) => {
   const { id, state, isComplete, fileCount, lockedFileCount, responseCount } = search;
 
   const [loading, setLoading] = useState(false);
@@ -92,22 +92,23 @@ const SearchDetail = ({ search, onStop, onBack }) => {
     return (<ErrorSegment caption={error?.message ?? error}/>)
   }
 
-  if (!isComplete) {
-    return (
-      <Loader className='search-loader' active inline='centered' size='big'>
-        {state === 'InProgress' ? <span>Found {fileCount} files {lockedFileCount > 0 ? `(plus ${lockedFileCount} locked) ` : ''}from {responseCount} users</span>
-        : 'Loading results...'}
-      </Loader>
-    );
-  }
-
-  if (loading) {
-    return (<LoaderSegment/>)
-  }
-
   return (
     <>
-        <SearchDetailHeader search={search} onStop={onStop} onBack={onBack}/>
+      <SearchDetailHeader
+        loading={loading}
+        search={search} 
+        onStop={onStop} 
+        onRemove={onRemove}
+      />
+      <Switch 
+        searching={!isComplete && 
+          <LoaderSegment>
+            {state === 'InProgress' ? `Found ${fileCount} files ${lockedFileCount > 0 ? `(plus ${lockedFileCount} locked) ` : ''}from ${responseCount} users`
+            : 'Loading results...'}
+          </LoaderSegment>
+        }
+        loading={loading && <LoaderSegment/>}
+      >
         {(results && results.length > 0) && 
           <Segment className='search-options' raised>
             <Dropdown
@@ -168,7 +169,8 @@ const SearchDetail = ({ search, onStop, onBack }) => {
           </Button>
           : filteredCount > 0 ? 
             <Button className='showmore-button' size='large' fluid disabled>{`All results shown. ${filteredCount} results hidden by filter(s)`}</Button> : ''}
-      </>
+      </Switch>
+    </>
   )
 }
 
