@@ -8,7 +8,6 @@ import { urlBase } from '../config';
 import { createApplicationHubConnection } from '../lib/hubFactory';
 
 import './App.css';
-import Search from './Search/Search';
 import Searches from './Search/Searches';
 import Browse from './Browse/Browse';
 import Users from './Users/Users';

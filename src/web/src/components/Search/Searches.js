@@ -87,6 +87,7 @@ const Searches = () => {
     return () => {
       searchHub.stop();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // create a new search, and optionally navigate to it to display the details
