@@ -40,7 +40,7 @@ const SearchList = ({ connecting = false, error = undefined, searches = {}, onRe
                     <Segment basic style={{opacity: .5}} textAlign='center'>No searches to display</Segment>
                   }
                 >
-                <Table>
+                <Table size='large'>
                   <Table.Header>
                     <Table.Row>
                       <Table.HeaderCell className="search-list-action"><Icon name="info circle"/></Table.HeaderCell>
