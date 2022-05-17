@@ -8,6 +8,7 @@ import {
   Button,
 } from 'semantic-ui-react';
 
+import { sleep } from '../../../lib/util';
 import Switch from '../../Shared/Switch';
 import ErrorSegment from '../../Shared/ErrorSegment';
 import Response from '../Response';
@@ -20,7 +21,7 @@ const sortDropdownOptions = [
   { key: 'queueLength', text: 'Queue Depth (Least to Most)', value: 'queueLength' }
 ];
 
-const SearchDetail = ({ search, onCreate, onStop, onRemove }) => {
+const SearchDetail = ({ search, creating, stopping, removing, onCreate, onStop, onRemove }) => {
   const { id, state, isComplete, fileCount, lockedFileCount, responseCount } = search;
 
   const [loading, setLoading] = useState(false);
@@ -28,6 +29,7 @@ const SearchDetail = ({ search, onCreate, onStop, onRemove }) => {
 
   const [results, setResults] = useState([]);
 
+  // filters and sorting options
   const [hiddenResults, setHiddenResults] = useState([]);
   const [resultSort, setResultSort] = useState('uploadSpeed');
   const [hideLocked, setHideLocked] = useState(true);
@@ -36,10 +38,17 @@ const SearchDetail = ({ search, onCreate, onStop, onRemove }) => {
   const [resultFilters, setResultFilters] = useState('');
   const [displayCount, setDisplayCount] = useState(5);
 
+  // when the search transitions from !isComplete -> isComplete,
+  // fetch the results from the server
   useEffect(() => {
     const get = async () => {
       try {
         setLoading(true);
+
+        // the results may not be ready yet.  this is very rare, but
+        // if it happens the search will complete with no results.
+        await sleep(500);
+        
         const responses = await getResponses({ id });
         setResults(responses);
         setLoading(false);
@@ -54,6 +63,8 @@ const SearchDetail = ({ search, onCreate, onStop, onRemove }) => {
     }
   }, [id, isComplete])
 
+  // apply sorting and filters.  this can take a while for larger result
+  // sets, so memoize it.
   const sortedAndFilteredResults = useMemo(() => {
     const sortOptions = {
       uploadSpeed: { field: 'uploadSpeed', order: 'desc' },
@@ -85,8 +96,29 @@ const SearchDetail = ({ search, onCreate, onStop, onRemove }) => {
 
   }, [results, hideLocked, hideNoFreeSlots, resultFilters, resultSort, hiddenResults])
 
+  // when a user uses the action buttons, we will *probably* re-use this component,
+  // but with a new search ID.  clear everything to prepare for the transition
+  const reset = () => {
+    setLoading(false);
+    setError(undefined);
+    setResults([]);
+    setHiddenResults([]);
+    setDisplayCount(5);
+  }
+
+  const create = async ({ search, navigate }) => {
+    reset();  
+    onCreate({ search, navigate })
+  }
+
+  const remove = async () => {
+    reset();
+    onRemove(search);
+  }
+
   const filteredCount = results?.length - sortedAndFilteredResults.length;
   const remainingCount = sortedAndFilteredResults.length - displayCount;
+  const loaded = (!removing && !creating && !loading && results && results.length > 0)
 
   if (error) {
     return (<ErrorSegment caption={error?.message ?? error}/>)
@@ -96,10 +128,14 @@ const SearchDetail = ({ search, onCreate, onStop, onRemove }) => {
     <>
       <SearchDetailHeader
         loading={loading}
+        loaded={loaded}
+        removing={removing}
+        stopping={stopping}
+        creating={creating}
         search={search}
-        onCreate={onCreate}
+        onCreate={create}
         onStop={onStop} 
-        onRemove={onRemove}
+        onRemove={remove}
       />
       <Switch 
         searching={!isComplete && 
@@ -110,7 +146,7 @@ const SearchDetail = ({ search, onCreate, onStop, onRemove }) => {
         }
         loading={loading && <LoaderSegment/>}
       >
-        {(results && results.length > 0) && 
+        {loaded && 
           <Segment className='search-options' raised>
             <Dropdown
               button
@@ -155,7 +191,7 @@ const SearchDetail = ({ search, onCreate, onStop, onRemove }) => {
             />
           </Segment>
         }
-        {sortedAndFilteredResults.slice(0, displayCount).map((r, i) =>
+        {loaded && sortedAndFilteredResults.slice(0, displayCount).map((r, i) =>
           <Response
             key={i}
             response={r}
@@ -163,13 +199,13 @@ const SearchDetail = ({ search, onCreate, onStop, onRemove }) => {
             isInitiallyFolded={foldResults}
           />
         )}
-        {remainingCount > 0 ?
+        {loaded && (remainingCount > 0 ?
           <Button className='showmore-button' size='large' fluid primary
             onClick={() => setDisplayCount(displayCount + 5)}>
               Show {remainingCount > 5 ? 5 : remainingCount} More Results {`(${remainingCount} remaining, ${filteredCount} hidden by filter(s))`}
           </Button>
           : filteredCount > 0 ? 
-            <Button className='showmore-button' size='large' fluid disabled>{`All results shown. ${filteredCount} results hidden by filter(s)`}</Button> : ''}
+            <Button className='showmore-button' size='large' fluid disabled>{`All results shown. ${filteredCount} results hidden by filter(s)`}</Button> : '')}
       </Switch>
     </>
   )

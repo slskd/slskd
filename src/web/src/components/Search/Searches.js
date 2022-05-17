@@ -14,27 +14,29 @@ import {
   Input,
   Segment,
   Button,
-  Loader,
 } from 'semantic-ui-react';
 
 import SearchDetail from './Detail/SearchDetail';
 import ErrorSegment from '../Shared/ErrorSegment';
 
 const Searches = () => {
-  const [{ connected, connecting, connectError } , setConnected] = useState({ connected: false, connecting: true, connectError: false });
-  const [{ creating, createError }, setCreating] = useState({ creating: false, createError: false });
+  const [connecting, setConnecting] = useState(true);
   const [error, setError] = useState(undefined);
   const [searches, setSearches] = useState({});
+
+  const [removing, setRemoving] = useState(false);
+  const [stopping, setStopping] = useState(false);
+  const [creating, setCreating] = useState(false);
+
   const inputRef = useRef();
-  const searchRef = useRef();
 
   const { id: searchId } = useParams();
   const history = useHistory();
   const match = useRouteMatch();
 
-  const onConnecting = () => setConnected({ connected: false, connecting: true, connectError: false })
-  const onConnected = () => setConnected({ connected: true, connecting: false, connectError: false });
-  const onConnectionError = (error) => setConnected({ connected: false, connecting: false, connectError: error })
+  const onConnecting = () => { setConnecting(true); }
+  const onConnected = () => { setConnecting(false); setError(undefined); }
+  const onConnectionError = (error) => { setConnecting(false); setError(error); }
 
   const onUpdate = (update) => {
     onConnected();
@@ -47,7 +49,6 @@ const Searches = () => {
     const searchHub = createSearchHubConnection();
 
     searchHub.on('list', searches => {
-      console.log('list of searches received', searches);
       onUpdate(searches.reduce((acc, search) => {
         acc[search.id] = search;
         return acc;
@@ -56,7 +57,6 @@ const Searches = () => {
     })
 
     searchHub.on('update', search => {
-      console.log(search.responses)
       onUpdate(old => ({ ...old, [search.id]: search }));
     });
 
@@ -75,10 +75,8 @@ const Searches = () => {
 
     const connect = async () => {
       try {
-        console.log('connecting to search hub');
         onConnecting();
         await searchHub.start();
-        console.log('search hub connected');
       } catch (error) {
         onConnectionError(error?.message ?? 'Failed to connect')
       }
@@ -87,65 +85,85 @@ const Searches = () => {
     connect();
 
     return () => {
-      console.log('stopping search hub');
       searchHub.stop();
-      console.log('search hub stopped');
     }
   }, []);
 
+  // create a new search, and optionally navigate to it to display the details
+  // we do this if the user clicks the search icon, or repeats an existing search
   const create = async ({ search, navigate = false } = {}) => {
     const searchText = search || inputRef.current.inputRef.current.value;
     const id = uuidv4();
     
     try {
-      setCreating({ creating: true, createError: false })
+      setCreating(true)
       await lib.create({ id, searchText })
-      setCreating({ creating: false, createError: false })
-
+      
       try {
         inputRef.current.inputRef.current.value = '';
       } catch {
-        // no-op
+        // we are probably repeating an existing search; the input isn't mounted.  no-op.
       }
+      
+      setCreating(false)
 
       if (navigate) {
-        history.push(`/searches/${id}`)
+        history.push(`${match.url.replace(`/${searchId}`, '')}/${id}`);
       }
     } catch (error) {
       console.error(error)
-      setCreating({ creating: false, createError: error.message })
+      setCreating(false)
     }
   }
 
+  // delete a search
   const remove = async (search) => {
     try {
+      setRemoving(true);
+
       await lib.remove({ id: search.id })
       setSearches(old => {
         delete old[search.id];
         return { ...old }
       });
+
+      setRemoving(false);
     } catch (err) {
-      setError(error?.message ?? error);
+      console.error(err);
+      setRemoving(false);
     }
   };
 
+  // stop an in-progress search
   const stop = async (search) => {
-    await lib.stop({ id: search.id })
+    try {
+      setStopping(true);
+      await lib.stop({ id: search.id })
+      setStopping(false);
+    } catch (error) {
+      console.error(error);
+      setStopping(false);
+    }
   }
 
   if (connecting) {
     return <LoaderSegment/>
   }
 
-  if (connectError) {
-    return <ErrorSegment caption={connectError}/>;
+  if (error) {
+    return <ErrorSegment caption={error?.message ?? error}/>;
   }
 
+  // if searchId is not null, there's an id in the route.
+  // display the details for the search, if there is one
   if (searchId) {
     if (searches[searchId]) {
       return (
         <SearchDetail
           search={searches[searchId]}
+          creating={creating}
+          stopping={stopping}
+          removing={removing}
           onCreate={create}
           onStop={stop}
           onRemove={remove}
@@ -153,9 +171,9 @@ const Searches = () => {
       );
     }
 
-    return (
-      <ErrorSegment caption='Invalid Search ID'/>
-    );
+    // if the searchId doesn't match a search we know about, chop
+    // the id off of the url and force navigation back to the list
+    history.replace(match.url.replace(`/${searchId}`, ''));
   }
 
   return (
