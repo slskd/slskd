@@ -53,7 +53,7 @@ namespace slskd.Search
         }
 
         public string SearchText { get; init; }
-        public DateTime StartedAt { get; init; } = DateTime.UtcNow;
+        public DateTime StartedAt { get; init; } = DateTime.Now;
         public SearchStates State { get; set; }
         public int Token { get; init; }
     }

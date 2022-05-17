@@ -17,5 +17,5 @@ export {
     tokenPassthroughValue,
     activeChatKey,
     activeRoomKey,
-    activeUserInfoKey
+    activeUserInfoKey,
 };

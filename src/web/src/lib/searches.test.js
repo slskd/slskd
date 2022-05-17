@@ -1,4 +1,4 @@
-import * as search from './search';
+import * as search from './searches';
 
 describe('filterResponse', () => {
   it('removes VBR files if "iscbr" is specified', () => {
