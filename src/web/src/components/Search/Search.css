@@ -98,3 +98,14 @@
 .search-list-action {
   width: 5px !important;
 }
+
+.search-detail-header {
+  font-weight: normal !important;
+  margin-top: 13px !important;
+  margin-left: 16px !important;
+}
+
+.search-detail-action-button {
+  float: right;
+  margin-top: -48px !important;
+}

@@ -3,32 +3,38 @@ import React from 'react';
 import {
   Segment,
   Button,
+  Header,
+  Icon,
 } from 'semantic-ui-react';
+import SearchStatusIcon from '../SearchStatusIcon';
 
-const SearchDetailHeader = ({ search, onBack, onStop }) => {
+const SearchDetailHeader = ({ search, loading, onStop, onRemove }) => {
+  const { searchText, isComplete, state } = search;
+
+  const stopOrRemove = () => {
+    if (isComplete) {
+      onRemove(search);
+    } else {
+      onStop(search);
+    }
+  }
+
   return (
     <Segment className='search-segment' raised>
-    {/* <Input
-      input={<input placeholder="Search phrase" type="search" data-lpignore="true"></input>}
-      size='big'
-      ref={searchRef}
-      disabled={true}
-      className='search-input'
-      placeholder="Search phrase"
-      action={<Button icon='x' color='red' onClick={() => history.push(`/searches`)}/>}
-    /> */}
-    <Button
-      negative
-      icon={search?.isComplete ? 'arrow left' : 'stop circle'}
-      onClick={() => {
-        if (search?.isComplete) {
-          onBack();
-        } else {
-          onStop(search);
-        }
-      }}
-    />
-  </Segment>
+      <Header className='search-detail-header'>
+        <SearchStatusIcon state={state}/>
+        {searchText}
+      </Header>
+      <Button
+        className='search-detail-action-button'
+        negative
+        disabled={loading}
+        onClick={stopOrRemove}
+      >
+        <Icon name={isComplete ? 'trash alternate' : 'stop circle'}/>
+        {isComplete ? 'Delete' : 'Stop'} Search
+      </Button>
+    </Segment>
   )
 };
 
