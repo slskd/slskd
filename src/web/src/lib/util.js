@@ -48,6 +48,10 @@ export const formatAttributes = ({ bitRate, isVariableBitRate, bitDepth, sampleR
     return bitRate ? `${bitRate} Kbps` : ''
 }
 
+export const sleep = (milliseconds) => {
+    return new Promise(resolve => setTimeout(resolve, milliseconds))
+}
+
 /* https://www.npmjs.com/package/js-file-download
  * 
  * Copyright 2017 Kenneth Jiang

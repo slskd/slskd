@@ -31,7 +31,11 @@ body {
     width: 100% !important;
 }
 
-.result-card:last-child, .transfer-card:last-child {
+.search-list-card {
+    width: 100% !important;
+}
+
+.result-card:last-child, .transfer-card:last-child, .search-list-card:last-child {
     margin-bottom: 17px !important;
 }
 
@@ -56,7 +60,7 @@ body {
     margin-top: 20px !important;
 }
 
-.filelist-selector, .transferlist-selector {
+.filelist-selector, .transferlist-selector, .list-selector {
     width: 40px;
 }
 
@@ -141,4 +145,8 @@ body {
 .menu-icon-no-shadow {
     font-size: 1rem !important;
     text-shadow: unset !important;
+}
+
+.loader-segment.ui.placeholder > :before {
+    background-color: transparent !important;
 }
