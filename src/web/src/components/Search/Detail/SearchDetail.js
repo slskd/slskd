@@ -20,7 +20,7 @@ const sortDropdownOptions = [
   { key: 'queueLength', text: 'Queue Depth (Least to Most)', value: 'queueLength' }
 ];
 
-const SearchDetail = ({ search, onStop, onRemove }) => {
+const SearchDetail = ({ search, onCreate, onStop, onRemove }) => {
   const { id, state, isComplete, fileCount, lockedFileCount, responseCount } = search;
 
   const [loading, setLoading] = useState(false);
@@ -96,7 +96,8 @@ const SearchDetail = ({ search, onStop, onRemove }) => {
     <>
       <SearchDetailHeader
         loading={loading}
-        search={search} 
+        search={search}
+        onCreate={onCreate}
         onStop={onStop} 
         onRemove={onRemove}
       />

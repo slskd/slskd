@@ -93,20 +93,26 @@ const Searches = () => {
     }
   }, []);
 
-  const create = async ({ navigate = false } = {}) => {
-    const searchText = inputRef.current.inputRef.current.value;
+  const create = async ({ search, navigate = false } = {}) => {
+    const searchText = search || inputRef.current.inputRef.current.value;
     const id = uuidv4();
     
     try {
       setCreating({ creating: true, createError: false })
       await lib.create({ id, searchText })
       setCreating({ creating: false, createError: false })
-      inputRef.current.inputRef.current.value = '';
+
+      try {
+        inputRef.current.inputRef.current.value = '';
+      } catch {
+        // no-op
+      }
 
       if (navigate) {
-        history.push(`${match.url}/${id}`)
+        history.push(`/searches/${id}`)
       }
     } catch (error) {
+      console.error(error)
       setCreating({ creating: false, createError: error.message })
     }
   }
@@ -140,6 +146,7 @@ const Searches = () => {
       return (
         <SearchDetail
           search={searches[searchId]}
+          onCreate={create}
           onStop={stop}
           onRemove={remove}
         />
