@@ -10,7 +10,7 @@ import {
   Icon,
 } from 'semantic-ui-react';
 
-import SearchStatusIcon from './SearchStatusIcon';
+import SearchStatusIcon from '../SearchStatusIcon';
 import SearchActionIcon from './SearchActionIcon';
 
 const SearchListRow = ({ search, onRemove, onStop }) => {
