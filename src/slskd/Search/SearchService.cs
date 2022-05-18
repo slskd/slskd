@@ -48,7 +48,6 @@ namespace slskd.Search
         /// <param name="optionsMonitor"></param>
         /// <param name="soulseekClient"></param>
         /// <param name="contextFactory">The database context to use.</param>
-        /// <param name="log">The logger.</param>
         public SearchService(
             IHubContext<SearchHub> searchHub,
             IOptionsMonitor<Options> optionsMonitor,
@@ -93,7 +92,7 @@ namespace slskd.Search
                 Token = token,
                 Id = id,
                 State = SearchStates.Requested,
-                StartedAt = DateTime.Now,
+                StartedAt = DateTime.UtcNow,
             };
 
             using var context = ContextFactory.CreateDbContext();
@@ -103,28 +102,29 @@ namespace slskd.Search
 
             List<SearchResponse> responses = new();
 
+            options ??= new SearchOptions();
+            options = options.WithActions(
+                stateChanged: (args) =>
+                {
+                    search = search.WithSoulseekSearch(args.Search);
+                    SearchHub.BroadcastUpdateAsync(search);
+                },
+                responseReceived: (args) =>
+                    rateLimiter.Invoke(() => SearchHub.BroadcastUpdateAsync(search.WithSoulseekSearch(args.Search))));
+
+            var soulseekSearchTask = Client.SearchAsync(
+                query,
+                responseReceived: (response) => responses.Add(response),
+                scope,
+                token,
+                options,
+                cancellationToken: cancellationTokenSource.Token);
+
             _ = Task.Run(async () =>
             {
                 try
                 {
-                    options ??= new SearchOptions();
-                    options = options.WithActions(
-                        stateChanged: (args) =>
-                        {
-                            search = search.WithSoulseekSearch(args.Search);
-                            SearchHub.BroadcastUpdateAsync(search);
-                        },
-                        responseReceived: (args) =>
-                            rateLimiter.Invoke(() => SearchHub.BroadcastUpdateAsync(search.WithSoulseekSearch(args.Search))));
-
-                    var soulseekSearch = await Client.SearchAsync(
-                        query,
-                        responseReceived: (response) => responses.Add(response),
-                        scope,
-                        token,
-                        options,
-                        cancellationToken: cancellationTokenSource.Token);
-
+                    var soulseekSearch = await soulseekSearchTask;
                     search = search.WithSoulseekSearch(soulseekSearch);
                 }
                 finally
@@ -136,7 +136,7 @@ namespace slskd.Search
                     {
                         using var context = ContextFactory.CreateDbContext();
 
-                        search.EndedAt = DateTime.Now;
+                        search.EndedAt = DateTime.UtcNow;
                         search.Responses = responses.Select(r => Response.FromSoulseekSearchResponse(r));
 
                         context.Update(search);
