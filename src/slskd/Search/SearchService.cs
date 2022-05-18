@@ -97,8 +97,6 @@ namespace slskd.Search
 
             using var context = ContextFactory.CreateDbContext();
             context.Add(search);
-            await context.SaveChangesAsync();
-            await SearchHub.BroadcastCreateAsync(search);
 
             List<SearchResponse> responses = new();
 
@@ -152,6 +150,9 @@ namespace slskd.Search
                     }
                 }
             });
+
+            await context.SaveChangesAsync();
+            await SearchHub.BroadcastCreateAsync(search);
 
             return search;
         }
