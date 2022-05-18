@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useParams, useHistory, useRouteMatch } from 'react-router-dom';
+import { toast } from 'react-toastify';
 
 import * as lib from '../../lib/searches';
 import { createSearchHubConnection } from '../../lib/hubFactory';
@@ -78,6 +79,7 @@ const Searches = () => {
         onConnecting();
         await searchHub.start();
       } catch (error) {
+        toast.error(error?.message ?? 'Failed to connect');
         onConnectionError(error?.message ?? 'Failed to connect')
       }
     }
@@ -112,7 +114,8 @@ const Searches = () => {
         history.push(`${match.url.replace(`/${searchId}`, '')}/${id}`);
       }
     } catch (error) {
-      console.error(error)
+      console.error(error)      
+      toast.error(error?.response?.data ?? error?.message ?? error);
       setCreating(false)
     }
   }
@@ -131,6 +134,7 @@ const Searches = () => {
       setRemoving(false);
     } catch (err) {
       console.error(err);
+      toast.error(error?.response?.data ?? error?.message ?? error);
       setRemoving(false);
     }
   };
@@ -143,6 +147,7 @@ const Searches = () => {
       setStopping(false);
     } catch (error) {
       console.error(error);
+      toast.error(error?.response?.data ?? error?.message ?? error);
       setStopping(false);
     }
   }

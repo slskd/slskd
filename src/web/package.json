@@ -17,6 +17,7 @@
     "react-dom": "^16.8.6",
     "react-responsive": "^9.0.0-beta.5",
     "react-router-dom": "^5.0.0",
+    "react-toastify": "^9.0.1",
     "semantic-ui-css": "^2.4.1",
     "semantic-ui-react": "^2.1.0",
     "signalr": "^2.4.1",
