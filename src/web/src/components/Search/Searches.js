@@ -20,7 +20,7 @@ import {
 import SearchDetail from './Detail/SearchDetail';
 import ErrorSegment from '../Shared/ErrorSegment';
 
-const Searches = () => {
+const Searches = ({ server }) => {
   const [connecting, setConnecting] = useState(true);
   const [error, setError] = useState(undefined);
   const [searches, setSearches] = useState({});
@@ -190,12 +190,12 @@ const Searches = () => {
           size='big'
           ref={inputRef}
           loading={creating}
-          disabled={creating}
+          disabled={creating || !server.isConnected}
           className='search-input'
           placeholder="Search phrase"
           action={<>
-            <Button icon='plus' onClick={create}/>
-            <Button icon='search' onClick={() => create({ navigate: true })}/>
+            <Button icon='plus' disabled={creating || !server.isConnected} onClick={create}/>
+            <Button icon='search' disabled={creating || !server.isConnected} onClick={() => create({ navigate: true })}/>
           </>}
           onKeyUp={(e) => e.key === 'Enter' ? create() : ''}
         />
