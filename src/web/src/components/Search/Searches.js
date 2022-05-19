@@ -20,7 +20,7 @@ import {
 import SearchDetail from './Detail/SearchDetail';
 import ErrorSegment from '../Shared/ErrorSegment';
 
-const Searches = () => {
+const Searches = ({ server }) => {
   const [connecting, setConnecting] = useState(true);
   const [error, setError] = useState(undefined);
   const [searches, setSearches] = useState({});
@@ -170,6 +170,7 @@ const Searches = () => {
           creating={creating}
           stopping={stopping}
           removing={removing}
+          disabled={!server.isConnected}
           onCreate={create}
           onStop={stop}
           onRemove={remove}
@@ -186,16 +187,16 @@ const Searches = () => {
     <>
       <Segment className='search-segment' raised>
         <Input
-          input={<input placeholder="Search phrase" type="search" data-lpignore="true"></input>}
+          input={<input placeholder={server.isConnected ? 'Search phrase' : 'Connect to server to perform a search'} type="search" data-lpignore="true"></input>}
           size='big'
           ref={inputRef}
           loading={creating}
-          disabled={creating}
+          disabled={creating || !server.isConnected}
           className='search-input'
           placeholder="Search phrase"
           action={<>
-            <Button icon='plus' onClick={create}/>
-            <Button icon='search' onClick={() => create({ navigate: true })}/>
+            <Button icon='plus' disabled={creating || !server.isConnected} onClick={create}/>
+            <Button icon='search' disabled={creating || !server.isConnected} onClick={() => create({ navigate: true })}/>
           </>}
           onKeyUp={(e) => e.key === 'Enter' ? create() : ''}
         />
