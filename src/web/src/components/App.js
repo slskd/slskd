@@ -19,6 +19,8 @@ import Chat from './Chat/Chat';
 import System from './System/System';
 import LoginForm from './LoginForm';
 
+import AppContext from './AppContext';
+
 import { 
   Sidebar,
   Segment,
@@ -246,17 +248,26 @@ class App extends Component {
             </Menu>
           </Sidebar>
           <Sidebar.Pusher className='app-content'>
-            <Switch>
-              <Route path={`${urlBase}/searches/:id?`} render={(props) => this.withTokenCheck(<div className='search-container'><Searches {...props}/></div>)}/>
-              <Route path={`${urlBase}/browse`} render={(props) => this.withTokenCheck(<Browse {...props}/>)}/>
-              <Route path={`${urlBase}/users`} render={(props) => this.withTokenCheck(<Users {...props}/>)}/>
-              <Route path={`${urlBase}/chat`} render={(props) => this.withTokenCheck(<Chat {...props}/>)}/>
-              <Route path={`${urlBase}/rooms`} render={(props) => this.withTokenCheck(<Rooms {...props}/>)}/>
-              <Route path={`${urlBase}/uploads`} render={(props) => this.withTokenCheck(<Transfers {...props} direction='upload'/>)}/>
-              <Route path={`${urlBase}/downloads`} render={(props) => this.withTokenCheck(<Transfers {...props} direction='download'/>)}/>
-              <Route path={`${urlBase}/system/:tab?`} render={(props) => this.withTokenCheck(<System {...props} state={applicationState} options={applicationOptions}/>)}/>
-              <Redirect from='*' to={`${urlBase}/searches`}/>
-            </Switch>
+            <AppContext.Provider value={{ state: applicationState, options: applicationOptions }}>
+              <Switch>
+                <Route path={`${urlBase}/searches/:id?`} render={(props) => 
+                  this.withTokenCheck(<div className='search-container'>
+                    <Searches
+                      server={applicationState.server}
+                      {...props}
+                    />
+                  </div>)}
+                />
+                <Route path={`${urlBase}/browse`} render={(props) => this.withTokenCheck(<Browse {...props}/>)}/>
+                <Route path={`${urlBase}/users`} render={(props) => this.withTokenCheck(<Users {...props}/>)}/>
+                <Route path={`${urlBase}/chat`} render={(props) => this.withTokenCheck(<Chat {...props}/>)}/>
+                <Route path={`${urlBase}/rooms`} render={(props) => this.withTokenCheck(<Rooms {...props}/>)}/>
+                <Route path={`${urlBase}/uploads`} render={(props) => this.withTokenCheck(<Transfers {...props} direction='upload'/>)}/>
+                <Route path={`${urlBase}/downloads`} render={(props) => this.withTokenCheck(<Transfers {...props} direction='download'/>)}/>
+                <Route path={`${urlBase}/system/:tab?`} render={(props) => this.withTokenCheck(<System {...props} state={applicationState} options={applicationOptions}/>)}/>
+                <Redirect from='*' to={`${urlBase}/searches`}/>
+              </Switch>
+            </AppContext.Provider>
           </Sidebar.Pusher>
         </Sidebar.Pushable>
         <ToastContainer
