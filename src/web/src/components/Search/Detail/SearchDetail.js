@@ -21,7 +21,7 @@ const sortDropdownOptions = [
   { key: 'queueLength', text: 'Queue Depth (Least to Most)', value: 'queueLength' }
 ];
 
-const SearchDetail = ({ search, creating, stopping, removing, onCreate, onStop, onRemove }) => {
+const SearchDetail = ({ search, creating, stopping, removing, disabled, onCreate, onStop, onRemove }) => {
   const { id, state, isComplete, fileCount, lockedFileCount, responseCount } = search;
 
   const [loading, setLoading] = useState(false);
@@ -132,6 +132,7 @@ const SearchDetail = ({ search, creating, stopping, removing, onCreate, onStop, 
         removing={removing}
         stopping={stopping}
         creating={creating}
+        disabled={disabled}
         search={search}
         onCreate={create}
         onStop={onStop} 
@@ -195,6 +196,7 @@ const SearchDetail = ({ search, creating, stopping, removing, onCreate, onStop, 
           <Response
             key={i}
             response={r}
+            disabled={disabled}
             onHide={() => setHiddenResults([...hiddenResults, r.username])}
             isInitiallyFolded={foldResults}
           />

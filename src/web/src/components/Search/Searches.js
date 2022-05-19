@@ -170,6 +170,7 @@ const Searches = ({ server }) => {
           creating={creating}
           stopping={stopping}
           removing={removing}
+          disabled={!server.isConnected}
           onCreate={create}
           onStop={stop}
           onRemove={remove}
@@ -186,7 +187,7 @@ const Searches = ({ server }) => {
     <>
       <Segment className='search-segment' raised>
         <Input
-          input={<input placeholder="Search phrase" type="search" data-lpignore="true"></input>}
+          input={<input placeholder={server.isConnected ? 'Search phrase' : 'Connect to server to perform a search'} type="search" data-lpignore="true"></input>}
           size='big'
           ref={inputRef}
           loading={creating}

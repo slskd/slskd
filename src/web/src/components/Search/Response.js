@@ -121,7 +121,7 @@ class Response extends Component {
                                 }}
                                 labelPosition='right'
                                 onClick={() => this.download(response.username, selectedFiles)}
-                                disabled={downloadRequest === 'inProgress'}
+                                disabled={this.props.disabled || downloadRequest === 'inProgress'}
                             />
                             {downloadRequest === 'inProgress' && <Icon loading name='circle notch' size='large'/>}
                             {downloadRequest === 'complete' && <Icon name='checkmark' color='green' size='large'/>}
