@@ -3,6 +3,9 @@ import * as transfers from '../../lib/transfers';
 import PlaceholderSegment from '../Shared/PlaceholderSegment';
 
 import TransferGroup from './TransferGroup';
+import TransfersHeader from './TransfersHeader';
+
+import './Transfers.css';
 
 class Transfers extends Component {
   state = { fetchState: '', downloads: [], interval: undefined }
@@ -35,13 +38,14 @@ class Transfers extends Component {
     const { direction } = this.props;
 
     return (
-      downloads.length === 0 ? 
-      <PlaceholderSegment icon={direction}/> :
-      <div className='transfer-segment'>
-        {downloads.map((user, index) => 
-          <TransferGroup key={index} direction={this.props.direction} user={user}/>
-        )}
-      </div>
+      <>
+        <TransfersHeader/>
+        {downloads.length === 0 ? 
+        <PlaceholderSegment icon={direction}/> :
+          downloads.map((user, index) => 
+            <TransferGroup key={index} direction={this.props.direction} user={user}/>
+          )}
+      </>
     );
   }
 }
