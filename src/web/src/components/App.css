@@ -80,37 +80,6 @@ body {
     width: 65px;
 }
 
-.transfer-button {
-    color: black;
-}
-
-.transfer-card {
-    width: 1200px !important;
-    margin-left: auto !important;
-    margin-right: auto !important;
-}
-
-.transfer-segment {
-    margin-top: 16px;
-    padding-left: 15px;
-    padding-right: 15px;
-}
-
-.transfer-placeholder {
-    font-weight: 100;
-    text-align: center;
-    margin-top: 50px !important;
-}
-
-.transferlist-size {
-    width: 150px;
-    min-width: 150px;
-}
-
-.transferlist-filename {
-    word-wrap: break-word !important;
-}
-
 .showmore-button {
     padding: 20px !important;
     max-width: 1200px !important;
@@ -149,4 +118,16 @@ body {
 
 .loader-segment.ui.placeholder > :before {
     background-color: transparent !important;
+}
+
+.page {
+  padding-left: 15px;
+  padding-right: 15px;
+  max-width: 1200px !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+  
+.page:last-child {
+  margin-bottom: 17px;
 }

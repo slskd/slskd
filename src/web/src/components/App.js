@@ -251,7 +251,7 @@ class App extends Component {
             <AppContext.Provider value={{ state: applicationState, options: applicationOptions }}>
               <Switch>
                 <Route path={`${urlBase}/searches/:id?`} render={(props) => 
-                  this.withTokenCheck(<div className='search-container'>
+                  this.withTokenCheck(<div className='page'>
                     <Searches
                       server={applicationState.server}
                       {...props}
@@ -262,8 +262,8 @@ class App extends Component {
                 <Route path={`${urlBase}/users`} render={(props) => this.withTokenCheck(<Users {...props}/>)}/>
                 <Route path={`${urlBase}/chat`} render={(props) => this.withTokenCheck(<Chat {...props}/>)}/>
                 <Route path={`${urlBase}/rooms`} render={(props) => this.withTokenCheck(<Rooms {...props}/>)}/>
-                <Route path={`${urlBase}/uploads`} render={(props) => this.withTokenCheck(<Transfers {...props} direction='upload'/>)}/>
-                <Route path={`${urlBase}/downloads`} render={(props) => this.withTokenCheck(<Transfers {...props} direction='download'/>)}/>
+                <Route path={`${urlBase}/uploads`} render={(props) => this.withTokenCheck(<div className='page'><Transfers {...props} direction='upload'/></div>)}/>
+                <Route path={`${urlBase}/downloads`} render={(props) => this.withTokenCheck(<div className='page'><Transfers {...props} direction='download'/></div>)}/>
                 <Route path={`${urlBase}/system/:tab?`} render={(props) => this.withTokenCheck(<System {...props} state={applicationState} options={applicationOptions}/>)}/>
                 <Redirect from='*' to={`${urlBase}/searches`}/>
               </Switch>
