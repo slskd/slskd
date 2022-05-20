@@ -1,0 +1,40 @@
+.transfers-header-segment {
+  margin-top: 15px !important;
+  height: 78px !important;
+}
+
+.transfers-header-action-button {
+  float: right;
+  margin-top: -48px !important;
+}
+
+.transfer-button {
+  color: black;
+}
+
+.transfer-card {
+  width: 100% !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+.transfer-segment {
+  margin-top: 16px;
+  padding-left: 15px;
+  padding-right: 15px;
+}
+
+.transfer-placeholder {
+  font-weight: 100;
+  text-align: center;
+  margin-top: 50px !important;
+}
+
+.transferlist-size {
+  width: 150px;
+  min-width: 150px;
+}
+
+.transferlist-filename {
+  word-wrap: break-word !important;
+}
