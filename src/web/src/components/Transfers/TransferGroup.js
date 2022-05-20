@@ -149,7 +149,7 @@ class TransferGroup extends Component {
                         {(allRetryable || anyCancellable) && allRemovable && <Button.Or/>}
                         {allRemovable && 
                         <Button 
-                            icon='delete'
+                            icon='trash alternate'
                             content={`Remove${all}`}
                             onClick={() => this.removeAll(direction, user.username, selected)}
                         />}
