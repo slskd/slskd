@@ -59,9 +59,6 @@ jobs:
           - "linux-musl-x64"
           - "linux-musl-arm"
           - "linux-musl-arm64"
-          - "unix-x64"
-          - "unix-arm"
-          - "unix-arm64"
           - "osx-x64"
           - "osx-arm64"
     steps:
@@ -204,9 +201,6 @@ jobs:
           - "linux-musl-x64"
           - "linux-musl-arm"
           - "linux-musl-arm64"
-          - "unix-x64"
-          - "unix-arm"
-          - "unix-arm64"
           - "osx-x64"
           - "osx-arm64"
     steps:
