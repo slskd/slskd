@@ -49,19 +49,19 @@ jobs:
     if: github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/')
     strategy:
       matrix:
-        runtime: 
-          - "win-x86"
+        runtime:
           - "win-x64"
           - "win-arm"
           - "win-arm64"
-          - "linux-x86"
           - "linux-x64"
           - "linux-arm"
           - "linux-arm64"
-          - "linux-musl-x86"
           - "linux-musl-x64"
           - "linux-musl-arm"
           - "linux-musl-arm64"
+          - "unix-x64"
+          - "unix-arm"
+          - "unix-arm64"
           - "osx-x64"
           - "osx-arm64"
     steps:
@@ -194,19 +194,19 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
     strategy:
       matrix:
-        runtime: 
-          - "win-x86"
+        runtime:
           - "win-x64"
           - "win-arm"
           - "win-arm64"
-          - "linux-x86"
           - "linux-x64"
           - "linux-arm"
           - "linux-arm64"
-          - "linux-musl-x86"
           - "linux-musl-x64"
           - "linux-musl-arm"
           - "linux-musl-arm64"
+          - "unix-x64"
+          - "unix-arm"
+          - "unix-arm64"
           - "osx-x64"
           - "osx-arm64"
     steps:
@@ -232,18 +232,18 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
-            slskd-${{ env.TAG }}-win-x86.zip
             slskd-${{ env.TAG }}-win-x64.zip
             slskd-${{ env.TAG }}-win-arm.zip
             slskd-${{ env.TAG }}-win-arm64.zip
-            slskd-${{ env.TAG }}-linux-x86.zip
             slskd-${{ env.TAG }}-linux-x64.zip
             slskd-${{ env.TAG }}-linux-arm.zip
             slskd-${{ env.TAG }}-linux-arm64.zip
-            slskd-${{ env.TAG }}-linux-musl-x86.zip
             slskd-${{ env.TAG }}-linux-musl-x64.zip
             slskd-${{ env.TAG }}-linux-musl-arm.zip
             slskd-${{ env.TAG }}-linux-musl-arm64.zip
+            slskd-${{ env.TAG }}-unix-x64.zip
+            slskd-${{ env.TAG }}-unix-arm.zip
+            slskd-${{ env.TAG }}-unix-arm64.zip
             slskd-${{ env.TAG }}-osx-x64.zip
             slskd-${{ env.TAG }}-osx-arm64.zip
         env:
