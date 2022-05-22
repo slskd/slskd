@@ -1,5 +1,5 @@
 import React from 'react';
-import { useRouteMatch, useHistory, Redirect } from "react-router-dom";
+import { useRouteMatch, useHistory, Redirect } from 'react-router-dom';
 
 import { Segment, Tab } from 'semantic-ui-react';
 
@@ -15,7 +15,10 @@ const System = ({ state = {}, options = {} }) => {
 
   const panes = [
     { route: 'info', menuItem: 'Info', render: () => <Tab.Pane><Info state={state}/></Tab.Pane> },
-    { route: 'options', menuItem: 'Options', render: () => <Tab.Pane className='full-height'><Options options={options}/></Tab.Pane> },
+    {
+      route: 'options', menuItem: 'Options', render: () =>
+        <Tab.Pane className='full-height'><Options options={options} /></Tab.Pane>,
+    },
     { route: 'logs', menuItem: 'Logs', render: () => <Tab.Pane><Logs/></Tab.Pane> },
   ]
 

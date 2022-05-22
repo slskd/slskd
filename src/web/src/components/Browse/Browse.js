@@ -30,8 +30,8 @@ const initialState = {
     directories: 0,
     files: 0,
     lockedDirectories: 0,
-    lockedFiles: 0
-  }
+    lockedFiles: 0,
+  },
 };
 
 class Browse extends Component {
@@ -59,8 +59,8 @@ class Browse extends Component {
               directories: directoryCount,
               files: fileCount,
               lockedDirectories: lockedDirectoryCount,
-              lockedFiles: lockedFileCount
-            }
+              lockedFiles: lockedFileCount,
+            },
           });
         })
         .then(() => this.setState({ browseState: 'complete', browseError: undefined }, () => {
@@ -95,23 +95,24 @@ class Browse extends Component {
   }
 
   loadState = () => {
-    this.setState(JSON.parse(lzString.decompress(localStorage.getItem('soulseek-example-browse-state') || '')) || initialState);
+    this.setState(
+      JSON.parse(lzString.decompress(localStorage.getItem('soulseek-example-browse-state') || '')) || initialState);
   }
 
   componentDidMount = () => {
     this.fetchStatus();
     this.loadState();
     this.setState({ 
-      interval: window.setInterval(this.fetchStatus, 500)
+      interval: window.setInterval(this.fetchStatus, 500),
     }, () => this.saveState());
     
-    document.addEventListener("keyup", this.keyUp, false);
+    document.addEventListener('keyup', this.keyUp, false);
   }
   
   componentWillUnmount = () => {
     clearInterval(this.state.interval);
     this.setState({ interval: undefined });
-    document.removeEventListener("keyup", this.keyUp, false);
+    document.removeEventListener('keyup', this.keyUp, false);
   }
 
   fetchStatus = () => {
@@ -119,7 +120,7 @@ class Browse extends Component {
     if (browseState === 'pending') {
       users.getBrowseStatus({ username })
         .then(response => this.setState({
-          browseStatus: response.data
+          browseStatus: response.data,
         }));
     }
   }
@@ -164,7 +165,8 @@ class Browse extends Component {
 
     const emptyTree = !(tree && tree.length > 0);
 
-    const files = (selectedDirectory.files || []).map(f => ({ ...f, filename: `${name}${this.sep(name)}${f.filename}`}));
+    const files = (selectedDirectory.files || [])
+      .map(f => ({ ...f, filename: `${name}${this.sep(name)}${f.filename}` }));
 
     return (
       <div className='search-container'>
@@ -177,7 +179,9 @@ class Browse extends Component {
             disabled={pending}
             className='search-input'
             placeholder="Username"
-            action={!pending && (browseState === 'idle' ? { icon: 'search', onClick: this.browse } : { icon: 'x', color: 'red', onClick: this.clear })}
+            action={!pending && (browseState === 'idle'
+              ? { icon: 'search', onClick: this.browse }
+              : { icon: 'x', color: 'red', onClick: this.clear })}
             onKeyUp={(e) => e.key === 'Enter' ? this.browse() : ''}
           />
         </Segment>
@@ -190,42 +194,44 @@ class Browse extends Component {
           >
             Downloaded {Math.round(browseStatus.percentComplete || 0)}% of Response
           </Loader>
-        : 
+          : 
           <div>
             {browseError ? 
               <span className='browse-error'>Failed to browse {username}</span> :
               <div className='browse-container'>
                 {emptyTree ? 
-                <PlaceholderSegment icon='folder open'/> : 
-                <Card className='browse-tree-card' raised>
-                  <Card.Content>
-                    <Card.Header>
+                  <PlaceholderSegment icon='folder open'/> : 
+                  <Card className='browse-tree-card' raised>
+                    <Card.Content>
+                      <Card.Header>
                         <Icon name='circle' color='green'/>
                         {username}
-                    </Card.Header>
-                    <Card.Meta className='browse-meta'>
-                        <span>{`${info.files + info.lockedFiles} files in ${info.directories + info.lockedDirectories} directories (including ${info.lockedFiles} files in ${info.lockedDirectories} locked directories)`}</span>
-                    </Card.Meta>
-                    <Segment className='browse-folderlist'>
-                      <DirectoryTree 
-                        tree={tree} 
-                        selectedDirectoryName={name}
-                        onSelect={(_, value) => this.selectDirectory(value)}
-                      />
-                    </Segment>
-                  </Card.Content>
-                </Card>}
+                      </Card.Header>
+                      <Card.Meta className='browse-meta'>
+                        <span>
+                          {`${info.files + info.lockedFiles} files in ${info.directories + info.lockedDirectories} directories (including ${info.lockedFiles} files in ${info.lockedDirectories} locked directories)`} {/* eslint-disable-line max-len */}
+                        </span>
+                      </Card.Meta>
+                      <Segment className='browse-folderlist'>
+                        <DirectoryTree 
+                          tree={tree} 
+                          selectedDirectoryName={name}
+                          onSelect={(_, value) => this.selectDirectory(value)}
+                        />
+                      </Segment>
+                    </Card.Content>
+                  </Card>}
                 {name && <Directory
-                    marginTop={-20}
-                    name={name}
-                    locked={locked}
-                    files={files}
-                    username={username}
-                    onClose={this.deselectDirectory}
+                  marginTop={-20}
+                  name={name}
+                  locked={locked}
+                  files={files}
+                  username={username}
+                  onClose={this.deselectDirectory}
                 />}
               </div>
             }
-        </div>}
+          </div>}
       </div>
     )
   }

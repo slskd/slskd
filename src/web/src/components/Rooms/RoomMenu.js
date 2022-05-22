@@ -2,7 +2,7 @@ import React from 'react';
 import './Rooms.css';
 
 import {
-  Icon, Button, Menu
+  Icon, Button, Menu,
 } from 'semantic-ui-react';
 import RoomJoinModal from './RoomJoinModal';
 

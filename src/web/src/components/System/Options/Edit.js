@@ -74,7 +74,8 @@ const Edit = ({ cancelAction }) => {
           onChange={(value) => update(value)}
         />
       </div>
-      {(yamlError || updateError) && <Message className='no-grow' negative><Icon name='x'/>{(yamlError ?? '') + (updateError ?? '')}</Message>}
+      {(yamlError || updateError) &&
+        <Message className='no-grow' negative><Icon name='x' />{(yamlError ?? '') + (updateError ?? '')}</Message>}
       <div className='footer-buttons'>
         <Button primary disabled={!isDirty} onClick={() => save(yaml)}><Icon name='save'/>Save</Button>
         <Button negative onClick={() => cancelAction()}><Icon name='close'/>Cancel</Button>

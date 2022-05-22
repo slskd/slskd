@@ -3,7 +3,7 @@ import {
   Item,
   Segment,
   Loader,
-  Input
+  Input,
 } from 'semantic-ui-react';
 
 import User from './User';
@@ -21,7 +21,7 @@ const Users = (props) => {
   const [{ fetching, error }, setStatus] = useState({ fetching: false, error: undefined });
 
   useEffect(() => {
-    document.addEventListener("keyup", keyUp, false);
+    document.addEventListener('keyup', keyUp, false);
 
     const storedUsername = localStorage.getItem(activeUserInfoKey);
 
@@ -47,7 +47,7 @@ const Users = (props) => {
         const [info, status, endpoint] = await Promise.all([
           users.getInfo({ username: selectedUsername }),
           users.getStatus({ username: selectedUsername }),
-          users.getEndpoint({ username: selectedUsername })
+          users.getEndpoint({ username: selectedUsername }),
         ]);
       
         localStorage.setItem(activeUserInfoKey, selectedUsername);
@@ -83,7 +83,8 @@ const Users = (props) => {
     <div className='users-container'>
       <Segment className='users-selection' raised>
         <Input
-          input={<input placeholder="Username" type="search" data-lpignore="true" disabled={!!user || fetching}></input>}
+          input={
+            <input placeholder="Username" type="search" data-lpignore="true" disabled={!!user || fetching}></input>}
           size='big'
           loading={fetching}
           disabled={fetching}
@@ -91,7 +92,9 @@ const Users = (props) => {
           className='users-input'
           placeholder="Username"
           onChange={(e) => setUsernameInput(e.target.value)}
-          action={!fetching && (!user ? { icon: 'search', onClick: () => setSelectedUsername(usernameInput) } : { icon: 'x', color: 'red', onClick: clear })}
+          action={!fetching && (!user
+            ? { icon: 'search', onClick: () => setSelectedUsername(usernameInput) }
+            : { icon: 'x', color: 'red', onClick: clear })}
           onKeyUp={(e) => e.key === 'Enter' ? setSelectedUsername(usernameInput) : ''}
         />
       </Segment>

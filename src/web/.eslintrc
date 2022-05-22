@@ -1,0 +1,30 @@
+{
+  "env": {
+    "browser": true,
+    "jest": true,
+    "es6": true
+  },
+  "plugins": ["import"],
+  "extends": ["eslint:recommended", "react-app"],
+  "parserOptions": {
+    "ecmaVersion": "latest"
+  },
+  "rules": {
+    "max-len": ["warn", 120],
+    "quotes": ["warn", "single"],
+    "indent": ["warn", 2],
+    "comma-dangle": ["warn", {
+      "arrays": "always-multiline",
+      "objects": "always-multiline",
+      "imports": "always-multiline",
+      "exports": "always-multiline",
+      "functions": "never"
+    }],
+    "camelcase": "warn",
+    "import/first": "warn",
+    "prefer-destructuring": ["warn"],
+    "no-await-in-loop": "error",
+    "require-atomic-updates": "error",
+    "curly": ["warn", "multi-line"]
+  }
+}

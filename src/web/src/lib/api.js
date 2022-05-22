@@ -5,19 +5,19 @@ import * as session from './session';
 axios.defaults.baseURL = apiBaseUrl;
 
 const api = axios.create({
-  withCredentials: true
+  withCredentials: true,
 });
 
 api.interceptors.request.use(config => {
-    const token = session.getToken();
+  const token = session.getToken();
 
-    config.headers['Content-Type'] = 'application/json';
+  config.headers['Content-Type'] = 'application/json';
 
-    if (!session.isPassthroughEnabled() && token) {
-        config.headers.Authorization = 'Bearer ' + token;
-    }
+  if (!session.isPassthroughEnabled() && token) {
+    config.headers.Authorization = 'Bearer ' + token;
+  }
 
-    return config;
+  return config;
 });
 
 api.interceptors.response.use(response => {
@@ -31,7 +31,7 @@ api.interceptors.response.use(response => {
     return Promise.reject(error);
   } 
   else {
-      return Promise.reject(error);
+    return Promise.reject(error);
   }
 });
 

@@ -9,13 +9,13 @@ const activeRoomKey = 'slskd-active-room';
 const activeUserInfoKey = 'slskd-active-user';
 
 export {
-    urlBase,
-    rootUrl,
-    apiBaseUrl,
-    hubBaseUrl,
-    tokenKey,
-    tokenPassthroughValue,
-    activeChatKey,
-    activeRoomKey,
-    activeUserInfoKey,
+  urlBase,
+  rootUrl,
+  apiBaseUrl,
+  hubBaseUrl,
+  tokenKey,
+  tokenPassthroughValue,
+  activeChatKey,
+  activeRoomKey,
+  activeUserInfoKey,
 };
