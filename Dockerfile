@@ -31,7 +31,7 @@ RUN bash ./bin/build --dotnet-only --version $VERSION
 RUN bash ./bin/publish --no-prebuild --platform $TARGETPLATFORM --version $VERSION --output ../../dist/${TARGETPLATFORM}
 
 # application
-FROM mcr.microsoft.com/dotnet/runtime-deps:6.0-jammy AS slskd
+FROM mcr.microsoft.com/dotnet/runtime-deps:6.0-bullseye-slim AS slskd
 ARG TARGETPLATFORM
 ARG TAG=0.0.1
 ARG VERSION=0.0.1.65534-local
