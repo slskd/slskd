@@ -9,7 +9,18 @@ import {
 } from 'semantic-ui-react';
 import SearchStatusIcon from '../SearchStatusIcon';
 
-const SearchDetailHeader = ({ search, loading, loaded, creating, removing, stopping, disabled, onCreate, onStop, onRemove }) => {
+const SearchDetailHeader = ({
+  search,
+  loading,
+  loaded,
+  creating,
+  removing,
+  stopping,
+  disabled,
+  onCreate,
+  onStop,
+  onRemove,
+}) => {
   const isSmallScreen = useMediaQuery({ query: '(max-width: 899px)' });
   const isTinyScreen = useMediaQuery({ query: '(max-width: 684px)'});
 

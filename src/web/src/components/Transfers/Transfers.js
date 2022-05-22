@@ -22,7 +22,7 @@ class Transfers extends Component {
       try {
         const response = await transfers.getAll({ direction: this.props.direction })
         this.setState({ 
-            fetchState: 'complete', downloads: response
+          fetchState: 'complete', downloads: response,
         })
       } catch (err) {
         this.setState({ fetchState: 'failed' })
@@ -36,12 +36,12 @@ class Transfers extends Component {
 
     return (
       downloads.length === 0 ? 
-      <PlaceholderSegment icon={direction}/> :
-      <div className='transfer-segment'>
-        {downloads.map((user, index) => 
-          <TransferGroup key={index} direction={this.props.direction} user={user}/>
-        )}
-      </div>
+        <PlaceholderSegment icon={direction}/> :
+        <div className='transfer-segment'>
+          {downloads.map((user, index) => 
+            <TransferGroup key={index} direction={this.props.direction} user={user}/>
+          )}
+        </div>
     );
   }
 }

@@ -18,7 +18,7 @@ import SearchDetailHeader from './SearchDetailHeader';
 
 const sortDropdownOptions = [
   { key: 'uploadSpeed', text: 'Upload Speed (Fastest to Slowest)', value: 'uploadSpeed' },
-  { key: 'queueLength', text: 'Queue Depth (Least to Most)', value: 'queueLength' }
+  { key: 'queueLength', text: 'Queue Depth (Least to Most)', value: 'queueLength' },
 ];
 
 const SearchDetail = ({ search, creating, stopping, removing, disabled, onCreate, onStop, onRemove }) => {
@@ -68,7 +68,7 @@ const SearchDetail = ({ search, creating, stopping, removing, disabled, onCreate
   const sortedAndFilteredResults = useMemo(() => {
     const sortOptions = {
       uploadSpeed: { field: 'uploadSpeed', order: 'desc' },
-      queueLength: { field: 'queueLength', order: 'asc' }
+      queueLength: { field: 'queueLength', order: 'asc' },
     }
 
     const { field, order } = sortOptions[resultSort];
@@ -141,8 +141,11 @@ const SearchDetail = ({ search, creating, stopping, removing, disabled, onCreate
       <Switch 
         searching={!isComplete && 
           <LoaderSegment>
-            {state === 'InProgress' ? `Found ${fileCount} files ${lockedFileCount > 0 ? `(plus ${lockedFileCount} locked) ` : ''}from ${responseCount} users`
-            : 'Loading results...'}
+            {state === 'InProgress'
+              ? `Found ${fileCount} files ${lockedFileCount > 0
+                ? `(plus ${lockedFileCount} locked) `
+                : ''}from ${responseCount} users`
+              : 'Loading results...'}
           </LoaderSegment>
         }
         loading={loading && <LoaderSegment/>}
@@ -184,7 +187,10 @@ const SearchDetail = ({ search, creating, stopping, removing, disabled, onCreate
             </div>
             <Input 
               className='search-filter'
-              placeholder='lackluster container -bothersome iscbr|isvbr islossless|islossy minbitrate:320 minfilesize:10 minfilesinfolder:8 minlength:5000'
+              placeholder='
+                lackluster container -bothersome iscbr|isvbr islossless|islossy 
+                minbitrate:320 minfilesize:10 minfilesinfolder:8 minlength:5000
+              '
               label={{ icon: 'filter', content: 'Filter' }}
               value={resultFilters}
               onChange={(e, data) => setResultFilters(data.value)}
@@ -204,10 +210,14 @@ const SearchDetail = ({ search, creating, stopping, removing, disabled, onCreate
         {loaded && (remainingCount > 0 ?
           <Button className='showmore-button' size='large' fluid primary
             onClick={() => setDisplayCount(displayCount + 5)}>
-              Show {remainingCount > 5 ? 5 : remainingCount} More Results {`(${remainingCount} remaining, ${filteredCount} hidden by filter(s))`}
+            Show {remainingCount > 5
+              ? 5
+              : remainingCount} More Results {`(${remainingCount} remaining, ${filteredCount} hidden by filter(s))`}
           </Button>
           : filteredCount > 0 ? 
-            <Button className='showmore-button' size='large' fluid disabled>{`All results shown. ${filteredCount} results hidden by filter(s)`}</Button> : '')}
+            <Button className='showmore-button' size='large' fluid disabled>{
+              `All results shown. ${filteredCount} results hidden by filter(s)`
+            }</Button> : '')}
       </Switch>
     </>
   )

@@ -13,13 +13,13 @@ const initialState = {
   joined: [],
   room: {
     messages: [],
-    users: []
+    users: [],
   },
   intervals: {
     rooms: undefined,
-    messages: undefined
+    messages: undefined,
   },
-  loading: false
+  loading: false,
 }
 
 class Rooms extends Component {
@@ -31,9 +31,9 @@ class Rooms extends Component {
     this.setState({ 
       intervals: {
         rooms: window.setInterval(this.fetchJoinedRooms, 500),
-        messages: window.setInterval(this.fetchActiveRoom, 1000)
+        messages: window.setInterval(this.fetchActiveRoom, 1000),
       },
-      active: sessionStorage.getItem(activeRoomKey) || ''
+      active: sessionStorage.getItem(activeRoomKey) || '',
     }, async () => {
       await this.fetchJoinedRooms();
       this.selectRoom(this.state.active || this.getFirstRoom())
@@ -54,9 +54,9 @@ class Rooms extends Component {
   }
 
   fetchJoinedRooms = async () => {
-    const joined = await rooms.getJoined();;
+    const joined = await rooms.getJoined();
     this.setState({
-      joined
+      joined,
     }, () => {
       if (!this.state.joined.includes(this.state.active)) {
         this.selectRoom(this.getFirstRoom());
@@ -75,8 +75,8 @@ class Rooms extends Component {
     this.setState({
       room: {
         users,
-        messages
-      }
+        messages,
+      },
     });
   };
 
@@ -84,7 +84,7 @@ class Rooms extends Component {
     this.setState({ 
       active: roomName, 
       room: initialState.room,
-      loading: true
+      loading: true,
     }, async () => {
       const { active } = this.state;
 
@@ -94,7 +94,9 @@ class Rooms extends Component {
       this.setState({ loading: false }, () => {
         try {
           this.listRef.current.lastChild.scrollIntoView();
-        } catch {}
+        } catch {
+          // no-op
+        }
       });
     });
   };
@@ -111,7 +113,9 @@ class Rooms extends Component {
     this.selectRoom(this.getFirstRoom());
   };
 
-  validInput = () => (this.state.active || '').length > 0 && ((this.messageRef && this.messageRef.current && this.messageRef.current.value) || '').length > 0;
+  validInput = () =>
+    (this.state.active || '').length > 0
+    && ((this.messageRef && this.messageRef.current && this.messageRef.current.value) || '').length > 0;
   
   focusInput = () => {
     this.messageRef.current.focus();
@@ -120,10 +124,10 @@ class Rooms extends Component {
   formatTimestamp = (timestamp) => {
     const date = new Date(timestamp);
     const dtfUS = new Intl.DateTimeFormat('en', { 
-        month: 'numeric', 
-        day: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit'
+      month: 'numeric', 
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
     });
 
     return dtfUS.format(date);
@@ -155,65 +159,66 @@ class Rooms extends Component {
           />
         </Segment>
         {!active ? 
-        <PlaceholderSegment icon='comments'/> :
-        <Card className='room-active-card' raised>
-          <Card.Content onClick={() => this.focusInput()}>
-            <Card.Header>
-              <Icon name='circle' color='green'/>
-              {active}
-              <Icon 
+          <PlaceholderSegment icon='comments'/> :
+          <Card className='room-active-card' raised>
+            <Card.Content onClick={() => this.focusInput()}>
+              <Card.Header>
+                <Icon name='circle' color='green'/>
+                {active}
+                <Icon 
                   className='close-button' 
                   name='close' 
                   color='red' 
                   link
                   onClick={() => this.leaveRoom(active)}
-              />
-            </Card.Header>
-            <div className='room'>
-            {loading ? <Dimmer active inverted><Loader inverted/></Dimmer> : <>
-              <Segment.Group>
-                <Segment className='room-history'>
-                  <Ref innerRef={this.listRef}>
-                    <List>
-                      {room.messages.map((message, index) =>
-                        <List.Content
-                          key={index}
-                          className={`room-message ${!!message.self ? 'room-message-self' : ''}`}
-                        >
-                          <span className='room-message-time'>{this.formatTimestamp(message.timestamp)}</span>
-                          <span className='room-message-name'>{message.username}: </span>
-                          <span className='room-message-message'>{message.message}</span>
-                        </List.Content>
-                      )}
-                      <List.Content id='room-history-scroll-anchor'/>
-                    </List>
-                  </Ref>
-                </Segment>
-                <Segment className='room-input'>
-                  <Input
-                    fluid
-                    transparent
-                    input={<input id='room-message-input' type="text" data-lpignore="true" autoComplete="off"></input>}
-                    ref={input => this.messageRef = input && input.inputRef}
-                    action={{
-                        icon: <Icon name='send' color='green'/>,
-                        className: 'room-message-button', onClick: this.sendMessage,
-                        disabled: !this.validInput()
-                    }}
-                    onKeyUp={(e) => e.key === 'Enter' ? this.sendMessage() : ''}
-                  />
-                </Segment>
-              </Segment.Group>
-              <Segment className='room-users'>
-                <RoomUserList users={room.users}/>
-              </Segment>
-              </>}
-            </div>
-          </Card.Content>
-        </Card>}
+                />
+              </Card.Header>
+              <div className='room'>
+                {loading ? <Dimmer active inverted><Loader inverted/></Dimmer> : <>
+                  <Segment.Group>
+                    <Segment className='room-history'>
+                      <Ref innerRef={this.listRef}>
+                        <List>
+                          {room.messages.map((message, index) =>
+                            <List.Content
+                              key={index}
+                              className={`room-message ${message.self ? 'room-message-self' : ''}`}
+                            >
+                              <span className='room-message-time'>{this.formatTimestamp(message.timestamp)}</span>
+                              <span className='room-message-name'>{message.username}: </span>
+                              <span className='room-message-message'>{message.message}</span>
+                            </List.Content>
+                          )}
+                          <List.Content id='room-history-scroll-anchor'/>
+                        </List>
+                      </Ref>
+                    </Segment>
+                    <Segment className='room-input'>
+                      <Input
+                        fluid
+                        transparent
+                        input={
+                          <input id='room-message-input' type="text" data-lpignore="true" autoComplete="off"></input>}
+                        ref={input => this.messageRef = input && input.inputRef}
+                        action={{
+                          icon: <Icon name='send' color='green'/>,
+                          className: 'room-message-button', onClick: this.sendMessage,
+                          disabled: !this.validInput(),
+                        }}
+                        onKeyUp={(e) => e.key === 'Enter' ? this.sendMessage() : ''}
+                      />
+                    </Segment>
+                  </Segment.Group>
+                  <Segment className='room-users'>
+                    <RoomUserList users={room.users}/>
+                  </Segment>
+                </>}
+              </div>
+            </Card.Content>
+          </Card>}
       </div>
     )
   };
-};
+}
 
 export default Rooms;

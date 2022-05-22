@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import './Rooms.css';
 
 import {
-  Icon, Flag, List, Popup
+  Icon, Flag, List, Popup,
 } from 'semantic-ui-react';
 
 const RoomUserList = ({ users }) => {

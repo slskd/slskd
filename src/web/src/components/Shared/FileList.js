@@ -3,11 +3,11 @@ import React from 'react';
 import { formatSeconds, formatBytes, getFileName, formatAttributes } from '../../lib/util';
 
 import { 
-    Header, 
-    Table, 
-    Icon, 
-    List, 
-    Checkbox
+  Header, 
+  Table, 
+  Icon, 
+  List, 
+  Checkbox,
 } from 'semantic-ui-react';
 
 const FileList = ({ directoryName, files, locked, onSelectionChange, disabled, onClose }) => (
@@ -18,15 +18,15 @@ const FileList = ({ directoryName, files, locked, onSelectionChange, disabled, o
     >
       <div>
         <Icon size='large' name={locked ? 'lock' : 'folder'}/>
-          {directoryName}
+        {directoryName}
      
         {!!onClose && <Icon 
-            className='close-button' 
-            name='close' 
-            color='red'
-            link
-            onClick={() => onClose()}
-          />}
+          className='close-button' 
+          name='close' 
+          color='red'
+          link
+          onClick={() => onClose()}
+        />}
       </div>
     </Header>
     {files && files.length > 0 && <List>
@@ -59,7 +59,9 @@ const FileList = ({ directoryName, files, locked, onSelectionChange, disabled, o
                     disabled={disabled}
                   />
                 </Table.Cell>
-                <Table.Cell className='filelist-filename'>{locked ? <Icon name='lock'/> : ''}{getFileName(f.filename)}</Table.Cell>
+                <Table.Cell className='filelist-filename'>
+                  {locked ? <Icon name='lock' /> : ''}{getFileName(f.filename)}
+                </Table.Cell>
                 <Table.Cell className='filelist-size'>{formatBytes(f.size)}</Table.Cell>
                 <Table.Cell className='filelist-attributes'>{formatAttributes(f)}</Table.Cell>
                 <Table.Cell className='filelist-length'>{formatSeconds(f.length)}</Table.Cell>

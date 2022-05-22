@@ -6,7 +6,7 @@ import Logos from './Shared/Logo';
 const initialState = {
   username: '',
   password: '',
-  rememberMe: true
+  rememberMe: true,
 }
 
 const LoginForm = ({ onLoginAttempt, loading, error }) => {
@@ -40,9 +40,9 @@ const LoginForm = ({ onLoginAttempt, loading, error }) => {
             fontFamily: 'monospace',
             lineHeight: 1.1,
             fontSize: 'inherit',
-            letterSpacing: -1
+            letterSpacing: -1,
           }}>
-          {logo}
+            {logo}
           </Header>
           <Form size='large'>
             <Segment raised>

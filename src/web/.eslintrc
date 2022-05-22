@@ -11,7 +11,7 @@
   },
   "rules": {
     "max-len": ["warn", 120],
-    "quotes": ["warn", "double"],
+    "quotes": ["warn", "single"],
     "indent": ["warn", 2],
     "comma-dangle": ["warn", {
       "arrays": "always-multiline",

@@ -13,7 +13,7 @@ export const remove = ({ id }) => {
 }
 
 export const create = ({ id, searchText }) => {
-  return api.post(`/searches`, { id, searchText });
+  return api.post('/searches', { id, searchText });
 };
 
 export const getStatus = async ({ id, includeResponses = false }) => {
@@ -64,7 +64,8 @@ export const parseFiltersFromString = (string) => {
   filters.isLossy = !!string.match(/islossy/i);
 
   let terms = string.toLowerCase().split(' ')
-    .filter(term => !term.includes(':') && term !== 'isvbr' && term !== 'iscbr' && term !== 'islossless' && term !== 'islossy');
+    .filter(term =>
+      !term.includes(':') && term !== 'isvbr' && term !== 'iscbr' && term !== 'islossless' && term !== 'islossy');
 
   filters.include = terms.filter(term => !term.startsWith('-'));
   filters.exclude = terms.filter(term => term.startsWith('-')).map(term => term.slice(1));
@@ -86,8 +87,8 @@ export const filterResponse = ({
   },
   response = { 
     files: [],
-    lockedFiles: []
-  } 
+    lockedFiles: [],
+  }, 
 }) => {
   let { files = [], lockedFiles = [] } = response;
 
@@ -97,7 +98,11 @@ export const filterResponse = ({
 
   const filterFiles = (files) => files.filter(file => {
     const { bitRate, size, length, filename, sampleRate, bitDepth, isVariableBitRate } = file;
-    const { isCBR, isVBR, isLossless, isLossy, minBitRate, minFileSize, minLength, include = [], exclude = [] } = filters;
+    const {
+      isCBR, isVBR, isLossless, isLossy,
+      minBitRate, minFileSize, minLength,
+      include = [], exclude = [],
+    } = filters;
 
     if (isCBR && (isVariableBitRate === undefined || isVariableBitRate)) return false;    
     if (isVBR && (isVariableBitRate === undefined || !isVariableBitRate)) return false;
@@ -107,7 +112,10 @@ export const filterResponse = ({
     if (size < minFileSize) return false;
     if (length < minLength) return false;
 
-    if (include.length > 0 && include.filter(term => filename.toLowerCase().includes(term)).length !== include.length) return false;
+    if (include.length > 0 && include.filter(term => filename.toLowerCase().includes(term)).length !== include.length) {
+      return false;
+    }
+
     if (exclude.length > 0 && exclude.filter(term => filename.toLowerCase().includes(term)).length !== 0) return false;
 
     return true;
@@ -121,6 +129,6 @@ export const filterResponse = ({
     fileCount: filteredFiles.length,
     lockedFileCount: filteredLockedFiles.length,
     files: filteredFiles, 
-    lockedFiles: filteredLockedFiles
+    lockedFiles: filteredLockedFiles,
   };
 };

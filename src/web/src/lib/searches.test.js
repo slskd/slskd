@@ -5,16 +5,16 @@ describe('filterResponse', () => {
     const response = {
       files: [
         { bitRate: 123, isVariableBitRate: true },
-        { bitRate: 320, isVariableBitRate: false }
-      ]
+        { bitRate: 320, isVariableBitRate: false },
+      ],
     };
 
     const filters = { isCBR: true };
 
     expect(search.filterResponse({ response, filters })).toMatchObject({
       files: [
-        { bitRate: 320, isVariableBitRate: false }
-      ]
+        { bitRate: 320, isVariableBitRate: false },
+      ],
     });
   });
 
@@ -22,16 +22,16 @@ describe('filterResponse', () => {
     const response = {
       files: [
         { bitRate: 123, isVariableBitRate: true },
-        { bitRate: 320, isVariableBitRate: false }
-      ]
+        { bitRate: 320, isVariableBitRate: false },
+      ],
     };
 
     const filters = { isVBR: true };
 
     expect(search.filterResponse({ response, filters })).toMatchObject({
       files: [
-        { bitRate: 123, isVariableBitRate: true }
-      ]
+        { bitRate: 123, isVariableBitRate: true },
+      ],
     });
   });
 
@@ -39,14 +39,14 @@ describe('filterResponse', () => {
     const response = {
       files: [
         { isVariableBitrate: true },
-        { isVariableBitrate: false }
-      ]
+        { isVariableBitrate: false },
+      ],
     };
 
     const filters = { isCBR: true, isVBR: true };
 
     expect(search.filterResponse({ response, filters })).toMatchObject({
-      files: []
+      files: [],
     });
   });
 
@@ -54,16 +54,16 @@ describe('filterResponse', () => {
     const response = {
       files: [
         { sampleRate: 41000, bitDepth: 16 },
-        { bitRate: 320, isVariableBitRate: false }
-      ]
+        { bitRate: 320, isVariableBitRate: false },
+      ],
     };
 
     const filters = { isLossless: true };
 
     expect(search.filterResponse({ response, filters })).toMatchObject({
       files: [
-        { sampleRate: 41000, bitDepth: 16 }
-      ]
+        { sampleRate: 41000, bitDepth: 16 },
+      ],
     });
   });
 
@@ -71,16 +71,16 @@ describe('filterResponse', () => {
     const response = {
       files: [
         { sampleRate: 41000, bitDepth: 16 },
-        { bitRate: 320, isVariableBitRate: false }
-      ]
+        { bitRate: 320, isVariableBitRate: false },
+      ],
     };
 
     const filters = { isLossy: true };
 
     expect(search.filterResponse({ response, filters })).toMatchObject({
       files: [
-        { bitRate: 320, isVariableBitRate: false }
-      ]
+        { bitRate: 320, isVariableBitRate: false },
+      ],
     });
   });
 
@@ -88,16 +88,16 @@ describe('filterResponse', () => {
     const response = {
       files: [
         { bitRate: 100 },
-        { bitRate: 99 }
-      ]
+        { bitRate: 99 },
+      ],
     };
 
     const filters = { minBitRate: 100 };
 
     expect(search.filterResponse({ response, filters })).toMatchObject({
       files: [
-        { bitRate: 100 }
-      ]
+        { bitRate: 100 },
+      ],
     });
   });
 
@@ -105,16 +105,16 @@ describe('filterResponse', () => {
     const response = {
       files: [
         { size: 100 },
-        { size: 99 }
-      ]
+        { size: 99 },
+      ],
     };
 
     const filters = { minFileSize: 100 };
 
     expect(search.filterResponse({ response, filters })).toMatchObject({
       files: [
-        { size: 100 }
-      ]
+        { size: 100 },
+      ],
     });
   });
 
@@ -122,16 +122,16 @@ describe('filterResponse', () => {
     const response = {
       files: [
         { length: 100 },
-        { length: 99 }
-      ]
+        { length: 99 },
+      ],
     };
 
     const filters = { minLength: 100 };
 
     expect(search.filterResponse({ response, filters })).toMatchObject({
       files: [
-        { length: 100 }
-      ]
+        { length: 100 },
+      ],
     });
   });
 
@@ -143,8 +143,8 @@ describe('filterResponse', () => {
         { filename: '/path/to/baz.mp3' },
         { filename: '/path/to/qux.mp3' },
         { filename: '/path/to/info.nfo' },
-        { filename: '/path/to/folder.jpg' }
-      ]
+        { filename: '/path/to/folder.jpg' },
+      ],
     };
 
     it('removes files with filenames not containing included phrases', () => {
@@ -153,7 +153,7 @@ describe('filterResponse', () => {
       expect(search.filterResponse({ response, filters })).toMatchObject({
         files: [
           { filename: '/path/to/info.nfo' },
-        ]
+        ],
       });
     });
     
@@ -165,21 +165,21 @@ describe('filterResponse', () => {
           { filename: '/path/to/foo.mp3' },
           { filename: '/path/to/baz.mp3' },
           { filename: '/path/to/info.nfo' },
-        ]
+        ],
       });
     });
   
     it('removes a mix of includes and excludes', () => {
       const filters = { 
         include: ['path', '.mp3'],
-        exclude: ['foo', 'bar'] 
+        exclude: ['foo', 'bar'], 
       };
   
       expect(search.filterResponse({ response, filters })).toMatchObject({
         files: [
           { filename: '/path/to/baz.mp3' },
           { filename: '/path/to/qux.mp3' },
-        ]
+        ],
       });
     });
   });
@@ -188,80 +188,80 @@ describe('filterResponse', () => {
 describe('parseFiltersFromString', () => {
   it('returns correct minBitrate', () => {
     expect(search.parseFiltersFromString('foo minbr:42 bar')).toMatchObject({
-      minBitRate: 42
+      minBitRate: 42,
     });
 
     expect(search.parseFiltersFromString('foo minbitrate:123 bar')).toMatchObject({
-      minBitRate: 123
+      minBitRate: 123,
     });
   });
 
   it('returns correct minFileSize', () => {
     expect(search.parseFiltersFromString('foo minfs:42 bar')).toMatchObject({
-      minFileSize: 42
+      minFileSize: 42,
     });
 
     expect(search.parseFiltersFromString('foo minfilesize:123 bar')).toMatchObject({
-      minFileSize: 123
+      minFileSize: 123,
     });
   });
 
   it('returns correct minLength', () => {
     expect(search.parseFiltersFromString('foo minlen:42 bar')).toMatchObject({
-      minLength: 42
+      minLength: 42,
     });
 
     expect(search.parseFiltersFromString('foo minlength:123 bar')).toMatchObject({
-      minLength: 123
+      minLength: 123,
     });
   });
 
   it('returns correct minFilesInFolder', () => {
     expect(search.parseFiltersFromString('foo minfif:42 bar')).toMatchObject({
-      minFilesInFolder: 42
+      minFilesInFolder: 42,
     });
 
     expect(search.parseFiltersFromString('foo minfilesinfolder:123 bar')).toMatchObject({
-      minFilesInFolder: 123
+      minFilesInFolder: 123,
     });
   });
 
   it('returns correct list of terms', () => {
     expect(search.parseFiltersFromString('foo minbr:42 bar')).toMatchObject({
-      include: [ 'foo', 'bar']
+      include: [ 'foo', 'bar'],
     });
 
     expect(search.parseFiltersFromString('foo iscbr isvbr bar')).toMatchObject({
-      include: [ 'foo', 'bar']
+      include: [ 'foo', 'bar'],
     });
 
     expect(search.parseFiltersFromString('foo some:thing bar')).toMatchObject({
-      include: [ 'foo', 'bar']
+      include: [ 'foo', 'bar'],
     });
 
     expect(search.parseFiltersFromString('foo -bar')).toMatchObject({
       include: [ 'foo' ],
-      exclude: [ 'bar' ]
+      exclude: [ 'bar' ],
     });
 
     expect(search.parseFiltersFromString('-foo -bar -baz qux')).toMatchObject({
       exclude: [ 'foo', 'bar', 'baz' ],
-      include: [ 'qux' ]
+      include: [ 'qux' ],
     });
 
     expect(search.parseFiltersFromString('foo bar baz -qux')).toMatchObject({
       include: [ 'foo', 'bar', 'baz' ],
-      exclude: [ 'qux' ]
+      exclude: [ 'qux' ],
     });
   });
 
   it('returns isVBR and isCBR if terms are present', () => {
     expect(search.parseFiltersFromString('isvbr')).toMatchObject({
-      isVBR: true
+      isVBR: true,
     });
 
     expect(search.parseFiltersFromString('iscbr')).toMatchObject({
-      isCBR: true
+      isCBR: true,
     });
   });
 
@@ -271,7 +271,7 @@ describe('parseFiltersFromString', () => {
       exclude: [ 'mix' ],
       isVBR: true,
       isCBR: true,
-      minBitRate: 42
+      minBitRate: 42,
     });
   });
 });
