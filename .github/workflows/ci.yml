@@ -49,6 +49,7 @@ jobs:
     if: github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/')
     strategy:
       matrix:
+        runtime:
           - "win-x64"
           - "win-arm"
           - "win-arm64"
@@ -193,6 +194,7 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
     strategy:
       matrix:
+        runtime:
           - "win-x64"
           - "win-arm"
           - "win-arm64"
