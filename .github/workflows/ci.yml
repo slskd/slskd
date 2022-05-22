@@ -49,21 +49,21 @@ jobs:
     if: github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/')
     strategy:
       matrix:
-        runtime: [
-          "win-x86",
-          "win-x64",
-          "win-arm",
-          "win-arm64",
-          "linux-x86",
-          "linux-x64",
-          "linux-arm",
-          "linux-arm64",
-          "linux-musl-x86"
-          "linux-musl-x64",
-          "linux-musl-arm",
-          "linux-musl-arm64",
-          "osx-x64",
-          "osx-arm64"]
+        runtime: 
+          - "win-x86"
+          - "win-x64"
+          - "win-arm"
+          - "win-arm64"
+          - "linux-x86"
+          - "linux-x64"
+          - "linux-arm"
+          - "linux-arm64"
+          - "linux-musl-x86"
+          - "linux-musl-x64"
+          - "linux-musl-arm"
+          - "linux-musl-arm64"
+          - "osx-x64"
+          - "osx-arm64"
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -194,21 +194,21 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
     strategy:
       matrix:
-        runtime: [
-          "win-x86",
-          "win-x64",
-          "win-arm",
-          "win-arm64",
-          "linux-x86",
-          "linux-x64",
-          "linux-arm",
-          "linux-arm64",
-          "linux-musl-x86"
-          "linux-musl-x64",
-          "linux-musl-arm",
-          "linux-musl-arm64",
-          "osx-x64",
-          "osx-arm64"]
+        runtime: 
+          - "win-x86"
+          - "win-x64"
+          - "win-arm"
+          - "win-arm64"
+          - "linux-x86"
+          - "linux-x64"
+          - "linux-arm"
+          - "linux-arm64"
+          - "linux-musl-x86"
+          - "linux-musl-x64"
+          - "linux-musl-arm"
+          - "linux-musl-arm64"
+          - "osx-x64"
+          - "osx-arm64"
     steps:
       - name: Checkout
         uses: actions/checkout@v2
