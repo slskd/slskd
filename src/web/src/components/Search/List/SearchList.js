@@ -22,24 +22,13 @@ const SearchList = ({ connecting = false, error = undefined, searches = {}, onRe
   return (
     <Card className='search-list-card' raised>
       <Card.Content>
-        <div style={{marginTop: -20 }}>
+        <div>
           <Switch
             connecting={connecting && <Loader active inline='centered' size='small'/>}
             error={error && <ErrorSegment caption={error} />}
           >
-            <Header size='small' className='filelist-header'>
-              <div>
-                <Icon size='large' name='search'/>
-                Searches
-              </div>
-            </Header>
             <List>
               <List.Item>
-                <Switch
-                  noSearches={!searchCount && 
-                    <Segment basic style={{opacity: .5}} textAlign='center'>No searches to display</Segment>
-                  }
-                >
                 <Table size='large'>
                   <Table.Header>
                     <Table.Row>
@@ -63,7 +52,6 @@ const SearchList = ({ connecting = false, error = undefined, searches = {}, onRe
                       />)}
                   </Table.Body>
                 </Table>
-                </Switch>
               </List.Item>
             </List>
           </Switch>

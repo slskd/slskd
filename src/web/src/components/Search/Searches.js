@@ -15,10 +15,12 @@ import {
   Input,
   Segment,
   Button,
+  Icon,
 } from 'semantic-ui-react';
 
 import SearchDetail from './Detail/SearchDetail';
 import ErrorSegment from '../Shared/ErrorSegment';
+import PlaceholderSegment from '../Shared/PlaceholderSegment';
 
 const Searches = ({ server }) => {
   const [connecting, setConnecting] = useState(true);
@@ -186,6 +188,7 @@ const Searches = ({ server }) => {
   return (
     <>
       <Segment className='search-segment' raised>
+        <div className="search-segment-icon"><Icon name="search" size="big"/></div>
         <Input
           input={<input placeholder={server.isConnected ? 'Search phrase' : 'Connect to server to perform a search'} type="search" data-lpignore="true"></input>}
           size='big'
@@ -201,13 +204,16 @@ const Searches = ({ server }) => {
           onKeyUp={(e) => e.key === 'Enter' ? create() : ''}
         />
       </Segment>
-      <SearchList
-        connecting={connecting}
-        error={error}
-        searches={searches}
-        onRemove={remove}
-        onStop={stop}
-      />
+      {Object.keys(searches).length === 0 
+        ? <PlaceholderSegment icon="search" caption="No searches to display"/>
+        : <SearchList
+            connecting={connecting}
+            error={error}
+            searches={searches}
+            onRemove={remove}
+            onStop={stop}
+          />
+      }
     </>
   )
 };
