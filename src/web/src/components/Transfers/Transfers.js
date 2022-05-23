@@ -39,10 +39,10 @@ class Transfers extends Component {
 
     return (
       <>
-        <TransfersHeader/>
-        {downloads.length === 0 ? 
-        <PlaceholderSegment icon={direction}/> :
-          downloads.map((user, index) => 
+        <TransfersHeader direction={direction} count={downloads.length}/>
+        {downloads.length === 0 
+          ? <PlaceholderSegment icon={direction} caption={`No ${direction}s to display`}/>
+          : downloads.map((user, index) => 
             <TransferGroup key={index} direction={this.props.direction} user={user}/>
           )}
       </>
