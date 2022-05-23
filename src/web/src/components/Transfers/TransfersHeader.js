@@ -25,7 +25,7 @@ const TransfersHeader = ({ direction, count, onRetryAll, onCancelAll, onRemoveAl
             <ShrinkableButton
               icon='redo'
               onClick={onRetryAll}
-              mediaQuery='(max-width: 766px)'
+              mediaQuery='(max-width: 715px)'
               disabled={empty}
             >{`Retry ${retryOption === 'All' ? retryOption : `All ${retryOption}`}`}</ShrinkableButton>
             <Dropdown
@@ -45,7 +45,7 @@ const TransfersHeader = ({ direction, count, onRetryAll, onCancelAll, onRemoveAl
             <ShrinkableButton
               icon='x'
               onClick={onCancelAll}
-              mediaQuery='(max-width: 766px)'
+              mediaQuery='(max-width: 715px)'
               disabled={empty}
             >{`Cancel ${cancelOption === 'All' ? cancelOption : `All ${cancelOption}`}`}</ShrinkableButton>
             <Dropdown
@@ -64,7 +64,7 @@ const TransfersHeader = ({ direction, count, onRetryAll, onCancelAll, onRemoveAl
           <Button.Group>
             <ShrinkableButton
               icon='trash alternate'
-              mediaQuery='(max-width: 766px)'
+              mediaQuery='(max-width: 715px)'
               disabled={empty}
               onClick={onRemoveAll}
             >{`Remove All ${removeOption}`}</ShrinkableButton>
