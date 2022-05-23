@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import './Chat.css';
 
 import {
-  Icon, Button, Modal, Form, Header, Input
+  Icon, Button, Modal, Form, Header, Input,
 } from 'semantic-ui-react';
 
 const usernameRef = React.createRef();
@@ -46,11 +46,11 @@ const SendMessageModal = ({ initiateConversation, ...rest }) => {
       <Modal.Content>
         <Form>
           <Form.Field>
-              <Input
-                ref={usernameRef}
-                placeholder='Username' 
-                onChange={(e, data) => setUsername(data.value)}
-              />
+            <Input
+              ref={usernameRef}
+              placeholder='Username' 
+              onChange={(e, data) => setUsername(data.value)}
+            />
           </Form.Field>
           <Form.Field>
             <Input

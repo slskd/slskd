@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import { Route, Link, Switch, Redirect } from "react-router-dom";
+import { Route, Link, Switch, Redirect } from 'react-router-dom';
 
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -29,7 +29,7 @@ import {
   Modal,
   Header,
   Button,
-  Loader
+  Loader,
 } from 'semantic-ui-react';
 import Rooms from './Rooms/Rooms';
 import ErrorSegment from './Shared/ErrorSegment';
@@ -37,7 +37,7 @@ import ErrorSegment from './Shared/ErrorSegment';
 const initialState = {
   login: {
     pending: false,
-    error: undefined
+    error: undefined,
   },
   applicationState: {},
   applicationOptions: {},
@@ -125,9 +125,15 @@ class App extends Component {
 
     if (error) {
       return <ErrorSegment 
-      suppressPrefix 
-      icon='attention' 
-      caption={<><span>Lost connection to slskd</span><br/><span>{(retriesExhausted ? 'Refresh to reconnect' : 'Retrying...')}</span></>}/>;
+        suppressPrefix 
+        icon='attention' 
+        caption={
+          <>
+            <span>
+            Lost connection to slskd</span><br /><span>{(retriesExhausted ? 'Refresh to reconnect' : 'Retrying...')}
+            </span>
+          </>
+        }/>;
     }
 
     if (!session.isLoggedIn() && !session.isPassthroughEnabled()) {
@@ -218,7 +224,10 @@ class App extends Component {
               >
                 <Modal.Header>New Version!</Modal.Header>
                 <Modal.Content>
-                  <p>You are currently running version <strong>{current}</strong> while version <strong>{latest}</strong> is available.</p>
+                  <p>
+                    You are currently running version <strong>{current}</strong>
+                    while version <strong>{latest}</strong> is available.
+                  </p>
                 </Modal.Content>
                 <Modal.Actions>
                   <Button
@@ -262,9 +271,17 @@ class App extends Component {
                 <Route path={`${urlBase}/users`} render={(props) => this.withTokenCheck(<Users {...props}/>)}/>
                 <Route path={`${urlBase}/chat`} render={(props) => this.withTokenCheck(<Chat {...props}/>)}/>
                 <Route path={`${urlBase}/rooms`} render={(props) => this.withTokenCheck(<Rooms {...props}/>)}/>
-                <Route path={`${urlBase}/uploads`} render={(props) => this.withTokenCheck(<div className='page'><Transfers {...props} direction='upload'/></div>)}/>
-                <Route path={`${urlBase}/downloads`} render={(props) => this.withTokenCheck(<div className='page'><Transfers {...props} direction='download'/></div>)}/>
-                <Route path={`${urlBase}/system/:tab?`} render={(props) => this.withTokenCheck(<System {...props} state={applicationState} options={applicationOptions}/>)}/>
+                <Route path={`${urlBase}/uploads`} render={
+                  (props) => this.withTokenCheck(<Transfers {...props} direction='upload' />)
+                }/>
+                <Route path={`${urlBase}/downloads`} render={
+                  (props) => this.withTokenCheck(<Transfers {...props} direction='download' />)
+                }/>
+                <Route path={`${urlBase}/system/:tab?`} render={
+                  (props) => this.withTokenCheck(
+                    <System {...props} state={applicationState} options={applicationOptions} />
+                  )
+                }/>
                 <Redirect from='*' to={`${urlBase}/searches`}/>
               </Switch>
             </AppContext.Provider>
@@ -284,6 +301,6 @@ class App extends Component {
       </>
     )
   };
-};
+}
 
 export default App;

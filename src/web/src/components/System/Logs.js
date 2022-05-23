@@ -14,7 +14,7 @@ const levels = {
   'Debug': 'DBG',
   'Warning': 'WRN',
   'Error': 'ERR',
-  'Information': 'INF'
+  'Information': 'INF',
 }
 
 const maxLogs = 500;
@@ -42,7 +42,7 @@ class Logs extends Component {
 
   formatTimestamp = (timestamp) => {
     const date = new Date(timestamp);
-    return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}:${date.getSeconds().toString().padStart(2, '0')}`;
+    return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}:${date.getSeconds().toString().padStart(2, '0')}`; // eslint-disable-line max-len
   }
 
   render = () => {
@@ -61,7 +61,13 @@ class Logs extends Component {
               </Table.Row>
             </Table.Header>
             <Table.Body className='logs-table-body'>
-                {logs.map((log, index) => <Table.Row key={index} disabled={log.level === 'Debug'} warning={log.level === 'Warning'} negative={log.level === 'Error'}>
+              {logs.map((log, index) =>
+                <Table.Row
+                  key={index}
+                  disabled={log.level === 'Debug'}
+                  warning={log.level === 'Warning'}
+                  negative={log.level === 'Error'}
+                >
                   <Table.Cell>{this.formatTimestamp(log.timestamp)}</Table.Cell>
                   <Table.Cell>{levels[log.level] || log.level}</Table.Cell>
                   <Table.Cell className='logs-table-message'>{log.message}</Table.Cell>

@@ -97,7 +97,8 @@ const Searches = ({ server }) => {
   // create a new search, and optionally navigate to it to display the details
   // we do this if the user clicks the search icon, or repeats an existing search
   const create = async ({ search, navigate = false } = {}) => {
-    const searchText = search || inputRef.current.inputRef.current.value;
+    const ref = inputRef.current.inputRef.current;
+    const searchText = search || ref.value;
     const id = uuidv4();
     
     try {
@@ -105,7 +106,7 @@ const Searches = ({ server }) => {
       await lib.create({ id, searchText })
       
       try {
-        inputRef.current.inputRef.current.value = '';
+        ref.value = '';
       } catch {
         // we are probably repeating an existing search; the input isn't mounted.  no-op.
       }
@@ -190,7 +191,12 @@ const Searches = ({ server }) => {
       <Segment className='search-segment' raised>
         <div className="search-segment-icon"><Icon name="search" size="big"/></div>
         <Input
-          input={<input placeholder={server.isConnected ? 'Search phrase' : 'Connect to server to perform a search'} type="search" data-lpignore="true"></input>}
+          input={
+            <input
+              placeholder={server.isConnected ? 'Search phrase' : 'Connect to server to perform a search'}
+              type="search"
+              data-lpignore="true"
+            ></input>}
           size='big'
           ref={inputRef}
           loading={creating}
@@ -199,7 +205,11 @@ const Searches = ({ server }) => {
           placeholder="Search phrase"
           action={<>
             <Button icon='plus' disabled={creating || !server.isConnected} onClick={create}/>
-            <Button icon='search' disabled={creating || !server.isConnected} onClick={() => create({ navigate: true })}/>
+            <Button
+              icon='search'
+              disabled={creating || !server.isConnected}
+              onClick={() => create({ navigate: true })}
+            />
           </>}
           onKeyUp={(e) => e.key === 'Enter' ? create() : ''}
         />

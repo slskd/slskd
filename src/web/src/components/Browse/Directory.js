@@ -9,18 +9,18 @@ import {
   Button, 
   Card, 
   Icon,
-  Label
+  Label,
 } from 'semantic-ui-react';
 
 const initialState = {
   downloadRequest: undefined,
-  downloadError: ''
+  downloadError: '',
 }
 
 class Directory extends Component {
   state = { 
     ...initialState,
-    files: this.props.files.map(f => ({ selected: false, ...f }))
+    files: this.props.files.map(f => ({ selected: false, ...f })),
   }
 
   onFileSelectionChange = (file, state) => {
@@ -31,14 +31,14 @@ class Directory extends Component {
   download = (username, files) => {
     this.setState({ downloadRequest: 'inProgress' }, async () => {
       try {
-          const requests = (files || []).map(({ filename, size }) => ({ filename, size }))
-          await transfers.download({ username, files: requests })
+        const requests = (files || []).map(({ filename, size }) => ({ filename, size }))
+        await transfers.download({ username, files: requests })
 
-          this.setState({ downloadRequest: 'complete' })
+        this.setState({ downloadRequest: 'complete' })
       } catch (err) {
-          this.setState({ downloadRequest: 'error', downloadError: err.response })
+        this.setState({ downloadRequest: 'error', downloadError: err.response })
       }
-  });
+    });
   }
 
   componentDidUpdate = (prevProps) => {
@@ -79,7 +79,7 @@ class Directory extends Component {
               label={{ 
                 as: 'a', 
                 basic: false, 
-                content: `${selectedFiles.length} file${selectedFiles.length === 1 ? '' : 's'}, ${selectedSize}`
+                content: `${selectedFiles.length} file${selectedFiles.length === 1 ? '' : 's'}, ${selectedSize}`,
               }}
               labelPosition='right'
               onClick={() => this.download(username, selectedFiles)}

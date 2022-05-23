@@ -11,10 +11,16 @@ import {
   Loader,
   Segment,
   Header,
-  List
+  List,
 } from 'semantic-ui-react';
 
-const SearchList = ({ connecting = false, error = undefined, searches = {}, onRemove = () => {}, onStop = () => {} }) => {
+const SearchList = ({
+  connecting = false,
+  error = undefined,
+  searches = {},
+  onRemove = () => { },
+  onStop = () => { },
+}) => {
   const searchCount = useMemo(() => {
     return Object.values(searches).length
   }, [searches])

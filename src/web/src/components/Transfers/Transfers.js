@@ -25,7 +25,7 @@ class Transfers extends Component {
       try {
         const response = await transfers.getAll({ direction: this.props.direction })
         this.setState({ 
-            fetchState: 'complete', downloads: response
+          fetchState: 'complete', downloads: response,
         })
       } catch (err) {
         this.setState({ fetchState: 'failed' })

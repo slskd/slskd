@@ -2,7 +2,7 @@ import React from 'react';
 import './Chat.css';
 
 import {
-  Icon, Button, Label, Menu
+  Icon, Button, Label, Menu,
 } from 'semantic-ui-react';
 import SendMessageModal from './SendMessageModal';
 
