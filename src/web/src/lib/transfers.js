@@ -22,3 +22,27 @@ export const cancel = ({ direction, username, id, remove = false }) => {
 export const getPlaceInQueue = ({ username, id }) => {
   return api.get(`/transfers/downloads/${username}/${id}`);
 };
+
+export const isStateRetryable = (state) =>
+  state.includes('Completed') && state !== 'Completed, Succeeded';
+
+export const isStateCancellable = (state) =>
+  ['InProgress', 'Requested', 'Queued', 'Queued, Remotely', 'Queued, Locally', 'Initializing'].find(s => s === state);
+
+export const isStateRemovable = (state) => state.includes('Completed');
+
+/**
+ * Accepts the username/file dictionary returned by the API and returns an array of files
+ * reduced from the map
+ */
+export const reduceTransfersToFiles = (transfers) => {
+  return transfers.reduce((acc, username) => {
+    const allUserFiles = username.directories.reduce((acc, directory) => {
+      acc = acc.concat(directory.files);
+      return acc;
+    }, []);
+  
+    acc = acc.concat(allUserFiles)
+    return acc;
+  }, [])
+}

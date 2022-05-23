@@ -2,88 +2,82 @@ import React, { useState } from 'react';
 
 import {
   Segment,
-  Button,
-  Dropdown,
   Icon,
 } from 'semantic-ui-react';
 
-import ShrinkableButton from '../Shared/ShrinkableButton';
+import {
+  Div,
+  Nbsp,
+} from '../Shared';
 
-const TransfersHeader = ({ direction, count, onRetryAll, onCancelAll, onRemoveAll }) => {
+import ShrinkableDropdownButton from '../Shared/ShrinkableDropdownButton';
+import { reduceTransfersToFiles } from '../../lib/transfers';
+
+const TransfersHeader = ({ direction, transfers, server = { isConnected: true }, onRetryAll, onCancelAll, onRemoveAll }) => {
   const [removeOption, setRemoveOption] = useState('Succeeded');
   const [cancelOption, setCancelOption] = useState('All');
   const [retryOption, setRetryOption] = useState('Errored');
 
-  const empty = count === 0;
+  // reduce the given transfers map to an array of files, filtered by direction
+  const files = reduceTransfersToFiles(transfers)
+    .filter(file => file.direction.toLowerCase() === direction);
+
+  const empty = files.length === 0;
 
   return (
-    <>
-      <Segment className='transfers-header-segment' raised>
-        <div className="transfers-segment-icon"><Icon name={direction} size="big"/></div>
-        <div className="transfers-header-buttons">
-          {direction === 'download' && <Button.Group color='green'>
-            <ShrinkableButton
-              icon='redo'
-              onClick={onRetryAll}
-              mediaQuery='(max-width: 715px)'
-              disabled={empty}
-            >{`Retry ${retryOption === 'All' ? retryOption : `All ${retryOption}`}`}</ShrinkableButton>
-            <Dropdown
-              disabled={empty}
-              className='button icon'
-              options={[
-                { key: 'errored', text: 'Errored', value: 'Errored' },
-                { key: 'cancelled', text: 'Cancelled', value: 'Cancelled' },
-                { key: 'all', text: 'All', value: 'All' },
-              ]}
-              onChange={(_, data) => setRetryOption(data.value)}
-              trigger={<></>}
-            />
-          </Button.Group>}
-          {direction === 'download' && ' '}
-          <Button.Group color='red'>
-            <ShrinkableButton
-              icon='x'
-              onClick={onCancelAll}
-              mediaQuery='(max-width: 715px)'
-              disabled={empty}
-            >{`Cancel ${cancelOption === 'All' ? cancelOption : `All ${cancelOption}`}`}</ShrinkableButton>
-            <Dropdown
-              className='button icon'
-              disabled={empty}
-              options={[
-                { key: 'all', text: 'All', value: 'All' },
-                { key: 'queued', text: 'Queued', value: 'Queued' },
-                { key: 'inProgress', text: 'In Progress', value: 'In Progress' },
-              ]}
-              onChange={(_, data) => setCancelOption(data.value)}
-              trigger={<></>}
-            />
-          </Button.Group>
-          {' '}
-          <Button.Group>
-            <ShrinkableButton
-              icon='trash alternate'
-              mediaQuery='(max-width: 715px)'
-              disabled={empty}
-              onClick={onRemoveAll}
-            >{`Remove All ${removeOption}`}</ShrinkableButton>
-            <Dropdown
-              className='button icon'
-              disabled={empty}
-              options={[
-                { key: 'succeeded', text: 'Succeeded', value: 'Succeeded' },
-                { key: 'errored', text: 'Errored', value: 'Errored' },
-                { key: 'cancelled', text: 'Cancelled', value: 'Cancelled' },
-                { key: 'completed', text: 'Completed', value: 'Completed' },
-              ]}
-              onChange={(_, data) => setRemoveOption(data.value)}
-              trigger={<></>}
-            />
-          </Button.Group>
-        </div>
-      </Segment>
-    </>
+    <Segment className='transfers-header-segment' raised>
+      <div className="transfers-segment-icon"><Icon name={direction} size="big"/></div>
+      <Div hidden={empty} className="transfers-header-buttons">
+        <ShrinkableDropdownButton
+          hidden={direction === 'upload'}
+          color='green'
+          icon='redo'
+          mediaQuery='(max-width: 715px)'
+          onClick={onRetryAll}
+          disabled={empty || !server.isConnected}
+          options={[
+            { key: 'errored', text: 'Errored', value: 'Errored' },
+            { key: 'cancelled', text: 'Cancelled', value: 'Cancelled' },
+            { key: 'all', text: 'All', value: 'All' },
+          ]}
+          onChange={(_, data) => setRetryOption(data.value)}
+        >
+          {`Retry ${retryOption === 'All' ? retryOption : `All ${retryOption}`}`}
+        </ShrinkableDropdownButton>
+        <Nbsp/>
+        <ShrinkableDropdownButton
+          color='red'
+          icon='x'
+          mediaQuery='(max-width: 715px)'
+          onClick={onCancelAll}
+          disabled={empty}
+          options={[
+            { key: 'all', text: 'All', value: 'All' },
+            { key: 'queued', text: 'Queued', value: 'Queued' },
+            { key: 'inProgress', text: 'In Progress', value: 'In Progress' },
+          ]}
+          onChange={(_, data) => setCancelOption(data.value)}
+        >
+          {`Cancel ${cancelOption === 'All' ? cancelOption : `All ${cancelOption}`}`}
+        </ShrinkableDropdownButton>
+        <Nbsp/>
+        <ShrinkableDropdownButton
+          icon='trash alternate'
+          mediaQuery='(max-width: 715px)'
+          onClick={onRemoveAll}
+          disabled={empty}
+          options={[
+            { key: 'succeeded', text: 'Succeeded', value: 'Succeeded' },
+            { key: 'errored', text: 'Errored', value: 'Errored' },
+            { key: 'cancelled', text: 'Cancelled', value: 'Cancelled' },
+            { key: 'completed', text: 'Completed', value: 'Completed' },
+          ]}
+          onChange={(_, data) => setRemoveOption(data.value)}
+        >
+          {`Remove All ${removeOption}`}
+        </ShrinkableDropdownButton>
+      </Div>
+    </Segment>
   )
 };
 

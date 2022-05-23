@@ -32,6 +32,20 @@ class Transfers extends Component {
       }
     })
   }
+
+  retry = async (file) => {
+    const { username, filename, size } = file;
+        
+    try {
+      await transfers.download({username, files: [{filename, size }] });
+    } catch (error) {
+      console.log(error);
+    }
+  }
+
+  retryAll = async (transfers) => {
+    await Promise.all(transfers.map(file => this.retry(file)))
+  }
   
   render = () => {
     const { downloads = [] } = this.state;
@@ -39,7 +53,7 @@ class Transfers extends Component {
 
     return (
       <>
-        <TransfersHeader direction={direction} count={downloads.length}/>
+        <TransfersHeader direction={direction} transfers={downloads} server={this.props.server}/>
         {downloads.length === 0 
           ? <PlaceholderSegment icon={direction} caption={`No ${direction}s to display`}/>
           : downloads.map((user, index) => 
