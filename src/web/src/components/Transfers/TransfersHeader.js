@@ -21,7 +21,7 @@ const TransfersHeader = ({ direction, count, onRetryAll, onCancelAll, onRemoveAl
       <Segment className='transfers-header-segment' raised>
         <div className="transfers-segment-icon"><Icon name={direction} size="big"/></div>
         <div className="transfers-header-buttons">
-          <Button.Group color='green'>
+          {direction === 'download' && <Button.Group color='green'>
             <ShrinkableButton
               icon='redo'
               onClick={onRetryAll}
@@ -39,8 +39,8 @@ const TransfersHeader = ({ direction, count, onRetryAll, onCancelAll, onRemoveAl
               onChange={(_, data) => setRetryOption(data.value)}
               trigger={<></>}
             />
-          </Button.Group>
-          {' '}
+          </Button.Group>}
+          {direction === 'download' && ' '}
           <Button.Group color='red'>
             <ShrinkableButton
               icon='x'
