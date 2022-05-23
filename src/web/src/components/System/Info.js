@@ -22,7 +22,7 @@ const Info = ({ state }) => {
       <div className='footer-buttons'>
         <div style={{float: 'left'}}>
           <ShrinkableButton
-            iconName='refresh'
+            icon='refresh'
             mediaQuery='(max-width: 516px)'
             primary
             onClick={() => getVersion({ forceCheck: true })}
@@ -33,7 +33,7 @@ const Info = ({ state }) => {
         <Modal
           trigger={
             <ShrinkableButton
-              iconName='shutdown'
+              icon='shutdown'
               mediaQuery='(max-width: 516px)'
               negative
             >
@@ -49,7 +49,7 @@ const Info = ({ state }) => {
         <Modal
           trigger={
             <ShrinkableButton
-              iconName='redo'
+              icon='redo'
               mediaQuery='(max-width: 516px)'
               negative
             >
