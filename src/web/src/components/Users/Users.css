@@ -10,9 +10,15 @@
   margin-bottom: 17px;
 }
 
-.users-selection {
+.users-segment {
   margin-top: 15px !important;
   height: 78px !important;
+  display: flex;
+}
+
+.users-segment-icon {
+  padding-top: 10px;
+  padding-right: .5em;
 }
 
 .users-input {

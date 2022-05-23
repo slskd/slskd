@@ -18,15 +18,23 @@
   margin-bottom: 17px;
 }
 
-.chats > .segment:first-child {
+.chat-segment {
   margin-top: 15px !important;
   height: 78px;
+  display: flex;
+}
+
+.chat-segment-icon {
+  padding-top: 10px;
+  padding-right: .5em;
 }
 
 .conversation-menu {
   overflow-x: auto;
   box-shadow: unset !important;
   height: 47px;
+  width: 100%;
+  margin-top: unset !important;
 }
 
 .conversation-menu > .menu-item {

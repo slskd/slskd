@@ -4,6 +4,7 @@ import {
   Segment,
   Loader,
   Input,
+  Icon,
 } from 'semantic-ui-react';
 
 import User from './User';
@@ -81,7 +82,8 @@ const Users = (props) => {
 
   return (
     <div className='users-container'>
-      <Segment className='users-selection' raised>
+      <Segment className='users-segment' raised>
+        <div className="users-segment-icon"><Icon name="users" size="big"/></div>
         <Input
           input={
             <input placeholder="Username" type="search" data-lpignore="true" disabled={!!user || fetching}></input>}
@@ -104,7 +106,7 @@ const Users = (props) => {
           {error ? 
             <span>Failed to retrieve information for {selectedUsername}</span> : 
             !user ? 
-              <PlaceholderSegment icon='users'/> :
+              <PlaceholderSegment icon='users' caption='No user info to display'/> :
               <Segment className='users-user' raised>
                 <Item.Group>
                   <User {...user}/>

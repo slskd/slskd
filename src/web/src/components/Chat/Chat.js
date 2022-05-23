@@ -150,7 +150,8 @@ class Chat extends Component {
 
     return (
       <div className='chats'>
-        <Segment raised>
+        <Segment className='chat-segment' raised>
+          <div className="chat-segment-icon"><Icon name="comment" size="big"/></div>
           <ChatMenu
             conversations={conversations}
             active={active}
@@ -159,7 +160,7 @@ class Chat extends Component {
           />
         </Segment>
         {!active ? 
-          <PlaceholderSegment icon='comment'/> :
+          <PlaceholderSegment icon='comment' caption='No chats to display'/> :
           <Card className='chat-active-card' raised>
             <Card.Content onClick={() => this.focusInput()}>
               <Card.Header>
