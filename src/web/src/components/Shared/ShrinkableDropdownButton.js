@@ -2,12 +2,23 @@ import React from 'react';
 
 import {
   Button,
-  Dropdown
+  Dropdown,
 } from 'semantic-ui-react';
 
 import ShrinkableButton from './ShrinkableButton';
 
-const ShrinkableDropdownButton = ({ color, icon, mediaQuery, disabled, options, onClick, onChange, hidden, children }) => {
+const ShrinkableDropdownButton = ({ 
+  color, 
+  icon,
+  mediaQuery, 
+  disabled,
+  loading, 
+  options, 
+  onClick, 
+  onChange, 
+  hidden, 
+  children,
+}) => {
   if (hidden) {
     return <></>;
   }
@@ -19,6 +30,7 @@ const ShrinkableDropdownButton = ({ color, icon, mediaQuery, disabled, options, 
         onClick={onClick}
         mediaQuery={mediaQuery}
         disabled={disabled}
+        loading={loading}
       >{children}</ShrinkableButton>
       <Dropdown
         disabled={disabled}

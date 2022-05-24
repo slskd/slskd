@@ -44,7 +44,16 @@ class Transfers extends Component {
   }
 
   retryAll = async (transfers) => {
-    await Promise.all(transfers.map(file => this.retry(file)))
+    console.log(transfers);
+    // await Promise.all(transfers.map(file => this.retry(file)))
+  }
+
+  cancelAll = async (transfers) => {
+    console.log(transfers);
+  }
+
+  removeall = async (transfers) => {
+    console.log(transfers);
   }
   
   render = () => {
@@ -53,7 +62,14 @@ class Transfers extends Component {
 
     return (
       <>
-        <TransfersHeader direction={direction} transfers={downloads} server={this.props.server}/>
+        <TransfersHeader 
+          direction={direction} 
+          transfers={downloads} 
+          server={this.props.server}
+          onRetryAll={this.removeall}
+          onCancelAll={this.cancelAll}
+          onRemoveAll={this.removeall}
+        />
         {downloads.length === 0 
           ? <PlaceholderSegment icon={direction} caption={`No ${direction}s to display`}/>
           : downloads.map((user, index) => 

@@ -217,12 +217,12 @@ const Searches = ({ server }) => {
       {Object.keys(searches).length === 0 
         ? <PlaceholderSegment icon="search" caption="No searches to display"/>
         : <SearchList
-            connecting={connecting}
-            error={error}
-            searches={searches}
-            onRemove={remove}
-            onStop={stop}
-          />
+          connecting={connecting}
+          error={error}
+          searches={searches}
+          onRemove={remove}
+          onStop={stop}
+        />
       }
     </>
   )
