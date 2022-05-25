@@ -50,12 +50,6 @@ class TransferGroup extends Component {
     }
   }
 
-  isStateRetryable = (state) =>
-    this.props.direction === 'download' && state.includes('Completed') && state !== 'Completed, Succeeded';
-  isStateCancellable = (state) =>
-    ['InProgress', 'Requested', 'Queued', 'Queued, Remotely', 'Queued, Locally', 'Initializing'].find(s => s === state);
-  isStateRemovable = (state) => state.includes('Completed');
-
   retryAll = async (selected) => {
     await Promise.all(selected.map(file => this.retry(file)));
   }
@@ -101,9 +95,9 @@ class TransferGroup extends Component {
     const selected = this.getSelectedFiles();
     const all = selected.length > 1 ? ' Selected' : '';
         
-    const allRetryable = selected.filter(f => this.isStateRetryable(f.state)).length === selected.length;
-    const anyCancellable = selected.filter(f => this.isStateCancellable(f.state)).length > 0;
-    const allRemovable = selected.filter(f => this.isStateRemovable(f.state)).length === selected.length;
+    const allRetryable = selected.filter(f => transfers.isStateRetryable(f.state)).length === selected.length;
+    const anyCancellable = selected.filter(f => transfers.isStateCancellable(f.state)).length > 0;
+    const allRemovable = selected.filter(f => transfers.isStateRemovable(f.state)).length === selected.length;
 
     return (
       <Card key={user.username} className='transfer-card' raised>
@@ -151,7 +145,7 @@ class TransferGroup extends Component {
                     {(allRetryable || anyCancellable) && allRemovable && <Button.Or/>}
                     {allRemovable && 
                         <Button 
-                          icon='delete'
+                          icon='trash alternate'
                           content={`Remove${all}`}
                           onClick={() => this.removeAll(direction, user.username, selected)}
                         />}

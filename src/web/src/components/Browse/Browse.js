@@ -170,7 +170,8 @@ class Browse extends Component {
 
     return (
       <div className='search-container'>
-        <Segment className='search-segment' raised>
+        <Segment className='browse-segment' raised>
+          <div className="browse-segment-icon"><Icon name="folder open" size="big"/></div>
           <Input
             input={<input placeholder="Username" type="search" data-lpignore="true"></input>}
             size='big'
@@ -200,7 +201,7 @@ class Browse extends Component {
               <span className='browse-error'>Failed to browse {username}</span> :
               <div className='browse-container'>
                 {emptyTree ? 
-                  <PlaceholderSegment icon='folder open'/> : 
+                  <PlaceholderSegment icon='folder open' caption='No user share to display'/> : 
                   <Card className='browse-tree-card' raised>
                     <Card.Content>
                       <Card.Header>

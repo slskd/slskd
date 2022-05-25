@@ -150,7 +150,8 @@ class Rooms extends Component {
 
     return (
       <div className='rooms'>
-        <Segment raised>
+        <Segment className='rooms-segment' raised>
+          <div className="rooms-segment-icon"><Icon name="comments" size="big"/></div>
           <RoomMenu
             joined={joined}
             active={active}
@@ -159,7 +160,7 @@ class Rooms extends Component {
           />
         </Segment>
         {!active ? 
-          <PlaceholderSegment icon='comments'/> :
+          <PlaceholderSegment icon='comments' caption='No rooms to display'/> :
           <Card className='room-active-card' raised>
             <Card.Content onClick={() => this.focusInput()}>
               <Card.Header>

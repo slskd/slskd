@@ -1,3 +1,14 @@
+.browse-segment {
+  margin-top: 15px !important;
+  height: 78px !important;
+  display: flex;
+}
+
+.browse-segment-icon {
+  padding-top: 10px;
+  padding-right: .5em;
+}
+
 .browse-results {
   margin: unset !important;
 }
