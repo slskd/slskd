@@ -1,4 +1,4 @@
-import React, { useMemo }  from 'react';
+import React from 'react';
 
 import SearchListRow from './SearchListRow';
 import ErrorSegment from '../../Shared/ErrorSegment';
