@@ -277,7 +277,9 @@ class App extends Component {
                 }/>
                 <Route path={`${urlBase}/downloads`} render={
                   (props) => 
-                    this.withTokenCheck(<div className='page'><Transfers {...props} direction='download' server={applicationState.server}/></div>)
+                    this.withTokenCheck(<div className='page'>
+                      <Transfers {...props} direction='download' server={applicationState.server}/>
+                    </div>)
                 }/>
                 <Route path={`${urlBase}/system/:tab?`} render={
                   (props) => this.withTokenCheck(

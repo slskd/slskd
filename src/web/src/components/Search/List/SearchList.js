@@ -9,8 +9,6 @@ import {
   Table,
   Icon,
   Loader,
-  Segment,
-  Header,
   List,
 } from 'semantic-ui-react';
 
@@ -21,10 +19,6 @@ const SearchList = ({
   onRemove = () => { },
   onStop = () => { },
 }) => {
-  const searchCount = useMemo(() => {
-    return Object.values(searches).length
-  }, [searches])
-
   return (
     <Card className='search-list-card' raised>
       <Card.Content>

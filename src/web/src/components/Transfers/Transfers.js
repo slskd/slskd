@@ -34,7 +34,7 @@ const Transfers = ({ direction, server }) => {
     return () => {
       clearInterval(interval);
     }
-  }, [direction]);
+  }, [direction]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useMemo(() => {
     // this is used to prevent weird update issues if switching
@@ -44,7 +44,7 @@ const Transfers = ({ direction, server }) => {
     // before the connecting animation shows.  this memo fires the instant
     // the direction prop changes, preventing this flash.
     setConnecting(true);
-  }, [direction]);
+  }, [direction]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetch = async () => {
     try {
