@@ -8,6 +8,7 @@ import './System.css';
 import Info from './Info';
 import Logs from './Logs';
 import Options from './Options';
+import Shares from './Shares';
 
 const System = ({ state = {}, options = {} }) => {
   const { params: { tab }, ...route } = useRouteMatch();
@@ -18,6 +19,9 @@ const System = ({ state = {}, options = {} }) => {
     {
       route: 'options', menuItem: 'Options', render: () =>
         <Tab.Pane className='full-height'><Options options={options} /></Tab.Pane>,
+    },
+    {
+      route: 'shares', menuItem: 'Shares', render: () => <Tab.Pane><Shares/></Tab.Pane>,
     },
     { route: 'logs', menuItem: 'Logs', render: () => <Tab.Pane><Logs/></Tab.Pane> },
   ];
