@@ -4,6 +4,10 @@ export const getCurrent = async () => {
   return (await api.get('/options')).data;
 };
 
+export const getCurrentDebugView = async () => {
+  return (await api.get('/options/debug')).data;
+};
+
 export const getYaml = async () => {
   return (await api.get('/options/yaml')).data;
 };
