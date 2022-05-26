@@ -56,12 +56,12 @@ const SearchDetail = ({ search, creating, stopping, removing, disabled, onCreate
         setError(error);
         setLoading(false);
       }
-    }
+    };
 
     if (isComplete) {
       get();
     }
-  }, [id, isComplete])
+  }, [id, isComplete]);
 
   // apply sorting and filters.  this can take a while for larger result
   // sets, so memoize it.
@@ -69,7 +69,7 @@ const SearchDetail = ({ search, creating, stopping, removing, disabled, onCreate
     const sortOptions = {
       uploadSpeed: { field: 'uploadSpeed', order: 'desc' },
       queueLength: { field: 'queueLength', order: 'asc' },
-    }
+    };
 
     const { field, order } = sortOptions[resultSort];
 
@@ -79,7 +79,7 @@ const SearchDetail = ({ search, creating, stopping, removing, disabled, onCreate
       .filter(r => !hiddenResults.includes(r.username))
       .map(r => {
         if (hideLocked) {
-          return { ...r, lockedFileCount: 0, lockedFiles: [] }
+          return { ...r, lockedFileCount: 0, lockedFiles: [] };
         }
         return r;
       })
@@ -94,7 +94,7 @@ const SearchDetail = ({ search, creating, stopping, removing, disabled, onCreate
         return b[field] - a[field];
       });
 
-  }, [results, hideLocked, hideNoFreeSlots, resultFilters, resultSort, hiddenResults])
+  }, [results, hideLocked, hideNoFreeSlots, resultFilters, resultSort, hiddenResults]);
 
   // when a user uses the action buttons, we will *probably* re-use this component,
   // but with a new search ID.  clear everything to prepare for the transition
@@ -104,24 +104,24 @@ const SearchDetail = ({ search, creating, stopping, removing, disabled, onCreate
     setResults([]);
     setHiddenResults([]);
     setDisplayCount(5);
-  }
+  };
 
   const create = async ({ search, navigate }) => {
     reset();  
-    onCreate({ search, navigate })
-  }
+    onCreate({ search, navigate });
+  };
 
   const remove = async () => {
     reset();
     onRemove(search);
-  }
+  };
 
   const filteredCount = results?.length - sortedAndFilteredResults.length;
   const remainingCount = sortedAndFilteredResults.length - displayCount;
-  const loaded = (!removing && !creating && !loading && results && results.length > 0)
+  const loaded = (!removing && !creating && !loading && results && results.length > 0);
 
   if (error) {
-    return (<ErrorSegment caption={error?.message ?? error}/>)
+    return (<ErrorSegment caption={error?.message ?? error}/>);
   }
 
   return (
@@ -220,7 +220,7 @@ const SearchDetail = ({ search, creating, stopping, removing, disabled, onCreate
             }</Button> : '')}
       </Switch>
     </>
-  )
-}
+  );
+};
 
 export default SearchDetail;

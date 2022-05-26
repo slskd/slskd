@@ -31,9 +31,9 @@ const subtree = (root, selectedDirectoryName, onSelect) => {
             </List.List>
           </List.Content>
         </List.Item>
-      </List>)
-  })
-}
+      </List>);
+  });
+};
 
 const DirectoryTree = ({ tree, selectedDirectoryName, onSelect }) => subtree(tree, selectedDirectoryName, onSelect);
 

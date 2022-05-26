@@ -3,7 +3,7 @@ import * as transfers from '../../lib/transfers';
 
 import { formatBytes } from '../../lib/util';
 
-import FileList from '../Shared/FileList'
+import FileList from '../Shared/FileList';
 
 import { 
   Button, 
@@ -15,37 +15,37 @@ import {
 const initialState = {
   downloadRequest: undefined,
   downloadError: '',
-}
+};
 
 class Directory extends Component {
   state = { 
     ...initialState,
     files: this.props.files.map(f => ({ selected: false, ...f })),
-  }
+  };
 
   onFileSelectionChange = (file, state) => {
     file.selected = state;
-    this.setState({ tree: this.state.tree, downloadRequest: undefined, downloadError: '' })
-  }
+    this.setState({ tree: this.state.tree, downloadRequest: undefined, downloadError: '' });
+  };
 
   download = (username, files) => {
     this.setState({ downloadRequest: 'inProgress' }, async () => {
       try {
-        const requests = (files || []).map(({ filename, size }) => ({ filename, size }))
-        await transfers.download({ username, files: requests })
+        const requests = (files || []).map(({ filename, size }) => ({ filename, size }));
+        await transfers.download({ username, files: requests });
 
-        this.setState({ downloadRequest: 'complete' })
+        this.setState({ downloadRequest: 'complete' });
       } catch (err) {
-        this.setState({ downloadRequest: 'error', downloadError: err.response })
+        this.setState({ downloadRequest: 'error', downloadError: err.response });
       }
     });
-  }
+  };
 
   componentDidUpdate = (prevProps) => {
     if (this.props.name !== prevProps.name) {
       this.setState({ files: this.props.files.map(f => ({ selected: false, ...f }))});
     }
-  }
+  };
 
   render = () => {
     let { username, name, locked, marginTop, onClose } = this.props;
@@ -94,8 +94,8 @@ class Directory extends Component {
           </span>
         </Card.Content>}
       </Card>
-    )
-  }
+    );
+  };
 }
 
 export default Directory;

@@ -27,7 +27,7 @@ const SearchListRow = ({ search, onRemove, onStop }) => {
     } finally {
       setWorking(false);
     }
-  }
+  };
 
   return (
     <Table.Row
@@ -54,7 +54,7 @@ const SearchListRow = ({ search, onRemove, onStop }) => {
         />
       </Table.Cell>
     </Table.Row>
-  )
-}
+  );
+};
 
 export default SearchListRow;

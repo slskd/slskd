@@ -2,15 +2,15 @@ import api from './api';
 
 export const getAll = async () => {
   return (await api.get('/searches')).data;
-}
+};
 
 export const stop = ({ id }) => {
-  return api.put(`/searches/${encodeURIComponent(id)}`)
-}
+  return api.put(`/searches/${encodeURIComponent(id)}`);
+};
 
 export const remove = ({ id }) => {
-  return api.delete(`/searches/${encodeURIComponent(id)}`)
-}
+  return api.delete(`/searches/${encodeURIComponent(id)}`);
+};
 
 export const create = ({ id, searchText }) => {
   return api.post('/searches', { id, searchText });
@@ -24,7 +24,7 @@ export const getResponses = async ({ id }) => {
   const response = (await api.get(`/searches/${encodeURIComponent(id)}/responses`)).data;
 
   if (!Array.isArray(response)) {
-    console.warn('got non-array response from searches API', response)
+    console.warn('got non-array response from searches API', response);
     return undefined;
   }
 
@@ -51,7 +51,7 @@ export const parseFiltersFromString = (string) => {
     if (match) {
       return parseInt(match[n], 10);
     }
-  }
+  };
 
   filters.minBitRate = getNthMatch(string, /(minbr|minbitrate):([0-9]+)/i, 2) || filters.minBitRate;
   filters.minFileSize = getNthMatch(string, /(minfs|minfilesize):([0-9]+)/i, 2) || filters.minFileSize;
@@ -93,7 +93,7 @@ export const filterResponse = ({
   let { files = [], lockedFiles = [] } = response;
 
   if (response.fileCount + response.lockedFileCount < filters.minFilesInFolder) {
-    return { ...response, files: [] }
+    return { ...response, files: [] };
   }
 
   const filterFiles = (files) => files.filter(file => {

@@ -8,14 +8,14 @@ import './System.css';
 const initialState = {
   logs: [],
   connected: false,
-}
+};
 
 const levels = {
   'Debug': 'DBG',
   'Warning': 'WRN',
   'Error': 'ERR',
   'Information': 'INF',
-}
+};
 
 const maxLogs = 500;
 
@@ -27,23 +27,23 @@ class Logs extends Component {
 
     logsHub.on('buffer', (buffer) => {
       this.setState({ connected: true, logs: buffer.reverse().slice(0, maxLogs) });
-    })
+    });
 
     logsHub.on('log', (log) => {
       this.setState({ connected: true, logs: [log].concat(this.state.logs).slice(0, maxLogs) });
-    })
+    });
 
     logsHub.onreconnecting(() => this.setState({ connected: false }));
     logsHub.onclose(() => this.setState({ connected: false }));
     logsHub.onreconnected(() => this.setState({ connected: true }));
 
     logsHub.start();
-  }
+  };
 
   formatTimestamp = (timestamp) => {
     const date = new Date(timestamp);
     return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}:${date.getSeconds().toString().padStart(2, '0')}`; // eslint-disable-line max-len
-  }
+  };
 
   render = () => {
     const { connected, logs } = this.state;
@@ -77,7 +77,7 @@ class Logs extends Component {
         }
       </div>
     );
-  }
+  };
 }
 
 export default Logs;

@@ -35,7 +35,7 @@ const RoomMenu = ({ joined, active, onRoomChange, ...rest }) => {
         />
       </Menu.Menu>
     </Menu>
-  )
-}
+  );
+};
 
 export default RoomMenu;

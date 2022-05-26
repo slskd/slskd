@@ -37,14 +37,14 @@ const Searches = ({ server }) => {
   const history = useHistory();
   const match = useRouteMatch();
 
-  const onConnecting = () => { setConnecting(true); }
-  const onConnected = () => { setConnecting(false); setError(undefined); }
-  const onConnectionError = (error) => { setConnecting(false); setError(error); }
+  const onConnecting = () => { setConnecting(true); };
+  const onConnected = () => { setConnecting(false); setError(undefined); };
+  const onConnectionError = (error) => { setConnecting(false); setError(error); };
 
   const onUpdate = (update) => {
     onConnected();
     setSearches(update);
-  }
+  };
 
   useEffect(() => {
     onConnecting();
@@ -57,7 +57,7 @@ const Searches = ({ server }) => {
         return acc;
       }, {}));
       onConnected();
-    })
+    });
 
     searchHub.on('update', search => {
       onUpdate(old => ({ ...old, [search.id]: search }));
@@ -66,7 +66,7 @@ const Searches = ({ server }) => {
     searchHub.on('delete', search => {
       onUpdate(old => {
         delete old[search.id];
-        return { ...old }
+        return { ...old };
       });
     });
 
@@ -82,15 +82,15 @@ const Searches = ({ server }) => {
         await searchHub.start();
       } catch (error) {
         toast.error(error?.message ?? 'Failed to connect');
-        onConnectionError(error?.message ?? 'Failed to connect')
+        onConnectionError(error?.message ?? 'Failed to connect');
       }
-    }
+    };
 
     connect();
 
     return () => {
       searchHub.stop();
-    }
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -102,8 +102,8 @@ const Searches = ({ server }) => {
     const id = uuidv4();
     
     try {
-      setCreating(true)
-      await lib.create({ id, searchText })
+      setCreating(true);
+      await lib.create({ id, searchText });
       
       try {
         ref.value = '';
@@ -111,27 +111,27 @@ const Searches = ({ server }) => {
         // we are probably repeating an existing search; the input isn't mounted.  no-op.
       }
       
-      setCreating(false)
+      setCreating(false);
 
       if (navigate) {
         history.push(`${match.url.replace(`/${searchId}`, '')}/${id}`);
       }
     } catch (error) {
-      console.error(error)      
+      console.error(error);      
       toast.error(error?.response?.data ?? error?.message ?? error);
-      setCreating(false)
+      setCreating(false);
     }
-  }
+  };
 
   // delete a search
   const remove = async (search) => {
     try {
       setRemoving(true);
 
-      await lib.remove({ id: search.id })
+      await lib.remove({ id: search.id });
       setSearches(old => {
         delete old[search.id];
-        return { ...old }
+        return { ...old };
       });
 
       setRemoving(false);
@@ -146,17 +146,17 @@ const Searches = ({ server }) => {
   const stop = async (search) => {
     try {
       setStopping(true);
-      await lib.stop({ id: search.id })
+      await lib.stop({ id: search.id });
       setStopping(false);
     } catch (error) {
       console.error(error);
       toast.error(error?.response?.data ?? error?.message ?? error);
       setStopping(false);
     }
-  }
+  };
 
   if (connecting) {
-    return <LoaderSegment/>
+    return <LoaderSegment/>;
   }
 
   if (error) {
@@ -225,7 +225,7 @@ const Searches = ({ server }) => {
         />
       }
     </>
-  )
+  );
 };
 
 export default Searches;

@@ -7,10 +7,10 @@ const Index = ({ options }) => {
   const [mode, setMode] = useState('view');
 
   if (mode === 'edit') {
-    return <Edit cancelAction={() => setMode('view')}/>
+    return <Edit cancelAction={() => setMode('view')}/>;
   }
 
-  return <View options={options} editAction={() => setMode('edit')}/>
-}
+  return <View options={options} editAction={() => setMode('edit')}/>;
+};
 
 export default Index;

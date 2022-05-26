@@ -24,7 +24,7 @@ api.interceptors.response.use(response => {
   return response;
 }, error => {
   if (error.response.status === 401 && !['/session', '/server', '/application'].includes(error.response.config.url)) {
-    console.debug('received 401 from api route, logging out')
+    console.debug('received 401 from api route, logging out');
     session.logout();
     window.location.reload(true);
 

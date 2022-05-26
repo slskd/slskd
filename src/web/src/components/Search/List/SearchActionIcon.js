@@ -4,7 +4,7 @@ import { Icon } from 'semantic-ui-react';
 
 const SearchActionIcon = ({ search, loading, onRemove, onStop,...props }) => {
   if (loading) {
-    return (<Icon name='spinner' loading {...props}/>)
+    return (<Icon name='spinner' loading {...props}/>);
   }
 
   if (search.state.includes('Completed')) {
@@ -13,7 +13,7 @@ const SearchActionIcon = ({ search, loading, onRemove, onStop,...props }) => {
       color='red' 
       onClick={() => onRemove()}
       style={{ cursor: 'pointer' }}
-    />)
+    />);
   }
 
   return (<Icon
@@ -21,7 +21,7 @@ const SearchActionIcon = ({ search, loading, onRemove, onStop,...props }) => {
     color="red"
     onClick={() => onStop()}
     style={{ cursor: 'pointer' }}
-  />)
+  />);
 };
 
 export default SearchActionIcon;

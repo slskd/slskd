@@ -66,22 +66,22 @@ class Browse extends Component {
         .then(() => this.setState({ browseState: 'complete', browseError: undefined }, () => {
           this.saveState();
         }))
-        .catch(err => this.setState({ browseState: 'error', browseError: err }))
+        .catch(err => this.setState({ browseState: 'error', browseError: err }));
     });
-  }
+  };
 
   clear = () => {
     this.setState(initialState, () => {
       this.saveState();
       this.inputtext.focus();
     });
-  }
+  };
 
   keyUp = (event) => event.key === 'Escape' ? this.clear() : '';
 
   onUsernameChange = (event, data) => {
     this.setState({ username: data.value });
-  }
+  };
 
   saveState = () => {
     this.inputtext.inputRef.current.value = this.state.username;
@@ -92,12 +92,12 @@ class Browse extends Component {
     } catch (error) {
       console.log(error);
     }
-  }
+  };
 
   loadState = () => {
     this.setState(
       JSON.parse(lzString.decompress(localStorage.getItem('soulseek-example-browse-state') || '')) || initialState);
-  }
+  };
 
   componentDidMount = () => {
     this.fetchStatus();
@@ -107,13 +107,13 @@ class Browse extends Component {
     }, () => this.saveState());
     
     document.addEventListener('keyup', this.keyUp, false);
-  }
+  };
   
   componentWillUnmount = () => {
     clearInterval(this.state.interval);
     this.setState({ interval: undefined });
     document.removeEventListener('keyup', this.keyUp, false);
-  }
+  };
 
   fetchStatus = () => {
     const { browseState, username } = this.state;
@@ -123,7 +123,7 @@ class Browse extends Component {
           browseStatus: response.data,
         }));
     }
-  }
+  };
 
   getDirectoryTree = (directories) => {
     if (directories.length === 0 || directories[0].name === undefined) {
@@ -137,7 +137,7 @@ class Browse extends Component {
       .filter(d => d.name.split(separator).length === depth);
 
     return topLevelDirs.map(directory => this.getChildDirectories(directories, directory, separator, depth));
-  }
+  };
 
   getChildDirectories = (directories, root, separator, depth) => {
     const children = directories
@@ -146,15 +146,15 @@ class Browse extends Component {
       .filter(d => d.name.startsWith(root.name));
 
     return { ...root, children: children.map(c => this.getChildDirectories(directories, c, separator, depth + 1)) };
-  }
+  };
 
   selectDirectory = (directory) => {
     this.setState({ selectedDirectory: { ...directory, children: [] }}, () => this.saveState());
-  }
+  };
 
   deselectDirectory = () => {
     this.setState({ selectedDirectory: initialState.selectedDirectory }, () => this.saveState());
-  }
+  };
 
   sep = (name) => name.includes('\\') ? '\\' : '/';
 
@@ -234,8 +234,8 @@ class Browse extends Component {
             }
           </div>}
       </div>
-    )
-  }
+    );
+  };
 }
 
 export default Browse;

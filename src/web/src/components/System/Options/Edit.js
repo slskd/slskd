@@ -14,7 +14,7 @@ const Edit = ({ cancelAction }) => {
 
   useEffect(() => {
     get();
-  }, [])
+  }, []);
 
   const get = async () => {
     setLoading({ loading: true, error: false });
@@ -22,22 +22,22 @@ const Edit = ({ cancelAction }) => {
     try {
       const [location, yaml] = await Promise.all([getYamlLocation(), getYaml()]);
 
-      setYaml({ location, yaml, isDirty: false })
-      setLoading({ loading: false, error: false })
+      setYaml({ location, yaml, isDirty: false });
+      setLoading({ loading: false, error: false });
     } catch (error) {
-      setLoading({ loading: false, error: error.message })
+      setLoading({ loading: false, error: error.message });
     }
-  }
+  };
 
   const update = async (yaml) => {
     setYaml({ location, yaml, isDirty: true });
     validate(yaml);
-  }
+  };
 
   const validate = async (yaml) => {
     const response = await validateYaml({ yaml });
     setYamlError(response);
-  }
+  };
 
   const save = async (yaml) => {
     await validate(yaml);
@@ -51,14 +51,14 @@ const Edit = ({ cancelAction }) => {
         setUpdateError(error.response.data);
       }
     }
-  }
+  };
 
   if (loading) {
-    return <PlaceholderSegment loading={true}/>
+    return <PlaceholderSegment loading={true}/>;
   }
 
   if (error) {
-    return <PlaceholderSegment icon='close'/>
+    return <PlaceholderSegment icon='close'/>;
   }
 
   return (
@@ -82,6 +82,6 @@ const Edit = ({ cancelAction }) => {
       </div>
     </>
   );
-}
+};
 
 export default Edit;

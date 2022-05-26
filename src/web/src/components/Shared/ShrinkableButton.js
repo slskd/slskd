@@ -4,7 +4,7 @@ import { useMediaQuery } from 'react-responsive';
 import { Button, Icon, Popup } from 'semantic-ui-react';
 
 const ShrinkableButton = ({ icon, mediaQuery, children, ...rest }) => {
-  const shouldShrink = useMediaQuery({ query: mediaQuery })
+  const shouldShrink = useMediaQuery({ query: mediaQuery });
 
   if (!shouldShrink) {
     return (
@@ -12,7 +12,7 @@ const ShrinkableButton = ({ icon, mediaQuery, children, ...rest }) => {
         <Icon name={icon}/>
         {children}
       </Button>
-    )
+    );
   }
 
   return (
@@ -24,7 +24,7 @@ const ShrinkableButton = ({ icon, mediaQuery, children, ...rest }) => {
         </Button>
       }
     />
-  )
-}
+  );
+};
 
 export default ShrinkableButton;

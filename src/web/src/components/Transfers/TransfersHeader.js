@@ -27,7 +27,7 @@ const getRetryableFiles = ({ files, retryOption }) => {
   default:
     return [];
   }
-}
+};
 
 const getCancellableFiles = ({ files, cancelOption }) => {
   switch (cancelOption) {
@@ -36,11 +36,11 @@ const getCancellableFiles = ({ files, cancelOption }) => {
   case 'Queued':
     return files.filter(file => ['Queued, Locally', 'Queued, Remotely'].includes(file.state));
   case 'In Progress':
-    return files.filter(file => file.state === 'InProgress')
+    return files.filter(file => file.state === 'InProgress');
   default:
     return [];
   }
-}
+};
 
 const getRemovableFiles = ({ files, removeOption }) => {
   switch (removeOption) {
@@ -58,7 +58,7 @@ const getRemovableFiles = ({ files, removeOption }) => {
   default:
     return [];
   }
-}
+};
 
 const TransfersHeader = ({ 
   direction, 
@@ -82,7 +82,7 @@ const TransfersHeader = ({
         return acc;
       }, []);
     
-      acc = acc.concat(allUserFiles)
+      acc = acc.concat(allUserFiles);
       return acc;
     }, []);
 
@@ -149,7 +149,7 @@ const TransfersHeader = ({
         </ShrinkableDropdownButton>
       </Div>
     </Segment>
-  )
+  );
 };
 
 export default TransfersHeader;

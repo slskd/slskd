@@ -6,6 +6,6 @@ const Switch = ({ children, ...rest }) => {
   }
 
   return children;
-}
+};
 
 export default Switch;

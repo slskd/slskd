@@ -41,6 +41,6 @@ const ShrinkableDropdownButton = ({
       />
     </Button.Group>
   );
-}
+};
 
 export default ShrinkableDropdownButton;

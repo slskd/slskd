@@ -10,9 +10,9 @@ const Presence = ({ presence }) => {
   const colors = {
     Away: 'yellow',
     Online: 'green',
-  }
+  };
 
-  return <Icon name='circle' color={colors[presence] || 'grey'}/>
+  return <Icon name='circle' color={colors[presence] || 'grey'}/>;
 };
 
 const FreeUploadSlot = ({ hasFreeUploadSlot }) => (
