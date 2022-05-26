@@ -21,8 +21,10 @@ namespace slskd.Core.API
 {
     using System;
     using System.IO;
+    using System.Reflection;
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
+    using Microsoft.Extensions.Configuration;
     using Serilog;
     using slskd.Validation;
     using IOFile = System.IO.File;
@@ -72,6 +74,24 @@ namespace slskd.Core.API
         public IActionResult Startup()
         {
             return Ok(OptionsAtStartup.Redact());
+        }
+
+        /// <summary>
+        ///     Gets the debug view of the current application options.
+        /// </summary>
+        /// <returns></returns>
+        [HttpGet]
+        [Route("debug")]
+        [Authorize]
+        [ProducesResponseType(typeof(string), 200)]
+        public IActionResult Debug()
+        {
+            // retrieve the IConfigurationRoot instance with reflection to avoid
+            // exposing it as a public member of Program.
+            var property = typeof(Program).GetProperty("Configuration", BindingFlags.NonPublic | BindingFlags.Static);
+            var configurationRoot = (IConfigurationRoot)property.GetValue(null, null);
+
+            return Ok(configurationRoot.GetDebugView());
         }
 
         [HttpGet]
