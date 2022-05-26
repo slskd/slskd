@@ -63,8 +63,11 @@ namespace slskd.Shares
 
             var aliasedSegment = LocalPath[(parent.Length + 1)..];
             RemotePath = maskedPath.ReplaceFirst(aliasedSegment, Alias);
+
+            Id = Compute.Sha1Hash(RemotePath);
         }
 
+        public string Id { get; init; }
         public string Alias { get; init; }
         public bool IsExcluded { get; init; }
         public string LocalPath { get; init; }
