@@ -24,13 +24,22 @@
   min-height: 100px;
 }
 
-.full-height {
-  height: calc(100vh - 175px);
-}
-
 .no-grow {
   white-space: nowrap;
   overflow: overlay;
+}
+
+.edit-code-header {
+  margin-top: 1em !important;
+  font-size: initial !important;
+}
+
+.edit-code-content, .debug-view-content {
+  padding: 0px !important;
+}
+
+.left-align {
+  text-align: left;
 }
 
 .footer-buttons {
@@ -43,23 +52,6 @@
   text-align: right;
 }
 
-.state-code-editor, .view-code-container, .edit-code-container, .edit-code-container-error {
-  border: 1px solid #d4d4d5;
+.edit-code-container, .edit-code-container-error {
   overflow: auto;
-}
-
-.state-code-container {
-  height: calc(100vh - 204px);  
-}
-
-.view-code-container {
-  height: calc(100vh - 254px);  
-}
-
-.edit-code-container {
-  height: calc(100vh - 316px);  
-}
-
-.edit-code-container-error {
-  height: calc(100vh - 378px);  
 }

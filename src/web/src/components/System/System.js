@@ -15,15 +15,42 @@ const System = ({ state = {}, options = {} }) => {
   const history = useHistory();
 
   const panes = [
-    { route: 'info', menuItem: 'Info', render: () => <Tab.Pane><Info state={state}/></Tab.Pane> },
-    {
-      route: 'options', menuItem: 'Options', render: () =>
-        <Tab.Pane className='full-height'><Options options={options} /></Tab.Pane>,
+    { 
+      route: 'info',
+      menuItem: { 
+        key: 'info', 
+        icon: 'info', 
+        content: 'Info',
+      }, 
+      render: () => <Tab.Pane><Info state={state}/></Tab.Pane>, 
     },
     {
-      route: 'shares', menuItem: 'Shares', render: () => <Tab.Pane><Shares/></Tab.Pane>,
+      route: 'options', 
+      menuItem: { 
+        key: 'options', 
+        icon: 'options', 
+        content: 'Options', 
+      }, 
+      render: () => <Tab.Pane className='full-height'><Options options={options} /></Tab.Pane>,
     },
-    { route: 'logs', menuItem: 'Logs', render: () => <Tab.Pane><Logs/></Tab.Pane> },
+    {
+      route: 'shares', 
+      menuItem: { 
+        key: 'shares', 
+        icon: 'share external', 
+        content: 'Shares', 
+      }, 
+      render: () => <Tab.Pane><Shares/></Tab.Pane>,
+    },
+    { 
+      route: 'logs', 
+      menuItem: { 
+        key: 'logs', 
+        icon: 'file outline', 
+        content: 'Logs', 
+      }, 
+      render: () => <Tab.Pane><Logs/></Tab.Pane>, 
+    },
   ];
 
   const activeIndex = panes.findIndex(pane => pane.route === tab);

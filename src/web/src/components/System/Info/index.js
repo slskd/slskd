@@ -1,25 +1,21 @@
 import React from 'react';
 import YAML from 'yaml';
 
-import { restart, shutdown, getVersion } from '../../lib/application';
+import { restart, shutdown, getVersion } from '../../../lib/application';
 
-import { Modal, Header } from 'semantic-ui-react';
-import CodeEditor from '../Shared/CodeEditor';
-import ShrinkableButton from '../Shared/ShrinkableButton';
+import { Modal, Header, Divider } from 'semantic-ui-react';
+
+import {
+  CodeEditor,
+  ShrinkableButton,
+} from '../../Shared';
 
 const Info = ({ state }) => {
   const stateAsYaml = YAML.stringify(state, { simpleKeys: true, sortMapEntries: true });
 
   return (
     <>
-      <div className='view-code-container'>
-        <CodeEditor
-          value={stateAsYaml}
-          basicSetup={false}
-          editable={false}
-        />
-      </div>
-      <div className='footer-buttons'>
+      <div className='header-buttons'>
         <div style={{float: 'left'}}>
           <ShrinkableButton
             icon='refresh'
@@ -61,6 +57,14 @@ const Info = ({ state }) => {
           header={<Header icon='redo' content='Confirm Restart' />}
           content='Are you sure you want restart the application?'
           actions={['Cancel', { key: 'done', content: 'Restart', negative: true, onClick: restart }]}
+        />
+      </div>
+      <Divider/>
+      <div className='view-code-container'>
+        <CodeEditor
+          value={stateAsYaml}
+          basicSetup={false}
+          editable={false}
         />
       </div>
     </>
