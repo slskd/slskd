@@ -38,6 +38,11 @@ namespace slskd.Shares
     public interface ISharedFileCache
     {
         /// <summary>
+        ///     Gets the list of shares.
+        /// </summary>
+        public List<Share> Shares { get; }
+
+        /// <summary>
         ///     Gets the cache state monitor.
         /// </summary>
         IStateMonitor<SharedFileCacheState> StateMonitor { get; }
@@ -100,12 +105,16 @@ namespace slskd.Shares
         /// </summary>
         public IStateMonitor<SharedFileCacheState> StateMonitor => State;
 
+        /// <summary>
+        ///     Gets the list of shares.
+        /// </summary>
+        public List<Share> Shares { get; private set; }
+
         private IManagedState<SharedFileCacheState> State { get; } = new ManagedState<SharedFileCacheState>();
         private ILogger Log { get; } = Serilog.Log.ForContext<SharedFileCache>();
         private HashSet<string> MaskedDirectories { get; set; }
         private Dictionary<string, File> MaskedFiles { get; set; }
         private IOptionsMonitor<Options> OptionsMonitor { get; set; }
-        private List<Share> Shares { get; set; }
         private SqliteConnection SQLite { get; set; }
         private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1);
         private ISoulseekFileFactory SoulseekFileFactory { get; }
