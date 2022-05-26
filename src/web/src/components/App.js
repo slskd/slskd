@@ -260,7 +260,7 @@ class App extends Component {
             <AppContext.Provider value={{ state: applicationState, options: applicationOptions }}>
               <Switch>
                 <Route path={`${urlBase}/searches/:id?`} render={(props) => 
-                  this.withTokenCheck(<div className='page'>
+                  this.withTokenCheck(<div className='view'>
                     <Searches
                       server={applicationState.server}
                       {...props}
@@ -273,11 +273,11 @@ class App extends Component {
                 <Route path={`${urlBase}/rooms`} render={(props) => this.withTokenCheck(<Rooms {...props}/>)}/>
                 <Route path={`${urlBase}/uploads`} render={
                   (props) => 
-                    this.withTokenCheck(<div className='page'><Transfers {...props} direction='upload'/></div>)
+                    this.withTokenCheck(<div className='view'><Transfers {...props} direction='upload'/></div>)
                 }/>
                 <Route path={`${urlBase}/downloads`} render={
                   (props) => 
-                    this.withTokenCheck(<div className='page'>
+                    this.withTokenCheck(<div className='view'>
                       <Transfers {...props} direction='download' server={applicationState.server}/>
                     </div>)
                 }/>
