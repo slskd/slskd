@@ -9,6 +9,7 @@
   "parserOptions": {
     "ecmaVersion": "latest"
   },
+  "ignorePatterns": ["build"],
   "rules": {
     "max-len": ["warn", 120],
     "quotes": ["warn", "single"],
@@ -25,6 +26,7 @@
     "prefer-destructuring": ["warn"],
     "no-await-in-loop": "error",
     "require-atomic-updates": "error",
-    "curly": ["warn", "multi-line"]
+    "curly": ["warn", "multi-line"],
+    "semi": ["warn", "always"]
   }
 }
