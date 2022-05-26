@@ -33,7 +33,7 @@ const SearchDetailHeader = ({
     } else {
       onStop(search);
     }
-  }
+  };
 
   const RefreshButton = () => loaded &&
     <Button 
@@ -43,7 +43,7 @@ const SearchDetailHeader = ({
       loading={creating}
     >
       <Icon name='refresh'/>{(!isSmallScreen || isTinyScreen) && 'Search Again'}
-    </Button>
+    </Button>;
 
   const StopOrDeleteButton = () => 
     <Button 
@@ -56,7 +56,7 @@ const SearchDetailHeader = ({
     >
       <Icon name={isComplete ? 'trash alternate' : 'stop circle'}/>
       {(!isSmallScreen || isTinyScreen) && ((loaded && isComplete) ? 'Delete' : 'Stop')}
-    </Button>
+    </Button>;
 
   // if the screen is full width, display the header and action buttons in the same segment, with full
   // button text.  if the screen is between 684 and 899 pixels, display the buttons with no text.
@@ -77,7 +77,7 @@ const SearchDetailHeader = ({
         <StopOrDeleteButton/>
       </Segment>}
     </>
-  )
+  );
 };
 
 export default SearchDetailHeader;

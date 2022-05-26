@@ -13,7 +13,7 @@ class TransferGroup extends Component {
   state = {
     selections: new Set(),
     isFolded: false,
-  }
+  };
 
   onSelectionChange = (directoryName, file, selected) => {
     const {selections} = this.state;
@@ -21,7 +21,7 @@ class TransferGroup extends Component {
     selected ? selections.add(obj) : selections.delete(obj);
 
     this.setState({ selections });
-  }
+  };
 
   isSelected = (directoryName, file) => 
     this.state.selections.has(JSON.stringify({ directory: directoryName, filename: file.filename }));
@@ -35,7 +35,7 @@ class TransferGroup extends Component {
         .find(d => d.directory === s.directory)
         .files.find(f => f.filename === s.filename)
       ).filter(s => s !== undefined);
-  }
+  };
 
   removeFileSelection = (file) => {
     const {selections} = this.state;
@@ -48,21 +48,21 @@ class TransferGroup extends Component {
       selections.delete(JSON.stringify(match));
       this.setState({ selections });
     }
-  }
+  };
 
   retryAll = async (selected) => {
     await Promise.all(selected.map(file => this.retry(file)));
-  }
+  };
 
   cancelAll = async (direction, username, selected) => {
     await Promise.all(selected.map(file => transfers.cancel({ direction, username, id: file.id})));
-  }
+  };
 
   removeAll = async (direction, username, selected) => {
     await Promise.all(selected.map(file => 
       transfers.cancel({ direction, username, id: file.id, remove: true })
         .then(() => this.removeFileSelection(file))));
-  }
+  };
 
   retry = async (file) => {
     const { username, filename, size } = file;
@@ -72,7 +72,7 @@ class TransferGroup extends Component {
     } catch (error) {
       console.log(error);
     }
-  }
+  };
 
   fetchPlaceInQueue = async (file) => {
     const { username, id } = file;
@@ -82,11 +82,11 @@ class TransferGroup extends Component {
     } catch (error) {
       console.log(error);
     }
-  }
+  };
 
   toggleFolded = () => {
     this.setState({'isFolded': !this.state.isFolded});
-  }
+  };
 
   render = () => {
     const { user, direction } = this.props;
@@ -153,7 +153,7 @@ class TransferGroup extends Component {
                 </Card.Content>}
       </Card>
     );
-  }
+  };
 }
 
 export default TransferGroup;

@@ -26,14 +26,14 @@ const Transfers = ({ direction, server }) => {
     const init = async () => {
       await fetch();
       setConnecting(false);
-    }
+    };
 
     init();
     const interval = window.setInterval(fetch, 1000);
     
     return () => {
       clearInterval(interval);
-    }
+    };
   }, [direction]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useMemo(() => {
@@ -54,7 +54,7 @@ const Transfers = ({ direction, server }) => {
       console.error(error);
       toast.error(error?.response?.data ?? error?.message ?? error);
     }
-  }
+  };
 
   const retry = async ({ file, suppressStateChange = false }) => {
     const { username, filename, size } = file;
@@ -68,13 +68,13 @@ const Transfers = ({ direction, server }) => {
       toast.error(error?.response?.data ?? error?.message ?? error);
       if (!suppressStateChange) setRetrying(false);
     }
-  }
+  };
 
   const retryAll = async (transfers) => {
     setRetrying(true);
-    await Promise.all(transfers.map(file => retry({ file, suppressStateChange: true })))
+    await Promise.all(transfers.map(file => retry({ file, suppressStateChange: true })));
     setRetrying(false);
-  }
+  };
 
   const cancel = async ({ file, suppressStateChange = false }) => {
     const { username, id } = file;
@@ -88,13 +88,13 @@ const Transfers = ({ direction, server }) => {
       toast.error(error?.response?.data ?? error?.message ?? error);
       if (!suppressStateChange) setCancelling(false);
     }
-  }
+  };
 
   const cancelAll = async (transfers) => {
     setCancelling(true);
     await Promise.all(transfers.map(file => cancel({ file, suppressStateChange: true })));
     setCancelling(false);
-  }
+  };
 
   const remove = async ({ file, suppressStateChange = false }) => {
     const { username, id } = file;
@@ -108,16 +108,16 @@ const Transfers = ({ direction, server }) => {
       toast.error(error?.response?.data ?? error?.message ?? error);
       if (!suppressStateChange) setRemoving(false);
     }
-  }
+  };
 
   const removeAll = async (transfers) => {
     setRemoving(true);
     await Promise.all(transfers.map(file => remove({ file, suppressStateChange: true })));
     setRemoving(false);
-  }
+  };
 
   if (connecting) {
-    return <LoaderSegment/>
+    return <LoaderSegment/>;
   }
 
   return (
@@ -150,6 +150,6 @@ const Transfers = ({ direction, server }) => {
         )}
     </>
   );
-}
+};
 
 export default Transfers;

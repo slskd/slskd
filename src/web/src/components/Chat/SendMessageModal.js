@@ -26,11 +26,11 @@ const SendMessageModal = ({ initiateConversation, ...rest }) => {
 
     await initiateConversation(username, message);
     setOpen(false);
-  }
+  };
 
   const validInput = () => {
-    return username.length > 0 && message.length > 0
-  }
+    return username.length > 0 && message.length > 0;
+  };
 
   return (
     <Modal
@@ -69,7 +69,7 @@ const SendMessageModal = ({ initiateConversation, ...rest }) => {
         >Send</Button>
       </Modal.Actions>
     </Modal>
-  )
-}
+  );
+};
 
 export default SendMessageModal;

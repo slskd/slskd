@@ -14,6 +14,6 @@ const CodeEditor = ({ value, onChange = () => {}, ...rest}) => {
       { ...rest}
     />
   );
-}
+};
 
 export default CodeEditor;

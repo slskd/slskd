@@ -2,7 +2,7 @@ import {
   JsonHubProtocol,
   HubConnectionBuilder,
   LogLevel,
-} from '@microsoft/signalr'
+} from '@microsoft/signalr';
 
 import { hubBaseUrl } from '../config';
 import * as session from '../lib/session';
@@ -22,4 +22,4 @@ export const createApplicationHubConnection = () => createHubConnection({ url: `
 
 export const createLogsHubConnection = () => createHubConnection({ url: `${hubBaseUrl}/logs` });
 
-export const createSearchHubConnection = () => createHubConnection({ url: `${hubBaseUrl}/search`})
+export const createSearchHubConnection = () => createHubConnection({ url: `${hubBaseUrl}/search`});

@@ -59,8 +59,8 @@ class App extends Component {
         const securityEnabled = await session.getSecurityEnabled();
   
         if (!securityEnabled) {
-          console.debug('application security is not enabled, per api call')
-          session.enablePassthrough()
+          console.debug('application security is not enabled, per api call');
+          session.enablePassthrough();
         }
   
         if (await session.check()) {
@@ -71,8 +71,8 @@ class App extends Component {
           });
   
           appHub.on('options', (options) => {
-            this.setState({ applicationOptions: options })
-          })
+            this.setState({ applicationOptions: options });
+          });
 
           appHub.onreconnecting(() => this.setState({ error: true, retriesExhausted: false }));
           appHub.onclose(() => this.setState({ error: true, retriesExhausted: true }));
@@ -85,13 +85,13 @@ class App extends Component {
           error: false,
         });
       } catch (err) {
-        console.error(err)
-        this.setState({ error: true, retriesExhausted: true })
+        console.error(err);
+        this.setState({ error: true, retriesExhausted: true });
       } finally {
         this.setState({ initialized: true });
       }
-    })
-  }
+    });
+  };
 
   login = (username, password, rememberMe) => {
     this.setState({ login: { ...this.state.login, pending: true, error: undefined }}, async () => {
@@ -303,7 +303,7 @@ class App extends Component {
           pauseOnHover
         />
       </>
-    )
+    );
   };
 }
 

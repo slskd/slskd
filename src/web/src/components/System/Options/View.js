@@ -7,7 +7,7 @@ import CodeEditor from '../../Shared/CodeEditor';
 const View = ({ options, editAction }) => {
   const { remoteConfiguration } = options;
 
-  const optionsAsYaml = YAML.stringify(options, { simpleKeys: true, sortMapEntries: true })
+  const optionsAsYaml = YAML.stringify(options, { simpleKeys: true, sortMapEntries: true });
 
   return (
     <>
@@ -25,6 +25,6 @@ const View = ({ options, editAction }) => {
       </div>
     </>
   );
-}
+};
 
 export default View;

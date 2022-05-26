@@ -20,7 +20,7 @@ const initialState = {
     messages: undefined,
   },
   loading: false,
-}
+};
 
 class Rooms extends Component {
   state = initialState;
@@ -36,7 +36,7 @@ class Rooms extends Component {
       active: sessionStorage.getItem(activeRoomKey) || '',
     }, async () => {
       await this.fetchJoinedRooms();
-      this.selectRoom(this.state.active || this.getFirstRoom())
+      this.selectRoom(this.state.active || this.getFirstRoom());
     });
   };
 
@@ -47,11 +47,11 @@ class Rooms extends Component {
     clearInterval(messages);
 
     this.setState({ intervals: initialState.intervals });
-  }
+  };
 
   getFirstRoom = () => {
     return this.state.joined.length > 0 ? this.state.joined[0] : '';
-  }
+  };
 
   fetchJoinedRooms = async () => {
     const joined = await rooms.getJoined();
@@ -218,7 +218,7 @@ class Rooms extends Component {
             </Card.Content>
           </Card>}
       </div>
-    )
+    );
   };
 }
 

@@ -30,17 +30,17 @@ class Chat extends Component {
       await this.fetchConversations();
       this.selectConversation(this.state.active || this.getFirstConversation());
     });
-  }
+  };
 
   componentWillUnmount = () => {
     clearInterval(this.state.interval);
     this.setState({ interval: undefined });
-  }
+  };
 
   getFirstConversation = () => {
     const names = [...Object.keys(this.state.conversations)];
     return names.length > 0 ? names[0] : '';
-  }
+  };
 
   fetchConversations = async () => {
     const { active } = this.state;
@@ -64,7 +64,7 @@ class Chat extends Component {
         this.acknowledgeMessages(this.state.active);
       }
     });
-  }
+  };
 
   acknowledgeMessages = async (username, { force = false } = {}) => {
     if (!username) return;
@@ -75,11 +75,11 @@ class Chat extends Component {
     if (!force && unAckedMessages.length === 0) return;
 
     await chat.acknowledge({ username });
-  }
+  };
 
   sendMessage = async (username, message) => {
     await chat.send({ username, message });
-  }
+  };
 
   sendReply = async () => {
     const { active } = this.state;
@@ -91,7 +91,7 @@ class Chat extends Component {
 
     await this.sendMessage(active, message);
     this.messageRef.current.value = '';
-  }
+  };
 
   validInput = () =>
     (this.state.active || '').length > 0
@@ -99,7 +99,7 @@ class Chat extends Component {
 
   focusInput = () => {
     this.messageRef.current.focus();
-  }
+  };
 
   formatTimestamp = (timestamp) => {
     const date = new Date(timestamp);
@@ -111,7 +111,7 @@ class Chat extends Component {
     });
 
     return dtfUS.format(date);
-  }
+  };
 
   selectConversation = (username) => {
     this.setState({ 
@@ -130,19 +130,19 @@ class Chat extends Component {
         }
       });
     });
-  }
+  };
   
   initiateConversation = async (username, message) => {
     await this.sendMessage(username, message);
     await this.fetchConversations();
     this.selectConversation(username);
-  }
+  };
 
   deleteConversation = async (username) => {
     await chat.remove({ username });
     await this.fetchConversations();
     this.selectConversation(this.getFirstConversation());
-  }
+  };
 
   render = () => {
     const { conversations = [], active, loading } = this.state;
@@ -214,8 +214,8 @@ class Chat extends Component {
             </Card.Content>
           </Card>}
       </div>
-    )
-  }
+    );
+  };
 }
 
 export default Chat;

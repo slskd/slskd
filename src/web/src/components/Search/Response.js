@@ -3,7 +3,7 @@ import * as transfers from '../../lib/transfers';
 
 import { formatBytes, getDirectoryName } from '../../lib/util';
 
-import FileList from '../Shared/FileList'
+import FileList from '../Shared/FileList';
 
 import { 
   Button, 
@@ -22,7 +22,7 @@ const buildTree = (response) => {
     dict[dir] = dict[dir] === undefined ? [ selectable ] : dict[dir].concat(selectable);
     return dict;
   }, {});
-}
+};
 
 class Response extends Component {
   state = { 
@@ -30,7 +30,7 @@ class Response extends Component {
     downloadRequest: undefined, 
     downloadError: '',
     isFolded: this.props.isInitiallyFolded,
-  }
+  };
 
   componentDidUpdate = (prevProps) => {
     if (JSON.stringify(this.props.response) !== JSON.stringify(prevProps.response)) {
@@ -39,29 +39,29 @@ class Response extends Component {
     if (this.props.isInitiallyFolded !== prevProps.isInitiallyFolded) {
       this.setState({ isFolded: this.props.isInitiallyFolded });
     }
-  }
+  };
 
   onFileSelectionChange = (file, state) => {
     file.selected = state;
-    this.setState({ tree: this.state.tree, downloadRequest: undefined, downloadError: '' })
-  }
+    this.setState({ tree: this.state.tree, downloadRequest: undefined, downloadError: '' });
+  };
 
   download = (username, files) => {
     this.setState({ downloadRequest: 'inProgress' }, async () => {
       try {
-        const requests = (files || []).map(({ filename, size }) => ({ filename, size }))
-        await transfers.download({ username, files: requests })
+        const requests = (files || []).map(({ filename, size }) => ({ filename, size }));
+        await transfers.download({ username, files: requests });
 
-        this.setState({ downloadRequest: 'complete' })
+        this.setState({ downloadRequest: 'complete' });
       } catch (err) {
-        this.setState({ downloadRequest: 'error', downloadError: err.response })
+        this.setState({ downloadRequest: 'error', downloadError: err.response });
       }
     });
-  }
+  };
 
   toggleFolded = () => {
     this.setState({ isFolded: !this.state.isFolded });
-  }
+  };
 
   render = () => {
     let {response} = this.props;
@@ -134,8 +134,8 @@ class Response extends Component {
           </span>
         </Card.Content>}
       </Card>
-    )
-  }
+    );
+  };
 }
 
 export default Response;

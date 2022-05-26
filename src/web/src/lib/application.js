@@ -10,8 +10,8 @@ export const restart = async () => {
 
 export const shutdown = async () => {
   return api.delete('/application');
-}
+};
 
 export const getVersion = async ({ forceCheck = false }) => {
   return (await api.get(`/application/version/latest?forceCheck=${forceCheck}`)).data;
-}
+};

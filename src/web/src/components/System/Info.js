@@ -8,7 +8,7 @@ import CodeEditor from '../Shared/CodeEditor';
 import ShrinkableButton from '../Shared/ShrinkableButton';
 
 const Info = ({ state }) => {
-  const stateAsYaml = YAML.stringify(state, { simpleKeys: true, sortMapEntries: true })
+  const stateAsYaml = YAML.stringify(state, { simpleKeys: true, sortMapEntries: true });
 
   return (
     <>
@@ -65,6 +65,6 @@ const Info = ({ state }) => {
       </div>
     </>
   );
-}
+};
 
 export default Info;

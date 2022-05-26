@@ -6,6 +6,6 @@ const Div = ({ hidden, children, ...rest }) => {
   }
 
   return (<div {...rest}>{children}</div>);
-}
+};
 
 export default Div;

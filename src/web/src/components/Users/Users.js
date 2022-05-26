@@ -57,7 +57,7 @@ const Users = (props) => {
       } catch (error) {
         setStatus({ fetching: false, error: error });
       }
-    }
+    };
 
     fetchUser();
   }, [selectedUsername]);
@@ -68,15 +68,15 @@ const Users = (props) => {
     setUser(undefined);
     setInputText('');
     setInputFocus();
-  }
+  };
 
   const setInputText = (text) => {
     inputRef.current.inputRef.current.value = text;
-  }
+  };
 
   const setInputFocus = () => {
     inputRef.current.focus();
-  }
+  };
 
   const keyUp = (e) => e.key === 'Escape' ? clear() : '';
 

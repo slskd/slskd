@@ -21,7 +21,7 @@ const RoomJoinModal = ({ joinRoom: parentJoinRoom, ...modalOptions }) => {
       const available = await rooms.getAvailable();
       setAvailable(available);
       setLoading(false);
-    }
+    };
 
     if (open) getAvailableRooms();
   }, [open]);
@@ -42,7 +42,7 @@ const RoomJoinModal = ({ joinRoom: parentJoinRoom, ...modalOptions }) => {
         return a[sortBy].localeCompare(b[sortBy]);
       }
 
-      return b[sortBy] - a[sortBy]
+      return b[sortBy] - a[sortBy];
     });
     
     return sorted;
@@ -51,7 +51,7 @@ const RoomJoinModal = ({ joinRoom: parentJoinRoom, ...modalOptions }) => {
   const joinRoom = async () => {
     await parentJoinRoom(selected);
     close();
-  }
+  };
 
   const isSelected = (room) => selected === room.name;
 
@@ -62,7 +62,7 @@ const RoomJoinModal = ({ joinRoom: parentJoinRoom, ...modalOptions }) => {
     setSortOrder('desc');
     setFilter('');
     setOpen(false);
-  }
+  };
 
   return (
     <Modal
@@ -136,7 +136,7 @@ const RoomJoinModal = ({ joinRoom: parentJoinRoom, ...modalOptions }) => {
         >Join</Button>
       </Modal.Actions>
     </Modal>
-  )
-}
+  );
+};
 
 export default RoomJoinModal;

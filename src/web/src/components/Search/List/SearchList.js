@@ -58,7 +58,7 @@ const SearchList = ({
         </div>
       </Card.Content>
     </Card>
-  )
+  );
 };
 
 export default SearchList;

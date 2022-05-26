@@ -4,7 +4,7 @@ export const formatSeconds = (seconds) =>
   var date = new Date(1970,0,1);
   date.setSeconds(seconds);
   return date.toTimeString().replace(/.*(\d{2}:\d{2}).*/, '$1');
-}
+};
 
 export const formatBytes = (bytes, decimals = 2) => {
   if (bytes === 0) return '0 Bytes';
@@ -16,11 +16,11 @@ export const formatBytes = (bytes, decimals = 2) => {
   const i = Math.floor(Math.log(bytes) / Math.log(k));
 
   return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
-}
+};
 
 export const getFileName = (fullPath) => {
   return fullPath.split('\\').pop().split('/').pop();
-}
+};
 
 export const getDirectoryName = (fullPath) => {
   let path = fullPath;
@@ -32,7 +32,7 @@ export const getDirectoryName = (fullPath) => {
   {path = path.substring(0, path.lastIndexOf('/'));}
 
   return path;
-}
+};
 
 export const formatAttributes = ({ bitRate, isVariableBitRate, bitDepth, sampleRate }) => {
   const isLossless = !!sampleRate && !!bitDepth;
@@ -42,15 +42,15 @@ export const formatAttributes = ({ bitRate, isVariableBitRate, bitDepth, sampleR
   }
 
   if (isVariableBitRate) {
-    return `${bitRate} Kbps, VBR`
+    return `${bitRate} Kbps, VBR`;
   }
 
-  return bitRate ? `${bitRate} Kbps` : ''
-}
+  return bitRate ? `${bitRate} Kbps` : '';
+};
 
 export const sleep = (milliseconds) => {
-  return new Promise(resolve => setTimeout(resolve, milliseconds))
-}
+  return new Promise(resolve => setTimeout(resolve, milliseconds));
+};
 
 /* https://www.npmjs.com/package/js-file-download
  * 
@@ -99,4 +99,4 @@ export const downloadFile = (data, filename, mime) => {
     document.body.removeChild(tempLink);
     window.URL.revokeObjectURL(blobURL);
   }
-}
+};

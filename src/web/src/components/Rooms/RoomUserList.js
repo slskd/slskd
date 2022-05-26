@@ -10,11 +10,11 @@ const RoomUserList = ({ users }) => {
     if (!(user || {}).countryCode) return <Icon className='unknown-user-flag' name='question'/>;
 
     return <Flag name={user.countryCode.toLowerCase()}/>;
-  }
+  };
 
   const getDetails = (user) => {
     return user.countryCode || '?';
-  }
+  };
 
   const sortedUsers = useMemo(() => {
     const filtered = [...users]
@@ -38,7 +38,7 @@ const RoomUserList = ({ users }) => {
         </List.Item>
       )}
     </List>
-  )
-}
+  );
+};
 
 export default RoomUserList;

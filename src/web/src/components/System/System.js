@@ -20,16 +20,16 @@ const System = ({ state = {}, options = {} }) => {
         <Tab.Pane className='full-height'><Options options={options} /></Tab.Pane>,
     },
     { route: 'logs', menuItem: 'Logs', render: () => <Tab.Pane><Logs/></Tab.Pane> },
-  ]
+  ];
 
-  const activeIndex = panes.findIndex(pane => pane.route === tab)
+  const activeIndex = panes.findIndex(pane => pane.route === tab);
 
   const onTabChange = (e, { activeIndex }) => {
-    history.push(panes[activeIndex].route)
-  }
+    history.push(panes[activeIndex].route);
+  };
 
   if (tab === undefined) {
-    return <Redirect to={`${route.url}/${panes[0].route}`}/>
+    return <Redirect to={`${route.url}/${panes[0].route}`}/>;
   }
 
   return (

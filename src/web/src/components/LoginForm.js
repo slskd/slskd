@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react'
-import { Button, Form, Grid, Header, Icon, Segment, Checkbox, Message } from 'semantic-ui-react'
+import React, { useState, useEffect, useMemo } from 'react';
+import { Button, Form, Grid, Header, Icon, Segment, Checkbox, Message } from 'semantic-ui-react';
 
 import Logos from './Shared/Logo';
 
@@ -7,7 +7,7 @@ const initialState = {
   username: '',
   password: '',
   rememberMe: true,
-}
+};
 
 const LoginForm = ({ onLoginAttempt, loading, error }) => {
   const [state, setState] = useState(initialState);
@@ -20,14 +20,14 @@ const LoginForm = ({ onLoginAttempt, loading, error }) => {
     } else {
       setReady(false);
     }
-  }, [state])
+  }, [state]);
 
   const handleChange = (field, value) => {
     setState({
       ...state,
       [field]: value,
     });
-  }
+  };
 
   const { username, password, rememberMe } = state;
 
@@ -89,7 +89,7 @@ const LoginForm = ({ onLoginAttempt, loading, error }) => {
         </Grid.Column>
       </Grid>
     </>
-  )
-}
+  );
+};
 
-export default LoginForm
+export default LoginForm;

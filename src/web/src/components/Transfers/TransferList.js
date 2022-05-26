@@ -31,30 +31,30 @@ const getColor = (state) => {
   default:
     return { color: 'red' };
   }
-}
+};
 
 const isRetryableState = (state) => getColor(state).color === 'red';
 const isQueuedState = (state) => state.includes('Queued');
 
 const formatBytesTransferred = ({ transferred, size }) => {
-  const [t, tExt] = formatBytes(transferred).split(' ')
-  const [s, sExt] = formatBytes(size).split(' ')
+  const [t, tExt] = formatBytes(transferred).split(' ');
+  const [s, sExt] = formatBytes(size).split(' ');
 
   const fmt = (n) => parseFloat(n).toFixed(2);
 
   // if less than 1 MB has been transferred, don't include decimals
   if (tExt === 'KB') {
-    return `${t} KB/${fmt(s)} ${sExt}`
+    return `${t} KB/${fmt(s)} ${sExt}`;
   }
 
   // if the suffix for size and transferred doesn't match, include
   // the suffix for each
   if (tExt !== sExt) {
-    return `${fmt(t)} ${tExt}/${fmt(s)} ${sExt}`
+    return `${fmt(t)} ${tExt}/${fmt(s)} ${sExt}`;
   }
 
-  return `${fmt(t)}/${fmt(s)} ${sExt}`
-}
+  return `${fmt(t)}/${fmt(s)} ${sExt}`;
+};
 
 class TransferList extends Component {
   handleClick = (file) => {
@@ -69,7 +69,7 @@ class TransferList extends Component {
         return this.props.onPlaceInQueueRequested(file);
       }
     }    
-  }
+  };
 
   render = () => {
     const { directoryName, onSelectionChange, files } = this.props;
@@ -143,8 +143,8 @@ class TransferList extends Component {
           </List.Item>
         </List>
       </div>
-    )
-  }
+    );
+  };
 }
 
 export default TransferList;
