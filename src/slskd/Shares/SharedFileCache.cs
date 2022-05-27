@@ -460,7 +460,7 @@ namespace slskd.Shares
             SQLite = new SqliteConnection("Data Source=file:shares?mode=memory&cache=shared");
             SQLite.Open();
 
-            using var cmd = new SqliteCommand("CREATE VIRTUAL TABLE cache USING fts5(filename)", SQLite);
+            using var cmd = new SqliteCommand("DROP TABLE IF EXISTS cache; CREATE VIRTUAL TABLE cache USING fts5(filename);", SQLite);
             cmd.ExecuteNonQuery();
         }
 
