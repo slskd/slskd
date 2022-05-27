@@ -104,14 +104,8 @@ namespace slskd.Shares.API
                 return NotFound();
             }
 
-            var browse = Shares.Cache.Browse();
-
-            foreach (var dir in browse)
-            {
-                Console.WriteLine($"{dir.Name} ?? ${share.RemotePath}");
-            }
-
-            var contents = Shares.Cache.Browse().Where(directory => directory.Name.StartsWith(share.RemotePath));
+            var contents = Shares.Cache.Browse()
+                .Where(directory => directory.Name.StartsWith(share.RemotePath));
 
             return Ok(contents);
         }
