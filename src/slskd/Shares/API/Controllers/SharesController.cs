@@ -33,17 +33,46 @@ namespace slskd.Shares.API
     [Consumes("application/json")]
     public class SharesController : ControllerBase
     {
-        public SharesController(IShareService shareService)
+        public SharesController(
+            IShareService shareService,
+            IStateMonitor<State> applicationStateMonitor)
         {
             Shares = shareService;
+            ApplicationStateMonitor = applicationStateMonitor;
         }
 
         private IShareService Shares { get; }
+        private IStateMonitor<State> ApplicationStateMonitor { get; }
 
         [HttpGet("")]
         public IActionResult List()
         {
-            return Ok(Shares.Cache.Shares);
+            var browse = Shares.Cache.Browse();
+
+            var summary = Shares.Cache.Shares.Select(share =>
+            {
+                var directories = browse.Where(directory => directory.Name.StartsWith(share.RemotePath));
+                var fileCount = directories.Aggregate(seed: 0, (sum, directory) =>
+                {
+                    sum += directory.FileCount;
+                    return sum;
+                });
+
+                return new SummarizedShare()
+                {
+                    Id = share.Id,
+                    Alias = share.Alias,
+                    IsExcluded = share.IsExcluded,
+                    LocalPath = share.LocalPath,
+                    Mask = share.Mask,
+                    Raw = share.Raw,
+                    RemotePath = share.RemotePath,
+                    Directories = directories.Count(),
+                    Files = fileCount,
+                };
+            });
+
+            return Ok(summary);
         }
 
         [HttpGet("{id}")]
@@ -85,6 +114,21 @@ namespace slskd.Shares.API
             var contents = Shares.Cache.Browse().Where(directory => directory.Name.StartsWith(share.RemotePath));
 
             return Ok(contents);
+        }
+
+        [HttpPut]
+        [Route("")]
+        [Authorize]
+        public IActionResult RescanSharesAsync()
+        {
+            if (ApplicationStateMonitor.CurrentValue.SharedFileCache.Filling)
+            {
+                return Conflict("A share scan is already in progress.");
+            }
+
+            _ = Shares.Cache.FillAsync();
+
+            return Ok();
         }
     }
 }

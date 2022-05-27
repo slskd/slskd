@@ -136,20 +136,5 @@ namespace slskd.Core.API
 
             return Ok();
         }
-
-        [HttpPut]
-        [Route("shares")]
-        [Authorize]
-        public IActionResult RescanSharesAsync()
-        {
-            if (ApplicationStateMonitor.CurrentValue.SharedFileCache.Filling)
-            {
-                return Conflict("A share scan is already in progress.");
-            }
-
-            _ = Application.RescanSharesAsync();
-
-            return Ok();
-        }
     }
 }

@@ -48,7 +48,6 @@ namespace slskd
     public interface IApplication : IHostedService
     {
         public Task CheckVersionAsync();
-        public Task RescanSharesAsync();
         public void CollectGarbage();
     }
 
@@ -225,12 +224,6 @@ namespace slskd
                 throw;
             }
         }
-
-        /// <summary>
-        ///     Re-scans shared directories.
-        /// </summary>
-        /// <returns>The operation context.</returns>
-        public Task RescanSharesAsync() => SharedFileCache.FillAsync();
 
         async Task IHostedService.StartAsync(CancellationToken cancellationToken)
         {
