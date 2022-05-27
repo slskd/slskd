@@ -1,33 +1,29 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
-import { orderBy } from 'lodash';
 
 import * as sharesLib from '../../../lib/shares';
 import { 
-  CodeEditor,
-  LoaderSegment, 
-  PlaceholderSegment, 
+  LoaderSegment,
   ShrinkableButton, 
   Switch, 
+  Div,
 } from '../../Shared';
 
-import Share from './Share';
+import ContentsModal from './ContentsModal';
 
 import {
-  Modal,
-  Button,
   Divider,
   Table,
   Icon,
 } from 'semantic-ui-react';
 import { Link } from 'react-router-dom';
 
-const Index = ({ state }) => {
+const Index = ({ state = {} } = {}) => {
   const [loading, setLoading] = useState(true);
   const [shares, setShares] = useState([]);
   const [modal, setModal] = useState(false);
 
-  const { filling, filled, faulted, fillProgress, directories, files, excludedDirectories } = state;
+  const { filling, filled, fillProgress } = state;
 
   useEffect(() => {
     getAll();
@@ -51,26 +47,6 @@ const Index = ({ state }) => {
     }
   };
 
-  const browse = async (share) => {
-    const { id, localPath, remotePath } = share;
-    const contents = await sharesLib.browse({ id });
-
-    var directories = contents.map(directory => {
-      const lines = [directory.name.replace(remotePath, localPath)];
-
-      orderBy(directory.files, 'filename').forEach(file => {
-        console.log(file);
-        lines.push('\t' + file.filename.replace(remotePath, ''));
-      });
-
-      lines.push('');
-
-      return lines.join('\n');
-    });
-
-    setModal({ id, localPath, remotePath, contents: directories.join('\n') });
-  };
-
   const shared = shares.filter(share => !share.isExcluded);
   const excluded = shares.filter(share => share.isExcluded);
 
@@ -81,7 +57,7 @@ const Index = ({ state }) => {
           primary
           icon='refresh'
           loading={filling}
-          disabled={filling}
+          disabled={filling || loading}
           mediaQuery={'(max-width: 516px)'} 
           onClick={() => sharesLib.rescan()}
         >{filling ? 'Scanning shares' : 'Rescan Shares'}</ShrinkableButton>
@@ -102,7 +78,7 @@ const Index = ({ state }) => {
           </Table.Header>
           <Table.Body>
             {shared.map((share, index) => (<Table.Row key={index}>
-              <Table.Cell onClick={() => browse(share)}>
+              <Table.Cell onClick={() => setModal(share)}>
                 <Icon name='folder'/>  
                 <Link to='#'>{share.localPath}</Link>
               </Table.Cell>
@@ -113,39 +89,22 @@ const Index = ({ state }) => {
             </Table.Row>))}
           </Table.Body>
         </Table>
-        <Table size='large'>
-          <Table.Header>
-            <Table.Row>
-              <Table.HeaderCell>Excluded Paths</Table.HeaderCell>
-            </Table.Row>
-          </Table.Header>
-          <Table.Body>
-            {excluded.map((share, index) => (<Table.Row key={index}>
-              <Table.Cell><Icon name='x' color='red'/>{share.localPath}</Table.Cell>
-            </Table.Row>))}
-          </Table.Body>
-        </Table>
+        <Div hidden={!excluded || excluded.length === 0}>
+          <Table size='large'>
+            <Table.Header>
+              <Table.Row>
+                <Table.HeaderCell>Excluded Paths</Table.HeaderCell>
+              </Table.Row>
+            </Table.Header>
+            <Table.Body>
+              {excluded.map((share, index) => (<Table.Row key={index}>
+                <Table.Cell><Icon name='x' color='red'/>{share.localPath}</Table.Cell>
+              </Table.Row>))}
+            </Table.Body>
+          </Table>
+        </Div>
       </Switch>
-      <Modal
-        size='large'
-        open={modal}
-        onClose={() => setModal(false)}
-      >
-        <Modal.Header><Icon name='folder'/>{modal.localPath}</Modal.Header>
-        <Modal.Content scrolling className='share-ls-content'>
-          <CodeEditor
-            style={{minHeight: 500}}
-            value={modal.contents}
-            basicSetup={false}
-            editable={false}
-          />
-        </Modal.Content>
-        <Modal.Actions>
-          <Button onClick={() => setModal(false)}>
-            Close
-          </Button>
-        </Modal.Actions>
-      </Modal>
+      <ContentsModal share={modal} onClose={() => setModal(false)}/>
     </>    
   );
 };
