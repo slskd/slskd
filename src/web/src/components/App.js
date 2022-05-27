@@ -116,7 +116,7 @@ class App extends Component {
 
   render = () => {
     const { login, applicationState = {}, applicationOptions = {}, error, initialized, retriesExhausted } = this.state;
-    const { version = {}, server } = applicationState;
+    const { version = {}, server, pendingReconnect, pendingRestart, pendingShareRescan } = applicationState;
     const { isUpdateAvailable, current, latest } = version;
 
     if (!initialized) {
@@ -211,6 +211,13 @@ class App extends Component {
                   <Icon name='plug' color='grey'/>
                   <Icon name='close' color='red' corner='bottom right' className='menu-icon-no-shadow'/>
                 </Icon.Group>Disconnected
+              </Menu.Item>}
+              {(pendingReconnect || pendingRestart || pendingShareRescan) && <Menu.Item position='right'>
+                <Icon.Group className='menu-icon-group'>
+                  <Link to={`${urlBase}/system/info`}>
+                    <Icon name='refresh' color='yellow'/>
+                  </Link>
+                </Icon.Group>Pending Action
               </Menu.Item>}
               {isUpdateAvailable && <Modal
                 trigger={<Menu.Item position='right'>
