@@ -80,6 +80,7 @@ const EditModal = ({ open, onClose }) => {
             {...{ className: (yamlError || updateError) ? 'edit-code-container-error' : 'edit-code-container' }} 
           >
             <CodeEditor
+              style={{minHeight: 500}}
               value={yaml}
               onChange={(value) => update(value)}
             />

@@ -88,7 +88,7 @@ const Index = ({ state }) => {
       </div>
       <Divider/>
       <Switch
-        filling={loading && <LoaderSegment caption={fillProgress}/>}
+        filling={(loading || filling) && <LoaderSegment caption={fillProgress}/>}
       >
         <Table size='large'>
           <Table.Header>
@@ -134,6 +134,7 @@ const Index = ({ state }) => {
         <Modal.Header><Icon name='folder'/>{modal.localPath}</Modal.Header>
         <Modal.Content scrolling className='share-ls-content'>
           <CodeEditor
+            style={{minHeight: 500}}
             value={modal.contents}
             basicSetup={false}
             editable={false}

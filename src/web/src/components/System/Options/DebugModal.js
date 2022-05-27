@@ -47,13 +47,12 @@ const DebugModal = ({ open, onClose }) => {
         <Switch
           loading={loading && <PlaceholderSegment loading={true} />}
         >
-          <div className='view-code-container'>
-            <CodeEditor
-              value={debugView}
-              basicSetup={false}
-              editable={false}
-            />
-          </div>
+          <CodeEditor
+            style={{minHeight: 500}}
+            value={debugView}
+            basicSetup={false}
+            editable={false}
+          />
         </Switch>
       </Modal.Content>
       <Modal.Actions>

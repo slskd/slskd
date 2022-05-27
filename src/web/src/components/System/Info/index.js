@@ -60,13 +60,12 @@ const Info = ({ state }) => {
         />
       </div>
       <Divider/>
-      <div className='view-code-container'>
-        <CodeEditor
-          value={stateAsYaml}
-          basicSetup={false}
-          editable={false}
-        />
-      </div>
+      <CodeEditor
+        style={{minHeight: 500}}
+        value={stateAsYaml}
+        basicSetup={false}
+        editable={false}
+      />
     </>
   );
 };

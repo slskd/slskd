@@ -54,13 +54,12 @@ const Index = ({ options }) => {
         <EditButton/>
       </div>
       <Divider/>
-      <div className='view-code-container'>
-        <CodeEditor
-          value={optionsAsYaml}
-          basicSetup={false}
-          editable={false}
-        />
-      </div>
+      <CodeEditor
+        style={{minHeight: 500}}
+        value={optionsAsYaml}
+        basicSetup={false}
+        editable={false}
+      />
       <DebugModal
         open={debugModal}
         onClose={() => setDebugModal(false)}
