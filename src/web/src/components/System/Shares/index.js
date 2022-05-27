@@ -6,17 +6,16 @@ import {
   LoaderSegment,
   ShrinkableButton, 
   Switch, 
-  Div,
 } from '../../Shared';
 
 import ContentsModal from './ContentsModal';
 
 import {
   Divider,
-  Table,
-  Icon,
 } from 'semantic-ui-react';
-import { Link } from 'react-router-dom';
+
+import ExclusionTable from './ExclusionTable';
+import ShareTable from './ShareTable';
 
 const Index = ({ state = {} } = {}) => {
   const [loading, setLoading] = useState(true);
@@ -66,43 +65,8 @@ const Index = ({ state = {} } = {}) => {
       <Switch
         filling={(loading || filling) && <LoaderSegment caption={fillProgress}/>}
       >
-        <Table size='large'>
-          <Table.Header>
-            <Table.Row>
-              <Table.HeaderCell>Local Path</Table.HeaderCell>
-              <Table.HeaderCell style={{width: 110}}>Directories</Table.HeaderCell>
-              <Table.HeaderCell style={{width: 110}}>Files</Table.HeaderCell>
-              <Table.HeaderCell>Alias</Table.HeaderCell>
-              <Table.HeaderCell>Remote Path</Table.HeaderCell>
-            </Table.Row>
-          </Table.Header>
-          <Table.Body>
-            {shared.map((share, index) => (<Table.Row key={index}>
-              <Table.Cell onClick={() => setModal(share)}>
-                <Icon name='folder'/>  
-                <Link to='#'>{share.localPath}</Link>
-              </Table.Cell>
-              <Table.Cell>{share.directories}</Table.Cell>
-              <Table.Cell>{share.files}</Table.Cell>
-              <Table.Cell>{share.alias}</Table.Cell>
-              <Table.Cell>{share.remotePath}</Table.Cell>
-            </Table.Row>))}
-          </Table.Body>
-        </Table>
-        <Div hidden={!excluded || excluded.length === 0}>
-          <Table size='large'>
-            <Table.Header>
-              <Table.Row>
-                <Table.HeaderCell>Excluded Paths</Table.HeaderCell>
-              </Table.Row>
-            </Table.Header>
-            <Table.Body>
-              {excluded.map((share, index) => (<Table.Row key={index}>
-                <Table.Cell><Icon name='x' color='red'/>{share.localPath}</Table.Cell>
-              </Table.Row>))}
-            </Table.Body>
-          </Table>
-        </Div>
+        <ShareTable shares={shared} onClick={setModal}/>
+        <ExclusionTable exclusions={excluded}/>
       </Switch>
       <ContentsModal share={modal} onClose={() => setModal(false)}/>
     </>    

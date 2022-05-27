@@ -1,6 +1,5 @@
 .vs
 dist/
-logs/
 src/slskd/bin/
 src/slskd/obj/
 src/slskd/wwwroot/
