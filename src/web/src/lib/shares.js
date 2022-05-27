@@ -17,3 +17,7 @@ export const browse = async ({ id } = {}) => {
   if (!id) throw new Error('unable to get share contents: id is missing');
   return (await api.get(`/shares/${id}/contents`)).data;
 };
+
+export const rescan = async () => {
+  return (await api.put('/shares')).data;
+};
