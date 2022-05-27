@@ -34,8 +34,12 @@
   font-size: initial !important;
 }
 
-.edit-code-content, .debug-view-content {
+.edit-code-content {
   padding: 0px !important;
+}
+
+.debug-view-content, .share-ls-content {
+  padding: 5px !important;
 }
 
 .left-align {
