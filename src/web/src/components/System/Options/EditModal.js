@@ -7,6 +7,7 @@ import { getYamlLocation, getYaml, validateYaml, updateYaml } from '../../../lib
 import {
   PlaceholderSegment,
   Switch,
+  Div,
 } from '../../Shared';
 
 const EditModal = ({ open, onClose }) => {
@@ -67,9 +68,11 @@ const EditModal = ({ open, onClose }) => {
       <Modal.Header>
         <Icon name='edit'/>
         Edit Options
-        <Message className='no-grow edit-code-header' warning>
-          <Icon name='warning sign'/>Editing {location}
-        </Message>
+        <Div hidden={loading}>
+          <Message className='no-grow edit-code-header' warning>
+            <Icon name='warning sign'/>Editing {location}
+          </Message>
+        </Div>
       </Modal.Header>
       <Modal.Content className='edit-code-content' scrolling>
         <Switch
