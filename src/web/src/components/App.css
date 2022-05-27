@@ -131,3 +131,12 @@ body {
 .view:last-child {
   margin-bottom: 17px;
 }
+
+/* https://github.com/Semantic-Org/Semantic-UI-React/issues/3133#issuecomment-418766748 */
+.ui.dimmer .ui.modal-loader.loader:before {
+  border-color: rgba(0,0,0,.1);
+}
+        
+.ui.dimmer .ui.modal-loader.loader:after {
+  border-color: #767676 transparent transparent;
+}
