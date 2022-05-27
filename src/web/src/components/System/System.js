@@ -40,7 +40,7 @@ const System = ({ state = {}, options = {} }) => {
         icon: 'share external', 
         content: 'Shares', 
       }, 
-      render: () => <Tab.Pane><Shares/></Tab.Pane>,
+      render: () => <Tab.Pane><Shares state={state.sharedFileCache}/></Tab.Pane>,
     },
     { 
       route: 'logs', 

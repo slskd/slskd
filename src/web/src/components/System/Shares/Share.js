@@ -5,7 +5,7 @@ import {
 } from 'semantic-ui-react';
 
 const Share = ({ share = {}, onBrowse } = {}) => {
-  const { id, remotePath, localPath, mask, alias, isExcluded } = share;
+  const { id, remotePath, localPath, mask, alias, isExcluded, directories, files } = share;
 
   return (
     <Item>
@@ -14,7 +14,7 @@ const Share = ({ share = {}, onBrowse } = {}) => {
         <Item.Meta>Description</Item.Meta>
         <Item.Description>
           <pre>
-            {JSON.stringify({ id, localPath, mask, alias, isExcluded }, null, 2)}
+            {JSON.stringify({ id, localPath, mask, alias, isExcluded, directories, files }, null, 2)}
           </pre>
         </Item.Description>
       </Item.Content>
