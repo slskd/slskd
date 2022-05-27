@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import YAML from 'yaml';
 
 import { restart, shutdown, getVersion } from '../../../lib/application';
@@ -7,11 +7,19 @@ import { Modal, Header, Divider } from 'semantic-ui-react';
 
 import {
   CodeEditor,
+  LoaderSegment,
   ShrinkableButton,
+  Switch,
 } from '../../Shared';
 
 const Info = ({ state }) => {
-  const stateAsYaml = YAML.stringify(state, { simpleKeys: true, sortMapEntries: true });
+  const [contents, setContents] = useState();
+
+  useEffect(() => {
+    setTimeout(() => {
+      setContents(YAML.stringify(state, { simpleKeys: true, sortMapEntries: true }));
+    }, 250);
+  }, [state]);
 
   return (
     <>
@@ -21,6 +29,7 @@ const Info = ({ state }) => {
             icon='refresh'
             mediaQuery='(max-width: 516px)'
             primary
+            disabled={!contents}
             onClick={() => getVersion({ forceCheck: true })}
           >
             Check for Updates
@@ -32,6 +41,7 @@ const Info = ({ state }) => {
               icon='shutdown'
               mediaQuery='(max-width: 516px)'
               negative
+              disabled={!contents}
             >
               Shut Down
             </ShrinkableButton>
@@ -48,6 +58,7 @@ const Info = ({ state }) => {
               icon='redo'
               mediaQuery='(max-width: 516px)'
               negative
+              disabled={!contents}
             >
               Restart
             </ShrinkableButton>
@@ -60,12 +71,15 @@ const Info = ({ state }) => {
         />
       </div>
       <Divider/>
-      <CodeEditor
-        style={{minHeight: 500}}
-        value={stateAsYaml}
-        basicSetup={false}
-        editable={false}
-      />
+      <Switch
+        loading={!contents && <LoaderSegment/>}
+      >
+        <CodeEditor
+          value={contents}
+          basicSetup={false}
+          editable={false}
+        />
+      </Switch>
     </>
   );
 };
