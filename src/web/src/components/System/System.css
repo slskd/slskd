@@ -59,3 +59,7 @@
 .edit-code-container, .edit-code-container-error {
   overflow: auto;
 }
+
+.share-count-column {
+  width: 110px;
+}
