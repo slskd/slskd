@@ -1,4 +1,4 @@
-﻿// <copyright file="ISharesCache.cs" company="slskd Team">
+﻿// <copyright file="SharedFileCache.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -35,17 +35,12 @@ namespace slskd.Shares
     /// <summary>
     ///     Shared file cache.
     /// </summary>
-    public interface IShareCache
+    public interface ISharedFileCache
     {
-        /// <summary>
-        ///     Gets the list of shares.
-        /// </summary>
-        public List<Share> Shares { get; } // todo: remove this
-
         /// <summary>
         ///     Gets the cache state monitor.
         /// </summary>
-        IStateMonitor<ShareState.ShareCacheState> StateMonitor { get; }
+        IStateMonitor<ShareState.CacheState> StateMonitor { get; }
 
         /// <summary>
         ///     Returns the contents of the cache.
@@ -56,8 +51,12 @@ namespace slskd.Shares
         /// <summary>
         ///     Scans the configured shares and fills the cache.
         /// </summary>
+        /// <remarks>
+        ///     Initiates the scan, then yields 
+        /// </remarks>
+        /// <param name="shares">The list of shares from which to fill the cache.</param>
         /// <returns>The operation context.</returns>
-        Task FillAsync(); // TODO: accept a list of shares here
+        Task FillAsync(IEnumerable<Share> shares);
 
         /// <summary>
         ///     Returns the contents of the specified <paramref name="directory"/>.
@@ -85,14 +84,14 @@ namespace slskd.Shares
     /// <summary>
     ///     Shared file cache.
     /// </summary>
-    public class ShareCache : IShareCache
+    public class SharedFileCache : ISharedFileCache
     {
         /// <summary>
-        ///     Initializes a new instance of the <see cref="ShareCache"/> class.
+        ///     Initializes a new instance of the <see cref="SharedFileCache"/> class.
         /// </summary>
         /// <param name="optionsMonitor"></param>
         /// <param name="soulseekFileFactory"></param>
-        public ShareCache(
+        public SharedFileCache(
             IOptionsMonitor<Options> optionsMonitor,
             ISoulseekFileFactory soulseekFileFactory = null)
         {
@@ -103,21 +102,17 @@ namespace slskd.Shares
         /// <summary>
         ///     Gets the cache state monitor.
         /// </summary>
-        public IStateMonitor<ShareState.ShareCacheState> StateMonitor => State;
+        public IStateMonitor<ShareState.CacheState> StateMonitor => State;
 
-        /// <summary>
-        ///     Gets the list of shares.
-        /// </summary>
-        public List<Share> Shares { get; private set; }
-
-        private IManagedState<ShareState.ShareCacheState> State { get; } = new ManagedState<ShareState.ShareCacheState>();
-        private ILogger Log { get; } = Serilog.Log.ForContext<ShareCache>();
+        private ILogger Log { get; } = Serilog.Log.ForContext<SharedFileCache>();
         private HashSet<string> MaskedDirectories { get; set; }
         private Dictionary<string, File> MaskedFiles { get; set; }
         private IOptionsMonitor<Options> OptionsMonitor { get; set; }
-        private SqliteConnection SQLite { get; set; }
-        private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1);
+        private List<Share> Shares { get; set; }
         private ISoulseekFileFactory SoulseekFileFactory { get; }
+        private SqliteConnection SQLite { get; set; }
+        private IManagedState<ShareState.CacheState> State { get; } = new ManagedState<ShareState.CacheState>();
+        private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1);
 
         /// <summary>
         ///     Returns the contents of the cache.
@@ -173,8 +168,9 @@ namespace slskd.Shares
         /// <summary>
         ///     Scans the configured shares and fills the cache.
         /// </summary>
+        /// <param name="shares">The list of shares from which to fill the cache.</param>
         /// <returns>The operation context.</returns>
-        public async Task FillAsync()
+        public async Task FillAsync(IEnumerable<Share> shares)
         {
             // obtain the semaphore, or fail if it can't be obtained immediately, indicating that a scan is running.
             if (!await SyncRoot.WaitAsync(millisecondsTimeout: 0))
@@ -196,12 +192,7 @@ namespace slskd.Shares
                 var swSnapshot = 0L;
                 sw.Start();
 
-                Shares = OptionsMonitor.CurrentValue.Directories.Shared
-                    .Select(share => share.TrimEnd('/', '\\'))
-                    .ToHashSet() // remove duplicates
-                    .Select(share => new Share(share)) // convert to Shares
-                    .OrderByDescending(share => share.LocalPath.Length) // process subdirectories first.  this allows them to be aliased separately from their parent
-                    .ToList();
+                Shares = shares.ToList();
 
                 if (!Shares.Any())
                 {
