@@ -22,6 +22,7 @@ namespace slskd.Shares.API
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
+    using Soulseek;
 
     /// <summary>
     ///     Shares.
@@ -136,7 +137,7 @@ namespace slskd.Shares.API
         /// <response code="200">The request completed successfully.</response>
         [HttpGet("contents")]
         [Authorize]
-        [ProducesResponseType(typeof(IEnumerable<Soulseek.Directory>), 200)]
+        [ProducesResponseType(typeof(IEnumerable<Directory>), 200)]
         public async Task<IActionResult> BrowseAll()
         {
             return Ok(await Shares.BrowseAsync());
@@ -150,7 +151,7 @@ namespace slskd.Shares.API
         /// <response code="200">The request completed successfully.</response>
         /// <response code="404">The requested share could not be found.</response>
         [HttpGet("{id}/contents")]
-        [ProducesResponseType(typeof(IEnumerable<Soulseek.Directory>), 200)]
+        [ProducesResponseType(typeof(IEnumerable<Directory>), 200)]
         [ProducesResponseType(404)]
         public async Task<IActionResult> BrowseShare(string id)
         {
