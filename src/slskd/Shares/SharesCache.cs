@@ -1,4 +1,4 @@
-﻿// <copyright file="SharedFileCache.cs" company="slskd Team">
+﻿// <copyright file="ISharesCache.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -35,17 +35,17 @@ namespace slskd.Shares
     /// <summary>
     ///     Shared file cache.
     /// </summary>
-    public interface ISharedFileCache
+    public interface IShareCache
     {
         /// <summary>
         ///     Gets the list of shares.
         /// </summary>
-        public List<Share> Shares { get; }
+        public List<Share> Shares { get; } // todo: remove this
 
         /// <summary>
         ///     Gets the cache state monitor.
         /// </summary>
-        IStateMonitor<SharedFileCacheState> StateMonitor { get; }
+        IStateMonitor<ShareState.ShareCacheState> StateMonitor { get; }
 
         /// <summary>
         ///     Returns the contents of the cache.
@@ -57,7 +57,7 @@ namespace slskd.Shares
         ///     Scans the configured shares and fills the cache.
         /// </summary>
         /// <returns>The operation context.</returns>
-        Task FillAsync();
+        Task FillAsync(); // TODO: accept a list of shares here
 
         /// <summary>
         ///     Returns the contents of the specified <paramref name="directory"/>.
@@ -85,14 +85,14 @@ namespace slskd.Shares
     /// <summary>
     ///     Shared file cache.
     /// </summary>
-    public class SharedFileCache : ISharedFileCache
+    public class ShareCache : IShareCache
     {
         /// <summary>
-        ///     Initializes a new instance of the <see cref="SharedFileCache"/> class.
+        ///     Initializes a new instance of the <see cref="ShareCache"/> class.
         /// </summary>
         /// <param name="optionsMonitor"></param>
         /// <param name="soulseekFileFactory"></param>
-        public SharedFileCache(
+        public ShareCache(
             IOptionsMonitor<Options> optionsMonitor,
             ISoulseekFileFactory soulseekFileFactory = null)
         {
@@ -103,15 +103,15 @@ namespace slskd.Shares
         /// <summary>
         ///     Gets the cache state monitor.
         /// </summary>
-        public IStateMonitor<SharedFileCacheState> StateMonitor => State;
+        public IStateMonitor<ShareState.ShareCacheState> StateMonitor => State;
 
         /// <summary>
         ///     Gets the list of shares.
         /// </summary>
         public List<Share> Shares { get; private set; }
 
-        private IManagedState<SharedFileCacheState> State { get; } = new ManagedState<SharedFileCacheState>();
-        private ILogger Log { get; } = Serilog.Log.ForContext<SharedFileCache>();
+        private IManagedState<ShareState.ShareCacheState> State { get; } = new ManagedState<ShareState.ShareCacheState>();
+        private ILogger Log { get; } = Serilog.Log.ForContext<ShareCache>();
         private HashSet<string> MaskedDirectories { get; set; }
         private Dictionary<string, File> MaskedFiles { get; set; }
         private IOptionsMonitor<Options> OptionsMonitor { get; set; }

@@ -35,7 +35,7 @@ namespace slskd
         public bool PendingShareRescan { get; init; }
         public ServerState Server { get; init; } = new ServerState();
         public DistributedNetworkState DistributedNetwork { get; init; } = new DistributedNetworkState();
-        public SharedFileCacheState SharedFileCache { get; init; } = new SharedFileCacheState();
+        public ShareState Shares { get; init; } = new ShareState();
         public string[] Rooms { get; init; } = Array.Empty<string>();
         public User[] Users { get; init; } = Array.Empty<User>();
     }
@@ -76,43 +76,49 @@ namespace slskd
     }
 
     /// <summary>
-    ///     Share cache state.
+    ///     Share state.
     /// </summary>
-    public record SharedFileCacheState
+    public record ShareState
     {
-        /// <summary>
-        ///     Gets a value indicating whether the cache is being filled.
-        /// </summary>
-        public bool Filling { get; init; } = false;
+        public ShareCacheState Cache { get; init; } = new ShareCacheState();
+        public bool ScanPending { get; init; }
 
-        /// <summary>
-        ///     Gets a value indicating whether the cache is filled.
-        /// </summary>
-        public bool Filled { get; init; } = false;
+        public record ShareCacheState
+        {
+            /// <summary>
+            ///     Gets a value indicating whether the cache is being filled.
+            /// </summary>
+            public bool Filling { get; init; } = false;
 
-        /// <summary>
-        ///     Gets a value indicating whether the cache is faulted.
-        /// </summary>
-        public bool Faulted { get; init; } = false;
+            /// <summary>
+            ///     Gets a value indicating whether the cache is filled.
+            /// </summary>
+            public bool Filled { get; init; } = false;
 
-        /// <summary>
-        ///     Gets the current fill progress.
-        /// </summary>
-        public double FillProgress { get; init; }
+            /// <summary>
+            ///     Gets a value indicating whether the cache is faulted.
+            /// </summary>
+            public bool Faulted { get; init; } = false;
 
-        /// <summary>
-        ///     Gets the number of cached directories.
-        /// </summary>
-        public int Directories { get; init; }
+            /// <summary>
+            ///     Gets the current fill progress.
+            /// </summary>
+            public double FillProgress { get; init; }
 
-        /// <summary>
-        ///     Gets the number of cached files.
-        /// </summary>
-        public int Files { get; init; }
+            /// <summary>
+            ///     Gets the number of cached directories.
+            /// </summary>
+            public int Directories { get; init; }
 
-        /// <summary>
-        ///     Gets the number of directories excluded by filters.
-        /// </summary>
-        public int ExcludedDirectories { get; init; }
+            /// <summary>
+            ///     Gets the number of cached files.
+            /// </summary>
+            public int Files { get; init; }
+
+            /// <summary>
+            ///     Gets the number of directories excluded by filters.
+            /// </summary>
+            public int ExcludedDirectories { get; init; }
+        }
     }
 }

@@ -19,6 +19,7 @@ namespace slskd.Shares.API
 {
     using System.Collections.Generic;
     using System.Linq;
+    using System.Threading.Tasks;
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
 
@@ -57,11 +58,11 @@ namespace slskd.Shares.API
         [HttpGet("")]
         [Authorize]
         [ProducesResponseType(typeof(IEnumerable<SummarizedShare>), 200)]
-        public IActionResult List()
+        public async Task<IActionResult> List()
         {
-            var browse = Shares.Cache.Browse();
+            var browse = await Shares.BrowseAsync();
 
-            var summary = Shares.Cache.Shares.Select(share =>
+            var summary = Shares.Shares.Select(share =>
             {
                 var directories = browse.Where(directory => directory.Name.StartsWith(share.RemotePath));
                 var fileCount = directories.Aggregate(seed: 0, (sum, directory) =>
@@ -98,16 +99,16 @@ namespace slskd.Shares.API
         [Authorize]
         [ProducesResponseType(typeof(SummarizedShare), 200)]
         [ProducesResponseType(404)]
-        public IActionResult Get(string id)
+        public async Task<IActionResult> Get(string id)
         {
-            var share = Shares.Cache.Shares.FirstOrDefault(share => share.Id == id);
+            var share = Shares.Shares.FirstOrDefault(share => share.Id == id);
 
             if (share == default)
             {
                 return NotFound();
             }
 
-            var browse = Shares.Cache.Browse();
+            var browse = await Shares.BrowseAsync();
             var directories = browse.Where(directory => directory.Name.StartsWith(share.RemotePath));
             var fileCount = directories.Aggregate(seed: 0, (sum, directory) =>
             {
@@ -139,9 +140,9 @@ namespace slskd.Shares.API
         [HttpGet("contents")]
         [Authorize]
         [ProducesResponseType(typeof(IEnumerable<Soulseek.Directory>), 200)]
-        public IActionResult BrowseAll()
+        public async Task<IActionResult> BrowseAll()
         {
-            return Ok(Shares.Cache.Browse());
+            return Ok(await Shares.BrowseAsync());
         }
 
         /// <summary>
@@ -154,16 +155,16 @@ namespace slskd.Shares.API
         [HttpGet("{id}/contents")]
         [ProducesResponseType(typeof(IEnumerable<Soulseek.Directory>), 200)]
         [ProducesResponseType(404)]
-        public IActionResult BrowseShare(string id)
+        public async Task<IActionResult> BrowseShare(string id)
         {
-            var share = Shares.Cache.Shares.FirstOrDefault(share => share.Id == id);
+            var share = Shares.Shares.FirstOrDefault(share => share.Id == id);
 
             if (share == default)
             {
                 return NotFound();
             }
 
-            var contents = Shares.Cache.Browse()
+            var contents = (await Shares.BrowseAsync())
                 .Where(directory => directory.Name.StartsWith(share.RemotePath));
 
             return Ok(contents);
@@ -182,12 +183,12 @@ namespace slskd.Shares.API
         [ProducesResponseType(409)]
         public IActionResult RescanSharesAsync()
         {
-            if (ApplicationStateMonitor.CurrentValue.SharedFileCache.Filling)
+            if (ApplicationStateMonitor.CurrentValue.Shares.Cache.Filling)
             {
                 return Conflict("A share scan is already in progress.");
             }
 
-            _ = Shares.Cache.FillAsync();
+            _ = Shares.StartScanAsync();
 
             return Ok();
         }
