@@ -616,7 +616,7 @@ namespace slskd
 
             // accept all download requests, and begin the upload immediately. normally there would be an internal queue, and
             // uploads would be handled separately.
-            Task.Run(async () =>
+            _ = Task.Run(async () =>
             {
                 // users with uploads must be watched so that we can keep informed of their
                 // online status, privileges, and statistics.  this is so that we can accurately
