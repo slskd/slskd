@@ -80,45 +80,48 @@ namespace slskd
     /// </summary>
     public record ShareState
     {
-        public CacheState Cache { get; init; } = new CacheState();
         public bool ScanPending { get; init; }
+        public bool Scanning { get; init; }
+        public double ScanProgress { get; init; }
+        public int Directories { get; init; }
+        public int Files { get; init; }
+    }
 
-        public record CacheState
-        {
-            /// <summary>
-            ///     Gets a value indicating whether the cache is being filled.
-            /// </summary>
-            public bool Filling { get; init; } = false;
+    public record SharedFileCacheState
+    {
+        /// <summary>
+        ///     Gets a value indicating whether the cache is being filled.
+        /// </summary>
+        public bool Filling { get; init; } = false;
 
-            /// <summary>
-            ///     Gets a value indicating whether the cache is filled.
-            /// </summary>
-            public bool Filled { get; init; } = false;
+        /// <summary>
+        ///     Gets a value indicating whether the cache is filled.
+        /// </summary>
+        public bool Filled { get; init; } = false;
 
-            /// <summary>
-            ///     Gets a value indicating whether the cache is faulted.
-            /// </summary>
-            public bool Faulted { get; init; } = false;
+        /// <summary>
+        ///     Gets a value indicating whether the cache is faulted.
+        /// </summary>
+        public bool Faulted { get; init; } = false;
 
-            /// <summary>
-            ///     Gets the current fill progress.
-            /// </summary>
-            public double FillProgress { get; init; }
+        /// <summary>
+        ///     Gets the current fill progress.
+        /// </summary>
+        public double FillProgress { get; init; }
 
-            /// <summary>
-            ///     Gets the number of cached directories.
-            /// </summary>
-            public int Directories { get; init; }
+        /// <summary>
+        ///     Gets the number of cached directories.
+        /// </summary>
+        public int Directories { get; init; }
 
-            /// <summary>
-            ///     Gets the number of cached files.
-            /// </summary>
-            public int Files { get; init; }
+        /// <summary>
+        ///     Gets the number of cached files.
+        /// </summary>
+        public int Files { get; init; }
 
-            /// <summary>
-            ///     Gets the number of directories excluded by filters.
-            /// </summary>
-            public int ExcludedDirectories { get; init; }
-        }
+        /// <summary>
+        ///     Gets the number of directories excluded by filters.
+        /// </summary>
+        public int ExcludedDirectories { get; init; }
     }
 }
