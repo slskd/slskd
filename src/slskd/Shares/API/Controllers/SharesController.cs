@@ -38,13 +38,10 @@ namespace slskd.Shares.API
         ///     Initializes a new instance of the <see cref="SharesController"/> class.
         /// </summary>
         /// <param name="shareService"></param>
-        /// <param name="applicationStateMonitor"></param>
         public SharesController(
-            IShareService shareService,
-            IStateMonitor<State> applicationStateMonitor)
+            IShareService shareService)
         {
             Shares = shareService;
-            ApplicationStateMonitor = applicationStateMonitor;
         }
 
         private IShareService Shares { get; }
@@ -181,14 +178,16 @@ namespace slskd.Shares.API
         [Authorize]
         [ProducesResponseType(204)]
         [ProducesResponseType(409)]
-        public IActionResult RescanSharesAsync()
+        public async Task<IActionResult> RescanSharesAsync()
         {
-            if (ApplicationStateMonitor.CurrentValue.Shares.Cache.Filling)
+            try
+            {
+                await Shares.StartScanAsync();
+            }
+            catch (ShareScanInProgressException)
             {
                 return Conflict("A share scan is already in progress.");
             }
-
-            _ = Shares.StartScanAsync();
 
             return Ok();
         }
