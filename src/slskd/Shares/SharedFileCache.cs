@@ -40,7 +40,7 @@ namespace slskd.Shares
         /// <summary>
         ///     Gets the cache state monitor.
         /// </summary>
-        IStateMonitor<ShareState.CacheState> StateMonitor { get; }
+        IStateMonitor<SharedFileCacheState> StateMonitor { get; }
 
         /// <summary>
         ///     Returns the contents of the cache.
@@ -51,9 +51,7 @@ namespace slskd.Shares
         /// <summary>
         ///     Scans the configured shares and fills the cache.
         /// </summary>
-        /// <remarks>
-        ///     Initiates the scan, then yields 
-        /// </remarks>
+        /// <remarks>Initiates the scan, then yields execution back to the caller; does not wait for the operation to complete.</remarks>
         /// <param name="shares">The list of shares from which to fill the cache.</param>
         /// <returns>The operation context.</returns>
         Task FillAsync(IEnumerable<Share> shares);
@@ -102,7 +100,7 @@ namespace slskd.Shares
         /// <summary>
         ///     Gets the cache state monitor.
         /// </summary>
-        public IStateMonitor<ShareState.CacheState> StateMonitor => State;
+        public IStateMonitor<SharedFileCacheState> StateMonitor => State;
 
         private ILogger Log { get; } = Serilog.Log.ForContext<SharedFileCache>();
         private HashSet<string> MaskedDirectories { get; set; }
@@ -111,7 +109,7 @@ namespace slskd.Shares
         private List<Share> Shares { get; set; }
         private ISoulseekFileFactory SoulseekFileFactory { get; }
         private SqliteConnection SQLite { get; set; }
-        private IManagedState<ShareState.CacheState> State { get; } = new ManagedState<ShareState.CacheState>();
+        private IManagedState<SharedFileCacheState> State { get; } = new ManagedState<SharedFileCacheState>();
         private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1);
 
         /// <summary>
