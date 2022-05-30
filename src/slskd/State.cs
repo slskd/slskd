@@ -80,10 +80,10 @@ namespace slskd
     /// </summary>
     public record ShareState
     {
-        public ShareCacheState Cache { get; init; } = new ShareCacheState();
+        public CacheState Cache { get; init; } = new CacheState();
         public bool ScanPending { get; init; }
 
-        public record ShareCacheState
+        public record CacheState
         {
             /// <summary>
             ///     Gets a value indicating whether the cache is being filled.
