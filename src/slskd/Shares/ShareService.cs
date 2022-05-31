@@ -49,7 +49,8 @@ namespace slskd.Shares
 
                 State.SetValue(state => state with
                 {
-                    ScanPending = current.Faulted || ((previous.Filling && !current.Filling) ? false : state.ScanPending),
+                    // scan is pending if faulted, or if state DIDN'T just transition from filling to not filling AND a scan was already pending
+                    ScanPending = current.Faulted || (!(previous.Filling && !current.Filling) && state.ScanPending),
                     Scanning = current.Filling,
                     ScanProgress = current.FillProgress,
                     Directories = current.Directories,
