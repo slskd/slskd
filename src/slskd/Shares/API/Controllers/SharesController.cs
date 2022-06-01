@@ -46,7 +46,6 @@ namespace slskd.Shares.API
         }
 
         private IShareService Shares { get; }
-        private IStateMonitor<State> ApplicationStateMonitor { get; }
 
         /// <summary>
         ///     Gets the current list of shares.
