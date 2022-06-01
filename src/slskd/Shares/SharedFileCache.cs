@@ -16,7 +16,6 @@
 // </copyright>
 
 using System.IO;
-using Microsoft.Extensions.Options;
 
 namespace slskd.Shares
 {
@@ -114,7 +113,6 @@ namespace slskd.Shares
         /// <returns>The contents of the cache.</returns>
         public IEnumerable<Directory> Browse()
         {
-            Console.WriteLine(State.ToJson());
             if (!State.CurrentValue.Filled)
             {
                 if (State.CurrentValue.Filling)
@@ -168,8 +166,6 @@ namespace slskd.Shares
         /// <returns>The operation context.</returns>
         public async Task FillAsync(IEnumerable<Share> shares, IEnumerable<Regex> filters)
         {
-            Console.WriteLine($"Filling: {shares.ToJson()}");
-
             // obtain the semaphore, or fail if it can't be obtained immediately, indicating that a scan is running.
             if (!await SyncRoot.WaitAsync(millisecondsTimeout: 0))
             {

@@ -4,7 +4,6 @@ import { toast } from 'react-toastify';
 import * as sharesLib from '../../../lib/shares';
 import { 
   LoaderSegment,
-  PlaceholderSegment,
   ShrinkableButton, 
   Switch, 
 } from '../../Shared';
@@ -65,12 +64,6 @@ const Index = ({ state = {} } = {}) => {
       <Divider/>
       <Switch
         filling={(loading || filling) && <LoaderSegment caption={fillProgress}/>}
-        empty={shared.length === 0 && 
-          <PlaceholderSegment 
-            icon='share external' 
-            caption='No shares configured'
-            size='small'
-          />}
       >
         <ShareTable shares={shared} onClick={setModal}/>
         <ExclusionTable exclusions={excluded}/>
