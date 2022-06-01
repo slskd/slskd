@@ -101,9 +101,22 @@ body {
     line-height: 1.15 !important;
 }
 
-.placeholder-segment {
+.placeholder-segment, .placeholder-segment-small {
     opacity: .25;
 }
+
+.placeholder-segment-small {
+    min-height: 6rem !important;
+}
+
+.placeholder-segment-small > .ui.icon.header {
+    font-size: 1em !important;
+}
+
+.placeholder-segment-small > .ui.icon.header > i {
+    font-size: 2em !important;
+}
+
 
 .menu-icon-group {
     font-size: 1.71428571em !important;
