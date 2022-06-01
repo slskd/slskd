@@ -47,7 +47,7 @@ namespace slskd.Shares
         /// </summary>
         /// <param name="directory">The directory for which the contents are to be listed.</param>
         /// <returns>The contents of the directory.</returns>
-        Task<Directory> ListAsync(string directory);
+        Task<Directory> ListDirectoryAsync(string directory);
 
         /// <summary>
         ///     Resolves the local filename of the specified <paramref name="remoteFilename"/>, if the mask is associated with a
@@ -58,7 +58,7 @@ namespace slskd.Shares
         /// <exception cref="NotFoundException">
         ///     Thrown when the specified remote filename can not be associated with a configured share.
         /// </exception>
-        Task<string> ResolveAsync(string remoteFilename);
+        Task<string> ResolveFilenameAsync(string remoteFilename);
 
         /// <summary>
         ///     Searches the cache for the specified <paramref name="query"/> and returns the matching files.

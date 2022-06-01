@@ -441,7 +441,7 @@ namespace slskd
 
             // send whatever counts we have currently. we'll probably connect before the cache is primed, so these will be zero
             // initially, but we'll update them when the cache is filled.
-            _ = Client.SetSharedCountsAsync(State.CurrentValue.Shares.Cache.Directories, State.CurrentValue.Shares.Cache.Files);
+            _ = Client.SetSharedCountsAsync(State.CurrentValue.Shares.Directories, State.CurrentValue.Shares.Files);
         }
 
         private void Client_PrivateMessageRecieved(object sender, PrivateMessageReceivedEventArgs args)
@@ -509,9 +509,7 @@ namespace slskd
 
         private void Client_TransferProgressUpdated(object sender, TransferProgressUpdatedEventArgs args)
         {
-            // this is really verbose. Console.WriteLine($"[{args.Transfer.Direction.ToString().ToUpper()}]
-            // [{args.Transfer.Username}/{Path.GetFileName(args.Transfer.Filename)}]
-            // {args.Transfer.BytesTransferred}/{args.Transfer.Size} {args.Transfer.PercentComplete}% {args.Transfer.AverageSpeed}kb/s");
+            // no-op. this is really verbose, use for troubleshooting.
         }
 
         private void Client_TransferStateChanged(object sender, TransferStateChangedEventArgs args)
@@ -555,7 +553,7 @@ namespace slskd
         /// <returns>A Task resolving an instance of Soulseek.Directory containing the contents of the requested directory.</returns>
         private async Task<Soulseek.Directory> DirectoryContentsResponseResolver(string username, IPEndPoint endpoint, int token, string directory)
         {
-            var dir = await Shares.ListAsync(directory);
+            var dir = await Shares.ListDirectoryAsync(directory);
             return dir;
         }
 
@@ -577,15 +575,25 @@ namespace slskd
         private async Task EnqueueDownloadAction(string username, IPEndPoint endpoint, string filename, ITransferTracker tracker)
         {
             _ = endpoint;
-            var localFilename = (await Shares.ResolveAsync(filename)).ToLocalOSPath();
-
-            var fileInfo = new FileInfo(localFilename);
+            string localFilename;
+            FileInfo fileInfo = default;
 
             Console.WriteLine($"[UPLOAD REQUESTED] [{username}/{filename}]");
 
-            if (!fileInfo.Exists)
+            try
             {
-                Console.WriteLine($"[UPLOAD REJECTED] File {localFilename} not found.");
+                localFilename = (await Shares.ResolveFilenameAsync(filename)).ToLocalOSPath();
+
+                fileInfo = new FileInfo(localFilename);
+
+                if (!fileInfo.Exists)
+                {
+                    throw new NotFoundException();
+                }
+            }
+            catch (NotFoundException)
+            {
+                Console.WriteLine($"[UPLOAD REJECTED] File {filename} not found.");
                 throw new DownloadEnqueueException($"File not shared.");
             }
 
@@ -840,7 +848,7 @@ namespace slskd
         {
             var (previous, current) = state;
 
-            if (!previous.Cache.Filling && current.Cache.Filling)
+            if (!previous.Scanning && current.Scanning)
             {
                 SharesRefreshStarted = DateTime.UtcNow;
 
@@ -848,33 +856,33 @@ namespace slskd
                 Log.Information("Scanning shares");
             }
 
-            var lastProgress = Math.Round(previous.Cache.FillProgress * 100);
-            var currentProgress = Math.Round(current.Cache.FillProgress * 100);
+            var lastProgress = Math.Round(previous.ScanProgress * 100);
+            var currentProgress = Math.Round(current.ScanProgress * 100);
 
             if (lastProgress != currentProgress && Math.Round(currentProgress, 0) % 10 == 0)
             {
                 State.SetValue(s => s with { Shares = current });
-                Log.Information("Scanned {Percent}% of shared directories.  Found {Files} files so far.", currentProgress, current.Cache.Files);
+                Log.Information("Scanned {Percent}% of shared directories.  Found {Files} files so far.", currentProgress, current.Files);
             }
 
-            if (previous.Cache.Filling && !current.Cache.Filling)
+            if (previous.Scanning && !current.Scanning)
             {
                 State.SetValue(s => s with { Shares = current });
 
-                if (current.Cache.Faulted)
+                if (current.Faulted)
                 {
                     Log.Error("Failed to scan shares.");
                 }
                 else
                 {
                     State.SetValue(s => s with { PendingShareRescan = false });
-                    Log.Information("Shares scanned successfully. Found {Directories} directories and {Files} files in {Duration}ms", current.Cache.Directories, current.Cache.Files, (DateTime.UtcNow - SharesRefreshStarted).TotalMilliseconds);
+                    Log.Information("Shares scanned successfully. Found {Directories} directories and {Files} files in {Duration}ms", current.Directories, current.Files, (DateTime.UtcNow - SharesRefreshStarted).TotalMilliseconds);
 
                     SharesRefreshStarted = default;
 
                     if (Client.State.HasFlag(SoulseekClientStates.Connected | SoulseekClientStates.LoggedIn))
                     {
-                        _ = Client.SetSharedCountsAsync(State.CurrentValue.Shares.Cache.Directories, State.CurrentValue.Shares.Cache.Files);
+                        _ = Client.SetSharedCountsAsync(State.CurrentValue.Shares.Directories, State.CurrentValue.Shares.Files);
                     }
                 }
             }

@@ -52,6 +52,7 @@ namespace slskd.Shares
                     // scan is pending if faulted, or if state DIDN'T just transition from filling to not filling AND a scan was already pending
                     ScanPending = current.Faulted || (!(previous.Filling && !current.Filling) && state.ScanPending),
                     Scanning = current.Filling,
+                    Faulted = current.Faulted,
                     ScanProgress = current.FillProgress,
                     Directories = current.Directories,
                     Files = current.Files,
@@ -88,7 +89,7 @@ namespace slskd.Shares
         /// </summary>
         /// <param name="directory">The directory for which the contents are to be listed.</param>
         /// <returns>The contents of the directory.</returns>
-        public Task<Directory> ListAsync(string directory)
+        public Task<Directory> ListDirectoryAsync(string directory)
             => Task.FromResult(Cache.List(directory));
 
         /// <summary>
@@ -100,7 +101,7 @@ namespace slskd.Shares
         /// <exception cref="NotFoundException">
         ///     Thrown when the specified remote filename can not be associated with a configured share.
         /// </exception>
-        public Task<string> ResolveAsync(string remoteFilename)
+        public Task<string> ResolveFilenameAsync(string remoteFilename)
         {
             var resolvedFilename = Cache.Resolve(remoteFilename);
 

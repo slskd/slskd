@@ -82,6 +82,7 @@ namespace slskd
     {
         public bool ScanPending { get; init; }
         public bool Scanning { get; init; }
+        public bool Faulted { get; init; }
         public double ScanProgress { get; init; }
         public int Directories { get; init; }
         public int Files { get; init; }
