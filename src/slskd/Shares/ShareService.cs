@@ -21,6 +21,7 @@ namespace slskd.Shares
 {
     using System.Collections.Generic;
     using System.Linq;
+    using System.Text.RegularExpressions;
     using System.Threading;
     using System.Threading.Tasks;
     using Soulseek;
@@ -39,10 +40,7 @@ namespace slskd.Shares
             IOptionsMonitor<Options> optionsMonitor,
             ISharedFileCache sharedFileCache = null)
         {
-            OptionsMonitor = optionsMonitor;
-            OptionsMonitor.OnChange(Configure);
-
-            Cache = sharedFileCache ?? new SharedFileCache(OptionsMonitor);
+            Cache = sharedFileCache ?? new SharedFileCache();
             Cache.StateMonitor.OnChange(cacheState =>
             {
                 var (previous, current) = cacheState;
@@ -58,12 +56,19 @@ namespace slskd.Shares
                     Files = current.Files,
                 });
             });
+
+            OptionsMonitor = optionsMonitor;
+            OptionsMonitor.OnChange(options => Configure(options));
+
+            Configure(OptionsMonitor.CurrentValue);
         }
 
         /// <summary>
         ///     Gets the list of configured shares.
         /// </summary>
         public IReadOnlyList<Share> Shares => SharesList.AsReadOnly();
+
+        public IReadOnlyList<Regex> FilterRegexes => FilterRegexList.AsReadOnly();
 
         /// <summary>
         ///     Gets the state monitor for the service.
@@ -76,6 +81,7 @@ namespace slskd.Shares
         private List<Share> SharesList { get; set; } = new List<Share>();
         private IManagedState<ShareState> State { get; } = new ManagedState<ShareState>();
         private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1, 1);
+        private List<Regex> FilterRegexList { get; set; } = new List<Regex>();
 
         /// <summary>
         ///     Returns the entire contents of the share.
@@ -127,7 +133,7 @@ namespace slskd.Shares
         /// <returns>The operation context.</returns>
         /// <exception cref="ShareScanInProgressException">Thrown when a scan is already in progress.</exception>
         public Task StartScanAsync()
-            => Cache.FillAsync(Shares);
+            => Cache.FillAsync(Shares, FilterRegexes);
 
         private void Configure(Options options)
         {
@@ -149,7 +155,13 @@ namespace slskd.Shares
                     .OrderByDescending(share => share.LocalPath.Length) // process subdirectories first.  this allows them to be aliased separately from their parent
                     .ToList();
 
+                var regexes = options.Filters.Share
+                    .Select(filter => new Regex(filter, RegexOptions.Compiled))
+                    .ToList();
+
                 SharesList = shares;
+                FilterRegexList = regexes;
+
                 State.SetValue(state => state with { ScanPending = true });
 
                 LastOptionsHash = optionsHash;

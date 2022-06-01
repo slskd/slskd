@@ -53,8 +53,9 @@ namespace slskd.Shares
         /// </summary>
         /// <remarks>Initiates the scan, then yields execution back to the caller; does not wait for the operation to complete.</remarks>
         /// <param name="shares">The list of shares from which to fill the cache.</param>
+        /// <param name="filters">The list of regular expressions used to exclude files or paths from scanning.</param>
         /// <returns>The operation context.</returns>
-        Task FillAsync(IEnumerable<Share> shares);
+        Task FillAsync(IEnumerable<Share> shares, IEnumerable<Regex> filters);
 
         /// <summary>
         ///     Returns the contents of the specified <paramref name="directory"/>.
@@ -87,13 +88,9 @@ namespace slskd.Shares
         /// <summary>
         ///     Initializes a new instance of the <see cref="SharedFileCache"/> class.
         /// </summary>
-        /// <param name="optionsMonitor"></param>
         /// <param name="soulseekFileFactory"></param>
-        public SharedFileCache(
-            IOptionsMonitor<Options> optionsMonitor,
-            ISoulseekFileFactory soulseekFileFactory = null)
+        public SharedFileCache(ISoulseekFileFactory soulseekFileFactory = null)
         {
-            OptionsMonitor = optionsMonitor;
             SoulseekFileFactory = soulseekFileFactory ?? new SoulseekFileFactory();
         }
 
@@ -105,7 +102,6 @@ namespace slskd.Shares
         private ILogger Log { get; } = Serilog.Log.ForContext<SharedFileCache>();
         private HashSet<string> MaskedDirectories { get; set; }
         private Dictionary<string, File> MaskedFiles { get; set; }
-        private IOptionsMonitor<Options> OptionsMonitor { get; set; }
         private List<Share> Shares { get; set; }
         private ISoulseekFileFactory SoulseekFileFactory { get; }
         private SqliteConnection SQLite { get; set; }
@@ -118,6 +114,7 @@ namespace slskd.Shares
         /// <returns>The contents of the cache.</returns>
         public IEnumerable<Directory> Browse()
         {
+            Console.WriteLine(State.ToJson());
             if (!State.CurrentValue.Filled)
             {
                 if (State.CurrentValue.Filling)
@@ -167,9 +164,12 @@ namespace slskd.Shares
         ///     Scans the configured shares and fills the cache.
         /// </summary>
         /// <param name="shares">The list of shares from which to fill the cache.</param>
+        /// <param name="filters">The list of regular expressions used to exclude files or paths from scanning.</param>
         /// <returns>The operation context.</returns>
-        public async Task FillAsync(IEnumerable<Share> shares)
+        public async Task FillAsync(IEnumerable<Share> shares, IEnumerable<Regex> filters)
         {
+            Console.WriteLine($"Filling: {shares.ToJson()}");
+
             // obtain the semaphore, or fail if it can't be obtained immediately, indicating that a scan is running.
             if (!await SyncRoot.WaitAsync(millisecondsTimeout: 0))
             {
@@ -233,9 +233,6 @@ namespace slskd.Shares
                 State.SetValue(state => state with { Directories = unmaskedDirectories.Count, ExcludedDirectories = excludedDirectories.Count() });
                 Log.Debug("Found {Directories} shared directories (and {Excluded} were excluded) in {Elapsed}ms.  Starting file scan.", unmaskedDirectories.Count, excludedDirectories.Count(), sw.ElapsedMilliseconds - swSnapshot);
                 swSnapshot = sw.ElapsedMilliseconds;
-
-                var filters = OptionsMonitor.CurrentValue.Filters.Share
-                    .Select(filter => new Regex(filter, RegexOptions.Compiled));
 
                 var files = new Dictionary<string, File>();
                 var maskedDirectories = new HashSet<string>();
