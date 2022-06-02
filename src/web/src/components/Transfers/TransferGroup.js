@@ -70,7 +70,7 @@ class TransferGroup extends Component {
     try {
       await transfers.download({username, files: [{filename, size }] });
     } catch (error) {
-      console.log(error);
+      console.error(error);
     }
   };
 
@@ -80,7 +80,7 @@ class TransferGroup extends Component {
     try {
       await transfers.getPlaceInQueue({ username, id });
     } catch (error) {
-      console.log(error);
+      console.error(error);
     }
   };
 

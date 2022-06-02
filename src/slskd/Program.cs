@@ -453,7 +453,7 @@ namespace slskd
             services.AddSingleton<IConversationTracker, ConversationTracker>();
             services.AddSingleton<IRoomTracker, RoomTracker>(_ => new RoomTracker(messageLimit: 250));
 
-            services.AddSingleton<ISharedFileCache, SharedFileCache>();
+            services.AddSingleton<IShareService, ShareService>();
 
             services.AddSingleton<ISearchService, SearchService>();
             services.AddSingleton<IUserService, UserService>();
@@ -682,7 +682,7 @@ namespace slskd
             }
 
             // if we made it this far, the caller is either looking for a route that was synthesized with a SPA router, or is genuinely confused.
-            // if the request is for a directory, modify the request to redirect it to the index, otherwise leave it alone and let it 404 in the next 
+            // if the request is for a directory, modify the request to redirect it to the index, otherwise leave it alone and let it 404 in the next
             // middleware
             app.Use(async (context, next) =>
             {

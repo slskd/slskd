@@ -101,9 +101,22 @@ body {
     line-height: 1.15 !important;
 }
 
-.placeholder-segment {
+.placeholder-segment, .placeholder-segment-small {
     opacity: .25;
 }
+
+.placeholder-segment-small {
+    min-height: 6rem !important;
+}
+
+.placeholder-segment-small > .ui.icon.header {
+    font-size: 1em !important;
+}
+
+.placeholder-segment-small > .ui.icon.header > i {
+    font-size: 2em !important;
+}
+
 
 .menu-icon-group {
     font-size: 1.71428571em !important;
@@ -120,7 +133,7 @@ body {
     background-color: transparent !important;
 }
 
-.page {
+.view {
   padding-left: 15px;
   padding-right: 15px;
   max-width: 1200px !important;
@@ -128,6 +141,15 @@ body {
   margin-right: auto !important;
 }
   
-.page:last-child {
+.view:last-child {
   margin-bottom: 17px;
+}
+
+/* https://github.com/Semantic-Org/Semantic-UI-React/issues/3133#issuecomment-418766748 */
+.ui.dimmer .ui.modal-loader.loader:before {
+  border-color: rgba(0,0,0,.1);
+}
+        
+.ui.dimmer .ui.modal-loader.loader:after {
+  border-color: #767676 transparent transparent;
 }

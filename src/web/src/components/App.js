@@ -116,8 +116,9 @@ class App extends Component {
 
   render = () => {
     const { login, applicationState = {}, applicationOptions = {}, error, initialized, retriesExhausted } = this.state;
-    const { version = {}, server } = applicationState;
+    const { version = {}, server, pendingReconnect, pendingRestart, shares = {} } = applicationState;
     const { isUpdateAvailable, current, latest } = version;
+    const { scanPending: pendingShareRescan } = shares;
 
     if (!initialized) {
       return <Loader active size='big'/>;
@@ -202,7 +203,7 @@ class App extends Component {
               {server?.isConnected && <Menu.Item
                 onClick={() => disconnect()}
               >
-                <Icon name='plug' color='green'/>Connected
+                <Icon name='plug' color={pendingReconnect ? 'yellow' : 'green'}/>Connected
               </Menu.Item>}
               {(!server?.isConnected) && <Menu.Item 
                 onClick={() => connect()}
@@ -211,6 +212,13 @@ class App extends Component {
                   <Icon name='plug' color='grey'/>
                   <Icon name='close' color='red' corner='bottom right' className='menu-icon-no-shadow'/>
                 </Icon.Group>Disconnected
+              </Menu.Item>}
+              {(pendingReconnect || pendingRestart || pendingShareRescan) && <Menu.Item position='right'>
+                <Icon.Group className='menu-icon-group'>
+                  <Link to={`${urlBase}/system/info`}>
+                    <Icon name='exclamation circle' color='yellow'/>
+                  </Link>
+                </Icon.Group>Pending Action
               </Menu.Item>}
               {isUpdateAvailable && <Modal
                 trigger={<Menu.Item position='right'>
@@ -260,7 +268,7 @@ class App extends Component {
             <AppContext.Provider value={{ state: applicationState, options: applicationOptions }}>
               <Switch>
                 <Route path={`${urlBase}/searches/:id?`} render={(props) => 
-                  this.withTokenCheck(<div className='page'>
+                  this.withTokenCheck(<div className='view'>
                     <Searches
                       server={applicationState.server}
                       {...props}
@@ -273,11 +281,11 @@ class App extends Component {
                 <Route path={`${urlBase}/rooms`} render={(props) => this.withTokenCheck(<Rooms {...props}/>)}/>
                 <Route path={`${urlBase}/uploads`} render={
                   (props) => 
-                    this.withTokenCheck(<div className='page'><Transfers {...props} direction='upload'/></div>)
+                    this.withTokenCheck(<div className='view'><Transfers {...props} direction='upload'/></div>)
                 }/>
                 <Route path={`${urlBase}/downloads`} render={
                   (props) => 
-                    this.withTokenCheck(<div className='page'>
+                    this.withTokenCheck(<div className='view'>
                       <Transfers {...props} direction='download' server={applicationState.server}/>
                     </div>)
                 }/>

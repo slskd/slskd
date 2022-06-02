@@ -21,6 +21,7 @@ namespace slskd
     using System.Collections.Generic;
     using System.Net;
     using System.Text.Json.Serialization;
+    using slskd.Shares;
     using slskd.Users;
     using Soulseek;
 
@@ -32,10 +33,9 @@ namespace slskd
         public VersionState Version { get; init; } = new VersionState();
         public bool PendingReconnect { get; init; }
         public bool PendingRestart { get; init; }
-        public bool PendingShareRescan { get; init; }
         public ServerState Server { get; init; } = new ServerState();
         public DistributedNetworkState DistributedNetwork { get; init; } = new DistributedNetworkState();
-        public SharedFileCacheState SharedFileCache { get; init; } = new SharedFileCacheState();
+        public ShareState Shares { get; init; } = new ShareState();
         public string[] Rooms { get; init; } = Array.Empty<string>();
         public User[] Users { get; init; } = Array.Empty<User>();
     }
@@ -69,15 +69,25 @@ namespace slskd
         public string BranchRoot { get; init; }
         public bool CanAcceptChildren { get; init; }
         public int ChildLimit { get; init; }
-        public IReadOnlyCollection<string> Children { get; init; }
+        public IReadOnlyCollection<string> Children { get; init; } = new List<string>().AsReadOnly();
         public bool HasParent { get; init; }
         public bool IsBranchRoot { get; init; }
         public string Parent { get; init; }
     }
 
     /// <summary>
-    ///     Share cache state.
+    ///     Share state.
     /// </summary>
+    public record ShareState
+    {
+        public bool ScanPending { get; init; }
+        public bool Scanning { get; init; }
+        public bool Faulted { get; init; }
+        public double ScanProgress { get; init; }
+        public int Directories { get; init; }
+        public int Files { get; init; }
+    }
+
     public record SharedFileCacheState
     {
         /// <summary>
@@ -114,5 +124,10 @@ namespace slskd
         ///     Gets the number of directories excluded by filters.
         /// </summary>
         public int ExcludedDirectories { get; init; }
+
+        /// <summary>
+        ///     Gets the list of shares stored in the cache.
+        /// </summary>
+        public IReadOnlyCollection<Share> Shares { get; init; } = new List<Share>().AsReadOnly();
     }
 }

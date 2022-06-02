@@ -162,18 +162,23 @@ namespace slskd.Search
         /// </summary>
         /// <param name="search">The search to delete.</param>
         /// <returns>The operation context.</returns>
-        public async Task DeleteAsync(Search search)
+        public Task DeleteAsync(Search search)
         {
             if (search == default)
             {
                 throw new ArgumentNullException(nameof(search));
             }
 
-            using var context = ContextFactory.CreateDbContext();
-            context.Searches.Remove(search);
-            await context.SaveChangesAsync();
+            return DoDeleteAsync(search);
 
-            await SearchHub.BroadcastDeleteAsync(search);
+            async Task DoDeleteAsync(Search search)
+            {
+                using var context = ContextFactory.CreateDbContext();
+                context.Searches.Remove(search);
+                await context.SaveChangesAsync();
+
+                await SearchHub.BroadcastDeleteAsync(search);
+            }
         }
 
         /// <summary>

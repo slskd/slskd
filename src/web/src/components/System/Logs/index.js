@@ -1,9 +1,10 @@
 import React, { Component } from 'react';
-import { Table, Loader, Dimmer } from 'semantic-ui-react';
+import { Table } from 'semantic-ui-react';
 
-import { createLogsHubConnection } from '../../lib/hubFactory';
+import { createLogsHubConnection } from '../../../lib/hubFactory';
+import { LoaderSegment } from '../../Shared';
 
-import './System.css';
+import '../System.css';
 
 const initialState = {
   logs: [],
@@ -50,7 +51,7 @@ class Logs extends Component {
 
     return (
       <div className='logs'>
-        {!connected && <Dimmer active inverted><Loader inverted/></Dimmer>}
+        {!connected && <LoaderSegment/>}
         {connected &&
           <Table compact='very' className='logs-table'>
             <Table.Header>
