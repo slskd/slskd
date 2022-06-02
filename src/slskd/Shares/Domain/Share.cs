@@ -18,6 +18,7 @@
 namespace slskd.Shares
 {
     using System.Linq;
+    using System.Text.Json.Serialization;
     using System.Text.RegularExpressions;
 
     /// <summary>
@@ -25,6 +26,28 @@ namespace slskd.Shares
     /// </summary>
     public sealed class Share
     {
+        /// <summary>
+        ///     Initializes a new instance of the <see cref="Share"/> class.
+        /// </summary>
+        /// <param name="id"></param>
+        /// <param name="alias"></param>
+        /// <param name="isExcluded"></param>
+        /// <param name="localPath"></param>
+        /// <param name="mask"></param>
+        /// <param name="raw"></param>
+        /// <param name="remotePath"></param>
+        [JsonConstructor]
+        public Share (string id, string alias, bool isExcluded, string localPath, string mask, string raw, string remotePath)
+        {
+            Id = id;
+            Alias = alias;
+            IsExcluded = isExcluded;
+            LocalPath = localPath;
+            Mask = mask;
+            Raw = raw;
+            RemotePath = remotePath;
+        }
+
         /// <summary>
         ///     Initializes a new instance of the <see cref="Share"/> class.
         /// </summary>
