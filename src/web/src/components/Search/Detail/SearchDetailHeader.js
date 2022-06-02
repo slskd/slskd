@@ -63,11 +63,11 @@ const SearchDetailHeader = ({
   // if the screen is less than 684 pixels, display the action buttons in a new segment, with full text.
   return (
     <>
-      <Segment className='search-segment' raised>
-        <Header className='search-detail-header'>
+      <Segment className='search-detail-header-segment' raised>
+        <Header>
           <SearchStatusIcon state={state}/>{searchText}
         </Header>
-        {!isTinyScreen && <div className='search-detail-action-button'>
+        {!isTinyScreen && <div className='search-detail-header-buttons'>
           <RefreshButton/>
           <StopOrDeleteButton/>
         </div>}

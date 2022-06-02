@@ -105,12 +105,19 @@
   width: 5px !important;
 }
 
-.search-detail-header {
-  font-weight: normal !important;
-  margin-top: 12px !important;
+.search-detail-header-segment {
+  margin-top: 15px !important;
+  height: 78px !important;
+  padding-top: 20px !important;
+  display: flex;
 }
 
-.search-detail-action-button {
-  float: right;
-  margin-top: -48px !important;
+.search-detail-header-segment > .header {
+  font-weight: normal !important;
+  margin-top: 8px !important;
+}
+
+.search-detail-header-buttons {
+  display: inline;
+  margin-left: auto;
 }
