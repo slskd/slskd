@@ -9,7 +9,6 @@ import {
   Table,
   Icon,
   Loader,
-  List,
 } from 'semantic-ui-react';
 
 const SearchList = ({
