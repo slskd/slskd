@@ -64,7 +64,7 @@ const Transfers = ({ direction, server }) => {
       await transfersLib.download({username, files: [{filename, size }] });
       if (!suppressStateChange) setRetrying(false);
     } catch (error) {
-      console.log(error);
+      console.error(error);
       toast.error(error?.response?.data ?? error?.message ?? error);
       if (!suppressStateChange) setRetrying(false);
     }
@@ -84,7 +84,7 @@ const Transfers = ({ direction, server }) => {
       await transfersLib.cancel({ direction, username, id });
       if (!suppressStateChange) setCancelling(false);
     } catch (error) {
-      console.log(error);
+      console.error(error);
       toast.error(error?.response?.data ?? error?.message ?? error);
       if (!suppressStateChange) setCancelling(false);
     }
@@ -104,7 +104,7 @@ const Transfers = ({ direction, server }) => {
       await transfersLib.cancel({ direction, username, id, remove: true });
       if (!suppressStateChange) setRemoving(false);
     } catch (error) {
-      console.log(error);
+      console.error(error);
       toast.error(error?.response?.data ?? error?.message ?? error);
       if (!suppressStateChange) setRemoving(false);
     }

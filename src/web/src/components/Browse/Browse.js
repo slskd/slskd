@@ -90,7 +90,7 @@ class Browse extends Component {
     try {
       localStorage.setItem('soulseek-example-browse-state', lzString.compress(JSON.stringify(this.state)));
     } catch (error) {
-      console.log(error);
+      console.error(error);
     }
   };
 

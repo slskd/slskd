@@ -1,8 +1,8 @@
 .vs
-dist/
-logs/
-src/slskd/bin/
-src/slskd/obj/
-src/slskd/wwwroot/
-src/slskd/slskd.csproj.user
-TestResults/
+/src/slskd/bin/
+/src/slskd/obj/
+/src/slskd/wwwroot/
+/src/slskd/slskd.csproj.user
+/TestResults/
+/dist/
+/logs/
