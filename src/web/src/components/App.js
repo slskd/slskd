@@ -203,7 +203,7 @@ class App extends Component {
               {server?.isConnected && <Menu.Item
                 onClick={() => disconnect()}
               >
-                <Icon name='plug' color='green'/>Connected
+                <Icon name='plug' color={pendingReconnect ? 'yellow' : 'green'}/>Connected
               </Menu.Item>}
               {(!server?.isConnected) && <Menu.Item 
                 onClick={() => connect()}

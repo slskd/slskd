@@ -21,6 +21,8 @@ const Info = ({ state }) => {
     }, 250);
   }, [state]);
 
+  const { pendingRestart } = state;
+
   return (
     <>
       <div className='header-buttons'>
@@ -57,7 +59,8 @@ const Info = ({ state }) => {
             <ShrinkableButton
               icon='redo'
               mediaQuery='(max-width: 516px)'
-              negative
+              negative={!pendingRestart}
+              color={pendingRestart ? 'yellow' : undefined}
               disabled={!contents}
             >
               Restart

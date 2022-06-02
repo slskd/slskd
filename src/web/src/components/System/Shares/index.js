@@ -22,17 +22,18 @@ const Index = ({ state = {} } = {}) => {
   const [shares, setShares] = useState([]);
   const [modal, setModal] = useState(false);
 
-  const { filling, filled, fillProgress } = state;
+  const { scanning, scanProgress, scanPending } = state;
+  const scanned = !scanning;
 
   useEffect(() => {
     getAll();
   }, []);
 
   useEffect(() => {
-    if (filled) {
+    if (scanned) {
       getAll();
     }
-  }, [filled]);
+  }, [scanned]);
 
   const getAll = async () => {
     try {
@@ -53,17 +54,18 @@ const Index = ({ state = {} } = {}) => {
     <>
       <div className="header-buttons">
         <ShrinkableButton
-          primary
+          primary={!scanPending}
+          color={scanPending ? 'yellow' : undefined}
           icon='refresh'
-          loading={filling}
-          disabled={filling || loading}
+          loading={scanning}
+          disabled={scanning || loading}
           mediaQuery={'(max-width: 516px)'} 
           onClick={() => sharesLib.rescan()}
-        >{filling ? 'Scanning shares' : 'Rescan Shares'}</ShrinkableButton>
+        >{scanning ? 'Scanning shares' : 'Rescan Shares'}</ShrinkableButton>
       </div>
       <Divider/>
       <Switch
-        filling={(loading || filling) && <LoaderSegment caption={fillProgress}/>}
+        filling={(loading || scanning) && <LoaderSegment>{Math.round(scanProgress * 100)}%</LoaderSegment>}
       >
         <ShareTable shares={shared} onClick={setModal}/>
         <ExclusionTable exclusions={excluded}/>

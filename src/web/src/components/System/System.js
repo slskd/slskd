@@ -1,7 +1,7 @@
 import React from 'react';
 import { useRouteMatch, useHistory, Redirect } from 'react-router-dom';
 
-import { Segment, Tab } from 'semantic-ui-react';
+import { Segment, Tab, Menu, Icon } from 'semantic-ui-react';
 
 import './System.css';
 
@@ -9,6 +9,7 @@ import Info from './Info';
 import Logs from './Logs';
 import Options from './Options';
 import Shares from './Shares';
+import { Switch } from '../Shared';
 
 const System = ({ state = {}, options = {} }) => {
   const { params: { tab }, ...route } = useRouteMatch();
@@ -17,11 +18,15 @@ const System = ({ state = {}, options = {} }) => {
   const panes = [
     { 
       route: 'info',
-      menuItem: { 
-        key: 'info', 
-        icon: 'info', 
-        content: 'Info',
-      }, 
+      menuItem: (<Menu.Item key='info'>
+        <Switch
+          pending={((state?.pendingRestart ?? false) || (state?.pendingReconnect ?? false)) 
+            && <Icon name='exclamation circle' color='yellow'/>}
+        >
+          <Icon name='info circle'/>
+        </Switch>
+        Info
+      </Menu.Item>), 
       render: () => <Tab.Pane><Info state={state}/></Tab.Pane>, 
     },
     {
@@ -35,12 +40,15 @@ const System = ({ state = {}, options = {} }) => {
     },
     {
       route: 'shares', 
-      menuItem: { 
-        key: 'shares', 
-        icon: 'share external', 
-        content: 'Shares', 
-      }, 
-      render: () => <Tab.Pane><Shares state={state.sharedFileCache}/></Tab.Pane>,
+      menuItem: (<Menu.Item key='shares'>
+        <Switch
+          scanPending={(state?.shares?.scanPending ?? false) && <Icon name='exclamation circle' color='yellow'/>}
+        >
+          <Icon name='share external'/>
+        </Switch>
+        Shares
+      </Menu.Item>),
+      render: () => <Tab.Pane><Shares state={state.shares}/></Tab.Pane>,
     },
     { 
       route: 'logs', 
