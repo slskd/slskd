@@ -116,8 +116,9 @@ class App extends Component {
 
   render = () => {
     const { login, applicationState = {}, applicationOptions = {}, error, initialized, retriesExhausted } = this.state;
-    const { version = {}, server, pendingReconnect, pendingRestart, pendingShareRescan } = applicationState;
+    const { version = {}, server, pendingReconnect, pendingRestart, shares = {} } = applicationState;
     const { isUpdateAvailable, current, latest } = version;
+    const { scanPending: pendingShareRescan } = shares;
 
     if (!initialized) {
       return <Loader active size='big'/>;
@@ -215,7 +216,7 @@ class App extends Component {
               {(pendingReconnect || pendingRestart || pendingShareRescan) && <Menu.Item position='right'>
                 <Icon.Group className='menu-icon-group'>
                   <Link to={`${urlBase}/system/info`}>
-                    <Icon name='refresh' color='yellow'/>
+                    <Icon name='exclamation circle' color='yellow'/>
                   </Link>
                 </Icon.Group>Pending Action
               </Menu.Item>}
