@@ -679,14 +679,14 @@ namespace slskd
                 if (PreviousOptions.Directories.Shared.Except(newOptions.Directories.Shared).Any()
                     || newOptions.Directories.Shared.Except(PreviousOptions.Directories.Shared).Any())
                 {
-                    State.SetValue(state => state with { PendingShareRescan = true });
+                    State.SetValue(state => state with { Shares = state.Shares with { ScanPending = true } });
                     Log.Information("Shared directory configuration changed.  Shares must be re-scanned for changes to take effect.");
                 }
 
                 if (PreviousOptions.Filters.Share.Except(newOptions.Filters.Share).Any()
                     || newOptions.Filters.Share.Except(PreviousOptions.Filters.Share).Any())
                 {
-                    State.SetValue(state => state with { PendingShareRescan = true });
+                    State.SetValue(state => state with { Shares = state.Shares with { ScanPending = true } });
                     Log.Information("File filter configuration changed.  Shares must be re-scanned for changes to take effect.");
                 }
 
@@ -875,7 +875,7 @@ namespace slskd
                 }
                 else
                 {
-                    State.SetValue(s => s with { PendingShareRescan = false });
+                    State.SetValue(state => state with { Shares = state.Shares with { ScanPending = false } });
                     Log.Information("Shares scanned successfully. Found {Directories} directories and {Files} files in {Duration}ms", current.Directories, current.Files, (DateTime.UtcNow - SharesRefreshStarted).TotalMilliseconds);
 
                     SharesRefreshStarted = default;
