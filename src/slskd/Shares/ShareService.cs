@@ -55,6 +55,11 @@ namespace slskd.Shares
                     Directories = current.Directories,
                     Files = current.Files,
                 });
+
+                if (previous.Filling && !current.Filling)
+                {
+                    CachedShares = current.Shares.ToList().AsReadOnly();
+                }
             });
 
             OptionsMonitor = optionsMonitor;
@@ -68,7 +73,10 @@ namespace slskd.Shares
         /// </summary>
         public IReadOnlyList<Share> Shares => SharesList.AsReadOnly();
 
-        public IReadOnlyList<Regex> FilterRegexes => FilterRegexList.AsReadOnly();
+        /// <summary>
+        ///     Gets the list of shares stored in the cache.
+        /// </summary>
+        public IReadOnlyList<Share> CachedShares { get; private set; } = new List<Share>().AsReadOnly();
 
         /// <summary>
         ///     Gets the state monitor for the service.
@@ -81,7 +89,7 @@ namespace slskd.Shares
         private List<Share> SharesList { get; set; } = new List<Share>();
         private IManagedState<ShareState> State { get; } = new ManagedState<ShareState>();
         private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1, 1);
-        private List<Regex> FilterRegexList { get; set; } = new List<Regex>();
+        private List<Regex> FilterRegexes { get; set; } = new List<Regex>();
 
         /// <summary>
         ///     Returns the entire contents of the share.
@@ -160,7 +168,7 @@ namespace slskd.Shares
                     .ToList();
 
                 SharesList = shares;
-                FilterRegexList = regexes;
+                FilterRegexes = regexes;
 
                 State.SetValue(state => state with { ScanPending = true });
 

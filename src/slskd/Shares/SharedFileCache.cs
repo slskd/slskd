@@ -175,7 +175,14 @@ namespace slskd.Shares
 
             try
             {
-                State.SetValue(state => state with { Filling = true, Filled = false, FillProgress = 0 });
+                State.SetValue(state => state with
+                {
+                    Filling = true,
+                    Filled = false,
+                    FillProgress = 0,
+                    Shares = Enumerable.Empty<Share>().ToList().AsReadOnly(),
+                });
+
                 Log.Debug("Starting shared file scan");
 
                 await Task.Yield();
@@ -291,7 +298,16 @@ namespace slskd.Shares
                 MaskedDirectories = maskedDirectories;
                 MaskedFiles = files;
 
-                State.SetValue(state => state with { Filling = false, Faulted = false, Filled = true, FillProgress = 1, Directories = MaskedDirectories.Count, Files = MaskedFiles.Count });
+                State.SetValue(state => state with {
+                    Filling = false,
+                    Faulted = false,
+                    Filled = true,
+                    FillProgress = 1,
+                    Directories = MaskedDirectories.Count,
+                    Files = MaskedFiles.Count,
+                    Shares = shares.ToList().AsReadOnly(),
+                });
+
                 Log.Debug($"Shared file cache recreated in {sw.ElapsedMilliseconds}ms.  Directories: {unmaskedDirectories.Count}, Files: {files.Count}");
             }
             catch (Exception ex)
