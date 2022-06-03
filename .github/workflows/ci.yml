@@ -220,6 +220,7 @@ jobs:
       - name: Zip ${{ matrix.runtime }} Binaries
         run: |
           cd dist/${{ matrix.runtime }}
+          chmod +x slskd
           zip -r ../../slskd-${{ env.TAG }}-${{ matrix.runtime }}.zip .
       - name: Create Release
         uses: softprops/action-gh-release@v1
