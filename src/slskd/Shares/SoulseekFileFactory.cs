@@ -95,7 +95,7 @@ namespace slskd.Shares
                 }
                 catch (Exception ex)
                 {
-                    Log.Warning("Failed to read metadata from file '{Filename}'; the file is an unsupported format or may be corrupt ({ExceptionType})", filename, ex.GetType().Name);
+                    Log.Debug("Failed to read metadata from file '{Filename}'; the file is an unsupported format or may be corrupt ({ExceptionType})", filename, ex.GetType().Name);
                 }
                 finally
                 {
