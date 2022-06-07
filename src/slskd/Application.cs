@@ -366,7 +366,14 @@ namespace slskd
                 _ => default,
             };
 
-            var logger = Loggers.GetOrAdd(sender.GetType().FullName, Log.ForContext("Context", "Soulseek").ForContext("SubContext", sender.GetType().FullName));
+            var source = sender.GetType().FullName;
+
+            if (source.EndsWith("DistributedConnectionManager") && !Options.Soulseek.DistributedNetwork.Logging)
+            {
+                return;
+            }
+
+            var logger = Loggers.GetOrAdd(source, Log.ForContext("Context", "Soulseek").ForContext("SubContext", source));
 
             logger.Write(TranslateLogLevel(args.Level), "{@Message}", args.Message);
         }

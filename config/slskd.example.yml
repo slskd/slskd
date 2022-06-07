@@ -82,6 +82,7 @@
 #     disabled: false
 #     disable_children: false
 #     child_limit: 25
+#     logging: false
 #   connection:
 #     timeout:
 #       connect: 10000

@@ -924,6 +924,14 @@ namespace slskd
                 [Description("max number of distributed children")]
                 [Range(1, int.MaxValue)]
                 public int ChildLimit { get; init; } = 25;
+
+                /// <summary>
+                ///     Gets a value indicating whether distributed network logging should be enabled.
+                /// </summary>
+                [Argument(default, "slsk-dnet-logging")]
+                [EnvironmentVariable("SLSK_DNET_LOGGING")]
+                [Description("enable distributed network logging")]
+                public bool Logging { get; init; } = false;
             }
         }
 
