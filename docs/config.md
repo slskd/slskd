@@ -322,6 +322,7 @@ Changing these values may require the server connection to be reset, depending o
 | `--slsk-no-dnet`          | `SLSK_NO_DNET`          | Determines whether the distributed network is disabled.  If disabled, the client will not obtain a parent or any child connections, and will not receive distributed search requests. |
 | `--slsk-dnet-no-children` | `SLSK_DNET_NO_CHILDREN` | Determines whether to disallow distributed children                                                                                                                                   |
 | `--slsk-dnet-children`    | `SLSK_DNET_CHILDREN`    | The maximum number of distributed children to accept                                                                                                                                  |
+| `--slsk-dnet-logging`     | `SLSK_DNET_LOGGING`     | Determines whether to enable distributed network logging
 
 #### **YAML**
 ```yaml
