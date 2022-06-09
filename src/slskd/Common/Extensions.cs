@@ -275,17 +275,43 @@ namespace slskd
         /// <returns>The converted filename.</returns>
         public static string ToLocalRelativeFilename(this string remoteFilename)
         {
-            var localFilename = remoteFilename.ToLocalOSPath();
-            var path = $"{Path.GetDirectoryName(localFilename).Replace(Path.GetDirectoryName(Path.GetDirectoryName(localFilename)), string.Empty)}";
+            if (string.IsNullOrWhiteSpace(remoteFilename))
+            {
+                throw new ArgumentException($"Invalid remote filename; expected a non-whitespace value, received '{remoteFilename}'", nameof(remoteFilename));
+            }
 
-            var sanitizedFilename = Path.GetFileName(localFilename);
+            // normalize path separators
+            var localizedRemoteFilename = remoteFilename.ToLocalOSPath();
+
+            var parts = localizedRemoteFilename.Split(Path.DirectorySeparatorChar);
+
+            if (parts.Length == 1)
+            {
+                return parts.First().ReplaceInvalidFileNameCharacters();
+            }
+
+            var file = parts.Last().ReplaceInvalidFileNameCharacters();
+            var directory = parts.Reverse().Skip(1).Take(1).Single().ReplaceInvalidFileNameCharacters();
+
+            return Path.Combine(directory, file);
+        }
+
+        /// <summary>
+        ///     Replaces any occurance of an invalid filename character with the specified <see paramref="replacement"/>.
+        /// </summary>
+        /// <param name="path">The path to sanitize.</param>
+        /// <param name="replacement">The character with which to replace invalid characters.</param>
+        /// <returns>The sanitized path.</returns>
+        public static string ReplaceInvalidFileNameCharacters(this string path, char replacement = '_')
+        {
+            var sanitized = path;
 
             foreach (var c in Path.GetInvalidFileNameChars())
             {
-                sanitizedFilename = sanitizedFilename.Replace(c, '_');
+                sanitized = sanitized.Replace(c, replacement);
             }
 
-            return Path.Combine(path, sanitizedFilename).TrimStart('\\').TrimStart('/');
+            return sanitized;
         }
 
         /// <summary>
