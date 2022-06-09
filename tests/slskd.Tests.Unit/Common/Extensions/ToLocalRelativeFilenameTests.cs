@@ -46,7 +46,7 @@
             }
             else
             {
-                Assert.Equal(@"path/fi_le.ext", "C:\\path\\fi\0le.ext");
+                Assert.Equal(@"_", $"{'\0'}".ToLocalRelativeFilename());
             }
         }
     }
