@@ -47,13 +47,15 @@ class Browse extends Component {
           let { directories, lockedDirectories } = response;
           
           // we need to know the directory separator. assume it is \ to start
-          let separator = '\\';
+          let separator = undefined;
 
           const directoryCount = directories.length;
           const fileCount = directories.reduce((acc, dir) => {
             // examine each directory as we process it to see if it contains \ or /, and set separator accordingly
-            if (dir.name.includes('\\')) separator = '\\';
-            if (dir.name.includes('/')) separator = '/';
+            if (!separator) {
+              if (dir.name.includes('\\')) separator = '\\';
+              else if (dir.name.includes('/')) separator = '/';
+            }
 
             return acc += dir.fileCount;
           }, 0);
