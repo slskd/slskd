@@ -26,6 +26,7 @@ const initialState = {
   selectedDirectory: {},
   selectedFiles: [],
   tree: [],
+  separator: '\\',
   info: {
     directories: 0,
     files: 0,
@@ -45,8 +46,17 @@ class Browse extends Component {
         .then(response => {
           let { directories, lockedDirectories } = response;
           
+          // we need to know the directory separator. assume it is \ to start
+          let separator = '\\';
+
           const directoryCount = directories.length;
-          const fileCount = directories.reduce((acc, dir) => acc += dir.fileCount, 0);
+          const fileCount = directories.reduce((acc, dir) => {
+            // examine each directory as we process it to see if it contains \ or /, and set separator accordingly
+            if (dir.name.includes('\\')) separator = '\\';
+            if (dir.name.includes('/')) separator = '/';
+
+            return acc += dir.fileCount;
+          }, 0);
 
           const lockedDirectoryCount = lockedDirectories.length;
           const lockedFileCount = lockedDirectories.reduce((acc, dir) => acc += dir.fileCount, 0);
@@ -54,7 +64,8 @@ class Browse extends Component {
           directories = directories.concat(lockedDirectories.map(d => ({ ...d, locked: true })));
           
           this.setState({ 
-            tree: this.getDirectoryTree(directories),
+            tree: this.getDirectoryTree({ directories, separator }),
+            separator,
             info: {
               directories: directoryCount,
               files: fileCount,
@@ -125,18 +136,18 @@ class Browse extends Component {
     }
   };
 
-  getDirectoryTree = (directories) => {
+  getDirectoryTree = ({ directories, separator }) => {
     if (directories.length === 0 || directories[0].name === undefined) {
       return [];
     }
 
-    const separator = this.sep(directories[0].name);
     const depth = Math.min.apply(null, directories.map(d => d.name.split(separator).length));
 
     const topLevelDirs = directories
       .filter(d => d.name.split(separator).length === depth);
 
-    return topLevelDirs.map(directory => this.getChildDirectories(directories, directory, separator, depth));
+    const tree = topLevelDirs.map(directory => this.getChildDirectories(directories, directory, separator, depth));
+    return tree;
   };
 
   getChildDirectories = (directories, root, separator, depth) => {
@@ -156,17 +167,15 @@ class Browse extends Component {
     this.setState({ selectedDirectory: initialState.selectedDirectory }, () => this.saveState());
   };
 
-  sep = (name) => name.includes('\\') ? '\\' : '/';
-
   render = () => {
-    const { browseState, browseStatus, browseError, tree, selectedDirectory, username, info } = this.state;
+    const { browseState, browseStatus, browseError, tree, separator, selectedDirectory, username, info } = this.state;
     const { name, locked } = selectedDirectory;
     const pending = browseState === 'pending';
 
     const emptyTree = !(tree && tree.length > 0);
 
     const files = (selectedDirectory.files || [])
-      .map(f => ({ ...f, filename: `${name}${this.sep(name)}${f.filename}` }));
+      .map(f => ({ ...f, filename: `${name}${separator}${f.filename}` }));
 
     return (
       <div className='search-container'>
