@@ -33,17 +33,15 @@ namespace slskd.Shares
         /// <param name="alias"></param>
         /// <param name="isExcluded"></param>
         /// <param name="localPath"></param>
-        /// <param name="mask"></param>
         /// <param name="raw"></param>
         /// <param name="remotePath"></param>
         [JsonConstructor]
-        public Share (string id, string alias, bool isExcluded, string localPath, string mask, string raw, string remotePath)
+        public Share (string id, string alias, bool isExcluded, string localPath, string raw, string remotePath)
         {
             Id = id;
             Alias = alias;
             IsExcluded = isExcluded;
             LocalPath = localPath;
-            Mask = mask;
             Raw = raw;
             RemotePath = remotePath;
         }
@@ -78,14 +76,7 @@ namespace slskd.Shares
                 LocalPath = share;
             }
 
-            var parent = System.IO.Directory.GetParent(LocalPath).FullName.TrimEnd('/', '\\');
-
-            Mask = Compute.MaskHash(parent);
-
-            var maskedPath = LocalPath.ReplaceFirst(parent, Mask);
-
-            var aliasedSegment = LocalPath[(parent.Length + 1)..];
-            RemotePath = maskedPath.ReplaceFirst(aliasedSegment, Alias);
+            RemotePath = Alias;
 
             Id = Compute.Sha1Hash(RemotePath);
         }
@@ -94,7 +85,6 @@ namespace slskd.Shares
         public string Alias { get; init; }
         public bool IsExcluded { get; init; }
         public string LocalPath { get; init; }
-        public string Mask { get; init; }
         public string Raw { get; init; }
         public string RemotePath { get; init; }
     }
