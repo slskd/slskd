@@ -375,11 +375,11 @@ namespace slskd.Shares
             }
 
             // find the share with a matching mask and alias/local directory
-            var share = Shares.FirstOrDefault(share => share.Mask == parts[0] && share.Alias == parts[1]);
+            var share = Shares.FirstOrDefault(share => share.Alias == parts[0]);
 
             if (share == default)
             {
-                Log.Warning("Failed to resolve shared file {Filename}; unable to resolve share from mask '{Mask}' and alias '{Alias}'", filename, parts[0], parts[1]);
+                Log.Warning("Failed to resolve shared file {Filename}; unable to resolve share from alias '{Alias}'", filename, parts[0]);
                 return resolved;
             }
 
