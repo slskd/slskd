@@ -23,7 +23,6 @@ namespace slskd.Shares
         public string Alias { get; init; }
         public bool IsExcluded { get; init; }
         public string LocalPath { get; init; }
-        public string Mask { get; init; }
         public string Raw { get; init; }
         public string RemotePath { get; init; }
         public int Directories { get; init; }
