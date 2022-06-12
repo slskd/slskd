@@ -14,14 +14,11 @@
     "lint:fix": "eslint --fix ."
   },
   "dependencies": {
-    "@codemirror/highlight": "^0.19.7",
-    "@codemirror/legacy-modes": "^0.19.0",
-    "@codemirror/stream-parser": "^0.19.4",
+    "@codemirror/language": "^6.0.0",
+    "@codemirror/legacy-modes": "^6.0.0",
     "@microsoft/signalr": "^5.0.10",
-    "@uiw/react-codemirror": "^4.3.3",
-    "@uiw/react-textarea-code-editor": "^1.4.15",
+    "@uiw/react-codemirror": "^4.2.4",
     "axios": "^0.25.0",
-    "codemirror": "^5.64.0",
     "lz-string": "^1.4.4",
     "react": "^16.8.6",
     "react-dom": "^16.8.6",
