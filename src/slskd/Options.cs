@@ -327,54 +327,45 @@ namespace slskd
             {
                 var results = new List<ValidationResult>();
 
-                (string Raw, string Mask, string Alias, string Path) Digest(string share)
+                bool IsBlankPath(string share) => Regex.IsMatch(share.ToLocalOSPath(), @"^(!|-){0,1}(\[.*\])$");
+                Shared.Where(share => IsBlankPath(share)).ToList()
+                    .ForEach(blank => results.Add(new ValidationResult($"Share {blank} doees not specify a path")));
+
+                bool IsRootMount(string share) => Regex.IsMatch(share.ToLocalOSPath(), @"^(!|-){0,1}(\[.*\])/$");
+                Shared.Where(share => IsRootMount(share)).ToList()
+                    .ForEach(blank => results.Add(new ValidationResult($"Share {blank} specifies a root mount, which is not supported.")));
+
+                // starts with '/', 'X:', or '\\'
+                bool IsAbsolutePath(string share) => Regex.IsMatch(share.ToLocalOSPath(), @"^(!|-){0,1}(\[.*\])?(\/|[a-zA-Z]:|\\\\).*$");
+                Shared.Where(share => !IsAbsolutePath(share)).ToList()
+                    .ForEach(relativePath => results.Add(new ValidationResult($"Share {relativePath} contains a relative path; only absolute paths are supported.")));
+
+                (string Raw, string Alias, string Path) Digest(string share)
                 {
-                    var matches = Regex.Matches(share, @"^(-?)\[(.*)\](.*)$");
+                    var matches = Regex.Matches(share, @"^(!|-){0,1}\[(.*)\](.*)$");
 
                     if (matches.Any())
                     {
-                        return (share, Compute.MaskHash(Directory.GetParent(matches[0].Groups[3].Value)?.FullName ?? share), matches[0].Groups[2].Value, matches[0].Groups[3].Value);
+                        return (share, matches[0].Groups[2].Value, matches[0].Groups[3].Value);
                     }
 
-                    return (share, Compute.MaskHash(Directory.GetParent(share)?.FullName ?? share), share.Split(new[] { '/', '\\' }).Last(), share);
-                }
-
-                bool IsRoot((string Raw, string Mask, string Alias, string Path) share) => share.Path == "/" || share.Path == "\\" || Path.GetPathRoot(share.Path) == share.Path;
-
-                // starts with '/', 'X:\', or '\\'
-                bool IsAbsolutePath(string share) => Regex.IsMatch(share.ToLocalOSPath(), @"^(!|-){0,1}(\[.*\])?(\/|[a-zA-Z]:\\|\\\\).*$");
-
-                var relativePaths = Shared.Where(share => !IsAbsolutePath(share));
-                foreach (var relativePath in relativePaths)
-                {
-                    results.Add(new ValidationResult($"Share {relativePath} contains a relative path; only absolute paths are supported."));
+                    return (share, share.Split(new[] { '/', '\\' }).Last(), share);
                 }
 
                 var digestedShared = Shared
                     .Select(share => Digest(share.TrimEnd('/', '\\')))
                     .ToHashSet();
 
-                var roots = digestedShared.Where(share => IsRoot(share));
-                foreach (var root in roots)
-                {
-                    results.Add(new ValidationResult($"Share {root.Raw} is a root path, which is not supported."));
-                }
+                // make sure all aliases are distinct
+                digestedShared.GroupBy(share => share.Alias).Where(group => group.Count() > 1).ToList()
+                    .ForEach(overlap => results.Add(new ValidationResult($"Shares {string.Join(", ", overlap.Select(s => $"'{s.Raw}'"))} collide. Specify an alias for one or both to disambiguate them.")));
 
-                digestedShared = digestedShared.Where(share => !IsRoot(share)).ToHashSet();
+                // make sure the same path hasn't been specified twice, under different aliases
+                digestedShared.GroupBy(share => share.Path).Where(group => group.Count() > 1).ToList()
+                    .ForEach(dupe => results.Add(new ValidationResult($"Shares {string.Join(", ", dupe.Select(s => $"'{s.Raw}'"))} alias the same path")));
 
-                var overlapping = digestedShared.GroupBy(share => share.Mask + share.Alias).Where(group => group.Count() > 1);
-                foreach (var overlap in overlapping)
-                {
-                    results.Add(new ValidationResult($"Shares {string.Join(", ", overlap.Select(s => $"'{s.Raw}'"))} overlap"));
-                }
-
-                var duplicates = digestedShared.GroupBy(share => share.Path).Where(group => group.Count() > 1);
-                foreach (var dupe in duplicates)
-                {
-                    results.Add(new ValidationResult($"Shares {string.Join(", ", dupe.Select(s => $"'{s.Raw}'"))} alias the same path"));
-                }
-
-                foreach (var share in digestedShared.Where(s => s.Alias != null))
+                // make sure each share has an alias, or is alias-able, and that the alias is valid
+                foreach (var share in digestedShared)
                 {
                     if (string.IsNullOrWhiteSpace(share.Alias))
                     {
