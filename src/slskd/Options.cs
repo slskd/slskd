@@ -327,18 +327,6 @@ namespace slskd
             {
                 var results = new List<ValidationResult>();
 
-                (string Raw, string Alias, string Path) Digest(string share)
-                {
-                    var matches = Regex.Matches(share, @"^(!|-){0,1}\[(.*)\](.*)$");
-
-                    if (matches.Any())
-                    {
-                        return (share, matches[0].Groups[2].Value, matches[0].Groups[3].Value);
-                    }
-
-                    return (share, share.Split(new[] { '/', '\\' }).Last(), share);
-                }
-
                 bool IsBlankPath(string share) => Regex.IsMatch(share.ToLocalOSPath(), @"^(!|-){0,1}(\[.*\])$");
                 Shared.Where(share => IsBlankPath(share)).ToList()
                     .ForEach(blank => results.Add(new ValidationResult($"Share {blank} doees not specify a path")));
@@ -351,6 +339,18 @@ namespace slskd
                 bool IsAbsolutePath(string share) => Regex.IsMatch(share.ToLocalOSPath(), @"^(!|-){0,1}(\[.*\])?(\/|[a-zA-Z]:|\\\\).*$");
                 Shared.Where(share => !IsAbsolutePath(share)).ToList()
                     .ForEach(relativePath => results.Add(new ValidationResult($"Share {relativePath} contains a relative path; only absolute paths are supported.")));
+
+                (string Raw, string Alias, string Path) Digest(string share)
+                {
+                    var matches = Regex.Matches(share, @"^(!|-){0,1}\[(.*)\](.*)$");
+
+                    if (matches.Any())
+                    {
+                        return (share, matches[0].Groups[2].Value, matches[0].Groups[3].Value);
+                    }
+
+                    return (share, share.Split(new[] { '/', '\\' }).Last(), share);
+                }
 
                 var digestedShared = Shared
                     .Select(share => Digest(share.TrimEnd('/', '\\')))
