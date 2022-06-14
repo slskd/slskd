@@ -107,7 +107,7 @@ directories:
 
 Any number of shared directories can be configured.
 
-Paths must be absolute, meaning they must begin with `/`, `X:\`, or `\\`, depending on the system. Relative paths, such as `~/directory` or `../directory`, and root paths (e.g. an entire drive, mount or network share) are not supported.
+Paths must be absolute, meaning they must begin with `/`, `X:\`, or `\\`, depending on the system. Relative paths, such as `~/directory` or `../directory`, are not supported. Sharing a root mount on a unix-like OS (`/`) is also not supported.
 
 Shares can be excluded by prefixing them with `-` or `!`.  This is useful in situations where sharing a subdirectory of a share isn't desired, for example, if a user wanted to share their entire music library, but not their personal recordings:
 
@@ -126,7 +126,7 @@ directories:
     - '[Music]\users\John Doe\Music'
 ```
 
-To a remote user, any files within the aliased path will appear as though they are shared from a directory named as the alias.
+If no alias is specified, the name of the shared folder is used (e.g. `D:\Music` is aliased to `Music`). To a remote user, any files within the aliased path will appear as though they are shared from a directory named as the alias.
 
 Aliases:
 * Must be unique
