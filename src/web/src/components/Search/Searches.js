@@ -96,7 +96,7 @@ const Searches = ({ server }) => {
   // create a new search, and optionally navigate to it to display the details
   // we do this if the user clicks the search icon, or repeats an existing search
   const create = async ({ search, navigate = false } = {}) => {
-    const ref = inputRef.current.inputRef.current;
+    const ref = inputRef?.current?.inputRef?.current;
     const searchText = search || ref.value;
     const id = uuidv4();
     
