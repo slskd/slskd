@@ -3,6 +3,9 @@ export const formatSeconds = (seconds) =>
   if (isNaN(seconds)) return '';
   var date = new Date(1970,0,1);
   date.setSeconds(seconds);
+  if (seconds >= 3600) {
+    return date.toTimeString().replace(/.*(\d{2}:\d{2}:\d{2}).*/, '$1');
+  }
   return date.toTimeString().replace(/.*(\d{2}:\d{2}).*/, '$1');
 };
 
