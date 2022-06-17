@@ -25,7 +25,7 @@ const FileList = ({ directoryName, files, locked, onSelectionChange, disabled, o
             size='large' 
             link={!locked} 
             name={locked ? 'lock' : folded ? 'folder' : 'folder open'}
-            onClick={() => setFolded(!folded)}/>
+            onClick={() => !locked && setFolded(!folded)}/>
           {directoryName}
       
           {!!onClose && <Icon 
