@@ -34,6 +34,7 @@ export const getResponses = async ({ id }) => {
 export const parseFiltersFromString = (string) => {
   const filters = {
     minBitRate: 0,
+    minBitDepth: 0,
     minFileSize: 0,
     minLength: 0,
     minFilesInFolder: 0,
@@ -54,6 +55,7 @@ export const parseFiltersFromString = (string) => {
   };
 
   filters.minBitRate = getNthMatch(string, /(minbr|minbitrate):([0-9]+)/i, 2) || filters.minBitRate;
+  filters.minBitDepth = getNthMatch(string, /(minbd|minbitdepth):([0-9]+)/i, 2) || filters.minBitDepth;
   filters.minFileSize = getNthMatch(string, /(minfs|minfilesize):([0-9]+)/i, 2) || filters.minFileSize;
   filters.minLength = getNthMatch(string, /(minlen|minlength):([0-9]+)/i, 2) || filters.minLength;
   filters.minFilesInFolder = getNthMatch(string, /(minfif|minfilesinfolder):([0-9]+)/i, 2) || filters.minFilesInFolder;
@@ -76,6 +78,7 @@ export const parseFiltersFromString = (string) => {
 export const filterResponse = ({ 
   filters = {
     minBitRate: 0,
+    minBitDepth: 0,
     minFileSize: 0,
     minLength: 0,
     include: [],
@@ -100,7 +103,7 @@ export const filterResponse = ({
     const { bitRate, size, length, filename, sampleRate, bitDepth, isVariableBitRate } = file;
     const {
       isCBR, isVBR, isLossless, isLossy,
-      minBitRate, minFileSize, minLength,
+      minBitRate, minBitDepth, minFileSize, minLength,
       include = [], exclude = [],
     } = filters;
 
@@ -109,6 +112,7 @@ export const filterResponse = ({
     if (isLossless && (!sampleRate || !bitDepth)) return false;
     if (isLossy && (sampleRate || bitDepth)) return false;
     if (bitRate < minBitRate) return false;
+    if (bitDepth < minBitDepth) return false;
     if (size < minFileSize) return false;
     if (length < minLength) return false;
 

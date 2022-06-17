@@ -189,7 +189,7 @@ const SearchDetail = ({ search, creating, stopping, removing, disabled, onCreate
               className='search-filter'
               placeholder='
                 lackluster container -bothersome iscbr|isvbr islossless|islossy 
-                minbitrate:320 minfilesize:10 minfilesinfolder:8 minlength:5000
+                minbitrate:320 minbitdepth:24 minfilesize:10 minfilesinfolder:8 minlength:5000
               '
               label={{ icon: 'filter', content: 'Filter' }}
               value={resultFilters}
