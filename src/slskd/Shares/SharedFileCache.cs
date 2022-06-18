@@ -211,12 +211,20 @@ namespace slskd.Shares
                 Log.Debug("Enumerating shared directories");
                 swSnapshot = sw.ElapsedMilliseconds;
 
+                // derive a list of all directories from all shares
+                // skip hidden and system directories, as well as anything that can't be accessed due to security restrictions.
+                // it's necessary to enumerate these directories up front so we can deduplicate directories and apply exclusions
                 var unmaskedDirectories = Shares
                     .SelectMany(share =>
                     {
                         try
                         {
-                            return System.IO.Directory.GetDirectories(share.LocalPath, "*", SearchOption.AllDirectories);
+                            return System.IO.Directory.GetDirectories(share.LocalPath, "*", new EnumerationOptions()
+                            {
+                                AttributesToSkip = FileAttributes.Hidden | FileAttributes.System,
+                                IgnoreInaccessible = true,
+                                RecurseSubdirectories = true,
+                            });
                         }
                         catch (Exception ex)
                         {
@@ -252,7 +260,14 @@ namespace slskd.Shares
                     // filename and with a value of a Soulseek.File object
                     try
                     {
-                        var newFiles = System.IO.Directory.GetFiles(directory, "*", SearchOption.TopDirectoryOnly)
+                        // enumerate files in this directory only (no subdirectories)
+                        // exclude hidden and system files and anything that can't be accessed due to security restrictions
+                        var newFiles = System.IO.Directory.GetFiles(directory, "*", new EnumerationOptions()
+                        {
+                            AttributesToSkip = FileAttributes.Hidden | FileAttributes.System,
+                            IgnoreInaccessible = true,
+                            RecurseSubdirectories = false,
+                        })
                             .Select(filename => SoulseekFileFactory.Create(filename, maskedFilename: filename.ReplaceFirst(share.LocalPath, share.RemotePath)))
                             .ToDictionary(file => file.Filename, file => file);
 
