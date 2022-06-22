@@ -313,7 +313,8 @@ namespace slskd.Shares
                 MaskedDirectories = maskedDirectories;
                 MaskedFiles = files;
 
-                State.SetValue(state => state with {
+                State.SetValue(state => state with
+                {
                     Filling = false,
                     Faulted = false,
                     Filled = true,
@@ -377,6 +378,13 @@ namespace slskd.Shares
         public string Resolve(string filename)
         {
             filename = filename.ToLocalOSPath();
+
+            // ensure this is a tracked file
+            if (!MaskedFiles.TryGetValue(filename, out _))
+            {
+                return null;
+            }
+
             var resolved = filename;
 
             // a well-formed path will consist of a mask, either an alias or a local directory, and a fully qualified path to a
@@ -386,7 +394,7 @@ namespace slskd.Shares
             if (parts.Length < 2)
             {
                 Log.Warning($"Failed to resolve shared file {filename}; filename is badly formed");
-                return resolved;
+                return null;
             }
 
             // find the share with a matching mask and alias/local directory
@@ -395,15 +403,10 @@ namespace slskd.Shares
             if (share == default)
             {
                 Log.Warning("Failed to resolve shared file {Filename}; unable to resolve share from alias '{Alias}'", filename, parts[0]);
-                return resolved;
+                return null;
             }
 
             resolved = resolved.ReplaceFirst(share.RemotePath, share.LocalPath);
-
-            if (resolved == filename)
-            {
-                Log.Warning($"Failed to resolve shared file {filename}");
-            }
 
             Log.Debug($"Resolved requested shared file {filename} to {resolved}");
             return resolved;

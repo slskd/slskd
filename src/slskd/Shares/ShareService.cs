@@ -119,9 +119,9 @@ namespace slskd.Shares
         {
             var resolvedFilename = Cache.Resolve(remoteFilename);
 
-            if (resolvedFilename == remoteFilename)
+            if (string.IsNullOrEmpty(resolvedFilename))
             {
-                throw new NotFoundException($"The requested filename '{remoteFilename}' could not be resolved to a configured share.");
+                throw new NotFoundException($"The requested filename '{remoteFilename}' could not be resolved to a local file.");
             }
 
             return Task.FromResult(resolvedFilename);
