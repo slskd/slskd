@@ -251,7 +251,6 @@ namespace slskd.Messaging.API
             {
                 var roomData = await RoomService.JoinAsync(roomName);
                 var room = Room.FromRoomData(roomData);
-                Tracker.TryAdd(roomName, room);
 
                 return StatusCode(StatusCodes.Status201Created, MapRoomToRoomResponse(room));
             }
