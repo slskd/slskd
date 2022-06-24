@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Button, Form, Grid, Header, Icon, Segment, Checkbox, Message } from 'semantic-ui-react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { Button, Form, Input, Grid, Header, Icon, Segment, Checkbox, Message } from 'semantic-ui-react';
 
 import Logos from './Shared/Logo';
 
@@ -10,6 +10,7 @@ const initialState = {
 };
 
 const LoginForm = ({ onLoginAttempt, loading, error }) => {
+  const usernameInput = useRef();
   const [state, setState] = useState(initialState);
   const [ready, setReady] = useState(false);
   const logo = useMemo(() => Logos[Math.floor(Math.random() * Logos.length)], []);
@@ -21,6 +22,10 @@ const LoginForm = ({ onLoginAttempt, loading, error }) => {
       setReady(false);
     }
   }, [state]);
+
+  useEffect(() => {
+    usernameInput.current?.focus();
+  }, [loading]);
 
   const handleChange = (field, value) => {
     setState({
@@ -46,12 +51,13 @@ const LoginForm = ({ onLoginAttempt, loading, error }) => {
           </Header>
           <Form size='large'>
             <Segment raised>
-              <Form.Input 
+              <Input 
                 fluid icon='user' 
                 iconPosition='left' 
                 placeholder='Username' 
                 onChange={(event) => handleChange('username', event.target.value)}
                 disabled={loading}
+                ref={usernameInput}
               />
               <Form.Input
                 fluid
