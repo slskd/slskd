@@ -106,6 +106,7 @@ const Searches = ({ server }) => {
       
       try {
         ref.value = '';
+        ref.focus();
       } catch {
         // we are probably repeating an existing search; the input isn't mounted.  no-op.
       }
@@ -184,6 +185,8 @@ const Searches = ({ server }) => {
     // the id off of the url and force navigation back to the list
     history.replace(match.url.replace(`/${searchId}`, ''));
   }
+
+  inputRef?.current?.inputRef?.current.focus();
 
   return (
     <>
