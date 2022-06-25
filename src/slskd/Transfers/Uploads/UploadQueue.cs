@@ -199,9 +199,7 @@ namespace slskd.Transfers
             }
         }
 
-#pragma warning disable S3241 // Methods should not return values that are never used
         private Upload Process()
-#pragma warning restore S3241 // Methods should not return values that are never used
         {
             SyncRoot.Wait();
 
