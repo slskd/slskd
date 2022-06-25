@@ -31,6 +31,7 @@ namespace slskd
     using System.Threading;
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.SignalR;
+    using Microsoft.Extensions.Caching.Memory;
     using Microsoft.Extensions.Hosting;
     using Serilog;
     using Serilog.Events;
@@ -69,6 +70,11 @@ namespace slskd
         public static readonly string LeecherGroup = "leechers";
 
         private static readonly int ReconnectMaxDelayMilliseconds = 300000; // 5 minutes
+
+        private class CacheKeys
+        {
+            public static readonly string AverageUploadSpeed = nameof(CacheKeys.AverageUploadSpeed);
+        }
 
         public Application(
             OptionsAtStartup optionsAtStartup,
@@ -160,6 +166,7 @@ namespace slskd
         private IHubContext<LogsHub> LogHub { get; set; }
         private IUserService Users { get; set; }
         private IShareService Shares { get; set; }
+        private IMemoryCache Cache { get; set; } = new MemoryCache(new MemoryCacheOptions());
 
         public void CollectGarbage()
         {
@@ -442,6 +449,19 @@ namespace slskd
             }
         }
 
+        private async Task<int> GetAverageUploadSpeedFromServer()
+        {
+            if (Cache.TryGetValue(CacheKeys.AverageUploadSpeed, out int averageUploadSpeed))
+            {
+                return averageUploadSpeed;
+            }
+
+            var stats = await Client.GetUserStatisticsAsync(OptionsAtStartup.Soulseek.Username);
+            Cache.Set(CacheKeys.AverageUploadSpeed, stats.AverageSpeed, TimeSpan.FromHours(12));
+
+            return stats.AverageSpeed;
+        }
+
         private void Client_LoggedIn(object sender, EventArgs e)
         {
             Log.Information("Logged in to the Soulseek server as {Username}", Client.Username);
@@ -449,6 +469,9 @@ namespace slskd
             // send whatever counts we have currently. we'll probably connect before the cache is primed, so these will be zero
             // initially, but we'll update them when the cache is filled.
             _ = Client.SetSharedCountsAsync(State.CurrentValue.Shares.Directories, State.CurrentValue.Shares.Files);
+
+            // fetch our average upload speed from the server, so we can provide it along with search results
+            _ = GetAverageUploadSpeedFromServer();
         }
 
         private void Client_PrivateMessageRecieved(object sender, PrivateMessageReceivedEventArgs args)
@@ -836,12 +859,13 @@ namespace slskd
             if (results.Any())
             {
                 Console.WriteLine($"[SENDING SEARCH RESULTS]: {results.Count()} records to {username} for query {query.SearchText}");
+                var averageUploadSpeed = await GetAverageUploadSpeedFromServer();
 
                 return new SearchResponse(
                     Client.Username,
                     token,
                     freeUploadSlots: 1,
-                    uploadSpeed: 0,
+                    uploadSpeed: averageUploadSpeed,
                     queueLength: 0,
                     fileList: results);
             }
