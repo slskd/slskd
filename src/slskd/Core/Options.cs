@@ -24,13 +24,11 @@ namespace slskd
     using System.ComponentModel;
     using System.ComponentModel.DataAnnotations;
     using System.Diagnostics;
-    using System.IO;
     using System.Linq;
     using System.Text.Json.Serialization;
     using System.Text.RegularExpressions;
     using FluentFTP;
     using slskd.Configuration;
-    using slskd.Core;
     using slskd.Validation;
     using Soulseek.Diagnostics;
     using Utility.CommandLine;
