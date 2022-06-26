@@ -841,13 +841,6 @@ namespace slskd
         /// <returns>A Task resolving a SearchResponse, or null.</returns>
         private async Task<SearchResponse> SearchResponseResolver(string username, int token, SearchQuery query)
         {
-            // some bots continually query for very common strings. blacklist known names here.
-            var blacklist = new[] { "Lola45", "Lolo51", "rajah" };
-            if (blacklist.Contains(username))
-            {
-                return null;
-            }
-
             // some bots and perhaps users search for very short terms. only respond to queries >= 3 characters. sorry, U2 fans.
             if (query.Query.Length < 3)
             {
