@@ -30,6 +30,7 @@ namespace slskd
     using System.Text.RegularExpressions;
     using FluentFTP;
     using slskd.Configuration;
+    using slskd.Core;
     using slskd.Validation;
     using Soulseek.Diagnostics;
     using Utility.CommandLine;
