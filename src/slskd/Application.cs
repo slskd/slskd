@@ -71,11 +71,6 @@ namespace slskd
 
         private static readonly int ReconnectMaxDelayMilliseconds = 300000; // 5 minutes
 
-        private class CacheKeys
-        {
-            public static readonly string AverageUploadSpeed = nameof(CacheKeys.AverageUploadSpeed);
-        }
-
         public Application(
             OptionsAtStartup optionsAtStartup,
             IOptionsMonitor<Options> optionsMonitor,
@@ -449,17 +444,22 @@ namespace slskd
             }
         }
 
-        private async Task<int> GetAverageUploadSpeedFromServer()
+        private async Task RefreshUserStatisticsIfNeeded(bool force = false)
         {
-            if (Cache.TryGetValue(CacheKeys.AverageUploadSpeed, out int averageUploadSpeed))
+            if (force || !Cache.TryGetValue(CacheKeys.UserStatisticsToken, out _))
             {
-                return averageUploadSpeed;
+                var stats = await Client.GetUserStatisticsAsync(OptionsAtStartup.Soulseek.Username);
+
+                State.SetValue(state => state with
+                {
+                    Server = state.Server with
+                    {
+                        Statistics = stats,
+                    },
+                });
+
+                Cache.Set(CacheKeys.UserStatisticsToken, true, TimeSpan.FromHours(4));
             }
-
-            var stats = await Client.GetUserStatisticsAsync(OptionsAtStartup.Soulseek.Username);
-            Cache.Set(CacheKeys.AverageUploadSpeed, stats.AverageSpeed, TimeSpan.FromHours(12));
-
-            return stats.AverageSpeed;
         }
 
         private void Client_LoggedIn(object sender, EventArgs e)
@@ -471,7 +471,7 @@ namespace slskd
             _ = Client.SetSharedCountsAsync(State.CurrentValue.Shares.Directories, State.CurrentValue.Shares.Files);
 
             // fetch our average upload speed from the server, so we can provide it along with search results
-            _ = GetAverageUploadSpeedFromServer();
+            _ = RefreshUserStatisticsIfNeeded(force: true);
         }
 
         private void Client_PrivateMessageRecieved(object sender, PrivateMessageReceivedEventArgs args)
@@ -859,13 +859,13 @@ namespace slskd
             if (results.Any())
             {
                 Console.WriteLine($"[SENDING SEARCH RESULTS]: {results.Count()} records to {username} for query {query.SearchText}");
-                var averageUploadSpeed = await GetAverageUploadSpeedFromServer();
+                await RefreshUserStatisticsIfNeeded();
 
                 return new SearchResponse(
                     Client.Username,
                     token,
                     freeUploadSlots: 1,
-                    uploadSpeed: averageUploadSpeed,
+                    uploadSpeed: State.CurrentValue.Server.Statistics.AverageSpeed,
                     queueLength: 0,
                     fileList: results);
             }
