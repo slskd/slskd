@@ -285,7 +285,8 @@ namespace slskd
                 directoryContentsResolver: DirectoryContentsResponseResolver,
                 enqueueDownload: (username, endpoint, filename) => EnqueueDownloadAction(username, endpoint, filename, TransferTracker),
                 searchResponseCache: new SearchResponseCache(),
-                searchResponseResolver: SearchResponseResolver);
+                searchResponseResolver: SearchResponseResolver,
+                placeInQueueResolver: PlaceInQueueResolver);
 
             await Client.ReconfigureOptionsAsync(patch);
 
@@ -573,6 +574,20 @@ namespace slskd
             Console.WriteLine($"[USER] {args.Username}: {args.Presence}");
         }
 
+        private Task<int?> PlaceInQueueResolver(string username, IPEndPoint endpoint, string filename)
+        {
+            try
+            {
+                var place = Transfers.Uploads.Queue.EstimatePosition(username, filename);
+                return Task.FromResult((int?)place);
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "Failed to estimate place in queue for {Filename} requested by {Username}", filename, username);
+                return Task.FromResult<int?>(null);
+            }
+        }
+
         /// <summary>
         ///     Creates and returns a <see cref="Soulseek.Directory"/> in response to a remote request.
         /// </summary>
@@ -627,7 +642,8 @@ namespace slskd
                 throw new DownloadEnqueueException($"File not shared.");
             }
 
-            if (tracker.TryGet(TransferDirection.Upload, username, filename, out _))
+            // TODO: fix this; it doesn't work.  reproduce by downloading a file, then re-requesting the same file.
+            if (tracker.TryGet(TransferDirection.Upload, username, localFilename, out _))
             {
                 // in this case, a re-requested file is a no-op. normally we'd want to respond with a PlaceInQueueResponse
                 Console.WriteLine($"[UPLOAD RE-REQUESTED] [{username}/{filename}]");
@@ -851,15 +867,19 @@ namespace slskd
 
             if (results.Any())
             {
-                Console.WriteLine($"[SENDING SEARCH RESULTS]: {results.Count()} records to {username} for query {query.SearchText}");
                 await RefreshUserStatisticsIfNeeded();
+
+                var hasFreeSlot = Transfers.Uploads.Queue.IsSlotAvailable(username);
+                var estimatedQueueLength = Transfers.Uploads.Queue.EstimatePosition(username);
+
+                Console.WriteLine($"[SENDING SEARCH RESULTS]: {results.Count()} records to {username} for query {query.SearchText} (free slot?: {hasFreeSlot}, queue length: {estimatedQueueLength})");
 
                 return new SearchResponse(
                     Client.Username,
                     token,
-                    freeUploadSlots: 1,
                     uploadSpeed: State.CurrentValue.Server.Statistics.AverageSpeed,
-                    queueLength: 0,
+                    freeUploadSlots: hasFreeSlot ? 1 : 0,
+                    queueLength: estimatedQueueLength,
                     fileList: results);
             }
 
