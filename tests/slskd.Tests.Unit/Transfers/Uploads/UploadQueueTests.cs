@@ -20,7 +20,7 @@
         {
             var (queue, _) = GetFixture();
 
-            var groups = queue.GetProperty<Dictionary<string, UploadQueue.Group>>("Groups");
+            var groups = queue.GetProperty<Dictionary<string, UploadGroup>>("Groups");
 
             Assert.Equal(3, groups.Count);
             Assert.True(groups.ContainsKey(Application.PrivilegedGroup));
@@ -33,7 +33,7 @@
         {
             var (queue, _) = GetFixture();
 
-            var groups = queue.GetProperty<Dictionary<string, UploadQueue.Group>>("Groups");
+            var groups = queue.GetProperty<Dictionary<string, UploadGroup>>("Groups");
 
             var p = groups[Application.PrivilegedGroup];
 
@@ -63,7 +63,7 @@
                 }
             });
 
-            var groups = queue.GetProperty<Dictionary<string, UploadQueue.Group>>("Groups");
+            var groups = queue.GetProperty<Dictionary<string, UploadGroup>>("Groups");
 
             var p = groups[Application.DefaultGroup];
 
@@ -94,7 +94,7 @@
                 }
             });
 
-            var groups = queue.GetProperty<Dictionary<string, UploadQueue.Group>>("Groups");
+            var groups = queue.GetProperty<Dictionary<string, UploadGroup>>("Groups");
 
             var p = groups[Application.LeecherGroup];
 
@@ -142,7 +142,7 @@
                 }
             });
 
-            var groups = queue.GetProperty<Dictionary<string, UploadQueue.Group>>("Groups");
+            var groups = queue.GetProperty<Dictionary<string, UploadGroup>>("Groups");
 
             var p = groups[group1];
 
@@ -191,7 +191,7 @@
                 // do not pass options; init with defaults
                 var (queue, mocks) = GetFixture();
 
-                var groups = queue.GetProperty<Dictionary<string, UploadQueue.Group>>("Groups");
+                var groups = queue.GetProperty<Dictionary<string, UploadGroup>>("Groups");
 
                 // user defined group does not exist
                 Assert.False(groups.ContainsKey(group));
@@ -200,7 +200,7 @@
                 mocks.OptionsMonitor.RaiseOnChange(options);
 
                 // get the new copy
-                groups = queue.GetProperty<Dictionary<string, UploadQueue.Group>>("Groups");
+                groups = queue.GetProperty<Dictionary<string, UploadGroup>>("Groups");
 
                 Assert.True(groups.ContainsKey(group));
 
@@ -240,7 +240,7 @@
 
                 var (queue, mocks) = GetFixture(options);
 
-                var groups = queue.GetProperty<Dictionary<string, UploadQueue.Group>>("Groups");
+                var groups = queue.GetProperty<Dictionary<string, UploadGroup>>("Groups");
                 groups[group].UsedSlots = usedSlots;
 
                 // reconfigure with different options to bypass the hash check
@@ -269,7 +269,7 @@
                 mocks.OptionsMonitor.RaiseOnChange(options);
 
                 // get the new copy
-                groups = queue.GetProperty<Dictionary<string, UploadQueue.Group>>("Groups");
+                groups = queue.GetProperty<Dictionary<string, UploadGroup>>("Groups");
 
                 var p = groups[group];
 
@@ -411,13 +411,13 @@
                 queue.Enqueue(tx2);
                 await queue.AwaitStartAsync(tx2);
 
-                var groups = queue.GetProperty<Dictionary<string, UploadQueue.Group>>("Groups");
+                var groups = queue.GetProperty<Dictionary<string, UploadGroup>>("Groups");
 
                 Assert.Equal(2, groups[Application.DefaultGroup].UsedSlots);
 
                 queue.Complete(tx);
 
-                groups = queue.GetProperty<Dictionary<string, UploadQueue.Group>>("Groups");
+                groups = queue.GetProperty<Dictionary<string, UploadGroup>>("Groups");
 
                 Assert.Equal(1, groups[Application.DefaultGroup].UsedSlots);
             }
@@ -499,11 +499,11 @@
             {
                 var (queue, _) = GetFixture();
 
-                var groups = queue.GetProperty<Dictionary<string, UploadQueue.Group>>("Groups");
+                var groups = queue.GetProperty<Dictionary<string, UploadGroup>>("Groups");
 
                 groups[Application.DefaultGroup].UsedSlots = int.MaxValue;
 
-                var result = queue.InvokeMethod<UploadQueue.Upload>("Process");
+                var result = queue.InvokeMethod<UploadGroup>("Process");
 
                 Assert.Null(result);
             }
@@ -513,7 +513,7 @@
             {
                 var (queue, _) = GetFixture();
 
-                var result = queue.InvokeMethod<UploadQueue.Upload>("Process");
+                var result = queue.InvokeMethod<UploadGroup>("Process");
 
                 Assert.Null(result);
             }
@@ -534,7 +534,7 @@
 
                 queue.SetProperty("Uploads", uploads);
 
-                var result = queue.InvokeMethod<UploadQueue.Upload>("Process");
+                var result = queue.InvokeMethod<Upload>("Process");
 
                 Assert.Equal(user1, result.Username);
                 Assert.Equal(file1, result.Filename);
@@ -558,9 +558,9 @@
 
                 queue.SetProperty("Uploads", uploads);
 
-                var result = queue.InvokeMethod<UploadQueue.Upload>("Process");
+                var result = queue.InvokeMethod<UploadGroup>("Process");
 
-                var groups = queue.GetProperty<Dictionary<string, UploadQueue.Group>>("Groups");
+                var groups = queue.GetProperty<Dictionary<string, UploadGroup>>("Groups");
 
                 Assert.Equal(1, groups[Application.PrivilegedGroup].UsedSlots);
             }
@@ -587,7 +587,7 @@
 
                 queue.SetProperty("Uploads", uploads);
 
-                var result = queue.InvokeMethod<UploadQueue.Upload>("Process");
+                var result = queue.InvokeMethod<Upload>("Process");
 
                 Assert.Equal(user1, result.Username);
                 Assert.Equal(file1, result.Filename);
@@ -617,11 +617,11 @@
                 queue.SetProperty("Uploads", uploads);
 
                 // all default group slots consumed
-                var groups = queue.GetProperty<Dictionary<string, UploadQueue.Group>>("Groups");
+                var groups = queue.GetProperty<Dictionary<string, UploadGroup>>("Groups");
                 groups[Application.DefaultGroup].Slots = 1;
                 groups[Application.DefaultGroup].UsedSlots = 1;
 
-                var result = queue.InvokeMethod<UploadQueue.Upload>("Process");
+                var result = queue.InvokeMethod<Upload>("Process");
 
                 // leecher group upload released
                 Assert.Equal(user2, result.Username);
@@ -651,10 +651,10 @@
 
                 queue.SetProperty("Uploads", uploads);
 
-                var groups = queue.GetProperty<Dictionary<string, UploadQueue.Group>>("Groups");
+                var groups = queue.GetProperty<Dictionary<string, UploadGroup>>("Groups");
                 groups[Application.DefaultGroup].Strategy = QueueStrategy.FirstInFirstOut;
 
-                var result = queue.InvokeMethod<UploadQueue.Upload>("Process");
+                var result = queue.InvokeMethod<Upload>("Process");
 
                 Assert.Equal(user2, result.Username);
                 Assert.Equal(file2, result.Filename);
@@ -683,10 +683,10 @@
 
                 queue.SetProperty("Uploads", uploads);
 
-                var groups = queue.GetProperty<Dictionary<string, UploadQueue.Group>>("Groups");
+                var groups = queue.GetProperty<Dictionary<string, UploadGroup>>("Groups");
                 groups[Application.DefaultGroup].Strategy = QueueStrategy.RoundRobin;
 
-                var result = queue.InvokeMethod<UploadQueue.Upload>("Process");
+                var result = queue.InvokeMethod<Upload>("Process");
 
                 Assert.Equal(user2, result.Username);
                 Assert.Equal(file2, result.Filename);
