@@ -24,7 +24,6 @@ namespace slskd
     using System.ComponentModel;
     using System.ComponentModel.DataAnnotations;
     using System.Diagnostics;
-    using System.IO;
     using System.Linq;
     using System.Text.Json.Serialization;
     using System.Text.RegularExpressions;

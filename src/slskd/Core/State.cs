@@ -58,6 +58,7 @@ namespace slskd
         public IPEndPoint IPEndPoint { get; init; }
         public SoulseekClientStates State { get; init; }
         public string Username { get; init; }
+        public UserStatistics Statistics { get; init; }
         public bool IsConnected => State.HasFlag(SoulseekClientStates.Connected);
         public bool IsLoggedIn => State.HasFlag(SoulseekClientStates.LoggedIn);
         public bool IsTransitioning => State.HasFlag(SoulseekClientStates.Connecting) || State.HasFlag(SoulseekClientStates.Disconnecting) || State.HasFlag(SoulseekClientStates.LoggingIn);

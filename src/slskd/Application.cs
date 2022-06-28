@@ -31,6 +31,7 @@ namespace slskd
     using System.Threading;
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.SignalR;
+    using Microsoft.Extensions.Caching.Memory;
     using Microsoft.Extensions.Hosting;
     using Serilog;
     using Serilog.Events;
@@ -160,6 +161,7 @@ namespace slskd
         private IHubContext<LogsHub> LogHub { get; set; }
         private IUserService Users { get; set; }
         private IShareService Shares { get; set; }
+        private IMemoryCache Cache { get; set; } = new MemoryCache(new MemoryCacheOptions());
 
         public void CollectGarbage()
         {
@@ -283,7 +285,8 @@ namespace slskd
                 directoryContentsResolver: DirectoryContentsResponseResolver,
                 enqueueDownload: (username, endpoint, filename) => EnqueueDownloadAction(username, endpoint, filename, TransferTracker),
                 searchResponseCache: new SearchResponseCache(),
-                searchResponseResolver: SearchResponseResolver);
+                searchResponseResolver: SearchResponseResolver,
+                placeInQueueResolver: PlaceInQueueResolver);
 
             await Client.ReconfigureOptionsAsync(patch);
 
@@ -442,6 +445,24 @@ namespace slskd
             }
         }
 
+        private async Task RefreshUserStatisticsIfNeeded(bool force = false)
+        {
+            if (force || !Cache.TryGetValue(CacheKeys.UserStatisticsToken, out _))
+            {
+                var stats = await Client.GetUserStatisticsAsync(OptionsAtStartup.Soulseek.Username);
+
+                State.SetValue(state => state with
+                {
+                    Server = state.Server with
+                    {
+                        Statistics = stats,
+                    },
+                });
+
+                Cache.Set(CacheKeys.UserStatisticsToken, true, TimeSpan.FromHours(4));
+            }
+        }
+
         private void Client_LoggedIn(object sender, EventArgs e)
         {
             Log.Information("Logged in to the Soulseek server as {Username}", Client.Username);
@@ -449,6 +470,9 @@ namespace slskd
             // send whatever counts we have currently. we'll probably connect before the cache is primed, so these will be zero
             // initially, but we'll update them when the cache is filled.
             _ = Client.SetSharedCountsAsync(State.CurrentValue.Shares.Directories, State.CurrentValue.Shares.Files);
+
+            // fetch our average upload speed from the server, so we can provide it along with search results
+            _ = RefreshUserStatisticsIfNeeded(force: true);
         }
 
         private void Client_PrivateMessageRecieved(object sender, PrivateMessageReceivedEventArgs args)
@@ -550,6 +574,20 @@ namespace slskd
             Console.WriteLine($"[USER] {args.Username}: {args.Presence}");
         }
 
+        private Task<int?> PlaceInQueueResolver(string username, IPEndPoint endpoint, string filename)
+        {
+            try
+            {
+                var place = Transfers.Uploads.Queue.EstimatePosition(username, filename);
+                return Task.FromResult((int?)place);
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "Failed to estimate place in queue for {Filename} requested by {Username}", filename, username);
+                return Task.FromResult<int?>(null);
+            }
+        }
+
         /// <summary>
         ///     Creates and returns a <see cref="Soulseek.Directory"/> in response to a remote request.
         /// </summary>
@@ -581,6 +619,13 @@ namespace slskd
         /// </exception>
         private async Task EnqueueDownloadAction(string username, IPEndPoint endpoint, string filename, ITransferTracker tracker)
         {
+            // remote clients might sometimes re-request downloads to check the status. don't try to add the download again
+            // if it is already tracked.
+            if (tracker.Contains(TransferDirection.Upload, username, filename))
+            {
+                return;
+            }
+
             _ = endpoint;
             string localFilename;
             FileInfo fileInfo = default;
@@ -602,13 +647,6 @@ namespace slskd
             {
                 Console.WriteLine($"[UPLOAD REJECTED] File {filename} not found.");
                 throw new DownloadEnqueueException($"File not shared.");
-            }
-
-            if (tracker.TryGet(TransferDirection.Upload, username, filename, out _))
-            {
-                // in this case, a re-requested file is a no-op. normally we'd want to respond with a PlaceInQueueResponse
-                Console.WriteLine($"[UPLOAD RE-REQUESTED] [{username}/{filename}]");
-                return;
             }
 
             // create a new cancellation token source so that we can cancel the upload from the UI.
@@ -818,13 +856,6 @@ namespace slskd
         /// <returns>A Task resolving a SearchResponse, or null.</returns>
         private async Task<SearchResponse> SearchResponseResolver(string username, int token, SearchQuery query)
         {
-            // some bots continually query for very common strings. blacklist known names here.
-            var blacklist = new[] { "Lola45", "Lolo51", "rajah" };
-            if (blacklist.Contains(username))
-            {
-                return null;
-            }
-
             // some bots and perhaps users search for very short terms. only respond to queries >= 3 characters. sorry, U2 fans.
             if (query.Query.Length < 3)
             {
@@ -835,14 +866,18 @@ namespace slskd
 
             if (results.Any())
             {
-                Console.WriteLine($"[SENDING SEARCH RESULTS]: {results.Count()} records to {username} for query {query.SearchText}");
+                await RefreshUserStatisticsIfNeeded();
+
+                var forecastedPosition = Transfers.Uploads.Queue.ForecastPosition(username);
+
+                Console.WriteLine($"[SENDING SEARCH RESULTS]: {results.Count()} records to {username} for query {query.SearchText} (forecasted position: {forecastedPosition})");
 
                 return new SearchResponse(
                     Client.Username,
                     token,
-                    freeUploadSlots: 1,
-                    uploadSpeed: 0,
-                    queueLength: 0,
+                    uploadSpeed: State.CurrentValue.Server.Statistics.AverageSpeed,
+                    freeUploadSlots: forecastedPosition == 0 ? 1 : 0,
+                    queueLength: forecastedPosition,
                     fileList: results);
             }
 

@@ -181,6 +181,26 @@ namespace slskd.Transfers
             }
         }
 
+        /// <summary>
+        ///     Gets a value indicating whether a transfer matching the specified information is tracked.
+        /// </summary>
+        /// <param name="direction"></param>
+        /// <param name="username"></param>
+        /// <param name="filename"></param>
+        /// <returns></returns>
+        public bool Contains(TransferDirection direction, string username, string filename)
+        {
+            if (Transfers.TryGetValue(direction, out var directionDict))
+            {
+                if (directionDict.TryGetValue(username, out var userDict))
+                {
+                    return userDict.Values.Any(record => record.Transfer.Filename == filename);
+                }
+            }
+
+            return false;
+        }
+
         private ConcurrentDictionary<string, (API.Transfer Transfer, CancellationTokenSource CancellationTokenSource)> GetNewDictionaryForUser(TransferEventArgs args, CancellationTokenSource cancellationTokenSource)
         {
             var r = new ConcurrentDictionary<string, (API.Transfer Transfer, CancellationTokenSource CancellationTokenSource)>();

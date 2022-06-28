@@ -53,5 +53,14 @@ namespace slskd.Transfers
         /// <param name="transfer"></param>
         /// <returns></returns>
         bool TryGet(TransferDirection direction, string username, string id, out (API.Transfer Transfer, CancellationTokenSource CancellationTokenSource) transfer);
+
+        /// <summary>
+        ///     Gets a value indicating whether a transfer matching the specified information is tracked.
+        /// </summary>
+        /// <param name="direction"></param>
+        /// <param name="username"></param>
+        /// <param name="filename"></param>
+        /// <returns></returns>
+        bool Contains(TransferDirection direction, string username, string filename);
     }
 }

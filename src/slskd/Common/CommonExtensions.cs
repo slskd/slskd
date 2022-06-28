@@ -1,4 +1,4 @@
-﻿// <copyright file="Extensions.cs" company="slskd Team">
+﻿// <copyright file="CommonExtensions.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -22,22 +22,19 @@ namespace slskd
     using System.Collections.Generic;
     using System.IO;
     using System.Linq;
-    using System.Net.Sockets;
     using System.Numerics;
     using System.Reflection;
-    using System.Security.Cryptography;
     using System.Text;
     using System.Text.Json;
     using System.Text.Json.Serialization;
     using System.Text.RegularExpressions;
-    using Soulseek;
     using YamlDotNet.Serialization;
     using YamlDotNet.Serialization.NamingConventions;
 
     /// <summary>
-    ///     Extensions.
+    ///     Common extensions; things not specific to Soulseek or slskd.
     /// </summary>
-    public static class Extensions
+    public static class CommonExtensions
     {
         /// <summary>
         ///     Deeply compares this object with the specified object and returns a list of properties that are different.
@@ -351,52 +348,6 @@ namespace slskd
                    obj.GetType().IsGenericType &&
                    obj.GetType().GetGenericTypeDefinition().IsAssignableFrom(typeof(Dictionary<,>));
         }
-
-        /// <summary>
-        ///     Redacts this instance of Options, replacing properties marked with <see cref="SecretAttribute"/> with '*****'.
-        /// </summary>
-        /// <remarks>
-        ///     Creates a deep clone before redacting.
-        /// </remarks>
-        /// <param name="options">The Options instance to redact.</param>
-        /// <returns>A redacted instance.</returns>
-        public static Options Redact(this Options options)
-        {
-            var redacted = options.ToJson().FromJson<Options>();
-            Redactor.Redact(redacted, redactWith: "*****");
-            return redacted;
-        }
-
-        /// <summary>
-        ///     Creates a copy of this instance with the specified parameters changed.
-        /// </summary>
-        /// <param name="o">The options instance to copy.</param>
-        /// <param name="readBufferSize">The read buffer size for underlying TCP connections.</param>
-        /// <param name="writeBufferSize">The write buffer size for underlying TCP connections.</param>
-        /// <param name="writeQueueSize">The size of the write queue for double buffered writes.</param>
-        /// <param name="connectTimeout">The connection timeout, in milliseconds, for client and peer TCP connections.</param>
-        /// <param name="inactivityTimeout">The inactivity timeout, in milliseconds, for peer TCP connections.</param>
-        /// <param name="proxyOptions">Optional SOCKS 5 proxy configuration options.</param>
-        /// <param name="configureSocketAction">
-        ///     The delegate invoked during instantiation to configure the server Socket instance.
-        /// </param>
-        /// <returns>The new instance.</returns>
-        public static ConnectionOptions With(
-            this ConnectionOptions o,
-            int? readBufferSize = null,
-            int? writeBufferSize = null,
-            int? writeQueueSize = null,
-            int? connectTimeout = null,
-            int? inactivityTimeout = null,
-            ProxyOptions proxyOptions = null,
-            Action<Socket> configureSocketAction = null) => new ConnectionOptions(
-                readBufferSize: readBufferSize ?? o.ReadBufferSize,
-                writeBufferSize: writeBufferSize ?? o.WriteBufferSize,
-                writeQueueSize: writeQueueSize ?? o.WriteQueueSize,
-                connectTimeout: connectTimeout ?? o.ConnectTimeout,
-                inactivityTimeout: inactivityTimeout ?? o.InactivityTimeout,
-                proxyOptions: proxyOptions ?? o.ProxyOptions,
-                configureSocket: configureSocketAction ?? o.ConfigureSocket);
 
         /// <summary>
         ///     Deserializes this string from json to an object of type <typeparamref name="T"/>.
