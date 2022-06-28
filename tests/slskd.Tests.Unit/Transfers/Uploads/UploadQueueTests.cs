@@ -558,7 +558,7 @@
 
                 queue.SetProperty("Uploads", uploads);
 
-                var result = queue.InvokeMethod<UploadGroup>("Process");
+                var result = queue.InvokeMethod<Upload>("Process");
 
                 var groups = queue.GetProperty<Dictionary<string, UploadGroup>>("Groups");
 
