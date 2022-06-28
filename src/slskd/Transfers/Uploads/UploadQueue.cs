@@ -467,26 +467,5 @@ namespace slskd.Transfers
                 SyncRoot.Release();
             }
         }
-
-        public sealed class Group
-        {
-            public string Name { get; set; }
-            public int Priority { get; set; }
-            public bool SlotAvailable => UsedSlots < Slots;
-            public int Slots { get; set; }
-            public QueueStrategy Strategy { get; set; }
-            public int UsedSlots { get; set; }
-        }
-
-        public sealed class Upload
-        {
-            public DateTime Enqueued { get; set; } = DateTime.UtcNow;
-            public string Filename { get; set; }
-            public string Group { get; set; }
-            public DateTime? Ready { get; set; } = null;
-            public DateTime? Started { get; set; } = null;
-            public TaskCompletionSource TaskCompletionSource { get; set; } = new TaskCompletionSource();
-            public string Username { get; set; }
-        }
     }
 }
