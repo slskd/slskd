@@ -55,13 +55,6 @@ namespace slskd.Transfers
         void Enqueue(Transfer transfer);
 
         /// <summary>
-        ///     Computes the estimated queue position of the specified <paramref name="username"/> if they were to enqueue a file.
-        /// </summary>
-        /// <param name="username">The username for which to estimate.</param>
-        /// <returns>The estimated queue position if the user were to enqueue a file.</returns>
-        int EstimatePosition(string username);
-
-        /// <summary>
         ///     Computes the estimated queue position of the specified <paramref name="filename"/> for the specified <paramref name="username"/>.
         /// </summary>
         /// <param name="username">The username associated with the file.</param>
@@ -71,11 +64,14 @@ namespace slskd.Transfers
         int EstimatePosition(string username, string filename);
 
         /// <summary>
-        ///     Determines whether an upload slot is available for the specified <paramref name="username"/>.
+        ///     Computes the estimated queue position of the specified <paramref name="username"/> if they were to enqueue a file,
+        ///     or zero if the transfer could start immediately.
         /// </summary>
-        /// <param name="username">The username for which slot availability is to be checked.</param>
-        /// <returns>A value indicating whether an upload slot is available for the specified username.</returns>
-        bool IsSlotAvailable(string username);
+        /// <param name="username">The username for which to estimate.</param>
+        /// <returns>
+        ///     The estimated queue position if the user were to enqueue a file, or zero if the transfer could start immediately.
+        /// </returns>
+        int ForecastPosition(string username);
     }
 
     /// <summary>
@@ -100,7 +96,7 @@ namespace slskd.Transfers
             Configure(OptionsMonitor.CurrentValue);
         }
 
-        private Dictionary<string, Group> Groups { get; set; } = new Dictionary<string, Group>();
+        private Dictionary<string, UploadGroup> Groups { get; set; } = new Dictionary<string, UploadGroup>();
         private int LastGlobalSlots { get; set; }
         private string LastOptionsHash { get; set; }
         private ILogger Log { get; } = Serilog.Log.ForContext<UploadQueue>();
@@ -223,22 +219,6 @@ namespace slskd.Transfers
         }
 
         /// <summary>
-        ///     Computes the estimated queue position of the specified <paramref name="username"/> if they were to enqueue a file.
-        /// </summary>
-        /// <param name="username">The username for which to estimate.</param>
-        /// <returns>The estimated queue position if the user were to enqueue a file.</returns>
-        public int EstimatePosition(string username)
-        {
-            if (IsSlotAvailable(username))
-            {
-                return 0;
-            }
-
-            var group = Users.GetGroup(username);
-            return Uploads.GetValueOrDefault(group)?.Count ?? 0;
-        }
-
-        /// <summary>
         ///     Computes the estimated queue position of the specified <paramref name="filename"/> for the specified <paramref name="username"/>.
         /// </summary>
         /// <param name="username">The username associated with the file.</param>
@@ -260,15 +240,16 @@ namespace slskd.Transfers
             if (groupRecord.Strategy == QueueStrategy.RoundRobin)
             {
                 // find this user's uploads
-                var uploadsForUser = uploadsForGroup.FirstOrDefault(group => group.Key == username).Value;
-
-                if (uploadsForUser == null || !uploadsForUser.Any())
+                if (!Uploads.TryGetValue(username, out var uploadsForUser))
                 {
                     throw new FileNotFoundException($"File {filename} is not enqueued for user {username}");
                 }
 
                 // find the position of the requested file in the user's queue
-                var localPosition = uploadsForUser.FindIndex(upload => upload.Username == username && upload.Filename == filename);
+                var localPosition = uploadsForUser
+                    .OrderBy(upload => upload.Enqueued)
+                    .ToList()
+                    .FindIndex(upload => upload.Username == username && upload.Filename == filename);
 
                 if (localPosition < 0)
                 {
@@ -280,6 +261,19 @@ namespace slskd.Transfers
                 var position = localPosition;
 
                 // for each other user, add either localPosition or the count of that user's uploads, whichever is less
+                // example:
+                //
+                // aaaaa
+                // bb
+                // cccccccccccc
+                // ddddddd
+                //     ^
+                //
+                // if we want the postion of the file over the carat above, first find the position of it
+                // within its own queue (= 5). assume uploads will process top down, left to right until reaching
+                // this one.  that's 5 files from a, 2 from b, 5 from c, and the other 4 from d, putting the file over
+                // the carat at position 16. the actual number will vary due to many factors, including where in the
+                // round-robin ordering d is actually positioned (so +/- number of users downloading).
                 foreach (var group in uploadsForGroup.Where(group => group.Key != username))
                 {
                     position += Math.Min(localPosition, group.Value.Count);
@@ -307,20 +301,28 @@ namespace slskd.Transfers
         }
 
         /// <summary>
-        ///     Determines whether an upload slot is available for the specified <paramref name="username"/>.
+        ///     Computes the estimated queue position of the specified <paramref name="username"/> if they were to enqueue a file,
+        ///     or zero if the transfer could start immediately.
         /// </summary>
-        /// <param name="username">The username for which slot availability is to be checked.</param>
-        /// <returns>A value indicating whether an upload slot is available for the specified username.</returns>
-        public bool IsSlotAvailable(string username)
+        /// <param name="username">The username for which to estimate.</param>
+        /// <returns>
+        ///     The estimated queue position if the user were to enqueue a file, or zero if the transfer could start immediately.
+        /// </returns>
+        public int ForecastPosition(string username)
         {
             var group = Users.GetGroup(username);
 
-            if (Groups.TryGetValue(group, out var record))
+            // if there's a slot available, the user will enter the queue at position 0 (will start immediately)
+            if (Groups.TryGetValue(group, out var groupRecord) && groupRecord.SlotAvailable)
             {
-                return record.SlotAvailable;
+                return 0;
             }
 
-            return false;
+            // no slots are available for this group, so there's at least as many uploads in progress as there are slots. count all
+            // uploads (in progress or otherwise)
+            var uploadsForGroup = Uploads.Where(kvp => Users.GetGroup(kvp.Key) == group);
+
+            return uploadsForGroup.Count() + 1;
         }
 
         private void Configure(Options options)
@@ -342,14 +344,14 @@ namespace slskd.Transfers
                 MaxSlots = options.Global.Upload.Slots;
 
                 // statically add built-in groups
-                var groups = new List<Group>()
+                var groups = new List<UploadGroup>()
                 {
                     // the priority group is hard-coded with priority 0, slot count equivalent to the overall max, and a FIFO
                     // strategy. all other groups have a minimum priority of 1 (enforced by options validation) to ensure that
                     // privileged users always take priority, regardless of user configuration. the strategy is fixed to FIFO
                     // because that gives privileged users the closest experience to the official client, as well as the
                     // appearance of fairness once the first upload begins.
-                    new Group()
+                    new UploadGroup()
                     {
                         Name = Application.PrivilegedGroup,
                         Priority = 0,
@@ -357,7 +359,7 @@ namespace slskd.Transfers
                         UsedSlots = GetExistingUsedSlotsOrDefault(Application.PrivilegedGroup),
                         Strategy = QueueStrategy.FirstInFirstOut,
                     },
-                    new Group()
+                    new UploadGroup()
                     {
                         Name = Application.DefaultGroup,
                         Priority = options.Groups.Default.Upload.Priority,
@@ -365,7 +367,7 @@ namespace slskd.Transfers
                         UsedSlots = GetExistingUsedSlotsOrDefault(Application.DefaultGroup),
                         Strategy = (QueueStrategy)Enum.Parse(typeof(QueueStrategy), options.Groups.Default.Upload.Strategy, true),
                     },
-                    new Group()
+                    new UploadGroup()
                     {
                         Name = Application.LeecherGroup,
                         Priority = options.Groups.Leechers.Upload.Priority,
@@ -376,7 +378,7 @@ namespace slskd.Transfers
                 };
 
                 // dynamically add user-defined groups
-                groups.AddRange(options.Groups.UserDefined.Select(kvp => new Group()
+                groups.AddRange(options.Groups.UserDefined.Select(kvp => new UploadGroup()
                 {
                     Name = kvp.Key,
                     Priority = kvp.Value.Upload.Priority,
