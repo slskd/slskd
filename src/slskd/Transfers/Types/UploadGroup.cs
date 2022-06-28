@@ -1,4 +1,4 @@
-﻿// <copyright file="Group.cs" company="slskd Team">
+﻿// <copyright file="UploadGroup.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -17,7 +17,7 @@
 
 namespace slskd.Transfers
 {
-    public sealed class Group
+    public sealed class UploadGroup
     {
         public string Name { get; set; }
         public int Priority { get; set; }
