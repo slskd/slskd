@@ -619,6 +619,13 @@ namespace slskd
         /// </exception>
         private async Task EnqueueDownloadAction(string username, IPEndPoint endpoint, string filename, ITransferTracker tracker)
         {
+            // remote clients might sometimes re-request downloads to check the status. don't try to add the download again
+            // if it is already tracked.
+            if (tracker.Contains(TransferDirection.Upload, username, filename))
+            {
+                return;
+            }
+
             _ = endpoint;
             string localFilename;
             FileInfo fileInfo = default;
@@ -640,14 +647,6 @@ namespace slskd
             {
                 Console.WriteLine($"[UPLOAD REJECTED] File {filename} not found.");
                 throw new DownloadEnqueueException($"File not shared.");
-            }
-
-            // TODO: fix this; it doesn't work.  reproduce by downloading a file, then re-requesting the same file.
-            if (tracker.TryGet(TransferDirection.Upload, username, localFilename, out _))
-            {
-                // in this case, a re-requested file is a no-op. normally we'd want to respond with a PlaceInQueueResponse
-                Console.WriteLine($"[UPLOAD RE-REQUESTED] [{username}/{filename}]");
-                return;
             }
 
             // create a new cancellation token source so that we can cancel the upload from the UI.
