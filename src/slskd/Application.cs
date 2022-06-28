@@ -869,17 +869,16 @@ namespace slskd
             {
                 await RefreshUserStatisticsIfNeeded();
 
-                var hasFreeSlot = Transfers.Uploads.Queue.IsSlotAvailable(username);
-                var estimatedQueueLength = Transfers.Uploads.Queue.EstimatePosition(username);
+                var forecastedPosition = Transfers.Uploads.Queue.ForecastPosition(username);
 
-                Console.WriteLine($"[SENDING SEARCH RESULTS]: {results.Count()} records to {username} for query {query.SearchText} (free slot?: {hasFreeSlot}, queue length: {estimatedQueueLength})");
+                Console.WriteLine($"[SENDING SEARCH RESULTS]: {results.Count()} records to {username} for query {query.SearchText} (forecasted position: {forecastedPosition})");
 
                 return new SearchResponse(
                     Client.Username,
                     token,
                     uploadSpeed: State.CurrentValue.Server.Statistics.AverageSpeed,
-                    freeUploadSlots: hasFreeSlot ? 1 : 0,
-                    queueLength: estimatedQueueLength,
+                    freeUploadSlots: forecastedPosition == 0 ? 1 : 0,
+                    queueLength: forecastedPosition,
                     fileList: results);
             }
 
