@@ -34,6 +34,7 @@ namespace slskd
         public bool PendingReconnect { get; init; }
         public bool PendingRestart { get; init; }
         public ServerState Server { get; init; } = new ServerState();
+        public UserState User { get; init; } = new UserState();
         public DistributedNetworkState DistributedNetwork { get; init; } = new DistributedNetworkState();
         public ShareState Shares { get; init; } = new ShareState();
         public string[] Rooms { get; init; } = Array.Empty<string>();
@@ -57,11 +58,30 @@ namespace slskd
         [JsonConverter(typeof(IPEndPointConverter))]
         public IPEndPoint IPEndPoint { get; init; }
         public SoulseekClientStates State { get; init; }
-        public string Username { get; init; }
-        public UserStatistics Statistics { get; init; }
         public bool IsConnected => State.HasFlag(SoulseekClientStates.Connected);
         public bool IsLoggedIn => State.HasFlag(SoulseekClientStates.LoggedIn);
         public bool IsTransitioning => State.HasFlag(SoulseekClientStates.Connecting) || State.HasFlag(SoulseekClientStates.Disconnecting) || State.HasFlag(SoulseekClientStates.LoggingIn);
+    }
+
+    public record UserState
+    {
+        public string Username { get; init; }
+        public UserPrivilegeState Privileges { get; init; } = new UserPrivilegeState();
+        public UserStatisticsState Statistics { get; init; } = new UserStatisticsState();
+    }
+
+    public record UserPrivilegeState
+    {
+        public bool IsPrivileged { get; init; }
+        public int PrivilegesRemaining { get; init; }
+    }
+
+    public record UserStatisticsState
+    {
+        public int AverageSpeed { get; init; }
+        public int DirectoryCount { get; init; }
+        public int FileCount { get; init; }
+        public long UploadCount { get; init; }
     }
 
     public record DistributedNetworkState
