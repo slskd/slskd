@@ -445,17 +445,23 @@ namespace slskd
             }
         }
 
-        private async Task RefreshUserStatisticsIfNeeded(bool force = false)
+        private async Task RefreshUserStatistics(bool force = false)
         {
             if (force || !Cache.TryGetValue(CacheKeys.UserStatisticsToken, out _))
             {
                 var stats = await Client.GetUserStatisticsAsync(OptionsAtStartup.Soulseek.Username);
+                var privileges = await Client.GetPrivilegesAsync();
 
                 State.SetValue(state => state with
                 {
-                    Server = state.Server with
+                    User = state.User with
                     {
-                        Statistics = stats,
+                        Statistics = stats.ToUserStatisticsState(),
+                        Privileges = new UserPrivilegeState()
+                        {
+                            IsPrivileged = privileges > 0,
+                            PrivilegesRemaining = privileges,
+                        },
                     },
                 });
 
@@ -472,7 +478,7 @@ namespace slskd
             _ = Client.SetSharedCountsAsync(State.CurrentValue.Shares.Directories, State.CurrentValue.Shares.Files);
 
             // fetch our average upload speed from the server, so we can provide it along with search results
-            _ = RefreshUserStatisticsIfNeeded(force: true);
+            _ = RefreshUserStatistics(force: true);
         }
 
         private void Client_PrivateMessageRecieved(object sender, PrivateMessageReceivedEventArgs args)
@@ -515,6 +521,9 @@ namespace slskd
                     Address = Client.Address,
                     IPEndPoint = Client.IPEndPoint,
                     State = Client.State,
+                },
+                User = state.User with
+                {
                     Username = Client.Username,
                 },
             });
@@ -866,7 +875,7 @@ namespace slskd
 
             if (results.Any())
             {
-                await RefreshUserStatisticsIfNeeded();
+                await RefreshUserStatistics();
 
                 var forecastedPosition = Transfers.Uploads.Queue.ForecastPosition(username);
 
@@ -875,7 +884,7 @@ namespace slskd
                 return new SearchResponse(
                     Client.Username,
                     token,
-                    uploadSpeed: State.CurrentValue.Server.Statistics.AverageSpeed,
+                    uploadSpeed: State.CurrentValue.User.Statistics.AverageSpeed,
                     freeUploadSlots: forecastedPosition == 0 ? 1 : 0,
                     queueLength: forecastedPosition,
                     fileList: results);
@@ -924,7 +933,11 @@ namespace slskd
 
                     if (Client.State.HasFlag(SoulseekClientStates.Connected | SoulseekClientStates.LoggedIn))
                     {
-                        _ = Client.SetSharedCountsAsync(State.CurrentValue.Shares.Directories, State.CurrentValue.Shares.Files);
+                        _ = Task.Run(async () =>
+                        {
+                            await Client.SetSharedCountsAsync(State.CurrentValue.Shares.Directories, State.CurrentValue.Shares.Files);
+                            await RefreshUserStatistics(force: true);
+                        });
                     }
                 }
             }
