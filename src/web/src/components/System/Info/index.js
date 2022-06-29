@@ -17,7 +17,7 @@ const Info = ({ state }) => {
 
   useEffect(() => {
     setTimeout(() => {
-      setContents(YAML.stringify(state, { simpleKeys: true, sortMapEntries: true }));
+      setContents(YAML.stringify(state, { simpleKeys: true, sortMapEntries: false }));
     }, 250);
   }, [state]);
 
