@@ -29,19 +29,29 @@ const Info = ({ state }) => {
         <div style={{float: 'left'}}>
           <ShrinkableButton
             icon='refresh'
-            mediaQuery='(max-width: 516px)'
+            mediaQuery='(max-width: 686px)'
             primary
             disabled={!contents}
             onClick={() => getVersion({ forceCheck: true })}
           >
             Check for Updates
           </ShrinkableButton>
+          <ShrinkableButton
+            icon='star'
+            mediaQuery='(max-width: 686px)'
+            color='yellow'
+            disabled={!contents}
+            onClick={() => 
+              window.open(`http://www.slsknet.org/qtlogin.php?username=${state?.user?.username}`, '_blank')}
+          >
+            Get Privileges
+          </ShrinkableButton>
         </div>
         <Modal
           trigger={
             <ShrinkableButton
               icon='shutdown'
-              mediaQuery='(max-width: 516px)'
+              mediaQuery='(max-width: 686px)'
               negative
               disabled={!contents}
             >
@@ -58,7 +68,7 @@ const Info = ({ state }) => {
           trigger={
             <ShrinkableButton
               icon='redo'
-              mediaQuery='(max-width: 516px)'
+              mediaQuery='(max-width: 686px)'
               negative={!pendingRestart}
               color={pendingRestart ? 'yellow' : undefined}
               disabled={!contents}
