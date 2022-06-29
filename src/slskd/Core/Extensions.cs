@@ -1,4 +1,4 @@
-﻿// <copyright file="CoreExtensions.cs" company="slskd Team">
+﻿// <copyright file="Extensions.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -24,7 +24,7 @@ namespace slskd
     /// <summary>
     ///     Core extensions; extensions for types specific to Soulseek or slskd.
     /// </summary>
-    public static class CoreExtensions
+    public static class Extensions
     {
         /// <summary>
         ///     Redacts this instance of Options, replacing properties marked with <see cref="SecretAttribute"/> with '*****'.
@@ -71,5 +71,18 @@ namespace slskd
                 inactivityTimeout: inactivityTimeout ?? o.InactivityTimeout,
                 proxyOptions: proxyOptions ?? o.ProxyOptions,
                 configureSocket: configureSocketAction ?? o.ConfigureSocket);
+
+        /// <summary>
+        ///     Creates a new instance of <see cref="UserStatisticsState"/> from this instance of <see cref="UserStatistics"/>.
+        /// </summary>
+        /// <param name="stats">The UserStatistics instance from which to copy data</param>
+        /// <returns>The new instance.</returns>
+        public static UserStatisticsState ToUserStatisticsState(this UserStatistics stats) => new()
+        {
+            AverageSpeed = stats.AverageSpeed,
+            DirectoryCount = stats.DirectoryCount,
+            FileCount = stats.FileCount,
+            UploadCount = stats.UploadCount,
+        };
     }
 }

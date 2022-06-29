@@ -19,7 +19,7 @@ const Index = ({ options }) => {
 
   useEffect(() => {
     setTimeout(() => {
-      setContents(YAML.stringify(options, { simpleKeys: true, sortMapEntries: true }));
+      setContents(YAML.stringify(options, { simpleKeys: true, sortMapEntries: false }));
     }, 250);
   }, [options]);
   

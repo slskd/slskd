@@ -116,7 +116,7 @@ class App extends Component {
 
   render = () => {
     const { login, applicationState = {}, applicationOptions = {}, error, initialized, retriesExhausted } = this.state;
-    const { version = {}, server, pendingReconnect, pendingRestart, shares = {} } = applicationState;
+    const { version = {}, server, pendingReconnect, pendingRestart, shares = {}, user } = applicationState;
     const { isUpdateAvailable, current, latest } = version;
     const { scanPending: pendingShareRescan } = shares;
 
@@ -203,7 +203,11 @@ class App extends Component {
               {server?.isConnected && <Menu.Item
                 onClick={() => disconnect()}
               >
-                <Icon name='plug' color={pendingReconnect ? 'yellow' : 'green'}/>Connected
+                <Icon.Group className='menu-icon-group'>
+                  <Icon name='plug' color={pendingReconnect ? 'yellow' : 'green'}/>
+                  {user?.privileges?.isPrivileged &&
+                    <Icon name='star' color='yellow' corner className='menu-icon-no-shadow'/>}
+                </Icon.Group>Connected
               </Menu.Item>}
               {(!server?.isConnected) && <Menu.Item 
                 onClick={() => connect()}
