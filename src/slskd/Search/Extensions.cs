@@ -32,8 +32,8 @@ namespace slskd.Search
         /// <returns></returns>
         public static SearchOptions WithActions(
             this SearchOptions options,
-            Action<SearchStateChangedEventArgs> stateChanged = null,
-            Action<SearchResponseReceivedEventArgs> responseReceived = null)
+            Action<(SearchStates PreviousState, Soulseek.Search Search)> stateChanged = null,
+            Action<(Soulseek.Search Search, SearchResponse Response)> responseReceived = null)
         {
             stateChanged ??= (args) => { };
             responseReceived ??= (args) => { };
