@@ -140,13 +140,13 @@ namespace slskd.Transfers.API
                         {
                             Log.Debug("Download of {Filename} from user {Username} changed state from {Previous} to {New}", request.Filename, username, e.PreviousState, e.Transfer.State);
 
-                            Tracker.AddOrUpdate(e, cts);
+                            Tracker.AddOrUpdate(e.Transfer, cts);
 
                             if (e.Transfer.State.HasFlag(TransferStates.Queued) || e.Transfer.State == TransferStates.Initializing)
                             {
                                 waitUntilEnqueue.TrySetResult(true);
                             }
-                        }, progressUpdated: (e) => Tracker.AddOrUpdate(e, cts)), cts.Token);
+                        }, progressUpdated: (e) => Tracker.AddOrUpdate(e.Transfer, cts)), cts.Token);
 
                         MoveFile(request.Filename, Options.Directories.Incomplete, Options.Directories.Downloads);
 

@@ -123,16 +123,16 @@ namespace slskd.Transfers
         /// <summary>
         ///     Adds or updates a tracked transfer.
         /// </summary>
-        /// <param name="args"></param>
+        /// <param name="transfer"></param>
         /// <param name="cancellationTokenSource"></param>
-        public void AddOrUpdate(TransferEventArgs args, CancellationTokenSource cancellationTokenSource)
+        public void AddOrUpdate(Transfer transfer, CancellationTokenSource cancellationTokenSource)
         {
-            Transfers.TryGetValue(args.Transfer.Direction, out var direction);
+            Transfers.TryGetValue(transfer.Direction, out var direction);
 
-            direction.AddOrUpdate(args.Transfer.Username, GetNewDictionaryForUser(args, cancellationTokenSource), (user, dict) =>
+            direction.AddOrUpdate(transfer.Username, GetNewDictionaryForUser(transfer, cancellationTokenSource), (user, dict) =>
             {
-                var transfer = API.Transfer.FromSoulseekTransfer(args.Transfer);
-                dict.AddOrUpdate(transfer.Id, (transfer, cancellationTokenSource), (id, record) => (transfer, cancellationTokenSource));
+                var xfer = API.Transfer.FromSoulseekTransfer(transfer);
+                dict.AddOrUpdate(xfer.Id, (xfer, cancellationTokenSource), (id, record) => (xfer, cancellationTokenSource));
                 return dict;
             });
         }
@@ -201,11 +201,11 @@ namespace slskd.Transfers
             return false;
         }
 
-        private ConcurrentDictionary<string, (API.Transfer Transfer, CancellationTokenSource CancellationTokenSource)> GetNewDictionaryForUser(TransferEventArgs args, CancellationTokenSource cancellationTokenSource)
+        private ConcurrentDictionary<string, (API.Transfer Transfer, CancellationTokenSource CancellationTokenSource)> GetNewDictionaryForUser(Transfer transfer, CancellationTokenSource cancellationTokenSource)
         {
             var r = new ConcurrentDictionary<string, (API.Transfer Transfer, CancellationTokenSource CancellationTokenSource)>();
-            var transfer = API.Transfer.FromSoulseekTransfer(args.Transfer);
-            r.AddOrUpdate(transfer.Id, (transfer, cancellationTokenSource), (id, record) => (transfer, record.CancellationTokenSource));
+            var xfer = API.Transfer.FromSoulseekTransfer(transfer);
+            r.AddOrUpdate(xfer.Id, (xfer, cancellationTokenSource), (id, record) => (xfer, record.CancellationTokenSource));
             return r;
         }
     }

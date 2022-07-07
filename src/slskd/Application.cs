@@ -663,14 +663,14 @@ namespace slskd
             var topts = new TransferOptions(
                 stateChanged: (e) =>
                 {
-                    tracker.AddOrUpdate(e, cts);
+                    tracker.AddOrUpdate(e.Transfer, cts);
 
                     if (e.Transfer.State.HasFlag(TransferStates.Queued))
                     {
                         Transfers.Uploads.Queue.Enqueue(e.Transfer);
                     }
                 },
-                progressUpdated: (e) => tracker.AddOrUpdate(e, cts),
+                progressUpdated: (e) => tracker.AddOrUpdate(e.Transfer, cts),
                 governor: (tx, req, ct) => Transfers.Uploads.Governor.GetBytesAsync(tx, req, ct),
                 reporter: (tx, att, grant, act) => Transfers.Uploads.Governor.ReturnBytes(tx, att, grant, act),
                 slotAwaiter: (tx, ct) => Transfers.Uploads.Queue.AwaitStartAsync(tx),
