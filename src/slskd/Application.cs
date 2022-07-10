@@ -76,6 +76,7 @@ namespace slskd
             IOptionsMonitor<Options> optionsMonitor,
             IManagedState<State> state,
             ISoulseekClient soulseekClient,
+            IConnectionWatchdog connectionWatchdog,
             ITransferTracker transferTracker,
             ITransferService transferService,
             IBrowseTracker browseTracker,
@@ -139,11 +140,14 @@ namespace slskd
             Client.DistributedNetworkStateChanged += Client_DistributedNetworkStateChanged;
             Client.DownloadDenied += (e, args) => Log.Information("Download of {Filename} from {Username} was denied: {Message}", args.Filename, args.Username, args.Message);
             Client.DownloadFailed += (e, args) => Log.Information("Download of {Filename} from {Username} failed", args.Filename, args.Username);
+
+            ConnectionWatchdog = connectionWatchdog;
         }
 
         private ISoulseekClient Client { get; set; }
         private IRoomService RoomService { get; set; }
         private IBrowseTracker BrowseTracker { get; set; }
+        private IConnectionWatchdog ConnectionWatchdog { get; }
         private IConversationTracker ConversationTracker { get; set; }
         private ILogger Log { get; set; } = Serilog.Log.ForContext<Application>();
         private ConcurrentDictionary<string, ILogger> Loggers { get; } = new ConcurrentDictionary<string, ILogger>();
@@ -355,6 +359,7 @@ namespace slskd
 
         private void Client_Connected(object sender, EventArgs e)
         {
+            ConnectionWatchdog.Stop();
             Log.Information("Connected to the Soulseek server");
         }
 
@@ -402,28 +407,12 @@ namespace slskd
             }
             else if (args.Exception is KickedFromServerException)
             {
-                Log.Error("Disconnected from the Soulseek server: another client logged in using the username {Username}", Client.Username);
+                Log.Error("Disconnected from the Soulseek server: another client logged in using the same username");
             }
             else
             {
                 Log.Error("Disconnected from the Soulseek server: {Message}", args.Exception?.Message ?? args.Message);
-
-                if (string.IsNullOrEmpty(Options.Soulseek.Username) || string.IsNullOrEmpty(Options.Soulseek.Password))
-                {
-                    Log.Warning($"Not reconnecting to the Soulseek server; username and/or password invalid.  Specify valid credentials and manually connect, or update config and restart.");
-                    return;
-                }
-
-                // none of the conditions that would prevent a reconnect attempt have been met
-                // update the state to set AttemptingReconnect to true, which will cause the IConnectionMonitor
-                // to begin the reconnect sequence
-                State.SetValue(state => state with
-                {
-                    Server = state.Server with
-                    {
-                        AttemptingReconnect = true,
-                    },
-                });
+                ConnectionWatchdog.Start();
             }
         }
 
@@ -503,7 +492,6 @@ namespace slskd
                     Address = Client.Address,
                     IPEndPoint = Client.IPEndPoint,
                     State = Client.State,
-                    AttemptingReconnect = Client.State.HasFlag(SoulseekClientStates.Connected) ? false : state.Server.AttemptingReconnect,
                 },
                 User = state.User with
                 {
