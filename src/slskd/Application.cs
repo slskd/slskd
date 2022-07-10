@@ -381,7 +381,7 @@ namespace slskd
             logger.Write(TranslateLogLevel(args.Level), "{@Message}", args.Message);
         }
 
-        private async void Client_Disconnected(object sender, SoulseekClientDisconnectedEventArgs args)
+        private void Client_Disconnected(object sender, SoulseekClientDisconnectedEventArgs args)
         {
             if (State.CurrentValue.PendingReconnect)
             {
@@ -414,34 +414,16 @@ namespace slskd
                     return;
                 }
 
-                var attempts = 1;
-
-                while (true)
+                // none of the conditions that would prevent a reconnect attempt have been met
+                // update the state to set AttemptingReconnect to true, which will cause the IConnectionMonitor
+                // to begin the reconnect sequence
+                State.SetValue(state => state with
                 {
-                    var (delay, jitter) = Compute.ExponentialBackoffDelay(
-                        iteration: attempts,
-                        maxDelayInMilliseconds: ReconnectMaxDelayMilliseconds);
-
-                    var approximateDelay = (int)Math.Ceiling((double)(delay + jitter) / 1000);
-                    Log.Information($"Waiting about {(approximateDelay == 1 ? "a second" : $"{approximateDelay} seconds")} before reconnecting");
-                    await Task.Delay(delay + jitter);
-
-                    Log.Information($"Attempting to reconnect (#{attempts})...", attempts);
-
-                    try
+                    Server = state.Server with
                     {
-                        // reconnect with the latest configuration values we have for username and password, instead of the
-                        // options that were captured at startup. if a user has updated these values prior to the disconnect, the
-                        // changes will take effect now.
-                        await Client.ConnectAsync(Options.Soulseek.Username, Options.Soulseek.Password);
-                        break;
-                    }
-                    catch (Exception ex)
-                    {
-                        attempts++;
-                        Log.Error("Failed to reconnect: {Message}", ex.Message);
-                    }
-                }
+                        AttemptingReconnect = true,
+                    },
+                });
             }
         }
 
@@ -521,6 +503,7 @@ namespace slskd
                     Address = Client.Address,
                     IPEndPoint = Client.IPEndPoint,
                     State = Client.State,
+                    AttemptingReconnect = Client.State.HasFlag(SoulseekClientStates.Connected) ? false : state.Server.AttemptingReconnect,
                 },
                 User = state.User with
                 {
