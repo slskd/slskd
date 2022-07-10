@@ -446,6 +446,8 @@ namespace slskd
             services.AddSingleton<IApplication, Application>();
             services.AddHostedService(p => p.GetRequiredService<IApplication>());
 
+            services.AddSingleton<IConnectionWatchdog, ConnectionWatchdog>();
+
             services.AddDbContext<SearchDbContext>("search.db");
 
             services.AddSingleton<ITransferTracker, TransferTracker>();
