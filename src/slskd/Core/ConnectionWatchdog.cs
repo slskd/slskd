@@ -166,8 +166,6 @@ namespace slskd
                             // options that were captured at startup. if a user has updated these values prior to the disconnect,
                             // the changes will take effect now.
                             await Client.ConnectAsync(Options.CurrentValue.Soulseek.Username, Options.CurrentValue.Soulseek.Password);
-
-                            Log.Information("Successfully reconnected after #{Attempts}", attempts);
                             break;
                         }
                         catch (Exception ex)
