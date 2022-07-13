@@ -310,19 +310,29 @@ namespace slskd.Transfers
         /// </returns>
         public int ForecastPosition(string username)
         {
-            var group = Users.GetGroup(username);
+            var groupName = Users.GetGroup(username);
 
             // if there's a slot available, the user will enter the queue at position 0 (will start immediately)
-            if (Groups.TryGetValue(group, out var groupRecord) && groupRecord.SlotAvailable)
+            if (Groups.TryGetValue(groupName, out var groupRecord) && groupRecord.SlotAvailable)
             {
                 return 0;
             }
 
-            // no slots are available for this group, so there's at least as many uploads in progress as there are slots. count all
-            // uploads (in progress or otherwise)
-            var uploadsForGroup = Uploads.Where(kvp => Users.GetGroup(kvp.Key) == group);
+            // the Uploads dictionary is keyed by username; gather all of the users that belong to the same group as the requested user
+            var uploadsForGroup = Uploads.Where(kvp => Users.GetGroup(kvp.Key) == groupName);
 
-            return uploadsForGroup.Count() + 1;
+            // assuming that the queue will be processed in a true round-robin fashion and that the user will be the last in the
+            // rotation (worst case), the user's start position will be equal to the number of users downloading or waiting, + 1.
+            if (groupRecord.Strategy == QueueStrategy.RoundRobin)
+            {
+                return uploadsForGroup.Count() + 1;
+            }
+
+            // for FIFO queues, the user will enter the queue at the very back. return the total number of uploads in progress and
+            // enqueued, + 1.
+            return uploadsForGroup
+                .SelectMany(group => group.Value)
+                .Count() + 1;
         }
 
         private void Configure(Options options)
