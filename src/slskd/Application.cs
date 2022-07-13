@@ -846,6 +846,7 @@ namespace slskd
 
             if (results.Any())
             {
+                // make sure our average speed (as reported by the server) is reasonably up to date
                 await RefreshUserStatistics();
 
                 var forecastedPosition = Transfers.Uploads.Queue.ForecastPosition(username);
