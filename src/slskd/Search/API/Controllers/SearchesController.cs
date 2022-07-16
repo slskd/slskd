@@ -68,7 +68,7 @@ namespace slskd.Search.API
 
             try
             {
-                search = await Searches.CreateAsync(id, SearchQuery.FromText(request.SearchText), SearchScope.Network, request.ToSearchOptions());
+                search = await Searches.StartAsync(id, SearchQuery.FromText(request.SearchText), SearchScope.Network, request.ToSearchOptions());
             }
             catch (Exception ex) when (ex is ArgumentException || ex is Soulseek.DuplicateTokenException)
             {
