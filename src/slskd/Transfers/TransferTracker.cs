@@ -125,7 +125,7 @@ namespace slskd.Transfers
         /// </summary>
         /// <param name="transfer"></param>
         /// <param name="cancellationTokenSource"></param>
-        public void AddOrUpdate(Transfer transfer, CancellationTokenSource cancellationTokenSource)
+        public void AddOrUpdate(Soulseek.Transfer transfer, CancellationTokenSource cancellationTokenSource)
         {
             Transfers.TryGetValue(transfer.Direction, out var direction);
 
@@ -190,18 +190,15 @@ namespace slskd.Transfers
         /// <returns></returns>
         public bool Contains(TransferDirection direction, string username, string filename)
         {
-            if (Transfers.TryGetValue(direction, out var directionDict))
+            if (Transfers.TryGetValue(direction, out var directionDict) && directionDict.TryGetValue(username, out var userDict))
             {
-                if (directionDict.TryGetValue(username, out var userDict))
-                {
-                    return userDict.Values.Any(record => record.Transfer.Filename == filename);
-                }
+                return userDict.Values.Any(record => record.Transfer.Filename == filename);
             }
 
             return false;
         }
 
-        private ConcurrentDictionary<string, (API.Transfer Transfer, CancellationTokenSource CancellationTokenSource)> GetNewDictionaryForUser(Transfer transfer, CancellationTokenSource cancellationTokenSource)
+        private ConcurrentDictionary<string, (API.Transfer Transfer, CancellationTokenSource CancellationTokenSource)> GetNewDictionaryForUser(Soulseek.Transfer transfer, CancellationTokenSource cancellationTokenSource)
         {
             var r = new ConcurrentDictionary<string, (API.Transfer Transfer, CancellationTokenSource CancellationTokenSource)>();
             var xfer = API.Transfer.FromSoulseekTransfer(transfer);

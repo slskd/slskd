@@ -36,7 +36,7 @@ namespace slskd.Transfers
         /// </summary>
         /// <param name="transfer"></param>
         /// <param name="cancellationTokenSource"></param>
-        void AddOrUpdate(Transfer transfer, CancellationTokenSource cancellationTokenSource);
+        void AddOrUpdate(Soulseek.Transfer transfer, CancellationTokenSource cancellationTokenSource);
 
         /// <summary>
         ///     Removes a tracked transfer.
