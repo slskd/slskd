@@ -100,15 +100,31 @@ namespace slskd.Search
 
             List<SearchResponse> responses = new();
 
+            async Task UpdateAndSaveChangesAsync(Search search)
+            {
+                using var context = ContextFactory.CreateDbContext();
+                context.Update(search);
+                await context.SaveChangesAsync();
+            }
+
             options ??= new SearchOptions();
             options = options.WithActions(
                 stateChanged: (args) =>
                 {
                     search = search.WithSoulseekSearch(args.Search);
                     SearchHub.BroadcastUpdateAsync(search);
+                    _ = UpdateAndSaveChangesAsync(search);
                 },
-                responseReceived: (args) =>
-                    rateLimiter.Invoke(() => SearchHub.BroadcastUpdateAsync(search.WithSoulseekSearch(args.Search))));
+                responseReceived: (args) => rateLimiter.Invoke(() =>
+                {
+                    // note: this is rate limited, but has the potential to update
+                    // the database every 250ms (or whatever the interval is set to)
+                    // for the duration of the search. any issues with disk/io or performance
+                    // while searches are running should investigate this as a cause
+                    search = search.WithSoulseekSearch(args.Search);
+                    SearchHub.BroadcastUpdateAsync(search);
+                    _ = UpdateAndSaveChangesAsync(search);
+                }));
 
             var soulseekSearchTask = Client.SearchAsync(
                 query,
@@ -132,13 +148,10 @@ namespace slskd.Search
 
                     try
                     {
-                        using var context = ContextFactory.CreateDbContext();
-
                         search.EndedAt = DateTime.UtcNow;
                         search.Responses = responses.Select(r => Response.FromSoulseekSearchResponse(r));
 
-                        context.Update(search);
-                        await context.SaveChangesAsync();
+                        await UpdateAndSaveChangesAsync(search);
 
                         // zero responses before broadcasting
                         search.Responses = Enumerable.Empty<Response>();
