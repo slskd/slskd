@@ -75,7 +75,7 @@ namespace slskd
         /// <summary>
         ///     Creates a new instance of <see cref="UserStatisticsState"/> from this instance of <see cref="UserStatistics"/>.
         /// </summary>
-        /// <param name="stats">The UserStatistics instance from which to copy data</param>
+        /// <param name="stats">The UserStatistics instance from which to copy data.</param>
         /// <returns>The new instance.</returns>
         public static UserStatisticsState ToUserStatisticsState(this UserStatistics stats) => new()
         {
