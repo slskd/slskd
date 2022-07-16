@@ -77,7 +77,7 @@ namespace slskd.Search
         /// <param name="scope">The search scope.</param>
         /// <param name="options">Search options.</param>
         /// <returns>The completed search.</returns>
-        public async Task<Search> CreateAsync(Guid id, SearchQuery query, SearchScope scope, SearchOptions options = null)
+        public async Task<Search> StartAsync(Guid id, SearchQuery query, SearchScope scope, SearchOptions options = null)
         {
             var token = Client.GetNextToken();
 
