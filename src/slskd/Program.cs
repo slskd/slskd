@@ -449,6 +449,7 @@ namespace slskd
             services.AddSingleton<IConnectionWatchdog, ConnectionWatchdog>();
 
             services.AddDbContext<SearchDbContext>("search.db");
+            services.AddDbContext<TransfersDbContext>("transfers.db");
 
             services.AddSingleton<ITransferTracker, TransferTracker>();
             services.AddSingleton<IBrowseTracker, BrowseTracker>();
