@@ -77,7 +77,7 @@ namespace slskd.Search
         /// <param name="scope">The search scope.</param>
         /// <param name="options">Search options.</param>
         /// <returns>The completed search.</returns>
-        public async Task<Search> CreateAsync(Guid id, SearchQuery query, SearchScope scope, SearchOptions options = null)
+        public async Task<Search> StartAsync(Guid id, SearchQuery query, SearchScope scope, SearchOptions options = null)
         {
             var token = Client.GetNextToken();
 
@@ -100,15 +100,34 @@ namespace slskd.Search
 
             List<SearchResponse> responses = new();
 
+            async Task UpdateAndSaveChangesAsync(Search search)
+            {
+                using var context = ContextFactory.CreateDbContext();
+                context.Update(search);
+                await context.SaveChangesAsync();
+            }
+
             options ??= new SearchOptions();
             options = options.WithActions(
                 stateChanged: (args) =>
                 {
                     search = search.WithSoulseekSearch(args.Search);
                     SearchHub.BroadcastUpdateAsync(search);
+                    _ = UpdateAndSaveChangesAsync(search);
                 },
-                responseReceived: (args) =>
-                    rateLimiter.Invoke(() => SearchHub.BroadcastUpdateAsync(search.WithSoulseekSearch(args.Search))));
+                responseReceived: (args) => rateLimiter.Invoke(() =>
+                {
+                    // note: this is rate limited, but has the potential to update
+                    // the database every 250ms (or whatever the interval is set to)
+                    // for the duration of the search. any issues with disk i/o or performance
+                    // while searches are running should investigate this as a cause
+                    search.ResponseCount = args.Search.ResponseCount;
+                    search.FileCount = args.Search.FileCount;
+                    search.LockedFileCount = args.Search.LockedFileCount;
+
+                    SearchHub.BroadcastUpdateAsync(search);
+                    _ = UpdateAndSaveChangesAsync(search);
+                }));
 
             var soulseekSearchTask = Client.SearchAsync(
                 query,
@@ -132,13 +151,10 @@ namespace slskd.Search
 
                     try
                     {
-                        using var context = ContextFactory.CreateDbContext();
-
                         search.EndedAt = DateTime.UtcNow;
                         search.Responses = responses.Select(r => Response.FromSoulseekSearchResponse(r));
 
-                        context.Update(search);
-                        await context.SaveChangesAsync();
+                        await UpdateAndSaveChangesAsync(search);
 
                         // zero responses before broadcasting
                         search.Responses = Enumerable.Empty<Response>();

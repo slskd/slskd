@@ -29,7 +29,8 @@ namespace slskd
         ///     Initializes a new instance of the <see cref="RateLimiter"/> class.
         /// </summary>
         /// <param name="interval">The minimum interval between invocations.</param>
-        public RateLimiter(int interval)
+        /// <param name="flushOnDispose">A value indicating whether pending action(s) should be executed during disposal.</param>
+        public RateLimiter(int interval, bool flushOnDispose = false)
         {
             Timer = new System.Timers.Timer(interval)
             {
@@ -41,9 +42,12 @@ namespace slskd
                 Staged?.Invoke();
                 Staged = null;
             };
+
+            FlushOnDispose = flushOnDispose;
         }
 
         private bool Disposed { get; set; }
+        private bool FlushOnDispose { get; }
         private bool Init { get; set; }
         private Action Staged { get; set; }
         private System.Timers.Timer Timer { get; set; }
@@ -85,7 +89,10 @@ namespace slskd
                 if (disposing)
                 {
                     // if an action is staged, invoke it to 'flush'
-                    Staged?.Invoke();
+                    if (FlushOnDispose)
+                    {
+                        Staged?.Invoke();
+                    }
 
                     Timer.Dispose();
                 }

@@ -38,7 +38,7 @@ namespace slskd.Search
         /// <param name="scope">The search scope.</param>
         /// <param name="options">Search options.</param>
         /// <returns>The completed search.</returns>
-        Task<Search> CreateAsync(Guid id, SearchQuery query, SearchScope scope, SearchOptions options = null);
+        Task<Search> StartAsync(Guid id, SearchQuery query, SearchScope scope, SearchOptions options = null);
 
         /// <summary>
         ///     Deletes the specified ssearch.
