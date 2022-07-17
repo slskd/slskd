@@ -53,14 +53,17 @@ namespace slskd.Transfers.API
             IOptionsSnapshot<Options> options,
             ISoulseekClient soulseekClient,
             ITransferTracker tracker,
+            ITransferService transferService,
             IFTPService ftpClient)
         {
             Client = soulseekClient;
             Tracker = tracker;
             Options = options.Value;
             FTP = ftpClient;
+            Transfers = transferService;
         }
 
+        private ITransferService Transfers { get; }
         private Options Options { get; }
         private ISoulseekClient Client { get; }
         private ITransferTracker Tracker { get; }
@@ -121,71 +124,11 @@ namespace slskd.Transfers.API
         {
             try
             {
-                Log.Information("Downloading {Count} files from user {Username}", requests.Count(), username);
-
-                Log.Debug("Priming connection for user {Username}", username);
-                await Client.ConnectToUserAsync(username, invalidateCache: false);
-                Log.Debug("Connection for user '{Username}' primed", username);
-
-                foreach (var request in requests)
-                {
-                    Log.Debug("Attempting to enqueue {Filename} from user {Username}", request.Filename, username);
-
-                    var waitUntilEnqueue = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-                    var cts = new CancellationTokenSource();
-
-                    var downloadTask = Task.Run(async () =>
-                    {
-                        await Client.DownloadAsync(username, request.Filename, () => GetLocalFileStream(request.Filename, Options.Directories.Incomplete), request.Size, 0, request.Token, new TransferOptions(disposeOutputStreamOnCompletion: true, stateChanged: (e) =>
-                        {
-                            Log.Debug("Download of {Filename} from user {Username} changed state from {Previous} to {New}", request.Filename, username, e.PreviousState, e.Transfer.State);
-
-                            Tracker.AddOrUpdate(e.Transfer, cts);
-
-                            if (e.Transfer.State.HasFlag(TransferStates.Queued) || e.Transfer.State == TransferStates.Initializing)
-                            {
-                                waitUntilEnqueue.TrySetResult(true);
-                            }
-                        }, progressUpdated: (e) => Tracker.AddOrUpdate(e.Transfer, cts)), cts.Token);
-
-                        MoveFile(request.Filename, Options.Directories.Incomplete, Options.Directories.Downloads);
-
-                        if (Options.Integration.Ftp.Enabled)
-                        {
-                            _ = FTP.UploadAsync(request.Filename.ToLocalFilename(Options.Directories.Downloads));
-                        }
-                    });
-
-                    // wait until either the waitUntilEnqueue task completes because the download was successfully queued, or the
-                    // downloadTask throws due to an error prior to successfully queueing.
-                    var task = await Task.WhenAny(waitUntilEnqueue.Task, downloadTask);
-
-                    if (task == downloadTask)
-                    {
-                        if (downloadTask.Exception is AggregateException)
-                        {
-                            var rejected = downloadTask.Exception?.InnerExceptions.Where(e => e is TransferRejectedException) ?? Enumerable.Empty<Exception>();
-                            if (rejected.Any())
-                            {
-                                Log.Error("Download of {Filename} from {Username} was rejected: {Reason}", request.Filename, username, rejected.First().Message);
-                                return StatusCode(403, rejected.First().Message);
-                            }
-                        }
-
-                        Log.Error("Failed to download {Filename} from {Username}: {Message}", request.Filename, username, downloadTask.Exception.Message);
-                        return StatusCode(500, downloadTask.Exception.Message);
-                    }
-
-                    Log.Debug("Successfully enqueued {Filename} from user {Username}", request.Filename, username);
-                }
-
-                // if nothing threw, just return ok. the download will continue waiting in the background.
-                Log.Information("Successfully enqueued {Count} files from user {Username}", requests.Count(), username);
+                await Transfers.Downloads.EnqueueAsync(username, requests.Select(r => (r.Filename, r.Size)));
                 return StatusCode(201);
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "Failed to download file(s) from user {Username}: {Message}", username, ex.Message);
                 return StatusCode(500, ex.Message);
             }
         }
