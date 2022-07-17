@@ -19,6 +19,7 @@ namespace slskd.Transfers
 {
     using System;
     using Microsoft.EntityFrameworkCore;
+    using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
     public class TransfersDbContext : DbContext
     {
@@ -39,6 +40,16 @@ namespace slskd.Transfers
                 .Entity<Transfer>()
                 .Property(e => e.EndedAt)
                 .HasConversion(v => v, v => v.HasValue ? DateTime.SpecifyKind(v.Value, DateTimeKind.Utc) : null);
+
+            modelBuilder
+                .Entity<Transfer>()
+                .Property(d => d.Direction)
+                .HasConversion(new EnumToStringConverter<Soulseek.TransferDirection>());
+
+            modelBuilder
+                .Entity<Transfer>()
+                .Property(d => d.State)
+                .HasConversion(new EnumToStringConverter<Soulseek.TransferStates>());
         }
     }
 }
