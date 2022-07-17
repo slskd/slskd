@@ -29,7 +29,7 @@ namespace slskd
         ///     Initializes a new instance of the <see cref="RateLimiter"/> class.
         /// </summary>
         /// <param name="interval">The minimum interval between invocations.</param>
-        /// <param name="flushOnDispose">A value indicating whether pending action(s) should be executed during disposal</param>
+        /// <param name="flushOnDispose">A value indicating whether pending action(s) should be executed during disposal.</param>
         public RateLimiter(int interval, bool flushOnDispose = false)
         {
             Timer = new System.Timers.Timer(interval)

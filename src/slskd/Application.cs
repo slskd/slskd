@@ -69,8 +69,6 @@ namespace slskd
         /// </summary>
         public static readonly string LeecherGroup = "leechers";
 
-        private static readonly int ReconnectMaxDelayMilliseconds = 300000; // 5 minutes
-
         public Application(
             OptionsAtStartup optionsAtStartup,
             IOptionsMonitor<Options> optionsMonitor,
