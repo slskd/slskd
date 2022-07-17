@@ -40,10 +40,12 @@ namespace slskd.Transfers
         public long BytesTransferred { get; set; }
         public double AverageSpeed { get; set; }
 
-        public Exception Exception { get; set; }
+        public string Exception { get; set; }
+
+        public bool Removed { get; set; }
 
         [NotMapped]
-        public long BytesRemaining => Size - BytesTransferred : null;
+        public long BytesRemaining => Size - BytesTransferred;
         [NotMapped]
         public TimeSpan? ElapsedTime => StartedAt == null ? null : (EndedAt ?? DateTime.UtcNow) - StartedAt.Value;
         [NotMapped]
