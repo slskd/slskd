@@ -19,6 +19,7 @@ using Microsoft.Extensions.Options;
 
 namespace slskd.Transfers
 {
+    using slskd.Transfers.Downloads;
     using slskd.Transfers.Uploads;
     using slskd.Users;
 
@@ -31,6 +32,11 @@ namespace slskd.Transfers
         ///     Gets the upload service.
         /// </summary>
         IUploadService Uploads { get; }
+
+        /// <summary>
+        ///     Gets the download service.
+        /// </summary>
+        IDownloadService Downloads { get; }
     }
 
     /// <summary>
@@ -47,7 +53,8 @@ namespace slskd.Transfers
         public TransferService(
             IUserService userService,
             IOptionsMonitor<Options> optionsMonitor,
-            IUploadService uploadService = null)
+            IUploadService uploadService = null,
+            IDownloadService downloadService = null)
         {
             Users = userService;
             OptionsMonitor = optionsMonitor;
@@ -57,12 +64,19 @@ namespace slskd.Transfers
                 Governor = new UploadGovernor(userService: Users, optionsMonitor: OptionsMonitor),
                 Queue = new UploadQueue(userService: Users, optionsMonitor: OptionsMonitor),
             };
+
+            Downloads = downloadService;
         }
 
         /// <summary>
         ///     Gets the upload service.
         /// </summary>
         public IUploadService Uploads { get; init; }
+
+        /// <summary>
+        ///     Gets the download service.
+        /// </summary>
+        public IDownloadService Downloads { get; init; }
 
         private IOptionsMonitor<Options> OptionsMonitor { get; init; }
         private IUserService Users { get; init; }

@@ -60,6 +60,7 @@ namespace slskd
     using slskd.Search.API;
     using slskd.Shares;
     using slskd.Transfers;
+    using slskd.Transfers.Downloads;
     using slskd.Users;
     using slskd.Validation;
     using Soulseek;
@@ -461,7 +462,9 @@ namespace slskd
             services.AddSingleton<ISearchService, SearchService>();
             services.AddSingleton<IUserService, UserService>();
             services.AddSingleton<IRoomService, RoomService>();
+
             services.AddSingleton<ITransferService, TransferService>();
+            services.AddSingleton<IDownloadService, DownloadService>();
 
             services.AddSingleton<IFTPClientFactory, FTPClientFactory>();
             services.AddSingleton<IFTPService, FTPService>();
@@ -790,7 +793,7 @@ namespace slskd
 
             try
             {
-                services.AddDbContextFactory<SearchDbContext>(options =>
+                services.AddDbContextFactory<T>(options =>
                 {
                     options.UseSqlite($"Data Source={Path.Combine(AppDirectory, "data", filename)}");
                 });
