@@ -117,22 +117,16 @@ namespace slskd.Search
                 },
                 responseReceived: (args) => rateLimiter.Invoke(() =>
                 {
-                    // due to the rate limiter, this has the potential to be executed after the search is complete.
-                    // ensure that doesn't happen. this causes the update to be dropped, but we broadcast again when
-                    // the search is complete with the final stats, so it has no negative impact.
-                    if (search.State.HasFlag(SearchStates.InProgress))
-                    {
-                        // note: this is rate limited, but has the potential to update
-                        // the database every 250ms (or whatever the interval is set to)
-                        // for the duration of the search. any issues with disk/io or performance
-                        // while searches are running should investigate this as a cause
-                        search.ResponseCount = args.Search.ResponseCount;
-                        search.FileCount = args.Search.FileCount;
-                        search.LockedFileCount = args.Search.LockedFileCount;
+                    // note: this is rate limited, but has the potential to update
+                    // the database every 250ms (or whatever the interval is set to)
+                    // for the duration of the search. any issues with disk i/o or performance
+                    // while searches are running should investigate this as a cause
+                    search.ResponseCount = args.Search.ResponseCount;
+                    search.FileCount = args.Search.FileCount;
+                    search.LockedFileCount = args.Search.LockedFileCount;
 
-                        SearchHub.BroadcastUpdateAsync(search);
-                        _ = UpdateAndSaveChangesAsync(search);
-                    }
+                    SearchHub.BroadcastUpdateAsync(search);
+                    _ = UpdateAndSaveChangesAsync(search);
                 }));
 
             var soulseekSearchTask = Client.SearchAsync(
