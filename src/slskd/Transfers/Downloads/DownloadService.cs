@@ -61,7 +61,7 @@ namespace slskd.Transfers.Downloads
     public class DownloadService : IDownloadService
     {
         public DownloadService(
-            IOptionsSnapshot<Options> options,
+            IOptionsMonitor<Options> optionsMonitor,
             ISoulseekClient soulseekClient,
             ITransferTracker tracker,
             IDbContextFactory<TransfersDbContext> contextFactory,
@@ -69,12 +69,13 @@ namespace slskd.Transfers.Downloads
         {
             Client = soulseekClient;
             Tracker = tracker;
-            Options = options.Value;
+            OptionsMonitor = optionsMonitor;
+            ContextFactory = contextFactory;
             FTP = ftpClient;
         }
 
         private IDbContextFactory<TransfersDbContext> ContextFactory { get; }
-        private Options Options { get; }
+        private IOptionsMonitor<Options> OptionsMonitor { get; }
         private ISoulseekClient Client { get; }
         private ITransferTracker Tracker { get; }
         private IFTPService FTP { get; }
@@ -122,39 +123,73 @@ namespace slskd.Transfers.Downloads
                         RequestedAt = DateTime.UtcNow,
                     };
 
+                    // persist the transfer to the database so we have a record that it was attempted
                     using var context = ContextFactory.CreateDbContext();
                     context.Add(transfer);
+                    await context.SaveChangesAsync();
 
                     var waitUntilEnqueue = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
                     var cts = new CancellationTokenSource();
 
-                    var downloadTask = Task.Run(async () =>
+                    async Task UpdateAndSaveChangesAsync(Transfer transfer)
                     {
                         using var context = ContextFactory.CreateDbContext();
+                        context.Update(transfer);
+                        await context.SaveChangesAsync();
+                    }
+
+                    // this task does the actual work of downloading the file. if the transfer is successfully queued remotely,
+                    // the waitUntilEnqueue completion source is set, which yields execution to below so we can return and let
+                    // the caller know.
+                    var downloadTask = Task.Run(async () =>
+                    {
                         using var rateLimiter = new RateLimiter(250);
 
-                        await Client.DownloadAsync(username, file.Filename, () => GetLocalFileStream(file.Filename, Options.Directories.Incomplete), file.Size, 0, token: null, new TransferOptions(disposeOutputStreamOnCompletion: true, stateChanged: (e) =>
+                        var completedTransfer = await Client.DownloadAsync(
+                            username: username,
+                            remoteFilename: file.Filename,
+                            outputStreamFactory: () => GetLocalFileStream(file.Filename, OptionsMonitor.CurrentValue.Directories.Incomplete),
+                            size: file.Size,
+                            startOffset: 0,
+                            token: null,
+                            cancellationToken: cts.Token,
+                            options: new TransferOptions(
+                                disposeOutputStreamOnCompletion: true,
+                                stateChanged: (args) =>
+                                {
+                                    Log.Debug("Download of {Filename} from user {Username} changed state from {Previous} to {New}", file.Filename, username, args.PreviousState, args.Transfer.State);
+
+                                    Tracker.AddOrUpdate(args.Transfer, cts);
+
+                                    transfer = transfer.WithSoulseekTransfer(args.Transfer);
+                                    // todo: broadcast
+                                    _ = UpdateAndSaveChangesAsync(transfer);
+
+                                    if (args.Transfer.State.HasFlag(TransferStates.Queued) || args.Transfer.State == TransferStates.Initializing)
+                                    {
+                                        waitUntilEnqueue.TrySetResult(true);
+                                    }
+                                },
+                                progressUpdated: (args) => rateLimiter.Invoke(() =>
+                                {
+                                    transfer = transfer.WithSoulseekTransfer(args.Transfer);
+                                    // todo: broadcast
+                                    _ = UpdateAndSaveChangesAsync(transfer);
+
+                                    Tracker.AddOrUpdate(args.Transfer, cts);
+                                })));
+
+                        transfer = transfer.WithSoulseekTransfer(completedTransfer);
+                        // todo: broadcast
+                        await UpdateAndSaveChangesAsync(transfer);
+
+                        // this would be the ideal place to hook in a generic post-download task processor
+                        // for now, we'll just carry out hard coded behavior
+                        MoveFile(file.Filename, OptionsMonitor.CurrentValue.Directories.Incomplete, OptionsMonitor.CurrentValue.Directories.Downloads);
+
+                        if (OptionsMonitor.CurrentValue.Integration.Ftp.Enabled)
                         {
-                            Log.Debug("Download of {Filename} from user {Username} changed state from {Previous} to {New}", file.Filename, username, e.PreviousState, e.Transfer.State);
-
-                            transfer.UpdateFromSoulseekTransfer(e.Transfer);
-
-                            Tracker.AddOrUpdate(e.Transfer, cts);
-
-                            if (e.Transfer.State.HasFlag(TransferStates.Queued) || e.Transfer.State == TransferStates.Initializing)
-                            {
-                                waitUntilEnqueue.TrySetResult(true);
-                            }
-                        }, progressUpdated: (e) => Tracker.AddOrUpdate(e.Transfer, cts)), cts.Token);
-
-                        // TODO: transfer is complete.  make sure a final broadcast is sent
-                        // TODO: save final state in db
-
-                        MoveFile(file.Filename, Options.Directories.Incomplete, Options.Directories.Downloads);
-
-                        if (Options.Integration.Ftp.Enabled)
-                        {
-                            _ = FTP.UploadAsync(file.Filename.ToLocalFilename(Options.Directories.Downloads));
+                            _ = FTP.UploadAsync(file.Filename.ToLocalFilename(OptionsMonitor.CurrentValue.Directories.Downloads));
                         }
                     });
 
@@ -162,7 +197,8 @@ namespace slskd.Transfers.Downloads
                     // downloadTask throws due to an error prior to successfully queueing.
                     var task = await Task.WhenAny(waitUntilEnqueue.Task, downloadTask);
 
-                    // the download task finished first, meaning the transfer was stopped before it was enqueued (and therefore threw)
+                    // if the download task completed first it is a very good indication that it threw an exception or was otherwise
+                    // not successful. try to figure out why and update everything to reflect the failure, but continue processing the batch
                     if (task == downloadTask)
                     {
                         Exception ex = downloadTask.Exception;
@@ -179,7 +215,7 @@ namespace slskd.Transfers.Downloads
 
                         Log.Error("Failed to download {Filename} from {Username}: {Message}", file.Filename, username, ex.Message);
                         thrownExceptions.Add(ex);
-                        transfer.Exception = ex;
+                        transfer.Exception = ex.Message;
                         transfer.State = TransferStates.Completed | TransferStates.Errored;
                         transfer.EndedAt = DateTime.UtcNow;
                     }
