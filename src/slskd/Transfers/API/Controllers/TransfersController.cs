@@ -83,9 +83,22 @@ namespace slskd.Transfers.API
         [Authorize]
         [ProducesResponseType(204)]
         [ProducesResponseType(404)]
-        public IActionResult CancelDownload([FromRoute, Required] string username, [FromRoute, Required]string id, [FromQuery]bool remove = false)
+        public async Task<IActionResult> CancelDownloadAsync([FromRoute, Required] string username, [FromRoute, Required]string id, [FromQuery]bool remove = false)
         {
-            return CancelTransfer(TransferDirection.Download, username, id, remove);
+            if (!Guid.TryParse(id, out var guid))
+            {
+                return BadRequest();
+            }
+
+            try
+            {
+                await Transfers.Downloads.CancelAsync(guid, remove);
+                return NoContent();
+            }
+            catch (NotFoundException)
+            {
+                return NotFound();
+            }
         }
 
         /// <summary>
@@ -180,15 +193,24 @@ namespace slskd.Transfers.API
         [ProducesResponseType(404)]
         public async Task<IActionResult> GetPlaceInQueue([FromRoute, Required]string username, [FromRoute, Required]string id)
         {
-            var record = Tracker.Transfers.WithDirection(TransferDirection.Download).FromUser(username).WithId(id);
+            if (!Guid.TryParse(id, out var guid))
+            {
+                return BadRequest();
+            }
 
-            if (record == default)
+            try
+            {
+                var place = await Transfers.Downloads.GetPlaceInQueueAsync(guid);
+                return Ok(place);
+            }
+            catch (NotFoundException)
             {
                 return NotFound();
             }
-
-            record.Transfer.PlaceInQueue = await Client.GetDownloadPlaceInQueueAsync(username, record.Transfer.Filename);
-            return Ok(record.Transfer);
+            catch (Exception ex)
+            {
+                return StatusCode(500, ex.Message);
+            }
         }
 
         /// <summary>
@@ -239,39 +261,6 @@ namespace slskd.Transfers.API
                 .WithDirection(TransferDirection.Upload)
                 .FromUser(username)
                 .WithId(id).Transfer);
-        }
-
-        private static FileStream GetLocalFileStream(string remoteFilename, string saveDirectory)
-        {
-            var localFilename = remoteFilename.ToLocalFilename(baseDirectory: saveDirectory);
-            var path = Path.GetDirectoryName(localFilename);
-
-            if (!System.IO.Directory.Exists(path))
-            {
-                System.IO.Directory.CreateDirectory(path);
-            }
-
-            return new FileStream(localFilename, FileMode.Create);
-        }
-
-        private static void MoveFile(string filename, string sourceDirectory, string destinationDirectory)
-        {
-            var sourceFilename = filename.ToLocalFilename(sourceDirectory);
-            var destinationFilename = filename.ToLocalFilename(destinationDirectory);
-
-            var destinationPath = Path.GetDirectoryName(destinationFilename);
-
-            if (!System.IO.Directory.Exists(destinationPath))
-            {
-                System.IO.Directory.CreateDirectory(destinationPath);
-            }
-
-            System.IO.File.Move(sourceFilename, destinationFilename, overwrite: true);
-
-            if (!System.IO.Directory.EnumerateFileSystemEntries(Path.GetDirectoryName(sourceFilename)).Any())
-            {
-                System.IO.Directory.Delete(Path.GetDirectoryName(sourceFilename));
-            }
         }
 
         private IActionResult CancelTransfer(TransferDirection direction, string username, string id, bool remove = false)
