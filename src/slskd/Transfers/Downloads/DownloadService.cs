@@ -285,14 +285,20 @@ namespace slskd.Transfers.Downloads
         {
             try
             {
-                var transfer = await FindAsync(tx => tx.Id == id);
+                var context = await ContextFactory.CreateDbContextAsync();
+                var transfer = await context.Transfers.FindAsync(id);
 
                 if (transfer == default)
                 {
                     throw new NotFoundException($"No download matching id ${id}");
                 }
 
-                return await Client.GetDownloadPlaceInQueueAsync(transfer.Username, transfer.Filename);
+                var place = await Client.GetDownloadPlaceInQueueAsync(transfer.Username, transfer.Filename);
+
+                transfer.PlaceInQueue = place;
+                await context.SaveChangesAsync();
+
+                return place;
             }
             catch (Exception ex)
             {
@@ -317,18 +323,18 @@ namespace slskd.Transfers.Downloads
 
         public async Task RemoveAsync(Guid id)
         {
-            using var context = await ContextFactory.CreateDbContextAsync();
-            var transfer = await context.Transfers.FindAsync(id);
-
-            if (transfer == default)
-            {
-                throw new NotFoundException($"No download matching id ${id}");
-            }
-
-            transfer.Removed = true;
-
             try
             {
+                using var context = await ContextFactory.CreateDbContextAsync();
+                var transfer = await context.Transfers.FindAsync(id);
+
+                if (transfer == default)
+                {
+                    throw new NotFoundException($"No download matching id ${id}");
+                }
+
+                transfer.Removed = true;
+
                 await context.SaveChangesAsync();
             }
             catch (Exception ex)
