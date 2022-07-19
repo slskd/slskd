@@ -20,6 +20,7 @@ namespace slskd.Transfers
     using System;
     using System.ComponentModel.DataAnnotations;
     using System.ComponentModel.DataAnnotations.Schema;
+    using System.Text.Json.Serialization;
     using Soulseek;
 
     public class Transfer
@@ -40,8 +41,10 @@ namespace slskd.Transfers
         public long BytesTransferred { get; set; }
         public double AverageSpeed { get; set; }
 
+        public int? PlaceInQueue { get; set; }
         public string Exception { get; set; }
 
+        [JsonIgnore]
         public bool Removed { get; set; }
 
         [NotMapped]
