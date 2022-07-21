@@ -69,7 +69,12 @@ namespace slskd
 
             await Download(url, BinFile);
 
-            await ExecAsync(BinFile, Environment.ProcessId, outputFile);
+            if (!OperatingSystem.IsWindows())
+            {
+                await ExecAsync("/bin/sh", $"-c \"chmod +x {BinFile}\"");
+            }
+
+            await ExecAsync(BinFile, $"collect --process-id {Environment.ProcessId} --type full --output {outputFile}");
 
             return outputFile;
         }
@@ -97,11 +102,11 @@ namespace slskd
             await remoteStream.CopyToAsync(localStream);
         }
 
-        private async Task ExecAsync(string bin, int pid, string output)
+        private async Task ExecAsync(string bin, string args)
         {
             using var process = new Process();
             process.StartInfo.FileName = bin;
-            process.StartInfo.Arguments = $"collect --process-id {pid} --type full --output {output}";
+            process.StartInfo.Arguments = args;
             process.Start();
             await process.WaitForExitAsync();
         }
