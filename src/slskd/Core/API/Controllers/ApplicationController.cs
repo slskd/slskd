@@ -136,5 +136,15 @@ namespace slskd.Core.API
 
             return Ok();
         }
+
+        [HttpGet("dump")]
+        [Authorize]
+        public async Task<IActionResult> DumpMemory()
+        {
+            using var dumper = new Dumper();
+            var file = await dumper.DumpAsync();
+
+            return PhysicalFile(file, "application/octet-stream", "slskd.dmp");
+        }
     }
 }
