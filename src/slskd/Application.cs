@@ -344,10 +344,18 @@ namespace slskd
         /// <returns>A Task resolving an IEnumerable of Soulseek.Directory.</returns>
         private async Task<BrowseResponse> BrowseResponseResolver(string username, IPEndPoint endpoint)
         {
-            var directories = (await Shares.BrowseAsync())
-                .Select(d => new Soulseek.Directory(d.Name.Replace('/', '\\'), d.Files)); // Soulseek NS requires backslashes
+            try
+            {
+                var directories = (await Shares.BrowseAsync())
+                    .Select(d => new Soulseek.Directory(d.Name.Replace('/', '\\'), d.Files)); // Soulseek NS requires backslashes
 
-            return new BrowseResponse(directories);
+                return new BrowseResponse(directories);
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "Failed to resolve browse response: {Message}", ex.Message);
+                throw;
+            }
         }
 
         private void Client_BrowseProgressUpdated(object sender, BrowseProgressUpdatedEventArgs args)
@@ -562,7 +570,7 @@ namespace slskd
             catch (Exception ex)
             {
                 Log.Warning(ex, "Failed to estimate place in queue for {Filename} requested by {Username}", filename, username);
-                return Task.FromResult<int?>(null);
+                throw;
             }
         }
 
@@ -576,8 +584,16 @@ namespace slskd
         /// <returns>A Task resolving an instance of Soulseek.Directory containing the contents of the requested directory.</returns>
         private async Task<Soulseek.Directory> DirectoryContentsResponseResolver(string username, IPEndPoint endpoint, int token, string directory)
         {
-            var dir = await Shares.ListDirectoryAsync(directory);
-            return dir;
+            try
+            {
+                var dir = await Shares.ListDirectoryAsync(directory);
+                return dir;
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "Failed to resolve directory contents: {Message}", ex.Message);
+                throw;
+            }
         }
 
         /// <summary>
@@ -604,65 +620,73 @@ namespace slskd
                 return;
             }
 
-            _ = endpoint;
-            string localFilename;
-            FileInfo fileInfo = default;
-
-            Console.WriteLine($"[UPLOAD REQUESTED] [{username}/{filename}]");
-
             try
             {
-                localFilename = (await Shares.ResolveFilenameAsync(filename)).ToLocalOSPath();
+                _ = endpoint;
+                string localFilename;
+                FileInfo fileInfo = default;
 
-                fileInfo = new FileInfo(localFilename);
+                Console.WriteLine($"[UPLOAD REQUESTED] [{username}/{filename}]");
 
-                if (!fileInfo.Exists)
+                try
                 {
-                    throw new NotFoundException();
-                }
-            }
-            catch (NotFoundException)
-            {
-                Console.WriteLine($"[UPLOAD REJECTED] File {filename} not found.");
-                throw new DownloadEnqueueException($"File not shared.");
-            }
+                    localFilename = (await Shares.ResolveFilenameAsync(filename)).ToLocalOSPath();
 
-            // create a new cancellation token source so that we can cancel the upload from the UI.
-            var cts = new CancellationTokenSource();
-            var topts = new TransferOptions(
-                stateChanged: (e) =>
-                {
-                    tracker.AddOrUpdate(e.Transfer, cts);
+                    fileInfo = new FileInfo(localFilename);
 
-                    if (e.Transfer.State.HasFlag(TransferStates.Queued))
+                    if (!fileInfo.Exists)
                     {
-                        Transfers.Uploads.Queue.Enqueue(e.Transfer);
+                        throw new NotFoundException();
                     }
-                },
-                progressUpdated: (e) => tracker.AddOrUpdate(e.Transfer, cts),
-                governor: (tx, req, ct) => Transfers.Uploads.Governor.GetBytesAsync(tx, req, ct),
-                reporter: (tx, att, grant, act) => Transfers.Uploads.Governor.ReturnBytes(tx, att, grant, act),
-                slotAwaiter: (tx, ct) => Transfers.Uploads.Queue.AwaitStartAsync(tx),
-                slotReleased: (tx) => Transfers.Uploads.Queue.Complete(tx));
-
-            // accept all download requests, and begin the upload immediately. normally there would be an internal queue, and
-            // uploads would be handled separately.
-            _ = Task.Run(async () =>
-            {
-                // users with uploads must be watched so that we can keep informed of their
-                // online status, privileges, and statistics.  this is so that we can accurately
-                // determine their effective group.
-                if (!Users.IsWatched(username))
+                }
+                catch (NotFoundException)
                 {
-                    await Users.WatchAsync(username);
+                    Console.WriteLine($"[UPLOAD REJECTED] File {filename} not found.");
+                    throw new DownloadEnqueueException($"File not shared.");
                 }
 
-                using var stream = new FileStream(fileInfo.FullName, FileMode.Open, FileAccess.Read);
-                await Client.UploadAsync(username, filename, fileInfo.FullName, options: topts, cancellationToken: cts.Token);
-            }).ContinueWith(t =>
+                // create a new cancellation token source so that we can cancel the upload from the UI.
+                var cts = new CancellationTokenSource();
+                var topts = new TransferOptions(
+                    stateChanged: (e) =>
+                    {
+                        tracker.AddOrUpdate(e.Transfer, cts);
+
+                        if (e.Transfer.State.HasFlag(TransferStates.Queued))
+                        {
+                            Transfers.Uploads.Queue.Enqueue(e.Transfer);
+                        }
+                    },
+                    progressUpdated: (e) => tracker.AddOrUpdate(e.Transfer, cts),
+                    governor: (tx, req, ct) => Transfers.Uploads.Governor.GetBytesAsync(tx, req, ct),
+                    reporter: (tx, att, grant, act) => Transfers.Uploads.Governor.ReturnBytes(tx, att, grant, act),
+                    slotAwaiter: (tx, ct) => Transfers.Uploads.Queue.AwaitStartAsync(tx),
+                    slotReleased: (tx) => Transfers.Uploads.Queue.Complete(tx));
+
+                // accept all download requests, and begin the upload immediately. normally there would be an internal queue, and
+                // uploads would be handled separately.
+                _ = Task.Run(async () =>
+                {
+                    // users with uploads must be watched so that we can keep informed of their
+                    // online status, privileges, and statistics.  this is so that we can accurately
+                    // determine their effective group.
+                    if (!Users.IsWatched(username))
+                    {
+                        await Users.WatchAsync(username);
+                    }
+
+                    using var stream = new FileStream(fileInfo.FullName, FileMode.Open, FileAccess.Read);
+                    await Client.UploadAsync(username, filename, fileInfo.FullName, options: topts, cancellationToken: cts.Token);
+                }).ContinueWith(t =>
+                {
+                    Console.WriteLine($"[UPLOAD FAILED] {t.Exception}");
+                }, TaskContinuationOptions.NotOnRanToCompletion); // fire and forget
+            }
+            catch (Exception ex)
             {
-                Console.WriteLine($"[UPLOAD FAILED] {t.Exception}");
-            }, TaskContinuationOptions.NotOnRanToCompletion); // fire and forget
+                Log.Warning(ex, "Failed to enqueue upload: {Message}", ex.Message);
+                throw;
+            }
         }
 
         private async Task OptionsMonitor_OnChange(Options newOptions)
@@ -840,29 +864,37 @@ namespace slskd
                 return null;
             }
 
-            var results = await Shares.SearchAsync(query);
-
-            if (results.Any())
+            try
             {
-                // make sure our average speed (as reported by the server) is reasonably up to date
-                await RefreshUserStatistics();
+                var results = await Shares.SearchAsync(query);
 
-                var forecastedPosition = Transfers.Uploads.Queue.ForecastPosition(username);
+                if (results.Any())
+                {
+                    // make sure our average speed (as reported by the server) is reasonably up to date
+                    await RefreshUserStatistics();
 
-                Console.WriteLine($"[SENDING SEARCH RESULTS]: {results.Count()} records to {username} for query {query.SearchText} (forecasted position: {forecastedPosition})");
+                    var forecastedPosition = Transfers.Uploads.Queue.ForecastPosition(username);
 
-                return new SearchResponse(
-                    Client.Username,
-                    token,
-                    uploadSpeed: State.CurrentValue.User.Statistics.AverageSpeed,
-                    freeUploadSlots: forecastedPosition == 0 ? 1 : 0,
-                    queueLength: forecastedPosition,
-                    fileList: results);
+                    Console.WriteLine($"[SENDING SEARCH RESULTS]: {results.Count()} records to {username} for query {query.SearchText} (forecasted position: {forecastedPosition})");
+
+                    return new SearchResponse(
+                        Client.Username,
+                        token,
+                        uploadSpeed: State.CurrentValue.User.Statistics.AverageSpeed,
+                        freeUploadSlots: forecastedPosition == 0 ? 1 : 0,
+                        queueLength: forecastedPosition,
+                        fileList: results);
+                }
+
+                // if no results, either return null or an instance of SearchResponse with a fileList of length 0 in either case, no
+                // response will be sent to the requestor.
+                return null;
             }
-
-            // if no results, either return null or an instance of SearchResponse with a fileList of length 0 in either case, no
-            // response will be sent to the requestor.
-            return null;
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "Failed to resolve search response: {Message}", ex.Message);
+                throw;
+            }
         }
 
         private void ShareState_OnChange((ShareState Previous, ShareState Current) state)
@@ -926,13 +958,21 @@ namespace slskd
         /// <returns>A Task resolving the UserInfo instance.</returns>
         private Task<UserInfo> UserInfoResolver(string username, IPEndPoint endpoint)
         {
-            var info = new UserInfo(
-                description: Options.Soulseek.Description,
-                uploadSlots: 1,
-                queueLength: 0,
-                hasFreeUploadSlot: false);
+            try
+            {
+                var info = new UserInfo(
+                    description: Options.Soulseek.Description,
+                    uploadSlots: 1,
+                    queueLength: 0,
+                    hasFreeUploadSlot: false);
 
-            return Task.FromResult(info);
+                return Task.FromResult(info);
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "Failed to resolve user info: {Message}", ex.Message);
+                throw;
+            }
         }
     }
 }
