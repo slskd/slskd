@@ -991,7 +991,14 @@ namespace slskd
 
             banner += "\n└────────────────────────────────────────────────────────┘";
 
-            Console.WriteLine(banner);
+            try
+            {
+                Console.WriteLine(banner);
+            }
+            catch
+            {
+                // noop. console may not be available in all cases.
+            }
         }
 
         private static void VerifyDirectory(string directory, bool createIfMissing = true, bool verifyWriteable = true)

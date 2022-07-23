@@ -28,7 +28,14 @@ namespace slskd
         /// <inheritdoc/>
         public void Write(LogEvent logEvent)
         {
-            Console.WriteLine(logEvent.RenderMessage());
+            try
+            {
+                Console.WriteLine(logEvent.RenderMessage());
+            }
+            catch
+            {
+                // noop. console may not be available in all cases.
+            }
         }
     }
 }
