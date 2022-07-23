@@ -124,10 +124,10 @@ namespace slskd
             Client.UserStatusChanged += Client_UserStatusChanged;
             Client.PrivateMessageReceived += Client_PrivateMessageRecieved;
 
-            Client.PrivateRoomMembershipAdded += (e, room) => Console.WriteLine($"Added to private room {room}");
-            Client.PrivateRoomMembershipRemoved += (e, room) => Console.WriteLine($"Removed from private room {room}");
-            Client.PrivateRoomModerationAdded += (e, room) => Console.WriteLine($"Promoted to moderator in private room {room}");
-            Client.PrivateRoomModerationRemoved += (e, room) => Console.WriteLine($"Demoted from moderator in private room {room}");
+            Client.PrivateRoomMembershipAdded += (e, room) => Log.Information("Added to private room {Room}", room);
+            Client.PrivateRoomMembershipRemoved += (e, room) => Log.Information("Removed from private room {Room}", room);
+            Client.PrivateRoomModerationAdded += (e, room) => Log.Information("Promoted to moderator in private room {Room}", room);
+            Client.PrivateRoomModerationRemoved += (e, room) => Log.Information("Demoted from moderator in private room {Room}", room);
 
             Client.PublicChatMessageReceived += Client_PublicChatMessageReceived;
             Client.RoomMessageReceived += Client_RoomMessageReceived;
@@ -464,14 +464,13 @@ namespace slskd
 
             if (Options.Integration.Pushbullet.Enabled && !args.Replayed)
             {
-                Console.WriteLine("Pushing...");
                 _ = Pushbullet.PushAsync($"Private Message from {args.Username}", args.Username, args.Message);
             }
         }
 
         private void Client_PublicChatMessageReceived(object sender, PublicChatMessageReceivedEventArgs args)
         {
-            Console.WriteLine($"[PUBLIC CHAT] [{args.RoomName}] [{args.Username}]: {args.Message}");
+            Log.Information("[Public Chat/{Room}] [{Username}]: {Message}", args.RoomName, args.Username, args.Message);
 
             if (Options.Integration.Pushbullet.Enabled && args.Message.Contains(Client.Username))
             {
@@ -557,7 +556,6 @@ namespace slskd
 
         private void Client_UserStatusChanged(object sender, UserStatus args)
         {
-            Console.WriteLine($"[USER] {args.Username}: {args.Presence}");
         }
 
         private Task<int?> PlaceInQueueResolver(string username, IPEndPoint endpoint, string filename)
@@ -626,7 +624,7 @@ namespace slskd
                 string localFilename;
                 FileInfo fileInfo = default;
 
-                Console.WriteLine($"[UPLOAD REQUESTED] [{username}/{filename}]");
+                Log.Information("[{Context}] {Username} requested {Filename}]", "UPLOAD REQUESTED", username, filename);
 
                 try
                 {
@@ -641,7 +639,7 @@ namespace slskd
                 }
                 catch (NotFoundException)
                 {
-                    Console.WriteLine($"[UPLOAD REJECTED] File {filename} not found.");
+                    Log.Information("[{Context}] {Filename} for {Username}: file not found", "UPLOAD REJECTED", username, filename);
                     throw new DownloadEnqueueException($"File not shared.");
                 }
 
@@ -679,7 +677,7 @@ namespace slskd
                     await Client.UploadAsync(username, filename, fileInfo.FullName, options: topts, cancellationToken: cts.Token);
                 }).ContinueWith(t =>
                 {
-                    Console.WriteLine($"[UPLOAD FAILED] {t.Exception}");
+                    Log.Information("[{Context}] {Filename} for {Username}: {Message}", "UPLOAD FAILED", username, filename, t.Exception?.Message);
                 }, TaskContinuationOptions.NotOnRanToCompletion); // fire and forget
             }
             catch (Exception ex)
@@ -875,7 +873,7 @@ namespace slskd
 
                     var forecastedPosition = Transfers.Uploads.Queue.ForecastPosition(username);
 
-                    Console.WriteLine($"[SENDING SEARCH RESULTS]: {results.Count()} records to {username} for query {query.SearchText} (forecasted position: {forecastedPosition})");
+                    Log.Information("[{Context}]: Sending {Count} records to {Username} for query '{Query}'", "SEARCH RESULT SENT", results.Count(), username, query.SearchText);
 
                     return new SearchResponse(
                         Client.Username,
