@@ -35,30 +35,6 @@ namespace slskd.Transfers.Downloads
     /// <summary>
     ///     Manages downloads.
     /// </summary>
-    public interface IDownloadService
-    {
-        /// <summary>
-        ///     Enqueues the requested list of <paramref name="files"/>.
-        /// </summary>
-        /// <remarks>
-        ///     If one file in the specified collection fails, the rest will continue.  An <see cref="AggregateException"/> will be thrown after all files are dispositioned if any throws.
-        /// </remarks>
-        /// <param name="id"></param>
-        /// <param name="username"></param>
-        /// <param name="files"></param>
-        /// <returns></returns>
-        /// <exception cref="AggregateException">Thrown when at least one of the requested files throws.</exception>
-        Task EnqueueAsync(string username, IEnumerable<(string Filename, long Size)> files);
-        Task<int> GetPlaceInQueueAsync(Guid id);
-        Task<bool> CancelAsync(Guid id, bool remove = false);
-        Task RemoveAsync(Guid id);
-        Task<Transfer> FindAsync(Expression<Func<Transfer, bool>> expression);
-        Task<List<Transfer>> ListAsync(Expression<Func<Transfer, bool>> expression = null);
-    }
-
-    /// <summary>
-    ///     Manages downloads.
-    /// </summary>
     public class DownloadService : IDownloadService
     {
         public DownloadService(
@@ -75,204 +51,213 @@ namespace slskd.Transfers.Downloads
             FTP = ftpClient;
         }
 
-        private IDbContextFactory<TransfersDbContext> ContextFactory { get; }
-        private IOptionsMonitor<Options> OptionsMonitor { get; }
+        private ConcurrentDictionary<Guid, CancellationTokenSource> CancellationTokens { get; } = new ConcurrentDictionary<Guid, CancellationTokenSource>();
         private ISoulseekClient Client { get; }
-        private ITransferTracker Tracker { get; }
+        private IDbContextFactory<TransfersDbContext> ContextFactory { get; }
         private IFTPService FTP { get; }
         private ILogger Log { get; } = Serilog.Log.ForContext<DownloadService>();
-        private ConcurrentDictionary<Guid, CancellationTokenSource> CancellationTokens { get; } = new ConcurrentDictionary<Guid, CancellationTokenSource>();
-
-        public async Task<bool> CancelAsync(Guid id, bool remove = false)
-        {
-            if (CancellationTokens.TryRemove(id, out var cts))
-            {
-                cts.Cancel();
-
-                if (remove)
-                {
-                    await RemoveAsync(id);
-                }
-
-                return true;
-            }
-
-            return false;
-        }
+        private IOptionsMonitor<Options> OptionsMonitor { get; }
+        private ITransferTracker Tracker { get; }
 
         /// <summary>
         ///     Enqueues the requested list of <paramref name="files"/>.
         /// </summary>
         /// <remarks>
-        ///     If one file in the specified collection fails, the rest will continue.  An <see cref="AggregateException"/> will be thrown after all files are dispositioned if any throws.
+        ///     If one file in the specified collection fails, the rest will continue. An <see cref="AggregateException"/> will be
+        ///     thrown after all files are dispositioned if any throws.
         /// </remarks>
-        /// <param name="username"></param>
-        /// <param name="files"></param>
-        /// <returns></returns>
+        /// <param name="username">The username of the requesting user.</param>
+        /// <param name="files">The list of files to enqueue.</param>
+        /// <returns>The operation context.</returns>
+        /// <exception cref="ArgumentException">Thrown when the username is null or an empty string.</exception>
+        /// <exception cref="ArgumentException">Thrown when no files are requested.</exception>
         /// <exception cref="AggregateException">Thrown when at least one of the requested files throws.</exception>
-        public async Task EnqueueAsync(string username, IEnumerable<(string Filename, long Size)> files)
+        public Task EnqueueAsync(string username, IEnumerable<(string Filename, long Size)> files)
         {
-            try
+            if (string.IsNullOrEmpty(username))
             {
-                Log.Information("Downloading {Count} files from user {Username}", files.Count(), username);
+                throw new ArgumentException("Username is required", nameof(username));
+            }
 
-                Log.Debug("Priming connection for user {Username}", username);
-                await Client.ConnectToUserAsync(username, invalidateCache: false);
-                Log.Debug("Connection for user '{Username}' primed", username);
+            if (!files.Any())
+            {
+                throw new ArgumentException("At least one file is require", nameof(files));
+            }
 
-                var thrownExceptions = new List<Exception>();
+            return EnqueueAsyncInternal(username, files);
 
-                foreach (var file in files)
+            async Task EnqueueAsyncInternal(string username, IEnumerable<(string Filename, long Size)> files)
+            {
+                try
                 {
-                    Log.Debug("Attempting to enqueue {Filename} from user {Username}", file.Filename, username);
+                    Log.Information("Downloading {Count} files from user {Username}", files.Count(), username);
 
-                    var id = Guid.NewGuid();
+                    Log.Debug("Priming connection for user {Username}", username);
+                    await Client.ConnectToUserAsync(username, invalidateCache: false);
+                    Log.Debug("Connection for user '{Username}' primed", username);
 
-                    var transfer = new Transfer()
+                    var thrownExceptions = new List<Exception>();
+
+                    foreach (var file in files)
                     {
-                        Id = id,
-                        Username = username,
-                        Direction = TransferDirection.Download,
-                        Filename = file.Filename,
-                        Size = file.Size,
-                        StartOffset = 0,
-                        RequestedAt = DateTime.UtcNow,
-                    };
+                        Log.Debug("Attempting to enqueue {Filename} from user {Username}", file.Filename, username);
 
-                    // persist the transfer to the database so we have a record that it was attempted
-                    using var context = await ContextFactory.CreateDbContextAsync();
-                    context.Add(transfer);
-                    await context.SaveChangesAsync();
+                        var id = Guid.NewGuid();
 
-                    var cts = new CancellationTokenSource();
-                    CancellationTokens.TryAdd(id, cts);
+                        var transfer = new Transfer()
+                        {
+                            Id = id,
+                            Username = username,
+                            Direction = TransferDirection.Download,
+                            Filename = file.Filename,
+                            Size = file.Size,
+                            StartOffset = 0,
+                            RequestedAt = DateTime.UtcNow,
+                        };
 
-                    var waitUntilEnqueue = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-
-                    async Task UpdateAndSaveChangesAsync(Transfer transfer)
-                    {
+                        // persist the transfer to the database so we have a record that it was attempted
                         using var context = await ContextFactory.CreateDbContextAsync();
-                        context.Update(transfer);
+                        context.Add(transfer);
+                        await context.SaveChangesAsync();
+
+                        var cts = new CancellationTokenSource();
+                        CancellationTokens.TryAdd(id, cts);
+
+                        var waitUntilEnqueue = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+                        async Task UpdateAndSaveChangesAsync(Transfer transfer)
+                        {
+                            using var context = await ContextFactory.CreateDbContextAsync();
+                            context.Update(transfer);
+                            await context.SaveChangesAsync();
+                        }
+
+                        // this task does the actual work of downloading the file. if the transfer is successfully queued
+                        // remotely, the waitUntilEnqueue completion source is set, which yields execution to below so we can
+                        // return and let the caller know.
+                        var downloadTask = Task.Run(async () =>
+                        {
+                            using var rateLimiter = new RateLimiter(250);
+
+                            try
+                            {
+                                var completedTransfer = await Client.DownloadAsync(
+                                    username: username,
+                                    remoteFilename: file.Filename,
+                                    outputStreamFactory: () => GetLocalFileStream(file.Filename, OptionsMonitor.CurrentValue.Directories.Incomplete),
+                                    size: file.Size,
+                                    startOffset: 0,
+                                    token: null,
+                                    cancellationToken: cts.Token,
+                                    options: new TransferOptions(
+                                        disposeOutputStreamOnCompletion: true,
+                                        stateChanged: (args) =>
+                                        {
+                                            Log.Debug("Download of {Filename} from user {Username} changed state from {Previous} to {New}", file.Filename, username, args.PreviousState, args.Transfer.State);
+
+                                            Tracker.AddOrUpdate(args.Transfer, cts);
+
+                                            transfer = transfer.WithSoulseekTransfer(args.Transfer);
+                                            // todo: broadcast
+                                            _ = UpdateAndSaveChangesAsync(transfer);
+
+                                            if (args.Transfer.State.HasFlag(TransferStates.Queued) || args.Transfer.State == TransferStates.Initializing)
+                                            {
+                                                waitUntilEnqueue.TrySetResult(true);
+                                            }
+                                        },
+                                        progressUpdated: (args) => rateLimiter.Invoke(() =>
+                                        {
+                                            transfer = transfer.WithSoulseekTransfer(args.Transfer);
+                                            // todo: broadcast
+                                            _ = UpdateAndSaveChangesAsync(transfer);
+
+                                            Tracker.AddOrUpdate(args.Transfer, cts);
+                                        })));
+
+                                transfer = transfer.WithSoulseekTransfer(completedTransfer);
+                                // todo: broadcast
+                                await UpdateAndSaveChangesAsync(transfer);
+
+                                // this would be the ideal place to hook in a generic post-download task processor for now, we'll
+                                // just carry out hard coded behavior
+                                MoveFile(file.Filename, OptionsMonitor.CurrentValue.Directories.Incomplete, OptionsMonitor.CurrentValue.Directories.Downloads);
+
+                                if (OptionsMonitor.CurrentValue.Integration.Ftp.Enabled)
+                                {
+                                    _ = FTP.UploadAsync(file.Filename.ToLocalFilename(OptionsMonitor.CurrentValue.Directories.Downloads));
+                                }
+                            }
+                            finally
+                            {
+                                CancellationTokens.TryRemove(id, out _);
+                            }
+                        });
+
+                        // wait until either the waitUntilEnqueue task completes because the download was successfully queued, or
+                        // the downloadTask throws due to an error prior to successfully queueing.
+                        var task = await Task.WhenAny(waitUntilEnqueue.Task, downloadTask);
+
+                        // if the download task completed first it is a very good indication that it threw an exception or was
+                        // otherwise not successful. try to figure out why and update everything to reflect the failure, but
+                        // continue processing the batch
+                        if (task == downloadTask)
+                        {
+                            Exception ex = downloadTask.Exception;
+
+                            // todo: figure out why this needs to be unwrapped just for this one case. is this always an aggregate?
+                            if (ex is AggregateException aggEx)
+                            {
+                                var rejected = aggEx.InnerExceptions.Where(e => e is TransferRejectedException) ?? Enumerable.Empty<Exception>();
+                                if (rejected.Any())
+                                {
+                                    ex = rejected.First();
+                                }
+                            }
+
+                            Log.Error("Failed to download {Filename} from {Username}: {Message}", file.Filename, username, ex.Message);
+                            thrownExceptions.Add(ex);
+                            transfer.Exception = ex.Message;
+                            transfer.State = TransferStates.Completed | TransferStates.Errored;
+                            transfer.EndedAt = DateTime.UtcNow;
+                        }
+                        else
+                        {
+                            transfer.EnqueuedAt = DateTime.UtcNow;
+                            Log.Debug("Successfully enqueued {Filename} from user {Username}", file.Filename, username);
+                        }
+
                         await context.SaveChangesAsync();
                     }
 
-                    // this task does the actual work of downloading the file. if the transfer is successfully queued remotely,
-                    // the waitUntilEnqueue completion source is set, which yields execution to below so we can return and let
-                    // the caller know.
-                    var downloadTask = Task.Run(async () =>
+                    if (thrownExceptions.Any())
                     {
-                        using var rateLimiter = new RateLimiter(250);
-
-                        try
-                        {
-                            var completedTransfer = await Client.DownloadAsync(
-                                username: username,
-                                remoteFilename: file.Filename,
-                                outputStreamFactory: () => GetLocalFileStream(file.Filename, OptionsMonitor.CurrentValue.Directories.Incomplete),
-                                size: file.Size,
-                                startOffset: 0,
-                                token: null,
-                                cancellationToken: cts.Token,
-                                options: new TransferOptions(
-                                    disposeOutputStreamOnCompletion: true,
-                                    stateChanged: (args) =>
-                                    {
-                                        Log.Debug("Download of {Filename} from user {Username} changed state from {Previous} to {New}", file.Filename, username, args.PreviousState, args.Transfer.State);
-
-                                        Tracker.AddOrUpdate(args.Transfer, cts);
-
-                                        transfer = transfer.WithSoulseekTransfer(args.Transfer);
-                                        // todo: broadcast
-                                        _ = UpdateAndSaveChangesAsync(transfer);
-
-                                        if (args.Transfer.State.HasFlag(TransferStates.Queued) || args.Transfer.State == TransferStates.Initializing)
-                                        {
-                                            waitUntilEnqueue.TrySetResult(true);
-                                        }
-                                    },
-                                    progressUpdated: (args) => rateLimiter.Invoke(() =>
-                                    {
-                                        transfer = transfer.WithSoulseekTransfer(args.Transfer);
-                                        // todo: broadcast
-                                        _ = UpdateAndSaveChangesAsync(transfer);
-
-                                        Tracker.AddOrUpdate(args.Transfer, cts);
-                                    })));
-
-                            transfer = transfer.WithSoulseekTransfer(completedTransfer);
-                            // todo: broadcast
-                            await UpdateAndSaveChangesAsync(transfer);
-
-                            // this would be the ideal place to hook in a generic post-download task processor
-                            // for now, we'll just carry out hard coded behavior
-                            MoveFile(file.Filename, OptionsMonitor.CurrentValue.Directories.Incomplete, OptionsMonitor.CurrentValue.Directories.Downloads);
-
-                            if (OptionsMonitor.CurrentValue.Integration.Ftp.Enabled)
-                            {
-                                _ = FTP.UploadAsync(file.Filename.ToLocalFilename(OptionsMonitor.CurrentValue.Directories.Downloads));
-                            }
-                        }
-                        finally
-                        {
-                            CancellationTokens.TryRemove(id, out _);
-                        }
-                    });
-
-                    // wait until either the waitUntilEnqueue task completes because the download was successfully queued, or the
-                    // downloadTask throws due to an error prior to successfully queueing.
-                    var task = await Task.WhenAny(waitUntilEnqueue.Task, downloadTask);
-
-                    // if the download task completed first it is a very good indication that it threw an exception or was otherwise
-                    // not successful. try to figure out why and update everything to reflect the failure, but continue processing the batch
-                    if (task == downloadTask)
-                    {
-                        Exception ex = downloadTask.Exception;
-
-                        // todo: figure out why this needs to be unwrapped just for this one case.  is this always an aggregate?
-                        if (ex is AggregateException aggEx)
-                        {
-                            var rejected = aggEx.InnerExceptions.Where(e => e is TransferRejectedException) ?? Enumerable.Empty<Exception>();
-                            if (rejected.Any())
-                            {
-                                ex = rejected.First();
-                            }
-                        }
-
-                        Log.Error("Failed to download {Filename} from {Username}: {Message}", file.Filename, username, ex.Message);
-                        thrownExceptions.Add(ex);
-                        transfer.Exception = ex.Message;
-                        transfer.State = TransferStates.Completed | TransferStates.Errored;
-                        transfer.EndedAt = DateTime.UtcNow;
-                    }
-                    else
-                    {
-                        transfer.EnqueuedAt = DateTime.UtcNow;
-                        Log.Debug("Successfully enqueued {Filename} from user {Username}", file.Filename, username);
+                        throw new AggregateException(thrownExceptions);
                     }
 
-                    await context.SaveChangesAsync();
+                    Log.Information("Successfully enqueued {Count} files from user {Username}", files.Count(), username);
                 }
-
-                if (thrownExceptions.Any())
+                catch (Exception ex)
                 {
-                    throw new AggregateException(thrownExceptions);
+                    Log.Error(ex, "Failed to download one or more files from user {Username}: {Message}", username, ex.Message);
+                    throw;
                 }
-
-                Log.Information("Successfully enqueued {Count} files from user {Username}", files.Count(), username);
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "Failed to download one or more files from user {Username}: {Message}", username, ex.Message);
-                throw;
             }
         }
 
+        /// <summary>
+        ///     Finds a single download matching the specified <paramref name="expression"/>.
+        /// </summary>
+        /// <param name="expression">The expression to use to match downloads.</param>
+        /// <returns>The found transfer, or default if not found.</returns>
         public async Task<Transfer> FindAsync(Expression<Func<Transfer, bool>> expression)
         {
             try
             {
                 var context = await ContextFactory.CreateDbContextAsync();
-                return await context.Transfers.Where(expression).FirstOrDefaultAsync();
+                return await context.Transfers
+                    .Where(t => t.Direction == TransferDirection.Download)
+                    .Where(expression).FirstOrDefaultAsync();
             }
             catch (Exception ex)
             {
@@ -281,6 +266,11 @@ namespace slskd.Transfers.Downloads
             }
         }
 
+        /// <summary>
+        ///     Retrieves the place in the remote queue for the download matching the specified <paramref name="id"/>.
+        /// </summary>
+        /// <param name="id">The unique identifier for the download.</param>
+        /// <returns>The retrieved place in queue.</returns>
         public async Task<int> GetPlaceInQueueAsync(Guid id)
         {
             try
@@ -307,12 +297,24 @@ namespace slskd.Transfers.Downloads
             }
         }
 
-        public async Task<List<Transfer>> ListAsync(Expression<Func<Transfer, bool>> expression = null)
+        /// <summary>
+        ///     Returns a list of all downloads matching the optional <paramref name="expression"/>.
+        /// </summary>
+        /// <param name="expression">An optional expression used to match downloads.</param>
+        /// <param name="includeRemoved">Optionally include downloads that have been removed previously.</param>
+        /// <returns>The list of downloads matching the specified expression, or all downloads if no expression is specified.</returns>
+        public async Task<List<Transfer>> ListAsync(Expression<Func<Transfer, bool>> expression = null, bool includeRemoved = false)
         {
+            expression ??= t => true;
+
             try
             {
                 var context = await ContextFactory.CreateDbContextAsync();
-                return await context.Transfers.Where(expression).ToListAsync();
+                return await context.Transfers
+                    .Where(t => t.Direction == TransferDirection.Download)
+                    .Where(t => !t.Removed || includeRemoved)
+                    .Where(expression)
+                    .ToListAsync();
             }
             catch (Exception ex)
             {
@@ -321,6 +323,12 @@ namespace slskd.Transfers.Downloads
             }
         }
 
+        /// <summary>
+        ///     Removes the download matching the specified <paramref name="id"/>.
+        /// </summary>
+        /// <remarks>This is a soft delete; the record is retained for historical retrieval.</remarks>
+        /// <param name="id">The unique identifier of the download.</param>
+        /// <returns></returns>
         public async Task RemoveAsync(Guid id)
         {
             try
@@ -342,6 +350,22 @@ namespace slskd.Transfers.Downloads
                 Log.Error(ex, "Failed to remove download {Id}: {Message}", id, ex.Message);
                 throw;
             }
+        }
+
+        /// <summary>
+        ///     Cancels the download matching the specified <paramref name="id"/>, if it is in progress.
+        /// </summary>
+        /// <param name="id">The unique identifier for the download.</param>
+        /// <returns>A value indicating whether the download was successfully cancelled.</returns>
+        public bool TryCancel(Guid id)
+        {
+            if (CancellationTokens.TryRemove(id, out var cts))
+            {
+                cts.Cancel();
+                return true;
+            }
+
+            return false;
         }
 
         private static FileStream GetLocalFileStream(string remoteFilename, string saveDirectory)
