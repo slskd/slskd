@@ -23,6 +23,6 @@ namespace slskd.Transfers.API
     {
         public string Name { get; init; }
         public int FileCount { get; init; }
-        public IEnumerable<Transfer> Files { get; init; }
+        public IEnumerable<Transfers.Transfer> Files { get; init; }
     }
 }
