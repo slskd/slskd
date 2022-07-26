@@ -40,12 +40,10 @@ namespace slskd.Transfers.Downloads
         public DownloadService(
             IOptionsMonitor<Options> optionsMonitor,
             ISoulseekClient soulseekClient,
-            ITransferTracker tracker,
             IDbContextFactory<TransfersDbContext> contextFactory,
             IFTPService ftpClient)
         {
             Client = soulseekClient;
-            Tracker = tracker;
             OptionsMonitor = optionsMonitor;
             ContextFactory = contextFactory;
             FTP = ftpClient;
@@ -57,7 +55,6 @@ namespace slskd.Transfers.Downloads
         private IFTPService FTP { get; }
         private ILogger Log { get; } = Serilog.Log.ForContext<DownloadService>();
         private IOptionsMonitor<Options> OptionsMonitor { get; }
-        private ITransferTracker Tracker { get; }
 
         /// <summary>
         ///     Enqueues the requested list of <paramref name="files"/>.
@@ -155,8 +152,6 @@ namespace slskd.Transfers.Downloads
                                         {
                                             Log.Debug("Download of {Filename} from user {Username} changed state from {Previous} to {New}", file.Filename, username, args.PreviousState, args.Transfer.State);
 
-                                            Tracker.AddOrUpdate(args.Transfer, cts);
-
                                             transfer = transfer.WithSoulseekTransfer(args.Transfer);
                                             // todo: broadcast
                                             _ = UpdateAndSaveChangesAsync(transfer);
@@ -171,8 +166,6 @@ namespace slskd.Transfers.Downloads
                                             transfer = transfer.WithSoulseekTransfer(args.Transfer);
                                             // todo: broadcast
                                             _ = UpdateAndSaveChangesAsync(transfer);
-
-                                            Tracker.AddOrUpdate(args.Transfer, cts);
                                         })));
 
                                 transfer = transfer.WithSoulseekTransfer(completedTransfer);
