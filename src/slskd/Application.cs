@@ -599,7 +599,7 @@ namespace slskd
         {
             // remote clients might sometimes re-request downloads to check the status. don't try to add the download again
             // if it is already tracked.
-            if (tracker.Contains(TransferDirection.Upload, username, filename))
+            if (await Transfers.Uploads.ExistsAsync(t => t.Username == username && t.Filename == filename))
             {
                 return;
             }

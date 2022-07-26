@@ -38,6 +38,14 @@ namespace slskd.Transfers.Uploads
         IUploadQueue Queue { get; }
 
         /// <summary>
+        ///     Enqueues the requested file.
+        /// </summary>
+        /// <param name="username">The username of the requesting user.</param>
+        /// <param name="filename">The local filename of the requested file.</param>
+        /// <returns>The operation context.</returns>
+        Task EnqueueAsync(string username, string filename);
+
+        /// <summary>
         ///     Finds a single upload matching the specified <paramref name="expression"/>.
         /// </summary>
         /// <param name="expression">The expression to use to match uploads.</param>
@@ -66,5 +74,12 @@ namespace slskd.Transfers.Uploads
         /// <param name="id">The unique identifier for the upload.</param>
         /// <returns>A value indicating whether the upload was successfully cancelled.</returns>
         bool TryCancel(Guid id);
+
+        /// <summary>
+        ///     Returns a value indicating whether an upload matching the specified <paramref name="expression"/> exists.
+        /// </summary>
+        /// <param name="expression">The expression used to match uploads.</param>
+        /// <returns>A value indicating whether an upload matching the specified expression exists.</returns>
+        Task<bool> ExistsAsync(Expression<Func<Transfer, bool>> expression);
     }
 }

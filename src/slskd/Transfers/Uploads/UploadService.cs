@@ -15,7 +15,6 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-
 using Microsoft.Extensions.Options;
 using Soulseek;
 
@@ -23,14 +22,16 @@ namespace slskd.Transfers.Uploads
 {
     using System;
     using System.Collections.Concurrent;
+    using System.Collections.Generic;
+    using System.IO;
+    using System.Linq;
+    using System.Linq.Expressions;
     using System.Threading;
     using System.Threading.Tasks;
     using Microsoft.EntityFrameworkCore;
-    using slskd.Users;
     using Serilog;
-    using System.Linq;
-    using System.Linq.Expressions;
-    using System.Collections.Generic;
+    using slskd.Shares;
+    using slskd.Users;
 
     /// <summary>
     ///     Manages uploads.
@@ -39,19 +40,19 @@ namespace slskd.Transfers.Uploads
     {
         public UploadService(
             IUserService userService,
+            ISoulseekClient soulseekClient,
             IOptionsMonitor<Options> optionsMonitor,
+            IShareService shareService,
             IDbContextFactory<TransfersDbContext> contextFactory)
         {
+            Users = userService;
+            Client = soulseekClient;
+            Shares = shareService;
             ContextFactory = contextFactory;
 
             Governor = new UploadGovernor(userService, optionsMonitor);
             Queue = new UploadQueue(userService, optionsMonitor);
         }
-
-        private ConcurrentDictionary<Guid, CancellationTokenSource> CancellationTokens { get; } = new ConcurrentDictionary<Guid, CancellationTokenSource>();
-        private IDbContextFactory<TransfersDbContext> ContextFactory { get; }
-        private ILogger Log { get; } = Serilog.Log.ForContext<UploadService>();
-
 
         /// <summary>
         ///     Gets the upload governor.
@@ -62,6 +63,97 @@ namespace slskd.Transfers.Uploads
         ///     Gets the upload queue.
         /// </summary>
         public IUploadQueue Queue { get; init; }
+
+        private ConcurrentDictionary<Guid, CancellationTokenSource> CancellationTokens { get; } = new ConcurrentDictionary<Guid, CancellationTokenSource>();
+        private IDbContextFactory<TransfersDbContext> ContextFactory { get; }
+        private ILogger Log { get; } = Serilog.Log.ForContext<UploadService>();
+        private IShareService Shares { get; set; }
+        private IUserService Users { get; set; }
+        private ISoulseekClient Client { get; set; }
+
+        /// <summary>
+        ///     Enqueues the requested file.
+        /// </summary>
+        /// <param name="username">The username of the requesting user.</param>
+        /// <param name="filename">The local filename of the requested file.</param>
+        /// <returns>The operation context.</returns>
+        public async Task EnqueueAsync(string username, string filename)
+        {
+            // remote clients might sometimes re-request downloads to check the status. don't try to add the download again
+            // if it is already tracked.
+            if (await ExistsAsync(t => t.Username == username && t.Filename == filename))
+            {
+                return;
+            }
+
+            string localFilename;
+            FileInfo fileInfo = default;
+
+            Console.WriteLine($"[UPLOAD REQUESTED] [{username}/{filename}]");
+
+            try
+            {
+                localFilename = (await Shares.ResolveFilenameAsync(filename)).ToLocalOSPath();
+
+                fileInfo = new FileInfo(localFilename);
+
+                if (!fileInfo.Exists)
+                {
+                    throw new NotFoundException();
+                }
+            }
+            catch (NotFoundException)
+            {
+                Console.WriteLine($"[UPLOAD REJECTED] File {filename} not found.");
+                throw new DownloadEnqueueException($"File not shared.");
+            }
+
+            // todo: create record
+
+            // create a new cancellation token source so that we can cancel the upload from the UI.
+            var cts = new CancellationTokenSource();
+            var topts = new TransferOptions(
+                stateChanged: (e) =>
+                {
+                    // todo: update record
+                    // todo: broadcast
+                    tracker.AddOrUpdate(e.Transfer, cts);
+
+                    if (e.Transfer.State.HasFlag(TransferStates.Queued))
+                    {
+                        Queue.Enqueue(e.Transfer.Username, e.Transfer.Filename);
+                    }
+                },
+                progressUpdated: (e) =>
+                {
+                    // todo: update record
+                    // todo: broadcast
+                    tracker.AddOrUpdate(e.Transfer, cts);
+                },
+                governor: (tx, req, ct) => Governor.GetBytesAsync(tx.Username, req, ct),
+                reporter: (tx, att, grant, act) => Governor.ReturnBytes(tx.Username, att, grant, act),
+                slotAwaiter: (tx, ct) => Queue.AwaitStartAsync(tx.Username, tx.Filename),
+                slotReleased: (tx) => Queue.Complete(tx.Username, tx.Filename));
+
+            // accept all download requests, and begin the upload immediately. normally there would be an internal queue, and
+            // uploads would be handled separately.
+            _ = Task.Run(async () =>
+            {
+                // users with uploads must be watched so that we can keep informed of their
+                // online status, privileges, and statistics.  this is so that we can accurately
+                // determine their effective group.
+                if (!Users.IsWatched(username))
+                {
+                    await Users.WatchAsync(username);
+                }
+
+                using var stream = new FileStream(fileInfo.FullName, FileMode.Open, FileAccess.Read);
+                await Client.UploadAsync(username, filename, fileInfo.FullName, options: topts, cancellationToken: cts.Token);
+            }).ContinueWith(t =>
+            {
+                Console.WriteLine($"[UPLOAD FAILED] {t.Exception}");
+            }, TaskContinuationOptions.NotOnRanToCompletion); // fire and forget
+        }
 
         /// <summary>
         ///     Finds a single upload matching the specified <paramref name="expression"/>.
@@ -161,6 +253,16 @@ namespace slskd.Transfers.Uploads
             }
 
             return false;
+        }
+
+        /// <summary>
+        ///     Returns a value indicating whether an upload matching the specified <paramref name="expression"/> exists.
+        /// </summary>
+        /// <param name="expression">The expression used to match uploads.</param>
+        /// <returns>A value indicating whether an upload matching the specified expression exists.</returns>
+        public async Task<bool> ExistsAsync(Expression<Func<Transfer, bool>> expression)
+        {
+            return (await FindAsync(expression)) != default;
         }
     }
 }
