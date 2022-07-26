@@ -17,6 +17,11 @@
 
 namespace slskd.Transfers.Uploads
 {
+    using System;
+    using System.Collections.Generic;
+    using System.Linq.Expressions;
+    using System.Threading.Tasks;
+
     /// <summary>
     ///     Manages uploads.
     /// </summary>
@@ -31,5 +36,35 @@ namespace slskd.Transfers.Uploads
         ///     Gets the upload queue.
         /// </summary>
         IUploadQueue Queue { get; }
+
+        /// <summary>
+        ///     Finds a single upload matching the specified <paramref name="expression"/>.
+        /// </summary>
+        /// <param name="expression">The expression to use to match uploads.</param>
+        /// <returns>The found transfer, or default if not found.</returns>
+        Task<Transfer> FindAsync(Expression<Func<Transfer, bool>> expression);
+
+        /// <summary>
+        ///     Returns a list of all uploads matching the optional <paramref name="expression"/>.
+        /// </summary>
+        /// <param name="expression">An optional expression used to match uploads.</param>
+        /// <param name="includeRemoved">Optionally include uploads that have been removed previously.</param>
+        /// <returns>The list of uploads matching the specified expression, or all uploads if no expression is specified.</returns>
+        Task<List<Transfer>> ListAsync(Expression<Func<Transfer, bool>> expression = null, bool includeRemoved = false);
+
+        /// <summary>
+        ///     Removes the upload matching the specified <paramref name="id"/>.
+        /// </summary>
+        /// <remarks>This is a soft delete; the record is retained for historical retrieval.</remarks>
+        /// <param name="id">The unique identifier of the upload.</param>
+        /// <returns></returns>
+        Task RemoveAsync(Guid id);
+
+        /// <summary>
+        ///     Cancels the upload matching the specified <paramref name="id"/>, if it is in progress.
+        /// </summary>
+        /// <param name="id">The unique identifier for the upload.</param>
+        /// <returns>A value indicating whether the upload was successfully cancelled.</returns>
+        bool TryCancel(Guid id);
     }
 }

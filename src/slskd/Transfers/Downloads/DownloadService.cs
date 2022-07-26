@@ -327,11 +327,19 @@ namespace slskd.Transfers.Downloads
             try
             {
                 using var context = await ContextFactory.CreateDbContextAsync();
-                var transfer = await context.Transfers.FindAsync(id);
+                var transfer = await context.Transfers
+                    .Where(t => t.Direction == TransferDirection.Download)
+                    .Where(t => t.Id == id)
+                    .FirstOrDefaultAsync();
 
                 if (transfer == default)
                 {
                     throw new NotFoundException($"No download matching id ${id}");
+                }
+
+                if (!transfer.State.HasFlag(TransferStates.Completed))
+                {
+                    throw new InvalidOperationException($"Invalid attempt to remove a download before it is complete");
                 }
 
                 transfer.Removed = true;
