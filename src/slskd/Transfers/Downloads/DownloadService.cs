@@ -63,7 +63,7 @@ namespace slskd.Transfers.Downloads
         ///     If one file in the specified collection fails, the rest will continue. An <see cref="AggregateException"/> will be
         ///     thrown after all files are dispositioned if any throws.
         /// </remarks>
-        /// <param name="username">The username of the requesting user.</param>
+        /// <param name="username">The username of the remote user.</param>
         /// <param name="files">The list of files to enqueue.</param>
         /// <returns>The operation context.</returns>
         /// <exception cref="ArgumentException">Thrown when the username is null or an empty string.</exception>
