@@ -61,6 +61,7 @@ namespace slskd
     using slskd.Shares;
     using slskd.Transfers;
     using slskd.Transfers.Downloads;
+    using slskd.Transfers.Uploads;
     using slskd.Users;
     using slskd.Validation;
     using Soulseek;
@@ -465,6 +466,7 @@ namespace slskd
 
             services.AddSingleton<ITransferService, TransferService>();
             services.AddSingleton<IDownloadService, DownloadService>();
+            services.AddSingleton<IUploadService, UploadService>();
 
             services.AddSingleton<IFTPClientFactory, FTPClientFactory>();
             services.AddSingleton<IFTPService, FTPService>();

@@ -1,4 +1,4 @@
-﻿// <copyright file="UploadService.cs" company="slskd Team">
+// <copyright file="IUploadService.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -15,40 +15,21 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-
-using Microsoft.Extensions.Options;
-
 namespace slskd.Transfers.Uploads
 {
-    using Microsoft.EntityFrameworkCore;
-    using slskd.Users;
-
     /// <summary>
     ///     Manages uploads.
     /// </summary>
-    public class UploadService : IUploadService
+    public interface IUploadService
     {
-        public UploadService(
-            IUserService userService,
-            IOptionsMonitor<Options> optionsMonitor,
-            IDbContextFactory<TransfersDbContext> contextFactory)
-        {
-            ContextFactory = contextFactory;
-
-            Governor = new UploadGovernor(userService, optionsMonitor);
-            Queue = new UploadQueue(userService, optionsMonitor);
-        }
-
-        private IDbContextFactory<TransfersDbContext> ContextFactory { get; }
-
         /// <summary>
         ///     Gets the upload governor.
         /// </summary>
-        public IUploadGovernor Governor { get; init; }
+        IUploadGovernor Governor { get; }
 
         /// <summary>
         ///     Gets the upload queue.
         /// </summary>
-        public IUploadQueue Queue { get; init; }
+        IUploadQueue Queue { get; }
     }
 }
