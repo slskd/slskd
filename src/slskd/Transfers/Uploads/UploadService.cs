@@ -257,7 +257,6 @@ namespace slskd.Transfers.Uploads
             {
                 using var context = await ContextFactory.CreateDbContextAsync();
                 var transfer = await context.Transfers
-                    .AsNoTracking()
                     .Where(t => t.Direction == TransferDirection.Upload)
                     .Where(t => t.Id == id)
                     .FirstOrDefaultAsync();
