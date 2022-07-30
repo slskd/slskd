@@ -322,7 +322,7 @@
                 Assert.Empty(queue.GetProperty<ConcurrentDictionary<string, List<Upload>>>("Uploads"));
 
                 queue.Enqueue(username, filename);
-                queue.Enqueue(username, filename2);
+                queue.Enqueue(username2, filename2);
 
                 var uploads = queue.GetProperty<ConcurrentDictionary<string, List<Upload>>>("Uploads");
 
