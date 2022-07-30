@@ -247,7 +247,7 @@ namespace slskd.Transfers.Downloads
         {
             try
             {
-                var context = await ContextFactory.CreateDbContextAsync();
+                using var context = await ContextFactory.CreateDbContextAsync();
                 return await context.Transfers
                     .Where(t => t.Direction == TransferDirection.Download)
                     .Where(expression).FirstOrDefaultAsync();
@@ -268,7 +268,7 @@ namespace slskd.Transfers.Downloads
         {
             try
             {
-                var context = await ContextFactory.CreateDbContextAsync();
+                using var context = await ContextFactory.CreateDbContextAsync();
                 var transfer = await context.Transfers.FindAsync(id);
 
                 if (transfer == default)
@@ -302,7 +302,7 @@ namespace slskd.Transfers.Downloads
 
             try
             {
-                var context = await ContextFactory.CreateDbContextAsync();
+                using var context = await ContextFactory.CreateDbContextAsync();
                 return await context.Transfers
                     .Where(t => t.Direction == TransferDirection.Download)
                     .Where(t => !t.Removed || includeRemoved)

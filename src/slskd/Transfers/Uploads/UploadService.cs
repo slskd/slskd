@@ -205,7 +205,7 @@ namespace slskd.Transfers.Uploads
         {
             try
             {
-                var context = await ContextFactory.CreateDbContextAsync();
+                using var context = await ContextFactory.CreateDbContextAsync();
                 return await context.Transfers
                     .Where(t => t.Direction == TransferDirection.Upload)
                     .Where(expression).FirstOrDefaultAsync();
@@ -229,7 +229,7 @@ namespace slskd.Transfers.Uploads
 
             try
             {
-                var context = await ContextFactory.CreateDbContextAsync();
+                using var context = await ContextFactory.CreateDbContextAsync();
                 return await context.Transfers
                     .Where(t => t.Direction == TransferDirection.Upload)
                     .Where(t => !t.Removed || includeRemoved)
