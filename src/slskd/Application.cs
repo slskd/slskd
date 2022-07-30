@@ -122,10 +122,10 @@ namespace slskd
             Client.UserStatusChanged += Client_UserStatusChanged;
             Client.PrivateMessageReceived += Client_PrivateMessageRecieved;
 
-            Client.PrivateRoomMembershipAdded += (e, room) => Console.WriteLine($"Added to private room {room}");
-            Client.PrivateRoomMembershipRemoved += (e, room) => Console.WriteLine($"Removed from private room {room}");
-            Client.PrivateRoomModerationAdded += (e, room) => Console.WriteLine($"Promoted to moderator in private room {room}");
-            Client.PrivateRoomModerationRemoved += (e, room) => Console.WriteLine($"Demoted from moderator in private room {room}");
+            Client.PrivateRoomMembershipAdded += (e, room) => Log.Information("Added to private room {Room}", room);
+            Client.PrivateRoomMembershipRemoved += (e, room) => Log.Information("Removed from private room {Room}", room);
+            Client.PrivateRoomModerationAdded += (e, room) => Log.Information("Promoted to moderator in private room {Room}", room);
+            Client.PrivateRoomModerationRemoved += (e, room) => Log.Information("Demoted from moderator in private room {Room}", room);
 
             Client.PublicChatMessageReceived += Client_PublicChatMessageReceived;
             Client.RoomMessageReceived += Client_RoomMessageReceived;
@@ -341,10 +341,18 @@ namespace slskd
         /// <returns>A Task resolving an IEnumerable of Soulseek.Directory.</returns>
         private async Task<BrowseResponse> BrowseResponseResolver(string username, IPEndPoint endpoint)
         {
-            var directories = (await Shares.BrowseAsync())
-                .Select(d => new Soulseek.Directory(d.Name.Replace('/', '\\'), d.Files)); // Soulseek NS requires backslashes
+            try
+            {
+                var directories = (await Shares.BrowseAsync())
+                    .Select(d => new Soulseek.Directory(d.Name.Replace('/', '\\'), d.Files)); // Soulseek NS requires backslashes
 
-            return new BrowseResponse(directories);
+                return new BrowseResponse(directories);
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "Failed to resolve browse response: {Message}", ex.Message);
+                throw;
+            }
         }
 
         private void Client_BrowseProgressUpdated(object sender, BrowseProgressUpdatedEventArgs args)
@@ -453,14 +461,13 @@ namespace slskd
 
             if (Options.Integration.Pushbullet.Enabled && !args.Replayed)
             {
-                Console.WriteLine("Pushing...");
                 _ = Pushbullet.PushAsync($"Private Message from {args.Username}", args.Username, args.Message);
             }
         }
 
         private void Client_PublicChatMessageReceived(object sender, PublicChatMessageReceivedEventArgs args)
         {
-            Console.WriteLine($"[PUBLIC CHAT] [{args.RoomName}] [{args.Username}]: {args.Message}");
+            Log.Information("[Public Chat/{Room}] [{Username}]: {Message}", args.RoomName, args.Username, args.Message);
 
             if (Options.Integration.Pushbullet.Enabled && args.Message.Contains(Client.Username))
             {
@@ -546,7 +553,6 @@ namespace slskd
 
         private void Client_UserStatusChanged(object sender, UserStatus args)
         {
-            Console.WriteLine($"[USER] {args.Username}: {args.Presence}");
         }
 
         private Task<int?> PlaceInQueueResolver(string username, IPEndPoint endpoint, string filename)
@@ -559,7 +565,7 @@ namespace slskd
             catch (Exception ex)
             {
                 Log.Warning(ex, "Failed to estimate place in queue for {Filename} requested by {Username}", filename, username);
-                return Task.FromResult<int?>(null);
+                throw;
             }
         }
 
@@ -573,8 +579,16 @@ namespace slskd
         /// <returns>A Task resolving an instance of Soulseek.Directory containing the contents of the requested directory.</returns>
         private async Task<Soulseek.Directory> DirectoryContentsResponseResolver(string username, IPEndPoint endpoint, int token, string directory)
         {
-            var dir = await Shares.ListDirectoryAsync(directory);
-            return dir;
+            try
+            {
+                var dir = await Shares.ListDirectoryAsync(directory);
+                return dir;
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "Failed to resolve directory contents: {Message}", ex.Message);
+                throw;
+            }
         }
 
         private async Task OptionsMonitor_OnChange(Options newOptions)
@@ -752,29 +766,37 @@ namespace slskd
                 return null;
             }
 
-            var results = await Shares.SearchAsync(query);
-
-            if (results.Any())
+            try
             {
-                // make sure our average speed (as reported by the server) is reasonably up to date
-                await RefreshUserStatistics();
+                var results = await Shares.SearchAsync(query);
 
-                var forecastedPosition = Transfers.Uploads.Queue.ForecastPosition(username);
+                if (results.Any())
+                {
+                    // make sure our average speed (as reported by the server) is reasonably up to date
+                    await RefreshUserStatistics();
 
-                Console.WriteLine($"[SENDING SEARCH RESULTS]: {results.Count()} records to {username} for query {query.SearchText} (forecasted position: {forecastedPosition})");
+                    var forecastedPosition = Transfers.Uploads.Queue.ForecastPosition(username);
 
-                return new SearchResponse(
-                    Client.Username,
-                    token,
-                    uploadSpeed: State.CurrentValue.User.Statistics.AverageSpeed,
-                    freeUploadSlots: forecastedPosition == 0 ? 1 : 0,
-                    queueLength: forecastedPosition,
-                    fileList: results);
+                    Log.Information("[{Context}]: Sending {Count} records to {Username} for query '{Query}'", "SEARCH RESULT SENT", results.Count(), username, query.SearchText);
+
+                    return new SearchResponse(
+                        Client.Username,
+                        token,
+                        uploadSpeed: State.CurrentValue.User.Statistics.AverageSpeed,
+                        freeUploadSlots: forecastedPosition == 0 ? 1 : 0,
+                        queueLength: forecastedPosition,
+                        fileList: results);
+                }
+
+                // if no results, either return null or an instance of SearchResponse with a fileList of length 0 in either case, no
+                // response will be sent to the requestor.
+                return null;
             }
-
-            // if no results, either return null or an instance of SearchResponse with a fileList of length 0 in either case, no
-            // response will be sent to the requestor.
-            return null;
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "Failed to resolve search response: {Message}", ex.Message);
+                throw;
+            }
         }
 
         private void ShareState_OnChange((ShareState Previous, ShareState Current) state)
@@ -838,13 +860,21 @@ namespace slskd
         /// <returns>A Task resolving the UserInfo instance.</returns>
         private Task<UserInfo> UserInfoResolver(string username, IPEndPoint endpoint)
         {
-            var info = new UserInfo(
-                description: Options.Soulseek.Description,
-                uploadSlots: 1,
-                queueLength: 0,
-                hasFreeUploadSlot: false);
+            try
+            {
+                var info = new UserInfo(
+                    description: Options.Soulseek.Description,
+                    uploadSlots: 1,
+                    queueLength: 0,
+                    hasFreeUploadSlot: false);
 
-            return Task.FromResult(info);
+                return Task.FromResult(info);
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "Failed to resolve user info: {Message}", ex.Message);
+                throw;
+            }
         }
     }
 }
