@@ -15,8 +15,6 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-using Microsoft.Extensions.Options;
-
 namespace slskd.Transfers.API
 {
     using System;
@@ -26,9 +24,6 @@ namespace slskd.Transfers.API
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
-    using Serilog;
-    using slskd.Integrations.FTP;
-    using Soulseek;
 
     /// <summary>
     ///     Transfers.
@@ -43,27 +38,14 @@ namespace slskd.Transfers.API
         /// <summary>
         ///     Initializes a new instance of the <see cref="TransfersController"/> class.
         /// </summary>
-        /// <param name="options"></param>
-        /// <param name="soulseekClient"></param>
-        /// <param name="tracker"></param>
-        /// <param name="ftpClient"></param>
+        /// <param name="transferService"></param>
         public TransfersController(
-            IOptionsSnapshot<Options> options,
-            ISoulseekClient soulseekClient,
-            ITransferService transferService,
-            IFTPService ftpClient)
+            ITransferService transferService)
         {
-            Client = soulseekClient;
-            Options = options.Value;
-            FTP = ftpClient;
             Transfers = transferService;
         }
 
         private ITransferService Transfers { get; }
-        private Options Options { get; }
-        private ISoulseekClient Client { get; }
-        private IFTPService FTP { get; }
-        private ILogger Log { get; } = Serilog.Log.ForContext<TransfersController>();
 
         /// <summary>
         ///     Cancels the specified download.
@@ -348,7 +330,7 @@ namespace slskd.Transfers.API
         [HttpGet("uploads/{username}/{id}")]
         [Authorize]
         [ProducesResponseType(200)]
-        public async IActionResult GetUploads([FromRoute, Required] string username, [FromRoute, Required] string id)
+        public async Task<IActionResult> GetUploads([FromRoute, Required] string username, [FromRoute, Required] string id)
         {
             if (!Guid.TryParse(id, out var guid))
             {
