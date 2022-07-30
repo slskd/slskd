@@ -50,12 +50,10 @@ namespace slskd.Transfers.API
         public TransfersController(
             IOptionsSnapshot<Options> options,
             ISoulseekClient soulseekClient,
-            ITransferTracker tracker,
             ITransferService transferService,
             IFTPService ftpClient)
         {
             Client = soulseekClient;
-            Tracker = tracker;
             Options = options.Value;
             FTP = ftpClient;
             Transfers = transferService;
@@ -64,7 +62,6 @@ namespace slskd.Transfers.API
         private ITransferService Transfers { get; }
         private Options Options { get; }
         private ISoulseekClient Client { get; }
-        private ITransferTracker Tracker { get; }
         private IFTPService FTP { get; }
         private ILogger Log { get; } = Serilog.Log.ForContext<TransfersController>();
 
@@ -118,9 +115,28 @@ namespace slskd.Transfers.API
         [Authorize]
         [ProducesResponseType(204)]
         [ProducesResponseType(404)]
-        public IActionResult CancelUpload([FromRoute, Required] string username, [FromRoute, Required]string id, [FromQuery]bool remove = false)
+        public async Task<IActionResult> CancelUpload([FromRoute, Required] string username, [FromRoute, Required]string id, [FromQuery]bool remove = false)
         {
-            return CancelTransfer(TransferDirection.Upload, username, id, remove);
+            if (!Guid.TryParse(id, out var guid))
+            {
+                return BadRequest();
+            }
+
+            try
+            {
+                Transfers.Uploads.TryCancel(guid);
+
+                if (remove)
+                {
+                    await Transfers.Uploads.RemoveAsync(guid);
+                }
+
+                return NoContent();
+            }
+            catch (NotFoundException)
+            {
+                return NotFound();
+            }
         }
 
         /// <summary>
@@ -208,6 +224,27 @@ namespace slskd.Transfers.API
             return Ok(response);
         }
 
+        [HttpGet("downloads/{username}/{id}")]
+        [Authorize]
+        [ProducesResponseType(typeof(API.Transfer), 200)]
+        [ProducesResponseType(404)]
+        public async Task<IActionResult> GetDownload([FromRoute, Required] string username, [FromRoute, Required] string id)
+        {
+            if (!Guid.TryParse(id, out var guid))
+            {
+                return BadRequest();
+            }
+
+            var download = await Transfers.Downloads.FindAsync(t => t.Id == guid);
+
+            if (download == default)
+            {
+                return NotFound();
+            }
+
+            return Ok(download);
+        }
+
         /// <summary>
         ///     Gets the downlaod for the specified username matching the specified filename, and requests
         ///     the current place in the remote queue of the specified download.
@@ -217,7 +254,7 @@ namespace slskd.Transfers.API
         /// <returns></returns>
         /// <response code="200">The request completed successfully.</response>
         /// <response code="404">The specified download was not found.</response>
-        [HttpGet("downloads/{username}/{id}")]
+        [HttpGet("downloads/{username}/{id}/position")]
         [Authorize]
         [ProducesResponseType(typeof(API.Transfer), 200)]
         [ProducesResponseType(404)]
@@ -251,11 +288,22 @@ namespace slskd.Transfers.API
         [HttpGet("uploads")]
         [Authorize]
         [ProducesResponseType(200)]
-        public IActionResult GetUploads()
+        public async Task<IActionResult> GetUploads([FromQuery] bool includeRemoved = false)
         {
-            return Ok(Tracker.Transfers
-                .WithDirection(TransferDirection.Upload)
-                .ToMap());
+            var uploads = await Transfers.Uploads.ListAsync(includeRemoved: includeRemoved);
+
+            var response = uploads.GroupBy(t => t.Username).Select(grouping => new UserResponse()
+            {
+                Username = grouping.Key,
+                Directories = grouping.GroupBy(g => g.Filename.DirectoryName()).Select(d => new DirectoryResponse()
+                {
+                    Name = d.Key,
+                    FileCount = d.Count(),
+                    Files = d.ToList(),
+                }),
+            });
+
+            return Ok(response);
         }
 
         /// <summary>
@@ -267,12 +315,27 @@ namespace slskd.Transfers.API
         [HttpGet("uploads/{username}")]
         [Authorize]
         [ProducesResponseType(200)]
-        public IActionResult GetUploads([FromRoute, Required] string username)
+        public async Task<IActionResult> GetUploads([FromRoute, Required] string username)
         {
-            return Ok(Tracker.Transfers
-                .WithDirection(TransferDirection.Upload)
-                .FromUser(username)
-                .ToMap());
+            var uploads = await Transfers.Uploads.ListAsync(d => d.Username == username);
+
+            if (!uploads.Any())
+            {
+                return NotFound();
+            }
+
+            var response = new UserResponse()
+            {
+                Username = username,
+                Directories = uploads.GroupBy(g => g.Filename.DirectoryName()).Select(d => new DirectoryResponse()
+                {
+                    Name = d.Key,
+                    FileCount = d.Count(),
+                    Files = d.ToList(),
+                }),
+            };
+
+            return Ok(response);
         }
 
         /// <summary>
@@ -285,29 +348,21 @@ namespace slskd.Transfers.API
         [HttpGet("uploads/{username}/{id}")]
         [Authorize]
         [ProducesResponseType(200)]
-        public IActionResult GetUploads([FromRoute, Required] string username, [FromRoute, Required] string id)
+        public async IActionResult GetUploads([FromRoute, Required] string username, [FromRoute, Required] string id)
         {
-            return Ok(Tracker.Transfers
-                .WithDirection(TransferDirection.Upload)
-                .FromUser(username)
-                .WithId(id).Transfer);
-        }
-
-        private IActionResult CancelTransfer(TransferDirection direction, string username, string id, bool remove = false)
-        {
-            if (Tracker.TryGet(direction, username, id, out var transfer))
+            if (!Guid.TryParse(id, out var guid))
             {
-                transfer.CancellationTokenSource.Cancel();
-
-                if (remove)
-                {
-                    Tracker.TryRemove(direction, username, id);
-                }
-
-                return NoContent();
+                return BadRequest();
             }
 
-            return NotFound();
+            var upload = await Transfers.Uploads.FindAsync(t => t.Id == guid);
+
+            if (upload == default)
+            {
+                return NotFound();
+            }
+
+            return Ok(upload);
         }
     }
 }

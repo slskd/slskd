@@ -109,7 +109,9 @@ namespace slskd.Search
 
             using var context = ContextFactory.CreateDbContext();
 
-            var selector = context.Searches.Where(expression);
+            var selector = context.Searches
+                .AsNoTracking()
+                .Where(expression);
 
             if (!includeResponses)
             {
@@ -128,7 +130,12 @@ namespace slskd.Search
         {
             expression ??= s => true;
             using var context = ContextFactory.CreateDbContext();
-            return context.Searches.Where(expression).WithoutResponses().ToListAsync();
+
+            return context.Searches
+                .AsNoTracking()
+                .Where(expression)
+                .WithoutResponses()
+                .ToListAsync();
         }
 
         /// <summary>
