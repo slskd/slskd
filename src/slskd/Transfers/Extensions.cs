@@ -28,7 +28,7 @@ namespace slskd.Transfers
                 Direction = transfer.Direction,
                 Filename = transfer.Filename,
                 Size = transfer.Size,
-                StartOffset = transfer.StartOffset,
+                StartOffset = t.StartOffset,
                 State = t.State,
                 RequestedAt = transfer.RequestedAt,
                 EnqueuedAt = transfer.EnqueuedAt,
