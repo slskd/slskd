@@ -43,12 +43,14 @@ namespace slskd.Transfers.Uploads
             ISoulseekClient soulseekClient,
             IOptionsMonitor<Options> optionsMonitor,
             IShareService shareService,
+            ITransferTracker transferTracker,
             IDbContextFactory<TransfersDbContext> contextFactory)
         {
             Users = userService;
             Client = soulseekClient;
             Shares = shareService;
             ContextFactory = contextFactory;
+            Tracker = transferTracker;
 
             Governor = new UploadGovernor(userService, optionsMonitor);
             Queue = new UploadQueue(userService, optionsMonitor);
@@ -70,6 +72,7 @@ namespace slskd.Transfers.Uploads
         private IShareService Shares { get; set; }
         private IUserService Users { get; set; }
         private ISoulseekClient Client { get; set; }
+        private ITransferTracker Tracker { get; set; }
 
         /// <summary>
         ///     Enqueues the requested file.
@@ -108,37 +111,71 @@ namespace slskd.Transfers.Uploads
                 throw new DownloadEnqueueException($"File not shared.");
             }
 
-            // todo: create record
+            var id = Guid.NewGuid();
+
+            var transfer = new Transfer()
+            {
+                Id = id,
+                Username = username,
+                Direction = TransferDirection.Upload,
+                Filename = localFilename,
+                Size = fileInfo.Length,
+                StartOffset = 0, // potentially updated later during handshaking
+                RequestedAt = DateTime.UtcNow,
+                EnqueuedAt = DateTime.UtcNow,
+            };
+
+            // persist the transfer to the database so we have a record that it was attempted
+            using var context = await ContextFactory.CreateDbContextAsync();
+            context.Add(transfer);
+            await context.SaveChangesAsync();
 
             // create a new cancellation token source so that we can cancel the upload from the UI.
             var cts = new CancellationTokenSource();
-            var topts = new TransferOptions(
-                stateChanged: (e) =>
-                {
-                    // todo: update record
-                    // todo: broadcast
-                    tracker.AddOrUpdate(e.Transfer, cts);
+            CancellationTokens.TryAdd(id, cts);
 
-                    if (e.Transfer.State.HasFlag(TransferStates.Queued))
-                    {
-                        Queue.Enqueue(e.Transfer.Username, e.Transfer.Filename);
-                    }
-                },
-                progressUpdated: (e) =>
-                {
-                    // todo: update record
-                    // todo: broadcast
-                    tracker.AddOrUpdate(e.Transfer, cts);
-                },
-                governor: (tx, req, ct) => Governor.GetBytesAsync(tx.Username, req, ct),
-                reporter: (tx, att, grant, act) => Governor.ReturnBytes(tx.Username, att, grant, act),
-                slotAwaiter: (tx, ct) => Queue.AwaitStartAsync(tx.Username, tx.Filename),
-                slotReleased: (tx) => Queue.Complete(tx.Username, tx.Filename));
+            async Task UpdateAndSaveChangesAsync(Transfer transfer)
+            {
+                using var context = await ContextFactory.CreateDbContextAsync();
+                context.Update(transfer);
+                await context.SaveChangesAsync();
+            }
 
             // accept all download requests, and begin the upload immediately. normally there would be an internal queue, and
             // uploads would be handled separately.
             _ = Task.Run(async () =>
             {
+                using var rateLimiter = new RateLimiter(250);
+
+                var topts = new TransferOptions(
+                    stateChanged: (args) =>
+                    {
+                        Log.Debug("Upload of {Filename} to user {Username} changed state from {Previous} to {New}", localFilename, username, args.PreviousState, args.Transfer.State);
+
+                        transfer = transfer.WithSoulseekTransfer(args.Transfer);
+                        // todo: broadcast
+                        _ = UpdateAndSaveChangesAsync(transfer);
+
+                        Tracker.AddOrUpdate(args.Transfer, cts);
+
+                        if (args.Transfer.State.HasFlag(TransferStates.Queued))
+                        {
+                            Queue.Enqueue(args.Transfer.Username, args.Transfer.Filename);
+                        }
+                    },
+                    progressUpdated: (args) => rateLimiter.Invoke(() =>
+                    {
+                        Tracker.AddOrUpdate(args.Transfer, cts);
+
+                        transfer = transfer.WithSoulseekTransfer(args.Transfer);
+                        // todo: broadcast
+                        _ = UpdateAndSaveChangesAsync(transfer);
+                    }),
+                    governor: (tx, req, ct) => Governor.GetBytesAsync(tx.Username, req, ct),
+                    reporter: (tx, att, grant, act) => Governor.ReturnBytes(tx.Username, att, grant, act),
+                    slotAwaiter: (tx, ct) => Queue.AwaitStartAsync(tx.Username, tx.Filename),
+                    slotReleased: (tx) => Queue.Complete(tx.Username, tx.Filename));
+
                 // users with uploads must be watched so that we can keep informed of their
                 // online status, privileges, and statistics.  this is so that we can accurately
                 // determine their effective group.
@@ -148,7 +185,11 @@ namespace slskd.Transfers.Uploads
                 }
 
                 using var stream = new FileStream(fileInfo.FullName, FileMode.Open, FileAccess.Read);
-                await Client.UploadAsync(username, filename, fileInfo.FullName, options: topts, cancellationToken: cts.Token);
+                var completedTransfer = await Client.UploadAsync(username, filename, fileInfo.FullName, options: topts, cancellationToken: cts.Token);
+
+                transfer = transfer.WithSoulseekTransfer(completedTransfer);
+                //todo: broadcast
+                await UpdateAndSaveChangesAsync(transfer);
             }).ContinueWith(t =>
             {
                 Console.WriteLine($"[UPLOAD FAILED] {t.Exception}");
