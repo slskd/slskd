@@ -75,7 +75,6 @@ namespace slskd
             IManagedState<State> state,
             ISoulseekClient soulseekClient,
             IConnectionWatchdog connectionWatchdog,
-            ITransferTracker transferTracker,
             ITransferService transferService,
             IBrowseTracker browseTracker,
             IConversationTracker conversationTracker,
@@ -100,7 +99,6 @@ namespace slskd
             Shares = shareService;
             Shares.StateMonitor.OnChange(state => ShareState_OnChange(state));
 
-            TransferTracker = transferTracker;
             Transfers = transferService;
             BrowseTracker = browseTracker;
             ConversationTracker = conversationTracker;
@@ -157,7 +155,6 @@ namespace slskd
         private IPushbulletService Pushbullet { get; }
         private DateTime SharesRefreshStarted { get; set; }
         private IManagedState<State> State { get; }
-        private ITransferTracker TransferTracker { get; set; }
         private ITransferService Transfers { get; init; }
         private IHubContext<ApplicationHub> ApplicationHub { get; set; }
         private IHubContext<LogsHub> LogHub { get; set; }
@@ -578,91 +575,6 @@ namespace slskd
         {
             var dir = await Shares.ListDirectoryAsync(directory);
             return dir;
-        }
-
-        /// <summary>
-        ///     Invoked upon a remote request to download a file.
-        /// </summary>
-        /// <param name="username">The username of the requesting user.</param>
-        /// <param name="endpoint">The IP endpoint of the requesting user.</param>
-        /// <param name="filename">The filename of the requested file.</param>
-        /// <param name="tracker">(for example purposes) the ITransferTracker used to track progress.</param>
-        /// <returns>A Task representing the asynchronous operation.</returns>
-        /// <exception cref="DownloadEnqueueException">
-        ///     Thrown when the download is rejected. The Exception message will be passed to the remote user.
-        /// </exception>
-        /// <exception cref="Exception">
-        ///     Thrown on any other Exception other than a rejection. A generic message will be passed to the remote user for
-        ///     security reasons.
-        /// </exception>
-        private async Task EnqueueDownloadAction(string username, IPEndPoint endpoint, string filename, ITransferTracker tracker)
-        {
-            // remote clients might sometimes re-request downloads to check the status. don't try to add the download again
-            // if it is already tracked.
-            if (await Transfers.Uploads.ExistsAsync(t => t.Username == username && t.Filename == filename))
-            {
-                return;
-            }
-
-            _ = endpoint;
-            string localFilename;
-            FileInfo fileInfo = default;
-
-            Console.WriteLine($"[UPLOAD REQUESTED] [{username}/{filename}]");
-
-            try
-            {
-                localFilename = (await Shares.ResolveFilenameAsync(filename)).ToLocalOSPath();
-
-                fileInfo = new FileInfo(localFilename);
-
-                if (!fileInfo.Exists)
-                {
-                    throw new NotFoundException();
-                }
-            }
-            catch (NotFoundException)
-            {
-                Console.WriteLine($"[UPLOAD REJECTED] File {filename} not found.");
-                throw new DownloadEnqueueException($"File not shared.");
-            }
-
-            // create a new cancellation token source so that we can cancel the upload from the UI.
-            var cts = new CancellationTokenSource();
-            var topts = new TransferOptions(
-                stateChanged: (e) =>
-                {
-                    tracker.AddOrUpdate(e.Transfer, cts);
-
-                    if (e.Transfer.State.HasFlag(TransferStates.Queued))
-                    {
-                        Transfers.Uploads.Queue.Enqueue(e.Transfer.Username, e.Transfer.Filename);
-                    }
-                },
-                progressUpdated: (e) => tracker.AddOrUpdate(e.Transfer, cts),
-                governor: (tx, req, ct) => Transfers.Uploads.Governor.GetBytesAsync(tx.Username, req, ct),
-                reporter: (tx, att, grant, act) => Transfers.Uploads.Governor.ReturnBytes(tx.Username, att, grant, act),
-                slotAwaiter: (tx, ct) => Transfers.Uploads.Queue.AwaitStartAsync(tx.Username, tx.Filename),
-                slotReleased: (tx) => Transfers.Uploads.Queue.Complete(tx.Username, tx.Filename));
-
-            // accept all download requests, and begin the upload immediately. normally there would be an internal queue, and
-            // uploads would be handled separately.
-            _ = Task.Run(async () =>
-            {
-                // users with uploads must be watched so that we can keep informed of their
-                // online status, privileges, and statistics.  this is so that we can accurately
-                // determine their effective group.
-                if (!Users.IsWatched(username))
-                {
-                    await Users.WatchAsync(username);
-                }
-
-                using var stream = new FileStream(fileInfo.FullName, FileMode.Open, FileAccess.Read);
-                await Client.UploadAsync(username, filename, fileInfo.FullName, options: topts, cancellationToken: cts.Token);
-            }).ContinueWith(t =>
-            {
-                Console.WriteLine($"[UPLOAD FAILED] {t.Exception}");
-            }, TaskContinuationOptions.NotOnRanToCompletion); // fire and forget
         }
 
         private async Task OptionsMonitor_OnChange(Options newOptions)

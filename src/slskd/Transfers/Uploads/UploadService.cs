@@ -43,14 +43,12 @@ namespace slskd.Transfers.Uploads
             ISoulseekClient soulseekClient,
             IOptionsMonitor<Options> optionsMonitor,
             IShareService shareService,
-            ITransferTracker transferTracker,
             IDbContextFactory<TransfersDbContext> contextFactory)
         {
             Users = userService;
             Client = soulseekClient;
             Shares = shareService;
             ContextFactory = contextFactory;
-            Tracker = transferTracker;
 
             Governor = new UploadGovernor(userService, optionsMonitor);
             Queue = new UploadQueue(userService, optionsMonitor);
@@ -72,7 +70,6 @@ namespace slskd.Transfers.Uploads
         private IShareService Shares { get; set; }
         private IUserService Users { get; set; }
         private ISoulseekClient Client { get; set; }
-        private ITransferTracker Tracker { get; set; }
 
         /// <summary>
         ///     Enqueues the requested file.
@@ -92,7 +89,7 @@ namespace slskd.Transfers.Uploads
             string localFilename;
             FileInfo fileInfo = default;
 
-            Console.WriteLine($"[UPLOAD REQUESTED] [{username}/{filename}]");
+            Log.Information("[{Context}] {Username} requested {Filename}]", "UPLOAD REQUESTED", username, filename);
 
             try
             {
@@ -107,7 +104,7 @@ namespace slskd.Transfers.Uploads
             }
             catch (NotFoundException)
             {
-                Console.WriteLine($"[UPLOAD REJECTED] File {filename} not found.");
+                Log.Information("[{Context}] {Filename} for {Username}: file not found", "UPLOAD REJECTED", username, filename);
                 throw new DownloadEnqueueException($"File not shared.");
             }
 
@@ -156,8 +153,6 @@ namespace slskd.Transfers.Uploads
                         // todo: broadcast
                         _ = UpdateAndSaveChangesAsync(transfer);
 
-                        Tracker.AddOrUpdate(args.Transfer, cts);
-
                         if (args.Transfer.State.HasFlag(TransferStates.Queued))
                         {
                             Queue.Enqueue(args.Transfer.Username, args.Transfer.Filename);
@@ -165,8 +160,6 @@ namespace slskd.Transfers.Uploads
                     },
                     progressUpdated: (args) => rateLimiter.Invoke(() =>
                     {
-                        Tracker.AddOrUpdate(args.Transfer, cts);
-
                         transfer = transfer.WithSoulseekTransfer(args.Transfer);
                         // todo: broadcast
                         _ = UpdateAndSaveChangesAsync(transfer);
@@ -192,7 +185,7 @@ namespace slskd.Transfers.Uploads
                 await UpdateAndSaveChangesAsync(transfer);
             }).ContinueWith(t =>
             {
-                Console.WriteLine($"[UPLOAD FAILED] {t.Exception}");
+                Log.Information("[{Context}] {Filename} for {Username}: {Message}", "UPLOAD FAILED", username, filename, t.Exception?.Message);
             }, TaskContinuationOptions.NotOnRanToCompletion); // fire and forget
         }
 
