@@ -285,7 +285,7 @@ namespace slskd
                 userInfoResolver: UserInfoResolver,
                 browseResponseResolver: BrowseResponseResolver,
                 directoryContentsResolver: DirectoryContentsResponseResolver,
-                enqueueDownload: (username, endpoint, filename) => EnqueueDownloadAction(username, endpoint, filename, TransferTracker),
+                enqueueDownload: (username, endpoint, filename) => Transfers.Uploads.EnqueueAsync(username, filename),
                 searchResponseCache: new SearchResponseCache(),
                 searchResponseResolver: SearchResponseResolver,
                 placeInQueueResolver: PlaceInQueueResolver);
