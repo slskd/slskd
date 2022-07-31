@@ -542,11 +542,14 @@ web:
 
 A number of filters can be configured to control various aspects of how the application interacts with the Soulseek network.
 
-The share filters can be used to prevent certain types of files from being shared.  This option is an array that can take any number of filters.  Filters must be a valid regular expression; a few examples are included below and in the example configuration included with the application, but the list is empty by default.
+Share filters can be used to prevent certain types of files from being shared.  This option is an array that can take any number of filters.  Filters must be a valid regular expression; a few examples are included below and in the example configuration included with the application, but the list is empty by default.
 
-| Command Line     | Environment Variable | Description                                                    |
-| ---------------- | -------------------- | -------------------------------------------------------------- |
-| `--share-filter` | `SHARE_FILTER`       | A list of regular expressions used to filter files from shares |
+Search request filters can be used to discard incoming search requests that match one or more filters.  Like share filters, this option is an array of regular expressions, and it defaults to an empty array (no request filtering is applied).
+
+| Command Line              | Environment Variable    | Description                                                           |
+| ------------------------- | ----------------------- | --------------------------------------------------------------------- |
+| `--share-filter`          | `SHARE_FILTER`          | A list of regular expressions used to filter files from shares        |
+| `--search-request-filter` | `SEARCH_REQUEST_FILTER` | A list of regular expressions used to filter incoming search requests |
 
 #### **YAML**
 ```yaml
@@ -555,6 +558,9 @@ filters:
     - \.ini$
     - Thumbs.db$
     - \.DS_Store$
+  search:
+    request:
+      - ^.{1,2}$
 ```
 
 # Integrations

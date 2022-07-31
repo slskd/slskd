@@ -49,6 +49,9 @@
 #     - \.ini$
 #     - Thumbs.db$
 #     - \.DS_Store$
+#   search:
+#     request:
+#       - ^.{1,2}$
 # web:
 #   port: 5000
 #   https:
