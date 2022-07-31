@@ -21,6 +21,7 @@ namespace slskd
 {
     using System;
     using System.Collections.Concurrent;
+    using System.Collections.Generic;
     using System.Diagnostics;
     using System.IO;
     using System.Linq;
@@ -28,6 +29,7 @@ namespace slskd
     using System.Net.Sockets;
     using System.Reflection;
     using System.Runtime;
+    using System.Text.RegularExpressions;
     using System.Threading;
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.SignalR;
@@ -93,6 +95,8 @@ namespace slskd
             OptionsMonitor.OnChange(async options => await OptionsMonitor_OnChange(options));
 
             PreviousOptions = OptionsMonitor.CurrentValue;
+
+            CompiledSearchResponseFilters = OptionsAtStartup.Filters.Search.Request.Select(f => new Regex(f, RegexOptions.Compiled));
 
             State = state;
             State.OnChange(state => State_OnChange(state));
@@ -164,6 +168,7 @@ namespace slskd
         private IUserService Users { get; set; }
         private IShareService Shares { get; set; }
         private IMemoryCache Cache { get; set; } = new MemoryCache(new MemoryCacheOptions());
+        private IEnumerable<Regex> CompiledSearchResponseFilters { get; set; }
 
         public void CollectGarbage()
         {
@@ -735,6 +740,13 @@ namespace slskd
                     Log.Information("File filter configuration changed.  Shares must be re-scanned for changes to take effect.");
                 }
 
+                if (PreviousOptions.Filters.Search.Request.Except(newOptions.Filters.Search.Request).Any()
+                    || newOptions.Filters.Search.Request.Except(PreviousOptions.Filters.Search.Request).Any())
+                {
+                    CompiledSearchResponseFilters = newOptions.Filters.Search.Request.Select(f => new Regex(f, RegexOptions.Compiled));
+                    Log.Information("Updated and re-compiled search response filters");
+                }
+
                 if (PreviousOptions.Rooms.Except(newOptions.Rooms).Any()
                     || newOptions.Rooms.Except(PreviousOptions.Rooms).Any())
                 {
@@ -856,8 +868,7 @@ namespace slskd
         /// <returns>A Task resolving a SearchResponse, or null.</returns>
         private async Task<SearchResponse> SearchResponseResolver(string username, int token, SearchQuery query)
         {
-            // some bots and perhaps users search for very short terms. only respond to queries >= 3 characters. sorry, U2 fans.
-            if (query.Query.Length < 3)
+            if (CompiledSearchResponseFilters.Any(filter => filter.IsMatch(query.SearchText)))
             {
                 return null;
             }
