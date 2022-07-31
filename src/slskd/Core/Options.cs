@@ -625,6 +625,12 @@ namespace slskd
             public string[] Share { get; init; } = Array.Empty<string>();
 
             /// <summary>
+            ///     Gets search filter options.
+            /// </summary>
+            [Validate]
+            public SearchOptions Search { get; init; } = new SearchOptions();
+
+            /// <summary>
             ///     Extended validation.
             /// </summary>
             /// <param name="validationContext"></param>
@@ -642,6 +648,40 @@ namespace slskd
                 }
 
                 return results;
+            }
+
+            /// <summary>
+            ///     Search filter options.
+            /// </summary>
+            public class SearchOptions : IValidatableObject
+            {
+                /// <summary>
+                ///     Gets the list of search request filters.
+                /// </summary>
+                [Argument(default, "search-request-filter")]
+                [EnvironmentVariable("SEARCH_REQUEST_FILTER")]
+                [Description("regular expressions to filter incoming search requests")]
+                public string[] Request { get; init; } = Array.Empty<string>();
+
+                /// <summary>
+                ///     Extended validation.
+                /// </summary>
+                /// <param name="validationContext"></param>
+                /// <returns></returns>
+                public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+                {
+                    var results = new List<ValidationResult>();
+
+                    foreach (var filter in Request)
+                    {
+                        if (!filter.IsValidRegex())
+                        {
+                            results.Add(new ValidationResult($"Search request filter '{filter}' is not a valid regular expression"));
+                        }
+                    }
+
+                    return results;
+                }
             }
         }
 
