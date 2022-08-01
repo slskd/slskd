@@ -180,7 +180,7 @@ namespace slskd
 
             GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
 #pragma warning disable S1215 // "GC.Collect" should not be called
-            GC.Collect(2, GCCollectionMode.Forced, blocking: false, compacting: true);
+            GC.Collect(2, GCCollectionMode.Forced, blocking: true, compacting: true);
 #pragma warning restore S1215 // "GC.Collect" should not be called
 
             sw.Stop();
