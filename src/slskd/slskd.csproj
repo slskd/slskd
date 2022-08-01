@@ -12,7 +12,6 @@
     <LangVersion>9.0</LangVersion>
     <CodeAnalysisRuleSet>Properties\analysis.ruleset</CodeAnalysisRuleSet>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <ServerGarbageCollection>false</ServerGarbageCollection>
     <IsTransformWebConfigDisabled>true</IsTransformWebConfigDisabled>
   </PropertyGroup>
 
