@@ -51,6 +51,8 @@ HEALTHCHECK --interval=60s --timeout=3s --start-period=5s --retries=3 CMD wget -
 
 ENV DOTNET_BUNDLE_EXTRACT_BASE_DIR=/var/tmp/.net \
   DOTNET_gcServer=0 \
+  DOTNET_gcConcurrent=1 \
+  DOTNET_GCHeapHardLimit=1F400000	\
   DOTNET_GCConserveMemory=9 \
   SLSKD_HTTP_PORT=5000 \
   SLSKD_HTTPS_PORT=5001 \
