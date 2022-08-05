@@ -122,13 +122,6 @@ namespace slskd.Transfers.Downloads
 
                         var waitUntilEnqueue = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
-                        async Task UpdateAndSaveChangesAsync(Transfer transfer)
-                        {
-                            using var context = await ContextFactory.CreateDbContextAsync();
-                            context.Update(transfer);
-                            await context.SaveChangesAsync();
-                        }
-
                         // this task does the actual work of downloading the file. if the transfer is successfully queued
                         // remotely, the waitUntilEnqueue completion source is set, which yields execution to below so we can
                         // return and let the caller know.
@@ -154,7 +147,7 @@ namespace slskd.Transfers.Downloads
 
                                             transfer = transfer.WithSoulseekTransfer(args.Transfer);
                                             // todo: broadcast
-                                            _ = UpdateAndSaveChangesAsync(transfer);
+                                            _ = UpdateAsync(transfer);
 
                                             if (args.Transfer.State.HasFlag(TransferStates.Queued) || args.Transfer.State == TransferStates.Initializing)
                                             {
@@ -165,12 +158,12 @@ namespace slskd.Transfers.Downloads
                                         {
                                             transfer = transfer.WithSoulseekTransfer(args.Transfer);
                                             // todo: broadcast
-                                            _ = UpdateAndSaveChangesAsync(transfer);
+                                            _ = UpdateAsync(transfer);
                                         })));
 
                                 transfer = transfer.WithSoulseekTransfer(completedTransfer);
                                 // todo: broadcast
-                                await UpdateAndSaveChangesAsync(transfer);
+                                await UpdateAsync(transfer);
 
                                 // this would be the ideal place to hook in a generic post-download task processor for now, we'll
                                 // just carry out hard coded behavior
@@ -370,6 +363,18 @@ namespace slskd.Transfers.Downloads
             }
 
             return false;
+        }
+
+        /// <summary>
+        ///     Updates the specified <paramref name="transfer"/>.
+        /// </summary>
+        /// <param name="transfer">The transfer to update.</param>
+        /// <returns>The operation context.</returns>
+        public async Task UpdateAsync(Transfer transfer)
+        {
+            using var context = await ContextFactory.CreateDbContextAsync();
+            context.Update(transfer);
+            await context.SaveChangesAsync();
         }
 
         private static FileStream GetLocalFileStream(string remoteFilename, string saveDirectory)

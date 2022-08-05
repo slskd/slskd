@@ -78,5 +78,12 @@ namespace slskd.Transfers.Downloads
         /// <param name="id">The unique identifier for the download.</param>
         /// <returns>A value indicating whether the download was successfully cancelled.</returns>
         bool TryCancel(Guid id);
+
+        /// <summary>
+        ///     Updates the specified <paramref name="transfer"/>.
+        /// </summary>
+        /// <param name="transfer">The transfer to update.</param>
+        /// <returns>The operation context.</returns>
+        Task UpdateAsync(Transfer transfer);
     }
 }

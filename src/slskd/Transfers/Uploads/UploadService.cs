@@ -65,11 +65,11 @@ namespace slskd.Transfers.Uploads
         public IUploadQueue Queue { get; init; }
 
         private ConcurrentDictionary<Guid, CancellationTokenSource> CancellationTokens { get; } = new ConcurrentDictionary<Guid, CancellationTokenSource>();
+        private ISoulseekClient Client { get; set; }
         private IDbContextFactory<TransfersDbContext> ContextFactory { get; }
         private ILogger Log { get; } = Serilog.Log.ForContext<UploadService>();
         private IShareService Shares { get; set; }
         private IUserService Users { get; set; }
-        private ISoulseekClient Client { get; set; }
 
         /// <summary>
         ///     Enqueues the requested file.
@@ -79,8 +79,8 @@ namespace slskd.Transfers.Uploads
         /// <returns>The operation context.</returns>
         public async Task EnqueueAsync(string username, string filename)
         {
-            // remote clients might sometimes re-request downloads to check the status. don't try to add the download again
-            // if it is already tracked.
+            // remote clients might sometimes re-request downloads to check the status. don't try to add the download again if it
+            // is already tracked.
             if (await ExistsAsync(t => t.Username == username && t.Filename == filename))
             {
                 return;
@@ -131,13 +131,6 @@ namespace slskd.Transfers.Uploads
             var cts = new CancellationTokenSource();
             CancellationTokens.TryAdd(id, cts);
 
-            async Task UpdateAndSaveChangesAsync(Transfer transfer)
-            {
-                using var context = await ContextFactory.CreateDbContextAsync();
-                context.Update(transfer);
-                await context.SaveChangesAsync();
-            }
-
             // accept all download requests, and begin the upload immediately. normally there would be an internal queue, and
             // uploads would be handled separately.
             _ = Task.Run(async () =>
@@ -151,7 +144,7 @@ namespace slskd.Transfers.Uploads
 
                         transfer = transfer.WithSoulseekTransfer(args.Transfer);
                         // todo: broadcast
-                        _ = UpdateAndSaveChangesAsync(transfer);
+                        _ = UpdateAsync(transfer);
 
                         if (args.Transfer.State.HasFlag(TransferStates.Queued))
                         {
@@ -162,16 +155,15 @@ namespace slskd.Transfers.Uploads
                     {
                         transfer = transfer.WithSoulseekTransfer(args.Transfer);
                         // todo: broadcast
-                        _ = UpdateAndSaveChangesAsync(transfer);
+                        _ = UpdateAsync(transfer);
                     }),
                     governor: (tx, req, ct) => Governor.GetBytesAsync(tx.Username, req, ct),
                     reporter: (tx, att, grant, act) => Governor.ReturnBytes(tx.Username, att, grant, act),
                     slotAwaiter: (tx, ct) => Queue.AwaitStartAsync(tx.Username, tx.Filename),
                     slotReleased: (tx) => Queue.Complete(tx.Username, tx.Filename));
 
-                // users with uploads must be watched so that we can keep informed of their
-                // online status, privileges, and statistics.  this is so that we can accurately
-                // determine their effective group.
+                // users with uploads must be watched so that we can keep informed of their online status, privileges, and
+                // statistics. this is so that we can accurately determine their effective group.
                 if (!Users.IsWatched(username))
                 {
                     await Users.WatchAsync(username);
@@ -182,11 +174,21 @@ namespace slskd.Transfers.Uploads
 
                 transfer = transfer.WithSoulseekTransfer(completedTransfer);
                 //todo: broadcast
-                await UpdateAndSaveChangesAsync(transfer);
+                await UpdateAsync(transfer);
             }).ContinueWith(t =>
             {
                 Log.Information("[{Context}] {Filename} for {Username}: {Message}", "UPLOAD FAILED", username, filename, t.Exception?.Message);
             }, TaskContinuationOptions.NotOnRanToCompletion); // fire and forget
+        }
+
+        /// <summary>
+        ///     Returns a value indicating whether an upload matching the specified <paramref name="expression"/> exists.
+        /// </summary>
+        /// <param name="expression">The expression used to match uploads.</param>
+        /// <returns>A value indicating whether an upload matching the specified expression exists.</returns>
+        public async Task<bool> ExistsAsync(Expression<Func<Transfer, bool>> expression)
+        {
+            return (await FindAsync(expression)) != default;
         }
 
         /// <summary>
@@ -292,13 +294,15 @@ namespace slskd.Transfers.Uploads
         }
 
         /// <summary>
-        ///     Returns a value indicating whether an upload matching the specified <paramref name="expression"/> exists.
+        ///     Updates the specified <paramref name="transfer"/>.
         /// </summary>
-        /// <param name="expression">The expression used to match uploads.</param>
-        /// <returns>A value indicating whether an upload matching the specified expression exists.</returns>
-        public async Task<bool> ExistsAsync(Expression<Func<Transfer, bool>> expression)
+        /// <param name="transfer">The transfer to update.</param>
+        /// <returns>The operation context.</returns>
+        public async Task UpdateAsync(Transfer transfer)
         {
-            return (await FindAsync(expression)) != default;
+            using var context = await ContextFactory.CreateDbContextAsync();
+            context.Update(transfer);
+            await context.SaveChangesAsync();
         }
     }
 }
