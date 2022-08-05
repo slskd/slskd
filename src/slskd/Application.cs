@@ -228,6 +228,30 @@ namespace slskd
 
         async Task IHostedService.StartAsync(CancellationToken cancellationToken)
         {
+            // if the application shut down "uncleanly", transfers may need to be cleaned up.
+            // any upload that was in progress should be marked as errored; remote users should re-enqueue them on their own.
+            var activeUploads = await Transfers.Uploads.ListAsync(t => !t.State.HasFlag(TransferStates.Completed) && !t.Removed);
+            await Task.WhenAll(activeUploads.Select(async upload =>
+            {
+                upload.State = TransferStates.Completed | TransferStates.Errored;
+                upload.Exception = "Application was shut down";
+                await Transfers.Uploads.UpdateAsync(upload);
+            }));
+
+            // any download that was queued or in progress should be marked as errored, but we also want to re-enqueue them if possible
+            var activeAndEnqueuedDownloads = await Transfers.Downloads.ListAsync(t => !t.State.HasFlag(TransferStates.Completed) && !t.Removed);
+            await Task.WhenAll(activeAndEnqueuedDownloads.Select(async download =>
+            {
+                download.State = TransferStates.Completed | TransferStates.Errored;
+                download.Exception = "Application was shut down";
+                await Transfers.Downloads.UpdateAsync(download);
+            }));
+
+            if (activeUploads.Any() || activeAndEnqueuedDownloads.Any())
+            {
+                Log.Information($"Cleaned up dangling transfers from improper shutdown");
+            }
+
             Log.Information("Configuring client");
 
             ProxyOptions proxyOptions = default;
@@ -322,6 +346,16 @@ namespace slskd
             else
             {
                 await Client.ConnectAsync(OptionsAtStartup.Soulseek.Username, OptionsAtStartup.Soulseek.Password).ConfigureAwait(false);
+
+                // experimental!
+                //foreach (var group in activeAndEnqueuedDownloads.GroupBy(t => t.Username))
+                //{
+                //    Log.Information("Re-enqueueing {Count} file(s) from {Username}", group.Key, group.Count());
+
+                //    await Transfers.Downloads.EnqueueAsync(
+                //        username: group.Key,
+                //        files: group.Select(t => (t.Filename, t.Size)));
+                //}
             }
         }
 
