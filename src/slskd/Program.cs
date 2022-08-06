@@ -15,6 +15,8 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
+using Microsoft.Extensions.Logging;
+
 namespace slskd
 {
     using System;
@@ -790,13 +792,19 @@ namespace slskd
         private static IServiceCollection AddDbContext<T>(this IServiceCollection services, string filename)
             where T : DbContext
         {
-            Log.Debug($"Initializing database context {typeof(T).Name}");
+            Log.Debug("Initializing database context {Name}", typeof(T).Name);
 
             try
             {
                 services.AddDbContextFactory<T>(options =>
                 {
                     options.UseSqlite($"Data Source={Path.Combine(AppDirectory, "data", filename)}");
+
+                    // tweak this to enable Entity Framework SQL logging
+                    if (OptionsAtStartup.Debug && false)
+                    {
+                        options.UseLoggerFactory(LoggerFactory.Create(builder => builder.AddConsole()));
+                    }
                 });
 
                 using var ctx = services
