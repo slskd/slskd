@@ -1,4 +1,4 @@
-// <copyright file="Application.cs" company="slskd Team">
+﻿// <copyright file="Application.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -21,6 +21,7 @@ namespace slskd
 {
     using System;
     using System.Collections.Concurrent;
+    using System.Collections.Generic;
     using System.Diagnostics;
     using System.IO;
     using System.Linq;
@@ -28,6 +29,7 @@ namespace slskd
     using System.Net.Sockets;
     using System.Reflection;
     using System.Runtime;
+    using System.Runtime.InteropServices;
     using System.Threading;
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.SignalR;
@@ -68,6 +70,8 @@ namespace slskd
         ///     The name of the leecher user group.
         /// </summary>
         public static readonly string LeecherGroup = "leechers";
+
+        private static readonly string ApplicationShutdownTransferExceptionMessage = "Application shut down";
 
         public Application(
             OptionsAtStartup optionsAtStartup,
@@ -183,6 +187,7 @@ namespace slskd
         private IUserService Users { get; set; }
         private IShareService Shares { get; set; }
         private IMemoryCache Cache { get; set; } = new MemoryCache(new MemoryCacheOptions());
+        private IEnumerable<Guid> ActiveDownloadIdsAtPreviousShutdown { get; set; } = Enumerable.Empty<Guid>();
 
         public void CollectGarbage()
         {
@@ -250,28 +255,43 @@ namespace slskd
 
         async Task IHostedService.StartAsync(CancellationToken cancellationToken)
         {
-            // if the application shut down "uncleanly", transfers may need to be cleaned up.
-            // any upload that was in progress should be marked as errored; remote users should re-enqueue them on their own.
-            var activeUploads = await Transfers.Uploads.ListAsync(t => !t.State.HasFlag(TransferStates.Completed) && !t.Removed);
+            // if the application shut down "uncleanly", transfers may need to be cleaned up. we deliberately don't allow these
+            // records to be updated if the application has started to shut down so that we can do this cleanup and properly
+            // disposition them as having failed due to an application shutdown, instead of some random exception thrown while
+            // things are being disposed.
+            var activeUploads = (await Transfers.Uploads.ListAsync(t => !t.State.HasFlag(TransferStates.Completed) && !t.Removed))
+                .Where(t => !t.State.HasFlag(TransferStates.Completed)) // https://github.com/dotnet/efcore/issues/10434
+                .ToList();
+
             await Task.WhenAll(activeUploads.Select(async upload =>
             {
+                Log.Debug("Cleaning up dangling upload {Filename} to {Username}", upload.Filename, upload.Username);
                 upload.State = TransferStates.Completed | TransferStates.Errored;
-                upload.Exception = "Application was shut down";
+                upload.Exception = ApplicationShutdownTransferExceptionMessage;
                 await Transfers.Uploads.UpdateAsync(upload);
             }));
 
-            // any download that was queued or in progress should be marked as errored, but we also want to re-enqueue them if possible
-            var activeAndEnqueuedDownloads = await Transfers.Downloads.ListAsync(t => !t.State.HasFlag(TransferStates.Completed) && !t.Removed);
-            await Task.WhenAll(activeAndEnqueuedDownloads.Select(async download =>
+            var activeDownloads = (await Transfers.Downloads.ListAsync(t => !t.State.HasFlag(TransferStates.Completed) && !t.Removed))
+                .Where(t => !t.State.HasFlag(TransferStates.Completed)) // https://github.com/dotnet/efcore/issues/10434
+                .ToList();
+
+            await Task.WhenAll(activeDownloads.Select(async download =>
             {
+                Log.Debug("Cleaning up dangling download {Filename} from {Username}", download.Filename, download.Username);
                 download.State = TransferStates.Completed | TransferStates.Errored;
-                download.Exception = "Application was shut down";
+                download.Exception = ApplicationShutdownTransferExceptionMessage;
                 await Transfers.Downloads.UpdateAsync(download);
             }));
 
-            if (activeUploads.Any() || activeAndEnqueuedDownloads.Any())
+            // save the ids of any downloads that were active, so we can re-enqueue them after we've connected and logged in.
+            // we need to check the database before we re-request to make sure the user didn't remove them from the UI while
+            // the application was running, but before it was logged in. so just save the ids.
+            ActiveDownloadIdsAtPreviousShutdown = activeDownloads.Select(d => d.Id);
+            Log.Debug("Downloads to resume upon connection: {Ids}", ActiveDownloadIdsAtPreviousShutdown.ToJson());
+
+            if (activeUploads.Any() || activeDownloads.Any())
             {
-                Log.Information($"Cleaned up dangling transfers from improper shutdown");
+                Log.Information($"Cleaned up dangling transfers from a previous shutdown");
             }
 
             Log.Information("Configuring client");
@@ -368,21 +388,13 @@ namespace slskd
             else
             {
                 await Client.ConnectAsync(OptionsAtStartup.Soulseek.Username, OptionsAtStartup.Soulseek.Password).ConfigureAwait(false);
-
-                // experimental!
-                //foreach (var group in activeAndEnqueuedDownloads.GroupBy(t => t.Username))
-                //{
-                //    Log.Information("Re-enqueueing {Count} file(s) from {Username}", group.Key, group.Count());
-
-                //    await Transfers.Downloads.EnqueueAsync(
-                //        username: group.Key,
-                //        files: group.Select(t => (t.Filename, t.Size)));
-                //}
             }
         }
 
         Task IHostedService.StopAsync(CancellationToken cancellationToken)
         {
+            ShuttingDown = true;
+            Log.Warning("Application is shutting down");
             Client.Disconnect("Shutting down", new ApplicationShutdownException("Shutting down"));
             Client.Dispose();
             Log.Information("Client stopped");
@@ -416,7 +428,7 @@ namespace slskd
             BrowseTracker.AddOrUpdate(args.Username, args);
         }
 
-        private void Client_Connected(object sender, EventArgs e)
+        private async void Client_Connected(object sender, EventArgs e)
         {
             ConnectionWatchdog.Stop();
             Log.Information("Connected to the Soulseek server");
@@ -499,16 +511,54 @@ namespace slskd
             }
         }
 
-        private void Client_LoggedIn(object sender, EventArgs e)
+        private async void Client_LoggedIn(object sender, EventArgs e)
         {
             Log.Information("Logged in to the Soulseek server as {Username}", Client.Username);
 
-            // send whatever counts we have currently. we'll probably connect before the cache is primed, so these will be zero
-            // initially, but we'll update them when the cache is filled.
-            _ = Client.SetSharedCountsAsync(State.CurrentValue.Shares.Directories, State.CurrentValue.Shares.Files);
+            try
+            {
+                // send whatever counts we have currently. we'll probably connect before the cache is primed, so these will be zero
+                // initially, but we'll update them when the cache is filled.
+                await Client.SetSharedCountsAsync(State.CurrentValue.Shares.Directories, State.CurrentValue.Shares.Files);
 
-            // fetch our average upload speed from the server, so we can provide it along with search results
-            _ = RefreshUserStatistics(force: true);
+                // fetch our average upload speed from the server, so we can provide it along with search results
+                await RefreshUserStatistics(force: true);
+
+                // we previously saved a list of all of the download ids that were active at the previous shutdown; fetch the latest
+                // record for those transfers from the db and ensure they haven't been removed from the UI while the application was offline
+                // the user doesn't want those transfers anymore and we don't want to add them back.
+                var resumeableDownloads = await Transfers.Downloads.ListAsync(t => !t.Removed && ActiveDownloadIdsAtPreviousShutdown.Contains(t.Id));
+
+                if (resumeableDownloads.Any())
+                {
+                    Log.Information("Attempting to re-enqueue previously active downloads...");
+
+                    var groups = resumeableDownloads.GroupBy(d => d.Username);
+
+                    // re-request downloads. we use a try/catch here because there's a very good chance that the other user is offline.
+                    foreach (var group in groups)
+                    {
+                        var username = group.Key;
+                        var files = group.Select(f => (f.Filename, f.Size));
+
+                        try
+                        {
+                            await Transfers.Downloads.EnqueueAsync(username, files);
+                        }
+                        catch (Exception ex)
+                        {
+                            Log.Warning("Failed to re-enqueue {Count} file(s) from {Username}: {Message}", files.Count(), username, ex.Message);
+                        }
+                    }
+                }
+
+                // clear the ids we saved at startup; we don't want to re-request these again if the connection is cycled
+                ActiveDownloadIdsAtPreviousShutdown = Enumerable.Empty<Guid>();
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to execute post-login actions");
+            }
         }
 
         private void Client_PrivateMessageRecieved(object sender, PrivateMessageReceivedEventArgs args)
