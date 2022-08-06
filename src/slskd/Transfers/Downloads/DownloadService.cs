@@ -64,14 +64,19 @@ namespace slskd.Transfers.Downloads
         /// <returns></returns>
         public async Task AddOrSupersedeAsync(Transfer transfer)
         {
-            var existing = await FindAsync(t => t.Username == transfer.Username && t.Filename == transfer.Filename);
+           using var context = await ContextFactory.CreateDbContextAsync();
 
-            using var context = await ContextFactory.CreateDbContextAsync();
+            var existing = await context.Transfers
+                    .Where(t => t.Direction == TransferDirection.Download)
+                    .Where(t => t.Username == transfer.Username)
+                    .Where(t => t.Filename == transfer.Filename)
+                    .Where(t => !t.Removed)
+                    .FirstOrDefaultAsync();
 
             if (existing != default)
             {
+                Log.Debug("Superseding transfer record for {Filename} from {Username}", transfer.Filename, transfer.Username);
                 existing.Removed = true;
-                context.Update(existing);
             }
 
             context.Add(transfer);
@@ -165,6 +170,12 @@ namespace slskd.Transfers.Downloads
                                         {
                                             Log.Debug("Download of {Filename} from user {Username} changed state from {Previous} to {New}", file.Filename, username, args.PreviousState, args.Transfer.State);
 
+                                            if (Application.IsShuttingDown)
+                                            {
+                                                Log.Debug("Download update of {Filename} to {Username} not persisted; app is shutting down", file.Filename, username);
+                                                return;
+                                            }
+
                                             transfer = transfer.WithSoulseekTransfer(args.Transfer);
                                             // todo: broadcast
                                             _ = UpdateAsync(transfer);
@@ -193,6 +204,11 @@ namespace slskd.Transfers.Downloads
                                 {
                                     _ = FTP.UploadAsync(file.Filename.ToLocalFilename(OptionsMonitor.CurrentValue.Directories.Downloads));
                                 }
+                            }
+                            catch (Exception ex) when (ex is not TaskCanceledException)
+                            {
+                                Log.Error(ex, "Download of {Filename} from user {Username} failed: {Message}", file.Filename, username, ex.Message);
+                                throw;
                             }
                             finally
                             {
@@ -233,7 +249,8 @@ namespace slskd.Transfers.Downloads
                             Log.Debug("Successfully enqueued {Filename} from user {Username}", file.Filename, username);
                         }
 
-                        await context.SaveChangesAsync();
+                        // todo: broadcast
+                        await UpdateAsync(transfer);
                     }
 
                     if (thrownExceptions.Any())
@@ -241,7 +258,7 @@ namespace slskd.Transfers.Downloads
                         throw new AggregateException(thrownExceptions);
                     }
 
-                    Log.Information("Successfully enqueued {Count} files from user {Username}", files.Count(), username);
+                    Log.Information("Successfully enqueued {Count} file(s) from user {Username}", files.Count(), username);
                 }
                 catch (Exception ex)
                 {

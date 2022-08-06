@@ -79,14 +79,19 @@ namespace slskd.Transfers.Uploads
         /// <returns></returns>
         public async Task AddOrSupersedeAsync(Transfer transfer)
         {
-            var existing = await FindAsync(t => t.Username == transfer.Username && t.Filename == transfer.Filename);
-
             using var context = await ContextFactory.CreateDbContextAsync();
+
+            var existing = await context.Transfers
+                    .Where(t => t.Direction == TransferDirection.Upload)
+                    .Where(t => t.Username == transfer.Username)
+                    .Where(t => t.Filename == transfer.Filename)
+                    .Where(t => !t.Removed)
+                    .FirstOrDefaultAsync();
 
             if (existing != default)
             {
+                Log.Debug("Superseding transfer record for {Filename} from {Username}", transfer.Filename, transfer.Username);
                 existing.Removed = true;
-                context.Update(existing);
             }
 
             context.Add(transfer);
@@ -157,48 +162,63 @@ namespace slskd.Transfers.Uploads
             {
                 using var rateLimiter = new RateLimiter(250);
 
-                var topts = new TransferOptions(
-                    stateChanged: (args) =>
-                    {
-                        Log.Debug("Upload of {Filename} to user {Username} changed state from {Previous} to {New}", localFilename, username, args.PreviousState, args.Transfer.State);
-
-                        transfer = transfer.WithSoulseekTransfer(args.Transfer);
-                        // todo: broadcast
-                        _ = UpdateAsync(transfer);
-
-                        if (args.Transfer.State.HasFlag(TransferStates.Queued))
-                        {
-                            Queue.Enqueue(args.Transfer.Username, args.Transfer.Filename);
-                        }
-                    },
-                    progressUpdated: (args) => rateLimiter.Invoke(() =>
-                    {
-                        transfer = transfer.WithSoulseekTransfer(args.Transfer);
-                        // todo: broadcast
-                        _ = UpdateAsync(transfer);
-                    }),
-                    governor: (tx, req, ct) => Governor.GetBytesAsync(tx.Username, req, ct),
-                    reporter: (tx, att, grant, act) => Governor.ReturnBytes(tx.Username, att, grant, act),
-                    slotAwaiter: (tx, ct) => Queue.AwaitStartAsync(tx.Username, tx.Filename),
-                    slotReleased: (tx) => Queue.Complete(tx.Username, tx.Filename));
-
-                // users with uploads must be watched so that we can keep informed of their online status, privileges, and
-                // statistics. this is so that we can accurately determine their effective group.
-                if (!Users.IsWatched(username))
+                try
                 {
-                    await Users.WatchAsync(username);
+                    var topts = new TransferOptions(
+                        stateChanged: (args) =>
+                        {
+                            Log.Debug("Upload of {Filename} to user {Username} changed state from {Previous} to {New}", localFilename, username, args.PreviousState, args.Transfer.State);
+
+                            if (Application.IsShuttingDown)
+                            {
+                                Log.Debug("Upload update of {Filename} to {Username} not persisted; app is shutting down", filename, username);
+                                return;
+                            }
+
+                            transfer = transfer.WithSoulseekTransfer(args.Transfer);
+                            // todo: broadcast
+                            _ = UpdateAsync(transfer);
+
+                            if (args.Transfer.State.HasFlag(TransferStates.Queued))
+                            {
+                                Queue.Enqueue(args.Transfer.Username, args.Transfer.Filename);
+                            }
+                        },
+                        progressUpdated: (args) => rateLimiter.Invoke(() =>
+                        {
+                            transfer = transfer.WithSoulseekTransfer(args.Transfer);
+                            // todo: broadcast
+                            _ = UpdateAsync(transfer);
+                        }),
+                        governor: (tx, req, ct) => Governor.GetBytesAsync(tx.Username, req, ct),
+                        reporter: (tx, att, grant, act) => Governor.ReturnBytes(tx.Username, att, grant, act),
+                        slotAwaiter: (tx, ct) => Queue.AwaitStartAsync(tx.Username, tx.Filename),
+                        slotReleased: (tx) => Queue.Complete(tx.Username, tx.Filename));
+
+                    // users with uploads must be watched so that we can keep informed of their online status, privileges, and
+                    // statistics. this is so that we can accurately determine their effective group.
+                    if (!Users.IsWatched(username))
+                    {
+                        await Users.WatchAsync(username);
+                    }
+
+                    using var stream = new FileStream(fileInfo.FullName, FileMode.Open, FileAccess.Read);
+                    var completedTransfer = await Client.UploadAsync(username, filename, fileInfo.FullName, options: topts, cancellationToken: cts.Token);
+
+                    transfer = transfer.WithSoulseekTransfer(completedTransfer);
+                    //todo: broadcast
+                    await UpdateAsync(transfer);
                 }
-
-                using var stream = new FileStream(fileInfo.FullName, FileMode.Open, FileAccess.Read);
-                var completedTransfer = await Client.UploadAsync(username, filename, fileInfo.FullName, options: topts, cancellationToken: cts.Token);
-
-                transfer = transfer.WithSoulseekTransfer(completedTransfer);
-                //todo: broadcast
-                await UpdateAsync(transfer);
-            }).ContinueWith(t =>
-            {
-                Log.Information("[{Context}] {Filename} for {Username}: {Message}", "UPLOAD FAILED", username, filename, t.Exception?.Message);
-            }, TaskContinuationOptions.NotOnRanToCompletion); // fire and forget
+                catch (Exception ex) when (ex is not TaskCanceledException)
+                {
+                    Log.Error(ex, "Upload of {Filename} to user {Username} failed: {Message}", filename, username, ex.Message);
+                    throw;
+                }
+                finally
+                {
+                    CancellationTokens.TryRemove(id, out _);
+                }
+            });
         }
 
         /// <summary>
