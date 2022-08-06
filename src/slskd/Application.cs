@@ -1,4 +1,4 @@
-﻿// <copyright file="Application.cs" company="slskd Team">
+// <copyright file="Application.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -86,6 +86,21 @@ namespace slskd
             IHubContext<ApplicationHub> applicationHub,
             IHubContext<LogsHub> logHub)
         {
+            Console.CancelKeyPress += (_, args) =>
+            {
+                ShuttingDown = true;
+                Log.Warning("Received SIGINT");
+            };
+
+            foreach (var signal in new[] { PosixSignal.SIGINT, PosixSignal.SIGQUIT, PosixSignal.SIGTERM })
+            {
+                PosixSignalRegistration.Create(signal, context =>
+                {
+                    ShuttingDown = true;
+                    Log.Fatal("Received {Signal}", signal);
+                });
+            }
+
             OptionsAtStartup = optionsAtStartup;
 
             OptionsMonitor = optionsMonitor;
