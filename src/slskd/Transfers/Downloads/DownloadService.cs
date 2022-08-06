@@ -360,7 +360,6 @@ namespace slskd.Transfers.Downloads
             {
                 using var context = await ContextFactory.CreateDbContextAsync();
                 var transfer = await context.Transfers
-                    .AsNoTracking()
                     .Where(t => t.Direction == TransferDirection.Download)
                     .Where(t => t.Id == id)
                     .FirstOrDefaultAsync();
