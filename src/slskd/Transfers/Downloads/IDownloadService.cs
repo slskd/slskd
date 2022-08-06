@@ -28,6 +28,14 @@ namespace slskd.Transfers.Downloads
     public interface IDownloadService
     {
         /// <summary>
+        ///     Adds the specified <paramref name="transfer"/>. Supersedes any existing record for the same file and username.
+        /// </summary>
+        /// <remarks>This should generally not be called; use <see cref="EnqueueAsync(string, IEnumerable(string Filename, long Size)})"/> instead.</remarks>
+        /// <param name="transfer"></param>
+        /// <returns></returns>
+        Task AddOrSupersedeAsync(Transfer transfer);
+
+        /// <summary>
         ///     Enqueues the requested list of <paramref name="files"/>.
         /// </summary>
         /// <remarks>

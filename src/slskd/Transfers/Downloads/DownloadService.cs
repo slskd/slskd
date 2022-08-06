@@ -57,6 +57,28 @@ namespace slskd.Transfers.Downloads
         private IOptionsMonitor<Options> OptionsMonitor { get; }
 
         /// <summary>
+        ///     Adds the specified <paramref name="transfer"/>. Supersedes any existing record for the same file and username.
+        /// </summary>
+        /// <remarks>This should generally not be called; use <see cref="EnqueueAsync(string, IEnumerable(string Filename, long Size)})"/> instead.</remarks>
+        /// <param name="transfer"></param>
+        /// <returns></returns>
+        public async Task AddOrSupersedeAsync(Transfer transfer)
+        {
+            var existing = await FindAsync(t => t.Username == transfer.Username && t.Filename == transfer.Filename);
+
+            using var context = await ContextFactory.CreateDbContextAsync();
+
+            if (existing != default)
+            {
+                existing.Removed = true;
+                context.Update(existing);
+            }
+
+            context.Add(transfer);
+            await context.SaveChangesAsync();
+        }
+
+        /// <summary>
         ///     Enqueues the requested list of <paramref name="files"/>.
         /// </summary>
         /// <remarks>
@@ -113,9 +135,7 @@ namespace slskd.Transfers.Downloads
                         };
 
                         // persist the transfer to the database so we have a record that it was attempted
-                        using var context = await ContextFactory.CreateDbContextAsync();
-                        context.Add(transfer);
-                        await context.SaveChangesAsync();
+                        await AddOrSupersedeAsync(transfer);
 
                         var cts = new CancellationTokenSource();
                         CancellationTokens.TryAdd(id, cts);

@@ -38,6 +38,14 @@ namespace slskd.Transfers.Uploads
         IUploadQueue Queue { get; }
 
         /// <summary>
+        ///     Adds the specified <paramref name="transfer"/>. Supersedes any existing record for the same file and username.
+        /// </summary>
+        /// <remarks>This should generally not be called; use <see cref="EnqueueAsync(string, string)"/> instead.</remarks>
+        /// <param name="transfer"></param>
+        /// <returns></returns>
+        Task AddOrSupersedeAsync(Transfer transfer);
+
+        /// <summary>
         ///     Enqueues the requested file.
         /// </summary>
         /// <param name="username">The username of the requesting user.</param>
