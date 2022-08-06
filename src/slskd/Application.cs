@@ -155,6 +155,13 @@ namespace slskd
             ConnectionWatchdog = connectionWatchdog;
         }
 
+        /// <summary>
+        ///     Gets a value indicating whether the application is in the process of shutting down.
+        /// </summary>
+        public static bool IsShuttingDown => Environment.HasShutdownStarted || ShuttingDown;
+
+        private static bool ShuttingDown { get; set; } = false;
+
         private ISoulseekClient Client { get; set; }
         private IRoomService RoomService { get; set; }
         private IBrowseTracker BrowseTracker { get; set; }
