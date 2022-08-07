@@ -52,7 +52,7 @@
         public class GetBytesAsync
         {
             [Theory, AutoData]
-            public async Task Gets_Bytes_From_Bucket(string username, string filename)
+            public async Task Gets_Bytes_From_Bucket(string username)
             {
                 var (governor, _) = GetFixture();
 
@@ -63,15 +63,13 @@
                     { Application.DefaultGroup, bucket.Object },
                 });
 
-                var tx = new Transfer(TransferDirection.Upload, username, filename, 0, TransferStates.Completed, 0, 0);
-
-                await governor.GetBytesAsync(tx, 1, CancellationToken.None);
+                await governor.GetBytesAsync(username, 1, CancellationToken.None);
 
                 bucket.Verify(m => m.GetAsync(1, CancellationToken.None), Times.Once);
             }
 
             [Theory, AutoData]
-            public async Task Gets_Bytes_From_Default_Bucket_If_No_Bucket_For_Group_Exists(string username, string filename, string group)
+            public async Task Gets_Bytes_From_Default_Bucket_If_No_Bucket_For_Group_Exists(string username, string group)
             {
                 var (governor, mocks) = GetFixture();
 
@@ -86,15 +84,13 @@
                     { Application.DefaultGroup, bucket.Object },
                 });
 
-                var tx = new Transfer(TransferDirection.Upload, username, filename, 0, TransferStates.Completed, 0, 0);
-
-                await governor.GetBytesAsync(tx, 1, CancellationToken.None);
+                await governor.GetBytesAsync(username, 1, CancellationToken.None);
 
                 bucket.Verify(m => m.GetAsync(1, CancellationToken.None), Times.Once);
             }
 
             [Theory, AutoData]
-            public async Task Gets_Bytes_From_User_Defined_Bucket(string username, string filename, string group)
+            public async Task Gets_Bytes_From_User_Defined_Bucket(string username, string group)
             {
                 var (governor, mocks) = GetFixture();
 
@@ -108,9 +104,7 @@
                     { group, bucket.Object },
                 });
 
-                var tx = new Transfer(TransferDirection.Upload, username, filename, 0, TransferStates.Completed, 0, 0);
-
-                await governor.GetBytesAsync(tx, 1, CancellationToken.None);
+                await governor.GetBytesAsync(username, 1, CancellationToken.None);
 
                 bucket.Verify(m => m.GetAsync(1, CancellationToken.None), Times.Once);
             }
@@ -119,7 +113,7 @@
         public class ReturnBytes
         {
             [Theory, AutoData]
-            public void Returns_Bytes_To_Bucket(string username, string filename, int attemptedBytes)
+            public void Returns_Bytes_To_Bucket(string username, int attemptedBytes)
             {
                 var (governor, _) = GetFixture();
 
@@ -130,16 +124,14 @@
                     { Application.DefaultGroup, bucket.Object },
                 });
 
-                var tx = new Transfer(TransferDirection.Upload, username, filename, 0, TransferStates.Completed, 0, 0);
-
-                governor.ReturnBytes(transfer: tx, attemptedBytes, grantedBytes: attemptedBytes / 2, actualBytes: attemptedBytes / 4);
+                governor.ReturnBytes(username, attemptedBytes, grantedBytes: attemptedBytes / 2, actualBytes: attemptedBytes / 4);
 
                 // assert that the difference between granted and actual was returned
                 bucket.Verify(m => m.Return((attemptedBytes / 2) - (attemptedBytes / 4)), Times.Once);
             }
 
             [Theory, AutoData]
-            public void Does_Not_Return_Bytes_To_Bucket_If_No_Bytes_Were_Wasted(string username, string filename)
+            public void Does_Not_Return_Bytes_To_Bucket_If_No_Bytes_Were_Wasted(string username)
             {
                 var (governor, _) = GetFixture();
 
@@ -150,16 +142,14 @@
                     { Application.DefaultGroup, bucket.Object },
                 });
 
-                var tx = new Transfer(TransferDirection.Upload, username, filename, 0, TransferStates.Completed, 0, 0);
-
-                governor.ReturnBytes(transfer: tx, attemptedBytes: 100, grantedBytes: 50, actualBytes: 50);
+                governor.ReturnBytes(username, attemptedBytes: 100, grantedBytes: 50, actualBytes: 50);
 
                 // assert that the bucket's return method was never called
                 bucket.Verify(m => m.Return(It.IsAny<int>()), Times.Never);
             }
 
             [Theory, AutoData]
-            public void Returns_Bytes_To_Default_Bucket_If_No_Bucket_For_Group_Exists(string username, string filename, string group)
+            public void Returns_Bytes_To_Default_Bucket_If_No_Bucket_For_Group_Exists(string username, string group)
             {
                 var (governor, mocks) = GetFixture();
 
@@ -174,16 +164,14 @@
                     { Application.DefaultGroup, bucket.Object },
                 });
 
-                var tx = new Transfer(TransferDirection.Upload, username, filename, 0, TransferStates.Completed, 0, 0);
-
-                governor.ReturnBytes(transfer: tx, attemptedBytes: 100, grantedBytes: 50, actualBytes: 25);
+                governor.ReturnBytes(username, attemptedBytes: 100, grantedBytes: 50, actualBytes: 25);
 
                 // assert that the difference between granted and actual was returned
                 bucket.Verify(m => m.Return(25));
             }
 
             [Theory, AutoData]
-            public void Returns_Bytes_To_User_Defined_Bucket(string username, string filename, string group)
+            public void Returns_Bytes_To_User_Defined_Bucket(string username, string group)
             {
                 var (governor, mocks) = GetFixture();
 
@@ -197,9 +185,7 @@
                     { group, bucket.Object },
                 });
 
-                var tx = new Transfer(TransferDirection.Upload, username, filename, 0, TransferStates.Completed, 0, 0);
-
-                governor.ReturnBytes(transfer: tx, attemptedBytes: 100, grantedBytes: 50, actualBytes: 25);
+                governor.ReturnBytes(username, attemptedBytes: 100, grantedBytes: 50, actualBytes: 25);
 
                 // assert that the difference between granted and actual was returned
                 bucket.Verify(m => m.Return(25));

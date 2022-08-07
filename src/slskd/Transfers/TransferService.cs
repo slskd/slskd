@@ -15,12 +15,10 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-using Microsoft.Extensions.Options;
-
 namespace slskd.Transfers
 {
+    using slskd.Transfers.Downloads;
     using slskd.Transfers.Uploads;
-    using slskd.Users;
 
     /// <summary>
     ///     Manages transfers.
@@ -31,6 +29,11 @@ namespace slskd.Transfers
         ///     Gets the upload service.
         /// </summary>
         IUploadService Uploads { get; }
+
+        /// <summary>
+        ///     Gets the download service.
+        /// </summary>
+        IDownloadService Downloads { get; }
     }
 
     /// <summary>
@@ -41,22 +44,12 @@ namespace slskd.Transfers
         /// <summary>
         ///     Initializes a new instance of the <see cref="TransferService"/> class.
         /// </summary>
-        /// <param name="userService">The UserService instance to use.</param>
-        /// <param name="optionsMonitor">The OptionsMonitor instance to use.</param>
-        /// <param name="uploadService">The optional UploadService instance to use.</param>
         public TransferService(
-            IUserService userService,
-            IOptionsMonitor<Options> optionsMonitor,
-            IUploadService uploadService = null)
+            IUploadService uploadService = null,
+            IDownloadService downloadService = null)
         {
-            Users = userService;
-            OptionsMonitor = optionsMonitor;
-
-            Uploads = uploadService ?? new UploadService()
-            {
-                Governor = new UploadGovernor(userService: Users, optionsMonitor: OptionsMonitor),
-                Queue = new UploadQueue(userService: Users, optionsMonitor: OptionsMonitor),
-            };
+            Uploads = uploadService;
+            Downloads = downloadService;
         }
 
         /// <summary>
@@ -64,7 +57,9 @@ namespace slskd.Transfers
         /// </summary>
         public IUploadService Uploads { get; init; }
 
-        private IOptionsMonitor<Options> OptionsMonitor { get; init; }
-        private IUserService Users { get; init; }
+        /// <summary>
+        ///     Gets the download service.
+        /// </summary>
+        public IDownloadService Downloads { get; init; }
     }
 }

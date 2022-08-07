@@ -1,4 +1,4 @@
-﻿// <copyright file="QueueDownloadRequest.cs" company="slskd Team">
+﻿// <copyright file="UserResponse.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -17,16 +17,11 @@
 
 namespace slskd.Transfers.API
 {
-    public class QueueDownloadRequest
-    {
-        /// <summary>
-        ///     Gets or sets the filename to download.
-        /// </summary>
-        public string Filename { get; set; }
+    using System.Collections.Generic;
 
-        /// <summary>
-        ///     Gets or sets the size of the file.
-        /// </summary>
-        public long Size { get; set; }
+    public record UserResponse
+    {
+        public string Username { get; init; }
+        public IEnumerable<DirectoryResponse> Directories { get; init; }
     }
 }

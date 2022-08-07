@@ -21,25 +21,13 @@ namespace slskd.Search
     using System.Collections.Generic;
     using System.Linq.Expressions;
     using System.Threading.Tasks;
-    using SearchOptions = Soulseek.SearchOptions;
-    using SearchQuery = Soulseek.SearchQuery;
-    using SearchScope = Soulseek.SearchScope;
+    using Soulseek;
 
     /// <summary>
     ///     Handles the lifecycle and persistence of searches.
     /// </summary>
     public interface ISearchService
     {
-        /// <summary>
-        ///     Performs a search for the specified <paramref name="query"/> and <paramref name="scope"/>.
-        /// </summary>
-        /// <param name="id">A unique identifier for the search.</param>
-        /// <param name="query">The search query.</param>
-        /// <param name="scope">The search scope.</param>
-        /// <param name="options">Search options.</param>
-        /// <returns>The completed search.</returns>
-        Task<Search> StartAsync(Guid id, SearchQuery query, SearchScope scope, SearchOptions options = null);
-
         /// <summary>
         ///     Deletes the specified ssearch.
         /// </summary>
@@ -53,15 +41,25 @@ namespace slskd.Search
         /// <param name="expression">The expression to use to match searches.</param>
         /// <param name="includeResponses">A value indicating whether to include search responses in the result.</param>
         /// <returns>The found search, or default if not found.</returns>
-        /// <exception cref="ArgumentException">Thrown an expression is not supplied.</exception>
+        /// <exception cref="ArgumentException">Thrown when an expression is not supplied.</exception>
         Task<Search> FindAsync(Expression<Func<Search, bool>> expression, bool includeResponses = false);
 
         /// <summary>
-        ///     Returns a list of all completed and in-progress searches, with responses omitted.
+        ///     Returns a list of all completed and in-progress searches, with responses omitted, matching the optional <paramref name="expression"/>.
         /// </summary>
         /// <param name="expression">An optional expression used to match searches.</param>
-        /// <returns>The list of searches matching the specified expression.</returns>
+        /// <returns>The list of searches matching the specified expression, or all searches if no expression is specified.</returns>
         Task<List<Search>> ListAsync(Expression<Func<Search, bool>> expression = null);
+
+        /// <summary>
+        ///     Performs a search for the specified <paramref name="query"/> and <paramref name="scope"/>.
+        /// </summary>
+        /// <param name="id">A unique identifier for the search.</param>
+        /// <param name="query">The search query.</param>
+        /// <param name="scope">The search scope.</param>
+        /// <param name="options">Search options.</param>
+        /// <returns>The completed search.</returns>
+        Task<Search> StartAsync(Guid id, SearchQuery query, SearchScope scope, SearchOptions options = null);
 
         /// <summary>
         ///     Cancels the search matching the specified <paramref name="id"/>, if it is in progress.

@@ -28,7 +28,6 @@ namespace slskd.Transfers
     using System.Threading.Tasks;
     using Serilog;
     using slskd.Users;
-    using Soulseek;
 
     /// <summary>
     ///     Orchestrates uploads.
@@ -38,21 +37,24 @@ namespace slskd.Transfers
         /// <summary>
         ///     Awaits the start of an upload.
         /// </summary>
-        /// <param name="transfer">The upload for which to wait.</param>
+        /// <param name="username">The username of the remote user.</param>
+        /// <param name="filename">The filename for which to await the start.</param>
         /// <returns>The operation context.</returns>
-        Task AwaitStartAsync(Transfer transfer);
+        Task AwaitStartAsync(string username, string filename);
 
         /// <summary>
         ///     Signals the completion of an upload.
         /// </summary>
-        /// <param name="transfer">The completed upload.</param>
-        void Complete(Transfer transfer);
+        /// <param name="username">The username of the remote user.</param>
+        /// <param name="filename">The completed filename.</param>
+        void Complete(string username, string filename);
 
         /// <summary>
         ///     Enqueues an upload.
         /// </summary>
-        /// <param name="transfer">The upload to enqueue.</param>
-        void Enqueue(Transfer transfer);
+        /// <param name="username">The username of the remote user.</param>
+        /// <param name="filename">The filename to enqueue.</param>
+        void Enqueue(string username, string filename);
 
         /// <summary>
         ///     Computes the estimated queue position of the specified <paramref name="filename"/> for the specified <paramref name="username"/>.
@@ -109,24 +111,25 @@ namespace slskd.Transfers
         /// <summary>
         ///     Awaits the start of an upload.
         /// </summary>
-        /// <param name="transfer">The upload for which to wait.</param>
+        /// <param name="username">The username of the remote user.</param>
+        /// <param name="filename">The filename for which to await the start.</param>
         /// <returns>The operation context.</returns>
-        public Task AwaitStartAsync(Transfer transfer)
+        public Task AwaitStartAsync(string username, string filename)
         {
             SyncRoot.Wait();
 
             try
             {
-                if (!Uploads.TryGetValue(transfer.Username, out var list))
+                if (!Uploads.TryGetValue(username, out var list))
                 {
-                    throw new SlskdException($"No enqueued uploads for user {transfer.Username}");
+                    throw new SlskdException($"No enqueued uploads for user {username}");
                 }
 
-                var upload = list.FirstOrDefault(e => e.Filename == transfer.Filename);
+                var upload = list.FirstOrDefault(e => e.Filename == filename);
 
                 if (upload == default)
                 {
-                    throw new SlskdException($"File {transfer.Filename} is not enqueued for user {transfer.Username}");
+                    throw new SlskdException($"File {filename} is not enqueued for user {username}");
                 }
 
                 upload.Ready = DateTime.UtcNow;
@@ -144,23 +147,24 @@ namespace slskd.Transfers
         /// <summary>
         ///     Signals the completion of an upload.
         /// </summary>
-        /// <param name="transfer">The completed upload.</param>
-        public void Complete(Transfer transfer)
+        /// <param name="username">The username of the remote user.</param>
+        /// <param name="filename">The completed filename.</param>
+        public void Complete(string username, string filename)
         {
             SyncRoot.Wait();
 
             try
             {
-                if (!Uploads.TryGetValue(transfer.Username, out var list))
+                if (!Uploads.TryGetValue(username, out var list))
                 {
-                    throw new SlskdException($"No enqueued uploads for user {transfer.Username}");
+                    throw new SlskdException($"No enqueued uploads for user {username}");
                 }
 
-                var upload = list.FirstOrDefault(e => e.Filename == transfer.Filename);
+                var upload = list.FirstOrDefault(e => e.Filename == filename);
 
                 if (upload == default)
                 {
-                    throw new SlskdException($"File {transfer.Filename} is not enqueued for user {transfer.Username}");
+                    throw new SlskdException($"File {filename} is not enqueued for user {username}");
                 }
 
                 list.Remove(upload);
@@ -176,9 +180,9 @@ namespace slskd.Transfers
                     Log.Debug("Group {Group} slots: {Used}/{Available}", group.Name, group.UsedSlots, group.Slots);
                 }
 
-                if (!list.Any() && Uploads.TryRemove(transfer.Username, out _))
+                if (!list.Any() && Uploads.TryRemove(username, out _))
                 {
-                    Log.Debug("Cleaned up tracking list for {User}; no more queued uploads to track", transfer.Username);
+                    Log.Debug("Cleaned up tracking list for {User}; no more queued uploads to track", username);
                 }
             }
             finally
@@ -191,17 +195,18 @@ namespace slskd.Transfers
         /// <summary>
         ///     Enqueues an upload.
         /// </summary>
-        /// <param name="transfer">The upload to enqueue.</param>
-        public void Enqueue(Transfer transfer)
+        /// <param name="username">The username of the remote user.</param>
+        /// <param name="filename">The filename to enqueue.</param>
+        public void Enqueue(string username, string filename)
         {
             SyncRoot.Wait();
 
             try
             {
-                var upload = new Upload() { Username = transfer.Username, Filename = transfer.Filename };
+                var upload = new Upload() { Username = username, Filename = filename };
 
                 Uploads.AddOrUpdate(
-                    key: transfer.Username,
+                    key: username,
                     addValue: new List<Upload>(new[] { upload }),
                     updateValueFactory: (key, list) =>
                     {

@@ -70,6 +70,75 @@ namespace slskd.Search
         private IHubContext<SearchHub> SearchHub { get; set; }
 
         /// <summary>
+        ///     Deletes the specified ssearch.
+        /// </summary>
+        /// <param name="search">The search to delete.</param>
+        /// <returns>The operation context.</returns>
+        public Task DeleteAsync(Search search)
+        {
+            if (search == default)
+            {
+                throw new ArgumentNullException(nameof(search));
+            }
+
+            return DoDeleteAsync(search);
+
+            async Task DoDeleteAsync(Search search)
+            {
+                using var context = ContextFactory.CreateDbContext();
+                context.Searches.Remove(search);
+                await context.SaveChangesAsync();
+
+                await SearchHub.BroadcastDeleteAsync(search);
+            }
+        }
+
+        /// <summary>
+        ///     Finds a single search matching the specified <paramref name="expression"/>.
+        /// </summary>
+        /// <param name="expression">The expression to use to match searches.</param>
+        /// <param name="includeResponses">A value indicating whether to include search responses in the result.</param>
+        /// <returns>The found search, or default if not found.</returns>
+        /// <exception cref="ArgumentException">Thrown when an expression is not supplied.</exception>
+        public Task<Search> FindAsync(Expression<Func<Search, bool>> expression, bool includeResponses = false)
+        {
+            if (expression == default)
+            {
+                throw new ArgumentException("An expression must be supplied.", nameof(expression));
+            }
+
+            using var context = ContextFactory.CreateDbContext();
+
+            var selector = context.Searches
+                .AsNoTracking()
+                .Where(expression);
+
+            if (!includeResponses)
+            {
+                selector = selector.WithoutResponses();
+            }
+
+            return selector.FirstOrDefaultAsync();
+        }
+
+        /// <summary>
+        ///     Returns a list of all completed and in-progress searches, with responses omitted, matching the optional <paramref name="expression"/>.
+        /// </summary>
+        /// <param name="expression">An optional expression used to match searches.</param>
+        /// <returns>The list of searches matching the specified expression, or all searches if no expression is specified.</returns>
+        public Task<List<Search>> ListAsync(Expression<Func<Search, bool>> expression = null)
+        {
+            expression ??= s => true;
+            using var context = ContextFactory.CreateDbContext();
+
+            return context.Searches
+                .AsNoTracking()
+                .Where(expression)
+                .WithoutResponses()
+                .ToListAsync();
+        }
+
+        /// <summary>
         ///     Performs a search for the specified <paramref name="query"/> and <paramref name="scope"/>.
         /// </summary>
         /// <param name="id">A unique identifier for the search.</param>
@@ -117,10 +186,9 @@ namespace slskd.Search
                 },
                 responseReceived: (args) => rateLimiter.Invoke(() =>
                 {
-                    // note: this is rate limited, but has the potential to update
-                    // the database every 250ms (or whatever the interval is set to)
-                    // for the duration of the search. any issues with disk i/o or performance
-                    // while searches are running should investigate this as a cause
+                    // note: this is rate limited, but has the potential to update the database every 250ms (or whatever the
+                    // interval is set to) for the duration of the search. any issues with disk i/o or performance while searches
+                    // are running should investigate this as a cause
                     search.ResponseCount = args.Search.ResponseCount;
                     search.FileCount = args.Search.FileCount;
                     search.LockedFileCount = args.Search.LockedFileCount;
@@ -171,68 +239,6 @@ namespace slskd.Search
             await SearchHub.BroadcastCreateAsync(search);
 
             return search;
-        }
-
-        /// <summary>
-        ///     Deletes the specified ssearch.
-        /// </summary>
-        /// <param name="search">The search to delete.</param>
-        /// <returns>The operation context.</returns>
-        public Task DeleteAsync(Search search)
-        {
-            if (search == default)
-            {
-                throw new ArgumentNullException(nameof(search));
-            }
-
-            return DoDeleteAsync(search);
-
-            async Task DoDeleteAsync(Search search)
-            {
-                using var context = ContextFactory.CreateDbContext();
-                context.Searches.Remove(search);
-                await context.SaveChangesAsync();
-
-                await SearchHub.BroadcastDeleteAsync(search);
-            }
-        }
-
-        /// <summary>
-        ///     Finds a single search matching the specified <paramref name="expression"/>.
-        /// </summary>
-        /// <param name="expression">The expression to use to match searches.</param>
-        /// <param name="includeResponses">A value indicating whether to include search responses in the result.</param>
-        /// <returns>The found search, or default if not found.</returns>
-        /// <exception cref="ArgumentException">Thrown an expression is not supplied.</exception>
-        public Task<Search> FindAsync(Expression<Func<Search, bool>> expression, bool includeResponses = false)
-        {
-            if (expression == default)
-            {
-                throw new ArgumentException("An expression must be supplied.", nameof(expression));
-            }
-
-            using var context = ContextFactory.CreateDbContext();
-
-            var selector = context.Searches.Where(expression);
-
-            if (!includeResponses)
-            {
-                selector = selector.WithoutResponses();
-            }
-
-            return selector.FirstOrDefaultAsync();
-        }
-
-        /// <summary>
-        ///     Returns a list of all completed and in-progress searches, with responses omitted.
-        /// </summary>
-        /// <param name="expression">An optional expression used to match searches.</param>
-        /// <returns>The list of searches matching the specified expression.</returns>
-        public Task<List<Search>> ListAsync(Expression<Func<Search, bool>> expression = null)
-        {
-            expression ??= s => true;
-            using var context = ContextFactory.CreateDbContext();
-            return context.Searches.Where(expression).WithoutResponses().ToListAsync();
         }
 
         /// <summary>

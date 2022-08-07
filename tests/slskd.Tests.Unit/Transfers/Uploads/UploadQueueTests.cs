@@ -284,50 +284,45 @@
             public void Enqueue_Enqueues_If_Nothing_Is_Enqueued_Already(string username, string filename)
             {
                 var (queue, _) = GetFixture();
-                var tx = GetTransfer(username, filename);
-
+                
                 Assert.Empty(queue.GetProperty<ConcurrentDictionary<string, List<Upload>>>("Uploads"));
 
-                queue.Enqueue(tx);
+                queue.Enqueue(username, filename);
 
                 var uploads = queue.GetProperty<ConcurrentDictionary<string, List<Upload>>>("Uploads");
 
                 Assert.Single(uploads);
                 Assert.True(uploads.ContainsKey(username));
                 Assert.Single(uploads.GetValueOrDefault(username));
-                Assert.Equal(tx.Filename, uploads.GetValueOrDefault(username).First().Filename);
+                Assert.Equal(filename, uploads.GetValueOrDefault(username).First().Filename);
             }
 
             [Theory, AutoData]
             public void Enqueue_Enqueues_If_Something_Is_Enqueued_Already(string username, string filename, string filename2)
             {
                 var (queue, _) = GetFixture();
-                var tx = GetTransfer(username, filename);
-                var tx2 = GetTransfer(username, filename2);
-
-                queue.Enqueue(tx);
-                queue.Enqueue(tx2);
+                
+                queue.Enqueue(username, filename);
+                queue.Enqueue(username, filename2);
 
                 var uploads = queue.GetProperty<ConcurrentDictionary<string, List<Upload>>>("Uploads");
 
                 Assert.Single(uploads);
                 Assert.True(uploads.ContainsKey(username));
                 Assert.Equal(2, uploads.GetValueOrDefault(username).Count);
-                Assert.Equal(tx.Filename, uploads.GetValueOrDefault(username)[0].Filename);
-                Assert.Equal(tx2.Filename, uploads.GetValueOrDefault(username)[1].Filename);
+                Assert.Equal(filename, uploads.GetValueOrDefault(username)[0].Filename);
+                Assert.Equal(filename2, uploads.GetValueOrDefault(username)[1].Filename);
             }
 
             [Theory, AutoData]
             public void Enqueue_Enqueues_Transfers_From_Different_Users(string username, string filename, string username2, string filename2)
             {
                 var (queue, _) = GetFixture();
-                var tx = GetTransfer(username, filename);
-                var tx2 = GetTransfer(username2, filename2);
 
                 Assert.Empty(queue.GetProperty<ConcurrentDictionary<string, List<Upload>>>("Uploads"));
 
-                queue.Enqueue(tx);
-                queue.Enqueue(tx2);
+                queue.Enqueue(username, filename);
+                queue.Enqueue(username2, filename2);
 
                 var uploads = queue.GetProperty<ConcurrentDictionary<string, List<Upload>>>("Uploads");
 
@@ -337,11 +332,11 @@
 
                 // username should have a list containing 1 file
                 Assert.Single(uploads.GetValueOrDefault(username));
-                Assert.Equal(tx.Filename, uploads.GetValueOrDefault(username).First().Filename);
+                Assert.Equal(filename, uploads.GetValueOrDefault(username).First().Filename);
 
                 // username2 should also have a list containing 1 file
                 Assert.Single(uploads.GetValueOrDefault(username2));
-                Assert.Equal(tx2.Filename, uploads.GetValueOrDefault(username2).First().Filename);
+                Assert.Equal(filename2, uploads.GetValueOrDefault(username2).First().Filename);
             }
         }
 
@@ -351,9 +346,8 @@
             public void Throws_If_No_Such_Username(string username, string filename)
             {
                 var (queue, _) = GetFixture();
-                var tx = GetTransfer(username, filename);
 
-                var ex = Record.Exception(() => queue.Complete(tx));
+                var ex = Record.Exception(() => queue.Complete(username, filename));
 
                 Assert.NotNull(ex);
                 Assert.IsType<SlskdException>(ex);
@@ -364,12 +358,10 @@
             public void Throws_If_No_Such_Filename(string username, string filename)
             {
                 var (queue, _) = GetFixture();
-                var tx = GetTransfer(username, filename);
-                var badTx = GetTransfer(username, "foo");
 
-                queue.Enqueue(tx);
+                queue.Enqueue(username, filename);
 
-                var ex = Record.Exception(() => queue.Complete(badTx));
+                var ex = Record.Exception(() => queue.Complete(username, "foo"));
 
                 Assert.NotNull(ex);
                 Assert.IsType<SlskdException>(ex);
@@ -380,15 +372,13 @@
             public async Task Removes_Filename(string username, string filename, string filename2)
             {
                 var (queue, _) = GetFixture();
-                var tx = GetTransfer(username, filename);
-                var tx2 = GetTransfer(username, filename2);
 
-                queue.Enqueue(tx);
-                await queue.AwaitStartAsync(tx);
-                queue.Enqueue(tx2);
-                await queue.AwaitStartAsync(tx2);
+                queue.Enqueue(username, filename);
+                await queue.AwaitStartAsync(username, filename);
+                queue.Enqueue(username, filename2);
+                await queue.AwaitStartAsync(username, filename2);
 
-                queue.Complete(tx);
+                queue.Complete(username, filename);
 
                 var uploads = queue.GetProperty<ConcurrentDictionary<string, List<Upload>>>("Uploads");
 
@@ -402,20 +392,18 @@
             public async Task Decrements_UsedSlots_For_Group(string username, string filename, string filename2)
             {
                 var (queue, _) = GetFixture();
-                var tx = GetTransfer(username, filename);
-                var tx2 = GetTransfer(username, filename2);
 
-                queue.Enqueue(tx);
-                await queue.AwaitStartAsync(tx);
+                queue.Enqueue(username, filename);
+                await queue.AwaitStartAsync(username, filename);
 
-                queue.Enqueue(tx2);
-                await queue.AwaitStartAsync(tx2);
+                queue.Enqueue(username, filename2);
+                await queue.AwaitStartAsync(username, filename2);
 
                 var groups = queue.GetProperty<Dictionary<string, UploadGroup>>("Groups");
 
                 Assert.Equal(2, groups[Application.DefaultGroup].UsedSlots);
 
-                queue.Complete(tx);
+                queue.Complete(username, filename);
 
                 groups = queue.GetProperty<Dictionary<string, UploadGroup>>("Groups");
 
@@ -426,18 +414,16 @@
             public void Cleans_Up_If_User_Has_No_More_Files_Enqueued(string username, string filename, string filename2)
             {
                 var (queue, _) = GetFixture();
-                var tx = GetTransfer(username, filename);
-                var tx2 = GetTransfer(username, filename2);
 
-                queue.Enqueue(tx);
-                queue.Enqueue(tx2);
+                queue.Enqueue(username, filename);
+                queue.Enqueue(username, filename2);
 
                 var uploads = queue.GetProperty<ConcurrentDictionary<string, List<Upload>>>("Uploads");
 
                 Assert.Single(uploads);
 
-                queue.Complete(tx);
-                queue.Complete(tx2);
+                queue.Complete(username, filename);
+                queue.Complete(username, filename2);
 
                 uploads = queue.GetProperty<ConcurrentDictionary<string, List<Upload>>>("Uploads");
 
@@ -451,9 +437,8 @@
             public async Task Throws_If_No_Such_Username(string username, string filename)
             {
                 var (queue, _) = GetFixture();
-                var tx = GetTransfer(username, filename);
-
-                var ex = await Record.ExceptionAsync(() => queue.AwaitStartAsync(tx));
+                
+                var ex = await Record.ExceptionAsync(() => queue.AwaitStartAsync(username, filename));
 
                 Assert.NotNull(ex);
                 Assert.IsType<SlskdException>(ex);
@@ -464,12 +449,10 @@
             public async Task Throws_If_No_Such_Filename(string username, string filename)
             {
                 var (queue, _) = GetFixture();
-                var tx = GetTransfer(username, filename);
-                var badTx = GetTransfer(username, "foo");
+                
+                queue.Enqueue(username, filename);
 
-                queue.Enqueue(tx);
-
-                var ex = await Record.ExceptionAsync(() => queue.AwaitStartAsync(badTx));
+                var ex = await Record.ExceptionAsync(() => queue.AwaitStartAsync(username, "foo"));
 
                 Assert.NotNull(ex);
                 Assert.IsType<SlskdException>(ex);
@@ -480,13 +463,12 @@
             public void Returns_Task_Associated_With_Upload(string username, string filename)
             {
                 var (queue, _) = GetFixture();
-                var tx = GetTransfer(username, filename);
-
-                queue.Enqueue(tx);
+                
+                queue.Enqueue(username, filename);
 
                 var uploads = queue.GetProperty<ConcurrentDictionary<string, List<Upload>>>("Uploads");
 
-                var task = queue.AwaitStartAsync(tx);
+                var task = queue.AwaitStartAsync(username, filename);
 
                 Assert.Equal(task, uploads[username][0].TaskCompletionSource.Task);
             }
@@ -706,9 +688,6 @@
 
             return (queue, mocks);
         }
-
-        private static Transfer GetTransfer(string username, string filename)
-            => new Transfer(TransferDirection.Upload, username, filename, 0, TransferStates.Queued, 0, 0);
 
         private class Mocks
         {

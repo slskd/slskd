@@ -15,6 +15,8 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
+using Microsoft.Extensions.Logging;
+
 namespace slskd
 {
     using System;
@@ -60,6 +62,8 @@ namespace slskd
     using slskd.Search.API;
     using slskd.Shares;
     using slskd.Transfers;
+    using slskd.Transfers.Downloads;
+    using slskd.Transfers.Uploads;
     using slskd.Users;
     using slskd.Validation;
     using Soulseek;
@@ -449,8 +453,8 @@ namespace slskd
             services.AddSingleton<IConnectionWatchdog, ConnectionWatchdog>();
 
             services.AddDbContext<SearchDbContext>("search.db");
+            services.AddDbContext<TransfersDbContext>("transfers.db");
 
-            services.AddSingleton<ITransferTracker, TransferTracker>();
             services.AddSingleton<IBrowseTracker, BrowseTracker>();
             services.AddSingleton<IConversationTracker, ConversationTracker>();
             services.AddSingleton<IRoomTracker, RoomTracker>(_ => new RoomTracker(messageLimit: 250));
@@ -460,7 +464,10 @@ namespace slskd
             services.AddSingleton<ISearchService, SearchService>();
             services.AddSingleton<IUserService, UserService>();
             services.AddSingleton<IRoomService, RoomService>();
+
             services.AddSingleton<ITransferService, TransferService>();
+            services.AddSingleton<IDownloadService, DownloadService>();
+            services.AddSingleton<IUploadService, UploadService>();
 
             services.AddSingleton<IFTPClientFactory, FTPClientFactory>();
             services.AddSingleton<IFTPService, FTPService>();
@@ -785,13 +792,19 @@ namespace slskd
         private static IServiceCollection AddDbContext<T>(this IServiceCollection services, string filename)
             where T : DbContext
         {
-            Log.Debug($"Initializing database context {typeof(T).Name}");
+            Log.Debug("Initializing database context {Name}", typeof(T).Name);
 
             try
             {
-                services.AddDbContextFactory<SearchDbContext>(options =>
+                services.AddDbContextFactory<T>(options =>
                 {
                     options.UseSqlite($"Data Source={Path.Combine(AppDirectory, "data", filename)}");
+
+                    // tweak this to enable Entity Framework SQL logging
+                    if (OptionsAtStartup.Debug && false)
+                    {
+                        options.UseLoggerFactory(LoggerFactory.Create(builder => builder.AddConsole()));
+                    }
                 });
 
                 using var ctx = services

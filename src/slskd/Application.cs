@@ -30,6 +30,7 @@ namespace slskd
     using System.Reflection;
     using System.Runtime;
     using System.Text.RegularExpressions;
+    using System.Runtime.InteropServices;
     using System.Threading;
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.SignalR;
@@ -71,13 +72,14 @@ namespace slskd
         /// </summary>
         public static readonly string LeecherGroup = "leechers";
 
+        private static readonly string ApplicationShutdownTransferExceptionMessage = "Application shut down";
+
         public Application(
             OptionsAtStartup optionsAtStartup,
             IOptionsMonitor<Options> optionsMonitor,
             IManagedState<State> state,
             ISoulseekClient soulseekClient,
             IConnectionWatchdog connectionWatchdog,
-            ITransferTracker transferTracker,
             ITransferService transferService,
             IBrowseTracker browseTracker,
             IConversationTracker conversationTracker,
@@ -89,6 +91,21 @@ namespace slskd
             IHubContext<ApplicationHub> applicationHub,
             IHubContext<LogsHub> logHub)
         {
+            Console.CancelKeyPress += (_, args) =>
+            {
+                ShuttingDown = true;
+                Log.Warning("Received SIGINT");
+            };
+
+            foreach (var signal in new[] { PosixSignal.SIGINT, PosixSignal.SIGQUIT, PosixSignal.SIGTERM })
+            {
+                PosixSignalRegistration.Create(signal, context =>
+                {
+                    ShuttingDown = true;
+                    Log.Fatal("Received {Signal}", signal);
+                });
+            }
+
             OptionsAtStartup = optionsAtStartup;
 
             OptionsMonitor = optionsMonitor;
@@ -104,7 +121,6 @@ namespace slskd
             Shares = shareService;
             Shares.StateMonitor.OnChange(state => ShareState_OnChange(state));
 
-            TransferTracker = transferTracker;
             Transfers = transferService;
             BrowseTracker = browseTracker;
             ConversationTracker = conversationTracker;
@@ -146,6 +162,13 @@ namespace slskd
             ConnectionWatchdog = connectionWatchdog;
         }
 
+        /// <summary>
+        ///     Gets a value indicating whether the application is in the process of shutting down.
+        /// </summary>
+        public static bool IsShuttingDown => Environment.HasShutdownStarted || ShuttingDown;
+
+        private static bool ShuttingDown { get; set; } = false;
+
         private ISoulseekClient Client { get; set; }
         private IRoomService RoomService { get; set; }
         private IBrowseTracker BrowseTracker { get; set; }
@@ -161,7 +184,6 @@ namespace slskd
         private IPushbulletService Pushbullet { get; }
         private DateTime SharesRefreshStarted { get; set; }
         private IManagedState<State> State { get; }
-        private ITransferTracker TransferTracker { get; set; }
         private ITransferService Transfers { get; init; }
         private IHubContext<ApplicationHub> ApplicationHub { get; set; }
         private IHubContext<LogsHub> LogHub { get; set; }
@@ -169,6 +191,7 @@ namespace slskd
         private IShareService Shares { get; set; }
         private IMemoryCache Cache { get; set; } = new MemoryCache(new MemoryCacheOptions());
         private IEnumerable<Regex> CompiledSearchResponseFilters { get; set; }
+        private IEnumerable<Guid> ActiveDownloadIdsAtPreviousShutdown { get; set; } = Enumerable.Empty<Guid>();
 
         public void CollectGarbage()
         {
@@ -236,7 +259,41 @@ namespace slskd
 
         async Task IHostedService.StartAsync(CancellationToken cancellationToken)
         {
-            Log.Information("Configuring client");
+            // if the application shut down "uncleanly", transfers may need to be cleaned up. we deliberately don't allow these
+            // records to be updated if the application has started to shut down so that we can do this cleanup and properly
+            // disposition them as having failed due to an application shutdown, instead of some random exception thrown while
+            // things are being disposed.
+            var activeUploads = (await Transfers.Uploads.ListAsync(t => !t.State.HasFlag(TransferStates.Completed) && !t.Removed))
+                .Where(t => !t.State.HasFlag(TransferStates.Completed)) // https://github.com/dotnet/efcore/issues/10434
+                .ToList();
+
+            await Task.WhenAll(activeUploads.Select(async upload =>
+            {
+                Log.Debug("Cleaning up dangling upload {Filename} to {Username}", upload.Filename, upload.Username);
+                upload.State = TransferStates.Completed | TransferStates.Errored;
+                upload.Exception = ApplicationShutdownTransferExceptionMessage;
+                await Transfers.Uploads.UpdateAsync(upload);
+            }));
+
+            var activeDownloads = (await Transfers.Downloads.ListAsync(t => !t.State.HasFlag(TransferStates.Completed) && !t.Removed))
+                .Where(t => !t.State.HasFlag(TransferStates.Completed)) // https://github.com/dotnet/efcore/issues/10434
+                .ToList();
+
+            await Task.WhenAll(activeDownloads.Select(async download =>
+            {
+                Log.Debug("Cleaning up dangling download {Filename} from {Username}", download.Filename, download.Username);
+                download.State = TransferStates.Completed | TransferStates.Errored;
+                download.Exception = ApplicationShutdownTransferExceptionMessage;
+                await Transfers.Downloads.UpdateAsync(download);
+            }));
+
+            // save the ids of any downloads that were active, so we can re-enqueue them after we've connected and logged in.
+            // we need to check the database before we re-request to make sure the user didn't remove them from the UI while
+            // the application was running, but before it was logged in. so just save the ids.
+            ActiveDownloadIdsAtPreviousShutdown = activeDownloads.Select(d => d.Id);
+            Log.Debug("Downloads to resume upon connection: {Ids}", ActiveDownloadIdsAtPreviousShutdown.ToJson());
+
+            Log.Debug("Configuring client");
 
             ProxyOptions proxyOptions = default;
 
@@ -290,15 +347,15 @@ namespace slskd
                 userInfoResolver: UserInfoResolver,
                 browseResponseResolver: BrowseResponseResolver,
                 directoryContentsResolver: DirectoryContentsResponseResolver,
-                enqueueDownload: (username, endpoint, filename) => EnqueueDownloadAction(username, endpoint, filename, TransferTracker),
+                enqueueDownload: (username, endpoint, filename) => Transfers.Uploads.EnqueueAsync(username, filename),
                 searchResponseCache: new SearchResponseCache(),
                 searchResponseResolver: SearchResponseResolver,
                 placeInQueueResolver: PlaceInQueueResolver);
 
             await Client.ReconfigureOptionsAsync(patch);
 
-            Log.Information("Client configured");
-            Log.Information("Listening on port {Port}", OptionsAtStartup.Soulseek.ListenPort);
+            Log.Debug("Client configured");
+            Log.Information("Listening for incoming connections on port {Port}", OptionsAtStartup.Soulseek.ListenPort);
 
             if (OptionsAtStartup.Soulseek.Connection.Proxy.Enabled)
             {
@@ -335,6 +392,8 @@ namespace slskd
 
         Task IHostedService.StopAsync(CancellationToken cancellationToken)
         {
+            ShuttingDown = true;
+            Log.Warning("Application is shutting down");
             Client.Disconnect("Shutting down", new ApplicationShutdownException("Shutting down"));
             Client.Dispose();
             Log.Information("Client stopped");
@@ -368,7 +427,7 @@ namespace slskd
             BrowseTracker.AddOrUpdate(args.Username, args);
         }
 
-        private void Client_Connected(object sender, EventArgs e)
+        private async void Client_Connected(object sender, EventArgs e)
         {
             ConnectionWatchdog.Stop();
             Log.Information("Connected to the Soulseek server");
@@ -451,16 +510,54 @@ namespace slskd
             }
         }
 
-        private void Client_LoggedIn(object sender, EventArgs e)
+        private async void Client_LoggedIn(object sender, EventArgs e)
         {
             Log.Information("Logged in to the Soulseek server as {Username}", Client.Username);
 
-            // send whatever counts we have currently. we'll probably connect before the cache is primed, so these will be zero
-            // initially, but we'll update them when the cache is filled.
-            _ = Client.SetSharedCountsAsync(State.CurrentValue.Shares.Directories, State.CurrentValue.Shares.Files);
+            try
+            {
+                // send whatever counts we have currently. we'll probably connect before the cache is primed, so these will be zero
+                // initially, but we'll update them when the cache is filled.
+                await Client.SetSharedCountsAsync(State.CurrentValue.Shares.Directories, State.CurrentValue.Shares.Files);
 
-            // fetch our average upload speed from the server, so we can provide it along with search results
-            _ = RefreshUserStatistics(force: true);
+                // fetch our average upload speed from the server, so we can provide it along with search results
+                await RefreshUserStatistics(force: true);
+
+                // we previously saved a list of all of the download ids that were active at the previous shutdown; fetch the latest
+                // record for those transfers from the db and ensure they haven't been removed from the UI while the application was offline
+                // the user doesn't want those transfers anymore and we don't want to add them back.
+                var resumeableDownloads = await Transfers.Downloads.ListAsync(t => !t.Removed && ActiveDownloadIdsAtPreviousShutdown.Contains(t.Id));
+
+                if (resumeableDownloads.Any())
+                {
+                    Log.Information("Attempting to re-enqueue previously active downloads...");
+
+                    var groups = resumeableDownloads.GroupBy(d => d.Username);
+
+                    // re-request downloads. we use a try/catch here because there's a very good chance that the other user is offline.
+                    foreach (var group in groups)
+                    {
+                        var username = group.Key;
+                        var files = group.Select(f => (f.Filename, f.Size));
+
+                        try
+                        {
+                            await Transfers.Downloads.EnqueueAsync(username, files);
+                        }
+                        catch (Exception ex)
+                        {
+                            Log.Warning("Failed to re-enqueue {Count} file(s) from {Username}: {Message}", files.Count(), username, ex.Message);
+                        }
+                    }
+                }
+
+                // clear the ids we saved at startup; we don't want to re-request these again if the connection is cycled
+                ActiveDownloadIdsAtPreviousShutdown = Enumerable.Empty<Guid>();
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to execute post-login actions");
+            }
         }
 
         private void Client_PrivateMessageRecieved(object sender, PrivateMessageReceivedEventArgs args)
@@ -595,99 +692,6 @@ namespace slskd
             catch (Exception ex)
             {
                 Log.Warning(ex, "Failed to resolve directory contents: {Message}", ex.Message);
-                throw;
-            }
-        }
-
-        /// <summary>
-        ///     Invoked upon a remote request to download a file.
-        /// </summary>
-        /// <param name="username">The username of the requesting user.</param>
-        /// <param name="endpoint">The IP endpoint of the requesting user.</param>
-        /// <param name="filename">The filename of the requested file.</param>
-        /// <param name="tracker">(for example purposes) the ITransferTracker used to track progress.</param>
-        /// <returns>A Task representing the asynchronous operation.</returns>
-        /// <exception cref="DownloadEnqueueException">
-        ///     Thrown when the download is rejected. The Exception message will be passed to the remote user.
-        /// </exception>
-        /// <exception cref="Exception">
-        ///     Thrown on any other Exception other than a rejection. A generic message will be passed to the remote user for
-        ///     security reasons.
-        /// </exception>
-        private async Task EnqueueDownloadAction(string username, IPEndPoint endpoint, string filename, ITransferTracker tracker)
-        {
-            // remote clients might sometimes re-request downloads to check the status. don't try to add the download again
-            // if it is already tracked.
-            if (tracker.Contains(TransferDirection.Upload, username, filename))
-            {
-                return;
-            }
-
-            try
-            {
-                _ = endpoint;
-                string localFilename;
-                FileInfo fileInfo = default;
-
-                Log.Information("[{Context}] {Username} requested {Filename}]", "UPLOAD REQUESTED", username, filename);
-
-                try
-                {
-                    localFilename = (await Shares.ResolveFilenameAsync(filename)).ToLocalOSPath();
-
-                    fileInfo = new FileInfo(localFilename);
-
-                    if (!fileInfo.Exists)
-                    {
-                        throw new NotFoundException();
-                    }
-                }
-                catch (NotFoundException)
-                {
-                    Log.Information("[{Context}] {Filename} for {Username}: file not found", "UPLOAD REJECTED", username, filename);
-                    throw new DownloadEnqueueException($"File not shared.");
-                }
-
-                // create a new cancellation token source so that we can cancel the upload from the UI.
-                var cts = new CancellationTokenSource();
-                var topts = new TransferOptions(
-                    stateChanged: (e) =>
-                    {
-                        tracker.AddOrUpdate(e.Transfer, cts);
-
-                        if (e.Transfer.State.HasFlag(TransferStates.Queued))
-                        {
-                            Transfers.Uploads.Queue.Enqueue(e.Transfer);
-                        }
-                    },
-                    progressUpdated: (e) => tracker.AddOrUpdate(e.Transfer, cts),
-                    governor: (tx, req, ct) => Transfers.Uploads.Governor.GetBytesAsync(tx, req, ct),
-                    reporter: (tx, att, grant, act) => Transfers.Uploads.Governor.ReturnBytes(tx, att, grant, act),
-                    slotAwaiter: (tx, ct) => Transfers.Uploads.Queue.AwaitStartAsync(tx),
-                    slotReleased: (tx) => Transfers.Uploads.Queue.Complete(tx));
-
-                // accept all download requests, and begin the upload immediately. normally there would be an internal queue, and
-                // uploads would be handled separately.
-                _ = Task.Run(async () =>
-                {
-                    // users with uploads must be watched so that we can keep informed of their
-                    // online status, privileges, and statistics.  this is so that we can accurately
-                    // determine their effective group.
-                    if (!Users.IsWatched(username))
-                    {
-                        await Users.WatchAsync(username);
-                    }
-
-                    using var stream = new FileStream(fileInfo.FullName, FileMode.Open, FileAccess.Read);
-                    await Client.UploadAsync(username, filename, fileInfo.FullName, options: topts, cancellationToken: cts.Token);
-                }).ContinueWith(t =>
-                {
-                    Log.Information("[{Context}] {Filename} for {Username}: {Message}", "UPLOAD FAILED", username, filename, t.Exception?.Message);
-                }, TaskContinuationOptions.NotOnRanToCompletion); // fire and forget
-            }
-            catch (Exception ex)
-            {
-                Log.Warning(ex, "Failed to enqueue upload: {Message}", ex.Message);
                 throw;
             }
         }
