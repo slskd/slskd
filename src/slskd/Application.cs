@@ -289,12 +289,7 @@ namespace slskd
             ActiveDownloadIdsAtPreviousShutdown = activeDownloads.Select(d => d.Id);
             Log.Debug("Downloads to resume upon connection: {Ids}", ActiveDownloadIdsAtPreviousShutdown.ToJson());
 
-            if (activeUploads.Any() || activeDownloads.Any())
-            {
-                Log.Information($"Cleaned up dangling transfers from a previous shutdown");
-            }
-
-            Log.Information("Configuring client");
+            Log.Debug("Configuring client");
 
             ProxyOptions proxyOptions = default;
 
@@ -355,8 +350,8 @@ namespace slskd
 
             await Client.ReconfigureOptionsAsync(patch);
 
-            Log.Information("Client configured");
-            Log.Information("Listening on port {Port}", OptionsAtStartup.Soulseek.ListenPort);
+            Log.Debug("Client configured");
+            Log.Information("Listening for incoming connections on port {Port}", OptionsAtStartup.Soulseek.ListenPort);
 
             if (OptionsAtStartup.Soulseek.Connection.Proxy.Enabled)
             {
