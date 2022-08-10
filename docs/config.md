@@ -699,6 +699,17 @@ A number of additional feature flags are provided to change the runtime behavior
 | `--no-share-scan`    | `NO_SHARE_SCAN`      | Don't perform a scan of shared directories on startup            |
 | `--no-version-check` | `NO_VERSION_CHECK`   | Don't perform a version check on startup                         |
 
+#### **YAML**
+```yaml
+debug: false
+flags:
+  no_logo: false
+  no_start: false
+  no_connect: false
+  no_share_scan: false
+  no_version_check: false
+```
+
 # Commands
 
 The application can be run in "command mode", causing it to execute a command and then quit immediately.  Available commands are:
