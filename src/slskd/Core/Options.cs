@@ -136,51 +136,6 @@ namespace slskd
         public bool Debug { get; init; } = Debugger.IsAttached;
 
         /// <summary>
-        ///     Gets a value indicating whether the logo should be suppressed on startup.
-        /// </summary>
-        [Argument('n', "no-logo")]
-        [EnvironmentVariable("NO_LOGO")]
-        [Description("suppress logo on startup")]
-        [RequiresRestart]
-        public bool NoLogo { get; init; } = false;
-
-        /// <summary>
-        ///     Gets a value indicating whether the application should quit after initialization.
-        /// </summary>
-        [Argument('x', "no-start")]
-        [EnvironmentVariable("NO_START")]
-        [Description("quit the application after initialization")]
-        [RequiresRestart]
-        public bool NoStart { get; init; } = false;
-
-        /// <summary>
-        ///     Gets a value indicating whether the application should connect to the Soulseek network on startup.
-        /// </summary>
-        [Argument(default, "no-connect")]
-        [EnvironmentVariable("NO_CONNECT")]
-        [Description("do not connect to the Soulseek network on startup")]
-        [RequiresRestart]
-        public bool NoConnect { get; init; } = false;
-
-        /// <summary>
-        ///     Gets a value indicating whether the application should scan shared directories on startup.
-        /// </summary>
-        [Argument(default, "no-share-scan")]
-        [EnvironmentVariable("NO_SHARE_SCAN")]
-        [Description("do not scan shares on startup")]
-        [RequiresRestart]
-        public bool NoShareScan { get; init; } = false;
-
-        /// <summary>
-        ///     Gets a value indicating whether the application should check for a newer version on startup.
-        /// </summary>
-        [Argument(default, "no-version-check")]
-        [EnvironmentVariable("NO_VERSION_CHECK")]
-        [Description("do not check for newer version at startup")]
-        [RequiresRestart]
-        public bool NoVersionCheck { get; init; } = false;
-
-        /// <summary>
         ///     Gets a value indicating whether remote configuration of options is allowed.
         /// </summary>
         [Argument(default, "remote-configuration")]
@@ -196,6 +151,12 @@ namespace slskd
         [Description("optional; a unique name for this instance")]
         [RequiresRestart]
         public string InstanceName { get; init; } = "default";
+
+        /// <summary>
+        ///     Gets optional flags.
+        /// </summary>
+        [Validate]
+        public FlagsOptions Flags { get; init; } = new FlagsOptions();
 
         /// <summary>
         ///     Gets the path where application data is saved.
@@ -283,6 +244,57 @@ namespace slskd
         /// </summary>
         [Validate]
         public IntegrationOptions Integration { get; init; } = new IntegrationOptions();
+
+        /// <summary>
+        ///     Optional flags.
+        /// </summary>
+        public class FlagsOptions
+        {
+            /// <summary>
+            ///     Gets a value indicating whether the logo should be suppressed on startup.
+            /// </summary>
+            [Argument('n', "no-logo")]
+            [EnvironmentVariable("NO_LOGO")]
+            [Description("suppress logo on startup")]
+            [RequiresRestart]
+            public bool NoLogo { get; init; } = false;
+
+            /// <summary>
+            ///     Gets a value indicating whether the application should quit after initialization.
+            /// </summary>
+            [Argument('x', "no-start")]
+            [EnvironmentVariable("NO_START")]
+            [Description("quit the application after initialization")]
+            [RequiresRestart]
+            public bool NoStart { get; init; } = false;
+
+            /// <summary>
+            ///     Gets a value indicating whether the application should connect to the Soulseek network on startup.
+            /// </summary>
+            [Argument(default, "no-connect")]
+            [EnvironmentVariable("NO_CONNECT")]
+            [Description("do not connect to the Soulseek network on startup")]
+            [RequiresRestart]
+            public bool NoConnect { get; init; } = false;
+
+            /// <summary>
+            ///     Gets a value indicating whether the application should scan shared directories on startup.
+            /// </summary>
+            [Argument(default, "no-share-scan")]
+            [EnvironmentVariable("NO_SHARE_SCAN")]
+            [Description("do not scan shares on startup")]
+            [RequiresRestart]
+            public bool NoShareScan { get; init; } = false;
+
+            /// <summary>
+            ///     Gets a value indicating whether the application should check for a newer version on startup.
+            /// </summary>
+            [Argument(default, "no-version-check")]
+            [EnvironmentVariable("NO_VERSION_CHECK")]
+            [Description("do not check for newer version at startup")]
+            [RequiresRestart]
+            public bool NoVersionCheck { get; init; } = false;
+        }
 
         /// <summary>
         ///     Directory options.

@@ -300,7 +300,7 @@ namespace slskd
             ConfigureGlobalLogger();
             Log = Serilog.Log.ForContext(typeof(Program));
 
-            if (!OptionsAtStartup.NoLogo)
+            if (!OptionsAtStartup.Flags.NoLogo)
             {
                 PrintLogo(FullVersion);
             }
@@ -385,7 +385,7 @@ namespace slskd
 
                 app.ConfigureAspDotNetPipeline();
 
-                if (OptionsAtStartup.NoStart)
+                if (OptionsAtStartup.Flags.NoStart)
                 {
                     Log.Information("Qutting because 'no-start' option is enabled");
                     return;

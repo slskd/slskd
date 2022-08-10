@@ -362,12 +362,12 @@ namespace slskd
                 Log.Information($"Using Proxy {OptionsAtStartup.Soulseek.Connection.Proxy.Address}:{OptionsAtStartup.Soulseek.Connection.Proxy.Port}");
             }
 
-            if (!OptionsAtStartup.NoVersionCheck)
+            if (!OptionsAtStartup.Flags.NoVersionCheck)
             {
                 _ = CheckVersionAsync();
             }
 
-            if (OptionsAtStartup.NoShareScan)
+            if (OptionsAtStartup.Flags.NoShareScan)
             {
                 Log.Warning("Not scanning shares; 'no-share-scan' option is enabled.  Search and browse results will remain disabled until a manual scan is completed.");
             }
@@ -376,7 +376,7 @@ namespace slskd
                 _ = Shares.StartScanAsync();
             }
 
-            if (OptionsAtStartup.NoConnect)
+            if (OptionsAtStartup.Flags.NoConnect)
             {
                 Log.Warning("Not connecting to the Soulseek server; 'no-connect' option is enabled");
             }
