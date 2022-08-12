@@ -800,10 +800,9 @@ namespace slskd
                 {
                     options.UseSqlite($"Data Source={Path.Combine(AppDirectory, "data", filename)}");
 
-                    // tweak this to enable Entity Framework SQL logging
-                    if (OptionsAtStartup.Debug && false)
+                    if (OptionsAtStartup.Debug && OptionsAtStartup.Flags.LogSQL)
                     {
-                        options.UseLoggerFactory(LoggerFactory.Create(builder => builder.AddConsole()));
+                        options.LogTo(Log.Debug, LogLevel.Information);
                     }
                 });
 
