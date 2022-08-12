@@ -800,9 +800,9 @@ namespace slskd
                 {
                     options.UseSqlite($"Data Source={Path.Combine(AppDirectory, "data", filename)}");
 
-                    options.LogTo(Log.Debug, LogLevel.Information);
                     if (OptionsAtStartup.Debug && OptionsAtStartup.Flags.LogSQL)
                     {
+                        options.LogTo(Log.Debug, LogLevel.Information);
                     }
                 });
 
