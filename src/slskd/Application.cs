@@ -427,7 +427,7 @@ namespace slskd
             BrowseTracker.AddOrUpdate(args.Username, args);
         }
 
-        private async void Client_Connected(object sender, EventArgs e)
+        private void Client_Connected(object sender, EventArgs e)
         {
             ConnectionWatchdog.Stop();
             Log.Information("Connected to the Soulseek server");
