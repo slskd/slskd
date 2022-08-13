@@ -5,13 +5,13 @@ export const getAll = async () => {
 };
 
 export const acknowledge = ({ username }) => {
-  return api.put(`/conversations/${username}`);
+  return api.put(`/conversations/${encodeURIComponent(username)}`);
 };
 
 export const send = ({ username, message }) => {
-  return api.post(`/conversations/${username}`, JSON.stringify(message));
+  return api.post(`/conversations/${encodeURIComponent(username)}`, JSON.stringify(message));
 };
 
 export const remove = ({ username }) => {
-  return api.delete(`/conversations/${username}`);
+  return api.delete(`/conversations/${encodeURIComponent(username)}`);
 };
