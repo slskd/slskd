@@ -32,7 +32,7 @@ export const cancel = ({ direction, username, id, remove = false }) => {
 // 'Completed, Rejected'
 
 export const getPlaceInQueue = ({ username, id }) => {
-  return api.get(`/transfers/downloads/${encodeURIComponent(username)}/${id}/position`);
+  return api.get(`/transfers/downloads/${encodeURIComponent(username)}/${encodeURIComponent(id)}/position`);
 };
 
 export const isStateRetryable = (state) =>
