@@ -6,7 +6,7 @@ export const getAll = async () => {
 
 export const get = async ({ id } = {}) => {
   if (!id) throw new Error('unable to get share: id is missing');
-  return (await api.get(`/shares/${id}`)).data;
+  return (await api.get(`/shares/${encodeURIComponent(id)}`)).data;
 };
 
 export const browseAll = async () => {
@@ -15,7 +15,7 @@ export const browseAll = async () => {
 
 export const browse = async ({ id } = {}) => {
   if (!id) throw new Error('unable to get share contents: id is missing');
-  return (await api.get(`/shares/${id}/contents`)).data;
+  return (await api.get(`/shares/${encodeURIComponent(id)}/contents`)).data;
 };
 
 export const rescan = async () => {
