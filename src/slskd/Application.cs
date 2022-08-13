@@ -667,6 +667,10 @@ namespace slskd
                 var place = Transfers.Uploads.Queue.EstimatePosition(username, filename);
                 return Task.FromResult((int?)place);
             }
+            catch (FileNotFoundException)
+            {
+                return Task.FromResult<int?>(null);
+            }
             catch (Exception ex)
             {
                 Log.Warning(ex, "Failed to estimate place in queue for {Filename} requested by {Username}", filename, username);
