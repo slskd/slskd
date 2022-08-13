@@ -973,10 +973,19 @@ namespace slskd
         {
             try
             {
+                var groupName = Users.GetGroup(username);
+                var group = Transfers.Uploads.Queue.GetGroupInfo(groupName);
+
+                var forecastedPosition = Transfers.Uploads.Queue.ForecastPosition(username);
+
+                // if i get a user's info to determine whether i want to download files from them,
+                // i want to know how many slots they have, which gives me an idea of how fast their
+                // queue moves, and the length of the queue *ahead of me*, meaning how long i'd have to
+                // wait until my first download starts.
                 var info = new UserInfo(
                     description: Options.Soulseek.Description,
-                    uploadSlots: 1,
-                    queueLength: 0,
+                    uploadSlots: group.Slots,
+                    queueLength: forecastedPosition,
                     hasFreeUploadSlot: false);
 
                 return Task.FromResult(info);

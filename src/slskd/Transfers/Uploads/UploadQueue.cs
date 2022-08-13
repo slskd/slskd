@@ -57,6 +57,13 @@ namespace slskd.Transfers
         void Enqueue(string username, string filename);
 
         /// <summary>
+        ///     Gets information about the specified <paramref name="groupName"/>.
+        /// </summary>
+        /// <param name="groupName">The name of the group.</param>
+        /// <returns>The group information.</returns>
+        UploadGroup GetGroupInfo(string groupName);
+
+        /// <summary>
         ///     Computes the estimated queue position of the specified <paramref name="filename"/> for the specified <paramref name="username"/>.
         /// </summary>
         /// <param name="username">The username associated with the file.</param>
@@ -221,6 +228,21 @@ namespace slskd.Transfers
                 SyncRoot.Release();
                 Process();
             }
+        }
+
+        /// <summary>
+        ///     Gets information about the specified <paramref name="groupName"/>.
+        /// </summary>
+        /// <param name="groupName">The name of the group.</param>
+        /// <returns>The group information.</returns>
+        public UploadGroup GetGroupInfo(string groupName)
+        {
+            if (Groups.TryGetValue(groupName, out var group))
+            {
+                return group;
+            }
+
+            throw new NotFoundException($"A group with the name {groupName} could not be found");
         }
 
         /// <summary>
