@@ -21,7 +21,7 @@ namespace slskd.Transfers.API
 
     public record DirectoryResponse
     {
-        public string Name { get; init; }
+        public string Directory { get; init; }
         public int FileCount { get; init; }
         public IEnumerable<Transfers.Transfer> Files { get; init; }
     }
