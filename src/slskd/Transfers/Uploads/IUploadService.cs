@@ -54,13 +54,6 @@ namespace slskd.Transfers.Uploads
         Task EnqueueAsync(string username, string filename);
 
         /// <summary>
-        ///     Returns a value indicating whether an upload matching the specified <paramref name="expression"/> exists.
-        /// </summary>
-        /// <param name="expression">The expression used to match uploads.</param>
-        /// <returns>A value indicating whether an upload matching the specified expression exists.</returns>
-        Task<bool> ExistsAsync(Expression<Func<Transfer, bool>> expression);
-
-        /// <summary>
         ///     Finds a single upload matching the specified <paramref name="expression"/>.
         /// </summary>
         /// <param name="expression">The expression to use to match uploads.</param>

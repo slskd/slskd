@@ -427,7 +427,7 @@ namespace slskd
             BrowseTracker.AddOrUpdate(args.Username, args);
         }
 
-        private async void Client_Connected(object sender, EventArgs e)
+        private void Client_Connected(object sender, EventArgs e)
         {
             ConnectionWatchdog.Stop();
             Log.Information("Connected to the Soulseek server");
@@ -666,6 +666,10 @@ namespace slskd
             {
                 var place = Transfers.Uploads.Queue.EstimatePosition(username, filename);
                 return Task.FromResult((int?)place);
+            }
+            catch (FileNotFoundException)
+            {
+                return Task.FromResult<int?>(null);
             }
             catch (Exception ex)
             {

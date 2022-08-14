@@ -106,17 +106,10 @@ namespace slskd.Transfers.Uploads
         /// <returns>The operation context.</returns>
         public async Task EnqueueAsync(string username, string filename)
         {
-            // remote clients might sometimes re-request downloads to check the status. don't try to add the download again if it
-            // is already tracked.
-            if (await ExistsAsync(t => t.Username == username && t.Filename == filename))
-            {
-                return;
-            }
-
             string localFilename;
             FileInfo fileInfo = default;
 
-            Log.Information("[{Context}] {Username} requested {Filename}]", "UPLOAD REQUESTED", username, filename);
+            Log.Information("[{Context}] {Username} requested {Filename}", "UPLOAD REQUESTED", username, filename);
 
             try
             {
@@ -133,6 +126,16 @@ namespace slskd.Transfers.Uploads
             {
                 Log.Information("[{Context}] {Filename} for {Username}: file not found", "UPLOAD REJECTED", username, filename);
                 throw new DownloadEnqueueException($"File not shared.");
+            }
+
+            // find existing records for this username and file that haven't been removed from the UI
+            var existingRecords = await ListAsync(t => t.Username == username && t.Filename == localFilename && !t.Removed);
+
+            // check whether any of these records is in a non-complete state and bail out if so
+            if (existingRecords.Any(t => !t.State.HasFlag(TransferStates.Completed)))
+            {
+                Log.Information("Upload {Filename} to {Username} is already queued or in progress", localFilename, username);
+                return;
             }
 
             var id = Guid.NewGuid();
@@ -219,16 +222,6 @@ namespace slskd.Transfers.Uploads
                     CancellationTokens.TryRemove(id, out _);
                 }
             });
-        }
-
-        /// <summary>
-        ///     Returns a value indicating whether an upload matching the specified <paramref name="expression"/> exists.
-        /// </summary>
-        /// <param name="expression">The expression used to match uploads.</param>
-        /// <returns>A value indicating whether an upload matching the specified expression exists.</returns>
-        public async Task<bool> ExistsAsync(Expression<Func<Transfer, bool>> expression)
-        {
-            return (await FindAsync(expression)) != default;
         }
 
         /// <summary>
