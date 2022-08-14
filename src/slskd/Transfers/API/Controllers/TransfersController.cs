@@ -165,7 +165,7 @@ namespace slskd.Transfers.API
                 Username = grouping.Key,
                 Directories = grouping.GroupBy(g => g.Filename.DirectoryName()).Select(d => new DirectoryResponse()
                 {
-                    Name = d.Key,
+                    Directory = d.Key,
                     FileCount = d.Count(),
                     Files = d.ToList(),
                 }),
@@ -197,7 +197,7 @@ namespace slskd.Transfers.API
                 Username = username,
                 Directories = downloads.GroupBy(g => g.Filename.DirectoryName()).Select(d => new DirectoryResponse()
                 {
-                    Name = d.Key,
+                    Directory = d.Key,
                     FileCount = d.Count(),
                     Files = d.ToList(),
                 }),
@@ -279,7 +279,7 @@ namespace slskd.Transfers.API
                 Username = grouping.Key,
                 Directories = grouping.GroupBy(g => g.Filename.DirectoryName()).Select(d => new DirectoryResponse()
                 {
-                    Name = d.Key,
+                    Directory = d.Key,
                     FileCount = d.Count(),
                     Files = d.ToList(),
                 }),
@@ -311,7 +311,7 @@ namespace slskd.Transfers.API
                 Username = username,
                 Directories = uploads.GroupBy(g => g.Filename.DirectoryName()).Select(d => new DirectoryResponse()
                 {
-                    Name = d.Key,
+                    Directory = d.Key,
                     FileCount = d.Count(),
                     Files = d.ToList(),
                 }),
