@@ -980,6 +980,9 @@ namespace slskd
                 var groupName = Users.GetGroup(username);
                 var group = Transfers.Uploads.Queue.GetGroupInfo(groupName);
 
+                // forecast the position at which this user would enter the queue if they were to request
+                // a file at this moment. this will be zero if a slot is available and the transfer would
+                // begin immediately
                 var forecastedPosition = Transfers.Uploads.Queue.ForecastPosition(username);
 
                 // if i get a user's info to determine whether i want to download files from them,
@@ -990,7 +993,7 @@ namespace slskd
                     description: Options.Soulseek.Description,
                     uploadSlots: group.Slots,
                     queueLength: forecastedPosition,
-                    hasFreeUploadSlot: false);
+                    hasFreeUploadSlot: forecastedPosition == 0);
 
                 return Task.FromResult(info);
             }
