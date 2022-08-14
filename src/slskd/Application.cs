@@ -881,6 +881,13 @@ namespace slskd
                 return null;
             }
 
+            // sometimes clients send search queries consisting only of exclusions; drop them.
+            // no other clients send search results for these, even though it is technically possible.
+            if (!query.Terms.Any())
+            {
+                return null;
+            }
+
             try
             {
                 var results = await Shares.SearchAsync(query);
