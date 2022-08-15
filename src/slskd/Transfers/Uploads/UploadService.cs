@@ -149,7 +149,6 @@ namespace slskd.Transfers.Uploads
                 Size = fileInfo.Length,
                 StartOffset = 0, // potentially updated later during handshaking
                 RequestedAt = DateTime.UtcNow,
-                EnqueuedAt = DateTime.UtcNow,
             };
 
             // persist the transfer to the database so we have a record that it was attempted
@@ -167,6 +166,13 @@ namespace slskd.Transfers.Uploads
 
                 try
                 {
+                    // users with uploads must be watched so that we can keep informed of their online status, privileges, and
+                    // statistics. this is so that we can accurately determine their effective group.
+                    if (!Users.IsWatched(username))
+                    {
+                        await Users.WatchAsync(username);
+                    }
+
                     var topts = new TransferOptions(
                         stateChanged: (args) =>
                         {
@@ -179,13 +185,15 @@ namespace slskd.Transfers.Uploads
                             }
 
                             transfer = transfer.WithSoulseekTransfer(args.Transfer);
-                            // todo: broadcast
-                            _ = UpdateAsync(transfer);
 
                             if (args.Transfer.State.HasFlag(TransferStates.Queued))
                             {
                                 Queue.Enqueue(args.Transfer.Username, args.Transfer.Filename);
+                                transfer.EnqueuedAt = DateTime.UtcNow;
                             }
+
+                            // todo: broadcast
+                            _ = UpdateAsync(transfer);
                         },
                         progressUpdated: (args) => rateLimiter.Invoke(() =>
                         {
@@ -198,27 +206,40 @@ namespace slskd.Transfers.Uploads
                         slotAwaiter: (tx, ct) => Queue.AwaitStartAsync(tx.Username, tx.Filename),
                         slotReleased: (tx) => Queue.Complete(tx.Username, tx.Filename));
 
-                    // users with uploads must be watched so that we can keep informed of their online status, privileges, and
-                    // statistics. this is so that we can accurately determine their effective group.
-                    if (!Users.IsWatched(username))
-                    {
-                        await Users.WatchAsync(username);
-                    }
-
                     using var stream = new FileStream(fileInfo.FullName, FileMode.Open, FileAccess.Read);
-                    var completedTransfer = await Client.UploadAsync(username, filename, fileInfo.FullName, options: topts, cancellationToken: cts.Token);
+                    var completedTransfer = await Client.UploadAsync(
+                        username,
+                        filename,
+                        fileInfo.FullName,
+                        options: topts,
+                        cancellationToken: cts.Token);
 
                     transfer = transfer.WithSoulseekTransfer(completedTransfer);
                     //todo: broadcast
                     await UpdateAsync(transfer);
                 }
-                catch (Exception ex) when (ex is not TaskCanceledException)
+                catch (TaskCanceledException ex)
+                {
+                    transfer.Exception = ex.Message;
+                    transfer.State = TransferStates.Completed | TransferStates.Cancelled;
+
+                    throw;
+                }
+                catch (Exception ex)
                 {
                     Log.Error(ex, "Upload of {Filename} to user {Username} failed: {Message}", filename, username, ex.Message);
+
+                    transfer.Exception = ex.Message;
+                    transfer.State = TransferStates.Completed | TransferStates.Errored;
+
                     throw;
                 }
                 finally
                 {
+                    transfer.EndedAt = DateTime.UtcNow;
+                    // todo: broadcast
+                    await UpdateAsync(transfer);
+
                     CancellationTokens.TryRemove(id, out _);
                 }
             });

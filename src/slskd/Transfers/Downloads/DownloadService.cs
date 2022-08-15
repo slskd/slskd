@@ -64,7 +64,7 @@ namespace slskd.Transfers.Downloads
         /// <returns></returns>
         public async Task AddOrSupersedeAsync(Transfer transfer)
         {
-           using var context = await ContextFactory.CreateDbContextAsync();
+            using var context = await ContextFactory.CreateDbContextAsync();
 
             var existing = await context.Transfers
                     .Where(t => t.Direction == TransferDirection.Download)
@@ -156,6 +156,36 @@ namespace slskd.Transfers.Downloads
 
                             try
                             {
+                                var topts = new TransferOptions(
+                                    disposeOutputStreamOnCompletion: true,
+                                    stateChanged: (args) =>
+                                    {
+                                        Log.Debug("Download of {Filename} from user {Username} changed state from {Previous} to {New}", file.Filename, username, args.PreviousState, args.Transfer.State);
+
+                                        if (Application.IsShuttingDown)
+                                        {
+                                            Log.Debug("Download update of {Filename} to {Username} not persisted; app is shutting down", file.Filename, username);
+                                            return;
+                                        }
+
+                                        transfer = transfer.WithSoulseekTransfer(args.Transfer);
+
+                                        if (args.Transfer.State.HasFlag(TransferStates.Queued) || args.Transfer.State == TransferStates.Initializing)
+                                        {
+                                            transfer.EnqueuedAt = DateTime.UtcNow;
+                                            waitUntilEnqueue.TrySetResult(true);
+                                        }
+
+                                        // todo: broadcast
+                                        _ = UpdateAsync(transfer);
+                                    },
+                                    progressUpdated: (args) => rateLimiter.Invoke(() =>
+                                    {
+                                        transfer = transfer.WithSoulseekTransfer(args.Transfer);
+                                        // todo: broadcast
+                                        _ = UpdateAsync(transfer);
+                                    }));
+
                                 var completedTransfer = await Client.DownloadAsync(
                                     username: username,
                                     remoteFilename: file.Filename,
@@ -164,40 +194,15 @@ namespace slskd.Transfers.Downloads
                                     startOffset: 0,
                                     token: null,
                                     cancellationToken: cts.Token,
-                                    options: new TransferOptions(
-                                        disposeOutputStreamOnCompletion: true,
-                                        stateChanged: (args) =>
-                                        {
-                                            Log.Debug("Download of {Filename} from user {Username} changed state from {Previous} to {New}", file.Filename, username, args.PreviousState, args.Transfer.State);
-
-                                            if (Application.IsShuttingDown)
-                                            {
-                                                Log.Debug("Download update of {Filename} to {Username} not persisted; app is shutting down", file.Filename, username);
-                                                return;
-                                            }
-
-                                            transfer = transfer.WithSoulseekTransfer(args.Transfer);
-                                            // todo: broadcast
-                                            _ = UpdateAsync(transfer);
-
-                                            if (args.Transfer.State.HasFlag(TransferStates.Queued) || args.Transfer.State == TransferStates.Initializing)
-                                            {
-                                                waitUntilEnqueue.TrySetResult(true);
-                                            }
-                                        },
-                                        progressUpdated: (args) => rateLimiter.Invoke(() =>
-                                        {
-                                            transfer = transfer.WithSoulseekTransfer(args.Transfer);
-                                            // todo: broadcast
-                                            _ = UpdateAsync(transfer);
-                                        })));
+                                    options: topts);
 
                                 transfer = transfer.WithSoulseekTransfer(completedTransfer);
                                 // todo: broadcast
                                 await UpdateAsync(transfer);
 
                                 // this would be the ideal place to hook in a generic post-download task processor for now, we'll
-                                // just carry out hard coded behavior
+                                // just carry out hard coded behavior. these carry the risk of failing the transfer, and i could
+                                // argue both ways for that being the correct behavior. revisit this later.
                                 MoveFile(file.Filename, OptionsMonitor.CurrentValue.Directories.Incomplete, OptionsMonitor.CurrentValue.Directories.Downloads);
 
                                 if (OptionsMonitor.CurrentValue.Integration.Ftp.Enabled)
@@ -205,13 +210,28 @@ namespace slskd.Transfers.Downloads
                                     _ = FTP.UploadAsync(file.Filename.ToLocalFilename(OptionsMonitor.CurrentValue.Directories.Downloads));
                                 }
                             }
-                            catch (Exception ex) when (ex is not TaskCanceledException)
+                            catch (TaskCanceledException ex)
+                            {
+                                transfer.Exception = ex.Message;
+                                transfer.State = TransferStates.Completed | TransferStates.Cancelled;
+
+                                throw;
+                            }
+                            catch (Exception ex)
                             {
                                 Log.Error(ex, "Download of {Filename} from user {Username} failed: {Message}", file.Filename, username, ex.Message);
+
+                                transfer.Exception = ex.Message;
+                                transfer.State = TransferStates.Completed | TransferStates.Errored;
+
                                 throw;
                             }
                             finally
                             {
+                                transfer.EndedAt = DateTime.UtcNow;
+                                // todo: broadcast
+                                await UpdateAsync(transfer);
+
                                 CancellationTokens.TryRemove(id, out _);
                             }
                         });
@@ -239,16 +259,14 @@ namespace slskd.Transfers.Downloads
 
                             Log.Error("Failed to download {Filename} from {Username}: {Message}", file.Filename, username, ex.Message);
                             thrownExceptions.Add(ex);
-                            transfer.Exception = ex.Message;
-                            transfer.State = TransferStates.Completed | TransferStates.Errored;
-                            transfer.EndedAt = DateTime.UtcNow;
                         }
                         else
                         {
-                            transfer.EnqueuedAt = DateTime.UtcNow;
                             Log.Debug("Successfully enqueued {Filename} from user {Username}", file.Filename, username);
                         }
 
+                        // this may be redundant, as the record would have been updated inside of the
+                        // state handler, just before the task completion source was signalled. do it anyway.
                         // todo: broadcast
                         await UpdateAsync(transfer);
                     }
