@@ -1,4 +1,4 @@
-﻿// <copyright file="UploadService.cs" company="slskd Team">
+// <copyright file="UploadService.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -149,7 +149,6 @@ namespace slskd.Transfers.Uploads
                 Size = fileInfo.Length,
                 StartOffset = 0, // potentially updated later during handshaking
                 RequestedAt = DateTime.UtcNow,
-                EnqueuedAt = DateTime.UtcNow,
             };
 
             // persist the transfer to the database so we have a record that it was attempted
@@ -179,13 +178,15 @@ namespace slskd.Transfers.Uploads
                             }
 
                             transfer = transfer.WithSoulseekTransfer(args.Transfer);
-                            // todo: broadcast
-                            _ = UpdateAsync(transfer);
 
                             if (args.Transfer.State.HasFlag(TransferStates.Queued))
                             {
                                 Queue.Enqueue(args.Transfer.Username, args.Transfer.Filename);
+                                transfer.EnqueuedAt = DateTime.UtcNow;
                             }
+
+                            // todo: broadcast
+                            _ = UpdateAsync(transfer);
                         },
                         progressUpdated: (args) => rateLimiter.Invoke(() =>
                         {
