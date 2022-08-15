@@ -64,7 +64,7 @@ namespace slskd.Transfers.Downloads
         /// <returns></returns>
         public async Task AddOrSupersedeAsync(Transfer transfer)
         {
-           using var context = await ContextFactory.CreateDbContextAsync();
+            using var context = await ContextFactory.CreateDbContextAsync();
 
             var existing = await context.Transfers
                     .Where(t => t.Direction == TransferDirection.Download)
@@ -177,13 +177,14 @@ namespace slskd.Transfers.Downloads
                                             }
 
                                             transfer = transfer.WithSoulseekTransfer(args.Transfer);
-                                            // todo: broadcast
-                                            _ = UpdateAsync(transfer);
 
                                             if (args.Transfer.State.HasFlag(TransferStates.Queued) || args.Transfer.State == TransferStates.Initializing)
                                             {
                                                 waitUntilEnqueue.TrySetResult(true);
                                             }
+
+                                            // todo: broadcast
+                                            _ = UpdateAsync(transfer);
                                         },
                                         progressUpdated: (args) => rateLimiter.Invoke(() =>
                                         {
@@ -238,7 +239,9 @@ namespace slskd.Transfers.Downloads
                             }
 
                             Log.Error("Failed to download {Filename} from {Username}: {Message}", file.Filename, username, ex.Message);
+
                             thrownExceptions.Add(ex);
+
                             transfer.Exception = ex.Message;
                             transfer.State = TransferStates.Completed | TransferStates.Errored;
                             transfer.EndedAt = DateTime.UtcNow;
