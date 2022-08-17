@@ -1,4 +1,4 @@
-﻿// <copyright file="DownloadService.cs" company="slskd Team">
+// <copyright file="DownloadService.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -170,7 +170,7 @@ namespace slskd.Transfers.Downloads
 
                                         transfer = transfer.WithSoulseekTransfer(args.Transfer);
 
-                                        if (args.Transfer.State.HasFlag(TransferStates.Queued) || args.Transfer.State == TransferStates.Initializing)
+                                        if ((args.Transfer.State.HasFlag(TransferStates.Queued) && args.Transfer.State.HasFlag(TransferStates.Remotely)) || args.Transfer.State == TransferStates.Initializing)
                                         {
                                             transfer.EnqueuedAt = DateTime.UtcNow;
                                             waitUntilEnqueue.TrySetResult(true);
