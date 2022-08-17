@@ -267,25 +267,25 @@ namespace slskd
                 .Where(t => !t.State.HasFlag(TransferStates.Completed)) // https://github.com/dotnet/efcore/issues/10434
                 .ToList();
 
-            await Task.WhenAll(activeUploads.Select(async upload =>
+            foreach (var upload in activeUploads)
             {
                 Log.Debug("Cleaning up dangling upload {Filename} to {Username}", upload.Filename, upload.Username);
                 upload.State = TransferStates.Completed | TransferStates.Errored;
                 upload.Exception = ApplicationShutdownTransferExceptionMessage;
-                await Transfers.Uploads.UpdateAsync(upload);
-            }));
+                Transfers.Uploads.UpdateSync(upload);
+            }
 
             var activeDownloads = (await Transfers.Downloads.ListAsync(t => !t.State.HasFlag(TransferStates.Completed) && !t.Removed))
                 .Where(t => !t.State.HasFlag(TransferStates.Completed)) // https://github.com/dotnet/efcore/issues/10434
                 .ToList();
 
-            await Task.WhenAll(activeDownloads.Select(async download =>
+            foreach (var download in activeDownloads)
             {
                 Log.Debug("Cleaning up dangling download {Filename} from {Username}", download.Filename, download.Username);
                 download.State = TransferStates.Completed | TransferStates.Errored;
                 download.Exception = ApplicationShutdownTransferExceptionMessage;
-                await Transfers.Downloads.UpdateAsync(download);
-            }));
+                Transfers.Downloads.UpdateSync(download);
+            }
 
             // save the ids of any downloads that were active, so we can re-enqueue them after we've connected and logged in.
             // we need to check the database before we re-request to make sure the user didn't remove them from the UI while
