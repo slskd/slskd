@@ -264,11 +264,6 @@ namespace slskd.Transfers.Downloads
                         {
                             Log.Debug("Successfully enqueued {Filename} from user {Username}", file.Filename, username);
                         }
-
-                        // this may be redundant, as the record would have been updated inside of the
-                        // state handler, just before the task completion source was signalled. do it anyway.
-                        // todo: broadcast
-                        await UpdateAsync(transfer);
                     }
 
                     if (thrownExceptions.Any())
