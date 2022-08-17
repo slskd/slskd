@@ -170,20 +170,19 @@ namespace slskd.Transfers.Downloads
 
                                         transfer = transfer.WithSoulseekTransfer(args.Transfer);
 
-                                        if (args.Transfer.State.HasFlag(TransferStates.Queued) || args.Transfer.State == TransferStates.Initializing)
+                                        if ((args.Transfer.State.HasFlag(TransferStates.Queued) && args.Transfer.State.HasFlag(TransferStates.Remotely)) || args.Transfer.State == TransferStates.Initializing)
                                         {
                                             transfer.EnqueuedAt = DateTime.UtcNow;
                                             waitUntilEnqueue.TrySetResult(true);
                                         }
 
-                                        // todo: broadcast
-                                        _ = UpdateAsync(transfer);
+                                        UpdateSync(transfer);
                                     },
                                     progressUpdated: (args) => rateLimiter.Invoke(() =>
                                     {
                                         transfer = transfer.WithSoulseekTransfer(args.Transfer);
                                         // todo: broadcast
-                                        _ = UpdateAsync(transfer);
+                                        UpdateSync(transfer);
                                     }));
 
                                 var completedTransfer = await Client.DownloadAsync(
@@ -198,7 +197,7 @@ namespace slskd.Transfers.Downloads
 
                                 transfer = transfer.WithSoulseekTransfer(completedTransfer);
                                 // todo: broadcast
-                                await UpdateAsync(transfer);
+                                UpdateSync(transfer);
 
                                 // this would be the ideal place to hook in a generic post-download task processor for now, we'll
                                 // just carry out hard coded behavior. these carry the risk of failing the transfer, and i could
@@ -230,7 +229,7 @@ namespace slskd.Transfers.Downloads
                             {
                                 transfer.EndedAt = DateTime.UtcNow;
                                 // todo: broadcast
-                                await UpdateAsync(transfer);
+                                UpdateSync(transfer);
 
                                 CancellationTokens.TryRemove(id, out _);
                             }
@@ -264,11 +263,6 @@ namespace slskd.Transfers.Downloads
                         {
                             Log.Debug("Successfully enqueued {Filename} from user {Username}", file.Filename, username);
                         }
-
-                        // this may be redundant, as the record would have been updated inside of the
-                        // state handler, just before the task completion source was signalled. do it anyway.
-                        // todo: broadcast
-                        await UpdateAsync(transfer);
                     }
 
                     if (thrownExceptions.Any())
@@ -420,15 +414,14 @@ namespace slskd.Transfers.Downloads
         }
 
         /// <summary>
-        ///     Updates the specified <paramref name="transfer"/>.
+        ///     Synchronously updates the specified <paramref name="transfer"/>.
         /// </summary>
         /// <param name="transfer">The transfer to update.</param>
-        /// <returns>The operation context.</returns>
-        public async Task UpdateAsync(Transfer transfer)
+        public void UpdateSync(Transfer transfer)
         {
-            using var context = await ContextFactory.CreateDbContextAsync();
+            using var context = ContextFactory.CreateDbContext();
             context.Update(transfer);
-            await context.SaveChangesAsync();
+            context.SaveChanges();
         }
 
         private static FileStream GetLocalFileStream(string remoteFilename, string saveDirectory)
