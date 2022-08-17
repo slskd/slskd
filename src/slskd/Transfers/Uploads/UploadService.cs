@@ -193,13 +193,13 @@ namespace slskd.Transfers.Uploads
                             }
 
                             // todo: broadcast
-                            _ = UpdateAsync(transfer);
+                            UpdateSync(transfer);
                         },
                         progressUpdated: (args) => rateLimiter.Invoke(() =>
                         {
                             transfer = transfer.WithSoulseekTransfer(args.Transfer);
                             // todo: broadcast
-                            _ = UpdateAsync(transfer);
+                            UpdateSync(transfer);
                         }),
                         governor: (tx, req, ct) => Governor.GetBytesAsync(tx.Username, req, ct),
                         reporter: (tx, att, grant, act) => Governor.ReturnBytes(tx.Username, att, grant, act),
@@ -216,7 +216,7 @@ namespace slskd.Transfers.Uploads
 
                     transfer = transfer.WithSoulseekTransfer(completedTransfer);
                     //todo: broadcast
-                    await UpdateAsync(transfer);
+                    UpdateSync(transfer);
                 }
                 catch (TaskCanceledException ex)
                 {
@@ -238,7 +238,7 @@ namespace slskd.Transfers.Uploads
                 {
                     transfer.EndedAt = DateTime.UtcNow;
                     // todo: broadcast
-                    await UpdateAsync(transfer);
+                    UpdateSync(transfer);
 
                     CancellationTokens.TryRemove(id, out _);
                 }
@@ -348,15 +348,14 @@ namespace slskd.Transfers.Uploads
         }
 
         /// <summary>
-        ///     Updates the specified <paramref name="transfer"/>.
+        ///     Synchronously updates the specified <paramref name="transfer"/>.
         /// </summary>
         /// <param name="transfer">The transfer to update.</param>
-        /// <returns>The operation context.</returns>
-        public async Task UpdateAsync(Transfer transfer)
+        public void UpdateSync(Transfer transfer)
         {
-            using var context = await ContextFactory.CreateDbContextAsync();
+            using var context = ContextFactory.CreateDbContext();
             context.Update(transfer);
-            await context.SaveChangesAsync();
+            context.SaveChanges();
         }
     }
 }

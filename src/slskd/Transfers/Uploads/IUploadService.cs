@@ -84,10 +84,9 @@ namespace slskd.Transfers.Uploads
         bool TryCancel(Guid id);
 
         /// <summary>
-        ///     Updates the specified <paramref name="transfer"/>.
+        ///     Synchronously updates the specified <paramref name="transfer"/>.
         /// </summary>
         /// <param name="transfer">The transfer to update.</param>
-        /// <returns>The operation context.</returns>
-        Task UpdateAsync(Transfer transfer);
+        void UpdateSync(Transfer transfer);
     }
 }
