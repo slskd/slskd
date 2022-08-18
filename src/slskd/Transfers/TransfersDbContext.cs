@@ -29,7 +29,7 @@ namespace slskd.Transfers
             Database.EnsureCreated();
         }
 
-        public DbSet<Transfer> Transfers { get; set;}
+        public DbSet<Transfer> Transfers { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
