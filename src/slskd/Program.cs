@@ -455,6 +455,9 @@ namespace slskd
             services.AddDbContext<SearchDbContext>("search.db");
             services.AddDbContext<TransfersDbContext>("transfers.db");
 
+            // https://github.com/aspnet/EntityFrameworkCore/issues/9994#issuecomment-508588678
+            SQLitePCL.raw.sqlite3_config(2 /*SQLITE_CONFIG_MULTITHREAD*/);
+
             services.AddSingleton<IBrowseTracker, BrowseTracker>();
             services.AddSingleton<IConversationTracker, ConversationTracker>();
             services.AddSingleton<IRoomTracker, RoomTracker>(_ => new RoomTracker(messageLimit: 250));
@@ -798,7 +801,7 @@ namespace slskd
             {
                 services.AddDbContextFactory<T>(options =>
                 {
-                    options.UseSqlite($"Data Source={Path.Combine(AppDirectory, "data", filename)}");
+                    options.UseSqlite($"Data Source={Path.Combine(AppDirectory, "data", filename)};Pooling=True;");
 
                     if (OptionsAtStartup.Debug && OptionsAtStartup.Flags.LogSQL)
                     {
