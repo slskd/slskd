@@ -1,4 +1,4 @@
-// <copyright file="DownloadService.cs" company="slskd Team">
+﻿// <copyright file="DownloadService.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -427,9 +427,22 @@ namespace slskd.Transfers.Downloads
         /// <param name="transfer">The transfer to update.</param>
         public void UpdateSync(Transfer transfer)
         {
+            var experimental = OptionsMonitor.CurrentValue.Experimental;
+            var id = Guid.NewGuid();
+
+            if (experimental)
+            {
+                Log.Warning("=> [{ID}] {File} | {State} | {Complete}", id, Path.GetFileName(transfer.Filename), transfer.State, transfer.PercentComplete);
+            }
+
             using var context = ContextFactory.CreateDbContext();
             context.Update(transfer);
             context.SaveChanges();
+
+            if (experimental)
+            {
+                Log.Warning("<= [{ID}] DONE", id);
+            }
         }
 
         private static FileStream GetLocalFileStream(string remoteFilename, string saveDirectory)

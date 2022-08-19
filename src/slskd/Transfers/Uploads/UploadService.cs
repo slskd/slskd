@@ -1,4 +1,4 @@
-// <copyright file="UploadService.cs" company="slskd Team">
+﻿// <copyright file="UploadService.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -49,6 +49,7 @@ namespace slskd.Transfers.Uploads
             Client = soulseekClient;
             Shares = shareService;
             ContextFactory = contextFactory;
+            OptionsMonitor = optionsMonitor;
 
             Governor = new UploadGovernor(userService, optionsMonitor);
             Queue = new UploadQueue(userService, optionsMonitor);
@@ -70,6 +71,7 @@ namespace slskd.Transfers.Uploads
         private ILogger Log { get; } = Serilog.Log.ForContext<UploadService>();
         private IShareService Shares { get; set; }
         private IUserService Users { get; set; }
+        private IOptionsMonitor<Options> OptionsMonitor { get; }
 
         /// <summary>
         ///     Adds the specified <paramref name="transfer"/>. Supersedes any existing record for the same file and username.
@@ -361,9 +363,22 @@ namespace slskd.Transfers.Uploads
         /// <param name="transfer">The transfer to update.</param>
         public void UpdateSync(Transfer transfer)
         {
+            var experimental = OptionsMonitor.CurrentValue.Experimental;
+            var id = Guid.NewGuid();
+
+            if (experimental)
+            {
+                Log.Warning("=> [{ID}] {File} | {State} | {Complete}", id, Path.GetFileName(transfer.Filename), transfer.State, transfer.PercentComplete);
+            }
+
             using var context = ContextFactory.CreateDbContext();
             context.Update(transfer);
             context.SaveChanges();
+
+            if (experimental)
+            {
+                Log.Warning("<= [{ID}] DONE", id);
+            }
         }
     }
 }
