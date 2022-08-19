@@ -78,17 +78,16 @@ namespace slskd.Transfers.Uploads
         /// </summary>
         /// <remarks>This should generally not be called; use <see cref="EnqueueAsync(string, string)"/> instead.</remarks>
         /// <param name="transfer"></param>
-        /// <returns></returns>
-        public async Task AddOrSupersedeAsync(Transfer transfer)
+        public void AddOrSupersede(Transfer transfer)
         {
-            using var context = await ContextFactory.CreateDbContextAsync();
+            using var context = ContextFactory.CreateDbContext();
 
-            var existing = await context.Transfers
+            var existing = context.Transfers
                     .Where(t => t.Direction == TransferDirection.Upload)
                     .Where(t => t.Username == transfer.Username)
                     .Where(t => t.Filename == transfer.Filename)
                     .Where(t => !t.Removed)
-                    .FirstOrDefaultAsync();
+                    .FirstOrDefault();
 
             if (existing != default)
             {
@@ -97,7 +96,7 @@ namespace slskd.Transfers.Uploads
             }
 
             context.Add(transfer);
-            await context.SaveChangesAsync();
+            context.SaveChanges();
         }
 
         /// <summary>
@@ -131,7 +130,7 @@ namespace slskd.Transfers.Uploads
             }
 
             // find existing records for this username and file that haven't been removed from the UI
-            var existingRecords = await ListAsync(t => t.Username == username && t.Filename == localFilename && !t.Removed);
+            var existingRecords = List(t => t.Username == username && t.Filename == localFilename && !t.Removed);
 
             // check whether any of these records is in a non-complete state and bail out if so
             if (existingRecords.Any(t => !t.State.HasFlag(TransferStates.Completed)))
@@ -154,7 +153,7 @@ namespace slskd.Transfers.Uploads
             };
 
             // persist the transfer to the database so we have a record that it was attempted
-            await AddOrSupersedeAsync(transfer);
+            AddOrSupersede(transfer);
 
             // create a new cancellation token source so that we can cancel the upload from the UI.
             var cts = new CancellationTokenSource();
@@ -195,13 +194,13 @@ namespace slskd.Transfers.Uploads
                             }
 
                             // todo: broadcast
-                            UpdateSync(transfer);
+                            Update(transfer);
                         },
                         progressUpdated: (args) => rateLimiter.Invoke(() =>
                         {
                             transfer = transfer.WithSoulseekTransfer(args.Transfer);
                             // todo: broadcast
-                            UpdateSync(transfer);
+                            Update(transfer);
                         }),
                         governor: (tx, req, ct) => Governor.GetBytesAsync(tx.Username, req, ct),
                         reporter: (tx, att, grant, act) => Governor.ReturnBytes(tx.Username, att, grant, act),
@@ -222,7 +221,7 @@ namespace slskd.Transfers.Uploads
 
                     transfer = transfer.WithSoulseekTransfer(completedTransfer);
                     //todo: broadcast
-                    UpdateSync(transfer);
+                    Update(transfer);
                 }
                 catch (TaskCanceledException ex)
                 {
@@ -231,7 +230,7 @@ namespace slskd.Transfers.Uploads
                     transfer.State = TransferStates.Completed | TransferStates.Cancelled;
 
                     // todo: broadcast
-                    UpdateSync(transfer);
+                    Update(transfer);
 
                     throw;
                 }
@@ -244,7 +243,7 @@ namespace slskd.Transfers.Uploads
                     transfer.State = TransferStates.Completed | TransferStates.Errored;
 
                     // todo: broadcast
-                    UpdateSync(transfer);
+                    Update(transfer);
 
                     throw;
                 }
@@ -260,15 +259,16 @@ namespace slskd.Transfers.Uploads
         /// </summary>
         /// <param name="expression">The expression to use to match uploads.</param>
         /// <returns>The found transfer, or default if not found.</returns>
-        public async Task<Transfer> FindAsync(Expression<Func<Transfer, bool>> expression)
+        public Transfer Find(Expression<Func<Transfer, bool>> expression)
         {
             try
             {
-                using var context = await ContextFactory.CreateDbContextAsync();
-                return await context.Transfers
+                using var context = ContextFactory.CreateDbContext();
+
+                return context.Transfers
                     .AsNoTracking()
                     .Where(t => t.Direction == TransferDirection.Upload)
-                    .Where(expression).FirstOrDefaultAsync();
+                    .Where(expression).FirstOrDefault();
             }
             catch (Exception ex)
             {
@@ -283,19 +283,20 @@ namespace slskd.Transfers.Uploads
         /// <param name="expression">An optional expression used to match uploads.</param>
         /// <param name="includeRemoved">Optionally include uploads that have been removed previously.</param>
         /// <returns>The list of uploads matching the specified expression, or all uploads if no expression is specified.</returns>
-        public async Task<List<Transfer>> ListAsync(Expression<Func<Transfer, bool>> expression = null, bool includeRemoved = false)
+        public List<Transfer> List(Expression<Func<Transfer, bool>> expression = null, bool includeRemoved = false)
         {
             expression ??= t => true;
 
             try
             {
-                using var context = await ContextFactory.CreateDbContextAsync();
-                return await context.Transfers
+                using var context = ContextFactory.CreateDbContext();
+
+                return context.Transfers
                     .AsNoTracking()
                     .Where(t => t.Direction == TransferDirection.Upload)
                     .Where(t => !t.Removed || includeRemoved)
                     .Where(expression)
-                    .ToListAsync();
+                    .ToList();
             }
             catch (Exception ex)
             {
@@ -309,16 +310,16 @@ namespace slskd.Transfers.Uploads
         /// </summary>
         /// <remarks>This is a soft delete; the record is retained for historical retrieval.</remarks>
         /// <param name="id">The unique identifier of the upload.</param>
-        /// <returns></returns>
-        public async Task RemoveAsync(Guid id)
+        public void Remove(Guid id)
         {
             try
             {
-                using var context = await ContextFactory.CreateDbContextAsync();
-                var transfer = await context.Transfers
+                using var context = ContextFactory.CreateDbContext();
+
+                var transfer = context.Transfers
                     .Where(t => t.Direction == TransferDirection.Upload)
                     .Where(t => t.Id == id)
-                    .FirstOrDefaultAsync();
+                    .FirstOrDefault();
 
                 if (transfer == default)
                 {
@@ -332,7 +333,7 @@ namespace slskd.Transfers.Uploads
 
                 transfer.Removed = true;
 
-                await context.SaveChangesAsync();
+                context.SaveChanges();
             }
             catch (Exception ex)
             {
@@ -361,7 +362,7 @@ namespace slskd.Transfers.Uploads
         ///     Synchronously updates the specified <paramref name="transfer"/>.
         /// </summary>
         /// <param name="transfer">The transfer to update.</param>
-        public void UpdateSync(Transfer transfer)
+        public void Update(Transfer transfer)
         {
             var experimental = OptionsMonitor.CurrentValue.Experimental;
             var id = Guid.NewGuid();
@@ -372,6 +373,7 @@ namespace slskd.Transfers.Uploads
             }
 
             using var context = ContextFactory.CreateDbContext();
+
             context.Update(transfer);
             context.SaveChanges();
 

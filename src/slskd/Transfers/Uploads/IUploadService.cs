@@ -42,8 +42,7 @@ namespace slskd.Transfers.Uploads
         /// </summary>
         /// <remarks>This should generally not be called; use <see cref="EnqueueAsync(string, string)"/> instead.</remarks>
         /// <param name="transfer"></param>
-        /// <returns></returns>
-        Task AddOrSupersedeAsync(Transfer transfer);
+        void AddOrSupersede(Transfer transfer);
 
         /// <summary>
         ///     Enqueues the requested file.
@@ -58,7 +57,7 @@ namespace slskd.Transfers.Uploads
         /// </summary>
         /// <param name="expression">The expression to use to match uploads.</param>
         /// <returns>The found transfer, or default if not found.</returns>
-        Task<Transfer> FindAsync(Expression<Func<Transfer, bool>> expression);
+        Transfer Find(Expression<Func<Transfer, bool>> expression);
 
         /// <summary>
         ///     Returns a list of all uploads matching the optional <paramref name="expression"/>.
@@ -66,15 +65,14 @@ namespace slskd.Transfers.Uploads
         /// <param name="expression">An optional expression used to match uploads.</param>
         /// <param name="includeRemoved">Optionally include uploads that have been removed previously.</param>
         /// <returns>The list of uploads matching the specified expression, or all uploads if no expression is specified.</returns>
-        Task<List<Transfer>> ListAsync(Expression<Func<Transfer, bool>> expression = null, bool includeRemoved = false);
+        List<Transfer> List(Expression<Func<Transfer, bool>> expression = null, bool includeRemoved = false);
 
         /// <summary>
         ///     Removes the upload matching the specified <paramref name="id"/>.
         /// </summary>
         /// <remarks>This is a soft delete; the record is retained for historical retrieval.</remarks>
         /// <param name="id">The unique identifier of the upload.</param>
-        /// <returns></returns>
-        Task RemoveAsync(Guid id);
+        void Remove(Guid id);
 
         /// <summary>
         ///     Cancels the upload matching the specified <paramref name="id"/>, if it is in progress.
@@ -87,6 +85,6 @@ namespace slskd.Transfers.Uploads
         ///     Synchronously updates the specified <paramref name="transfer"/>.
         /// </summary>
         /// <param name="transfer">The transfer to update.</param>
-        void UpdateSync(Transfer transfer);
+        void Update(Transfer transfer);
     }
 }

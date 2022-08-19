@@ -319,7 +319,8 @@ namespace slskd
             [Argument(default, "sqlite-threading-mode")]
             [EnvironmentVariable("SQLITE_THREADING_MODE")]
             [Description("sets the SQLite threading mode to MULTITHREADED (2) or SERIALIZED (3)")]
-            public int SQLiteThreadingMode { get; init; } = 3;
+            [RequiresRestart]
+            public int SQLiteThreadingMode { get; init; } = SQLitePCL.raw.SQLITE_CONFIG_SERIALIZED;
         }
 
         /// <summary>

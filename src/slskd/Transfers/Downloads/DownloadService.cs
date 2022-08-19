@@ -61,17 +61,16 @@ namespace slskd.Transfers.Downloads
         /// </summary>
         /// <remarks>This should generally not be called; use <see cref="EnqueueAsync(string, IEnumerable(string Filename, long Size)})"/> instead.</remarks>
         /// <param name="transfer"></param>
-        /// <returns></returns>
-        public async Task AddOrSupersedeAsync(Transfer transfer)
+        public void AddOrSupersede(Transfer transfer)
         {
-            using var context = await ContextFactory.CreateDbContextAsync();
+            using var context = ContextFactory.CreateDbContext();
 
-            var existing = await context.Transfers
+            var existing = context.Transfers
                     .Where(t => t.Direction == TransferDirection.Download)
                     .Where(t => t.Username == transfer.Username)
                     .Where(t => t.Filename == transfer.Filename)
                     .Where(t => !t.Removed)
-                    .FirstOrDefaultAsync();
+                    .FirstOrDefault();
 
             if (existing != default)
             {
@@ -80,7 +79,7 @@ namespace slskd.Transfers.Downloads
             }
 
             context.Add(transfer);
-            await context.SaveChangesAsync();
+            context.SaveChanges();
         }
 
         /// <summary>
@@ -140,7 +139,7 @@ namespace slskd.Transfers.Downloads
                         };
 
                         // persist the transfer to the database so we have a record that it was attempted
-                        await AddOrSupersedeAsync(transfer);
+                        AddOrSupersede(transfer);
 
                         var cts = new CancellationTokenSource();
                         CancellationTokens.TryAdd(id, cts);
@@ -176,13 +175,13 @@ namespace slskd.Transfers.Downloads
                                             waitUntilEnqueue.TrySetResult(true);
                                         }
 
-                                        UpdateSync(transfer);
+                                        Update(transfer);
                                     },
                                     progressUpdated: (args) => rateLimiter.Invoke(() =>
                                     {
                                         transfer = transfer.WithSoulseekTransfer(args.Transfer);
                                         // todo: broadcast
-                                        UpdateSync(transfer);
+                                        Update(transfer);
                                     }));
 
                                 var completedTransfer = await Client.DownloadAsync(
@@ -201,7 +200,7 @@ namespace slskd.Transfers.Downloads
 
                                 transfer = transfer.WithSoulseekTransfer(completedTransfer);
                                 // todo: broadcast
-                                UpdateSync(transfer);
+                                Update(transfer);
 
                                 // this would be the ideal place to hook in a generic post-download task processor for now, we'll
                                 // just carry out hard coded behavior. these carry the risk of failing the transfer, and i could
@@ -220,7 +219,7 @@ namespace slskd.Transfers.Downloads
                                 transfer.State = TransferStates.Completed | TransferStates.Cancelled;
 
                                 // todo: broadcast
-                                UpdateSync(transfer);
+                                Update(transfer);
 
                                 throw;
                             }
@@ -233,7 +232,7 @@ namespace slskd.Transfers.Downloads
                                 transfer.State = TransferStates.Completed | TransferStates.Errored;
 
                                 // todo: broadcast
-                                UpdateSync(transfer);
+                                Update(transfer);
 
                                 throw;
                             }
@@ -293,15 +292,16 @@ namespace slskd.Transfers.Downloads
         /// </summary>
         /// <param name="expression">The expression to use to match downloads.</param>
         /// <returns>The found transfer, or default if not found.</returns>
-        public async Task<Transfer> FindAsync(Expression<Func<Transfer, bool>> expression)
+        public Transfer Find(Expression<Func<Transfer, bool>> expression)
         {
             try
             {
-                using var context = await ContextFactory.CreateDbContextAsync();
-                return await context.Transfers
+                using var context = ContextFactory.CreateDbContext();
+
+                return context.Transfers
                     .AsNoTracking()
                     .Where(t => t.Direction == TransferDirection.Download)
-                    .Where(expression).FirstOrDefaultAsync();
+                    .Where(expression).FirstOrDefault();
             }
             catch (Exception ex)
             {
@@ -319,8 +319,9 @@ namespace slskd.Transfers.Downloads
         {
             try
             {
-                using var context = await ContextFactory.CreateDbContextAsync();
-                var transfer = await context.Transfers.FindAsync(id);
+                using var context = ContextFactory.CreateDbContext();
+
+                var transfer = context.Transfers.Find(id);
 
                 if (transfer == default)
                 {
@@ -330,7 +331,7 @@ namespace slskd.Transfers.Downloads
                 var place = await Client.GetDownloadPlaceInQueueAsync(transfer.Username, transfer.Filename);
 
                 transfer.PlaceInQueue = place;
-                await context.SaveChangesAsync();
+                context.SaveChanges();
 
                 return place;
             }
@@ -347,19 +348,20 @@ namespace slskd.Transfers.Downloads
         /// <param name="expression">An optional expression used to match downloads.</param>
         /// <param name="includeRemoved">Optionally include downloads that have been removed previously.</param>
         /// <returns>The list of downloads matching the specified expression, or all downloads if no expression is specified.</returns>
-        public async Task<List<Transfer>> ListAsync(Expression<Func<Transfer, bool>> expression = null, bool includeRemoved = false)
+        public List<Transfer> List(Expression<Func<Transfer, bool>> expression = null, bool includeRemoved = false)
         {
             expression ??= t => true;
 
             try
             {
-                using var context = await ContextFactory.CreateDbContextAsync();
-                return await context.Transfers
+                using var context = ContextFactory.CreateDbContext();
+
+                return context.Transfers
                     .AsNoTracking()
                     .Where(t => t.Direction == TransferDirection.Download)
                     .Where(t => !t.Removed || includeRemoved)
                     .Where(expression)
-                    .ToListAsync();
+                    .ToList();
             }
             catch (Exception ex)
             {
@@ -373,16 +375,16 @@ namespace slskd.Transfers.Downloads
         /// </summary>
         /// <remarks>This is a soft delete; the record is retained for historical retrieval.</remarks>
         /// <param name="id">The unique identifier of the download.</param>
-        /// <returns></returns>
-        public async Task RemoveAsync(Guid id)
+        public void Remove(Guid id)
         {
             try
             {
-                using var context = await ContextFactory.CreateDbContextAsync();
-                var transfer = await context.Transfers
+                using var context = ContextFactory.CreateDbContext();
+
+                var transfer = context.Transfers
                     .Where(t => t.Direction == TransferDirection.Download)
                     .Where(t => t.Id == id)
-                    .FirstOrDefaultAsync();
+                    .FirstOrDefault();
 
                 if (transfer == default)
                 {
@@ -396,7 +398,7 @@ namespace slskd.Transfers.Downloads
 
                 transfer.Removed = true;
 
-                await context.SaveChangesAsync();
+                context.SaveChanges();
             }
             catch (Exception ex)
             {
@@ -425,7 +427,7 @@ namespace slskd.Transfers.Downloads
         ///     Synchronously updates the specified <paramref name="transfer"/>.
         /// </summary>
         /// <param name="transfer">The transfer to update.</param>
-        public void UpdateSync(Transfer transfer)
+        public void Update(Transfer transfer)
         {
             var experimental = OptionsMonitor.CurrentValue.Experimental;
             var id = Guid.NewGuid();
@@ -436,6 +438,7 @@ namespace slskd.Transfers.Downloads
             }
 
             using var context = ContextFactory.CreateDbContext();
+
             context.Update(transfer);
             context.SaveChanges();
 
