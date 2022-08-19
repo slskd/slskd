@@ -37,11 +37,7 @@ namespace slskd
                 AutoReset = true,
             };
 
-            Timer.Elapsed += (s, e) =>
-            {
-                Staged?.Invoke();
-                Staged = null;
-            };
+            Timer.Elapsed += Timer_Elapsed;
 
             FlushOnDispose = flushOnDispose;
         }
@@ -88,17 +84,26 @@ namespace slskd
             {
                 if (disposing)
                 {
+                    Timer.Elapsed -= Timer_Elapsed;
+
                     // if an action is staged, invoke it to 'flush'
                     if (FlushOnDispose)
                     {
                         Staged?.Invoke();
                     }
 
+                    Staged = null;
                     Timer.Dispose();
                 }
 
                 Disposed = true;
             }
+        }
+
+        private void Timer_Elapsed(object sender, EventArgs args)
+        {
+            Staged?.Invoke();
+            Staged = null;
         }
     }
 }
