@@ -136,6 +136,15 @@ namespace slskd
         public bool Debug { get; init; } = Debugger.IsAttached;
 
         /// <summary>
+        ///     Gets a value indicating whether the application should run in experimental mode.
+        /// </summary>
+        [Argument(default, "experimental")]
+        [EnvironmentVariable("EXPERIMENTAL")]
+        [Description("run in experimental mode")]
+        [RequiresRestart]
+        public bool Experimental { get; init; } = false;
+
+        /// <summary>
         ///     Gets a value indicating whether remote configuration of options is allowed.
         /// </summary>
         [Argument(default, "remote-configuration")]

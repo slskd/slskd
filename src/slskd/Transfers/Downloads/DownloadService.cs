@@ -152,7 +152,7 @@ namespace slskd.Transfers.Downloads
                         // return and let the caller know.
                         var downloadTask = Task.Run(async () =>
                         {
-                            using var rateLimiter = new RateLimiter(250);
+                            using var rateLimiter = new RateLimiter(250, flushOnDispose: true);
 
                             try
                             {
@@ -195,6 +195,10 @@ namespace slskd.Transfers.Downloads
                                     cancellationToken: cts.Token,
                                     options: topts);
 
+                                // explicitly dispose the rate limiter to prevent updates from it
+                                // beyond this point, which may overwrite the final state
+                                rateLimiter.Dispose();
+
                                 transfer = transfer.WithSoulseekTransfer(completedTransfer);
                                 // todo: broadcast
                                 UpdateSync(transfer);
@@ -211,8 +215,12 @@ namespace slskd.Transfers.Downloads
                             }
                             catch (TaskCanceledException ex)
                             {
+                                transfer.EndedAt = DateTime.UtcNow;
                                 transfer.Exception = ex.Message;
                                 transfer.State = TransferStates.Completed | TransferStates.Cancelled;
+
+                                // todo: broadcast
+                                UpdateSync(transfer);
 
                                 throw;
                             }
@@ -220,17 +228,17 @@ namespace slskd.Transfers.Downloads
                             {
                                 Log.Error(ex, "Download of {Filename} from user {Username} failed: {Message}", file.Filename, username, ex.Message);
 
+                                transfer.EndedAt = DateTime.UtcNow;
                                 transfer.Exception = ex.Message;
                                 transfer.State = TransferStates.Completed | TransferStates.Errored;
+
+                                // todo: broadcast
+                                UpdateSync(transfer);
 
                                 throw;
                             }
                             finally
                             {
-                                transfer.EndedAt = DateTime.UtcNow;
-                                // todo: broadcast
-                                UpdateSync(transfer);
-
                                 CancellationTokens.TryRemove(id, out _);
                             }
                         });
@@ -419,9 +427,22 @@ namespace slskd.Transfers.Downloads
         /// <param name="transfer">The transfer to update.</param>
         public void UpdateSync(Transfer transfer)
         {
+            var experimental = OptionsMonitor.CurrentValue.Experimental;
+            var id = Guid.NewGuid();
+
+            if (experimental)
+            {
+                Log.Warning("=> [{ID}] {File} | {State} | {Complete}", id, Path.GetFileName(transfer.Filename), transfer.State, transfer.PercentComplete);
+            }
+
             using var context = ContextFactory.CreateDbContext();
             context.Update(transfer);
             context.SaveChanges();
+
+            if (experimental)
+            {
+                Log.Warning("<= [{ID}] DONE", id);
+            }
         }
 
         private static FileStream GetLocalFileStream(string remoteFilename, string saveDirectory)
