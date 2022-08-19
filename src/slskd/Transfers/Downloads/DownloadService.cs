@@ -215,8 +215,12 @@ namespace slskd.Transfers.Downloads
                             }
                             catch (TaskCanceledException ex)
                             {
+                                transfer.EndedAt = DateTime.UtcNow;
                                 transfer.Exception = ex.Message;
                                 transfer.State = TransferStates.Completed | TransferStates.Cancelled;
+
+                                // todo: broadcast
+                                UpdateSync(transfer);
 
                                 throw;
                             }
@@ -224,17 +228,17 @@ namespace slskd.Transfers.Downloads
                             {
                                 Log.Error(ex, "Download of {Filename} from user {Username} failed: {Message}", file.Filename, username, ex.Message);
 
+                                transfer.EndedAt = DateTime.UtcNow;
                                 transfer.Exception = ex.Message;
                                 transfer.State = TransferStates.Completed | TransferStates.Errored;
+
+                                // todo: broadcast
+                                UpdateSync(transfer);
 
                                 throw;
                             }
                             finally
                             {
-                                transfer.EndedAt = DateTime.UtcNow;
-                                // todo: broadcast
-                                UpdateSync(transfer);
-
                                 CancellationTokens.TryRemove(id, out _);
                             }
                         });

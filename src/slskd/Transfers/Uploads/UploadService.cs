@@ -224,8 +224,12 @@ namespace slskd.Transfers.Uploads
                 }
                 catch (TaskCanceledException ex)
                 {
+                    transfer.EndedAt = DateTime.UtcNow;
                     transfer.Exception = ex.Message;
                     transfer.State = TransferStates.Completed | TransferStates.Cancelled;
+
+                    // todo: broadcast
+                    UpdateSync(transfer);
 
                     throw;
                 }
@@ -233,17 +237,17 @@ namespace slskd.Transfers.Uploads
                 {
                     Log.Error(ex, "Upload of {Filename} to user {Username} failed: {Message}", filename, username, ex.Message);
 
+                    transfer.EndedAt = DateTime.UtcNow;
                     transfer.Exception = ex.Message;
                     transfer.State = TransferStates.Completed | TransferStates.Errored;
+
+                    // todo: broadcast
+                    UpdateSync(transfer);
 
                     throw;
                 }
                 finally
                 {
-                    transfer.EndedAt = DateTime.UtcNow;
-                    // todo: broadcast
-                    UpdateSync(transfer);
-
                     CancellationTokens.TryRemove(id, out _);
                 }
             });
