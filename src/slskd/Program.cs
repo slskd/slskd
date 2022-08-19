@@ -452,11 +452,10 @@ namespace slskd
 
             services.AddSingleton<IConnectionWatchdog, ConnectionWatchdog>();
 
+            ConfigureSQLite();
+
             services.AddDbContext<SearchDbContext>("search.db");
             services.AddDbContext<TransfersDbContext>("transfers.db");
-
-            // https://github.com/aspnet/EntityFrameworkCore/issues/9994#issuecomment-508588678
-            SQLitePCL.raw.sqlite3_config(2 /*SQLITE_CONFIG_MULTITHREAD*/);
 
             services.AddSingleton<IBrowseTracker, BrowseTracker>();
             services.AddSingleton<IConversationTracker, ConversationTracker>();
@@ -478,6 +477,40 @@ namespace slskd
             services.AddSingleton<IPushbulletService, PushbulletService>();
 
             return services;
+        }
+
+        private static void ConfigureSQLite()
+        {
+            // initialize
+            // avoids: System.Exception: You need to call SQLitePCL.raw.SetProvider().  If you are using a bundle package, this is done by calling SQLitePCL.Batteries.Init().
+            SQLitePCL.Batteries.Init();
+
+            // check the threading mode set at compile time. if it is 0 it is unsafe to use in a multithreaded application, which slskd is.
+            // https://www.sqlite.org/compile.html#threadsafe
+            var threadSafe = SQLitePCL.raw.sqlite3_threadsafe();
+
+            if (threadSafe == 0)
+            {
+                throw new InvalidOperationException($"SQLite binary was not compiled with THREADSAFE={threadSafe}, which is not compatible with this application. Please create a GitHub issue to report this and include details about your environment.");
+            }
+
+            Log.Debug("SQLite was compiled with THREADSAFE={Mode}", threadSafe);
+
+            var selectedThreadingMode = OptionsAtStartup.Flags.SQLiteThreadingMode;
+
+            if (selectedThreadingMode != SQLitePCL.raw.SQLITE_CONFIG_MULTITHREAD && selectedThreadingMode != SQLitePCL.raw.SQLITE_CONFIG_SERIALIZED)
+            {
+                throw new InvalidOperationException($"Invalid SQLite threading mode {selectedThreadingMode}; select either MULTITHREADED (2) or SERIALIZED (3)");
+            }
+
+            var modeNames = new[] { null, "MULTITHREADED", "SERIALIZED" };
+
+            if (SQLitePCL.raw.sqlite3_config(selectedThreadingMode) != SQLitePCL.raw.SQLITE_OK)
+            {
+                throw new InvalidOperationException($"SQLite config could not be set to {modeNames[selectedThreadingMode]}. Please create a GitHub issue to report this and include details about your environment.");
+            }
+
+            Log.Debug("SQLite threading mode set to {Mode} ({Number})", modeNames[selectedThreadingMode], selectedThreadingMode);
         }
 
         private static IServiceCollection ConfigureAspDotNetServices(this IServiceCollection services)
