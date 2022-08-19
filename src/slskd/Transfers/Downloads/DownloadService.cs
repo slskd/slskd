@@ -195,6 +195,10 @@ namespace slskd.Transfers.Downloads
                                     cancellationToken: cts.Token,
                                     options: topts);
 
+                                // explicitly dispose the rate limiter to prevent updates from it
+                                // beyond this point, which may overwrite the final state
+                                rateLimiter.Dispose();
+
                                 transfer = transfer.WithSoulseekTransfer(completedTransfer);
                                 // todo: broadcast
                                 UpdateSync(transfer);
