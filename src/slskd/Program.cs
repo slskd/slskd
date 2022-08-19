@@ -503,14 +503,14 @@ namespace slskd
                 throw new InvalidOperationException($"Invalid SQLite threading mode {selectedThreadingMode}; select either MULTITHREADED (2) or SERIALIZED (3)");
             }
 
-            var modeNames = new[] { null, "MULTITHREADED", "SERIALIZED" };
+            var modeNames = new[] { "MULTITHREADED", "SERIALIZED" };
 
             if (SQLitePCL.raw.sqlite3_config(selectedThreadingMode) != SQLitePCL.raw.SQLITE_OK)
             {
                 throw new InvalidOperationException($"SQLite config could not be set to {modeNames[selectedThreadingMode]}. Please create a GitHub issue to report this and include details about your environment.");
             }
 
-            Log.Debug("SQLite threading mode set to {Mode} ({Number})", modeNames[selectedThreadingMode], selectedThreadingMode);
+            Log.Debug("SQLite threading mode set to {Mode} ({Number})", modeNames[selectedThreadingMode - 2], selectedThreadingMode);
         }
 
         private static IServiceCollection ConfigureAspDotNetServices(this IServiceCollection services)
