@@ -693,6 +693,7 @@ A number of additional feature flags are provided to change the runtime behavior
 | Flag                 | Environment Variable | Description                                                      |
 | -------------------- | -------------------- | ---------------------------------------------------------------- |
 | `-d\|--debug`        | `DEBUG`              | Run the application in debug mode.  Produces verbose log output. |
+| `--experimental`     | `EXPERIMENTAL`       | Run the application in experimental mode.  YMMV. |
 | `-n\|--no-logo`      | `NO_LOGO`            | Don't show the application logo on startup                       |
 | `-x\|--no-start`     | `NO_START`           | Bootstrap the application, but don't start                       |
 | `--no-connect`       | `NO_CONNECT`         | Start the application, but don't connect to the server           |
