@@ -1,4 +1,4 @@
-﻿// <copyright file="DownloadService.cs" company="slskd Team">
+// <copyright file="DownloadService.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -152,7 +152,7 @@ namespace slskd.Transfers.Downloads
                         // return and let the caller know.
                         var downloadTask = Task.Run(async () =>
                         {
-                            using var rateLimiter = new RateLimiter(250);
+                            using var rateLimiter = new RateLimiter(250, flushOnDispose: true);
 
                             try
                             {

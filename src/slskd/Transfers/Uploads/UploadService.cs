@@ -1,4 +1,4 @@
-﻿// <copyright file="UploadService.cs" company="slskd Team">
+// <copyright file="UploadService.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -162,7 +162,7 @@ namespace slskd.Transfers.Uploads
             // uploads would be handled separately.
             _ = Task.Run(async () =>
             {
-                using var rateLimiter = new RateLimiter(250);
+                using var rateLimiter = new RateLimiter(250, flushOnDispose: true);
 
                 try
                 {
