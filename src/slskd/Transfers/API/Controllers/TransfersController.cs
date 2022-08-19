@@ -73,7 +73,7 @@ namespace slskd.Transfers.API
 
                 if (remove)
                 {
-                    await Transfers.Downloads.RemoveAsync(guid);
+                    Transfers.Downloads.Remove(guid);
                 }
 
                 return NoContent();
@@ -110,7 +110,7 @@ namespace slskd.Transfers.API
 
                 if (remove)
                 {
-                    await Transfers.Uploads.RemoveAsync(guid);
+                    Transfers.Uploads.Remove(guid);
                 }
 
                 return NoContent();
@@ -158,7 +158,7 @@ namespace slskd.Transfers.API
         [ProducesResponseType(200)]
         public async Task<IActionResult> GetDownloadsAsync([FromQuery]bool includeRemoved = false)
         {
-            var downloads = await Transfers.Downloads.ListAsync(includeRemoved: includeRemoved);
+            var downloads = Transfers.Downloads.List(includeRemoved: includeRemoved);
 
             var response = downloads.GroupBy(t => t.Username).Select(grouping => new UserResponse()
             {
@@ -185,7 +185,7 @@ namespace slskd.Transfers.API
         [ProducesResponseType(200)]
         public async Task<IActionResult> GetDownloadsAsync([FromRoute, Required] string username)
         {
-            var downloads = await Transfers.Downloads.ListAsync(d => d.Username == username);
+            var downloads = Transfers.Downloads.List(d => d.Username == username);
 
             if (!downloads.Any())
             {
@@ -217,7 +217,7 @@ namespace slskd.Transfers.API
                 return BadRequest();
             }
 
-            var download = await Transfers.Downloads.FindAsync(t => t.Id == guid);
+            var download = Transfers.Downloads.Find(t => t.Id == guid);
 
             if (download == default)
             {
@@ -272,7 +272,7 @@ namespace slskd.Transfers.API
         [ProducesResponseType(200)]
         public async Task<IActionResult> GetUploads([FromQuery] bool includeRemoved = false)
         {
-            var uploads = await Transfers.Uploads.ListAsync(includeRemoved: includeRemoved);
+            var uploads = Transfers.Uploads.List(includeRemoved: includeRemoved);
 
             var response = uploads.GroupBy(t => t.Username).Select(grouping => new UserResponse()
             {
@@ -299,7 +299,7 @@ namespace slskd.Transfers.API
         [ProducesResponseType(200)]
         public async Task<IActionResult> GetUploads([FromRoute, Required] string username)
         {
-            var uploads = await Transfers.Uploads.ListAsync(d => d.Username == username);
+            var uploads = Transfers.Uploads.List(d => d.Username == username);
 
             if (!uploads.Any())
             {
@@ -337,7 +337,7 @@ namespace slskd.Transfers.API
                 return BadRequest();
             }
 
-            var upload = await Transfers.Uploads.FindAsync(t => t.Id == guid);
+            var upload = Transfers.Uploads.Find(t => t.Id == guid);
 
             if (upload == default)
             {

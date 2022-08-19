@@ -32,8 +32,7 @@ namespace slskd.Transfers.Downloads
         /// </summary>
         /// <remarks>This should generally not be called; use <see cref="EnqueueAsync(string, IEnumerable(string Filename, long Size)})"/> instead.</remarks>
         /// <param name="transfer"></param>
-        /// <returns></returns>
-        Task AddOrSupersedeAsync(Transfer transfer);
+        void AddOrSupersede(Transfer transfer);
 
         /// <summary>
         ///     Enqueues the requested list of <paramref name="files"/>.
@@ -55,7 +54,7 @@ namespace slskd.Transfers.Downloads
         /// </summary>
         /// <param name="expression">The expression to use to match downloads.</param>
         /// <returns>The found transfer, or default if not found.</returns>
-        Task<Transfer> FindAsync(Expression<Func<Transfer, bool>> expression);
+        Transfer Find(Expression<Func<Transfer, bool>> expression);
 
         /// <summary>
         ///     Retrieves the place in the remote queue for the download matching the specified <paramref name="id"/>.
@@ -70,15 +69,14 @@ namespace slskd.Transfers.Downloads
         /// <param name="expression">An optional expression used to match downloads.</param>
         /// <param name="includeRemoved">Optionally include downloads that have been removed previously.</param>
         /// <returns>The list of downloads matching the specified expression, or all downloads if no expression is specified.</returns>
-        Task<List<Transfer>> ListAsync(Expression<Func<Transfer, bool>> expression = null, bool includeRemoved = false);
+        List<Transfer> List(Expression<Func<Transfer, bool>> expression = null, bool includeRemoved = false);
 
         /// <summary>
         ///     Removes the download matching the specified <paramref name="id"/>.
         /// </summary>
         /// <remarks>This is a soft delete; the record is retained for historical retrieval.</remarks>
         /// <param name="id">The unique identifier of the download.</param>
-        /// <returns></returns>
-        Task RemoveAsync(Guid id);
+        void Remove(Guid id);
 
         /// <summary>
         ///     Cancels the download matching the specified <paramref name="id"/>, if it is in progress.
@@ -88,9 +86,9 @@ namespace slskd.Transfers.Downloads
         bool TryCancel(Guid id);
 
         /// <summary>
-        ///     Synchronously updates the specified <paramref name="transfer"/>.
+        ///     Updates the specified <paramref name="transfer"/>.
         /// </summary>
         /// <param name="transfer">The transfer to update.</param>
-        void UpdateSync(Transfer transfer);
+        void Update(Transfer transfer);
     }
 }

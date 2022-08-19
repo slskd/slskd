@@ -263,7 +263,7 @@ namespace slskd
             // records to be updated if the application has started to shut down so that we can do this cleanup and properly
             // disposition them as having failed due to an application shutdown, instead of some random exception thrown while
             // things are being disposed.
-            var activeUploads = (await Transfers.Uploads.ListAsync(t => !t.State.HasFlag(TransferStates.Completed) && !t.Removed))
+            var activeUploads = Transfers.Uploads.List(t => !t.State.HasFlag(TransferStates.Completed) && !t.Removed)
                 .Where(t => !t.State.HasFlag(TransferStates.Completed)) // https://github.com/dotnet/efcore/issues/10434
                 .ToList();
 
@@ -272,10 +272,10 @@ namespace slskd
                 Log.Debug("Cleaning up dangling upload {Filename} to {Username}", upload.Filename, upload.Username);
                 upload.State = TransferStates.Completed | TransferStates.Errored;
                 upload.Exception = ApplicationShutdownTransferExceptionMessage;
-                Transfers.Uploads.UpdateSync(upload);
+                Transfers.Uploads.Update(upload);
             }
 
-            var activeDownloads = (await Transfers.Downloads.ListAsync(t => !t.State.HasFlag(TransferStates.Completed) && !t.Removed))
+            var activeDownloads = Transfers.Downloads.List(t => !t.State.HasFlag(TransferStates.Completed) && !t.Removed)
                 .Where(t => !t.State.HasFlag(TransferStates.Completed)) // https://github.com/dotnet/efcore/issues/10434
                 .ToList();
 
@@ -284,7 +284,7 @@ namespace slskd
                 Log.Debug("Cleaning up dangling download {Filename} from {Username}", download.Filename, download.Username);
                 download.State = TransferStates.Completed | TransferStates.Errored;
                 download.Exception = ApplicationShutdownTransferExceptionMessage;
-                Transfers.Downloads.UpdateSync(download);
+                Transfers.Downloads.Update(download);
             }
 
             // save the ids of any downloads that were active, so we can re-enqueue them after we've connected and logged in.
@@ -526,7 +526,7 @@ namespace slskd
                 // we previously saved a list of all of the download ids that were active at the previous shutdown; fetch the latest
                 // record for those transfers from the db and ensure they haven't been removed from the UI while the application was offline
                 // the user doesn't want those transfers anymore and we don't want to add them back.
-                var resumeableDownloads = await Transfers.Downloads.ListAsync(t => !t.Removed && ActiveDownloadIdsAtPreviousShutdown.Contains(t.Id));
+                var resumeableDownloads = Transfers.Downloads.List(t => !t.Removed && ActiveDownloadIdsAtPreviousShutdown.Contains(t.Id));
 
                 if (resumeableDownloads.Any())
                 {
