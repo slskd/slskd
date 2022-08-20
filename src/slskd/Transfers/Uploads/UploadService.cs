@@ -164,6 +164,21 @@ namespace slskd.Transfers.Uploads
             _ = Task.Run(async () =>
             {
                 using var rateLimiter = new RateLimiter(250, flushOnDispose: true);
+                var syncRoot = new SemaphoreSlim(1, 1);
+
+                void SynchronizedUpdate(Transfer transfer)
+                {
+                    syncRoot.Wait(cts.Token);
+
+                    try
+                    {
+                        Update(transfer);
+                    }
+                    finally
+                    {
+                        syncRoot.Release();
+                    }
+                }
 
                 try
                 {
@@ -194,13 +209,13 @@ namespace slskd.Transfers.Uploads
                             }
 
                             // todo: broadcast
-                            Update(transfer);
+                            SynchronizedUpdate(transfer);
                         },
                         progressUpdated: (args) => rateLimiter.Invoke(() =>
                         {
                             transfer = transfer.WithSoulseekTransfer(args.Transfer);
                             // todo: broadcast
-                            Update(transfer);
+                            SynchronizedUpdate(transfer);
                         }),
                         governor: (tx, req, ct) => Governor.GetBytesAsync(tx.Username, req, ct),
                         reporter: (tx, att, grant, act) => Governor.ReturnBytes(tx.Username, att, grant, act),
@@ -221,7 +236,7 @@ namespace slskd.Transfers.Uploads
 
                     transfer = transfer.WithSoulseekTransfer(completedTransfer);
                     //todo: broadcast
-                    Update(transfer);
+                    SynchronizedUpdate(transfer);
                 }
                 catch (TaskCanceledException ex)
                 {
@@ -230,7 +245,7 @@ namespace slskd.Transfers.Uploads
                     transfer.State = TransferStates.Completed | TransferStates.Cancelled;
 
                     // todo: broadcast
-                    Update(transfer);
+                    SynchronizedUpdate(transfer);
 
                     throw;
                 }
@@ -243,7 +258,7 @@ namespace slskd.Transfers.Uploads
                     transfer.State = TransferStates.Completed | TransferStates.Errored;
 
                     // todo: broadcast
-                    Update(transfer);
+                    SynchronizedUpdate(transfer);
 
                     throw;
                 }
@@ -367,8 +382,12 @@ namespace slskd.Transfers.Uploads
             var experimental = OptionsMonitor.CurrentValue.Experimental;
             var id = Guid.NewGuid();
 
+            System.Diagnostics.Stopwatch sw = default;
+
             if (experimental)
             {
+                sw = new System.Diagnostics.Stopwatch();
+                sw.Start();
                 Log.Warning("=> [{ID}] {File} | {State} | {Complete}", id, Path.GetFileName(transfer.Filename), transfer.State, transfer.PercentComplete);
             }
 
@@ -379,7 +398,8 @@ namespace slskd.Transfers.Uploads
 
             if (experimental)
             {
-                Log.Warning("<= [{ID}] DONE", id);
+                sw?.Stop();
+                Log.Warning("<= [{ID}] DONE in {Duration}ms", id, sw.ElapsedMilliseconds);
             }
         }
     }

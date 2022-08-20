@@ -152,6 +152,21 @@ namespace slskd.Transfers.Downloads
                         var downloadTask = Task.Run(async () =>
                         {
                             using var rateLimiter = new RateLimiter(250, flushOnDispose: true);
+                            var syncRoot = new SemaphoreSlim(1, 1);
+
+                            void SynchronizedUpdate(Transfer transfer)
+                            {
+                                syncRoot.Wait(cts.Token);
+
+                                try
+                                {
+                                    Update(transfer);
+                                }
+                                finally
+                                {
+                                    syncRoot.Release();
+                                }
+                            }
 
                             try
                             {
@@ -175,13 +190,13 @@ namespace slskd.Transfers.Downloads
                                             waitUntilEnqueue.TrySetResult(true);
                                         }
 
-                                        Update(transfer);
+                                        SynchronizedUpdate(transfer);
                                     },
                                     progressUpdated: (args) => rateLimiter.Invoke(() =>
                                     {
                                         transfer = transfer.WithSoulseekTransfer(args.Transfer);
                                         // todo: broadcast
-                                        Update(transfer);
+                                        SynchronizedUpdate(transfer);
                                     }));
 
                                 var completedTransfer = await Client.DownloadAsync(
@@ -200,7 +215,7 @@ namespace slskd.Transfers.Downloads
 
                                 transfer = transfer.WithSoulseekTransfer(completedTransfer);
                                 // todo: broadcast
-                                Update(transfer);
+                                SynchronizedUpdate(transfer);
 
                                 // this would be the ideal place to hook in a generic post-download task processor for now, we'll
                                 // just carry out hard coded behavior. these carry the risk of failing the transfer, and i could
@@ -219,7 +234,7 @@ namespace slskd.Transfers.Downloads
                                 transfer.State = TransferStates.Completed | TransferStates.Cancelled;
 
                                 // todo: broadcast
-                                Update(transfer);
+                                SynchronizedUpdate(transfer);
 
                                 throw;
                             }
@@ -232,7 +247,7 @@ namespace slskd.Transfers.Downloads
                                 transfer.State = TransferStates.Completed | TransferStates.Errored;
 
                                 // todo: broadcast
-                                Update(transfer);
+                                SynchronizedUpdate(transfer);
 
                                 throw;
                             }
@@ -432,8 +447,12 @@ namespace slskd.Transfers.Downloads
             var experimental = OptionsMonitor.CurrentValue.Experimental;
             var id = Guid.NewGuid();
 
+            System.Diagnostics.Stopwatch sw = default;
+
             if (experimental)
             {
+                sw = new System.Diagnostics.Stopwatch();
+                sw.Start();
                 Log.Warning("=> [{ID}] {File} | {State} | {Complete}", id, Path.GetFileName(transfer.Filename), transfer.State, transfer.PercentComplete);
             }
 
@@ -444,7 +463,8 @@ namespace slskd.Transfers.Downloads
 
             if (experimental)
             {
-                Log.Warning("<= [{ID}] DONE", id);
+                sw?.Stop();
+                Log.Warning("<= [{ID}] DONE in {Duration}ms", id, sw.ElapsedMilliseconds);
             }
         }
 
