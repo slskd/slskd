@@ -496,21 +496,12 @@ namespace slskd
 
             Log.Debug("SQLite was compiled with THREADSAFE={Mode}", threadSafe);
 
-            var selectedThreadingMode = OptionsAtStartup.Flags.SQLiteThreadingMode;
-
-            if (selectedThreadingMode != SQLitePCL.raw.SQLITE_CONFIG_MULTITHREAD && selectedThreadingMode != SQLitePCL.raw.SQLITE_CONFIG_SERIALIZED)
+            if (SQLitePCL.raw.sqlite3_config(SQLitePCL.raw.SQLITE_CONFIG_SERIALIZED) != SQLitePCL.raw.SQLITE_OK)
             {
-                throw new InvalidOperationException($"Invalid SQLite threading mode {selectedThreadingMode}; select either MULTITHREADED (2) or SERIALIZED (3)");
+                throw new InvalidOperationException($"SQLite threading mode could not be set to . Please create a GitHub issue to report this and include details about your environment.");
             }
 
-            var modeNames = new[] { "MULTITHREADED", "SERIALIZED" };
-
-            if (SQLitePCL.raw.sqlite3_config(selectedThreadingMode) != SQLitePCL.raw.SQLITE_OK)
-            {
-                throw new InvalidOperationException($"SQLite config could not be set to {modeNames[selectedThreadingMode]}. Please create a GitHub issue to report this and include details about your environment.");
-            }
-
-            Log.Debug("SQLite threading mode set to {Mode} ({Number})", modeNames[selectedThreadingMode - 2], selectedThreadingMode);
+            Log.Debug("SQLite threading mode set to {Mode} ({Number})", "SERIALIZED", SQLitePCL.raw.SQLITE_CONFIG_SERIALIZED);
         }
 
         private static IServiceCollection ConfigureAspDotNetServices(this IServiceCollection services)
