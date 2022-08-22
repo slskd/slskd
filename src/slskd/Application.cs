@@ -927,23 +927,15 @@ namespace slskd
 
             if (!previous.Scanning && current.Scanning)
             {
+                // the scan is starting
                 SharesRefreshStarted = DateTime.UtcNow;
 
                 State.SetValue(s => s with { Shares = current });
                 Log.Information("Scanning shares");
             }
-
-            var lastProgress = Math.Round(previous.ScanProgress * 100);
-            var currentProgress = Math.Round(current.ScanProgress * 100);
-
-            if (lastProgress != currentProgress && Math.Round(currentProgress, 0) % 10 == 0)
+            else if (previous.Scanning && !current.Scanning)
             {
-                State.SetValue(s => s with { Shares = current });
-                Log.Information("Scanned {Percent}% of shared directories.  Found {Files} files so far.", currentProgress, current.Files);
-            }
-
-            if (previous.Scanning && !current.Scanning)
-            {
+                // the scan is finishing
                 State.SetValue(s => s with { Shares = current });
 
                 if (current.Faulted)
@@ -965,6 +957,18 @@ namespace slskd
                             await RefreshUserStatistics(force: true);
                         });
                     }
+                }
+            }
+            else
+            {
+                // the scan is neither starting nor finishing; progress update
+                var lastProgress = Math.Round(previous.ScanProgress * 100);
+                var currentProgress = Math.Round(current.ScanProgress * 100);
+
+                if (lastProgress != currentProgress && Math.Round(currentProgress, 0) % 10d == 0)
+                {
+                    State.SetValue(s => s with { Shares = current });
+                    Log.Information("Scanned {Percent}% () of shared directories.  Found {Files} files so far.", currentProgress, current.Files);
                 }
             }
         }
