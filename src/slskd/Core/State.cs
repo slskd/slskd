@@ -21,7 +21,6 @@ namespace slskd
     using System.Collections.Generic;
     using System.Net;
     using System.Text.Json.Serialization;
-    using slskd.Shares;
     using slskd.Users;
     using Soulseek;
 
@@ -145,10 +144,5 @@ namespace slskd
         ///     Gets the number of directories excluded by filters.
         /// </summary>
         public int ExcludedDirectories { get; init; }
-
-        /// <summary>
-        ///     Gets the list of shares stored in the cache.
-        /// </summary>
-        public IReadOnlyCollection<Share> Shares { get; init; } = new List<Share>().AsReadOnly();
     }
 }
