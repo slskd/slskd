@@ -55,11 +55,6 @@ namespace slskd.Shares
                     Directories = current.Directories,
                     Files = current.Files,
                 });
-
-                if (previous.Filling && !current.Filling)
-                {
-                    CachedShares = current.Shares.ToList().AsReadOnly();
-                }
             });
 
             OptionsMonitor = optionsMonitor;
@@ -72,11 +67,6 @@ namespace slskd.Shares
         ///     Gets the list of configured shares.
         /// </summary>
         public IReadOnlyList<Share> Shares => SharesList.AsReadOnly();
-
-        /// <summary>
-        ///     Gets the list of shares stored in the cache.
-        /// </summary>
-        public IReadOnlyList<Share> CachedShares { get; private set; } = new List<Share>().AsReadOnly();
 
         /// <summary>
         ///     Gets the state monitor for the service.

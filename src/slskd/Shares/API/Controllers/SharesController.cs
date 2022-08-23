@@ -59,7 +59,7 @@ namespace slskd.Shares.API
         {
             var browse = await Shares.BrowseAsync();
 
-            var summary = Shares.CachedShares.Select(share =>
+            var summary = Shares.Shares.Select(share =>
             {
                 var directories = browse.Where(directory => directory.Name.StartsWith(share.RemotePath));
                 var fileCount = directories.Aggregate(seed: 0, (sum, directory) =>
