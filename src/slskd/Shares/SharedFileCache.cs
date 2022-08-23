@@ -180,7 +180,6 @@ namespace slskd.Shares
                     Filling = true,
                     Filled = false,
                     FillProgress = 0,
-                    Shares = Enumerable.Empty<Share>().ToList().AsReadOnly(),
                 });
 
                 Log.Debug("Starting shared file scan");
@@ -247,11 +246,16 @@ namespace slskd.Shares
 
                 var files = new Dictionary<string, File>();
                 var maskedDirectories = new HashSet<string>();
-                var current = 0;
-                var filtered = 0;
+                var current = 0L;
+                var filtered = 0L;
 
                 foreach (var directory in unmaskedDirectories)
                 {
+                    Log.Debug("Starting scan of {Directory} ({Current}/{Total})", directory, current + 1, unmaskedDirectories.Count);
+
+                    var addedFiles = 0L;
+                    var filteredFiles = 0L;
+
                     var share = Shares.First(share => directory.StartsWith(share.LocalPath));
 
                     maskedDirectories.Add(directory.ReplaceFirst(share.LocalPath, share.RemotePath));
@@ -271,13 +275,15 @@ namespace slskd.Shares
                             .Select(filename => SoulseekFileFactory.Create(filename, maskedFilename: filename.ReplaceFirst(share.LocalPath, share.RemotePath)))
                             .ToDictionary(file => file.Filename, file => file);
 
+                        addedFiles = newFiles.Count;
+
                         // merge the new dictionary with the rest this will overwrite any duplicate keys, but keys are the fully
                         // qualified name the only time this *should* cause problems is if one of the shares is a subdirectory of another.
                         foreach (var file in newFiles)
                         {
                             if (filters.Any(filter => filter.IsMatch(file.Key)))
                             {
-                                filtered++;
+                                filteredFiles++;
                                 continue;
                             }
 
@@ -296,7 +302,19 @@ namespace slskd.Shares
                     }
 
                     current++;
-                    State.SetValue(state => state with { FillProgress = current / (double)unmaskedDirectories.Count, Files = files.Count });
+                    filtered += filteredFiles;
+
+                    Log.Debug("Finished scanning {Directory}: {Added} files added and {Filtered} filtered", directory, addedFiles, filteredFiles);
+
+                    try
+                    {
+                        State.SetValue(state => state with { FillProgress = current / (double)unmaskedDirectories.Count, Files = files.Count });
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Error(ex, "Failed to set cache state following scan of {Directory}: {Message}", directory, ex.Message);
+                        throw;
+                    }
                 }
 
                 Log.Debug("Directory scan found {Files} files (and {Filtered} were filtered) in {Elapsed}ms.  Populating filename database", files.Count, filtered, sw.ElapsedMilliseconds - swSnapshot);
@@ -321,7 +339,6 @@ namespace slskd.Shares
                     FillProgress = 1,
                     Directories = MaskedDirectories.Count,
                     Files = MaskedFiles.Count,
-                    Shares = shares.ToList().AsReadOnly(),
                 });
 
                 Log.Debug($"Shared file cache recreated in {sw.ElapsedMilliseconds}ms.  Directories: {unmaskedDirectories.Count}, Files: {files.Count}");
