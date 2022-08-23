@@ -27,11 +27,6 @@ namespace slskd.Shares
     public interface IShareService
     {
         /// <summary>
-        ///     Gets the list of shares stored in the cache.
-        /// </summary>
-        IReadOnlyList<Share> CachedShares { get; }
-
-        /// <summary>
         ///     Gets the list of configured shares.
         /// </summary>
         IReadOnlyList<Share> Shares { get; }
