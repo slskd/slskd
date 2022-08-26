@@ -410,8 +410,10 @@ namespace slskd
         {
             try
             {
-                var directories = (await Shares.BrowseAsync())
+                var directories = (await Metrics.MeasureAsync(Metrics.BrowseResponseLatency, () => Shares.BrowseAsync()))
                     .Select(d => new Soulseek.Directory(d.Name.Replace('/', '\\'), d.Files)); // Soulseek NS requires backslashes
+
+                Metrics.BrowseResponsesSent.Inc(1);
 
                 return new BrowseResponse(directories);
             }
@@ -894,13 +896,7 @@ namespace slskd
 
                 try
                 {
-                    var sw = new Stopwatch();
-                    sw.Start();
-
-                    var results = await Shares.SearchAsync(query);
-
-                    sw.Stop();
-                    Metrics.SearchResponseLatency.Observe(sw.ElapsedMilliseconds);
+                    var results = await Metrics.MeasureAsync(Metrics.SearchResponseLatency, () => Shares.SearchAsync(query));
 
                     if (results.Any())
                     {
