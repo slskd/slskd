@@ -22,47 +22,73 @@ namespace slskd
     using System.Threading.Tasks;
     using Prometheus;
 
-    /// <summary>
-    ///     Application metrics.
-    /// </summary>
     public static class Metrics
     {
-        /// <summary>
-        ///     Gets a histogram representing the time taken to resolve a response to an incoming search request, in milliseconds.
-        /// </summary>
-        public static Histogram SearchResponseLatency { get; } = Prometheus.Metrics.CreateHistogram(
-            "slskd_search_response_latency",
-            "The time taken to resolve a response to an incoming search request, in milliseconds",
-            new HistogramConfiguration
-            {
-                Buckets = Histogram.ExponentialBuckets(1, 2, 10),
-            });
+        public static class Search
+        {
+            /// <summary>
+            ///     Gets a histogram representing the time taken to resolve a response to an incoming search request, in milliseconds.
+            /// </summary>
+            public static Histogram ResponseLatency { get; } = Prometheus.Metrics.CreateHistogram(
+                "slskd_search_response_latency",
+                "The time taken to resolve a response to an incoming search request, in milliseconds",
+                new HistogramConfiguration
+                {
+                    Buckets = Histogram.ExponentialBuckets(1, 2, 10),
+                });
 
-        /// <summary>
-        ///     Gets a counter representing the total number of search requests received.
-        /// </summary>
-        public static Counter SearchRequestsReceived { get; } = Prometheus.Metrics.CreateCounter("slskd_search_requests_received", "Total number of search requests received");
+            /// <summary>
+            ///     Gets a counter representing the total number of search requests received.
+            /// </summary>
+            public static Counter RequestsReceived { get; } = Prometheus.Metrics.CreateCounter("slskd_search_requests_received", "Total number of search requests received");
 
-        /// <summary>
-        ///     Gets a counter representing the total number of search responses sent.
-        /// </summary>
-        public static Counter SearchResponsesSent { get; } = Prometheus.Metrics.CreateCounter("slskd_search_responses_sent", "Total number of search responses sent");
+            /// <summary>
+            ///     Gets a counter representing the total number of search responses sent.
+            /// </summary>
+            public static Counter ResponsesSent { get; } = Prometheus.Metrics.CreateCounter("slskd_search_responses_sent", "Total number of search responses sent");
+        }
 
-        /// <summary>
-        ///     Gets a counter representing the total number of browse responses sent.
-        /// </summary>
-        public static Counter BrowseResponsesSent { get; } = Prometheus.Metrics.CreateCounter("slskd_browse_responses_sent", "Total number of browse responses sent");
+        public static class Browse
+        {
+            /// <summary>
+            ///     Gets a counter representing the total number of browse responses sent.
+            /// </summary>
+            public static Counter ResponsesSent { get; } = Prometheus.Metrics.CreateCounter("slskd_browse_responses_sent", "Total number of browse responses sent");
 
-        /// <summary>
-        ///     Gets a histogram representing the the time taken to resolve a response to an incoming browse request, in milliseconds.
-        /// </summary>
-        public static Histogram BrowseResponseLatency { get; } = Prometheus.Metrics.CreateHistogram(
-            "slskd_browse_response_latency",
-            "The time taken to resolve a response to an incoming browse request, in milliseconds",
-            new HistogramConfiguration
-            {
-                Buckets = Histogram.ExponentialBuckets(1, 2, 10),
-            });
+            /// <summary>
+            ///     Gets a histogram representing the time taken to resolve a response to an incoming browse request, in milliseconds.
+            /// </summary>
+            public static Histogram ResponseLatency { get; } = Prometheus.Metrics.CreateHistogram(
+                "slskd_browse_response_latency",
+                "The time taken to resolve a response to an incoming browse request, in milliseconds",
+                new HistogramConfiguration
+                {
+                    Buckets = Histogram.ExponentialBuckets(1, 2, 10),
+                });
+        }
+
+        public static class DistributedNetwork
+        {
+            /// <summary>
+            ///     Gets a gauge representing the current number of connected distributed children.
+            /// </summary>
+            public static Gauge Children { get; } = Prometheus.Metrics.CreateGauge("slskd_dnet_children", "Current number of connected distributed children");
+
+            /// <summary>
+            ///     Gets a gauge representing the current distributed child limit.
+            /// </summary>
+            public static Gauge ChildLimit { get; } = Prometheus.Metrics.CreateGauge("slskd_dnet_child_limit", "Current distributed child limit");
+
+            /// <summary>
+            ///     Gets a gauge indicating whether a distributed parent connection is established.
+            /// </summary>
+            public static Gauge HasParent { get; } = Prometheus.Metrics.CreateGauge("slskd_dnet_has_parent", "A value indicating whether a distributed parent connection is established");
+
+            /// <summary>
+            ///     Gets a gauge representing the current distributed branch level.
+            /// </summary>
+            public static Gauge BranchLevel { get; } = Prometheus.Metrics.CreateGauge("slskd_dnet_branch_level", "Current distributed branch level");
+        }
 
         /// <summary>
         ///     Measure the duration of the provided <paramref name="action"/> with the specified <paramref name="histogram"/>.
