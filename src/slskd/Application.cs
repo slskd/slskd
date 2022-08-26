@@ -876,47 +876,65 @@ namespace slskd
         /// <returns>A Task resolving a SearchResponse, or null.</returns>
         private async Task<SearchResponse> SearchResponseResolver(string username, int token, SearchQuery query)
         {
-            if (CompiledSearchResponseFilters.Any(filter => filter.IsMatch(query.SearchText)))
-            {
-                return null;
-            }
-
-            // sometimes clients send search queries consisting only of exclusions; drop them.
-            // no other clients send search results for these, even though it is technically possible.
-            if (!query.Terms.Any())
-            {
-                return null;
-            }
-
             try
             {
-                var results = await Shares.SearchAsync(query);
+                Metrics.SearchRequestsReceived.Inc(1);
 
-                if (results.Any())
+                if (CompiledSearchResponseFilters.Any(filter => filter.IsMatch(query.SearchText)))
                 {
-                    // make sure our average speed (as reported by the server) is reasonably up to date
-                    await RefreshUserStatistics();
-
-                    var forecastedPosition = Transfers.Uploads.Queue.ForecastPosition(username);
-
-                    Log.Information("[{Context}]: Sending {Count} records to {Username} for query '{Query}'", "SEARCH RESULT SENT", results.Count(), username, query.SearchText);
-
-                    return new SearchResponse(
-                        Client.Username,
-                        token,
-                        uploadSpeed: State.CurrentValue.User.Statistics.AverageSpeed,
-                        freeUploadSlots: forecastedPosition == 0 ? 1 : 0,
-                        queueLength: forecastedPosition,
-                        fileList: results);
+                    return null;
                 }
 
-                // if no results, either return null or an instance of SearchResponse with a fileList of length 0 in either case, no
-                // response will be sent to the requestor.
-                return null;
+                // sometimes clients send search queries consisting only of exclusions; drop them.
+                // no other clients send search results for these, even though it is technically possible.
+                if (!query.Terms.Any())
+                {
+                    return null;
+                }
+
+                try
+                {
+                    var sw = new Stopwatch();
+                    sw.Start();
+
+                    var results = await Shares.SearchAsync(query);
+
+                    sw.Stop();
+                    Metrics.SearchResponseLatency.Observe(sw.ElapsedMilliseconds);
+
+                    if (results.Any())
+                    {
+                        // make sure our average speed (as reported by the server) is reasonably up to date
+                        await RefreshUserStatistics();
+
+                        var forecastedPosition = Transfers.Uploads.Queue.ForecastPosition(username);
+
+                        Log.Information("[{Context}]: Sending {Count} records to {Username} for query '{Query}'", "SEARCH RESULT SENT", results.Count(), username, query.SearchText);
+
+                        Metrics.SearchResponsesSent.Inc(1);
+
+                        return new SearchResponse(
+                            Client.Username,
+                            token,
+                            uploadSpeed: State.CurrentValue.User.Statistics.AverageSpeed,
+                            freeUploadSlots: forecastedPosition == 0 ? 1 : 0,
+                            queueLength: forecastedPosition,
+                            fileList: results);
+                    }
+
+                    // if no results, either return null or an instance of SearchResponse with a fileList of length 0 in either case, no
+                    // response will be sent to the requestor.
+                    return null;
+                }
+                catch (Exception ex)
+                {
+                    Log.Warning(ex, "Failed to resolve search response: {Message}", ex.Message);
+                    throw;
+                }
             }
             catch (Exception ex)
             {
-                Log.Warning(ex, "Failed to resolve search response: {Message}", ex.Message);
+                Console.WriteLine(ex);
                 throw;
             }
         }
