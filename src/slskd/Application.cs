@@ -410,10 +410,10 @@ namespace slskd
         {
             try
             {
-                var directories = (await Metrics.MeasureAsync(Metrics.BrowseResponseLatency, () => Shares.BrowseAsync()))
+                var directories = (await Metrics.MeasureAsync(Metrics.Browse.ResponseLatency, () => Shares.BrowseAsync()))
                     .Select(d => new Soulseek.Directory(d.Name.Replace('/', '\\'), d.Files)); // Soulseek NS requires backslashes
 
-                Metrics.BrowseResponsesSent.Inc(1);
+                Metrics.Browse.ResponsesSent.Inc(1);
 
                 return new BrowseResponse(directories);
             }
@@ -625,6 +625,11 @@ namespace slskd
                     Parent = e.Parent.Username,
                 },
             });
+
+            Metrics.DistributedNetwork.HasParent.Set(e.HasParent ? 1 : 0);
+            Metrics.DistributedNetwork.BranchLevel.Set(e.BranchLevel);
+            Metrics.DistributedNetwork.ChildLimit.Set(e.ChildLimit);
+            Metrics.DistributedNetwork.Children.Set(e.Children.Count);
         }
 
         private void Client_TransferProgressUpdated(object sender, TransferProgressUpdatedEventArgs args)
@@ -880,7 +885,7 @@ namespace slskd
         {
             try
             {
-                Metrics.SearchRequestsReceived.Inc(1);
+                Metrics.Search.RequestsReceived.Inc(1);
 
                 if (CompiledSearchResponseFilters.Any(filter => filter.IsMatch(query.SearchText)))
                 {
@@ -896,7 +901,7 @@ namespace slskd
 
                 try
                 {
-                    var results = await Metrics.MeasureAsync(Metrics.SearchResponseLatency, () => Shares.SearchAsync(query));
+                    var results = await Metrics.MeasureAsync(Metrics.Search.ResponseLatency, () => Shares.SearchAsync(query));
 
                     if (results.Any())
                     {
@@ -907,7 +912,7 @@ namespace slskd
 
                         Log.Information("[{Context}]: Sending {Count} records to {Username} for query '{Query}'", "SEARCH RESULT SENT", results.Count(), username, query.SearchText);
 
-                        Metrics.SearchResponsesSent.Inc(1);
+                        Metrics.Search.ResponsesSent.Inc(1);
 
                         return new SearchResponse(
                             Client.Username,
