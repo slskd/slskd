@@ -160,6 +160,8 @@ namespace slskd
             Client.DownloadFailed += (e, args) => Log.Information("Download of {Filename} from {Username} failed", args.Filename, args.Username);
 
             ConnectionWatchdog = connectionWatchdog;
+
+            Clock.EveryMinute += Clock_EveryMinute;
         }
 
         /// <summary>
@@ -410,9 +412,15 @@ namespace slskd
         {
             try
             {
-                var directories = (await Metrics.MeasureAsync(Metrics.Browse.ResponseLatency, () => Shares.BrowseAsync()))
+                var sw = new Stopwatch();
+                sw.Start();
+
+                var directories = (await Shares.BrowseAsync())
                     .Select(d => new Soulseek.Directory(d.Name.Replace('/', '\\'), d.Files)); // Soulseek NS requires backslashes
 
+                sw.Stop();
+
+                Metrics.Browse.ResponseLatency.Observe(sw.ElapsedMilliseconds);
                 Metrics.Browse.ResponsesSent.Inc(1);
 
                 return new BrowseResponse(directories);
@@ -630,6 +638,12 @@ namespace slskd
             Metrics.DistributedNetwork.BranchLevel.Set(e.BranchLevel);
             Metrics.DistributedNetwork.ChildLimit.Set(e.ChildLimit);
             Metrics.DistributedNetwork.Children.Set(e.Children.Count);
+        }
+
+        private void Clock_EveryMinute(object sender, EventArgs e)
+        {
+            Metrics.DistributedNetwork.BroadcastLatency.Observe(Client.DistributedNetwork.AverageBroadcastLatency ?? 0);
+            Metrics.DistributedNetwork.CurrentBroadcastLatency.Set(Client.DistributedNetwork.AverageBroadcastLatency ?? 0);
         }
 
         private void Client_TransferProgressUpdated(object sender, TransferProgressUpdatedEventArgs args)
@@ -901,7 +915,15 @@ namespace slskd
 
                 try
                 {
-                    var results = await Metrics.MeasureAsync(Metrics.Search.ResponseLatency, () => Shares.SearchAsync(query));
+                    var sw = new Stopwatch();
+                    sw.Start();
+
+                    var results = await Shares.SearchAsync(query);
+
+                    sw.Stop();
+
+                    Metrics.Search.ResponseLatency.Observe(sw.ElapsedMilliseconds);
+                    Metrics.Search.CurrentResponseLatency.Update(sw.ElapsedMilliseconds);
 
                     if (results.Any())
                     {
