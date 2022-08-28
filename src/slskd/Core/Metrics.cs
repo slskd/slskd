@@ -17,9 +17,6 @@
 
 namespace slskd
 {
-    using System;
-    using System.Diagnostics;
-    using System.Threading.Tasks;
     using Prometheus;
 
     public static class Metrics
@@ -38,6 +35,11 @@ namespace slskd
                 });
 
             /// <summary>
+            ///     Gets an EMA representing the average time taken to resolve a response to an incoming search request, in milliseconds.
+            /// </summary>
+            public static ExponentialMovingAverage CurrentResponseLatency { get; } = new ExponentialMovingAverage(smoothingFactor: 0.5, onUpdate: value => CurrentResponseLatencyGauge.Set(value));
+
+            /// <summary>
             ///     Gets a counter representing the total number of search requests received.
             /// </summary>
             public static Counter RequestsReceived { get; } = Prometheus.Metrics.CreateCounter("slskd_search_requests_received", "Total number of search requests received");
@@ -46,6 +48,8 @@ namespace slskd
             ///     Gets a counter representing the total number of search responses sent.
             /// </summary>
             public static Counter ResponsesSent { get; } = Prometheus.Metrics.CreateCounter("slskd_search_responses_sent", "Total number of search responses sent");
+
+            private static Gauge CurrentResponseLatencyGauge { get; } = Prometheus.Metrics.CreateGauge("slskd_search_response_latency_current", "The average time taken to resolve a response to an incoming search request, in milliseconds");
         }
 
         public static class Browse
@@ -88,48 +92,22 @@ namespace slskd
             ///     Gets a gauge representing the current distributed branch level.
             /// </summary>
             public static Gauge BranchLevel { get; } = Prometheus.Metrics.CreateGauge("slskd_dnet_branch_level", "Current distributed branch level");
-        }
 
-        /// <summary>
-        ///     Measure the duration of the provided <paramref name="action"/> with the specified <paramref name="histogram"/>.
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="histogram"></param>
-        /// <param name="action"></param>
-        /// <returns></returns>
-        public static T Measure<T>(Histogram histogram, Func<T> action)
-        {
-            var sw = new Stopwatch();
-            sw.Start();
+            /// <summary>
+            ///     Gets a gauge representing the most recent average time tekn to broadcast incoming search requests to connected children.
+            /// </summary>
+            public static Gauge CurrentBroadcastLatency { get; } = Prometheus.Metrics.CreateGauge("slskd_dnet_broadcast_latency_current", "The average time taken to broadcast incoming search requests to connected children");
 
-            var result = action();
-
-            sw.Stop();
-
-            histogram.Observe(sw.ElapsedMilliseconds);
-
-            return result;
-        }
-
-        /// <summary>
-        ///     Measure the duration of the provided <paramref name="action"/> with the specified <paramref name="histogram"/>.
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="histogram"></param>
-        /// <param name="action"></param>
-        /// <returns></returns>
-        public static async Task<T> MeasureAsync<T>(Histogram histogram, Func<Task<T>> action)
-        {
-            var sw = new Stopwatch();
-            sw.Start();
-
-            var result = await action();
-
-            sw.Stop();
-
-            histogram.Observe(sw.ElapsedMilliseconds);
-
-            return result;
+            /// <summary>
+            ///     Gets a histogram representing the time taken to resolve a response to an incoming browse request, in milliseconds.
+            /// </summary>
+            public static Histogram BroadcastLatency { get; } = Prometheus.Metrics.CreateHistogram(
+                "slskd_dnet_broadcast_latency",
+                "The time taken to broadcast incoming search requests to connected children, in milliseconds",
+                new HistogramConfiguration
+                {
+                    Buckets = Histogram.ExponentialBuckets(0.5, 2, 12),
+                });
         }
     }
 }
