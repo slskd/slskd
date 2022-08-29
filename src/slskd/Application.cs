@@ -160,6 +160,8 @@ namespace slskd
             Client.DownloadFailed += (e, args) => Log.Information("Download of {Filename} from {Username} failed", args.Filename, args.Username);
 
             ConnectionWatchdog = connectionWatchdog;
+
+            Clock.EveryMinute += Clock_EveryMinute;
         }
 
         /// <summary>
@@ -408,10 +410,21 @@ namespace slskd
         /// <returns>A Task resolving an IEnumerable of Soulseek.Directory.</returns>
         private async Task<BrowseResponse> BrowseResponseResolver(string username, IPEndPoint endpoint)
         {
+            Metrics.Browse.RequestsReceived.Inc(1);
+            
             try
             {
+                var sw = new Stopwatch();
+                sw.Start();
+
                 var directories = (await Shares.BrowseAsync())
                     .Select(d => new Soulseek.Directory(d.Name.Replace('/', '\\'), d.Files)); // Soulseek NS requires backslashes
+
+                sw.Stop();
+
+                Metrics.Browse.ResponseLatency.Observe(sw.ElapsedMilliseconds);
+                Metrics.Browse.CurrentResponseLatency.Update(sw.ElapsedMilliseconds);
+                Metrics.Browse.ResponsesSent.Inc(1);
 
                 return new BrowseResponse(directories);
             }
@@ -623,6 +636,17 @@ namespace slskd
                     Parent = e.Parent.Username,
                 },
             });
+
+            Metrics.DistributedNetwork.HasParent.Set(e.HasParent ? 1 : 0);
+            Metrics.DistributedNetwork.BranchLevel.Set(e.BranchLevel);
+            Metrics.DistributedNetwork.ChildLimit.Set(e.ChildLimit);
+            Metrics.DistributedNetwork.Children.Set(e.Children.Count);
+        }
+
+        private void Clock_EveryMinute(object sender, EventArgs e)
+        {
+            Metrics.DistributedNetwork.BroadcastLatency.Observe(Client.DistributedNetwork.AverageBroadcastLatency ?? 0);
+            Metrics.DistributedNetwork.CurrentBroadcastLatency.Set(Client.DistributedNetwork.AverageBroadcastLatency ?? 0);
         }
 
         private void Client_TransferProgressUpdated(object sender, TransferProgressUpdatedEventArgs args)
@@ -876,6 +900,8 @@ namespace slskd
         /// <returns>A Task resolving a SearchResponse, or null.</returns>
         private async Task<SearchResponse> SearchResponseResolver(string username, int token, SearchQuery query)
         {
+            Metrics.Search.RequestsReceived.Inc(1);
+
             if (CompiledSearchResponseFilters.Any(filter => filter.IsMatch(query.SearchText)))
             {
                 return null;
@@ -890,7 +916,15 @@ namespace slskd
 
             try
             {
+                var sw = new Stopwatch();
+                sw.Start();
+
                 var results = await Shares.SearchAsync(query);
+
+                sw.Stop();
+
+                Metrics.Search.ResponseLatency.Observe(sw.ElapsedMilliseconds);
+                Metrics.Search.CurrentResponseLatency.Update(sw.ElapsedMilliseconds);
 
                 if (results.Any())
                 {
@@ -900,6 +934,8 @@ namespace slskd
                     var forecastedPosition = Transfers.Uploads.Queue.ForecastPosition(username);
 
                     Log.Information("[{Context}]: Sending {Count} records to {Username} for query '{Query}'", "SEARCH RESULT SENT", results.Count(), username, query.SearchText);
+
+                    Metrics.Search.ResponsesSent.Inc(1);
 
                     return new SearchResponse(
                         Client.Username,
