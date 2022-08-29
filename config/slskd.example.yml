@@ -76,8 +76,14 @@
 #       ttl: 604800000
 # logger:
 #   loki: ~
+# metrics:
+#   enabled: false
+#   url: /metrics
+#   authentication:
+#     disabled: false
+#     username: slskd
+#     password: slskd
 # feature:
-#   prometheus: false
 #   swagger: false
 # soulseek:
 #   username: ~

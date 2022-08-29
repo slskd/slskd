@@ -236,6 +236,13 @@ namespace slskd
         public LoggerOptions Logger { get; init; } = new LoggerOptions();
 
         /// <summary>
+        ///     Gets metrics options.
+        /// </summary>
+        [Validate]
+        [RequiresRestart]
+        public MetricsOptions Metrics { get; init; } = new MetricsOptions();
+
+        /// <summary>
         ///     Gets feature options.
         /// </summary>
         [Validate]
@@ -623,15 +630,6 @@ namespace slskd
         public class FeatureOptions
         {
             /// <summary>
-            ///     Gets a value indicating whether prometheus metrics should be collected and published.
-            /// </summary>
-            [Argument(default, "prometheus")]
-            [EnvironmentVariable("PROMETHEUS")]
-            [Description("enable collection and publishing of prometheus metrics")]
-            [RequiresRestart]
-            public bool Prometheus { get; init; } = false;
-
-            /// <summary>
             ///     Gets a value indicating whether swagger documentation and UI should be enabled.
             /// </summary>
             [Argument(default, "swagger")]
@@ -728,6 +726,72 @@ namespace slskd
             [Description("optional; url to a Grafana Loki instance to which to log")]
             [RequiresRestart]
             public string Loki { get; init; } = null;
+        }
+
+        /// <summary>
+        ///     Metrics options.
+        /// </summary>
+        public class MetricsOptions
+        {
+            /// <summary>
+            ///     Gets a value indicating whether the metrics endpoint should be enabled.
+            /// </summary>
+            [Argument(default, "metrics")]
+            [EnvironmentVariable("METRICS")]
+            [Description("enable metrics")]
+            [RequiresRestart]
+            public bool Enabled { get; init; } = false;
+
+            /// <summary>
+            ///     Gets the url for the metrics endpoint.
+            /// </summary>
+            [Argument(default, "metrics-url")]
+            [EnvironmentVariable("METRICS_URL")]
+            [Description("url for metrics")]
+            [RequiresRestart]
+            public string Url { get; init; } = "/metrics";
+
+            /// <summary>
+            ///     Gets metrics endpoint authentication options.
+            /// </summary>
+            [Validate]
+            public AuthenticationOptions Authentication { get; init; } = new AuthenticationOptions();
+
+            /// <summary>
+            ///     Metrics endpoint authentication options.
+            /// </summary>
+            public class AuthenticationOptions
+            {
+                /// <summary>
+                ///     Gets a value indicating whether authentication should be disabled.
+                /// </summary>
+                [Argument(default, "metrics-no-auth")]
+                [EnvironmentVariable("METRICS_NO_AUTH")]
+                [Description("disable authentication for metrics requests")]
+                [RequiresRestart]
+                public bool Disabled { get; init; } = false;
+
+                /// <summary>
+                ///     Gets the username for the metrics endpoint.
+                /// </summary>
+                [Argument(default, "metrics-username")]
+                [EnvironmentVariable("METRICS_USERNAME")]
+                [Description("username for metrics")]
+                [StringLength(255, MinimumLength = 1)]
+                [RequiresRestart]
+                public string Username { get; init; } = Program.AppName;
+
+                /// <summary>
+                ///     Gets the password for the metrics endpoint.
+                /// </summary>
+                [Argument(default, "metrics-password")]
+                [EnvironmentVariable("METRICS_PASSWORD")]
+                [Description("password for metrics")]
+                [StringLength(255, MinimumLength = 1)]
+                [Secret]
+                [RequiresRestart]
+                public string Password { get; init; } = Program.AppName;
+            }
         }
 
         /// <summary>
