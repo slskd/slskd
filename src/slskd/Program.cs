@@ -681,11 +681,11 @@ namespace slskd
                     var options = OptionsAtStartup.Metrics;
                     var url = options.Url.StartsWith('/') ? options.Url : "/" + options.Url;
 
-                    Log.Information($"Publishing Prometheus metrics to {url}");
+                    Log.Information("Publishing Prometheus metrics to {URL}", url);
 
                     if (options.Authentication.Disabled)
                     {
-                        Log.Warning("Authentication of metrics endpoint is DISABLED");
+                        Log.Warning("Authentication for the metrics endpoint is DISABLED");
                     }
 
                     endpoints.MapGet(url, async context =>
@@ -729,7 +729,7 @@ namespace slskd
                 app.UseSwaggerUI(options => app.Services.GetRequiredService<IApiVersionDescriptionProvider>().ApiVersionDescriptions.ToList()
                     .ForEach(description => options.SwaggerEndpoint($"{(urlBase == "/" ? string.Empty : urlBase)}/swagger/{description.GroupName}/swagger.json", description.GroupName)));
 
-                Log.Information("Publishing Swagger documentation to /swagger");
+                Log.Information("Publishing Swagger documentation to {URL}", "/swagger");
             }
 
             // if we made it this far, the caller is either looking for a route that was synthesized with a SPA router, or is genuinely confused.
