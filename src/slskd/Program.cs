@@ -648,7 +648,7 @@ namespace slskd
             // prepend the url base.
             app.UsePathBase(urlBase);
             app.UseHTMLRewrite("((\\.)?\\/static)", $"{(urlBase == "/" ? string.Empty : urlBase)}/static");
-            app.UseHTMLInjection($"<script>window.urlBase=\"{urlBase}\"</script>");
+            app.UseHTMLInjection($"<script>window.urlBase=\"{urlBase}\"</script>", excludedRoutes: new[] { "/api", "/swagger" });
             Log.Information("Using base url {UrlBase}", urlBase);
 
             // serve static content from the configured path

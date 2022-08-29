@@ -18,6 +18,7 @@
 namespace slskd
 {
     using System;
+    using System.Collections.Generic;
     using System.IO;
     using System.Linq;
     using System.Threading.Tasks;
@@ -34,8 +35,9 @@ namespace slskd
         /// </summary>
         /// <param name="builder"></param>
         /// <param name="html"></param>
+        /// <param name="excludedRoutes"></param>
         /// <returns></returns>
-        public static IApplicationBuilder UseHTMLInjection(this IApplicationBuilder builder, string html)
+        public static IApplicationBuilder UseHTMLInjection(this IApplicationBuilder builder, string html, IEnumerable<string> excludedRoutes)
         {
             return builder.UseMiddleware<HTMLInjectionMiddleware>(html);
         }
@@ -51,14 +53,17 @@ namespace slskd
         /// </summary>
         /// <param name="next"></param>
         /// <param name="html"></param>
-        public HTMLInjectionMiddleware(RequestDelegate next, string html)
+        /// <param name="excludedRoutes"></param>
+        public HTMLInjectionMiddleware(RequestDelegate next, string html, IEnumerable<string> excludedRoutes)
         {
             Next = next;
             HTML = html;
+            ExcludedRoutes = excludedRoutes;
         }
 
         private string HTML { get; }
         private RequestDelegate Next { get; }
+        private IEnumerable<string> ExcludedRoutes { get; }
 
         /// <summary>
         ///     Executes this middleware, returning the contents of the requested HTML file with the specified HTML appended.
@@ -74,10 +79,10 @@ namespace slskd
                 .Intersect(injectableTypes, StringComparer.InvariantCultureIgnoreCase)
                 .Any();
 
-            var isApiRoute = context.Request.Path.ToString().StartsWith("/api");
+            var isExcludedRoute = ExcludedRoutes.Any(route => context.Request.Path.ToString().StartsWith(route));
             var isGET = context.Request.Method == "GET";
 
-            if (!isApiRoute && isGET && isInjectableType)
+            if (!isExcludedRoute && isGET && isInjectableType)
             {
                 var originalStream = context.Response.Body;
 
@@ -106,7 +111,17 @@ namespace slskd
                         context.Response.Headers.Add(header);
                     }
 
-                    await context.Response.WriteAsync(body + HTML);
+                    // check the response content type to make sure it's still injectable. the server might return something other
+                    // than what was requested. if it's no longer injectable, don't inject.
+                    var isInjectableResponseType = injectableTypes.Any(injectableType => context.Response.Headers.ContentType.Contains(injectableType));
+                    if (!isInjectableResponseType)
+                    {
+                        await context.Response.WriteAsync(body);
+                    }
+                    else
+                    {
+                        await context.Response.WriteAsync(body + HTML);
+                    }
                 }
 
                 // rewind the stream we injected to the beginning, then replay the data to the
