@@ -17,7 +17,6 @@
 
 namespace slskd.Core.API
 {
-    using System.IO;
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
@@ -38,16 +37,9 @@ namespace slskd.Core.API
         /// <returns></returns>
         [HttpGet]
         [Authorize]
-        public async Task<IActionResult> Metrics()
+        public async Task<IActionResult> Get()
         {
-            using var stream = new MemoryStream();
-            using var reader = new StreamReader(stream);
-
-            await Prometheus.Metrics.DefaultRegistry.CollectAndExportAsTextAsync(stream);
-            stream.Position = 0;
-
-            var response = await reader.ReadToEndAsync();
-
+            var response = await Metrics.BuildAsync();
             return Content(response, "text/plain");
         }
     }

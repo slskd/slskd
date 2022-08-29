@@ -336,11 +336,6 @@ namespace slskd
             // bootstrap the ASP.NET application
             try
             {
-                if (OptionsAtStartup.Feature.Prometheus)
-                {
-                    using var runtimeMetrics = DotNetRuntimeStatsBuilder.Default().StartCollecting();
-                }
-
                 var builder = WebApplication.CreateBuilder(args);
 
                 builder.Configuration
@@ -513,6 +508,9 @@ namespace slskd
                 .AllowCredentials()
                 .WithExposedHeaders("X-URL-Base")));
 
+            services.AddSystemMetrics();
+            using var runtimeMetrics = DotNetRuntimeStatsBuilder.Default().StartCollecting();
+
             services.AddDataProtection()
                 .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(AppDirectory, "data", ".DataProtection-Keys")));
 
@@ -614,11 +612,6 @@ namespace slskd
                 });
             }
 
-            if (OptionsAtStartup.Feature.Prometheus)
-            {
-                services.AddSystemMetrics();
-            }
-
             return services;
         }
 
@@ -666,19 +659,12 @@ namespace slskd
             app.UseFileServer(fileServerOptions);
             Log.Information("Serving static content from {ContentPath}", contentPath);
 
-            if (OptionsAtStartup.Feature.Prometheus)
-            {
-                app.UseHttpMetrics();
-                Log.Information("Publishing Prometheus metrics to /metrics");
-            }
-
             if (OptionsAtStartup.Web.Logging)
             {
                 app.UseSerilogRequestLogging();
             }
 
             app.UseAuthentication();
-
             app.UseRouting();
             app.UseAuthorization();
             app.UseEndpoints(endpoints =>
@@ -690,9 +676,38 @@ namespace slskd
                 endpoints.MapControllers();
                 endpoints.MapHealthChecks("/health");
 
-                if (OptionsAtStartup.Feature.Prometheus)
+                if (OptionsAtStartup.Metrics.Enabled)
                 {
-                    endpoints.MapMetrics("/metrics");
+                    var options = OptionsAtStartup.Metrics;
+                    var url = options.Url.StartsWith('/') ? options.Url : "/" + options.Url;
+
+                    Log.Information("Publishing Prometheus metrics to {URL}", url);
+
+                    if (options.Authentication.Disabled)
+                    {
+                        Log.Warning("Authentication for the metrics endpoint is DISABLED");
+                    }
+
+                    endpoints.MapGet(url, async context =>
+                    {
+                        if (!options.Authentication.Disabled)
+                        {
+                            var auth = context.Request.Headers["Authorization"].FirstOrDefault();
+                            var providedCreds = auth?.Split(' ').Last();
+                            var validCreds = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{options.Authentication.Username}:{options.Authentication.Password}"));
+
+                            if (string.IsNullOrEmpty(auth) ||
+                                !auth.StartsWith("Basic", StringComparison.InvariantCultureIgnoreCase) ||
+                                !string.Equals(providedCreds, validCreds, StringComparison.InvariantCultureIgnoreCase))
+                            {
+                                context.Response.StatusCode = (int)HttpStatusCode.Unauthorized;
+                                return;
+                            }
+                        }
+
+                        var response = await Metrics.BuildAsync();
+                        await context.Response.WriteAsync(response);
+                    });
                 }
             });
 
@@ -714,7 +729,7 @@ namespace slskd
                 app.UseSwaggerUI(options => app.Services.GetRequiredService<IApiVersionDescriptionProvider>().ApiVersionDescriptions.ToList()
                     .ForEach(description => options.SwaggerEndpoint($"{(urlBase == "/" ? string.Empty : urlBase)}/swagger/{description.GroupName}/swagger.json", description.GroupName)));
 
-                Log.Information("Publishing Swagger documentation to /swagger");
+                Log.Information("Publishing Swagger documentation to {URL}", "/swagger");
             }
 
             // if we made it this far, the caller is either looking for a route that was synthesized with a SPA router, or is genuinely confused.
