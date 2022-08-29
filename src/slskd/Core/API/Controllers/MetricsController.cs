@@ -28,8 +28,8 @@ namespace slskd.Core.API
     [Route("api/v{version:apiVersion}/[controller]")]
     [ApiVersion("0")]
     [ApiController]
-    [Produces("application/json")]
-    [Consumes("application/json")]
+    [Produces("text/plain")]
+    [Consumes("text/plain")]
     public class MetricsController : ControllerBase
     {
         /// <summary>
@@ -48,7 +48,7 @@ namespace slskd.Core.API
 
             var response = await reader.ReadToEndAsync();
 
-            return Ok(response);
+            return Content(response, "text/plain");
         }
     }
 }
