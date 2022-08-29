@@ -665,9 +665,7 @@ namespace slskd
             }
 
             app.UseAuthentication();
-
             app.UseRouting();
-            app.UseHttpMetrics();
             app.UseAuthorization();
             app.UseEndpoints(endpoints =>
             {
