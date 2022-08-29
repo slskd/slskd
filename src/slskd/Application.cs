@@ -421,6 +421,7 @@ namespace slskd
                 sw.Stop();
 
                 Metrics.Browse.ResponseLatency.Observe(sw.ElapsedMilliseconds);
+                Metrics.Browse.CurrentResponseLatency.Update(sw.ElapsedMilliseconds);
                 Metrics.Browse.ResponsesSent.Inc(1);
 
                 return new BrowseResponse(directories);

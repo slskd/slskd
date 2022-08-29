@@ -55,11 +55,6 @@ namespace slskd
         public static class Browse
         {
             /// <summary>
-            ///     Gets a counter representing the total number of browse responses sent.
-            /// </summary>
-            public static Counter ResponsesSent { get; } = Prometheus.Metrics.CreateCounter("slskd_browse_responses_sent", "Total number of browse responses sent");
-
-            /// <summary>
             ///     Gets a histogram representing the time taken to resolve a response to an incoming browse request, in milliseconds.
             /// </summary>
             public static Histogram ResponseLatency { get; } = Prometheus.Metrics.CreateHistogram(
@@ -69,6 +64,18 @@ namespace slskd
                 {
                     Buckets = Histogram.ExponentialBuckets(1, 2, 10),
                 });
+
+            /// <summary>
+            ///     Gets an EMA representing the average time taken to resolve a response to an incoming search request, in milliseconds.
+            /// </summary>
+            public static ExponentialMovingAverage CurrentResponseLatency { get; } = new ExponentialMovingAverage(smoothingFactor: 0.5, onUpdate: value => CurrentResponseLatencyGauge.Set(value));
+
+            /// <summary>
+            ///     Gets a counter representing the total number of browse responses sent.
+            /// </summary>
+            public static Counter ResponsesSent { get; } = Prometheus.Metrics.CreateCounter("slskd_browse_responses_sent", "Total number of browse responses sent");
+
+            private static Gauge CurrentResponseLatencyGauge { get; } = Prometheus.Metrics.CreateGauge("slskd_browse_response_latency_current", "The average time taken to resolve a response to an incoming browse request, in milliseconds");
         }
 
         public static class DistributedNetwork
