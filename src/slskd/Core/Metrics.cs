@@ -17,10 +17,27 @@
 
 namespace slskd
 {
+    using System.IO;
+    using System.Threading.Tasks;
     using Prometheus;
 
     public static class Metrics
     {
+        /// <summary>
+        ///     Builds metrics into a Prometheus-formatted string.
+        /// </summary>
+        /// <returns>A Prometheus-formatted string.</returns>
+        public static async Task<string> BuildAsync()
+        {
+            using var stream = new MemoryStream();
+            using var reader = new StreamReader(stream);
+
+            await Prometheus.Metrics.DefaultRegistry.CollectAndExportAsTextAsync(stream);
+            stream.Position = 0;
+
+            return await reader.ReadToEndAsync();
+        }
+
         public static class Search
         {
             /// <summary>
