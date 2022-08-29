@@ -410,6 +410,8 @@ namespace slskd
         /// <returns>A Task resolving an IEnumerable of Soulseek.Directory.</returns>
         private async Task<BrowseResponse> BrowseResponseResolver(string username, IPEndPoint endpoint)
         {
+            Metrics.Browse.RequestsReceived.Inc(1);
+            
             try
             {
                 var sw = new Stopwatch();

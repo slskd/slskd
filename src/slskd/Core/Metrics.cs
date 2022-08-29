@@ -71,6 +71,11 @@ namespace slskd
             public static ExponentialMovingAverage CurrentResponseLatency { get; } = new ExponentialMovingAverage(smoothingFactor: 0.5, onUpdate: value => CurrentResponseLatencyGauge.Set(value));
 
             /// <summary>
+            ///     Gets a counter representing the total number of browse requests received.
+            /// </summary>
+            public static Counter RequestsReceived { get; } = Prometheus.Metrics.CreateCounter("slskd_browse_requests_received", "Total number of browse requests received");
+
+            /// <summary>
             ///     Gets a counter representing the total number of browse responses sent.
             /// </summary>
             public static Counter ResponsesSent { get; } = Prometheus.Metrics.CreateCounter("slskd_browse_responses_sent", "Total number of browse responses sent");
