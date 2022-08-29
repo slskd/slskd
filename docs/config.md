@@ -666,23 +666,48 @@ logger:
   loki: ~
 ```
 
+## Metrics
+
+The application captures metrics internally and can optionally expose these metrics to be consumed by an instance of Prometheus.  This is a good option for those wanting to tune performance characterisics of the application.
+
+Metrics are disabled by default, and enabling them will make them available at `/metrics`.  Authentication is enabled by default, and the credentials are the same defaults as the web UI (`slskd`:`slskd`).
+
+If the application will be exposed to the internet, it's a good idea to leave this disabled or to set credentials other than the defaults.  Elements of the system configuration, like operating system, architecture, and drive configuration are included and can this can make it easier for an attacker to exploit a vulnerability in your system.
+
+
+| Command Line         | Environment Variable | Description                                               |
+| -------------------- | -------------------- | --------------------------------------------------------- |
+| `--metrics`          | `METRICS`            | Determines whether the metrics endpoint should be enabled |
+| `--metrics-url`      | `METRICS_URL`        | The URL of the metrics endpoint                           |
+| `--metrics-no-auth`  | `METRICS_NO_AUTH`    | Disables authentication for the metrics endpoint          |
+| `--metrics-username` | `METRICS_USERNAME`   | The username for the metrics endpoint                     |
+| `--metrics-password` | `METRICS_PASSWORD`   | The password for the metrics endpoint                     |
+
+#### **YAML**
+
+```yaml
+metrics:
+  enabled: false
+  url: /metrics
+  authentication:
+    disabled: false
+    username: slskd
+    password: slskd
+```
+
 ## Features
 
 Several features have been added that aid in the development, debugging and operation of the application, but are generally not of much use to most users.
-
-The application can publish Prometheus metrics to `/metrics` using [prometheus-net](https://github.com/prometheus-net/prometheus-net).  This is especially useful for anyone attempting to tune performance characteristics.
 
 The application can publish a Swagger (OpenAPI) definition and host SwaggerUI at `/swagger` using [Swashbuckle](https://github.com/domaindrivendev/Swashbuckle.AspNetCore).  This is useful for anyone developing against the application API and/or creating a new web interface.
 
 | Command Line   | Environment Variable | Description                                                                               |
 | -------------- | -------------------- | ----------------------------------------------------------------------------------------- |
-| `--prometheus` | `PROMETHEUS`         | Determines whether Prometheus metrics are published to `/metrics`                         |
 | `--swagger`    | `SWAGGER`            | Determines whether Swagger (OpenAPI) definitions and UI should be available at `/swagger` |
 
 #### **YAML**
 ```yaml
 feature:
-  prometheus: false
   swagger: false
 ```
 
