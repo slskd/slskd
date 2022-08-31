@@ -847,7 +847,7 @@ namespace slskd
             {
                 services.AddDbContextFactory<T>(options =>
                 {
-                    options.UseSqlite($"Data Source={Path.Combine(AppDirectory, "data", filename)};Pooling=True;");
+                    options.UseSqlite($"Data Source={Path.Combine(AppDirectory, "data", filename)};Cache=shared;Pooling=True;");
 
                     if (OptionsAtStartup.Debug && OptionsAtStartup.Flags.LogSQL)
                     {

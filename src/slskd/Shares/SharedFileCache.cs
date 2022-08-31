@@ -455,7 +455,7 @@ namespace slskd.Shares
 
             try
             {
-                using var conn = new SqliteConnection("Data Source=file:shares?mode=memory&cache=shared");
+                using var conn = new SqliteConnection($"Data Source={Path.Combine(Program.AppDirectory, "data", "shares.db")};cache=shared");
                 using var cmd = new SqliteCommand(sql, conn);
                 await conn.OpenAsync();
 
@@ -490,7 +490,7 @@ namespace slskd.Shares
                 SQLite.Dispose();
             }
 
-            SQLite = new SqliteConnection("Data Source=file:shares?mode=memory&cache=shared");
+            SQLite = new SqliteConnection($"Data Source={Path.Combine(Program.AppDirectory, "data", "shares.db")};cache=shared");
             SQLite.Open();
 
             using var cmd = new SqliteCommand("DROP TABLE IF EXISTS cache; CREATE VIRTUAL TABLE cache USING fts5(filename);", SQLite);
