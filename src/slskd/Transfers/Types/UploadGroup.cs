@@ -20,10 +20,10 @@ namespace slskd.Transfers
     public sealed record UploadGroup
     {
         public string Name { get; init; }
-        public int Priority { get; init; }
+        public int Priority { get; set; }
         public bool SlotAvailable => UsedSlots < Slots;
-        public int Slots { get; init; }
-        public QueueStrategy Strategy { get; init; }
+        public int Slots { get; set; }
+        public QueueStrategy Strategy { get; set; }
         public int UsedSlots { get; set; }
     }
 }
