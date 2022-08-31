@@ -1038,7 +1038,7 @@ namespace slskd
                 // wait until my first download starts.
                 var info = new UserInfo(
                     description: Options.Soulseek.Description,
-                    uploadSlots: group.Slots,
+                    uploadSlots: Math.Min(group.Slots, Transfers.Uploads.Queue.GlobalSlots),
                     queueLength: forecastedPosition,
                     hasFreeUploadSlot: forecastedPosition == 0);
 
