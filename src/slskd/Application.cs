@@ -411,7 +411,7 @@ namespace slskd
         private async Task<BrowseResponse> BrowseResponseResolver(string username, IPEndPoint endpoint)
         {
             Metrics.Browse.RequestsReceived.Inc(1);
-            
+
             try
             {
                 var sw = new Stopwatch();
@@ -931,6 +931,8 @@ namespace slskd
                     // make sure our average speed (as reported by the server) is reasonably up to date
                     await RefreshUserStatistics();
 
+                    var groupName = Users.GetGroup(username);
+                    var group = Transfers.Uploads.Queue.GetGroupInfo(groupName);
                     var forecastedPosition = Transfers.Uploads.Queue.ForecastPosition(username);
 
                     Log.Information("[{Context}]: Sending {Count} records to {Username} for query '{Query}'", "SEARCH RESULT SENT", results.Count(), username, query.SearchText);
@@ -941,7 +943,7 @@ namespace slskd
                         Client.Username,
                         token,
                         uploadSpeed: State.CurrentValue.User.Statistics.AverageSpeed,
-                        freeUploadSlots: forecastedPosition == 0 ? 1 : 0,
+                        freeUploadSlots: group.Slots - group.UsedSlots,
                         queueLength: forecastedPosition,
                         fileList: results);
                 }
@@ -1038,7 +1040,7 @@ namespace slskd
                 // wait until my first download starts.
                 var info = new UserInfo(
                     description: Options.Soulseek.Description,
-                    uploadSlots: Math.Min(group.Slots, Transfers.Uploads.Queue.GlobalSlots),
+                    uploadSlots: group.Slots,
                     queueLength: forecastedPosition,
                     hasFreeUploadSlot: forecastedPosition == 0);
 
