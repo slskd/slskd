@@ -442,6 +442,10 @@ namespace slskd.Transfers
 
             try
             {
+                // if the total number of used slots across all groups is greater than or equal to the configured
+                // number of global slots, just exit. we *could* proceed, but uploads would stack up behind the
+                // global semaphore in Soulseek.NET and we wouldn't be able to control the order in which those
+                // were processed, so don't do that.
                 if (Groups.Values.Sum(g => g.UsedSlots) >= GlobalSlots)
                 {
                     return null;
