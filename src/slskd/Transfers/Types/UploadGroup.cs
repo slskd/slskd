@@ -17,13 +17,13 @@
 
 namespace slskd.Transfers
 {
-    public sealed class UploadGroup
+    public sealed record UploadGroup
     {
-        public string Name { get; set; }
-        public int Priority { get; set; }
+        public string Name { get; init; }
+        public int Priority { get; init; }
         public bool SlotAvailable => UsedSlots < Slots;
-        public int Slots { get; set; }
-        public QueueStrategy Strategy { get; set; }
+        public int Slots { get; init; }
+        public QueueStrategy Strategy { get; init; }
         public int UsedSlots { get; set; }
     }
 }
