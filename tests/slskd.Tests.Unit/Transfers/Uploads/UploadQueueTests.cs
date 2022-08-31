@@ -49,6 +49,13 @@
         {
             var (queue, _) = GetFixture(new Options()
             {
+                Global = new Options.GlobalOptions 
+                {
+                    Upload = new Options.GlobalOptions.GlobalUploadOptions
+                    {
+                        Slots = int.MaxValue,
+                    },
+                },
                 Groups = new Options.GroupsOptions()
                 {
                     Default = new Options.GroupsOptions.BuiltInOptions()
@@ -79,6 +86,13 @@
         {
             var (queue, _) = GetFixture(new Options()
             {
+                Global = new Options.GlobalOptions
+                {
+                    Upload = new Options.GlobalOptions.GlobalUploadOptions
+                    {
+                        Slots = int.MaxValue,
+                    },
+                },
                 Groups = new Options.GroupsOptions()
                 {
                     Leechers = new Options.GroupsOptions.LeecherOptions()
@@ -110,6 +124,13 @@
         {
             var (queue, _) = GetFixture(new Options()
             {
+                Global = new Options.GlobalOptions
+                {
+                    Upload = new Options.GlobalOptions.GlobalUploadOptions
+                    {
+                        Slots = int.MaxValue,
+                    },
+                },
                 Groups = new Options.GroupsOptions()
                 {
                     UserDefined = new Dictionary<string, Options.GroupsOptions.UserDefinedOptions>()
@@ -168,6 +189,13 @@
             {
                 var options = new Options()
                 {
+                    Global = new Options.GlobalOptions
+                    {
+                        Upload = new Options.GlobalOptions.GlobalUploadOptions
+                        {
+                            Slots = int.MaxValue,
+                        },
+                    },
                     Groups = new Options.GroupsOptions()
                     {
                         UserDefined = new Dictionary<string, Options.GroupsOptions.UserDefinedOptions>()
