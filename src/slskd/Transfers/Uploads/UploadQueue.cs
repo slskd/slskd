@@ -35,11 +35,6 @@ namespace slskd.Transfers
     public interface IUploadQueue
     {
         /// <summary>
-        ///     Gets the global upload slot limit.
-        /// </summary>
-        int GlobalSlots { get; }
-
-        /// <summary>
         ///     Awaits the start of an upload.
         /// </summary>
         /// <param name="username">The username of the remote user.</param>
@@ -110,11 +105,7 @@ namespace slskd.Transfers
             Configure(OptionsMonitor.CurrentValue);
         }
 
-        /// <summary>
-        ///     Gets the global upload slot limit.
-        /// </summary>
-        public int GlobalSlots { get; private set; } = 0;
-
+        private int GlobalSlots { get; set; } = 0;
         private Dictionary<string, UploadGroup> Groups { get; set; } = new Dictionary<string, UploadGroup>();
         private int LastGlobalSlots { get; set; }
         private string LastOptionsHash { get; set; }
@@ -409,7 +400,7 @@ namespace slskd.Transfers
                     {
                         Name = Application.DefaultGroup,
                         Priority = options.Groups.Default.Upload.Priority,
-                        Slots = options.Groups.Default.Upload.Slots,
+                        Slots = Math.Min(options.Groups.Default.Upload.Slots, GlobalSlots),
                         UsedSlots = GetExistingUsedSlotsOrDefault(Application.DefaultGroup),
                         Strategy = (QueueStrategy)Enum.Parse(typeof(QueueStrategy), options.Groups.Default.Upload.Strategy, true),
                     },
@@ -417,7 +408,7 @@ namespace slskd.Transfers
                     {
                         Name = Application.LeecherGroup,
                         Priority = options.Groups.Leechers.Upload.Priority,
-                        Slots = options.Groups.Leechers.Upload.Slots,
+                        Slots = Math.Min(options.Groups.Leechers.Upload.Slots, GlobalSlots),
                         UsedSlots = GetExistingUsedSlotsOrDefault(Application.LeecherGroup),
                         Strategy = (QueueStrategy)Enum.Parse(typeof(QueueStrategy), options.Groups.Leechers.Upload.Strategy, true),
                     },
@@ -428,7 +419,7 @@ namespace slskd.Transfers
                 {
                     Name = kvp.Key,
                     Priority = kvp.Value.Upload.Priority,
-                    Slots = kvp.Value.Upload.Slots,
+                    Slots = Math.Min(kvp.Value.Upload.Slots, GlobalSlots),
                     UsedSlots = GetExistingUsedSlotsOrDefault(kvp.Key),
                     Strategy = (QueueStrategy)Enum.Parse(typeof(QueueStrategy), kvp.Value.Upload.Strategy, true),
                 }));
