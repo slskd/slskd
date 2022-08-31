@@ -35,6 +35,11 @@ namespace slskd.Transfers
     public interface IUploadQueue
     {
         /// <summary>
+        ///     Gets the global upload slot limit.
+        /// </summary>
+        int GlobalSlots { get; }
+
+        /// <summary>
         ///     Awaits the start of an upload.
         /// </summary>
         /// <param name="username">The username of the remote user.</param>
@@ -105,11 +110,15 @@ namespace slskd.Transfers
             Configure(OptionsMonitor.CurrentValue);
         }
 
+        /// <summary>
+        ///     Gets the global upload slot limit.
+        /// </summary>
+        public int GlobalSlots { get; private set; } = 0;
+
         private Dictionary<string, UploadGroup> Groups { get; set; } = new Dictionary<string, UploadGroup>();
         private int LastGlobalSlots { get; set; }
         private string LastOptionsHash { get; set; }
         private ILogger Log { get; } = Serilog.Log.ForContext<UploadQueue>();
-        private int MaxSlots { get; set; } = 0;
         private IOptionsMonitor<Options> OptionsMonitor { get; }
         private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1, 1);
         private ConcurrentDictionary<string, List<Upload>> Uploads { get; set; } = new ConcurrentDictionary<string, List<Upload>>();
@@ -378,7 +387,7 @@ namespace slskd.Transfers
                     return;
                 }
 
-                MaxSlots = options.Global.Upload.Slots;
+                GlobalSlots = options.Global.Upload.Slots;
 
                 // statically add built-in groups
                 var groups = new List<UploadGroup>()
@@ -392,7 +401,7 @@ namespace slskd.Transfers
                     {
                         Name = Application.PrivilegedGroup,
                         Priority = 0,
-                        Slots = MaxSlots,
+                        Slots = GlobalSlots,
                         UsedSlots = GetExistingUsedSlotsOrDefault(Application.PrivilegedGroup),
                         Strategy = QueueStrategy.FirstInFirstOut,
                     },
@@ -442,7 +451,7 @@ namespace slskd.Transfers
 
             try
             {
-                if (Groups.Values.Sum(g => g.UsedSlots) >= MaxSlots)
+                if (Groups.Values.Sum(g => g.UsedSlots) >= GlobalSlots)
                 {
                     return null;
                 }
