@@ -242,6 +242,63 @@
             }
 
             [Theory, AutoData]
+            public void Limits_Group_Slots_To_Global_Slot_Count(string group, int priority, QueueStrategy strategy)
+            {
+                var options = new Options()
+                {
+                    Global = new Options.GlobalOptions
+                    {
+                        Upload = new Options.GlobalOptions.GlobalUploadOptions
+                        {
+                            Slots = 42,
+                        },
+                    },
+                    Groups = new Options.GroupsOptions()
+                    {
+                        UserDefined = new Dictionary<string, Options.GroupsOptions.UserDefinedOptions>()
+                        {
+                            {
+                                group,
+                                new Options.GroupsOptions.UserDefinedOptions()
+                                {
+                                    Upload = new Options.GroupsOptions.UploadOptions()
+                                    {
+                                        Priority = priority,
+                                        Slots = int.MaxValue, // lots
+                                        Strategy = strategy.ToString(),
+                                    }
+                                }
+                            },
+                        }
+                    }
+                };
+
+                // do not pass options; init with defaults
+                var (queue, mocks) = GetFixture();
+
+                var groups = queue.GetProperty<Dictionary<string, UploadGroup>>("Groups");
+
+                // user defined group does not exist
+                Assert.False(groups.ContainsKey(group));
+
+                // reconfigure
+                mocks.OptionsMonitor.RaiseOnChange(options);
+
+                // get the new copy
+                groups = queue.GetProperty<Dictionary<string, UploadGroup>>("Groups");
+
+                Assert.True(groups.ContainsKey(group));
+
+                var p = groups[group];
+
+                Assert.Equal(group, p.Name);
+                Assert.Equal(priority, p.Priority);
+                Assert.Equal(42, p.Slots); // clamped to global value
+                Assert.Equal(0, p.UsedSlots);
+                Assert.Equal(strategy, p.Strategy);
+            }
+
+            [Theory, AutoData]
             public void Retains_Used_Slot_Count_When_Options_Change(string group, int newPriority, int usedSlots)
             {
                 var options = new Options()
