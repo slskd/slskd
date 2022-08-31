@@ -48,7 +48,7 @@ namespace slskd
                 "The time taken to resolve a response to an incoming search request, in milliseconds",
                 new HistogramConfiguration
                 {
-                    Buckets = Histogram.ExponentialBuckets(1, 2, 10),
+                    Buckets = Histogram.ExponentialBuckets(0.1, 2, 11),
                 });
 
             /// <summary>
@@ -135,7 +135,7 @@ namespace slskd
                 "The time taken to broadcast incoming search requests to connected children, in milliseconds",
                 new HistogramConfiguration
                 {
-                    Buckets = Histogram.ExponentialBuckets(0.5, 2, 12),
+                    Buckets = Histogram.ExponentialBuckets(0.1, 2, 11),
                 });
         }
     }
