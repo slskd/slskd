@@ -931,8 +931,6 @@ namespace slskd
                     // make sure our average speed (as reported by the server) is reasonably up to date
                     await RefreshUserStatistics();
 
-                    var groupName = Users.GetGroup(username);
-                    var group = Transfers.Uploads.Queue.GetGroupInfo(groupName);
                     var forecastedPosition = Transfers.Uploads.Queue.ForecastPosition(username);
 
                     Log.Information("[{Context}]: Sending {Count} records to {Username} for query '{Query}'", "SEARCH RESULT SENT", results.Count(), username, query.SearchText);
@@ -943,7 +941,7 @@ namespace slskd
                         Client.Username,
                         token,
                         uploadSpeed: State.CurrentValue.User.Statistics.AverageSpeed,
-                        freeUploadSlots: group.Slots - group.UsedSlots,
+                        hasFreeUploadSlot: forecastedPosition == 0,
                         queueLength: forecastedPosition,
                         fileList: results);
                 }
