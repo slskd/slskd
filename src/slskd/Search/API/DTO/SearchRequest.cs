@@ -46,12 +46,6 @@ namespace slskd.Search.API
         public int? MaximumPeerQueueLength { get; set; }
 
         /// <summary>
-        ///     Gets or sets the minimum number of free upload slots a peer must have in order for a response to be processed.
-        ///     (Default = 0).
-        /// </summary>
-        public int? MinimumPeerFreeUploadSlots { get; set; }
-
-        /// <summary>
         ///     Gets or sets the minimum upload speed a peer must have in order for a response to be processed. (Default = 0).
         /// </summary>
         public int? MinimumPeerUploadSpeed { get; set; }
@@ -104,7 +98,6 @@ namespace slskd.Search.API
                 fileLimit: FileLimit ?? def.FileLimit,
                 filterResponses: FilterResponses ?? def.FilterResponses,
                 minimumResponseFileCount: MinimumResponseFileCount ?? def.MinimumResponseFileCount,
-                minimumPeerFreeUploadSlots: MinimumPeerFreeUploadSlots ?? def.MinimumPeerFreeUploadSlots,
                 maximumPeerQueueLength: MaximumPeerQueueLength ?? def.MaximumPeerQueueLength,
                 minimumPeerUploadSpeed: MinimumPeerUploadSpeed ?? def.MinimumPeerUploadSpeed,
                 responseFilter: responseFilter,
