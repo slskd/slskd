@@ -1,15 +1,16 @@
-import React, { useState, useEffect, useMemo } from 'react'
-import { Button, Form, Grid, Header, Icon, Segment, Checkbox, Message } from 'semantic-ui-react'
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { Button, Form, Input, Grid, Header, Icon, Segment, Checkbox, Message } from 'semantic-ui-react';
 
 import Logos from './Shared/Logo';
 
 const initialState = {
   username: '',
   password: '',
-  rememberMe: true
-}
+  rememberMe: true,
+};
 
 const LoginForm = ({ onLoginAttempt, loading, error }) => {
+  const usernameInput = useRef();
   const [state, setState] = useState(initialState);
   const [ready, setReady] = useState(false);
   const logo = useMemo(() => Logos[Math.floor(Math.random() * Logos.length)], []);
@@ -20,14 +21,18 @@ const LoginForm = ({ onLoginAttempt, loading, error }) => {
     } else {
       setReady(false);
     }
-  }, [state])
+  }, [state]);
+
+  useEffect(() => {
+    usernameInput.current?.focus();
+  }, [loading]);
 
   const handleChange = (field, value) => {
     setState({
       ...state,
       [field]: value,
     });
-  }
+  };
 
   const { username, password, rememberMe } = state;
 
@@ -40,18 +45,19 @@ const LoginForm = ({ onLoginAttempt, loading, error }) => {
             fontFamily: 'monospace',
             lineHeight: 1.1,
             fontSize: 'inherit',
-            letterSpacing: -1
+            letterSpacing: -1,
           }}>
-          {logo}
+            {logo}
           </Header>
           <Form size='large'>
             <Segment raised>
-              <Form.Input 
+              <Input 
                 fluid icon='user' 
                 iconPosition='left' 
                 placeholder='Username' 
                 onChange={(event) => handleChange('username', event.target.value)}
                 disabled={loading}
+                ref={usernameInput}
               />
               <Form.Input
                 fluid
@@ -89,7 +95,7 @@ const LoginForm = ({ onLoginAttempt, loading, error }) => {
         </Grid.Column>
       </Grid>
     </>
-  )
-}
+  );
+};
 
-export default LoginForm
+export default LoginForm;

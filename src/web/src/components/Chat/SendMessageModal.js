@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import './Chat.css';
 
 import {
-  Icon, Button, Modal, Form, Header, Input
+  Icon, Button, Modal, Form, Header, Input,
 } from 'semantic-ui-react';
 
 const usernameRef = React.createRef();
@@ -26,11 +26,11 @@ const SendMessageModal = ({ initiateConversation, ...rest }) => {
 
     await initiateConversation(username, message);
     setOpen(false);
-  }
+  };
 
   const validInput = () => {
-    return username.length > 0 && message.length > 0
-  }
+    return username.length > 0 && message.length > 0;
+  };
 
   return (
     <Modal
@@ -46,11 +46,11 @@ const SendMessageModal = ({ initiateConversation, ...rest }) => {
       <Modal.Content>
         <Form>
           <Form.Field>
-              <Input
-                ref={usernameRef}
-                placeholder='Username' 
-                onChange={(e, data) => setUsername(data.value)}
-              />
+            <Input
+              ref={usernameRef}
+              placeholder='Username' 
+              onChange={(e, data) => setUsername(data.value)}
+            />
           </Form.Field>
           <Form.Field>
             <Input
@@ -69,7 +69,7 @@ const SendMessageModal = ({ initiateConversation, ...rest }) => {
         >Send</Button>
       </Modal.Actions>
     </Modal>
-  )
-}
+  );
+};
 
 export default SendMessageModal;

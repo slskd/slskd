@@ -137,19 +137,14 @@ namespace slskd.Core.API
             return Ok();
         }
 
-        [HttpPut]
-        [Route("shares")]
+        [HttpGet("dump")]
         [Authorize]
-        public IActionResult RescanSharesAsync()
+        public async Task<IActionResult> DumpMemory()
         {
-            if (ApplicationStateMonitor.CurrentValue.SharedFileCache.Filling)
-            {
-                return Conflict("A share scan is already in progress.");
-            }
+            using var dumper = new Dumper();
+            var file = await dumper.DumpAsync();
 
-            _ = Application.RescanSharesAsync();
-
-            return Ok();
+            return PhysicalFile(file, "application/octet-stream", "slskd.dmp");
         }
     }
 }

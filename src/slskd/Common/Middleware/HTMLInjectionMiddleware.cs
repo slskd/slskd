@@ -18,6 +18,7 @@
 namespace slskd
 {
     using System;
+    using System.Collections.Generic;
     using System.IO;
     using System.Linq;
     using System.Threading.Tasks;
@@ -34,8 +35,9 @@ namespace slskd
         /// </summary>
         /// <param name="builder"></param>
         /// <param name="html"></param>
+        /// <param name="excludedRoutes"></param>
         /// <returns></returns>
-        public static IApplicationBuilder UseHTMLInjection(this IApplicationBuilder builder, string html)
+        public static IApplicationBuilder UseHTMLInjection(this IApplicationBuilder builder, string html, IEnumerable<string> excludedRoutes)
         {
             return builder.UseMiddleware<HTMLInjectionMiddleware>(html);
         }
@@ -51,14 +53,17 @@ namespace slskd
         /// </summary>
         /// <param name="next"></param>
         /// <param name="html"></param>
-        public HTMLInjectionMiddleware(RequestDelegate next, string html)
+        /// <param name="excludedRoutes"></param>
+        public HTMLInjectionMiddleware(RequestDelegate next, string html, IEnumerable<string> excludedRoutes)
         {
             Next = next;
             HTML = html;
+            ExcludedRoutes = excludedRoutes;
         }
 
         private string HTML { get; }
         private RequestDelegate Next { get; }
+        private IEnumerable<string> ExcludedRoutes { get; }
 
         /// <summary>
         ///     Executes this middleware, returning the contents of the requested HTML file with the specified HTML appended.
@@ -69,17 +74,15 @@ namespace slskd
         {
             context.Request.Headers.TryGetValue("accept", out var accept);
             var requestedTypes = accept.ToString().Split(',');
-
             var injectableTypes = new[] { "text/html", "application/xhtml + xml", "application/xml" };
-
-            var isApiRoute = context.Request.Path.ToString().StartsWith("/api");
-            var isGET = context.Request.Method == "GET";
-
             var isInjectableType = requestedTypes
                 .Intersect(injectableTypes, StringComparer.InvariantCultureIgnoreCase)
                 .Any();
 
-            if (!isApiRoute && isGET && isInjectableType)
+            var isExcludedRoute = ExcludedRoutes.Any(route => context.Request.Path.ToString().StartsWith(route));
+            var isGET = context.Request.Method == "GET";
+
+            if (!isExcludedRoute && isGET && isInjectableType)
             {
                 var originalStream = context.Response.Body;
 
@@ -93,15 +96,35 @@ namespace slskd
                 if (context.Response.StatusCode == 200)
                 {
                     // something downstream responded with a 200, meaning there's data in the body
-                    // we need to read it, so we can reset then play it back with the appended HTML
+                    // we need to read it, so we can reset then play it back with the modified HTML
                     context.Response.Body.Seek(0, SeekOrigin.Begin);
                     var body = await new StreamReader(context.Response.Body).ReadToEndAsync();
 
+                    var headers = context.Response.Headers
+                        .ToDictionary(kvp => kvp.Key, kvp => kvp.Value)
+                        .Where(kvp => !string.Equals(kvp.Key, "Content-Length", StringComparison.InvariantCultureIgnoreCase));
+
                     context.Response.Clear();
-                    await context.Response.WriteAsync(body + HTML);
+
+                    foreach (var header in headers)
+                    {
+                        context.Response.Headers.Add(header);
+                    }
+
+                    // check the response content type to make sure it's still injectable. the server might return something other
+                    // than what was requested. if it's no longer injectable, don't inject.
+                    var isInjectableResponseType = injectableTypes.Any(injectableType => context.Response.Headers.ContentType.Contains(injectableType));
+                    if (!isInjectableResponseType)
+                    {
+                        await context.Response.WriteAsync(body);
+                    }
+                    else
+                    {
+                        await context.Response.WriteAsync(body + HTML);
+                    }
                 }
 
-                // rewind the stream we injected to the beginning, then replay the data to the 
+                // rewind the stream we injected to the beginning, then replay the data to the
                 // original stream
                 stream.Seek(0, SeekOrigin.Begin);
                 await stream.CopyToAsync(originalStream);

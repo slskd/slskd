@@ -4,7 +4,7 @@ export const getAvailable = async () => {
   const response = (await api.get('/rooms/available')).data;
 
   if (!Array.isArray(response)) {
-    console.warn('got non-array response from rooms API', response)
+    console.warn('got non-array response from rooms API', response);
     return undefined;
   }
 
@@ -15,7 +15,7 @@ export const getJoined = async () => {
   const response = (await api.get('/rooms/joined')).data;
 
   if (!Array.isArray(response)) {
-    console.warn('got non-array response from rooms API', response)
+    console.warn('got non-array response from rooms API', response);
     return undefined;
   }
 
@@ -26,7 +26,7 @@ export const getMessages = async ({ roomName }) => {
   const response = (await api.get(`/rooms/joined/${encodeURIComponent(roomName)}/messages`)).data;
 
   if (!Array.isArray(response)) {
-    console.warn('got non-array response from rooms API', response)
+    console.warn('got non-array response from rooms API', response);
     return undefined;
   }
 
@@ -37,7 +37,7 @@ export const getUsers = async ({ roomName }) => {
   const response = (await api.get(`/rooms/joined/${encodeURIComponent(roomName)}/users`)).data;
 
   if (!Array.isArray(response)) {
-    console.warn('got non-array response from rooms API', response)
+    console.warn('got non-array response from rooms API', response);
     return undefined;
   }
 

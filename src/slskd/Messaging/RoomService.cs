@@ -106,6 +106,8 @@ namespace slskd.Messaging
             try
             {
                 var data = await Client.JoinRoomAsync(roomName);
+                var room = Room.FromRoomData(data);
+                RoomTracker.TryAdd(roomName, room);
 
                 Logger.Debug("Room data for {Room}: {Info}", roomName, data.ToJson());
                 return data;

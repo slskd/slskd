@@ -17,6 +17,7 @@
 
 namespace slskd.Search
 {
+    using System;
     using Microsoft.EntityFrameworkCore;
 
     public class SearchDbContext : DbContext
@@ -28,5 +29,18 @@ namespace slskd.Search
         }
 
         public DbSet<Search> Searches { get; set; }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            modelBuilder
+                .Entity<Search>()
+                .Property(e => e.StartedAt)
+                .HasConversion(v => v, v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
+
+            modelBuilder
+                .Entity<Search>()
+                .Property(e => e.EndedAt)
+                .HasConversion(v => v, v => v.HasValue ? DateTime.SpecifyKind(v.Value, DateTimeKind.Utc) : null);
+        }
     }
 }

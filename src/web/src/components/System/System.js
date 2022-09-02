@@ -1,32 +1,74 @@
 import React from 'react';
-import { useRouteMatch, useHistory, Redirect } from "react-router-dom";
+import { useRouteMatch, useHistory, Redirect } from 'react-router-dom';
 
-import { Segment, Tab } from 'semantic-ui-react';
+import { Segment, Tab, Menu, Icon } from 'semantic-ui-react';
 
 import './System.css';
 
 import Info from './Info';
 import Logs from './Logs';
 import Options from './Options';
+import Shares from './Shares';
+import { Switch } from '../Shared';
 
 const System = ({ state = {}, options = {} }) => {
   const { params: { tab }, ...route } = useRouteMatch();
   const history = useHistory();
 
   const panes = [
-    { route: 'info', menuItem: 'Info', render: () => <Tab.Pane><Info state={state}/></Tab.Pane> },
-    { route: 'options', menuItem: 'Options', render: () => <Tab.Pane className='full-height'><Options options={options}/></Tab.Pane> },
-    { route: 'logs', menuItem: 'Logs', render: () => <Tab.Pane><Logs/></Tab.Pane> },
-  ]
+    { 
+      route: 'info',
+      menuItem: (<Menu.Item key='info'>
+        <Switch
+          pending={((state?.pendingRestart ?? false) || (state?.pendingReconnect ?? false)) 
+            && <Icon name='exclamation circle' color='yellow'/>}
+        >
+          <Icon name='info circle'/>
+        </Switch>
+        Info
+      </Menu.Item>), 
+      render: () => <Tab.Pane><Info state={state}/></Tab.Pane>, 
+    },
+    {
+      route: 'options', 
+      menuItem: { 
+        key: 'options', 
+        icon: 'options', 
+        content: 'Options', 
+      }, 
+      render: () => <Tab.Pane className='full-height'><Options options={options} /></Tab.Pane>,
+    },
+    {
+      route: 'shares', 
+      menuItem: (<Menu.Item key='shares'>
+        <Switch
+          scanPending={(state?.shares?.scanPending ?? false) && <Icon name='exclamation circle' color='yellow'/>}
+        >
+          <Icon name='share external'/>
+        </Switch>
+        Shares
+      </Menu.Item>),
+      render: () => <Tab.Pane><Shares state={state.shares}/></Tab.Pane>,
+    },
+    { 
+      route: 'logs', 
+      menuItem: { 
+        key: 'logs', 
+        icon: 'file outline', 
+        content: 'Logs', 
+      }, 
+      render: () => <Tab.Pane><Logs/></Tab.Pane>, 
+    },
+  ];
 
-  const activeIndex = panes.findIndex(pane => pane.route === tab)
+  const activeIndex = panes.findIndex(pane => pane.route === tab);
 
   const onTabChange = (e, { activeIndex }) => {
-    history.push(panes[activeIndex].route)
-  }
+    history.push(panes[activeIndex].route);
+  };
 
   if (tab === undefined) {
-    return <Redirect to={`${route.url}/${panes[0].route}`}/>
+    return <Redirect to={`${route.url}/${panes[0].route}`}/>;
   }
 
   return (

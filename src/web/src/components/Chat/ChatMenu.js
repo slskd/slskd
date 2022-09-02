@@ -2,7 +2,7 @@ import React from 'react';
 import './Chat.css';
 
 import {
-  Icon, Button, Label, Menu
+  Icon, Button, Label, Menu,
 } from 'semantic-ui-react';
 import SendMessageModal from './SendMessageModal';
 
@@ -10,7 +10,7 @@ const ChatMenu = ({ conversations, active, onConversationChange, ...rest }) => {
   const names = Object.keys(conversations);
 
   const unread = Object.entries(conversations).reduce((acc, [name, messages]) => {
-    acc[name] = messages.filter(message => !message.acknowledged)
+    acc[name] = messages.filter(message => !message.acknowledged);
     return acc;
   }, {});
 
@@ -44,7 +44,7 @@ const ChatMenu = ({ conversations, active, onConversationChange, ...rest }) => {
         />
       </Menu.Menu>
     </Menu>
-  )
-}
+  );
+};
 
 export default ChatMenu;

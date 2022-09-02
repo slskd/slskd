@@ -15,6 +15,8 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
+using Microsoft.Extensions.Logging;
+
 namespace slskd
 {
     using System;
@@ -31,6 +33,7 @@ namespace slskd
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.Authentication.JwtBearer;
     using Microsoft.AspNetCore.Builder;
+    using Microsoft.AspNetCore.DataProtection;
     using Microsoft.AspNetCore.Diagnostics;
     using Microsoft.AspNetCore.Hosting;
     using Microsoft.AspNetCore.Http;
@@ -59,6 +62,8 @@ namespace slskd
     using slskd.Search.API;
     using slskd.Shares;
     using slskd.Transfers;
+    using slskd.Transfers.Downloads;
+    using slskd.Transfers.Uploads;
     using slskd.Users;
     using slskd.Validation;
     using Soulseek;
@@ -295,7 +300,7 @@ namespace slskd
             ConfigureGlobalLogger();
             Log = Serilog.Log.ForContext(typeof(Program));
 
-            if (!OptionsAtStartup.NoLogo)
+            if (!OptionsAtStartup.Flags.NoLogo)
             {
                 PrintLogo(FullVersion);
             }
@@ -331,11 +336,6 @@ namespace slskd
             // bootstrap the ASP.NET application
             try
             {
-                if (OptionsAtStartup.Feature.Prometheus)
-                {
-                    using var runtimeMetrics = DotNetRuntimeStatsBuilder.Default().StartCollecting();
-                }
-
                 var builder = WebApplication.CreateBuilder(args);
 
                 builder.Configuration
@@ -380,7 +380,7 @@ namespace slskd
 
                 app.ConfigureAspDotNetPipeline();
 
-                if (OptionsAtStartup.NoStart)
+                if (OptionsAtStartup.Flags.NoStart)
                 {
                     Log.Information("Qutting because 'no-start' option is enabled");
                     return;
@@ -445,19 +445,26 @@ namespace slskd
             services.AddSingleton<IApplication, Application>();
             services.AddHostedService(p => p.GetRequiredService<IApplication>());
 
-            services.AddDbContext<SearchDbContext>("search.db");
+            services.AddSingleton<IConnectionWatchdog, ConnectionWatchdog>();
 
-            services.AddSingleton<ITransferTracker, TransferTracker>();
+            ConfigureSQLite();
+
+            services.AddDbContext<SearchDbContext>("search.db");
+            services.AddDbContext<TransfersDbContext>("transfers.db");
+
             services.AddSingleton<IBrowseTracker, BrowseTracker>();
             services.AddSingleton<IConversationTracker, ConversationTracker>();
             services.AddSingleton<IRoomTracker, RoomTracker>(_ => new RoomTracker(messageLimit: 250));
 
-            services.AddSingleton<ISharedFileCache, SharedFileCache>();
+            services.AddSingleton<IShareService, ShareService>();
 
             services.AddSingleton<ISearchService, SearchService>();
             services.AddSingleton<IUserService, UserService>();
             services.AddSingleton<IRoomService, RoomService>();
+
             services.AddSingleton<ITransferService, TransferService>();
+            services.AddSingleton<IDownloadService, DownloadService>();
+            services.AddSingleton<IUploadService, UploadService>();
 
             services.AddSingleton<IFTPClientFactory, FTPClientFactory>();
             services.AddSingleton<IFTPService, FTPService>();
@@ -467,13 +474,45 @@ namespace slskd
             return services;
         }
 
+        private static void ConfigureSQLite()
+        {
+            // initialize
+            // avoids: System.Exception: You need to call SQLitePCL.raw.SetProvider().  If you are using a bundle package, this is done by calling SQLitePCL.Batteries.Init().
+            SQLitePCL.Batteries.Init();
+
+            // check the threading mode set at compile time. if it is 0 it is unsafe to use in a multithreaded application, which slskd is.
+            // https://www.sqlite.org/compile.html#threadsafe
+            var threadSafe = SQLitePCL.raw.sqlite3_threadsafe();
+
+            if (threadSafe == 0)
+            {
+                throw new InvalidOperationException($"SQLite binary was not compiled with THREADSAFE={threadSafe}, which is not compatible with this application. Please create a GitHub issue to report this and include details about your environment.");
+            }
+
+            Log.Debug("SQLite was compiled with THREADSAFE={Mode}", threadSafe);
+
+            if (SQLitePCL.raw.sqlite3_config(SQLitePCL.raw.SQLITE_CONFIG_SERIALIZED) != SQLitePCL.raw.SQLITE_OK)
+            {
+                throw new InvalidOperationException($"SQLite threading mode could not be set to . Please create a GitHub issue to report this and include details about your environment.");
+            }
+
+            Log.Debug("SQLite threading mode set to {Mode} ({Number})", "SERIALIZED", SQLitePCL.raw.SQLITE_CONFIG_SERIALIZED);
+        }
+
         private static IServiceCollection ConfigureAspDotNetServices(this IServiceCollection services)
         {
             services.AddCors(options => options.AddPolicy("AllowAll", builder => builder
+                .SetIsOriginAllowed((host) => true)
                 .AllowAnyHeader()
                 .AllowAnyMethod()
-                .SetIsOriginAllowed((host) => true)
-                .AllowCredentials()));
+                .AllowCredentials()
+                .WithExposedHeaders("X-URL-Base")));
+
+            services.AddSystemMetrics();
+            using var runtimeMetrics = DotNetRuntimeStatsBuilder.Default().StartCollecting();
+
+            services.AddDataProtection()
+                .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(AppDirectory, "data", ".DataProtection-Keys")));
 
             var jwtSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(OptionsAtStartup.Web.Authentication.Jwt.Key));
 
@@ -573,11 +612,6 @@ namespace slskd
                 });
             }
 
-            if (OptionsAtStartup.Feature.Prometheus)
-            {
-                services.AddSystemMetrics();
-            }
-
             return services;
         }
 
@@ -602,18 +636,12 @@ namespace slskd
             var urlBase = OptionsAtStartup.Web.UrlBase;
             urlBase = urlBase.StartsWith("/") ? urlBase : "/" + urlBase;
 
-            // 404 if a custom urlBase is set, but the request doesn't include it.
-            // this is necessary to make sure the development-time and run-time behavior
-            // are consistent.
-            app.EnforceUrlBase(urlBase);
-
-            // use urlBase. this effectively just removes urlBase from the path, which is
-            // why the enforcement behavior exists above (the actually requested path becomes ambiguous)
+            // use urlBase. this effectively just removes urlBase from the path.
             // inject urlBase into any html files we serve, and rewrite links to ./static or /static to
             // prepend the url base.
             app.UsePathBase(urlBase);
             app.UseHTMLRewrite("((\\.)?\\/static)", $"{(urlBase == "/" ? string.Empty : urlBase)}/static");
-            app.UseHTMLInjection($"<script>window.urlBase=\"{urlBase}\"</script>");
+            app.UseHTMLInjection($"<script>window.urlBase=\"{urlBase}\"</script>", excludedRoutes: new[] { "/api", "/swagger" });
             Log.Information("Using base url {UrlBase}", urlBase);
 
             // serve static content from the configured path
@@ -631,19 +659,12 @@ namespace slskd
             app.UseFileServer(fileServerOptions);
             Log.Information("Serving static content from {ContentPath}", contentPath);
 
-            if (OptionsAtStartup.Feature.Prometheus)
-            {
-                app.UseHttpMetrics();
-                Log.Information("Publishing Prometheus metrics to /metrics");
-            }
-
             if (OptionsAtStartup.Web.Logging)
             {
                 app.UseSerilogRequestLogging();
             }
 
             app.UseAuthentication();
-
             app.UseRouting();
             app.UseAuthorization();
             app.UseEndpoints(endpoints =>
@@ -655,9 +676,38 @@ namespace slskd
                 endpoints.MapControllers();
                 endpoints.MapHealthChecks("/health");
 
-                if (OptionsAtStartup.Feature.Prometheus)
+                if (OptionsAtStartup.Metrics.Enabled)
                 {
-                    endpoints.MapMetrics("/metrics");
+                    var options = OptionsAtStartup.Metrics;
+                    var url = options.Url.StartsWith('/') ? options.Url : "/" + options.Url;
+
+                    Log.Information("Publishing Prometheus metrics to {URL}", url);
+
+                    if (options.Authentication.Disabled)
+                    {
+                        Log.Warning("Authentication for the metrics endpoint is DISABLED");
+                    }
+
+                    endpoints.MapGet(url, async context =>
+                    {
+                        if (!options.Authentication.Disabled)
+                        {
+                            var auth = context.Request.Headers["Authorization"].FirstOrDefault();
+                            var providedCreds = auth?.Split(' ').Last();
+                            var validCreds = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{options.Authentication.Username}:{options.Authentication.Password}"));
+
+                            if (string.IsNullOrEmpty(auth) ||
+                                !auth.StartsWith("Basic", StringComparison.InvariantCultureIgnoreCase) ||
+                                !string.Equals(providedCreds, validCreds, StringComparison.InvariantCultureIgnoreCase))
+                            {
+                                context.Response.StatusCode = (int)HttpStatusCode.Unauthorized;
+                                return;
+                            }
+                        }
+
+                        var response = await Metrics.BuildAsync();
+                        await context.Response.WriteAsync(response);
+                    });
                 }
             });
 
@@ -679,11 +729,11 @@ namespace slskd
                 app.UseSwaggerUI(options => app.Services.GetRequiredService<IApiVersionDescriptionProvider>().ApiVersionDescriptions.ToList()
                     .ForEach(description => options.SwaggerEndpoint($"{(urlBase == "/" ? string.Empty : urlBase)}/swagger/{description.GroupName}/swagger.json", description.GroupName)));
 
-                Log.Information("Publishing Swagger documentation to /swagger");
+                Log.Information("Publishing Swagger documentation to {URL}", "/swagger");
             }
 
             // if we made it this far, the caller is either looking for a route that was synthesized with a SPA router, or is genuinely confused.
-            // if the request is for a directory, modify the request to redirect it to the index, otherwise leave it alone and let it 404 in the next 
+            // if the request is for a directory, modify the request to redirect it to the index, otherwise leave it alone and let it 404 in the next
             // middleware
             app.Use(async (context, next) =>
             {
@@ -727,13 +777,20 @@ namespace slskd
                 {
                     try
                     {
+                        var message = logEvent.RenderMessage();
+
+                        if (logEvent.Exception != null)
+                        {
+                            message = $"{message}: {logEvent.Exception}";
+                        }
+
                         var record = new LogRecord()
                         {
                             Timestamp = logEvent.Timestamp.LocalDateTime,
                             Context = logEvent.Properties["SourceContext"].ToString().TrimStart('"').TrimEnd('"'),
                             SubContext = logEvent.Properties.ContainsKey("SubContext") ? logEvent.Properties["SubContext"].ToString().TrimStart('"').TrimEnd('"') : null,
                             Level = logEvent.Level.ToString(),
-                            Message = logEvent.RenderMessage().TrimStart('"').TrimEnd('"'),
+                            Message = message.TrimStart('"').TrimEnd('"'),
                         };
 
                         LogBuffer.Enqueue(record);
@@ -784,13 +841,18 @@ namespace slskd
         private static IServiceCollection AddDbContext<T>(this IServiceCollection services, string filename)
             where T : DbContext
         {
-            Log.Debug($"Initializing database context {typeof(T).Name}");
+            Log.Debug("Initializing database context {Name}", typeof(T).Name);
 
             try
             {
-                services.AddDbContextFactory<SearchDbContext>(options =>
+                services.AddDbContextFactory<T>(options =>
                 {
-                    options.UseSqlite($"Data Source={Path.Combine(AppDirectory, "data", filename)}");
+                    options.UseSqlite($"Data Source={Path.Combine(AppDirectory, "data", filename)};Cache=shared;Pooling=True;");
+
+                    if (OptionsAtStartup.Debug && OptionsAtStartup.Flags.LogSQL)
+                    {
+                        options.LogTo(Log.Debug, LogLevel.Information);
+                    }
                 });
 
                 using var ctx = services
@@ -990,7 +1052,14 @@ namespace slskd
 
             banner += "\n└────────────────────────────────────────────────────────┘";
 
-            Console.WriteLine(banner);
+            try
+            {
+                Console.WriteLine(banner);
+            }
+            catch
+            {
+                // noop. console may not be available in all cases.
+            }
         }
 
         private static void VerifyDirectory(string directory, bool createIfMissing = true, bool verifyWriteable = true)

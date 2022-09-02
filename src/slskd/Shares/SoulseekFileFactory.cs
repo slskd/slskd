@@ -48,7 +48,7 @@ namespace slskd.Shares
         private static readonly string[] VideoExtensions = { "mkv", "ogv", "avi", "wmv", "asf", "mp4", "m4p", "m4v", "mpg", "mpe", "mpv", "mpg", "m2v" };
         private static readonly HashSet<string> SupportedExtensions = AudioExtensions.Concat(VideoExtensions).ToHashSet();
 
-        private ILogger Log { get; } = Serilog.Log.ForContext<SharedFileCache>();
+        private ILogger Log { get; } = Serilog.Log.ForContext<SoulseekFileFactory>();
 
         /// <summary>
         ///     Creates an instance of <see cref="Soulseek.File"/> from the given path.
@@ -95,7 +95,7 @@ namespace slskd.Shares
                 }
                 catch (Exception ex)
                 {
-                    Log.Warning("Failed to read metadata from file '{Filename}'; the file is an unsupported format or may be corrupt ({ExceptionType})", filename, ex.GetType().Name);
+                    Log.Debug("Failed to read metadata from file '{Filename}'; the file is an unsupported format or may be corrupt ({ExceptionType})", filename, ex.GetType().Name);
                 }
                 finally
                 {

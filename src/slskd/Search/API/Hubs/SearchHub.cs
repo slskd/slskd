@@ -15,8 +15,6 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-using Microsoft.Extensions.Options;
-
 namespace slskd.Search.API
 {
     using System;
@@ -26,8 +24,11 @@ namespace slskd.Search.API
 
     public static class SearchHubMethods
     {
+        public static readonly string List = "LIST";
+        public static readonly string Create = "CREATE";
         public static readonly string Response = "RESPONSE";
         public static readonly string Update = "UPDATE";
+        public static readonly string Delete = "DELETE";
     }
 
     /// <summary>
@@ -57,6 +58,16 @@ namespace slskd.Search.API
         {
             return hub.Clients.All.SendAsync(SearchHubMethods.Response, new { searchId, response });
         }
+
+        public static Task BroadcastCreateAsync(this IHubContext<SearchHub> hub, Search search)
+        {
+            return hub.Clients.All.SendAsync(SearchHubMethods.Create, search);
+        }
+
+        public static Task BroadcastDeleteAsync(this IHubContext<SearchHub> hub, Search search)
+        {
+            return hub.Clients.All.SendAsync(SearchHubMethods.Delete, search);
+        }
     }
 
     /// <summary>
@@ -66,14 +77,17 @@ namespace slskd.Search.API
     public class SearchHub : Hub
     {
         public SearchHub(
-            IStateMonitor<State> stateMonitor,
-            IOptionsMonitor<Options> optionsMonitor)
+            ISearchService searchService)
         {
-            StateMonitor = stateMonitor;
-            OptionsMonitor = optionsMonitor;
+            Searches = searchService;
         }
 
-        private IStateMonitor<State> StateMonitor { get; }
-        private IOptionsMonitor<Options> OptionsMonitor { get; }
+        private ISearchService Searches { get; }
+
+        public override async Task OnConnectedAsync()
+        {
+            var searches = await Searches.ListAsync();
+            await Clients.Caller.SendAsync(SearchHubMethods.List, searches);
+        }
     }
 }
