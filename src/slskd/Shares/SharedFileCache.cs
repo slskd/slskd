@@ -272,7 +272,9 @@ namespace slskd.Shares
                             IgnoreInaccessible = true,
                             RecurseSubdirectories = false,
                         })
-                            .Select(filename => SoulseekFileFactory.Create(filename, maskedFilename: filename.ReplaceFirst(share.LocalPath, share.RemotePath)))
+                            .Select(filename => SoulseekFileFactory.Create(
+                                filename: filename.NormalizePath(),
+                                maskedFilename: filename.ReplaceFirst(share.LocalPath, share.RemotePath).NormalizePath()))
                             .ToDictionary(file => file.Filename, file => file);
 
                         addedFiles = newFiles.Count;
