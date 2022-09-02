@@ -239,6 +239,16 @@ namespace slskd
             .Build()
             .Deserialize<T>(str);
 
+        public static string NormalizePath(this string filename)
+        {
+            if (Path.DirectorySeparatorChar == '\\')
+            {
+                return filename;
+            }
+
+            return filename.Replace(Path.DirectorySeparatorChar, '\\');
+        }
+
         /// <summary>
         ///     Converts a fully qualified remote filename to a local filename based in the provided
         ///     <paramref name="baseDirectory"/>, swapping directory characters for those specific to the local OS, removing any
