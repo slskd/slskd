@@ -17,9 +17,9 @@
 
 namespace slskd.Transfers
 {
-    public sealed class UploadGroup
+    public sealed record UploadGroup
     {
-        public string Name { get; set; }
+        public string Name { get; init; }
         public int Priority { get; set; }
         public bool SlotAvailable => UsedSlots < Slots;
         public int Slots { get; set; }

@@ -411,7 +411,7 @@ namespace slskd
         private async Task<BrowseResponse> BrowseResponseResolver(string username, IPEndPoint endpoint)
         {
             Metrics.Browse.RequestsReceived.Inc(1);
-            
+
             try
             {
                 var sw = new Stopwatch();
@@ -941,7 +941,7 @@ namespace slskd
                         Client.Username,
                         token,
                         uploadSpeed: State.CurrentValue.User.Statistics.AverageSpeed,
-                        freeUploadSlots: forecastedPosition == 0 ? 1 : 0,
+                        hasFreeUploadSlot: forecastedPosition == 0,
                         queueLength: forecastedPosition,
                         fileList: results);
                 }

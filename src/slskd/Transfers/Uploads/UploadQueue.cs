@@ -105,11 +105,11 @@ namespace slskd.Transfers
             Configure(OptionsMonitor.CurrentValue);
         }
 
+        private int GlobalSlots { get; set; } = 0;
         private Dictionary<string, UploadGroup> Groups { get; set; } = new Dictionary<string, UploadGroup>();
         private int LastGlobalSlots { get; set; }
         private string LastOptionsHash { get; set; }
         private ILogger Log { get; } = Serilog.Log.ForContext<UploadQueue>();
-        private int MaxSlots { get; set; } = 0;
         private IOptionsMonitor<Options> OptionsMonitor { get; }
         private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1, 1);
         private ConcurrentDictionary<string, List<Upload>> Uploads { get; set; } = new ConcurrentDictionary<string, List<Upload>>();
@@ -378,7 +378,7 @@ namespace slskd.Transfers
                     return;
                 }
 
-                MaxSlots = options.Global.Upload.Slots;
+                GlobalSlots = options.Global.Upload.Slots;
 
                 // statically add built-in groups
                 var groups = new List<UploadGroup>()
@@ -392,7 +392,7 @@ namespace slskd.Transfers
                     {
                         Name = Application.PrivilegedGroup,
                         Priority = 0,
-                        Slots = MaxSlots,
+                        Slots = GlobalSlots,
                         UsedSlots = GetExistingUsedSlotsOrDefault(Application.PrivilegedGroup),
                         Strategy = QueueStrategy.FirstInFirstOut,
                     },
@@ -400,7 +400,7 @@ namespace slskd.Transfers
                     {
                         Name = Application.DefaultGroup,
                         Priority = options.Groups.Default.Upload.Priority,
-                        Slots = options.Groups.Default.Upload.Slots,
+                        Slots = Math.Min(options.Groups.Default.Upload.Slots, GlobalSlots),
                         UsedSlots = GetExistingUsedSlotsOrDefault(Application.DefaultGroup),
                         Strategy = (QueueStrategy)Enum.Parse(typeof(QueueStrategy), options.Groups.Default.Upload.Strategy, true),
                     },
@@ -408,7 +408,7 @@ namespace slskd.Transfers
                     {
                         Name = Application.LeecherGroup,
                         Priority = options.Groups.Leechers.Upload.Priority,
-                        Slots = options.Groups.Leechers.Upload.Slots,
+                        Slots = Math.Min(options.Groups.Leechers.Upload.Slots, GlobalSlots),
                         UsedSlots = GetExistingUsedSlotsOrDefault(Application.LeecherGroup),
                         Strategy = (QueueStrategy)Enum.Parse(typeof(QueueStrategy), options.Groups.Leechers.Upload.Strategy, true),
                     },
@@ -419,7 +419,7 @@ namespace slskd.Transfers
                 {
                     Name = kvp.Key,
                     Priority = kvp.Value.Upload.Priority,
-                    Slots = kvp.Value.Upload.Slots,
+                    Slots = Math.Min(kvp.Value.Upload.Slots, GlobalSlots),
                     UsedSlots = GetExistingUsedSlotsOrDefault(kvp.Key),
                     Strategy = (QueueStrategy)Enum.Parse(typeof(QueueStrategy), kvp.Value.Upload.Strategy, true),
                 }));
@@ -442,7 +442,11 @@ namespace slskd.Transfers
 
             try
             {
-                if (Groups.Values.Sum(g => g.UsedSlots) >= MaxSlots)
+                // if the total number of used slots across all groups is greater than or equal to the configured
+                // number of global slots, just exit. we *could* proceed, but uploads would stack up behind the
+                // global semaphore in Soulseek.NET and we wouldn't be able to control the order in which those
+                // were processed, so don't do that.
+                if (Groups.Values.Sum(g => g.UsedSlots) >= GlobalSlots)
                 {
                     return null;
                 }

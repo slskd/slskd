@@ -85,7 +85,7 @@ const SearchDetail = ({ search, creating, stopping, removing, disabled, onCreate
       })
       .map(response => filterResponse({ response, filters }))
       .filter(r => r.fileCount + r.lockedFileCount > 0)
-      .filter(r => !(hideNoFreeSlots && r.freeUploadSlots === 0))
+      .filter(r => !(hideNoFreeSlots && !r.hasFreeUploadSlot))
       .sort((a, b) => {
         if (order === 'asc') {
           return a[field] - b[field];
