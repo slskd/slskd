@@ -40,7 +40,7 @@ Configuration is loaded from the YAML file located at `<application directory>/s
 
 The application watches for changes in the YAML file and will reload the configuration when they are detected. Options will be updated in real-time and transmitted to the web UI. If a server reconnect or application restart is required for changes to take effect fully, a flag will be set indicating so.
 
-The YAML file can be read and written at run time via API calls or edited on a disk.
+The YAML file can be read and written at run time via API calls or edited on disk.
 
 If no such configuration file exists at startup, the example file `/config/slskd.example.yml` is copied to this location for convenience.
 
@@ -87,7 +87,7 @@ This value is set to `/app` within the official Docker image.
 
 ## Incomplete and Downloads
 
-By default, the incomplete and downloaded files are saved in `APP_DIR/incomplete` and `APP_DIR/downloads` directories, respectively. The application will create these directories on startup if they don't exist.
+By default, incomplete and downloaded files are saved in `APP_DIR/incomplete` and `APP_DIR/downloads` directories, respectively. The application will create these directories on startup if they don't exist.
 
 Alternative locations can be specified for each directory. Directories must exist and be writable by the application; the application will not attempt to create them.
 
@@ -109,7 +109,7 @@ Any number of shared directories can be configured.
 
 Paths must be absolute, meaning they must begin with `/`, `X:\`, or `\\`, depending on the system. Relative paths, such as `~/directory` or `../directory`, are not supported. Sharing a root mount on a unix-like OS (`/`) is also not supported.
 
-Shares can be excluded by prefixing them with `-` or `!`. It is useful in situations where sharing a subdirectory of a share isn't desired, for example, if a user wants to share their entire music library but not their personal recordings:
+Shares can be excluded by prefixing them with `-` or `!`. This is useful in situations where sharing a subdirectory of a share isn't desired, for example, if a user wants to share their entire music library but not their personal recordings:
 
 ```yaml
 directories:
@@ -309,7 +309,7 @@ soulseek:
 
 ## Distributed Network
 
-Options for the Soulseek distributed network are how search requests are delivered.
+Options for the Soulseek distributed network, which is how search requests are delivered.
 
 The distributed network should only be disabled if no files are being shared.  
 
@@ -337,7 +337,7 @@ soulseek:
 
 The port on which the application listens for incoming connections.
 
-As with any other Soulseek client, configuring the listen port and port forwarding ensures full connectivity with other clients, including those not correctly configured a listening port.  
+As with any other Soulseek client, configuring the listen port and port forwarding ensures full connectivity with other clients, including those without a correctly configured a listening port.  
 
 Symptoms of a misconfigured listen port include poor search results and the inability to browse or retrieve user information for some users.
 
@@ -367,9 +367,9 @@ soulseek:
 
 ### Timeouts
 
-Timeout options control how long the application waits for connections and how long connections can be inactive before they are disconnected.
+Timeout options control how long the application waits for connections to connect, and how long connections can be inactive before they are disconnected.
 
-Higher connect timeout values will help ensure that operations (browse, download requests, etc.) are successful the first time but decrease the responsiveness of commands that ultimately fail.
+Higher connect timeout values will help ensure that operations (browse, download requests, etc.) are successful the first time but decrease the responsiveness of commands that will ultimately fail.
 
 Inactivity timeouts help the application determine when a distributed parent connection has stopped sending data and when connections that have delivered search results (and are unlikely to be used further) from remaining open longer than needed. Reducing this timeout can help low spec systems if port exhaustion is a concern but may result in the application "hunting" for a distributed parent connection needlessly.
 
@@ -389,7 +389,7 @@ soulseek:
 
 ### Buffers
 
-Buffer options control the application's internal buffer to batch socket reads and writes. The OS controls actual socket buffer sizes (.NET is not great in this department currently, and the behavior is not consistent cross-platform).
+Buffer options control the application's internal buffer to batch socket reads and writes. The host Operating System controls actual socket buffer sizes (.NET is not great in this department currently, and the behavior is not consistent cross-platform).
 
 Larger buffer sizes can improve performance, especially for file transfers, resulting in increased memory usage.
 
