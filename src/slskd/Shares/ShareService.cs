@@ -15,6 +15,7 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
+using System.IO;
 using Microsoft.Extensions.Options;
 
 namespace slskd.Shares
@@ -86,7 +87,12 @@ namespace slskd.Shares
         /// </summary>
         /// <returns>The entire contents of the share.</returns>
         public Task<IEnumerable<Directory>> BrowseAsync()
-            => Task.FromResult(Cache.Browse());
+        {
+            var results = Cache.Browse();
+            var normalizedResults = results.Select(r => new Directory(r.Name.NormalizePath(), r.Files));
+
+            return Task.FromResult(normalizedResults);
+        }
 
         /// <summary>
         ///     Returns the contents of the specified <paramref name="directory"/>.
@@ -94,7 +100,12 @@ namespace slskd.Shares
         /// <param name="directory">The directory for which the contents are to be listed.</param>
         /// <returns>The contents of the directory.</returns>
         public Task<Directory> ListDirectoryAsync(string directory)
-            => Task.FromResult(Cache.List(directory));
+        {
+            var list = Cache.List(directory.LocalizePath());
+            var normalizedList = new Directory(list.Name.NormalizePath(), list.Files);
+
+            return Task.FromResult(normalizedList);
+        }
 
         /// <summary>
         ///     Resolves the local filename of the specified <paramref name="remoteFilename"/>, if the mask is associated with a
@@ -105,16 +116,25 @@ namespace slskd.Shares
         /// <exception cref="NotFoundException">
         ///     Thrown when the specified remote filename can not be associated with a configured share.
         /// </exception>
-        public Task<string> ResolveFilenameAsync(string remoteFilename)
+        public Task<FileInfo> ResolveFileAsync(string remoteFilename)
         {
-            var resolvedFilename = Cache.Resolve(remoteFilename);
+            var resolvedFilename = Cache.Resolve(remoteFilename.LocalizePath());
 
             if (string.IsNullOrEmpty(resolvedFilename))
             {
-                throw new NotFoundException($"The requested filename '{remoteFilename}' could not be resolved to a local file.");
+                throw new NotFoundException($"The requested filename '{remoteFilename}' could not be resolved to a local file");
             }
 
-            return Task.FromResult(resolvedFilename);
+            var fileInfo = new FileInfo(resolvedFilename);
+
+            if (!fileInfo.Exists)
+            {
+                // the shared file cache has divered from the physical filesystem; the user needs to perform a scan to reconcile.
+                State.SetValue(state => state with { ScanPending = true });
+                throw new NotFoundException($"The resolved file '{resolvedFilename}' could not be located on disk. A share scan should be performed.");
+            }
+
+            return Task.FromResult(fileInfo);
         }
 
         /// <summary>
@@ -122,8 +142,17 @@ namespace slskd.Shares
         /// </summary>
         /// <param name="query">The query for which to search.</param>
         /// <returns>The matching files.</returns>
-        public Task<IEnumerable<File>> SearchAsync(SearchQuery query)
-            => Cache.SearchAsync(query);
+        public async Task<IEnumerable<File>> SearchAsync(SearchQuery query)
+        {
+            var results = await Cache.SearchAsync(query);
+
+            return results.Select(r => new File(
+                r.Code,
+                r.Filename.NormalizePath(),
+                r.Size,
+                r.Extension,
+                r.Attributes));
+        }
 
         /// <summary>
         ///     Starts a scan of the configured shares.
