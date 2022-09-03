@@ -58,7 +58,6 @@ namespace slskd.Transfers.Uploads
         /// <summary>
         ///     Gets the upload governor.
         /// </summary>
-        public IUploadGovernor Governor { get; init; }
 
         /// <summary>
         ///     Gets the upload queue.
@@ -114,7 +113,7 @@ namespace slskd.Transfers.Uploads
 
             try
             {
-                localFilename = (await Shares.ResolveFilenameAsync(filename)).ToLocalOSPath();
+                localFilename = await Shares.ResolveFilenameAsync(filename);
 
                 fileInfo = new FileInfo(localFilename);
 
