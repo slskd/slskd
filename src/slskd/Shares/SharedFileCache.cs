@@ -300,9 +300,10 @@ namespace slskd.Shares
                             // filename if we do this so we can resolve the original filename given the replacement without doing any guessing.
                             if (Path.DirectorySeparatorChar == '/' && value.Filename.Contains('\\'))
                             {
-                                Log.Warning($"Substituting {value.Filename} for {value.Filename.Replace('\\', '_')}");
+                                Log.Warning($"Substituting {value.Filename} with {value.Filename.Replace('\\', '_')}");
 
                                 // todo: store OriginalFilename for all files once masked filenames are stored in the db. we aren't doing this now to reduce memory footprint.
+                                key = key.Replace('\\', '_');
                                 value = new File(
                                     value.Code,
                                     value.Filename.Replace('\\', '_'),
@@ -310,7 +311,6 @@ namespace slskd.Shares
                                     value.Extension,
                                     value.Attributes,
                                     originalFilename: value.Filename);
-
                             }
 
                             files[key] = value;
