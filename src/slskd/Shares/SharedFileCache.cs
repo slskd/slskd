@@ -308,6 +308,8 @@ namespace slskd.Shares
                                     value.Extension,
                                     value.Attributes,
                                     originalFilename: value.Filename);
+
+                                Log.Warning($"Substituting {value.Filename} for {value.Filename.Replace('\\', '_')}");
                             }
 
                             files[key] = value;
