@@ -363,16 +363,16 @@ namespace slskd
             {
                 var results = new List<ValidationResult>();
 
-                bool IsBlankPath(string share) => Regex.IsMatch(share.ToLocalOSPath(), @"^(!|-){0,1}(\[.*\])$");
+                bool IsBlankPath(string share) => Regex.IsMatch(share.LocalizePath(), @"^(!|-){0,1}(\[.*\])$");
                 Shared.Where(share => IsBlankPath(share)).ToList()
                     .ForEach(blank => results.Add(new ValidationResult($"Share {blank} doees not specify a path")));
 
-                bool IsRootMount(string share) => Regex.IsMatch(share.ToLocalOSPath(), @"^(!|-){0,1}(\[.*\])/$");
+                bool IsRootMount(string share) => Regex.IsMatch(share.LocalizePath(), @"^(!|-){0,1}(\[.*\])/$");
                 Shared.Where(share => IsRootMount(share)).ToList()
                     .ForEach(blank => results.Add(new ValidationResult($"Share {blank} specifies a root mount, which is not supported.")));
 
                 // starts with '/', 'X:', or '\\'
-                bool IsAbsolutePath(string share) => Regex.IsMatch(share.ToLocalOSPath(), @"^(!|-){0,1}(\[.*\])?(\/|[a-zA-Z]:|\\\\).*$");
+                bool IsAbsolutePath(string share) => Regex.IsMatch(share.LocalizePath(), @"^(!|-){0,1}(\[.*\])?(\/|[a-zA-Z]:|\\\\).*$");
                 Shared.Where(share => !IsAbsolutePath(share)).ToList()
                     .ForEach(relativePath => results.Add(new ValidationResult($"Share {relativePath} contains a relative path; only absolute paths are supported.")));
 
