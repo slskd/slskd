@@ -394,8 +394,6 @@ namespace slskd.Shares
         /// <returns>The unmasked filename.</returns>
         public string Resolve(string filename)
         {
-            filename = filename.ToLocalOSPath();
-
             // ensure this is a tracked file
             if (!MaskedFiles.TryGetValue(filename, out _))
             {
@@ -474,7 +472,9 @@ namespace slskd.Shares
 
             try
             {
-                return results.Select(r => MaskedFiles[r]).ToList();
+                return results
+                    .Select(r => MaskedFiles[r])
+                    .ToList();
             }
             catch (Exception ex)
             {

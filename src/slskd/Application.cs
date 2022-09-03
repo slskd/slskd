@@ -417,8 +417,7 @@ namespace slskd
                 var sw = new Stopwatch();
                 sw.Start();
 
-                var directories = (await Shares.BrowseAsync())
-                    .Select(d => new Soulseek.Directory(d.Name.Replace('/', '\\'), d.Files)); // Soulseek NS requires backslashes
+                var directories = await Shares.BrowseAsync();
 
                 sw.Stop();
 

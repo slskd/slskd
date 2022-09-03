@@ -15,6 +15,8 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
+using System.IO;
+
 namespace slskd.Shares
 {
     using System.Collections.Generic;
@@ -58,7 +60,7 @@ namespace slskd.Shares
         /// <exception cref="NotFoundException">
         ///     Thrown when the specified remote filename can not be associated with a configured share.
         /// </exception>
-        Task<string> ResolveFilenameAsync(string remoteFilename);
+        Task<FileInfo> ResolveFileAsync(string remoteFilename);
 
         /// <summary>
         ///     Searches the cache for the specified <paramref name="query"/> and returns the matching files.
