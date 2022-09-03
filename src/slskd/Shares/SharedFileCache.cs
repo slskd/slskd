@@ -364,6 +364,8 @@ namespace slskd.Shares
         /// <returns>The contents of the directory.</returns>
         public Directory List(string directory)
         {
+            directory = directory.LocalizePath();
+
             if (!State.CurrentValue.Filled)
             {
                 if (State.CurrentValue.Filling)
@@ -396,7 +398,7 @@ namespace slskd.Shares
         /// <returns>The unmasked filename.</returns>
         public string Resolve(string filename)
         {
-            filename = filename.ToLocalOSPath();
+            filename = filename.LocalizePath();
 
             // ensure this is a tracked file
             if (!MaskedFiles.TryGetValue(filename, out _))
