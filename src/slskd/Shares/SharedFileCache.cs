@@ -137,7 +137,7 @@ namespace slskd.Shares
 
             var groups = MaskedFiles
                 .GroupBy(f => Path.GetDirectoryName(f.Key))
-                .Select(g => new Directory(g.Key.NormalizePath(), g.Select(g =>
+                .Select(g => new Directory(g.Key, g.Select(g =>
                 {
                     var f = g.Value;
                     return new File(
@@ -272,9 +272,7 @@ namespace slskd.Shares
                             IgnoreInaccessible = true,
                             RecurseSubdirectories = false,
                         })
-                            .Select(filename => SoulseekFileFactory.Create(
-                                filename: filename,
-                                maskedFilename: filename.ReplaceFirst(share.LocalPath, share.RemotePath)))
+                            .Select(filename => SoulseekFileFactory.Create(filename, maskedFilename: filename.ReplaceFirst(share.LocalPath, share.RemotePath)))
                             .ToDictionary(file => file.Filename, file => file);
 
                         addedFiles = newFiles.Count;
@@ -364,8 +362,6 @@ namespace slskd.Shares
         /// <returns>The contents of the directory.</returns>
         public Directory List(string directory)
         {
-            directory = directory.LocalizePath();
-
             if (!State.CurrentValue.Filled)
             {
                 if (State.CurrentValue.Filling)
@@ -387,7 +383,7 @@ namespace slskd.Shares
                     f.Attributes);
             });
 
-            return new Directory(directory.NormalizePath(), files);
+            return new Directory(directory, files);
         }
 
         /// <summary>
@@ -398,8 +394,6 @@ namespace slskd.Shares
         /// <returns>The unmasked filename.</returns>
         public string Resolve(string filename)
         {
-            filename = filename.LocalizePath();
-
             // ensure this is a tracked file
             if (!MaskedFiles.TryGetValue(filename, out _))
             {
@@ -480,12 +474,6 @@ namespace slskd.Shares
             {
                 return results
                     .Select(r => MaskedFiles[r])
-                    .Select(f => new File(
-                        f.Code,
-                        f.Filename.NormalizePath(),
-                        f.Size,
-                        f.Extension,
-                        f.Attributes))
                     .ToList();
             }
             catch (Exception ex)
