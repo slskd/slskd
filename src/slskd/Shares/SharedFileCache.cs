@@ -432,7 +432,7 @@ namespace slskd.Shares
             {
                 Log.Warning($"OriginalFilename populated: {maskedRecord.OriginalFilename}");
                 // todo: use OriginalFilename for all files once masked files are stored in the db
-                return maskedRecord.OriginalFilename;
+                filename = maskedRecord.OriginalFilename;
             }
 
             // if OriginalFilename isn't set, derive the location of the file from the masked
