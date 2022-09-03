@@ -387,7 +387,7 @@ namespace slskd.Shares
                     f.Attributes);
             });
 
-            return new Directory(directory, files);
+            return new Directory(directory.NormalizePath(), files);
         }
 
         /// <summary>
