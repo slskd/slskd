@@ -58,6 +58,7 @@ namespace slskd.Transfers.Uploads
         /// <summary>
         ///     Gets the upload governor.
         /// </summary>
+        public IUploadGovernor Governor { get; init; }
 
         /// <summary>
         ///     Gets the upload queue.
