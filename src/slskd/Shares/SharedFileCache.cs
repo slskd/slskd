@@ -1,4 +1,4 @@
-// <copyright file="SharedFileCache.cs" company="slskd Team">
+﻿// <copyright file="SharedFileCache.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -478,7 +478,15 @@ namespace slskd.Shares
 
             try
             {
-                return results.Select(r => MaskedFiles[r]).ToList();
+                return results
+                    .Select(r => MaskedFiles[r])
+                    .Select(f => new File(
+                        f.Code,
+                        f.Filename.NormalizePath(),
+                        f.Size,
+                        f.Extension,
+                        f.Attributes))
+                    .ToList();
             }
             catch (Exception ex)
             {
