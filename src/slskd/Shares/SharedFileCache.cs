@@ -1,4 +1,4 @@
-﻿// <copyright file="SharedFileCache.cs" company="slskd Team">
+// <copyright file="SharedFileCache.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -137,7 +137,7 @@ namespace slskd.Shares
 
             var groups = MaskedFiles
                 .GroupBy(f => Path.GetDirectoryName(f.Key))
-                .Select(g => new Directory(g.Key, g.Select(g =>
+                .Select(g => new Directory(g.Key.NormalizePath(), g.Select(g =>
                 {
                     var f = g.Value;
                     return new File(
