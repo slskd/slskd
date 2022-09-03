@@ -107,21 +107,13 @@ namespace slskd.Transfers.Uploads
         /// <returns>The operation context.</returns>
         public async Task EnqueueAsync(string username, string filename)
         {
-            string localFilename;
             FileInfo fileInfo = default;
 
             Log.Information("[{Context}] {Username} requested {Filename}", "UPLOAD REQUESTED", username, filename);
 
             try
             {
-                localFilename = await Shares.ResolveFilenameAsync(filename);
-
-                fileInfo = new FileInfo(localFilename);
-
-                if (!fileInfo.Exists)
-                {
-                    throw new NotFoundException();
-                }
+                fileInfo = await Shares.ResolveFileAsync(filename.LocalizePath());
             }
             catch (NotFoundException)
             {
@@ -130,12 +122,12 @@ namespace slskd.Transfers.Uploads
             }
 
             // find existing records for this username and file that haven't been removed from the UI
-            var existingRecords = List(t => t.Username == username && t.Filename == localFilename && !t.Removed);
+            var existingRecords = List(t => t.Username == username && t.Filename == fileInfo.FullName && !t.Removed);
 
             // check whether any of these records is in a non-complete state and bail out if so
             if (existingRecords.Any(t => !t.State.HasFlag(TransferStates.Completed)))
             {
-                Log.Information("Upload {Filename} to {Username} is already queued or in progress", localFilename, username);
+                Log.Information("Upload {Filename} to {Username} is already queued or in progress", fileInfo.FullName, username);
                 return;
             }
 
@@ -146,7 +138,7 @@ namespace slskd.Transfers.Uploads
                 Id = id,
                 Username = username,
                 Direction = TransferDirection.Upload,
-                Filename = localFilename,
+                Filename = fileInfo.FullName,
                 Size = fileInfo.Length,
                 StartOffset = 0, // potentially updated later during handshaking
                 RequestedAt = DateTime.UtcNow,
@@ -192,7 +184,7 @@ namespace slskd.Transfers.Uploads
                     var topts = new TransferOptions(
                         stateChanged: (args) =>
                         {
-                            Log.Debug("Upload of {Filename} to user {Username} changed state from {Previous} to {New}", localFilename, username, args.PreviousState, args.Transfer.State);
+                            Log.Debug("Upload of {Filename} to user {Username} changed state from {Previous} to {New}", fileInfo.FullName, username, args.PreviousState, args.Transfer.State);
 
                             if (Application.IsShuttingDown)
                             {
