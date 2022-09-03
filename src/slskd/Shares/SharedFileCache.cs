@@ -279,20 +279,38 @@ namespace slskd.Shares
 
                         // merge the new dictionary with the rest this will overwrite any duplicate keys, but keys are the fully
                         // qualified name the only time this *should* cause problems is if one of the shares is a subdirectory of another.
-                        foreach (var file in newFiles)
+                        foreach (var record in newFiles)
                         {
-                            if (filters.Any(filter => filter.IsMatch(file.Key)))
+                            var (key, value) = record;
+
+                            if (filters.Any(filter => filter.IsMatch(key)))
                             {
                                 filteredFiles++;
                                 continue;
                             }
 
-                            if (files.ContainsKey(file.Key))
+                            if (files.ContainsKey(key))
                             {
-                                Log.Warning($"File {file.Key} shared in directory {directory} has already been cached.  This is probably a misconfiguration of the shared directories (is a subdirectory being re-shared?).");
+                                Log.Warning($"File {key} shared in directory {directory} has already been cached.  This is probably a misconfiguration of the shared directories (is a subdirectory being re-shared?).");
                             }
 
-                            files[file.Key] = file.Value;
+                            // if we're on an operating system that uses forward slashes, it is possible for filenames to contain
+                            // backslashes. because we normalize directory separators to backslashes before we send results to the network,
+                            // we need to replace any backslashes with a placeholder to prevent things from breaking. we'll capture the original
+                            // filename if we do this so we can resolve the original filename given the replacement without doing any guessing.
+                            if (Path.DirectorySeparatorChar == '/' && value.Filename.Contains('\\'))
+                            {
+                                // todo: store OriginalFilename for all files once masked filenames are stored in the db. we aren't doing this now to reduce memory footprint.
+                                value = new File(
+                                    value.Code,
+                                    value.Filename.Replace('\\', '_'),
+                                    value.Size,
+                                    value.Extension,
+                                    value.Attributes,
+                                    originalFilename: value.Filename);
+                            }
+
+                            files[key] = value;
                         }
                     }
                     catch (Exception ex)
@@ -395,11 +413,24 @@ namespace slskd.Shares
         public string Resolve(string filename)
         {
             // ensure this is a tracked file
-            if (!MaskedFiles.TryGetValue(filename, out _))
+            if (!MaskedFiles.TryGetValue(filename, out var maskedRecord))
             {
                 return null;
             }
 
+            // if the OriginalFilename property of the record was set during the scan,
+            // one or more characters was substituted, and we can't trust the manipulated
+            // path to find the correct file without some degree of guessing. return the
+            // value of OriginalFilename which definitively points to the location on disk.
+            if (!string.IsNullOrEmpty(maskedRecord.Filename))
+            {
+                // todo: use OriginalFilename for all files once masked files are stored in the db
+                return maskedRecord.OriginalFilename;
+            }
+
+            // if OriginalFilename isn't set, derive the location of the file from the masked
+            // filename and share configuration. we don't store OriginalFilename for all records
+            // to reduce memory footprint
             var resolved = filename;
 
             // a well-formed path will consist of a mask, either an alias or a local directory, and a fully qualified path to a
