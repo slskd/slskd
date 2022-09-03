@@ -428,9 +428,9 @@ namespace slskd.Shares
             // one or more characters was substituted, and we can't trust the manipulated
             // path to find the correct file without some degree of guessing. return the
             // value of OriginalFilename which definitively points to the location on disk.
-            if (!string.IsNullOrEmpty(maskedRecord.Filename))
+            if (!string.IsNullOrEmpty(maskedRecord.OriginalFilename))
             {
-                Log.Warning($"OriginalFilename populated: {}");
+                Log.Warning($"OriginalFilename populated: {maskedRecord.OriginalFilename}");
                 // todo: use OriginalFilename for all files once masked files are stored in the db
                 return maskedRecord.OriginalFilename;
             }
