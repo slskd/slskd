@@ -254,7 +254,7 @@ namespace slskd
         }
 
         /// <summary>
-        ///     Converts the given path to the normalized format (normalizes path separators to backslashes)
+        ///     Converts the given path to the normalized format (normalizes path separators to backslashes).
         /// </summary>
         /// <param name="path">The path to convert.</param>
         /// <returns>The converted path.</returns>
@@ -262,7 +262,6 @@ namespace slskd
         {
             return path.Replace('/', '\\');
         }
-
 
         /// <summary>
         ///     Converts the given path to the local format (normalizes path separators to Path.DirectorySeparatorChar).
