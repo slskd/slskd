@@ -415,9 +415,12 @@ namespace slskd.Shares
         /// <returns>The unmasked filename.</returns>
         public string Resolve(string filename)
         {
+            Log.Warning($"Resolving: {filename}");
+
             // ensure this is a tracked file
             if (!MaskedFiles.TryGetValue(filename, out var maskedRecord))
             {
+                Log.Warning("Not tracked");
                 return null;
             }
 
@@ -427,6 +430,7 @@ namespace slskd.Shares
             // value of OriginalFilename which definitively points to the location on disk.
             if (!string.IsNullOrEmpty(maskedRecord.Filename))
             {
+                Log.Warning($"OriginalFilename populated: {}");
                 // todo: use OriginalFilename for all files once masked files are stored in the db
                 return maskedRecord.OriginalFilename;
             }
