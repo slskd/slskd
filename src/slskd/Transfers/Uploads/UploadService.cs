@@ -158,9 +158,9 @@ namespace slskd.Transfers.Uploads
                 using var rateLimiter = new RateLimiter(250, flushOnDispose: true);
                 var syncRoot = new SemaphoreSlim(1, 1);
 
-                void SynchronizedUpdate(Transfer transfer)
+                void SynchronizedUpdate(Transfer transfer, bool cancellable = true)
                 {
-                    syncRoot.Wait(cts.Token);
+                    syncRoot.Wait(cancellable ? cts.Token : CancellationToken.None);
 
                     try
                     {
@@ -228,16 +228,16 @@ namespace slskd.Transfers.Uploads
 
                     transfer = transfer.WithSoulseekTransfer(completedTransfer);
                     //todo: broadcast
-                    SynchronizedUpdate(transfer);
+                    SynchronizedUpdate(transfer, cancellable: false);
                 }
-                catch (TaskCanceledException ex)
+                catch (OperationCanceledException ex)
                 {
                     transfer.EndedAt = DateTime.UtcNow;
                     transfer.Exception = ex.Message;
                     transfer.State = TransferStates.Completed | TransferStates.Cancelled;
 
                     // todo: broadcast
-                    SynchronizedUpdate(transfer);
+                    SynchronizedUpdate(transfer, cancellable: false);
 
                     throw;
                 }
@@ -250,7 +250,7 @@ namespace slskd.Transfers.Uploads
                     transfer.State = TransferStates.Completed | TransferStates.Errored;
 
                     // todo: broadcast
-                    SynchronizedUpdate(transfer);
+                    SynchronizedUpdate(transfer, cancellable: false);
 
                     throw;
                 }
