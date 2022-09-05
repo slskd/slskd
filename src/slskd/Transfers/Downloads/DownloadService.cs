@@ -154,9 +154,9 @@ namespace slskd.Transfers.Downloads
                             using var rateLimiter = new RateLimiter(250, flushOnDispose: true);
                             var syncRoot = new SemaphoreSlim(1, 1);
 
-                            void SynchronizedUpdate(Transfer transfer)
+                            void SynchronizedUpdate(Transfer transfer, bool cancellable = true)
                             {
-                                syncRoot.Wait(cts.Token);
+                                syncRoot.Wait(cancellable ? cts.Token : CancellationToken.None);
 
                                 try
                                 {
@@ -215,7 +215,7 @@ namespace slskd.Transfers.Downloads
 
                                 transfer = transfer.WithSoulseekTransfer(completedTransfer);
                                 // todo: broadcast
-                                SynchronizedUpdate(transfer);
+                                SynchronizedUpdate(transfer, cancellable: false);
 
                                 // this would be the ideal place to hook in a generic post-download task processor for now, we'll
                                 // just carry out hard coded behavior. these carry the risk of failing the transfer, and i could
@@ -227,14 +227,14 @@ namespace slskd.Transfers.Downloads
                                     _ = FTP.UploadAsync(file.Filename.ToLocalFilename(OptionsMonitor.CurrentValue.Directories.Downloads));
                                 }
                             }
-                            catch (TaskCanceledException ex)
+                            catch (OperationCanceledException ex)
                             {
                                 transfer.EndedAt = DateTime.UtcNow;
                                 transfer.Exception = ex.Message;
                                 transfer.State = TransferStates.Completed | TransferStates.Cancelled;
 
                                 // todo: broadcast
-                                SynchronizedUpdate(transfer);
+                                SynchronizedUpdate(transfer, cancellable: false);
 
                                 throw;
                             }
@@ -247,7 +247,7 @@ namespace slskd.Transfers.Downloads
                                 transfer.State = TransferStates.Completed | TransferStates.Errored;
 
                                 // todo: broadcast
-                                SynchronizedUpdate(transfer);
+                                SynchronizedUpdate(transfer, cancellable: false);
 
                                 throw;
                             }
