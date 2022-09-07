@@ -512,6 +512,7 @@ namespace slskd.Shares
             using var filenames = new SqliteCommand("DROP TABLE IF EXISTS filenames; CREATE VIRTUAL TABLE filenames USING fts5(maskedFilename);", SQLite);
             filenames.ExecuteNonQuery();
 
+            // todo add metadata columns
             using var metadata = new SqliteCommand("DROP TABLE IF EXISTS files; CREATE TABLE files (maskedFilename TEXT PRIMARY KEY, originalFilename TEXT NOT NULL, scannedAt TEXT NOT NULL, touchedAt TEXT NOT NULL, metadata TEXT NOT NULL);", SQLite);
             metadata.ExecuteNonQuery();
         }
@@ -541,6 +542,7 @@ namespace slskd.Shares
 
             while (reader.Read())
             {
+                // todo create an instance of Soulseek.File from metadata columns
                 var maskedFilename = reader.GetString(0);
                 var metadata = reader.GetString(1);
 
@@ -572,6 +574,7 @@ namespace slskd.Shares
             filename.Parameters.AddWithValue("maskedFilename", maskedFilename);
             filename.ExecuteNonQuery();
 
+            // todo insert metadata into columns instead of json
             using var metadata = new SqliteCommand("INSERT INTO files (maskedFilename, originalFilename, scannedAt, touchedAt, metadata) " +
                 "VALUES(@maskedFilename, @originalFilename, @scannedAt, @touchedAt, @metadata) " +
                 "ON CONFLICT DO UPDATE SET originalFilename = excluded.originalFilename, scannedAt = excluded.scannedAt, touchedAt = excluded.touchedAt, metadata = excluded.metadata;", SQLite);
