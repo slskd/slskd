@@ -20,7 +20,6 @@ using System.IO;
 namespace slskd.Shares
 {
     using System;
-    using System.Collections.Concurrent;
     using System.Collections.Generic;
     using System.Diagnostics;
     using System.Linq;
@@ -116,45 +115,17 @@ namespace slskd.Shares
             {
                 if (State.CurrentValue.Filling)
                 {
-                    return new[] { new Directory("Scanning shares, please check back in a few minutes.") };
+                    yield return new Directory("Scanning shares, please check back in a few minutes.");
                 }
 
-                return Enumerable.Empty<Directory>();
+                yield break;
             }
 
-            var directories = new ConcurrentDictionary<string, Directory>();
-
-            // Soulseek requires that each directory in the tree have an entry in the list returned in a browse response. if
-            // missing, files that are nested within directories which contain only directories (no files) are displayed as being
-            // in the root. to get around this, prime a dictionary with all known directories, and an empty Soulseek.Directory. if
-            // there are any files in the directory, this entry will be overwritten with a new Soulseek.Directory containing the
-            // files. if not they'll be left as is.
-            foreach (var directory in ListDirectories())
+            foreach (var directory in ListDirectories().OrderBy(d => d))
             {
-                directories.TryAdd(directory, new Directory(directory));
+                var files = ListFiles(directory);
+                yield return new Directory(directory, files);
             }
-
-            var groups = ListFiles()
-                .GroupBy(f => Path.GetDirectoryName(f.Key))
-                .Select(g => new Directory(g.Key, g.Select(g =>
-                {
-                    var f = g.Value;
-                    return new File(
-                        f.Code,
-                        Path.GetFileName(f.Filename), // we can send the full path, or just the filename.  save bandwidth and omit the path.
-                        f.Size,
-                        f.Extension,
-                        f.Attributes);
-                })));
-
-            // merge the dictionary containing all directories with the Soulseek.Directory instances containing their files.
-            // entries with no files will remain untouched.
-            foreach (var group in groups)
-            {
-                directories.AddOrUpdate(group.Name, group, (_, _) => group);
-            }
-
-            return directories.Values.OrderBy(f => f.Name);
         }
 
         /// <summary>
@@ -306,7 +277,7 @@ namespace slskd.Shares
                             }
 
                             files[file.Key] = file.Value;
-                            InsertFile(maskedFilename: file.Key, originalFilename: file.Key, scannedAt, touchedAt: DateTime.UtcNow, file.Value);
+                            InsertFile(maskedFilename: file.Key, originalFilename: file.Key, scannedAt, file.Value);
                         }
                     }
                     catch (Exception ex)
@@ -385,17 +356,7 @@ namespace slskd.Shares
                 return null;
             }
 
-            var files = MaskedFiles.Where(f => f.Key.StartsWith(directory)).Select(kvp =>
-            {
-                var f = kvp.Value;
-                return new File(
-                    f.Code,
-                    Path.GetFileName(f.Filename),
-                    f.Size,
-                    f.Extension,
-                    f.Attributes);
-            });
-
+            var files = ListFiles(directory);
             return new Directory(directory, files);
         }
 
@@ -506,22 +467,23 @@ namespace slskd.Shares
             SQLite = new SqliteConnection(Program.ConnectionStrings.Shares);
             SQLite.Open();
 
-            using var directories = new SqliteCommand("DROP TABLE IF EXISTS directories; CREATE TABLE directories (name TEXT PRIMARY KEY);", SQLite);
-            directories.ExecuteNonQuery();
+            SQLite.ExecuteNonQuery("DROP TABLE IF EXISTS directories; CREATE TABLE directories (name TEXT PRIMARY KEY);");
 
-            using var filenames = new SqliteCommand("DROP TABLE IF EXISTS filenames; CREATE VIRTUAL TABLE filenames USING fts5(maskedFilename);", SQLite);
-            filenames.ExecuteNonQuery();
+            SQLite.ExecuteNonQuery("DROP TABLE IF EXISTS filenames; CREATE VIRTUAL TABLE filenames USING fts5(maskedFilename);");
 
-            // todo add metadata columns
-            using var metadata = new SqliteCommand("DROP TABLE IF EXISTS files; CREATE TABLE files (maskedFilename TEXT PRIMARY KEY, originalFilename TEXT NOT NULL, scannedAt TEXT NOT NULL, touchedAt TEXT NOT NULL, metadata TEXT NOT NULL);", SQLite);
-            metadata.ExecuteNonQuery();
+            SQLite.ExecuteNonQuery("DROP TABLE IF EXISTS files; CREATE TABLE files " +
+                "(maskedFilename TEXT PRIMARY KEY, originalFilename TEXT NOT NULL, size BIGINT NOT NULL, touchedAt TEXT NOT NULL, code INTEGER DEFAULT 1 NOT NULL, " +
+                "extension TEXT, attributeJson TEXT NOT NULL);");
+
+            SQLite.ExecuteNonQuery("DROP TABLE IF EXISTS excluded; CREATE TABLE excluded (originalFilename TEXT PRIMARY KEY);");
         }
 
         private void InsertDirectory(string name)
         {
-            using var cmd = new SqliteCommand("INSERT INTO directories VALUES(@name) ON CONFLICT DO NOTHING;", SQLite);
-            cmd.Parameters.AddWithValue("name", name);
-            cmd.ExecuteNonQuery();
+            SQLite.ExecuteNonQuery("INSERT INTO directories VALUES(@name) ON CONFLICT DO NOTHING;", cmd =>
+            {
+                cmd.Parameters.AddWithValue("name", name);
+            });
         }
 
         private IEnumerable<string> ListDirectories()
@@ -535,20 +497,42 @@ namespace slskd.Shares
             }
         }
 
-        private IEnumerable<KeyValuePair<string, File>> ListFiles()
+        private IEnumerable<File> ListFiles(string directory = null)
         {
-            using var cmd = new SqliteCommand("SELECT maskedFilename, metadata FROM files;", SQLite);
-            var reader = cmd.ExecuteReader();
+            SqliteCommand cmd = default;
 
-            while (reader.Read())
+            try
             {
-                // todo create an instance of Soulseek.File from metadata columns
-                var maskedFilename = reader.GetString(0);
-                var metadata = reader.GetString(1);
+                if (string.IsNullOrEmpty(directory))
+                {
+                    cmd = new SqliteCommand("SELECT maskedFilename, code, size, extension, attributeJson FROM files;", SQLite);
+                }
+                else
+                {
+                    cmd = new SqliteCommand("SELECT maskedFilename, code, size, extension, attributeJson FROM files WHERE maskedFilename LIKE @match", SQLite);
+                    cmd.Parameters.AddWithValue("match", directory + '%');
+                }
 
-                Console.WriteLine($"fn: {maskedFilename}, metadata: {metadata}");
+                var reader = cmd.ExecuteReader();
 
-                yield return KeyValuePair.Create(maskedFilename, metadata.FromJson<File>());
+                while (reader.Read())
+                {
+                    var filename = reader.GetString(0);
+                    var code = reader.GetInt32(1);
+                    var size = reader.GetInt64(2);
+                    var extension = reader.GetString(3);
+                    var attributeJson = reader.GetString(4);
+
+                    var attributeList = attributeJson.FromJson<List<FileAttribute>>();
+
+                    var file = new File(code, filename: Path.GetFileName(filename), size, extension, attributeList);
+
+                    yield return file;
+                }
+            }
+            finally
+            {
+                cmd?.Dispose();
             }
         }
 
@@ -568,22 +552,25 @@ namespace slskd.Shares
             return reader.GetInt32(0);
         }
 
-        private void InsertFile(string maskedFilename, string originalFilename, DateTime scannedAt, DateTime touchedAt, File file)
+        private void InsertFile(string maskedFilename, string originalFilename, DateTime touchedAt, File file)
         {
-            using var filename = new SqliteCommand($"INSERT INTO filenames(maskedFilename) VALUES(@maskedFilename)", SQLite);
-            filename.Parameters.AddWithValue("maskedFilename", maskedFilename);
-            filename.ExecuteNonQuery();
+            SQLite.ExecuteNonQuery("INSERT INTO filenames(maskedFilename) VALUES(@maskedFilename);", cmd =>
+            {
+                cmd.Parameters.AddWithValue("maskedFilename", maskedFilename);
+            });
 
-            // todo insert metadata into columns instead of json
-            using var metadata = new SqliteCommand("INSERT INTO files (maskedFilename, originalFilename, scannedAt, touchedAt, metadata) " +
-                "VALUES(@maskedFilename, @originalFilename, @scannedAt, @touchedAt, @metadata) " +
-                "ON CONFLICT DO UPDATE SET originalFilename = excluded.originalFilename, scannedAt = excluded.scannedAt, touchedAt = excluded.touchedAt, metadata = excluded.metadata;", SQLite);
-            metadata.Parameters.AddWithValue("maskedFilename", maskedFilename);
-            metadata.Parameters.AddWithValue("originalFilename", originalFilename);
-            metadata.Parameters.AddWithValue("scannedAt", scannedAt.ToShortDateString());
-            metadata.Parameters.AddWithValue("touchedAt", touchedAt.ToShortDateString());
-            metadata.Parameters.AddWithValue("metadata", file.ToJson());
-            metadata.ExecuteNonQuery();
+            SQLite.ExecuteNonQuery("INSERT INTO files (maskedFilename, originalFilename, size, touchedAt, code, extension, attributeJson) " +
+                "VALUES(@maskedFilename, @originalFilename, @size, @touchedAt, @code, @extension, @attributeJson) " +
+                "ON CONFLICT DO UPDATE SET originalFilename = excluded.originalFilename, size = excluded.size, touchedAt = excluded.touchedAt, code = excluded.code, extension = excluded.extension, attributeJson = excluded.attributeJson;", cmd =>
+                {
+                    cmd.Parameters.AddWithValue("maskedFilename", maskedFilename);
+                    cmd.Parameters.AddWithValue("originalFilename", originalFilename);
+                    cmd.Parameters.AddWithValue("size", file.Size);
+                    cmd.Parameters.AddWithValue("touchedAt", touchedAt.ToLongDateString());
+                    cmd.Parameters.AddWithValue("code", file.Code);
+                    cmd.Parameters.AddWithValue("extension", file.Extension);
+                    cmd.Parameters.AddWithValue("attributeJson", file.Attributes.ToJson());
+                });
         }
 
         private void ResetCache()
