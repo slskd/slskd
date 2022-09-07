@@ -99,7 +99,6 @@ namespace slskd.Shares
         public IStateMonitor<SharedFileCacheState> StateMonitor => State;
 
         private ILogger Log { get; } = Serilog.Log.ForContext<SharedFileCache>();
-        private HashSet<string> MaskedDirectories { get; set; }
         private Dictionary<string, File> MaskedFiles { get; set; }
         private List<Share> Shares { get; set; }
         private ISoulseekFileFactory SoulseekFileFactory { get; }
@@ -130,12 +129,12 @@ namespace slskd.Shares
             // in the root. to get around this, prime a dictionary with all known directories, and an empty Soulseek.Directory. if
             // there are any files in the directory, this entry will be overwritten with a new Soulseek.Directory containing the
             // files. if not they'll be left as is.
-            foreach (var directory in MaskedDirectories)
+            foreach (var directory in ListDirectories())
             {
                 directories.TryAdd(directory, new Directory(directory));
             }
 
-            var groups = MaskedFiles
+            var groups = ListFiles()
                 .GroupBy(f => Path.GetDirectoryName(f.Key))
                 .Select(g => new Directory(g.Key, g.Select(g =>
                 {
@@ -188,6 +187,7 @@ namespace slskd.Shares
 
                 ResetCache();
 
+                var scannedAt = DateTime.UtcNow;
                 var sw = new Stopwatch();
                 var swSnapshot = 0L;
                 sw.Start();
@@ -265,6 +265,7 @@ namespace slskd.Shares
                     var share = Shares.First(share => directory.StartsWith(share.LocalPath));
 
                     maskedDirectories.Add(directory.ReplaceFirst(share.LocalPath, share.RemotePath));
+                    InsertDirectory(directory.ReplaceFirst(share.LocalPath, share.RemotePath));
 
                     // recursively find all files in the directory and stick a record in a dictionary, keyed on the sanitized
                     // filename and with a value of a Soulseek.File object
@@ -305,6 +306,7 @@ namespace slskd.Shares
                             }
 
                             files[file.Key] = file.Value;
+                            InsertFile(maskedFilename: file.Key, originalFilename: file.Key, scannedAt, touchedAt: DateTime.UtcNow, file.Value);
                         }
                     }
                     catch (Exception ex)
@@ -332,15 +334,14 @@ namespace slskd.Shares
                 Log.Debug("Directory scan found {Files} files (and {Filtered} were filtered) in {Elapsed}ms.  Populating filename database", files.Count, filtered, sw.ElapsedMilliseconds - swSnapshot);
                 swSnapshot = sw.ElapsedMilliseconds;
 
-                // potentially optimize with multi-valued insert https://stackoverflow.com/questions/16055566/insert-multiple-rows-in-sqlite
-                foreach (var file in files)
-                {
-                    InsertFilename(file.Key);
-                }
+                //// potentially optimize with multi-valued insert https://stackoverflow.com/questions/16055566/insert-multiple-rows-in-sqlite
+                //foreach (var file in files)
+                //{
+                //    InsertFile(maskedFilename: file.Key, file.Value);
+                //}
 
                 Log.Debug("Inserted {Files} records in {Elapsed}ms", files.Count, sw.ElapsedMilliseconds - swSnapshot);
 
-                MaskedDirectories = maskedDirectories;
                 MaskedFiles = files;
 
                 State.SetValue(state => state with
@@ -349,8 +350,8 @@ namespace slskd.Shares
                     Faulted = false,
                     Filled = true,
                     FillProgress = 1,
-                    Directories = MaskedDirectories.Count,
-                    Files = MaskedFiles.Count,
+                    Directories = CountDirectories(),
+                    Files = CountFiles(),
                 });
 
                 Log.Debug($"Shared file cache recreated in {sw.ElapsedMilliseconds}ms.  Directories: {unmaskedDirectories.Count}, Files: {files.Count}");
@@ -460,12 +461,12 @@ namespace slskd.Shares
             var match = string.Join(" AND ", query.Terms.Select(token => $"\"{Clean(token)}\""));
             var exclusions = string.Join(" OR ", query.Exclusions.Select(exclusion => $"\"{Clean(exclusion)}\""));
 
-            var sql = $"SELECT * FROM cache WHERE cache MATCH '({match}) {(query.Exclusions.Any() ? $"NOT ({exclusions})" : string.Empty)}'";
+            var sql = $"SELECT * FROM filenames WHERE filenames MATCH '({match}) {(query.Exclusions.Any() ? $"NOT ({exclusions})" : string.Empty)}'";
             var results = new List<string>();
 
             try
             {
-                using var conn = new SqliteConnection($"Data Source={Path.Combine(Program.AppDirectory, "data", "shares.db")};cache=shared");
+                using var conn = new SqliteConnection(Program.ConnectionStrings.Shares);
                 using var cmd = new SqliteCommand(sql, conn);
                 await conn.OpenAsync();
 
@@ -495,31 +496,96 @@ namespace slskd.Shares
             }
         }
 
-        private void CreateTable()
+        private void CreateTables()
         {
             if (SQLite != null)
             {
                 SQLite.Dispose();
             }
 
-            SQLite = new SqliteConnection($"Data Source={Path.Combine(Program.AppDirectory, "data", "shares.db")};cache=shared");
+            SQLite = new SqliteConnection(Program.ConnectionStrings.Shares);
             SQLite.Open();
 
-            using var cmd = new SqliteCommand("DROP TABLE IF EXISTS cache; CREATE VIRTUAL TABLE cache USING fts5(filename);", SQLite);
+            using var directories = new SqliteCommand("DROP TABLE IF EXISTS directories; CREATE TABLE directories (name TEXT PRIMARY KEY);", SQLite);
+            directories.ExecuteNonQuery();
+
+            using var filenames = new SqliteCommand("DROP TABLE IF EXISTS filenames; CREATE VIRTUAL TABLE filenames USING fts5(maskedFilename);", SQLite);
+            filenames.ExecuteNonQuery();
+
+            using var metadata = new SqliteCommand("DROP TABLE IF EXISTS files; CREATE TABLE files (maskedFilename TEXT PRIMARY KEY, originalFilename TEXT NOT NULL, scannedAt TEXT NOT NULL, touchedAt TEXT NOT NULL, metadata TEXT NOT NULL);", SQLite);
+            metadata.ExecuteNonQuery();
+        }
+
+        private void InsertDirectory(string name)
+        {
+            using var cmd = new SqliteCommand("INSERT INTO directories VALUES(@name) ON CONFLICT DO NOTHING;", SQLite);
+            cmd.Parameters.AddWithValue("name", name);
             cmd.ExecuteNonQuery();
         }
 
-        private void InsertFilename(string filename)
+        private IEnumerable<string> ListDirectories()
         {
-            using var cmd = new SqliteCommand($"INSERT INTO cache(filename) VALUES(@filename)", SQLite);
-            cmd.Parameters.AddWithValue("filename", filename);
-            cmd.ExecuteNonQuery();
+            using var cmd = new SqliteCommand("SELECT * FROM directories;", SQLite);
+            var reader = cmd.ExecuteReader();
+
+            while (reader.Read())
+            {
+                yield return reader.GetString(0);
+            }
+        }
+
+        private IEnumerable<KeyValuePair<string, File>> ListFiles()
+        {
+            using var cmd = new SqliteCommand("SELECT maskedFilename, metadata FROM files;", SQLite);
+            var reader = cmd.ExecuteReader();
+
+            while (reader.Read())
+            {
+                var maskedFilename = reader.GetString(0);
+                var metadata = reader.GetString(1);
+
+                Console.WriteLine($"fn: {maskedFilename}, metadata: {metadata}");
+
+                yield return KeyValuePair.Create(maskedFilename, metadata.FromJson<File>());
+            }
+        }
+
+        private int CountDirectories()
+        {
+            using var cmd = new SqliteCommand("SELECT COUNT(*) FROM directories;", SQLite);
+            var reader = cmd.ExecuteReader();
+            reader.Read();
+            return reader.GetInt32(0);
+        }
+
+        private int CountFiles()
+        {
+            using var cmd = new SqliteCommand("SELECT COUNT(*) FROM files;", SQLite);
+            var reader = cmd.ExecuteReader();
+            reader.Read();
+            return reader.GetInt32(0);
+        }
+
+        private void InsertFile(string maskedFilename, string originalFilename, DateTime scannedAt, DateTime touchedAt, File file)
+        {
+            using var filename = new SqliteCommand($"INSERT INTO filenames(maskedFilename) VALUES(@maskedFilename)", SQLite);
+            filename.Parameters.AddWithValue("maskedFilename", maskedFilename);
+            filename.ExecuteNonQuery();
+
+            using var metadata = new SqliteCommand("INSERT INTO files (maskedFilename, originalFilename, scannedAt, touchedAt, metadata) " +
+                "VALUES(@maskedFilename, @originalFilename, @scannedAt, @touchedAt, @metadata) " +
+                "ON CONFLICT DO UPDATE SET originalFilename = excluded.originalFilename, scannedAt = excluded.scannedAt, touchedAt = excluded.touchedAt, metadata = excluded.metadata;", SQLite);
+            metadata.Parameters.AddWithValue("maskedFilename", maskedFilename);
+            metadata.Parameters.AddWithValue("originalFilename", originalFilename);
+            metadata.Parameters.AddWithValue("scannedAt", scannedAt.ToShortDateString());
+            metadata.Parameters.AddWithValue("touchedAt", touchedAt.ToShortDateString());
+            metadata.Parameters.AddWithValue("metadata", file.ToJson());
+            metadata.ExecuteNonQuery();
         }
 
         private void ResetCache()
         {
-            CreateTable();
-            MaskedDirectories = new HashSet<string>();
+            CreateTables();
             MaskedFiles = new Dictionary<string, File>();
             State.SetValue(state => state with { Directories = 0, Files = 0 });
         }
