@@ -260,9 +260,9 @@ namespace slskd
 
             ConnectionStrings = new()
             {
-                Search = $"Data Source={Path.Combine(DataDirectory, "search.db")};Cache=shared;Pooling=True;",
-                Transfers = $"Data Source={Path.Combine(DataDirectory, "transfers.db")};Cache=shared;Pooling=True;",
-                Shares = $"Data Source={Path.Combine(DataDirectory, "shares.db")};Cache=shared",
+                Search = $"Data Source={Path.Combine(DataDirectory, Filenames.SearchDb)};Cache=shared;Pooling=True;",
+                Transfers = $"Data Source={Path.Combine(DataDirectory, Filenames.TransfersDb)};Cache=shared;Pooling=True;",
+                Shares = $"Data Source={Path.Combine(DataDirectory, Filenames.SharesDb)};Cache=shared",
             };
 
             DefaultConfigurationFile = Path.Combine(AppDirectory, $"{AppName}.yml");
