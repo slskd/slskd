@@ -154,11 +154,6 @@ namespace slskd.Shares
                 r.Attributes)));
         }
 
-        public void LoadFromDisk()
-        {
-            Cache.Load();
-        }
-
         /// <summary>
         ///     Starts a scan of the configured shares.
         /// </summary>
@@ -167,6 +162,15 @@ namespace slskd.Shares
         public Task StartScanAsync()
         {
             return Cache.FillAsync(Shares, FilterRegexes);
+        }
+
+        /// <summary>
+        ///     Attempt to load shares from disk.
+        /// </summary>
+        /// <returns>A value indicating whether shares were loaded.</returns>
+        public Task<bool> TryLoadFromDiskAsync()
+        {
+            return Task.FromResult(Cache.TryLoad());
         }
 
         private void Configure(Options options)
