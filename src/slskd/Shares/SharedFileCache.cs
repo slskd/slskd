@@ -47,7 +47,11 @@ namespace slskd.Shares
         /// <returns>The contents of the cache.</returns>
         IEnumerable<Directory> Browse();
 
-        void Load();
+        /// <summary>
+        ///     Attempts to load the cache from disk.
+        /// </summary>
+        /// <returns>A value indicating whether the load was successful.</returns>
+        bool TryLoad();
 
         /// <summary>
         ///     Scans the configured shares and fills the cache.
@@ -185,17 +189,36 @@ namespace slskd.Shares
             return directories.Values;
         }
 
-        public void Load()
+        /// <summary>
+        ///     Attempts to load the cache from disk.
+        /// </summary>
+        /// <returns>A value indicating whether the load was successful.</returns>
+        public bool TryLoad()
         {
-            State.SetValue(state => state with
+            try
             {
-                Filling = false,
-                Faulted = false,
-                Filled = true,
-                FillProgress = 1,
-                Directories = CountDirectories(),
-                Files = CountFiles(),
-            });
+                if (TableExists("directories") && TableExists("filenames") && TableExists("files") && TableExists("exclusions"))
+                {
+                    State.SetValue(state => state with
+                    {
+                        Filling = false,
+                        Faulted = false,
+                        Filled = true,
+                        FillProgress = 1,
+                        Directories = CountDirectories(),
+                        Files = CountFiles(),
+                    });
+
+                    return true;
+                }
+
+                return false;
+            }
+            catch (Exception ex)
+            {
+                Log.Debug(ex, "Error loading shared file cache: {Message}", ex.Message);
+                return false;
+            }
         }
 
         /// <summary>
@@ -511,7 +534,7 @@ namespace slskd.Shares
                 "(maskedFilename TEXT PRIMARY KEY, originalFilename TEXT NOT NULL, size BIGINT NOT NULL, touchedAt TEXT NOT NULL, code INTEGER DEFAULT 1 NOT NULL, " +
                 "extension TEXT, attributeJson TEXT NOT NULL);");
 
-            conn.ExecuteNonQuery("DROP TABLE IF EXISTS excluded; CREATE TABLE excluded (originalFilename TEXT PRIMARY KEY);");
+            conn.ExecuteNonQuery("DROP TABLE IF EXISTS exclusions; CREATE TABLE exclusions (originalFilename TEXT PRIMARY KEY);");
         }
 
         private void InsertDirectory(string name)
@@ -618,9 +641,40 @@ namespace slskd.Shares
                 });
         }
 
+        private bool TableExists(string table)
+        {
+            using var conn = GetConnection();
+            using var cmd = new SqliteCommand("SELECT name from sqlite_master WHERE type = 'table' AND name = @table;", conn);
+            cmd.Parameters.AddWithValue("table", table);
+            var reader = cmd.ExecuteReader();
+
+            if (reader.Read())
+            {
+                var fetchedTable = reader.GetString(0);
+                Console.WriteLine($"Fetched: {fetchedTable}");
+                return table == fetchedTable;
+            }
+            else
+            {
+                Console.WriteLine("Read() was false");
+            }
+
+            return false;
+        }
+
         private void ResetCache()
         {
             CreateTables();
+
+            try
+            {
+                System.IO.File.Delete(Path.Combine(Program.DataDirectory, Filenames.BrowseCache));
+            }
+            catch (FileNotFoundException)
+            {
+                // noop
+            }
+
             State.SetValue(state => state with { Directories = 0, Files = 0 });
         }
     }
