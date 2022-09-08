@@ -369,22 +369,23 @@ namespace slskd
                 _ = CheckVersionAsync();
             }
 
-            //if (OptionsAtStartup.Flags.NoShareScan)
-            //{
-            //    Log.Warning("Not scanning shares; 'no-share-scan' option is enabled.  Search and browse results will remain disabled until a manual scan is completed.");
-            //}
-            //else
-            //{
-            //    _ = Shares.StartScanAsync();
-            //}
+            if (await Shares.TryLoadFromDiskAsync())
+            {
+                Log.Information("Loaded share cache from disk");
+            }
+            else
+            {
+                Log.Warning("Failed to load share cache from disk. A share scan is required.");
 
-            Shares.LoadFromDisk();
-            Log.Information("Shares loaded from disk");
-
-            Log.Information("Caching browse response...");
-            var browse = new BrowseResponse(await Shares.BrowseAsync()).ToByteArray();
-            System.IO.File.WriteAllBytes(Path.Combine(Program.DataDirectory, "browse.cache"), browse);
-            Log.Information("Browse response cached.");
+                if (OptionsAtStartup.Flags.NoShareScan)
+                {
+                    Log.Warning("Not scanning shares; 'no-share-scan' option is enabled.  Search and browse results will remain disabled until a manual scan is completed.");
+                }
+                else
+                {
+                    _ = Shares.StartScanAsync();
+                }
+            }
 
             if (OptionsAtStartup.Flags.NoConnect)
             {
@@ -427,19 +428,32 @@ namespace slskd
 
                 BrowseResponse response = default;
 
-                var cacheFilename = Path.Combine(Program.DataDirectory, "browse.cache");
+                var cacheFilename = Path.Combine(Program.DataDirectory, Filenames.BrowseCache);
                 var cacheFileInfo = new System.IO.FileInfo(cacheFilename);
 
-                if (cacheFileInfo.Exists)
+                if (!cacheFileInfo.Exists)
                 {
-                    var stream = new System.IO.FileStream(cacheFilename, FileMode.Open, FileAccess.Read);
-                    response = new RawBrowseResponse(cacheFileInfo.Length, stream);
-                }
-                else
-                {
+                    Log.Warning("Browse response not cached. Rebuilding...");
+
                     var directories = await Shares.BrowseAsync();
                     response = new BrowseResponse(directories);
+
+                    Log.Information("Caching browse response...");
+                    System.IO.File.WriteAllBytes(cacheFilename, response.ToByteArray());
+                    Log.Information("Browse response cached successfully");
                 }
+
+                cacheFileInfo = new System.IO.FileInfo(cacheFilename);
+
+                if (!cacheFileInfo.Exists)
+                {
+                    throw new IOException("Unable to access recently written browse cache; is the file still open?");
+                }
+
+                var stream = new System.IO.FileStream(cacheFilename, FileMode.Open, FileAccess.Read);
+                response = new RawBrowseResponse(cacheFileInfo.Length, stream);
+
+                Log.Information("Returned cached browse response for {User}", username);
 
                 sw.Stop();
 
