@@ -20,6 +20,7 @@ using System.IO;
 namespace slskd.Shares
 {
     using System;
+    using System.Collections.Concurrent;
     using System.Collections.Generic;
     using System.Diagnostics;
     using System.Linq;
@@ -129,16 +130,22 @@ namespace slskd.Shares
                 return Enumerable.Empty<Directory>();
             }
 
-            //foreach (var directory in ListDirectories().OrderBy(d => d))
-            //{
-            //    var files = ListFiles(directory);
-            //    yield return new Directory(directory, files);
-            //}
+            var directories = new ConcurrentDictionary<string, Directory>();
+
+            // Soulseek requires that each directory in the tree have an entry in the list returned in a browse response. if
+            // missing, files that are nested within directories which contain only directories (no files) are displayed as being
+            // in the root. to get around this, prime a dictionary with all known directories, and an empty Soulseek.Directory. if
+            // there are any files in the directory, this entry will be overwritten with a new Soulseek.Directory containing the
+            // files. if not they'll be left as is.
+            foreach (var directory in ListDirectories())
+            {
+                directories.TryAdd(directory, new Directory(directory));
+            }
 
             var files = new List<File>();
 
             using var conn = GetConnection();
-            using var cmd = new SqliteCommand("SELECT maskedFilename, code, size, extension, attributeJson FROM files;", conn);
+            using var cmd = new SqliteCommand("SELECT maskedFilename, code, size, extension, attributeJson FROM files ORDER BY maskedFilename ASC;", conn);
             var reader = cmd.ExecuteReader();
 
             while (reader.Read())
@@ -151,14 +158,12 @@ namespace slskd.Shares
 
                 var attributeList = attributeJson.FromJson<List<FileAttribute>>();
 
-                var file = new File(code, filename: Path.GetFileName(filename), size, extension, attributeList);
+                var file = new File(code, filename, size, extension, attributeList);
 
                 files.Add(file);
             }
 
-            Console.WriteLine($"Fetched {files.Count} files, slicing and dicing...");
-
-            var directories = files
+            var groups = files
                 .GroupBy(file => Path.GetDirectoryName(file.Filename))
                 .Select(group => new Directory(group.Key, group.Select(f =>
                 {
@@ -170,8 +175,14 @@ namespace slskd.Shares
                         f.Attributes);
                 })));
 
-            Console.WriteLine($"Sliced and diced, returning...");
-            return directories;
+            // merge the dictionary containing all directories with the Soulseek.Directory instances containing their files.
+            // entries with no files will remain untouched.
+            foreach (var group in groups)
+            {
+                directories.AddOrUpdate(group.Name, group, (_, _) => group);
+            }
+
+            return directories.Values;
         }
 
         public void Load()
@@ -517,7 +528,7 @@ namespace slskd.Shares
         {
             using var conn = GetConnection();
 
-            using var cmd = new SqliteCommand("SELECT * FROM directories;", conn);
+            using var cmd = new SqliteCommand("SELECT name FROM directories ORDER BY name ASC;", conn);
             var reader = cmd.ExecuteReader();
 
             while (reader.Read())
@@ -535,11 +546,11 @@ namespace slskd.Shares
             {
                 if (string.IsNullOrEmpty(directory))
                 {
-                    cmd = new SqliteCommand("SELECT maskedFilename, code, size, extension, attributeJson FROM files;", conn);
+                    cmd = new SqliteCommand("SELECT maskedFilename, code, size, extension, attributeJson FROM files ORDER BY maskedFilename ASC;", conn);
                 }
                 else
                 {
-                    cmd = new SqliteCommand("SELECT maskedFilename, code, size, extension, attributeJson FROM files WHERE maskedFilename LIKE @match", conn);
+                    cmd = new SqliteCommand("SELECT maskedFilename, code, size, extension, attributeJson FROM files WHERE maskedFilename LIKE @match ORDER BY maskedFilename ASC;", conn);
                     cmd.Parameters.AddWithValue("match", directory + '%');
                 }
 
