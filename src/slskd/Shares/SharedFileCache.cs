@@ -622,7 +622,7 @@ namespace slskd.Shares
         {
             using var conn = GetConnection();
 
-            conn.ExecuteNonQuery("INSERT INTO filenames(maskedFilename) VALUES(@maskedFilename);", cmd =>
+            conn.ExecuteNonQuery("INSERT INTO filenames (maskedFilename) VALUES(@maskedFilename);", cmd =>
             {
                 cmd.Parameters.AddWithValue("maskedFilename", maskedFilename);
             });
