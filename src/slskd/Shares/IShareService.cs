@@ -75,5 +75,7 @@ namespace slskd.Shares
         /// <returns>The operation context.</returns>
         /// <exception cref="ShareScanInProgressException">Thrown when a scan is already in progress.</exception>
         Task StartScanAsync();
+
+        void LoadFromDisk();
     }
 }

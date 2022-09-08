@@ -369,14 +369,22 @@ namespace slskd
                 _ = CheckVersionAsync();
             }
 
-            if (OptionsAtStartup.Flags.NoShareScan)
-            {
-                Log.Warning("Not scanning shares; 'no-share-scan' option is enabled.  Search and browse results will remain disabled until a manual scan is completed.");
-            }
-            else
-            {
-                _ = Shares.StartScanAsync();
-            }
+            //if (OptionsAtStartup.Flags.NoShareScan)
+            //{
+            //    Log.Warning("Not scanning shares; 'no-share-scan' option is enabled.  Search and browse results will remain disabled until a manual scan is completed.");
+            //}
+            //else
+            //{
+            //    _ = Shares.StartScanAsync();
+            //}
+
+            Shares.LoadFromDisk();
+            Log.Information("Shares loaded from disk");
+
+            Log.Information("Caching browse response...");
+            var browse = new BrowseResponse(await Shares.BrowseAsync()).ToByteArray();
+            System.IO.File.WriteAllBytes(Path.Combine(Program.DataDirectory, "browse.cache"), browse);
+            Log.Information("Browse response cached.");
 
             if (OptionsAtStartup.Flags.NoConnect)
             {
@@ -417,7 +425,21 @@ namespace slskd
                 var sw = new Stopwatch();
                 sw.Start();
 
-                var directories = await Shares.BrowseAsync();
+                BrowseResponse response = default;
+
+                var cacheFilename = Path.Combine(Program.DataDirectory, "browse.cache");
+                var cacheFileInfo = new System.IO.FileInfo(cacheFilename);
+
+                if (cacheFileInfo.Exists)
+                {
+                    var stream = new System.IO.FileStream(cacheFilename, FileMode.Open, FileAccess.Read);
+                    response = new RawBrowseResponse(cacheFileInfo.Length, stream);
+                }
+                else
+                {
+                    var directories = await Shares.BrowseAsync();
+                    response = new BrowseResponse(directories);
+                }
 
                 sw.Stop();
 
@@ -425,7 +447,7 @@ namespace slskd
                 Metrics.Browse.CurrentResponseLatency.Update(sw.ElapsedMilliseconds);
                 Metrics.Browse.ResponsesSent.Inc(1);
 
-                return new BrowseResponse(directories);
+                return response;
             }
             catch (Exception ex)
             {

@@ -142,16 +142,21 @@ namespace slskd.Shares
         /// </summary>
         /// <param name="query">The query for which to search.</param>
         /// <returns>The matching files.</returns>
-        public async Task<IEnumerable<File>> SearchAsync(SearchQuery query)
+        public Task<IEnumerable<File>> SearchAsync(SearchQuery query)
         {
-            var results = await Cache.SearchAsync(query);
+            var results = Cache.Search(query);
 
-            return results.Select(r => new File(
+            return Task.FromResult(results.Select(r => new File(
                 r.Code,
                 r.Filename.NormalizePath(),
                 r.Size,
                 r.Extension,
-                r.Attributes));
+                r.Attributes)));
+        }
+
+        public void LoadFromDisk()
+        {
+            Cache.Load();
         }
 
         /// <summary>
@@ -160,7 +165,9 @@ namespace slskd.Shares
         /// <returns>The operation context.</returns>
         /// <exception cref="ShareScanInProgressException">Thrown when a scan is already in progress.</exception>
         public Task StartScanAsync()
-            => Cache.FillAsync(Shares, FilterRegexes);
+        {
+            return Cache.FillAsync(Shares, FilterRegexes);
+        }
 
         private void Configure(Options options)
         {
