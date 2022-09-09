@@ -34,60 +34,6 @@ namespace slskd.Shares
     /// <summary>
     ///     Shared file cache.
     /// </summary>
-    public interface ISharedFileCache
-    {
-        /// <summary>
-        ///     Gets the cache state monitor.
-        /// </summary>
-        IStateMonitor<SharedFileCacheState> StateMonitor { get; }
-
-        /// <summary>
-        ///     Returns the contents of the cache.
-        /// </summary>
-        /// <returns>The contents of the cache.</returns>
-        IEnumerable<Directory> Browse();
-
-        /// <summary>
-        ///     Scans the configured shares and fills the cache.
-        /// </summary>
-        /// <remarks>Initiates the scan, then yields execution back to the caller; does not wait for the operation to complete.</remarks>
-        /// <param name="shares">The list of shares from which to fill the cache.</param>
-        /// <param name="filters">The list of regular expressions used to exclude files or paths from scanning.</param>
-        /// <returns>The operation context.</returns>
-        Task FillAsync(IEnumerable<Share> shares, IEnumerable<Regex> filters);
-
-        /// <summary>
-        ///     Returns the contents of the specified <paramref name="directory"/>.
-        /// </summary>
-        /// <param name="directory">The directory for which the contents are to be listed.</param>
-        /// <returns>The contents of the directory.</returns>
-        Directory List(string directory);
-
-        /// <summary>
-        ///     Substitutes the mask in the specified <paramref name="filename"/> with the original path, if the mask is tracked
-        ///     by the cache.
-        /// </summary>
-        /// <param name="filename">The fully qualified filename to unmask.</param>
-        /// <returns>The unmasked filename.</returns>
-        public string Resolve(string filename);
-
-        /// <summary>
-        ///     Searches the cache for the specified <paramref name="query"/> and returns the matching files.
-        /// </summary>
-        /// <param name="query">The query for which to search.</param>
-        /// <returns>The matching files.</returns>
-        IEnumerable<File> Search(SearchQuery query);
-
-        /// <summary>
-        ///     Attempts to load the cache from disk.
-        /// </summary>
-        /// <returns>A value indicating whether the load was successful.</returns>
-        bool TryLoad();
-    }
-
-    /// <summary>
-    ///     Shared file cache.
-    /// </summary>
     public class SharedFileCache : ISharedFileCache
     {
         /// <summary>
@@ -133,7 +79,7 @@ namespace slskd.Shares
             // in the root. to get around this, prime a dictionary with all known directories, and an empty Soulseek.Directory. if
             // there are any files in the directory, this entry will be overwritten with a new Soulseek.Directory containing the
             // files. if not they'll be left as is.
-            foreach (var directory in ListDirectories())
+            foreach (var directory in ListDirectories().OrderBy(d => d))
             {
                 directories.TryAdd(directory, new Directory(directory));
             }
@@ -169,7 +115,7 @@ namespace slskd.Shares
                         f.Size,
                         f.Extension,
                         f.Attributes);
-                })));
+                }).OrderBy(f => f.Filename)));
 
             // merge the dictionary containing all directories with the Soulseek.Directory instances containing their files.
             // entries with no files will remain untouched.
