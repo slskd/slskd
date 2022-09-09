@@ -52,6 +52,7 @@ namespace slskd.Shares
                     ScanPending = current.Faulted || (!(previous.Filling && !current.Filling) && state.ScanPending),
                     Scanning = current.Filling,
                     Faulted = current.Faulted,
+                    Ready = current.Filled,
                     ScanProgress = current.FillProgress,
                     Directories = current.Directories,
                     Files = current.Files,
