@@ -48,12 +48,6 @@ namespace slskd.Shares
         IEnumerable<Directory> Browse();
 
         /// <summary>
-        ///     Attempts to load the cache from disk.
-        /// </summary>
-        /// <returns>A value indicating whether the load was successful.</returns>
-        bool TryLoad();
-
-        /// <summary>
         ///     Scans the configured shares and fills the cache.
         /// </summary>
         /// <remarks>Initiates the scan, then yields execution back to the caller; does not wait for the operation to complete.</remarks>
@@ -83,6 +77,12 @@ namespace slskd.Shares
         /// <param name="query">The query for which to search.</param>
         /// <returns>The matching files.</returns>
         IEnumerable<File> Search(SearchQuery query);
+
+        /// <summary>
+        ///     Attempts to load the cache from disk.
+        /// </summary>
+        /// <returns>A value indicating whether the load was successful.</returns>
+        bool TryLoad();
     }
 
     /// <summary>
@@ -107,16 +107,8 @@ namespace slskd.Shares
         private ILogger Log { get; } = Serilog.Log.ForContext<SharedFileCache>();
         private List<Share> Shares { get; set; }
         private ISoulseekFileFactory SoulseekFileFactory { get; }
-        //private SqliteConnection SQLite { get; set; }
         private IManagedState<SharedFileCacheState> State { get; } = new ManagedState<SharedFileCacheState>();
         private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1);
-
-        private SqliteConnection GetConnection()
-        {
-            var conn = new SqliteConnection(Program.ConnectionStrings.Shares);
-            conn.Open();
-            return conn;
-        }
 
         /// <summary>
         ///     Returns the contents of the cache.
@@ -190,38 +182,6 @@ namespace slskd.Shares
         }
 
         /// <summary>
-        ///     Attempts to load the cache from disk.
-        /// </summary>
-        /// <returns>A value indicating whether the load was successful.</returns>
-        public bool TryLoad()
-        {
-            try
-            {
-                if (TableExists("directories") && TableExists("filenames") && TableExists("files") && TableExists("exclusions"))
-                {
-                    State.SetValue(state => state with
-                    {
-                        Filling = false,
-                        Faulted = false,
-                        Filled = true,
-                        FillProgress = 1,
-                        Directories = CountDirectories(),
-                        Files = CountFiles(),
-                    });
-
-                    return true;
-                }
-
-                return false;
-            }
-            catch (Exception ex)
-            {
-                Log.Debug(ex, "Error loading shared file cache: {Message}", ex.Message);
-                return false;
-            }
-        }
-
-        /// <summary>
         ///     Scans the configured shares and fills the cache.
         /// </summary>
         /// <param name="shares">The list of shares from which to fill the cache.</param>
@@ -273,9 +233,9 @@ namespace slskd.Shares
                 Log.Debug("Enumerating shared directories");
                 swSnapshot = sw.ElapsedMilliseconds;
 
-                // derive a list of all directories from all shares
-                // skip hidden and system directories, as well as anything that can't be accessed due to security restrictions.
-                // it's necessary to enumerate these directories up front so we can deduplicate directories and apply exclusions
+                // derive a list of all directories from all shares skip hidden and system directories, as well as anything that
+                // can't be accessed due to security restrictions. it's necessary to enumerate these directories up front so we
+                // can deduplicate directories and apply exclusions
                 var unmaskedDirectories = Shares
                     .SelectMany(share =>
                     {
@@ -334,8 +294,8 @@ namespace slskd.Shares
                     // filename and with a value of a Soulseek.File object
                     try
                     {
-                        // enumerate files in this directory only (no subdirectories)
-                        // exclude hidden and system files and anything that can't be accessed due to security restrictions
+                        // enumerate files in this directory only (no subdirectories) exclude hidden and system files and anything
+                        // that can't be accessed due to security restrictions
                         var newFiles = System.IO.Directory.GetFiles(directory, "*", new EnumerationOptions()
                         {
                             AttributesToSkip = FileAttributes.Hidden | FileAttributes.System,
@@ -522,6 +482,56 @@ namespace slskd.Shares
             }
         }
 
+        /// <summary>
+        ///     Attempts to load the cache from disk.
+        /// </summary>
+        /// <returns>A value indicating whether the load was successful.</returns>
+        public bool TryLoad()
+        {
+            try
+            {
+                if (TableExists("directories") && TableExists("filenames") && TableExists("files") && TableExists("exclusions"))
+                {
+                    State.SetValue(state => state with
+                    {
+                        Filling = false,
+                        Faulted = false,
+                        Filled = true,
+                        FillProgress = 1,
+                        Directories = CountDirectories(),
+                        Files = CountFiles(),
+                    });
+
+                    return true;
+                }
+
+                return false;
+            }
+            catch (Exception ex)
+            {
+                Log.Debug(ex, "Error loading shared file cache: {Message}", ex.Message);
+                return false;
+            }
+        }
+
+        private int CountDirectories()
+        {
+            using var conn = GetConnection();
+            using var cmd = new SqliteCommand("SELECT COUNT(*) FROM directories;", conn);
+            var reader = cmd.ExecuteReader();
+            reader.Read();
+            return reader.GetInt32(0);
+        }
+
+        private int CountFiles()
+        {
+            using var conn = GetConnection();
+            using var cmd = new SqliteCommand("SELECT COUNT(*) FROM files;", conn);
+            var reader = cmd.ExecuteReader();
+            reader.Read();
+            return reader.GetInt32(0);
+        }
+
         private void CreateTables()
         {
             using var conn = GetConnection();
@@ -537,6 +547,13 @@ namespace slskd.Shares
             conn.ExecuteNonQuery("DROP TABLE IF EXISTS exclusions; CREATE TABLE exclusions (originalFilename TEXT PRIMARY KEY);");
         }
 
+        private SqliteConnection GetConnection()
+        {
+            var conn = new SqliteConnection(Program.ConnectionStrings.Shares);
+            conn.Open();
+            return conn;
+        }
+
         private void InsertDirectory(string name)
         {
             using var conn = GetConnection();
@@ -544,6 +561,29 @@ namespace slskd.Shares
             conn.ExecuteNonQuery("INSERT INTO directories VALUES(@name) ON CONFLICT DO NOTHING;", cmd =>
             {
                 cmd.Parameters.AddWithValue("name", name);
+            });
+        }
+
+        private void InsertFile(string maskedFilename, string originalFilename, DateTime touchedAt, File file)
+        {
+            using var conn = GetConnection();
+
+            conn.ExecuteNonQuery("INSERT INTO files (maskedFilename, originalFilename, size, touchedAt, code, extension, attributeJson) " +
+                "VALUES(@maskedFilename, @originalFilename, @size, @touchedAt, @code, @extension, @attributeJson) " +
+                "ON CONFLICT DO UPDATE SET originalFilename = excluded.originalFilename, size = excluded.size, touchedAt = excluded.touchedAt, code = excluded.code, extension = excluded.extension, attributeJson = excluded.attributeJson;", cmd =>
+                {
+                    cmd.Parameters.AddWithValue("maskedFilename", maskedFilename);
+                    cmd.Parameters.AddWithValue("originalFilename", originalFilename);
+                    cmd.Parameters.AddWithValue("size", file.Size);
+                    cmd.Parameters.AddWithValue("touchedAt", touchedAt.ToLongDateString());
+                    cmd.Parameters.AddWithValue("code", file.Code);
+                    cmd.Parameters.AddWithValue("extension", file.Extension);
+                    cmd.Parameters.AddWithValue("attributeJson", file.Attributes.ToJson());
+                });
+
+            conn.ExecuteNonQuery("INSERT INTO filenames (maskedFilename) VALUES(@maskedFilename);", cmd =>
+            {
+                cmd.Parameters.AddWithValue("maskedFilename", maskedFilename);
             });
         }
 
@@ -600,45 +640,20 @@ namespace slskd.Shares
             }
         }
 
-        private int CountDirectories()
+        private void ResetCache()
         {
-            using var conn = GetConnection();
-            using var cmd = new SqliteCommand("SELECT COUNT(*) FROM directories;", conn);
-            var reader = cmd.ExecuteReader();
-            reader.Read();
-            return reader.GetInt32(0);
-        }
+            CreateTables();
 
-        private int CountFiles()
-        {
-            using var conn = GetConnection();
-            using var cmd = new SqliteCommand("SELECT COUNT(*) FROM files;", conn);
-            var reader = cmd.ExecuteReader();
-            reader.Read();
-            return reader.GetInt32(0);
-        }
-
-        private void InsertFile(string maskedFilename, string originalFilename, DateTime touchedAt, File file)
-        {
-            using var conn = GetConnection();
-
-            conn.ExecuteNonQuery("INSERT INTO files (maskedFilename, originalFilename, size, touchedAt, code, extension, attributeJson) " +
-                "VALUES(@maskedFilename, @originalFilename, @size, @touchedAt, @code, @extension, @attributeJson) " +
-                "ON CONFLICT DO UPDATE SET originalFilename = excluded.originalFilename, size = excluded.size, touchedAt = excluded.touchedAt, code = excluded.code, extension = excluded.extension, attributeJson = excluded.attributeJson;", cmd =>
-                {
-                    cmd.Parameters.AddWithValue("maskedFilename", maskedFilename);
-                    cmd.Parameters.AddWithValue("originalFilename", originalFilename);
-                    cmd.Parameters.AddWithValue("size", file.Size);
-                    cmd.Parameters.AddWithValue("touchedAt", touchedAt.ToLongDateString());
-                    cmd.Parameters.AddWithValue("code", file.Code);
-                    cmd.Parameters.AddWithValue("extension", file.Extension);
-                    cmd.Parameters.AddWithValue("attributeJson", file.Attributes.ToJson());
-                });
-
-            conn.ExecuteNonQuery("INSERT INTO filenames (maskedFilename) VALUES(@maskedFilename);", cmd =>
+            try
             {
-                cmd.Parameters.AddWithValue("maskedFilename", maskedFilename);
-            });
+                System.IO.File.Delete(Path.Combine(Program.DataDirectory, Filenames.BrowseCache));
+            }
+            catch (FileNotFoundException)
+            {
+                // noop
+            }
+
+            State.SetValue(state => state with { Directories = 0, Files = 0 });
         }
 
         private bool TableExists(string table)
@@ -660,22 +675,6 @@ namespace slskd.Shares
             }
 
             return false;
-        }
-
-        private void ResetCache()
-        {
-            CreateTables();
-
-            try
-            {
-                System.IO.File.Delete(Path.Combine(Program.DataDirectory, Filenames.BrowseCache));
-            }
-            catch (FileNotFoundException)
-            {
-                // noop
-            }
-
-            State.SetValue(state => state with { Directories = 0, Files = 0 });
         }
     }
 }
