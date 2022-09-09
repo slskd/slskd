@@ -149,7 +149,7 @@ namespace slskd.Shares
             var files = new List<File>();
 
             using var conn = GetConnection();
-            using var cmd = new SqliteCommand("SELECT maskedFilename, code, size, extension, attributeJson FROM files ORDER BY maskedFilename ASC;", conn);
+            using var cmd = new SqliteCommand("SELECT maskedFilename, code, size, extension, attributeJson FROM files;", conn);
             var reader = cmd.ExecuteReader();
 
             while (reader.Read())
@@ -551,7 +551,7 @@ namespace slskd.Shares
         {
             using var conn = GetConnection();
 
-            using var cmd = new SqliteCommand("SELECT name FROM directories ORDER BY name ASC;", conn);
+            using var cmd = new SqliteCommand("SELECT name FROM directories;", conn);
             var reader = cmd.ExecuteReader();
 
             while (reader.Read())
@@ -569,11 +569,11 @@ namespace slskd.Shares
             {
                 if (string.IsNullOrEmpty(directory))
                 {
-                    cmd = new SqliteCommand("SELECT maskedFilename, code, size, extension, attributeJson FROM files ORDER BY maskedFilename ASC;", conn);
+                    cmd = new SqliteCommand("SELECT maskedFilename, code, size, extension, attributeJson FROM files;", conn);
                 }
                 else
                 {
-                    cmd = new SqliteCommand("SELECT maskedFilename, code, size, extension, attributeJson FROM files WHERE maskedFilename LIKE @match ORDER BY maskedFilename ASC;", conn);
+                    cmd = new SqliteCommand("SELECT maskedFilename, code, size, extension, attributeJson FROM files WHERE maskedFilename LIKE @match;", conn);
                     cmd.Parameters.AddWithValue("match", directory + '%');
                 }
 
@@ -622,11 +622,6 @@ namespace slskd.Shares
         {
             using var conn = GetConnection();
 
-            conn.ExecuteNonQuery("INSERT INTO filenames (maskedFilename) VALUES(@maskedFilename);", cmd =>
-            {
-                cmd.Parameters.AddWithValue("maskedFilename", maskedFilename);
-            });
-
             conn.ExecuteNonQuery("INSERT INTO files (maskedFilename, originalFilename, size, touchedAt, code, extension, attributeJson) " +
                 "VALUES(@maskedFilename, @originalFilename, @size, @touchedAt, @code, @extension, @attributeJson) " +
                 "ON CONFLICT DO UPDATE SET originalFilename = excluded.originalFilename, size = excluded.size, touchedAt = excluded.touchedAt, code = excluded.code, extension = excluded.extension, attributeJson = excluded.attributeJson;", cmd =>
@@ -639,6 +634,11 @@ namespace slskd.Shares
                     cmd.Parameters.AddWithValue("extension", file.Extension);
                     cmd.Parameters.AddWithValue("attributeJson", file.Attributes.ToJson());
                 });
+
+            conn.ExecuteNonQuery("INSERT INTO filenames (maskedFilename) VALUES(@maskedFilename);", cmd =>
+            {
+                cmd.Parameters.AddWithValue("maskedFilename", maskedFilename);
+            });
         }
 
         private bool TableExists(string table)
