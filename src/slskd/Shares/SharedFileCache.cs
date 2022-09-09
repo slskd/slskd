@@ -342,7 +342,7 @@ namespace slskd.Shares
                 return null;
             }
 
-            var files = ListFiles(directory);
+            var files = ListFiles(directory).OrderBy(f => f.Filename);
             return new Directory(directory, files);
         }
 
@@ -438,6 +438,8 @@ namespace slskd.Shares
             {
                 if (TableExists("directories") && TableExists("filenames") && TableExists("files") && TableExists("exclusions"))
                 {
+                    // todo: check columns
+
                     State.SetValue(state => state with
                     {
                         Filling = false,
@@ -489,8 +491,6 @@ namespace slskd.Shares
             conn.ExecuteNonQuery("DROP TABLE IF EXISTS files; CREATE TABLE files " +
                 "(maskedFilename TEXT PRIMARY KEY, originalFilename TEXT NOT NULL, size BIGINT NOT NULL, touchedAt TEXT NOT NULL, code INTEGER DEFAULT 1 NOT NULL, " +
                 "extension TEXT, attributeJson TEXT NOT NULL);");
-
-            conn.ExecuteNonQuery("DROP TABLE IF EXISTS exclusions; CREATE TABLE exclusions (originalFilename TEXT PRIMARY KEY);");
         }
 
         private SqliteConnection GetConnection()
@@ -612,12 +612,7 @@ namespace slskd.Shares
             if (reader.Read())
             {
                 var fetchedTable = reader.GetString(0);
-                Console.WriteLine($"Fetched: {fetchedTable}");
                 return table == fetchedTable;
-            }
-            else
-            {
-                Console.WriteLine("Read() was false");
             }
 
             return false;
