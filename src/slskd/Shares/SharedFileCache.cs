@@ -79,7 +79,7 @@ namespace slskd.Shares
             // in the root. to get around this, prime a dictionary with all known directories, and an empty Soulseek.Directory. if
             // there are any files in the directory, this entry will be overwritten with a new Soulseek.Directory containing the
             // files. if not they'll be left as is.
-            foreach (var directory in ListDirectories().OrderBy(d => d))
+            foreach (var directory in ListDirectories())
             {
                 directories.TryAdd(directory, new Directory(directory));
             }
@@ -87,7 +87,7 @@ namespace slskd.Shares
             var files = new List<File>();
 
             using var conn = GetConnection();
-            using var cmd = new SqliteCommand("SELECT maskedFilename, code, size, extension, attributeJson FROM files;", conn);
+            using var cmd = new SqliteCommand("SELECT maskedFilename, code, size, extension, attributeJson FROM files ORDER BY maskedFilename ASC;", conn);
             var reader = cmd.ExecuteReader();
 
             while (reader.Read())
@@ -124,7 +124,7 @@ namespace slskd.Shares
                 directories.AddOrUpdate(group.Name, group, (_, _) => group);
             }
 
-            return directories.Values;
+            return directories.Values.OrderBy(d => d.Name);
         }
 
         /// <summary>
@@ -342,7 +342,7 @@ namespace slskd.Shares
                 return null;
             }
 
-            var files = ListFiles(directory).OrderBy(f => f.Filename);
+            var files = ListFiles(directory);
             return new Directory(directory, files);
         }
 
@@ -394,7 +394,8 @@ namespace slskd.Shares
 
             var sql = $"SELECT files.maskedFilename, files.code, files.size, files.extension, files.attributeJson FROM filenames " +
                 "INNER JOIN files ON filenames.maskedFilename = files.maskedFilename " +
-                $"WHERE filenames MATCH '({match}) {(query.Exclusions.Any() ? $"NOT ({exclusions})" : string.Empty)}';";
+                $"WHERE filenames MATCH '({match}) {(query.Exclusions.Any() ? $"NOT ({exclusions})" : string.Empty)}' " +
+                "ORDER BY filenames.maskedFilename ASC;";
 
             var results = new List<File>();
             SqliteDataReader reader = default;
@@ -419,7 +420,7 @@ namespace slskd.Shares
                     results.Add(file);
                 }
 
-                return results;
+                return results.OrderBy(f => f.Filename);
             }
             catch (Exception ex)
             {
@@ -535,19 +536,25 @@ namespace slskd.Shares
 
         private IEnumerable<string> ListDirectories()
         {
+            var results = new List<string>();
+
             using var conn = GetConnection();
 
-            using var cmd = new SqliteCommand("SELECT name FROM directories;", conn);
+            using var cmd = new SqliteCommand("SELECT name FROM directories ORDER BY name ASC;", conn);
             var reader = cmd.ExecuteReader();
 
             while (reader.Read())
             {
-                yield return reader.GetString(0);
+                results.Add(reader.GetString(0));
             }
+
+            return results;
         }
 
         private IEnumerable<File> ListFiles(string directory = null)
         {
+            var results = new List<File>();
+
             SqliteCommand cmd = default;
             using var conn = GetConnection();
 
@@ -555,11 +562,11 @@ namespace slskd.Shares
             {
                 if (string.IsNullOrEmpty(directory))
                 {
-                    cmd = new SqliteCommand("SELECT maskedFilename, code, size, extension, attributeJson FROM files;", conn);
+                    cmd = new SqliteCommand("SELECT maskedFilename, code, size, extension, attributeJson FROM files ORDER BY maskedFilename ASC;", conn);
                 }
                 else
                 {
-                    cmd = new SqliteCommand("SELECT maskedFilename, code, size, extension, attributeJson FROM files WHERE maskedFilename LIKE @match;", conn);
+                    cmd = new SqliteCommand("SELECT maskedFilename, code, size, extension, attributeJson FROM files WHERE maskedFilename LIKE @match ORDER BY maskedFilename ASC;", conn);
                     cmd.Parameters.AddWithValue("match", directory + '%');
                 }
 
@@ -577,8 +584,10 @@ namespace slskd.Shares
 
                     var file = new File(code, filename: Path.GetFileName(filename), size, extension, attributeList);
 
-                    yield return file;
+                    results.Add(file);
                 }
+
+                return results;
             }
             finally
             {
