@@ -200,7 +200,6 @@ namespace slskd
         ///     Gets share options.
         /// </summary>
         [Validate]
-        [RequiresRestart]
         public SharesOptions Shares { get; init; } = new SharesOptions();
 
         /// <summary>
@@ -376,12 +375,26 @@ namespace slskd
             public string[] Filters { get; init; } = Array.Empty<string>();
 
             /// <summary>
-            ///     Gets the type of storage to use for the share cache.
+            ///     Share caching options.
             /// </summary>
-            [Argument(default, "share-cache-storage")]
-            [EnvironmentVariable("SHARE_CACHE_STORAGE")]
-            [Description("the type of storage to use for the cache")]
-            public StorageType CacheStorage { get; init; } = StorageType.Memory;
+            [Validate]
+            public ShareCacheOptions Cache { get; init; } = new ShareCacheOptions();
+
+            /// <summary>
+            ///     Share caching options.
+            /// </summary>
+            public class ShareCacheOptions
+            {
+                /// <summary>
+                ///     Gets the type of storage to use for the share cache.
+                /// </summary>
+                [Argument(default, "share-cache-storage-mode")]
+                [EnvironmentVariable("SHARE_CACHE_STORAGE_MODE")]
+                [Description("the type of storage to use for the cache")]
+                [Enum(typeof(StorageMode))]
+                [RequiresRestart]
+                public string StorageMode { get; init; } = slskd.StorageMode.Memory.ToString().ToLowerInvariant();
+            }
 
             /// <summary>
             ///     Extended validation.
@@ -696,33 +709,13 @@ namespace slskd
         /// <summary>
         ///     Filter options.
         /// </summary>
-        public class FiltersOptions : IValidatableObject
+        public class FiltersOptions
         {
             /// <summary>
             ///     Gets search filter options.
             /// </summary>
             [Validate]
             public SearchOptions Search { get; init; } = new SearchOptions();
-
-            /// <summary>
-            ///     Extended validation.
-            /// </summary>
-            /// <param name="validationContext"></param>
-            /// <returns></returns>
-            public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
-            {
-                var results = new List<ValidationResult>();
-
-                foreach (var filter in Share)
-                {
-                    if (!filter.IsValidRegex())
-                    {
-                        results.Add(new ValidationResult($"Share filter '{filter}' is not a valid regular expression"));
-                    }
-                }
-
-                return results;
-            }
 
             /// <summary>
             ///     Search filter options.

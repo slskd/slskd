@@ -19,7 +19,8 @@
 #     - \.ini$
 #     - Thumbs.db$
 #     - \.DS_Store$
-#   cache_storage: memory
+#   cache:
+#     storage_mode: Memory
 # rooms:
 #   - ~
 # global:
