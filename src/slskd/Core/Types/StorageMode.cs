@@ -1,4 +1,4 @@
-﻿// <copyright file="StorageType.cs" company="slskd Team">
+﻿// <copyright file="StorageMode.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -18,9 +18,9 @@
 namespace slskd
 {
     /// <summary>
-    ///     Storage type.
+    ///     Storage mode.
     /// </summary>
-    public enum StorageType
+    public enum StorageMode
     {
         /// <summary>
         ///     Stored in memory.
