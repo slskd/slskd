@@ -252,17 +252,31 @@ namespace slskd
                 return;
             }
 
+            InitSQLiteOrFailFast();
+
             // the application isn't being run in command mode. derive the application directory value
             // and defaults that are dependent upon it
             AppDirectory ??= DefaultAppDirectory;
-
             DataDirectory = Path.Combine(AppDirectory, "data");
+
+            // configure connection strings and configure SQLite
+            string shareDbDataSource = default;
+
+            if (OptionsAtStartup.Shares.Cache.StorageMode.ToEnum<StorageMode>() == StorageMode.Disk)
+            {
+                shareDbDataSource = Path.Combine(DataDirectory, "shares.db");
+            }
+            else
+            {
+                shareDbDataSource = "file:shares?mode=memory";
+            }
 
             ConnectionStrings = new()
             {
-                Search = $"Data Source={Path.Combine(DataDirectory, Filenames.SearchDb)};Cache=shared;Pooling=True;",
-                Transfers = $"Data Source={Path.Combine(DataDirectory, Filenames.TransfersDb)};Cache=shared;Pooling=True;",
-                Shares = $"Data Source={Path.Combine(DataDirectory, Filenames.SharesDb)};Cache=shared",
+                Search = $"Data Source={Path.Combine(DataDirectory, "search.db")};Cache=shared;Pooling=True;",
+                Transfers = $"Data Source={Path.Combine(DataDirectory, "transfers.db")};Cache=shared;Pooling=True;",
+                Shares = $"Data Source={shareDbDataSource};Cache=shared",
+                SharesBackup = $"Data Source={Path.Combine(DataDirectory, "shares.db.bak")};",
             };
 
             DefaultConfigurationFile = Path.Combine(AppDirectory, $"{AppName}.yml");
@@ -465,8 +479,6 @@ namespace slskd
 
             services.AddSingleton<IConnectionWatchdog, ConnectionWatchdog>();
 
-            ConfigureSQLite();
-
             services.AddDbContext<SearchDbContext>(ConnectionStrings.Search);
             services.AddDbContext<TransfersDbContext>(ConnectionStrings.Transfers);
 
@@ -492,7 +504,7 @@ namespace slskd
             return services;
         }
 
-        private static void ConfigureSQLite()
+        private static void InitSQLiteOrFailFast()
         {
             // initialize
             // avoids: System.Exception: You need to call SQLitePCL.raw.SetProvider().  If you are using a bundle package, this is done by calling SQLitePCL.Batteries.Init().
