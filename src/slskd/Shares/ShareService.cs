@@ -41,7 +41,7 @@ namespace slskd.Shares
             IOptionsMonitor<Options> optionsMonitor,
             ISharedFileCache sharedFileCache = null)
         {
-            Cache = sharedFileCache ?? new SharedFileCache();
+            Cache = sharedFileCache ?? new SharedFileCache(storageMode: optionsMonitor.CurrentValue.Shares.Cache.StorageMode.ToEnum<StorageMode>());
             Cache.StateMonitor.OnChange(cacheState =>
             {
                 var (previous, current) = cacheState;
@@ -180,21 +180,21 @@ namespace slskd.Shares
 
             try
             {
-                var optionsHash = Compute.Sha1Hash(string.Join(';', options.Directories.Shared));
+                var optionsHash = Compute.Sha1Hash(string.Join(';', options.Shares.Directories));
 
                 if (optionsHash == LastOptionsHash)
                 {
                     return;
                 }
 
-                var shares = options.Directories.Shared
+                var shares = options.Shares.Directories
                     .Select(share => share.TrimEnd('/', '\\'))
                     .ToHashSet() // remove duplicates
                     .Select(share => new Share(share)) // convert to Shares
                     .OrderByDescending(share => share.LocalPath.Length) // process subdirectories first.  this allows them to be aliased separately from their parent
                     .ToList();
 
-                var regexes = options.Filters.Share
+                var regexes = options.Shares.Filters
                     .Select(filter => new Regex(filter, RegexOptions.Compiled))
                     .ToList();
 
