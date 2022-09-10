@@ -34,54 +34,6 @@ namespace slskd.Shares
     /// <summary>
     ///     Shared file cache.
     /// </summary>
-    public interface ISharedFileCache
-    {
-        /// <summary>
-        ///     Gets the cache state monitor.
-        /// </summary>
-        IStateMonitor<SharedFileCacheState> StateMonitor { get; }
-
-        /// <summary>
-        ///     Returns the contents of the cache.
-        /// </summary>
-        /// <returns>The contents of the cache.</returns>
-        IEnumerable<Directory> Browse();
-
-        /// <summary>
-        ///     Scans the configured shares and fills the cache.
-        /// </summary>
-        /// <remarks>Initiates the scan, then yields execution back to the caller; does not wait for the operation to complete.</remarks>
-        /// <param name="shares">The list of shares from which to fill the cache.</param>
-        /// <param name="filters">The list of regular expressions used to exclude files or paths from scanning.</param>
-        /// <returns>The operation context.</returns>
-        Task FillAsync(IEnumerable<Share> shares, IEnumerable<Regex> filters);
-
-        /// <summary>
-        ///     Returns the contents of the specified <paramref name="directory"/>.
-        /// </summary>
-        /// <param name="directory">The directory for which the contents are to be listed.</param>
-        /// <returns>The contents of the directory.</returns>
-        Directory List(string directory);
-
-        /// <summary>
-        ///     Substitutes the mask in the specified <paramref name="filename"/> with the original path, if the mask is tracked
-        ///     by the cache.
-        /// </summary>
-        /// <param name="filename">The fully qualified filename to unmask.</param>
-        /// <returns>The unmasked filename.</returns>
-        public string Resolve(string filename);
-
-        /// <summary>
-        ///     Searches the cache for the specified <paramref name="query"/> and returns the matching files.
-        /// </summary>
-        /// <param name="query">The query for which to search.</param>
-        /// <returns>The matching files.</returns>
-        Task<IEnumerable<File>> SearchAsync(SearchQuery query);
-    }
-
-    /// <summary>
-    ///     Shared file cache.
-    /// </summary>
     public class SharedFileCache : ISharedFileCache
     {
         /// <summary>
@@ -99,11 +51,8 @@ namespace slskd.Shares
         public IStateMonitor<SharedFileCacheState> StateMonitor => State;
 
         private ILogger Log { get; } = Serilog.Log.ForContext<SharedFileCache>();
-        private HashSet<string> MaskedDirectories { get; set; }
-        private Dictionary<string, File> MaskedFiles { get; set; }
         private List<Share> Shares { get; set; }
         private ISoulseekFileFactory SoulseekFileFactory { get; }
-        private SqliteConnection SQLite { get; set; }
         private IManagedState<SharedFileCacheState> State { get; } = new ManagedState<SharedFileCacheState>();
         private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1);
 
@@ -130,23 +79,43 @@ namespace slskd.Shares
             // in the root. to get around this, prime a dictionary with all known directories, and an empty Soulseek.Directory. if
             // there are any files in the directory, this entry will be overwritten with a new Soulseek.Directory containing the
             // files. if not they'll be left as is.
-            foreach (var directory in MaskedDirectories)
+            foreach (var directory in ListDirectories())
             {
                 directories.TryAdd(directory, new Directory(directory));
             }
 
-            var groups = MaskedFiles
-                .GroupBy(f => Path.GetDirectoryName(f.Key))
-                .Select(g => new Directory(g.Key, g.Select(g =>
+            var files = new List<File>();
+
+            using var conn = GetConnection();
+            using var cmd = new SqliteCommand("SELECT maskedFilename, code, size, extension, attributeJson FROM files ORDER BY maskedFilename ASC;", conn);
+            var reader = cmd.ExecuteReader();
+
+            while (reader.Read())
+            {
+                var filename = reader.GetString(0);
+                var code = reader.GetInt32(1);
+                var size = reader.GetInt64(2);
+                var extension = reader.GetString(3);
+                var attributeJson = reader.GetString(4);
+
+                var attributeList = attributeJson.FromJson<List<FileAttribute>>();
+
+                var file = new File(code, filename, size, extension, attributeList);
+
+                files.Add(file);
+            }
+
+            var groups = files
+                .GroupBy(file => Path.GetDirectoryName(file.Filename))
+                .Select(group => new Directory(group.Key, group.Select(f =>
                 {
-                    var f = g.Value;
                     return new File(
                         f.Code,
                         Path.GetFileName(f.Filename), // we can send the full path, or just the filename.  save bandwidth and omit the path.
                         f.Size,
                         f.Extension,
                         f.Attributes);
-                })));
+                }).OrderBy(f => f.Filename)));
 
             // merge the dictionary containing all directories with the Soulseek.Directory instances containing their files.
             // entries with no files will remain untouched.
@@ -155,7 +124,7 @@ namespace slskd.Shares
                 directories.AddOrUpdate(group.Name, group, (_, _) => group);
             }
 
-            return directories.Values.OrderBy(f => f.Name);
+            return directories.Values.OrderBy(d => d.Name);
         }
 
         /// <summary>
@@ -210,9 +179,9 @@ namespace slskd.Shares
                 Log.Debug("Enumerating shared directories");
                 swSnapshot = sw.ElapsedMilliseconds;
 
-                // derive a list of all directories from all shares
-                // skip hidden and system directories, as well as anything that can't be accessed due to security restrictions.
-                // it's necessary to enumerate these directories up front so we can deduplicate directories and apply exclusions
+                // derive a list of all directories from all shares skip hidden and system directories, as well as anything that
+                // can't be accessed due to security restrictions. it's necessary to enumerate these directories up front so we
+                // can deduplicate directories and apply exclusions
                 var unmaskedDirectories = Shares
                     .SelectMany(share =>
                     {
@@ -244,10 +213,10 @@ namespace slskd.Shares
                 Log.Debug("Found {Directories} shared directories (and {Excluded} were excluded) in {Elapsed}ms.  Starting file scan.", unmaskedDirectories.Count, excludedDirectories.Count(), sw.ElapsedMilliseconds - swSnapshot);
                 swSnapshot = sw.ElapsedMilliseconds;
 
-                var files = new Dictionary<string, File>();
                 var maskedDirectories = new HashSet<string>();
-                var current = 0L;
-                var filtered = 0L;
+                var current = 0;
+                var cached = 0;
+                var filtered = 0;
 
                 foreach (var directory in unmaskedDirectories)
                 {
@@ -259,52 +228,49 @@ namespace slskd.Shares
                         continue;
                     }
 
-                    var addedFiles = 0L;
-                    var filteredFiles = 0L;
+                    var addedFiles = 0;
+                    var filteredFiles = 0;
 
                     var share = Shares.First(share => directory.StartsWith(share.LocalPath));
 
                     maskedDirectories.Add(directory.ReplaceFirst(share.LocalPath, share.RemotePath));
+                    InsertDirectory(directory.ReplaceFirst(share.LocalPath, share.RemotePath));
 
                     // recursively find all files in the directory and stick a record in a dictionary, keyed on the sanitized
                     // filename and with a value of a Soulseek.File object
                     try
                     {
-                        // enumerate files in this directory only (no subdirectories)
-                        // exclude hidden and system files and anything that can't be accessed due to security restrictions
+                        // enumerate files in this directory only (no subdirectories) exclude hidden and system files and anything
+                        // that can't be accessed due to security restrictions
                         var newFiles = System.IO.Directory.GetFiles(directory, "*", new EnumerationOptions()
                         {
                             AttributesToSkip = FileAttributes.Hidden | FileAttributes.System,
                             IgnoreInaccessible = true,
                             RecurseSubdirectories = false,
-                        })
-                            .Select(filename => SoulseekFileFactory.Create(filename, maskedFilename: filename.ReplaceFirst(share.LocalPath, share.RemotePath)))
-                            .ToDictionary(file => file.Filename, file => file);
+                        });
 
-                        addedFiles = newFiles.Count;
+                        addedFiles = newFiles.Count();
 
                         // merge the new dictionary with the rest this will overwrite any duplicate keys, but keys are the fully
                         // qualified name the only time this *should* cause problems is if one of the shares is a subdirectory of another.
-                        foreach (var file in newFiles)
+                        foreach (var originalFilename in newFiles)
                         {
-                            if (filters.Any(filter => filter.IsMatch(file.Key)))
+                            var info = new FileInfo(originalFilename);
+                            var file = SoulseekFileFactory.Create(originalFilename, maskedFilename: originalFilename.ReplaceFirst(share.LocalPath, share.RemotePath));
+
+                            if (filters.Any(filter => filter.IsMatch(originalFilename)))
                             {
                                 filteredFiles++;
                                 continue;
                             }
 
-                            if (Path.DirectorySeparatorChar == '/' && file.Value.Filename.Contains('\\'))
+                            if (Path.DirectorySeparatorChar == '/' && file.Filename.Contains('\\'))
                             {
-                                Log.Warning("Filename {Filename} contains one or more backslashes, which are not currently supported. This file will not be shared.", file.Value.Filename);
+                                Log.Warning("Filename {Filename} contains one or more backslashes, which are not currently supported. This file will not be shared.", file.Filename);
                                 continue;
                             }
 
-                            if (files.ContainsKey(file.Key))
-                            {
-                                Log.Warning($"File {file.Key} shared in directory {directory} has already been cached.  This is probably a misconfiguration of the shared directories (is a subdirectory being re-shared?).");
-                            }
-
-                            files[file.Key] = file.Value;
+                            InsertFile(maskedFilename: file.Filename, originalFilename, touchedAt: info.LastWriteTimeUtc, file);
                         }
                     }
                     catch (Exception ex)
@@ -315,12 +281,13 @@ namespace slskd.Shares
 
                     current++;
                     filtered += filteredFiles;
+                    cached += addedFiles;
 
                     Log.Debug("Finished scanning {Directory}: {Added} files added and {Filtered} filtered", directory, addedFiles, filteredFiles);
 
                     try
                     {
-                        State.SetValue(state => state with { FillProgress = current / (double)unmaskedDirectories.Count, Files = files.Count });
+                        State.SetValue(state => state with { FillProgress = current / (double)unmaskedDirectories.Count, Files = cached });
                     }
                     catch (Exception ex)
                     {
@@ -329,19 +296,10 @@ namespace slskd.Shares
                     }
                 }
 
-                Log.Debug("Directory scan found {Files} files (and {Filtered} were filtered) in {Elapsed}ms.  Populating filename database", files.Count, filtered, sw.ElapsedMilliseconds - swSnapshot);
+                Log.Debug("Directory scan found {Files} files (and {Filtered} were filtered) in {Elapsed}ms.  Populating filename database", cached, filtered, sw.ElapsedMilliseconds - swSnapshot);
                 swSnapshot = sw.ElapsedMilliseconds;
 
-                // potentially optimize with multi-valued insert https://stackoverflow.com/questions/16055566/insert-multiple-rows-in-sqlite
-                foreach (var file in files)
-                {
-                    InsertFilename(file.Key);
-                }
-
-                Log.Debug("Inserted {Files} records in {Elapsed}ms", files.Count, sw.ElapsedMilliseconds - swSnapshot);
-
-                MaskedDirectories = maskedDirectories;
-                MaskedFiles = files;
+                Log.Debug("Inserted {Files} records in {Elapsed}ms", cached, sw.ElapsedMilliseconds - swSnapshot);
 
                 State.SetValue(state => state with
                 {
@@ -349,11 +307,11 @@ namespace slskd.Shares
                     Faulted = false,
                     Filled = true,
                     FillProgress = 1,
-                    Directories = MaskedDirectories.Count,
-                    Files = MaskedFiles.Count,
+                    Directories = CountDirectories(),
+                    Files = CountFiles(),
                 });
 
-                Log.Debug($"Shared file cache recreated in {sw.ElapsedMilliseconds}ms.  Directories: {unmaskedDirectories.Count}, Files: {files.Count}");
+                Log.Debug($"Shared file cache recreated in {sw.ElapsedMilliseconds}ms.  Directories: {unmaskedDirectories.Count}, Files: {cached}");
             }
             catch (Exception ex)
             {
@@ -384,17 +342,7 @@ namespace slskd.Shares
                 return null;
             }
 
-            var files = MaskedFiles.Where(f => f.Key.StartsWith(directory)).Select(kvp =>
-            {
-                var f = kvp.Value;
-                return new File(
-                    f.Code,
-                    Path.GetFileName(f.Filename),
-                    f.Size,
-                    f.Extension,
-                    f.Attributes);
-            });
-
+            var files = ListFiles(directory);
             return new Directory(directory, files);
         }
 
@@ -406,35 +354,19 @@ namespace slskd.Shares
         /// <returns>The unmasked filename.</returns>
         public string Resolve(string filename)
         {
-            // ensure this is a tracked file
-            if (!MaskedFiles.TryGetValue(filename, out _))
+            using var conn = GetConnection();
+            using var cmd = new SqliteCommand("SELECT originalFilename FROM files WHERE maskedFilename = @maskedFilename;", conn);
+            cmd.Parameters.AddWithValue("maskedFilename", filename);
+
+            var reader = cmd.ExecuteReader();
+
+            if (!reader.Read())
             {
+                Log.Warning("Failed to resolve shared file {Filename}", filename);
                 return null;
             }
 
-            var resolved = filename;
-
-            // a well-formed path will consist of a mask, either an alias or a local directory, and a fully qualified path to a
-            // file. split the requested filename so we can examine the first two segments
-            var parts = filename.Split(new[] { '/', '\\' });
-
-            if (parts.Length < 2)
-            {
-                Log.Warning($"Failed to resolve shared file {filename}; filename is badly formed");
-                return null;
-            }
-
-            // find the share with a matching mask and alias/local directory
-            var share = Shares.FirstOrDefault(share => share.Alias == parts[0]);
-
-            if (share == default)
-            {
-                Log.Warning("Failed to resolve shared file {Filename}; unable to resolve share from alias '{Alias}'", filename, parts[0]);
-                return null;
-            }
-
-            resolved = resolved.ReplaceFirst(share.RemotePath, share.LocalPath);
-
+            var resolved = reader.GetString(0);
             Log.Debug($"Resolved requested shared file {filename} to {resolved}");
             return resolved;
         }
@@ -444,7 +376,7 @@ namespace slskd.Shares
         /// </summary>
         /// <param name="query">The query for which to search.</param>
         /// <returns>The matching files.</returns>
-        public async Task<IEnumerable<File>> SearchAsync(SearchQuery query)
+        public IEnumerable<File> Search(SearchQuery query)
         {
             if (!State.CurrentValue.Filled)
             {
@@ -460,68 +392,239 @@ namespace slskd.Shares
             var match = string.Join(" AND ", query.Terms.Select(token => $"\"{Clean(token)}\""));
             var exclusions = string.Join(" OR ", query.Exclusions.Select(exclusion => $"\"{Clean(exclusion)}\""));
 
-            var sql = $"SELECT * FROM cache WHERE cache MATCH '({match}) {(query.Exclusions.Any() ? $"NOT ({exclusions})" : string.Empty)}'";
-            var results = new List<string>();
+            var sql = $"SELECT files.maskedFilename, files.code, files.size, files.extension, files.attributeJson FROM filenames " +
+                "INNER JOIN files ON filenames.maskedFilename = files.maskedFilename " +
+                $"WHERE filenames MATCH '({match}) {(query.Exclusions.Any() ? $"NOT ({exclusions})" : string.Empty)}' " +
+                "ORDER BY filenames.maskedFilename ASC;";
+
+            var results = new List<File>();
+            SqliteDataReader reader = default;
 
             try
             {
-                using var conn = new SqliteConnection($"Data Source={Path.Combine(Program.AppDirectory, "data", "shares.db")};cache=shared");
+                using var conn = GetConnection();
                 using var cmd = new SqliteCommand(sql, conn);
-                await conn.OpenAsync();
-
-                var reader = await cmd.ExecuteReaderAsync();
+                reader = cmd.ExecuteReader();
 
                 while (reader.Read())
                 {
-                    results.Add(reader.GetString(0));
+                    var filename = reader.GetString(0);
+                    var code = reader.GetInt32(1);
+                    var size = reader.GetInt64(2);
+                    var extension = reader.GetString(3);
+                    var attributeJson = reader.GetString(4);
+
+                    var attributeList = attributeJson.FromJson<List<FileAttribute>>();
+
+                    var file = new File(code, filename, size, extension, attributeList);
+                    results.Add(file);
                 }
+
+                return results.OrderBy(f => f.Filename);
             }
             catch (Exception ex)
             {
                 Log.Warning(ex, "Failed to execute shared file query '{Query}': {Message}", query, ex.Message);
                 return Enumerable.Empty<File>();
             }
+        }
 
+        /// <summary>
+        ///     Attempts to load the cache from disk.
+        /// </summary>
+        /// <returns>A value indicating whether the load was successful.</returns>
+        public bool TryLoad()
+        {
             try
             {
-                return results
-                    .Select(r => MaskedFiles[r])
-                    .ToList();
+                if (TableExists("directories") && TableExists("filenames") && TableExists("files") && TableExists("exclusions"))
+                {
+                    // todo: check columns
+
+                    State.SetValue(state => state with
+                    {
+                        Filling = false,
+                        Faulted = false,
+                        Filled = true,
+                        FillProgress = 1,
+                        Directories = CountDirectories(),
+                        Files = CountFiles(),
+                    });
+
+                    return true;
+                }
+
+                return false;
             }
             catch (Exception ex)
             {
-                Log.Warning(ex, "Failed to map shared file result: {Message}", ex.Message);
-                return Enumerable.Empty<File>();
+                Log.Debug(ex, "Error loading shared file cache: {Message}", ex.Message);
+                return false;
             }
         }
 
-        private void CreateTable()
+        private int CountDirectories()
         {
-            if (SQLite != null)
+            using var conn = GetConnection();
+            using var cmd = new SqliteCommand("SELECT COUNT(*) FROM directories;", conn);
+            var reader = cmd.ExecuteReader();
+            reader.Read();
+            return reader.GetInt32(0);
+        }
+
+        private int CountFiles()
+        {
+            using var conn = GetConnection();
+            using var cmd = new SqliteCommand("SELECT COUNT(*) FROM files;", conn);
+            var reader = cmd.ExecuteReader();
+            reader.Read();
+            return reader.GetInt32(0);
+        }
+
+        private void CreateTables()
+        {
+            using var conn = GetConnection();
+
+            conn.ExecuteNonQuery("DROP TABLE IF EXISTS directories; CREATE TABLE directories (name TEXT PRIMARY KEY);");
+
+            conn.ExecuteNonQuery("DROP TABLE IF EXISTS filenames; CREATE VIRTUAL TABLE filenames USING fts5(maskedFilename);");
+
+            conn.ExecuteNonQuery("DROP TABLE IF EXISTS files; CREATE TABLE files " +
+                "(maskedFilename TEXT PRIMARY KEY, originalFilename TEXT NOT NULL, size BIGINT NOT NULL, touchedAt TEXT NOT NULL, code INTEGER DEFAULT 1 NOT NULL, " +
+                "extension TEXT, attributeJson TEXT NOT NULL);");
+        }
+
+        private SqliteConnection GetConnection()
+        {
+            var conn = new SqliteConnection(Program.ConnectionStrings.Shares);
+            conn.Open();
+            return conn;
+        }
+
+        private void InsertDirectory(string name)
+        {
+            using var conn = GetConnection();
+
+            conn.ExecuteNonQuery("INSERT INTO directories VALUES(@name) ON CONFLICT DO NOTHING;", cmd =>
             {
-                SQLite.Dispose();
-            }
-
-            SQLite = new SqliteConnection($"Data Source={Path.Combine(Program.AppDirectory, "data", "shares.db")};cache=shared");
-            SQLite.Open();
-
-            using var cmd = new SqliteCommand("DROP TABLE IF EXISTS cache; CREATE VIRTUAL TABLE cache USING fts5(filename);", SQLite);
-            cmd.ExecuteNonQuery();
+                cmd.Parameters.AddWithValue("name", name);
+            });
         }
 
-        private void InsertFilename(string filename)
+        private void InsertFile(string maskedFilename, string originalFilename, DateTime touchedAt, File file)
         {
-            using var cmd = new SqliteCommand($"INSERT INTO cache(filename) VALUES(@filename)", SQLite);
-            cmd.Parameters.AddWithValue("filename", filename);
-            cmd.ExecuteNonQuery();
+            using var conn = GetConnection();
+
+            conn.ExecuteNonQuery("INSERT INTO files (maskedFilename, originalFilename, size, touchedAt, code, extension, attributeJson) " +
+                "VALUES(@maskedFilename, @originalFilename, @size, @touchedAt, @code, @extension, @attributeJson) " +
+                "ON CONFLICT DO UPDATE SET originalFilename = excluded.originalFilename, size = excluded.size, touchedAt = excluded.touchedAt, code = excluded.code, extension = excluded.extension, attributeJson = excluded.attributeJson;", cmd =>
+                {
+                    cmd.Parameters.AddWithValue("maskedFilename", maskedFilename);
+                    cmd.Parameters.AddWithValue("originalFilename", originalFilename);
+                    cmd.Parameters.AddWithValue("size", file.Size);
+                    cmd.Parameters.AddWithValue("touchedAt", touchedAt.ToLongDateString());
+                    cmd.Parameters.AddWithValue("code", file.Code);
+                    cmd.Parameters.AddWithValue("extension", file.Extension);
+                    cmd.Parameters.AddWithValue("attributeJson", file.Attributes.ToJson());
+                });
+
+            conn.ExecuteNonQuery("INSERT INTO filenames (maskedFilename) VALUES(@maskedFilename);", cmd =>
+            {
+                cmd.Parameters.AddWithValue("maskedFilename", maskedFilename);
+            });
+        }
+
+        private IEnumerable<string> ListDirectories()
+        {
+            var results = new List<string>();
+
+            using var conn = GetConnection();
+
+            using var cmd = new SqliteCommand("SELECT name FROM directories ORDER BY name ASC;", conn);
+            var reader = cmd.ExecuteReader();
+
+            while (reader.Read())
+            {
+                results.Add(reader.GetString(0));
+            }
+
+            return results;
+        }
+
+        private IEnumerable<File> ListFiles(string directory = null)
+        {
+            var results = new List<File>();
+
+            SqliteCommand cmd = default;
+            using var conn = GetConnection();
+
+            try
+            {
+                if (string.IsNullOrEmpty(directory))
+                {
+                    cmd = new SqliteCommand("SELECT maskedFilename, code, size, extension, attributeJson FROM files ORDER BY maskedFilename ASC;", conn);
+                }
+                else
+                {
+                    cmd = new SqliteCommand("SELECT maskedFilename, code, size, extension, attributeJson FROM files WHERE maskedFilename LIKE @match ORDER BY maskedFilename ASC;", conn);
+                    cmd.Parameters.AddWithValue("match", directory + '%');
+                }
+
+                var reader = cmd.ExecuteReader();
+
+                while (reader.Read())
+                {
+                    var filename = reader.GetString(0);
+                    var code = reader.GetInt32(1);
+                    var size = reader.GetInt64(2);
+                    var extension = reader.GetString(3);
+                    var attributeJson = reader.GetString(4);
+
+                    var attributeList = attributeJson.FromJson<List<FileAttribute>>();
+
+                    var file = new File(code, filename: Path.GetFileName(filename), size, extension, attributeList);
+
+                    results.Add(file);
+                }
+
+                return results;
+            }
+            finally
+            {
+                cmd?.Dispose();
+            }
         }
 
         private void ResetCache()
         {
-            CreateTable();
-            MaskedDirectories = new HashSet<string>();
-            MaskedFiles = new Dictionary<string, File>();
+            CreateTables();
+
+            try
+            {
+                System.IO.File.Delete(Path.Combine(Program.DataDirectory, Filenames.BrowseCache));
+            }
+            catch (FileNotFoundException)
+            {
+                // noop
+            }
+
             State.SetValue(state => state with { Directories = 0, Files = 0 });
+        }
+
+        private bool TableExists(string table)
+        {
+            using var conn = GetConnection();
+            using var cmd = new SqliteCommand("SELECT name from sqlite_master WHERE type = 'table' AND name = @table;", conn);
+            cmd.Parameters.AddWithValue("table", table);
+            var reader = cmd.ExecuteReader();
+
+            if (reader.Read())
+            {
+                var fetchedTable = reader.GetString(0);
+                return table == fetchedTable;
+            }
+
+            return false;
         }
     }
 }

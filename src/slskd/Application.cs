@@ -369,13 +369,22 @@ namespace slskd
                 _ = CheckVersionAsync();
             }
 
-            if (OptionsAtStartup.Flags.NoShareScan)
+            // try to load the share cache from disk.
+            // if not successful, the file is missing one or more tables, or is not present at all
+            if (!await Shares.TryLoadFromDiskAsync())
             {
-                Log.Warning("Not scanning shares; 'no-share-scan' option is enabled.  Search and browse results will remain disabled until a manual scan is completed.");
-            }
-            else
-            {
-                _ = Shares.StartScanAsync();
+                Log.Warning("Unable to load share cache from disk. A share scan is required.");
+
+                State.SetValue(state => state with { Shares = state.Shares with { ScanPending = true } });
+
+                if (OptionsAtStartup.Flags.NoShareScan)
+                {
+                    Log.Warning("Not scanning shares; 'no-share-scan' option is enabled.  Search and browse results will remain disabled until a manual scan is completed.");
+                }
+                else
+                {
+                    _ = Shares.StartScanAsync();
+                }
             }
 
             if (OptionsAtStartup.Flags.NoConnect)
@@ -417,7 +426,21 @@ namespace slskd
                 var sw = new Stopwatch();
                 sw.Start();
 
-                var directories = await Shares.BrowseAsync();
+                BrowseResponse response = default;
+
+                var cacheFilename = Path.Combine(Program.DataDirectory, Filenames.BrowseCache);
+                var cacheFileInfo = new FileInfo(cacheFilename);
+
+                if (!cacheFileInfo.Exists)
+                {
+                    Log.Warning("Browse response not cached. Rebuilding...");
+                    await CacheBrowseResponse();
+                }
+
+                var stream = new FileStream(cacheFilename, FileMode.Open, FileAccess.Read);
+                response = new RawBrowseResponse(cacheFileInfo.Length, stream);
+
+                Log.Information("Sent browse response to {User}", username);
 
                 sw.Stop();
 
@@ -425,7 +448,7 @@ namespace slskd
                 Metrics.Browse.CurrentResponseLatency.Update(sw.ElapsedMilliseconds);
                 Metrics.Browse.ResponsesSent.Inc(1);
 
-                return new BrowseResponse(directories);
+                return response;
             }
             catch (Exception ex)
             {
@@ -981,6 +1004,7 @@ namespace slskd
                 {
                     State.SetValue(state => state with { Shares = state.Shares with { ScanPending = false } });
                     Log.Information("Shares scanned successfully. Found {Directories} directories and {Files} files in {Duration}ms", current.Directories, current.Files, (DateTime.UtcNow - SharesRefreshStarted).TotalMilliseconds);
+                    _ = CacheBrowseResponse();
 
                     SharesRefreshStarted = default;
 
@@ -994,6 +1018,13 @@ namespace slskd
                     }
                 }
             }
+            else if (!previous.Ready && current.Ready)
+            {
+                // the share transitioned into ready without completing a scan; it was loaded from disk
+                State.SetValue(state => state with { Shares = state.Shares with { ScanPending = false } });
+                Log.Information("Shares loaded from disk successfully. Sharing {Directories} directories and {Files}", current.Directories, current.Files);
+                _ = CacheBrowseResponse();
+            }
             else
             {
                 // the scan is neither starting nor finishing; progress update
@@ -1006,6 +1037,16 @@ namespace slskd
                     Log.Information("Scanned {Percent}% of shared directories. Found {Files} files so far.", currentProgress, current.Files);
                 }
             }
+        }
+
+        private async Task CacheBrowseResponse()
+        {
+            var directories = await Shares.BrowseAsync();
+            var response = new BrowseResponse(directories);
+
+            Log.Information("Warming browse response cache...");
+            System.IO.File.WriteAllBytes(Path.Combine(Program.DataDirectory, Filenames.BrowseCache), response.ToByteArray());
+            Log.Information("Browse response cached successfully");
         }
 
         private void State_OnChange((State Previous, State Current) state)
