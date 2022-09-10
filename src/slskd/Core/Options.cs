@@ -755,12 +755,12 @@ namespace slskd
             ///     Gets metrics endpoint authentication options.
             /// </summary>
             [Validate]
-            public AuthenticationOptions Authentication { get; init; } = new AuthenticationOptions();
+            public MetricsAuthenticationOptions Authentication { get; init; } = new MetricsAuthenticationOptions();
 
             /// <summary>
             ///     Metrics endpoint authentication options.
             /// </summary>
-            public class AuthenticationOptions
+            public class MetricsAuthenticationOptions
             {
                 /// <summary>
                 ///     Gets a value indicating whether authentication should be disabled.
@@ -1114,12 +1114,12 @@ namespace slskd
             ///     Gets authentication options.
             /// </summary>
             [Validate]
-            public AuthenticationOptions Authentication { get; init; } = new AuthenticationOptions();
+            public WebAuthenticationOptions Authentication { get; init; } = new WebAuthenticationOptions();
 
             /// <summary>
             ///     Authentication options.
             /// </summary>
-            public class AuthenticationOptions
+            public class WebAuthenticationOptions
             {
                 /// <summary>
                 ///     Gets a value indicating whether authentication should be disabled.
