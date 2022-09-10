@@ -428,7 +428,7 @@ namespace slskd
 
                 BrowseResponse response = default;
 
-                var cacheFilename = Path.Combine(Program.DataDirectory, Filenames.BrowseCache);
+                var cacheFilename = Path.Combine(Program.DataDirectory, "browse.cache");
                 var cacheFileInfo = new FileInfo(cacheFilename);
 
                 if (!cacheFileInfo.Exists)
@@ -780,15 +780,15 @@ namespace slskd
                     pendingReconnect |= requiresReconnect;
                 }
 
-                if (PreviousOptions.Directories.Shared.Except(newOptions.Directories.Shared).Any()
-                    || newOptions.Directories.Shared.Except(PreviousOptions.Directories.Shared).Any())
+                if (PreviousOptions.Shares.Directories.Except(newOptions.Shares.Directories).Any()
+                    || newOptions.Shares.Directories.Except(PreviousOptions.Shares.Directories).Any())
                 {
                     State.SetValue(state => state with { Shares = state.Shares with { ScanPending = true } });
                     Log.Information("Shared directory configuration changed.  Shares must be re-scanned for changes to take effect.");
                 }
 
-                if (PreviousOptions.Filters.Share.Except(newOptions.Filters.Share).Any()
-                    || newOptions.Filters.Share.Except(PreviousOptions.Filters.Share).Any())
+                if (PreviousOptions.Shares.Filters.Except(newOptions.Shares.Filters).Any()
+                    || newOptions.Shares.Filters.Except(PreviousOptions.Shares.Filters).Any())
                 {
                     State.SetValue(state => state with { Shares = state.Shares with { ScanPending = true } });
                     Log.Information("File filter configuration changed.  Shares must be re-scanned for changes to take effect.");
@@ -989,7 +989,17 @@ namespace slskd
                 SharesRefreshStarted = DateTime.UtcNow;
 
                 State.SetValue(s => s with { Shares = current });
-                Log.Information("Scanning shares");
+                Log.Information("Share scan started");
+
+                try
+                {
+                    System.IO.File.Delete(Path.Combine(Program.DataDirectory, "browse.cache"));
+                    Log.Information("Cleared browse response cache");
+                }
+                catch
+                {
+                    // noop
+                }
             }
             else if (previous.Scanning && !current.Scanning)
             {
@@ -1022,7 +1032,7 @@ namespace slskd
             {
                 // the share transitioned into ready without completing a scan; it was loaded from disk
                 State.SetValue(state => state with { Shares = state.Shares with { ScanPending = false } });
-                Log.Information("Shares loaded from disk successfully. Sharing {Directories} directories and {Files}", current.Directories, current.Files);
+                Log.Information("Shares loaded from disk successfully. Sharing {Directories} directories and {Files} files", current.Directories, current.Files);
                 _ = CacheBrowseResponse();
             }
             else
@@ -1045,7 +1055,7 @@ namespace slskd
             var response = new BrowseResponse(directories);
 
             Log.Information("Warming browse response cache...");
-            System.IO.File.WriteAllBytes(Path.Combine(Program.DataDirectory, Filenames.BrowseCache), response.ToByteArray());
+            System.IO.File.WriteAllBytes(Path.Combine(Program.DataDirectory, "browse.cache"), response.ToByteArray());
             Log.Information("Browse response cached successfully");
         }
 
