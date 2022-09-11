@@ -20,7 +20,7 @@
 #     - Thumbs.db$
 #     - \.DS_Store$
 #   cache:
-#     storage_mode: Memory
+#     storage_mode: memory
 # rooms:
 #   - ~
 # global:

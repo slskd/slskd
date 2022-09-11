@@ -103,7 +103,9 @@ directories:
   downloads: ~
 ```
 
-## Shares
+# Shares
+
+## Directories
 
 Any number of shared directories can be configured.
 
@@ -112,8 +114,8 @@ Paths must be absolute, meaning they must begin with `/`, `X:\`, or `\\`, depend
 Shares can be excluded by prefixing them with `-` or `!`.  This is useful in situations where sharing a subdirectory of a share isn't desired, for example, if a user wanted to share their entire music library, but not their personal recordings:
 
 ```yaml
-directories:
-  shared:
+shares:
+  directories:
     - 'D:\Music'
     - '!D:\Music\Personal Recordings`
 ```
@@ -121,8 +123,8 @@ directories:
 Shares can be aliased to improve privacy (for example, if a username is present in the path).  A share alias can be specified by prefixing the share with the alias in square brackets, for example:
 
 ```yaml
-directories:
-  shared:
+shares:
+  directories:
     - '[Music]\users\John Doe\Music'
 ```
 
@@ -137,11 +139,42 @@ Aliases:
 | -------------- | -------------------- | --------------------------------- |
 | `-s\|--shared` | `SHARED_DIR`         | The list of paths to shared files |
 
+## Filters
+
+Share filters can be used to prevent certain types of files from being shared.  This option is an array that can take any number of filters.  Filters must be a valid regular expression; a few examples are included below and in the example configuration included with the application, but the list is empty by default.
+
+| Command Line              | Environment Variable    | Description                                                           |
+| ------------------------- | ----------------------- | --------------------------------------------------------------------- |
+| `--share-filter`          | `SHARE_FILTER`          | A list of regular expressions used to filter files from shares        |
+
 #### **YAML**
 ```yaml
-directories:
-  shared:
-    - ~
+shares:
+  filters:
+    - \.ini$
+    - Thumbs.db$
+    - \.DS_Store$
+```
+
+## Cache
+
+The contents of shares are cached following a share scan, and users can choose how the cache is stored; in memory, or on disk.
+
+Storing the cache in memory results in faster lookups and lower CPU and disk activity while the application is running, but increases the amount of memory used.  Systems that don't have a lot of memory might have an issue with large shares.
+
+Storing the cache on disk uses quite a bit less memory and allows the application to run without issue for large shares, but lookups are slower, use more CPU, and cause more disk activity.
+
+The cache is stored in memory by default.  If you find that the application uses too much memory or crashes with an `Out of Memory` exception, change this option to store the cache on disk.
+
+| Command Line                 | Environment Variable       | Description                                             |
+| ---------------------------- | -------------------------- | ------------------------------------------------------- |
+| `--share-cache-storage-mode` | `SHARE_CACHE_STORAGE_MODE` | The type of storage to use for the cache (Memory, Disk) |
+
+#### **YAML**
+```yaml
+shares:
+  cache:
+    storage_mode: memory
 ```
 
 # Limits and User Groups
@@ -544,20 +577,13 @@ A number of filters can be configured to control various aspects of how the appl
 
 Share filters can be used to prevent certain types of files from being shared.  This option is an array that can take any number of filters.  Filters must be a valid regular expression; a few examples are included below and in the example configuration included with the application, but the list is empty by default.
 
-Search request filters can be used to discard incoming search requests that match one or more filters.  Like share filters, this option is an array of regular expressions, and it defaults to an empty array (no request filtering is applied).
-
 | Command Line              | Environment Variable    | Description                                                           |
 | ------------------------- | ----------------------- | --------------------------------------------------------------------- |
 | `--share-filter`          | `SHARE_FILTER`          | A list of regular expressions used to filter files from shares        |
-| `--search-request-filter` | `SEARCH_REQUEST_FILTER` | A list of regular expressions used to filter incoming search requests |
 
 #### **YAML**
 ```yaml
 filters:
-  share:
-    - \.ini$
-    - Thumbs.db$
-    - \.DS_Store$
   search:
     request:
       - ^.{1,2}$
