@@ -450,13 +450,13 @@ namespace slskd.Shares
         {
             try
             {
-                // see if we need to 'restore' the database from disk
-                if (StorageMode == StorageMode.Memory || (StorageMode == StorageMode.Disk && !DatabaseExists(Program.ConnectionStrings.Shares)))
+                // see if we need to 'restore' the database from disk, and do so
+                if (StorageMode == StorageMode.Memory || (StorageMode == StorageMode.Disk && !ValidateTables(Program.ConnectionStrings.Shares)))
                 {
                     Log.Debug($"Share cache {(StorageMode == StorageMode.Memory ? "StorageMode is 'Memory'" : "database is missing from disk")}. Attempting to load from backup...");
 
                     // the backup is missing; we can't do anything but recreate it from scratch
-                    if (!DatabaseExists(Program.ConnectionStrings.SharesBackup))
+                    if (!ValidateTables(Program.ConnectionStrings.SharesBackup))
                     {
                         Log.Debug("Share cache backup is missing; unable to restore");
                         return false;
@@ -471,16 +471,11 @@ namespace slskd.Shares
                     Log.Debug("Share cache successfully restored from backup");
                 }
 
-                Log.Debug("Validating share cache database");
-
-                if (!TableExists("directories") || !TableExists("filenames") || !TableExists("files"))
-                {
-                    Log.Warning("One or more tables are missing from the share cache database");
-                    return false;
-                }
-
-                // todo: check columns
-
+                // one of several thigns happened above before we got here:
+                //   the storage mode is memory, and we loaded the in-memory db from a valid backup
+                //   the storage mode is disk, and the file is there and valid
+                //   the storage mode is disk but either missing or invalid, and we restored from a valid backup
+                // at this point there is a valid (existing, schema matching expected schema) database at the primary connection string
                 State.SetValue(state => state with
                 {
                     Filling = false,
@@ -500,21 +495,55 @@ namespace slskd.Shares
             }
         }
 
-        private bool DatabaseExists(string connectionString)
+        private bool ValidateTables(string connectionString)
         {
+            var schema = new Dictionary<string, string>()
+            {
+                { "directories", "CREATE TABLE directories (name TEXT PRIMARY KEY)" },
+                { "filenames", "CREATE VIRTUAL TABLE filenames USING fts5(maskedFilename)" },
+                { "files", "CREATE TABLE files (maskedFilename TEXT PRIMARY KEY, originalFilename TEXT NOT NULL, size BIGINT NOT NULL, touchedAt TEXT NOT NULL, code INTEGER DEFAULT 1 NOT NULL, extension TEXT, attributeJson TEXT NOT NULL)" },
+            };
+
             try
             {
-                using var conn = GetConnection(connectionString);
+                Log.Debug("Validating shares database with connection string {String}", connectionString);
 
-                if (conn.State == ConnectionState.Open)
+                using var conn = GetConnection(connectionString);
+                using var cmd = new SqliteCommand("SELECT name, sql from sqlite_master WHERE type = 'table' AND name IN ('directories', 'filenames', 'files');", conn);
+
+                var reader = cmd.ExecuteReader();
+                var rows = 0;
+
+                while (reader.Read())
                 {
-                    return true;
+                    var table = reader.GetString(0);
+                    var expectedSql = reader.GetString(1);
+
+                    if (schema.TryGetValue(table, out var actualSql))
+                    {
+                        if (actualSql != expectedSql)
+                        {
+                            throw new MissingFieldException($"Expected {table} schema to be {expectedSql}, found {actualSql}");
+                        }
+                        else
+                        {
+                            Log.Debug("Shares database table {Table} is valid: {Actual}", table, actualSql);
+                        }
+                    }
+
+                    rows++;
                 }
 
-                return false;
+                if (rows != schema.Count)
+                {
+                    throw new MissingMemberException($"Expected {schema.Count} tables, found {rows}");
+                }
+
+                return true;
             }
-            catch
+            catch (Exception ex)
             {
+                Log.Debug(ex, $"Failed to validate shares database with connection string {connectionString}: {ex.Message}");
                 return false;
             }
         }
@@ -656,22 +685,6 @@ namespace slskd.Shares
             {
                 cmd?.Dispose();
             }
-        }
-
-        private bool TableExists(string table)
-        {
-            using var conn = GetConnection();
-            using var cmd = new SqliteCommand("SELECT name from sqlite_master WHERE type = 'table' AND name = @table;", conn);
-            cmd.Parameters.AddWithValue("table", table);
-            var reader = cmd.ExecuteReader();
-
-            if (reader.Read())
-            {
-                var fetchedTable = reader.GetString(0);
-                return table == fetchedTable;
-            }
-
-            return false;
         }
     }
 }
