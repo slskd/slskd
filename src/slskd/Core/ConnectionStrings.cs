@@ -24,6 +24,7 @@ namespace slskd
     {
         public string Transfers { get; init; }
         public string Shares { get; init; }
+        public string SharesBackup { get; init; }
         public string Search { get; init; }
     }
 }

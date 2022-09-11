@@ -402,7 +402,7 @@ namespace slskd.Transfers
                         Priority = options.Groups.Default.Upload.Priority,
                         Slots = Math.Min(options.Groups.Default.Upload.Slots, GlobalSlots),
                         UsedSlots = GetExistingUsedSlotsOrDefault(Application.DefaultGroup),
-                        Strategy = (QueueStrategy)Enum.Parse(typeof(QueueStrategy), options.Groups.Default.Upload.Strategy, true),
+                        Strategy = options.Groups.Default.Upload.Strategy.ToEnum<QueueStrategy>(),
                     },
                     new UploadGroup()
                     {
@@ -410,7 +410,7 @@ namespace slskd.Transfers
                         Priority = options.Groups.Leechers.Upload.Priority,
                         Slots = Math.Min(options.Groups.Leechers.Upload.Slots, GlobalSlots),
                         UsedSlots = GetExistingUsedSlotsOrDefault(Application.LeecherGroup),
-                        Strategy = (QueueStrategy)Enum.Parse(typeof(QueueStrategy), options.Groups.Leechers.Upload.Strategy, true),
+                        Strategy = options.Groups.Leechers.Upload.Strategy.ToEnum<QueueStrategy>(),
                     },
                 };
 
@@ -421,7 +421,7 @@ namespace slskd.Transfers
                     Priority = kvp.Value.Upload.Priority,
                     Slots = Math.Min(kvp.Value.Upload.Slots, GlobalSlots),
                     UsedSlots = GetExistingUsedSlotsOrDefault(kvp.Key),
-                    Strategy = (QueueStrategy)Enum.Parse(typeof(QueueStrategy), kvp.Value.Upload.Strategy, true),
+                    Strategy = kvp.Value.Upload.Strategy.ToEnum<QueueStrategy>(),
                 }));
 
                 Groups = groups.ToDictionary(g => g.Name);

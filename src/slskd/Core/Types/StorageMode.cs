@@ -1,4 +1,4 @@
-﻿// <copyright file="Filenames.cs" company="slskd Team">
+﻿// <copyright file="StorageMode.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -18,13 +18,18 @@
 namespace slskd
 {
     /// <summary>
-    ///     Application files.
+    ///     Storage mode.
     /// </summary>
-    public static class Filenames
+    public enum StorageMode
     {
-        public static readonly string TransfersDb = "transfers.db";
-        public static readonly string SharesDb = "shares.db";
-        public static readonly string SearchDb = "search.db";
-        public static readonly string BrowseCache = "browse.cache";
+        /// <summary>
+        ///     Stored in memory.
+        /// </summary>
+        Memory = 0,
+
+        /// <summary>
+        ///     Stored on disk.
+        /// </summary>
+        Disk = 1,
     }
 }

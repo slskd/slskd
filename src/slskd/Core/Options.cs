@@ -197,6 +197,12 @@ namespace slskd
         public DirectoriesOptions Directories { get; init; } = new DirectoriesOptions();
 
         /// <summary>
+        ///     Gets share options.
+        /// </summary>
+        [Validate]
+        public SharesOptions Shares { get; init; } = new SharesOptions();
+
+        /// <summary>
         ///     Gets global options.
         /// </summary>
         [Validate]
@@ -324,7 +330,7 @@ namespace slskd
         /// <summary>
         ///     Directory options.
         /// </summary>
-        public class DirectoriesOptions : IValidatableObject
+        public class DirectoriesOptions
         {
             /// <summary>
             ///     Gets the path where incomplete downloads are saved.
@@ -345,14 +351,50 @@ namespace slskd
             [DirectoryExists(ensureWriteable: true)]
             [RequiresRestart]
             public string Downloads { get; init; } = Program.DefaultDownloadsDirectory;
+        }
 
+        /// <summary>
+        ///     Share options.
+        /// </summary>
+        public class SharesOptions : IValidatableObject
+        {
             /// <summary>
             ///     Gets the list of paths to shared files.
             /// </summary>
             [Argument('s', "shared")]
             [EnvironmentVariable("SHARED_DIR")]
-            [Description("path to shared files")]
-            public string[] Shared { get; init; } = Array.Empty<string>();
+            [Description("paths to shared files")]
+            public string[] Directories { get; init; } = Array.Empty<string>();
+
+            /// <summary>
+            ///     Gets the list of shared file filters.
+            /// </summary>
+            [Argument(default, "share-filter")]
+            [EnvironmentVariable("SHARE_FILTER")]
+            [Description("regular expressions to filter files from shares")]
+            public string[] Filters { get; init; } = Array.Empty<string>();
+
+            /// <summary>
+            ///     Share caching options.
+            /// </summary>
+            [Validate]
+            public ShareCacheOptions Cache { get; init; } = new ShareCacheOptions();
+
+            /// <summary>
+            ///     Share caching options.
+            /// </summary>
+            public class ShareCacheOptions
+            {
+                /// <summary>
+                ///     Gets the type of storage to use for the share cache.
+                /// </summary>
+                [Argument(default, "share-cache-storage-mode")]
+                [EnvironmentVariable("SHARE_CACHE_STORAGE_MODE")]
+                [Description("the type of storage to use for the cache")]
+                [Enum(typeof(StorageMode))]
+                [RequiresRestart]
+                public string StorageMode { get; init; } = slskd.StorageMode.Memory.ToString().ToLowerInvariant();
+            }
 
             /// <summary>
             ///     Extended validation.
@@ -363,17 +405,27 @@ namespace slskd
             {
                 var results = new List<ValidationResult>();
 
+                results.AddRange(ValidateShares());
+                results.AddRange(ValidateFilters());
+
+                return results;
+            }
+
+            private IEnumerable<ValidationResult> ValidateShares()
+            {
+                var results = new List<ValidationResult>();
+
                 bool IsBlankPath(string share) => Regex.IsMatch(share.LocalizePath(), @"^(!|-){0,1}(\[.*\])$");
-                Shared.Where(share => IsBlankPath(share)).ToList()
+                Directories.Where(share => IsBlankPath(share)).ToList()
                     .ForEach(blank => results.Add(new ValidationResult($"Share {blank} doees not specify a path")));
 
                 bool IsRootMount(string share) => Regex.IsMatch(share.LocalizePath(), @"^(!|-){0,1}(\[.*\])/$");
-                Shared.Where(share => IsRootMount(share)).ToList()
+                Directories.Where(share => IsRootMount(share)).ToList()
                     .ForEach(blank => results.Add(new ValidationResult($"Share {blank} specifies a root mount, which is not supported.")));
 
                 // starts with '/', 'X:', or '\\'
                 bool IsAbsolutePath(string share) => Regex.IsMatch(share.LocalizePath(), @"^(!|-){0,1}(\[.*\])?(\/|[a-zA-Z]:|\\\\).*$");
-                Shared.Where(share => !IsAbsolutePath(share)).ToList()
+                Directories.Where(share => !IsAbsolutePath(share)).ToList()
                     .ForEach(relativePath => results.Add(new ValidationResult($"Share {relativePath} contains a relative path; only absolute paths are supported.")));
 
                 (string Raw, string Alias, string Path) Digest(string share)
@@ -388,7 +440,7 @@ namespace slskd
                     return (share, share.Split(new[] { '/', '\\' }).Last(), share);
                 }
 
-                var digestedShared = Shared
+                var digestedShared = Directories
                     .Select(share => Digest(share.TrimEnd('/', '\\')))
                     .ToHashSet();
 
@@ -410,6 +462,21 @@ namespace slskd
                     else if (share.Alias.Contains('\\') || share.Alias.Contains('/'))
                     {
                         results.Add(new ValidationResult($"Share '{share.Raw}' is invalid; aliases may not contain path separators '/' or '\\'"));
+                    }
+                }
+
+                return results;
+            }
+
+            private IEnumerable<ValidationResult> ValidateFilters()
+            {
+                var results = new List<ValidationResult>();
+
+                foreach (var filter in Filters)
+                {
+                    if (!filter.IsValidRegex())
+                    {
+                        results.Add(new ValidationResult($"Share filter '{filter}' is not a valid regular expression"));
                     }
                 }
 
@@ -642,41 +709,13 @@ namespace slskd
         /// <summary>
         ///     Filter options.
         /// </summary>
-        public class FiltersOptions : IValidatableObject
+        public class FiltersOptions
         {
-            /// <summary>
-            ///     Gets the list of shared file filters.
-            /// </summary>
-            [Argument(default, "share-filter")]
-            [EnvironmentVariable("SHARE_FILTER")]
-            [Description("regular expressions to filter files from shares")]
-            public string[] Share { get; init; } = Array.Empty<string>();
-
             /// <summary>
             ///     Gets search filter options.
             /// </summary>
             [Validate]
             public SearchOptions Search { get; init; } = new SearchOptions();
-
-            /// <summary>
-            ///     Extended validation.
-            /// </summary>
-            /// <param name="validationContext"></param>
-            /// <returns></returns>
-            public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
-            {
-                var results = new List<ValidationResult>();
-
-                foreach (var filter in Share)
-                {
-                    if (!filter.IsValidRegex())
-                    {
-                        results.Add(new ValidationResult($"Share filter '{filter}' is not a valid regular expression"));
-                    }
-                }
-
-                return results;
-            }
 
             /// <summary>
             ///     Search filter options.

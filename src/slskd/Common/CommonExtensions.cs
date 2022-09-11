@@ -360,6 +360,17 @@ namespace slskd
         }
 
         /// <summary>
+        ///     Casts the string to <typeparamref name="T"/>.
+        /// </summary>
+        /// <typeparam name="T">The Enum type to which to cast.</typeparam>
+        /// <param name="str">The string to cast.</param>
+        /// <returns>The cast enum</returns>
+        public static T ToEnum<T>(this string str)
+        {
+            return (T)Enum.Parse(typeof(T), str, ignoreCase: true);
+        }
+
+        /// <summary>
         ///     Deserializes this string from json to an object of type <typeparamref name="T"/>.
         /// </summary>
         /// <typeparam name="T">The type to which to deserialize the string.</typeparam>

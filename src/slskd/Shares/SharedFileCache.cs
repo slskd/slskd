@@ -22,6 +22,7 @@ namespace slskd.Shares
     using System;
     using System.Collections.Concurrent;
     using System.Collections.Generic;
+    using System.Data;
     using System.Diagnostics;
     using System.Linq;
     using System.Text.RegularExpressions;
@@ -39,9 +40,11 @@ namespace slskd.Shares
         /// <summary>
         ///     Initializes a new instance of the <see cref="SharedFileCache"/> class.
         /// </summary>
+        /// <param name="storageMode"></param>
         /// <param name="soulseekFileFactory"></param>
-        public SharedFileCache(ISoulseekFileFactory soulseekFileFactory = null)
+        public SharedFileCache(StorageMode storageMode, ISoulseekFileFactory soulseekFileFactory = null)
         {
+            StorageMode = storageMode;
             SoulseekFileFactory = soulseekFileFactory ?? new SoulseekFileFactory();
         }
 
@@ -50,6 +53,7 @@ namespace slskd.Shares
         /// </summary>
         public IStateMonitor<SharedFileCacheState> StateMonitor => State;
 
+        private StorageMode StorageMode { get; }
         private ILogger Log { get; } = Serilog.Log.ForContext<SharedFileCache>();
         private List<Share> Shares { get; set; }
         private ISoulseekFileFactory SoulseekFileFactory { get; }
@@ -144,18 +148,23 @@ namespace slskd.Shares
 
             try
             {
+                // drop and recreate the tables to clear them
+                // note: leave the backup in place. this will leave the app in a better position if the app stops during the scan.
+                CreateTables();
+
                 State.SetValue(state => state with
                 {
                     Filling = true,
                     Filled = false,
                     FillProgress = 0,
+                    Directories = 0,
+                    Files = 0,
+                    ExcludedDirectories = 0,
                 });
 
                 Log.Debug("Starting shared file scan");
 
                 await Task.Yield();
-
-                ResetCache();
 
                 var sw = new Stopwatch();
                 var swSnapshot = 0L;
@@ -301,6 +310,10 @@ namespace slskd.Shares
 
                 Log.Debug("Inserted {Files} records in {Elapsed}ms", cached, sw.ElapsedMilliseconds - swSnapshot);
 
+                Log.Debug("Backing up shared file cache database...");
+                Backup();
+                Log.Debug("Shared file cache database backup complete");
+
                 State.SetValue(state => state with
                 {
                     Filling = false,
@@ -437,30 +450,109 @@ namespace slskd.Shares
         {
             try
             {
-                if (TableExists("directories") && TableExists("filenames") && TableExists("files") && TableExists("exclusions"))
+                // see if we need to 'restore' the database from disk, and do so
+                if (StorageMode == StorageMode.Memory || (StorageMode == StorageMode.Disk && !ValidateTables(Program.ConnectionStrings.Shares)))
                 {
-                    // todo: check columns
+                    Log.Debug($"Share cache {(StorageMode == StorageMode.Memory ? "StorageMode is 'Memory'" : "database is missing from disk")}. Attempting to load from backup...");
 
-                    State.SetValue(state => state with
+                    // the backup is missing; we can't do anything but recreate it from scratch
+                    if (!ValidateTables(Program.ConnectionStrings.SharesBackup))
                     {
-                        Filling = false,
-                        Faulted = false,
-                        Filled = true,
-                        FillProgress = 1,
-                        Directories = CountDirectories(),
-                        Files = CountFiles(),
-                    });
+                        Log.Debug("Share cache backup is missing; unable to restore");
+                        return false;
+                    }
 
-                    return true;
+                    Log.Debug("Share cache backup located. Attempting to restore...");
+
+                    using var backupConn = GetConnection(Program.ConnectionStrings.SharesBackup);
+                    using var conn = GetConnection();
+                    backupConn.BackupDatabase(conn);
+
+                    Log.Debug("Share cache successfully restored from backup");
                 }
 
-                return false;
+                // one of several thigns happened above before we got here:
+                //   the storage mode is memory, and we loaded the in-memory db from a valid backup
+                //   the storage mode is disk, and the file is there and valid
+                //   the storage mode is disk but either missing or invalid, and we restored from a valid backup
+                // at this point there is a valid (existing, schema matching expected schema) database at the primary connection string
+                State.SetValue(state => state with
+                {
+                    Filling = false,
+                    Faulted = false,
+                    Filled = true,
+                    FillProgress = 1,
+                    Directories = CountDirectories(),
+                    Files = CountFiles(),
+                });
+
+                return true;
             }
             catch (Exception ex)
             {
                 Log.Debug(ex, "Error loading shared file cache: {Message}", ex.Message);
                 return false;
             }
+        }
+
+        private bool ValidateTables(string connectionString)
+        {
+            var schema = new Dictionary<string, string>()
+            {
+                { "directories", "CREATE TABLE directories (name TEXT PRIMARY KEY)" },
+                { "filenames", "CREATE VIRTUAL TABLE filenames USING fts5(maskedFilename)" },
+                { "files", "CREATE TABLE files (maskedFilename TEXT PRIMARY KEY, originalFilename TEXT NOT NULL, size BIGINT NOT NULL, touchedAt TEXT NOT NULL, code INTEGER DEFAULT 1 NOT NULL, extension TEXT, attributeJson TEXT NOT NULL)" },
+            };
+
+            try
+            {
+                Log.Debug("Validating shares database with connection string {String}", connectionString);
+
+                using var conn = GetConnection(connectionString);
+                using var cmd = new SqliteCommand("SELECT name, sql from sqlite_master WHERE type = 'table' AND name IN ('directories', 'filenames', 'files');", conn);
+
+                var reader = cmd.ExecuteReader();
+                var rows = 0;
+
+                while (reader.Read())
+                {
+                    var table = reader.GetString(0);
+                    var expectedSql = reader.GetString(1);
+
+                    if (schema.TryGetValue(table, out var actualSql))
+                    {
+                        if (actualSql != expectedSql)
+                        {
+                            throw new MissingFieldException($"Expected {table} schema to be {expectedSql}, found {actualSql}");
+                        }
+                        else
+                        {
+                            Log.Debug("Shares database table {Table} is valid: {Actual}", table, actualSql);
+                        }
+                    }
+
+                    rows++;
+                }
+
+                if (rows != schema.Count)
+                {
+                    throw new MissingMemberException($"Expected {schema.Count} tables, found {rows}");
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Log.Debug(ex, $"Failed to validate shares database with connection string {connectionString}: {ex.Message}");
+                return false;
+            }
+        }
+
+        private void Backup()
+        {
+            using var sourceConn = GetConnection();
+            using var backupConn = GetConnection(Program.ConnectionStrings.SharesBackup);
+            sourceConn.BackupDatabase(backupConn);
         }
 
         private int CountDirectories()
@@ -494,9 +586,9 @@ namespace slskd.Shares
                 "extension TEXT, attributeJson TEXT NOT NULL);");
         }
 
-        private SqliteConnection GetConnection()
+        private SqliteConnection GetConnection(string connectionString = null)
         {
-            var conn = new SqliteConnection(Program.ConnectionStrings.Shares);
+            var conn = new SqliteConnection(connectionString ?? Program.ConnectionStrings.Shares);
             conn.Open();
             return conn;
         }
@@ -593,38 +685,6 @@ namespace slskd.Shares
             {
                 cmd?.Dispose();
             }
-        }
-
-        private void ResetCache()
-        {
-            CreateTables();
-
-            try
-            {
-                System.IO.File.Delete(Path.Combine(Program.DataDirectory, Filenames.BrowseCache));
-            }
-            catch (FileNotFoundException)
-            {
-                // noop
-            }
-
-            State.SetValue(state => state with { Directories = 0, Files = 0 });
-        }
-
-        private bool TableExists(string table)
-        {
-            using var conn = GetConnection();
-            using var cmd = new SqliteCommand("SELECT name from sqlite_master WHERE type = 'table' AND name = @table;", conn);
-            cmd.Parameters.AddWithValue("table", table);
-            var reader = cmd.ExecuteReader();
-
-            if (reader.Read())
-            {
-                var fetchedTable = reader.GetString(0);
-                return table == fetchedTable;
-            }
-
-            return false;
         }
     }
 }

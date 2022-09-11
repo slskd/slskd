@@ -255,15 +255,7 @@ namespace slskd
             // the application isn't being run in command mode. derive the application directory value
             // and defaults that are dependent upon it
             AppDirectory ??= DefaultAppDirectory;
-
             DataDirectory = Path.Combine(AppDirectory, "data");
-
-            ConnectionStrings = new()
-            {
-                Search = $"Data Source={Path.Combine(DataDirectory, Filenames.SearchDb)};Cache=shared;Pooling=True;",
-                Transfers = $"Data Source={Path.Combine(DataDirectory, Filenames.TransfersDb)};Cache=shared;Pooling=True;",
-                Shares = $"Data Source={Path.Combine(DataDirectory, Filenames.SharesDb)};Cache=shared",
-            };
 
             DefaultConfigurationFile = Path.Combine(AppDirectory, $"{AppName}.yml");
             DefaultDownloadsDirectory = Path.Combine(AppDirectory, "downloads");
@@ -341,10 +333,37 @@ namespace slskd
             Log.Information("Process ID: {ProcessId}", ProcessId);
             Log.Information("Instance Name: {InstanceName}", OptionsAtStartup.InstanceName);
 
+            // SQLite must have specific capabilities to function properly. this shouldn't be a concern for shrinkwrapped
+            // binaries or in Docker, but if someone builds from source weird things can happen.
+            InitSQLiteOrFailFast();
+
             Log.Information("Using application directory {AppDirectory}", AppDirectory);
             Log.Information("Using configuration file {ConfigurationFile}", ConfigurationFile);
+            Log.Information("Storing application data in {DataDirectory}", DataDirectory);
 
             RecreateConfigurationFileIfMissing(ConfigurationFile);
+
+            // configure connection strings and configure SQLite
+            string shareDbDataSource = default;
+
+            if (OptionsAtStartup.Shares.Cache.StorageMode.ToEnum<StorageMode>() == StorageMode.Disk)
+            {
+                Log.Information("Using on-disk shared file cache");
+                shareDbDataSource = Path.Combine(DataDirectory, "shares.db");
+            }
+            else
+            {
+                Log.Information("Using in-memory shared file cache");
+                shareDbDataSource = "file:shares?mode=memory";
+            }
+
+            ConnectionStrings = new()
+            {
+                Search = $"Data Source={Path.Combine(DataDirectory, "search.db")};Cache=shared;Pooling=True;",
+                Transfers = $"Data Source={Path.Combine(DataDirectory, "transfers.db")};Cache=shared;Pooling=True;",
+                Shares = $"Data Source={shareDbDataSource};Cache=shared",
+                SharesBackup = $"Data Source={Path.Combine(DataDirectory, "shares.db.bak")};",
+            };
 
             if (!string.IsNullOrEmpty(OptionsAtStartup.Logger.Loki))
             {
@@ -465,8 +484,6 @@ namespace slskd
 
             services.AddSingleton<IConnectionWatchdog, ConnectionWatchdog>();
 
-            ConfigureSQLite();
-
             services.AddDbContext<SearchDbContext>(ConnectionStrings.Search);
             services.AddDbContext<TransfersDbContext>(ConnectionStrings.Transfers);
 
@@ -492,7 +509,7 @@ namespace slskd
             return services;
         }
 
-        private static void ConfigureSQLite()
+        private static void InitSQLiteOrFailFast()
         {
             // initialize
             // avoids: System.Exception: You need to call SQLitePCL.raw.SetProvider().  If you are using a bundle package, this is done by calling SQLitePCL.Batteries.Init().
