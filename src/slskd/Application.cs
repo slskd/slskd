@@ -1032,7 +1032,7 @@ namespace slskd
             {
                 // the share transitioned into ready without completing a scan; it was loaded from disk
                 State.SetValue(state => state with { Shares = state.Shares with { ScanPending = false } });
-                Log.Information("Shares loaded from disk successfully. Sharing {Directories} directories and {Files} files", current.Directories, current.Files);
+                Log.Information("Share cache loaded from disk successfully. Sharing {Directories} directories and {Files} files", current.Directories, current.Files);
                 _ = CacheBrowseResponse();
             }
             else

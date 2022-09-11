@@ -348,12 +348,12 @@ namespace slskd
 
             if (OptionsAtStartup.Shares.Cache.StorageMode.ToEnum<StorageMode>() == StorageMode.Disk)
             {
-                Log.Information("Using on-disk shared file database");
+                Log.Information("Using on-disk shared file cache");
                 shareDbDataSource = Path.Combine(DataDirectory, "shares.db");
             }
             else
             {
-                Log.Information("Using in-memory shared file database");
+                Log.Information("Using in-memory shared file cache");
                 shareDbDataSource = "file:shares?mode=memory";
             }
 
