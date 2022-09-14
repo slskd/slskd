@@ -421,7 +421,7 @@ namespace slskd.Shares
                     results.Add(file);
                 }
 
-                return results.OrderBy(f => f.Filename);
+                return results;
             }
             catch (Exception ex)
             {
