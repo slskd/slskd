@@ -231,12 +231,6 @@ namespace slskd.Shares
                 {
                     Log.Debug("Starting scan of {Directory} ({Current}/{Total})", directory, current + 1, unmaskedDirectories.Count);
 
-                    if (Path.DirectorySeparatorChar == '/' && directory.Contains('\\'))
-                    {
-                        Log.Warning("Directory name {Directory} contains one or more backslashes, which are not currently supported. This directory will not be shared.", directory);
-                        continue;
-                    }
-
                     var addedFiles = 0;
                     var filteredFiles = 0;
 
@@ -270,12 +264,6 @@ namespace slskd.Shares
                             if (filters.Any(filter => filter.IsMatch(originalFilename)))
                             {
                                 filteredFiles++;
-                                continue;
-                            }
-
-                            if (Path.DirectorySeparatorChar == '/' && file.Filename.Contains('\\'))
-                            {
-                                Log.Warning("Filename {Filename} contains one or more backslashes, which are not currently supported. This file will not be shared.", file.Filename);
                                 continue;
                             }
 
