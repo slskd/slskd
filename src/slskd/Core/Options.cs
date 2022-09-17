@@ -394,6 +394,16 @@ namespace slskd
                 [Enum(typeof(StorageMode))]
                 [RequiresRestart]
                 public string StorageMode { get; init; } = slskd.StorageMode.Memory.ToString().ToLowerInvariant();
+
+                /// <summary>
+                ///     Gets the number of workers to use while scanning shares.
+                /// </summary>
+                [Argument(default, "share-cache-workers")]
+                [EnvironmentVariable("SHARE_CACHE_WORKERS")]
+                [Description("the number of workers to use while scanning shares")]
+                [Range(1, 128)]
+                [RequiresRestart]
+                public int Workers { get; init; } = 16;
             }
 
             /// <summary>

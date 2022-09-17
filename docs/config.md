@@ -166,9 +166,16 @@ Storing the cache on disk uses quite a bit less memory and allows the applicatio
 
 The cache is stored in memory by default.  If you find that the application uses too much memory or crashes with an `Out of Memory` exception, change this option to store the cache on disk.
 
+Scanning shares is an I/O intensive operation; all of the files and directories in each share have to be listed, and each file has to be read to gather metadata like length, bitrate, and sample rate. To speed things up, multiple 'workers'
+are used to allow metadata to be read from several files concurrently. The scan generally gets faster as additional workers are added, but each worker also adds additional I/O pressure and increases CPU and memory usage. At some number of workers
+performance will start to get worse as more are added.  The optimal number of workers will vary from system to system, so if scan performance is important to you it will be a good idea to experiment to see what the optimal number is for your system.
+
+The default number of workers is 16.
+
 | Command Line                 | Environment Variable       | Description                                             |
 | ---------------------------- | -------------------------- | ------------------------------------------------------- |
 | `--share-cache-storage-mode` | `SHARE_CACHE_STORAGE_MODE` | The type of storage to use for the cache (Memory, Disk) |
+| `--share-cache-workers`      | `SHARE_CACHE_WORKERS`      | The number of workers to use while scanning shares      |
 
 #### **YAML**
 ```yaml
