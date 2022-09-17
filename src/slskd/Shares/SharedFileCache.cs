@@ -27,6 +27,7 @@ namespace slskd.Shares
     using System.Linq;
     using System.Text.RegularExpressions;
     using System.Threading;
+    using System.Threading.Channels;
     using System.Threading.Tasks;
     using Microsoft.Data.Sqlite;
     using Serilog;
@@ -42,9 +43,10 @@ namespace slskd.Shares
         /// </summary>
         /// <param name="storageMode"></param>
         /// <param name="soulseekFileFactory"></param>
-        public SharedFileCache(StorageMode storageMode, ISoulseekFileFactory soulseekFileFactory = null)
+        public SharedFileCache(StorageMode storageMode, int workerCount, ISoulseekFileFactory soulseekFileFactory = null)
         {
             StorageMode = storageMode;
+            WorkerCount = workerCount;
             SoulseekFileFactory = soulseekFileFactory ?? new SoulseekFileFactory();
         }
 
@@ -54,11 +56,13 @@ namespace slskd.Shares
         public IStateMonitor<SharedFileCacheState> StateMonitor => State;
 
         private StorageMode StorageMode { get; }
+        private int WorkerCount { get; }
         private ILogger Log { get; } = Serilog.Log.ForContext<SharedFileCache>();
         private List<Share> Shares { get; set; }
         private ISoulseekFileFactory SoulseekFileFactory { get; }
         private IManagedState<SharedFileCacheState> State { get; } = new ManagedState<SharedFileCacheState>();
         private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1);
+        private Channel<string> DirectoryChannel { get; set; }
 
         /// <summary>
         ///     Returns the contents of the cache.
@@ -137,7 +141,7 @@ namespace slskd.Shares
         /// <param name="shares">The list of shares from which to fill the cache.</param>
         /// <param name="filters">The list of regular expressions used to exclude files or paths from scanning.</param>
         /// <returns>The operation context.</returns>
-        public async Task FillAsync(IEnumerable<Share> shares, IEnumerable<Regex> filters)
+        public async Task FillAsync(IEnumerable<Share> shares, IEnumerable<Regex> filters, CancellationToken cancellationToken = default)
         {
             // obtain the semaphore, or fail if it can't be obtained immediately, indicating that a scan is running.
             if (!await SyncRoot.WaitAsync(millisecondsTimeout: 0))
@@ -227,71 +231,107 @@ namespace slskd.Shares
                 var cached = 0;
                 var filtered = 0;
 
-                foreach (var directory in unmaskedDirectories)
+                // set up a channel to fan out for directory scanning
+                DirectoryChannel = Channel.CreateBounded<string>(new BoundedChannelOptions(1000)
                 {
-                    Log.Debug("Starting scan of {Directory} ({Current}/{Total})", directory, current + 1, unmaskedDirectories.Count);
+                    AllowSynchronousContinuations = false,
+                    FullMode = BoundedChannelFullMode.Wait,
+                    SingleReader = false,
+                    SingleWriter = true,
+                });
 
-                    var addedFiles = 0;
-                    var filteredFiles = 0;
+                // create workers to perform the fan out
+                var workers = new List<SharedFileCacheWorker>();
 
-                    var share = Shares.First(share => directory.StartsWith(share.LocalPath));
-
-                    maskedDirectories.Add(directory.ReplaceFirst(share.LocalPath, share.RemotePath));
-                    InsertDirectory(directory.ReplaceFirst(share.LocalPath, share.RemotePath));
-
-                    // recursively find all files in the directory and stick a record in a dictionary, keyed on the sanitized
-                    // filename and with a value of a Soulseek.File object
-                    try
-                    {
-                        // enumerate files in this directory only (no subdirectories) exclude hidden and system files and anything
-                        // that can't be accessed due to security restrictions
-                        var newFiles = System.IO.Directory.GetFiles(directory, "*", new EnumerationOptions()
+                foreach (var id in Enumerable.Range(0, WorkerCount))
+                {
+                    workers.Add(new SharedFileCacheWorker(
+                        id: id,
+                        directoryChannel: DirectoryChannel,
+                        cancellationToken: cancellationToken,
+                        handler: (directory) =>
                         {
-                            AttributesToSkip = FileAttributes.Hidden | FileAttributes.System,
-                            IgnoreInaccessible = true,
-                            RecurseSubdirectories = false,
-                        });
+                            Log.Debug("Starting scan of {Directory} ({Current}/{Total})", directory, current + 1, unmaskedDirectories.Count);
 
-                        addedFiles = newFiles.Count();
+                            var addedFiles = 0;
+                            var filteredFiles = 0;
 
-                        // merge the new dictionary with the rest this will overwrite any duplicate keys, but keys are the fully
-                        // qualified name the only time this *should* cause problems is if one of the shares is a subdirectory of another.
-                        foreach (var originalFilename in newFiles)
-                        {
-                            var info = new FileInfo(originalFilename);
-                            var file = SoulseekFileFactory.Create(originalFilename, maskedFilename: originalFilename.ReplaceFirst(share.LocalPath, share.RemotePath));
+                            var share = Shares.First(share => directory.StartsWith(share.LocalPath));
 
-                            if (filters.Any(filter => filter.IsMatch(originalFilename)))
+                            maskedDirectories.Add(directory.ReplaceFirst(share.LocalPath, share.RemotePath));
+                            InsertDirectory(directory.ReplaceFirst(share.LocalPath, share.RemotePath));
+
+                            // recursively find all files in the directory and stick a record in a dictionary, keyed on the sanitized
+                            // filename and with a value of a Soulseek.File object
+                            try
                             {
-                                filteredFiles++;
-                                continue;
+                                // enumerate files in this directory only (no subdirectories) exclude hidden and system files and anything
+                                // that can't be accessed due to security restrictions
+                                var newFiles = System.IO.Directory.GetFiles(directory, "*", new EnumerationOptions()
+                                {
+                                    AttributesToSkip = FileAttributes.Hidden | FileAttributes.System,
+                                    IgnoreInaccessible = true,
+                                    RecurseSubdirectories = false,
+                                });
+
+                                addedFiles = newFiles.Count();
+
+                                // merge the new dictionary with the rest this will overwrite any duplicate keys, but keys are the fully
+                                // qualified name the only time this *should* cause problems is if one of the shares is a subdirectory of another.
+                                foreach (var originalFilename in newFiles)
+                                {
+                                    var info = new FileInfo(originalFilename);
+                                    var file = SoulseekFileFactory.Create(originalFilename, maskedFilename: originalFilename.ReplaceFirst(share.LocalPath, share.RemotePath));
+
+                                    if (filters.Any(filter => filter.IsMatch(originalFilename)))
+                                    {
+                                        filteredFiles++;
+                                        continue;
+                                    }
+
+                                    InsertFile(maskedFilename: file.Filename, originalFilename, touchedAt: info.LastWriteTimeUtc, file);
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                Log.Debug("Failed to scan files in directory {Directory}: {Exception}", directory, ex);
+                                Log.Warning("Failed to scan files in directory {Directory}: {Message}", directory, ex.Message);
                             }
 
-                            InsertFile(maskedFilename: file.Filename, originalFilename, touchedAt: info.LastWriteTimeUtc, file);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.Debug("Failed to scan files in directory {Directory}: {Exception}", directory, ex);
-                        Log.Warning("Failed to scan files in directory {Directory}: {Message}", directory, ex.Message);
-                    }
+                            current++;
+                            filtered += filteredFiles;
+                            cached += addedFiles;
 
-                    current++;
-                    filtered += filteredFiles;
-                    cached += addedFiles;
+                            Log.Debug("Finished scanning {Directory}: {Added} files added and {Filtered} filtered", directory, addedFiles, filteredFiles);
 
-                    Log.Debug("Finished scanning {Directory}: {Added} files added and {Filtered} filtered", directory, addedFiles, filteredFiles);
-
-                    try
-                    {
-                        State.SetValue(state => state with { FillProgress = current / (double)unmaskedDirectories.Count, Files = cached });
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.Error(ex, "Failed to set cache state following scan of {Directory}: {Message}", directory, ex.Message);
-                        throw;
-                    }
+                            try
+                            {
+                                State.SetValue(state => state with { FillProgress = current / (double)unmaskedDirectories.Count, Files = cached });
+                            }
+                            catch (Exception ex)
+                            {
+                                Log.Error(ex, "Failed to set cache state following scan of {Directory}: {Message}", directory, ex.Message);
+                                throw;
+                            }
+                        }));
                 }
+
+                Log.Debug("Starting workers...");
+                workers.ForEach(w => w.Start());
+                Log.Debug("All workers started");
+
+                Log.Debug("Filling DirectoryChannel...");
+                foreach (var directory in unmaskedDirectories)
+                {
+                    await DirectoryChannel.Writer.WriteAsync(directory);
+                }
+
+                DirectoryChannel.Writer.Complete();
+                Log.Debug("DirectoryChannel filled");
+
+                Log.Debug("Waiting for workers to finish working...");
+                await Task.WhenAll(workers.Select(w => w.Completed));
+                Log.Debug("All workers finished");
 
                 Log.Debug("Directory scan found {Files} files (and {Filtered} were filtered) in {Elapsed}ms.  Populating filename database", cached, filtered, sw.ElapsedMilliseconds - swSnapshot);
                 swSnapshot = sw.ElapsedMilliseconds;
