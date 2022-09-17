@@ -41,7 +41,10 @@ namespace slskd.Shares
             IOptionsMonitor<Options> optionsMonitor,
             ISharedFileCache sharedFileCache = null)
         {
-            Cache = sharedFileCache ?? new SharedFileCache(storageMode: optionsMonitor.CurrentValue.Shares.Cache.StorageMode.ToEnum<StorageMode>());
+            Cache = sharedFileCache ?? new SharedFileCache(
+                storageMode: optionsMonitor.CurrentValue.Shares.Cache.StorageMode.ToEnum<StorageMode>(),
+                workerCount: optionsMonitor.CurrentValue.Shares.Cache.Workers);
+
             Cache.StateMonitor.OnChange(cacheState =>
             {
                 var (previous, current) = cacheState;
