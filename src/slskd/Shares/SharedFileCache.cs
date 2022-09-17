@@ -274,7 +274,7 @@ namespace slskd.Shares
                                     RecurseSubdirectories = false,
                                 });
 
-                                addedFiles = newFiles.Count();
+                                addedFiles = newFiles.Length;
 
                                 // merge the new dictionary with the rest this will overwrite any duplicate keys, but keys are the fully
                                 // qualified name the only time this *should* cause problems is if one of the shares is a subdirectory of another.
