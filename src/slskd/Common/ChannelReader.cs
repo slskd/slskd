@@ -114,7 +114,7 @@ namespace slskd.Shares
         {
             try
             {
-                while (Started && !CancellationTokenSource.Token.IsCancellationRequested && !Channel.Reader.Completion.IsCompleted)
+                while (!CancellationTokenSource.Token.IsCancellationRequested && !Channel.Reader.Completion.IsCompleted)
                 {
                     var item = await Channel.Reader.ReadAsync(CancellationToken);
                     Handler(item);
