@@ -42,6 +42,7 @@ namespace slskd.Shares
         ///     Initializes a new instance of the <see cref="SharedFileCache"/> class.
         /// </summary>
         /// <param name="storageMode"></param>
+        /// <param name="workerCount"></param>
         /// <param name="soulseekFileFactory"></param>
         public SharedFileCache(StorageMode storageMode, int workerCount, ISoulseekFileFactory soulseekFileFactory = null)
         {
@@ -241,13 +242,12 @@ namespace slskd.Shares
                 });
 
                 // create workers to perform the fan out
-                var workers = new List<SharedFileCacheWorker>();
+                var workers = new List<ChannelReader<string>>();
 
                 foreach (var id in Enumerable.Range(0, WorkerCount))
                 {
-                    workers.Add(new SharedFileCacheWorker(
-                        id: id,
-                        directoryChannel: DirectoryChannel,
+                    workers.Add(new ChannelReader<string>(
+                        channel: DirectoryChannel,
                         cancellationToken: cancellationToken,
                         handler: (directory) =>
                         {
