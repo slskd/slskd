@@ -21,6 +21,7 @@
 #     - \.DS_Store$
 #   cache:
 #     storage_mode: memory
+#     workers: 16
 # rooms:
 #   - ~
 # global:

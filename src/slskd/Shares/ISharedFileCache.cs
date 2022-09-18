@@ -19,6 +19,7 @@ namespace slskd.Shares
 {
     using System.Collections.Generic;
     using System.Text.RegularExpressions;
+    using System.Threading;
     using System.Threading.Tasks;
     using Soulseek;
 
@@ -44,8 +45,9 @@ namespace slskd.Shares
         /// <remarks>Initiates the scan, then yields execution back to the caller; does not wait for the operation to complete.</remarks>
         /// <param name="shares">The list of shares from which to fill the cache.</param>
         /// <param name="filters">The list of regular expressions used to exclude files or paths from scanning.</param>
+        /// <param name="cancellationToken">The optional cancellation token to monitor.</param>
         /// <returns>The operation context.</returns>
-        Task FillAsync(IEnumerable<Share> shares, IEnumerable<Regex> filters);
+        Task FillAsync(IEnumerable<Share> shares, IEnumerable<Regex> filters, CancellationToken cancellationToken = default);
 
         /// <summary>
         ///     Returns the contents of the specified <paramref name="directory"/>.
