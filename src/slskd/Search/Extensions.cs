@@ -39,17 +39,16 @@ namespace slskd.Search
             responseReceived ??= (args) => { };
 
             return new SearchOptions(
-                options.SearchTimeout,
-                options.ResponseLimit,
-                options.FilterResponses,
-                options.MinimumResponseFileCount,
-                options.MinimumPeerFreeUploadSlots,
-                options.MaximumPeerQueueLength,
-                options.MinimumPeerUploadSpeed,
-                options.FileLimit,
-                options.RemoveSingleCharacterSearchTerms,
-                options.ResponseFilter,
-                options.FileFilter,
+                searchTimeout: options.SearchTimeout,
+                responseLimit: options.ResponseLimit,
+                filterResponses: options.FilterResponses,
+                minimumResponseFileCount: options.MinimumResponseFileCount,
+                maximumPeerQueueLength: options.MaximumPeerQueueLength,
+                minimumPeerUploadSpeed: options.MinimumPeerUploadSpeed,
+                fileLimit: options.FileLimit,
+                removeSingleCharacterSearchTerms: options.RemoveSingleCharacterSearchTerms,
+                responseFilter: options.ResponseFilter,
+                fileFilter: options.FileFilter,
                 stateChanged: (args) =>
                 {
                     if (options.StateChanged != null)
@@ -83,19 +82,18 @@ namespace slskd.Search
             Func<Soulseek.File, bool> fileFilter = null)
         {
             return new SearchOptions(
-                options.SearchTimeout,
-                options.ResponseLimit,
+                searchTimeout: options.SearchTimeout,
+                responseLimit: options.ResponseLimit,
                 filterResponses: options.FilterResponses || responseFilter != null || fileFilter != null,
-                options.MinimumResponseFileCount,
-                options.MinimumPeerFreeUploadSlots,
-                options.MaximumPeerQueueLength,
-                options.MinimumPeerUploadSpeed,
-                options.FileLimit,
-                options.RemoveSingleCharacterSearchTerms,
-                responseFilter,
-                fileFilter,
-                options.StateChanged,
-                options.ResponseReceived);
+                minimumResponseFileCount: options.MinimumResponseFileCount,
+                maximumPeerQueueLength: options.MaximumPeerQueueLength,
+                minimumPeerUploadSpeed: options.MinimumPeerUploadSpeed,
+                fileLimit: options.FileLimit,
+                removeSingleCharacterSearchTerms: options.RemoveSingleCharacterSearchTerms,
+                responseFilter: responseFilter,
+                fileFilter: fileFilter,
+                stateChanged: options.StateChanged,
+                responseReceived: options.ResponseReceived);
         }
 
         /// <summary>

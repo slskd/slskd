@@ -15,6 +15,7 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
+using System.IO;
 using Microsoft.Extensions.Options;
 
 namespace slskd.Shares
@@ -40,7 +41,10 @@ namespace slskd.Shares
             IOptionsMonitor<Options> optionsMonitor,
             ISharedFileCache sharedFileCache = null)
         {
-            Cache = sharedFileCache ?? new SharedFileCache();
+            Cache = sharedFileCache ?? new SharedFileCache(
+                storageMode: optionsMonitor.CurrentValue.Shares.Cache.StorageMode.ToEnum<StorageMode>(),
+                workerCount: optionsMonitor.CurrentValue.Shares.Cache.Workers);
+
             Cache.StateMonitor.OnChange(cacheState =>
             {
                 var (previous, current) = cacheState;
@@ -51,6 +55,7 @@ namespace slskd.Shares
                     ScanPending = current.Faulted || (!(previous.Filling && !current.Filling) && state.ScanPending),
                     Scanning = current.Filling,
                     Faulted = current.Faulted,
+                    Ready = current.Filled,
                     ScanProgress = current.FillProgress,
                     Directories = current.Directories,
                     Files = current.Files,
@@ -86,7 +91,12 @@ namespace slskd.Shares
         /// </summary>
         /// <returns>The entire contents of the share.</returns>
         public Task<IEnumerable<Directory>> BrowseAsync()
-            => Task.FromResult(Cache.Browse());
+        {
+            var results = Cache.Browse();
+            var normalizedResults = results.Select(r => new Directory(r.Name.NormalizePath(), r.Files));
+
+            return Task.FromResult(normalizedResults);
+        }
 
         /// <summary>
         ///     Returns the contents of the specified <paramref name="directory"/>.
@@ -94,7 +104,12 @@ namespace slskd.Shares
         /// <param name="directory">The directory for which the contents are to be listed.</param>
         /// <returns>The contents of the directory.</returns>
         public Task<Directory> ListDirectoryAsync(string directory)
-            => Task.FromResult(Cache.List(directory));
+        {
+            var list = Cache.List(directory.LocalizePath());
+            var normalizedList = new Directory(list.Name.NormalizePath(), list.Files);
+
+            return Task.FromResult(normalizedList);
+        }
 
         /// <summary>
         ///     Resolves the local filename of the specified <paramref name="remoteFilename"/>, if the mask is associated with a
@@ -105,16 +120,25 @@ namespace slskd.Shares
         /// <exception cref="NotFoundException">
         ///     Thrown when the specified remote filename can not be associated with a configured share.
         /// </exception>
-        public Task<string> ResolveFilenameAsync(string remoteFilename)
+        public Task<FileInfo> ResolveFileAsync(string remoteFilename)
         {
-            var resolvedFilename = Cache.Resolve(remoteFilename);
+            var resolvedFilename = Cache.Resolve(remoteFilename.LocalizePath());
 
             if (string.IsNullOrEmpty(resolvedFilename))
             {
-                throw new NotFoundException($"The requested filename '{remoteFilename}' could not be resolved to a local file.");
+                throw new NotFoundException($"The requested filename '{remoteFilename}' could not be resolved to a local file");
             }
 
-            return Task.FromResult(resolvedFilename);
+            var fileInfo = new FileInfo(resolvedFilename);
+
+            if (!fileInfo.Exists)
+            {
+                // the shared file cache has divered from the physical filesystem; the user needs to perform a scan to reconcile.
+                State.SetValue(state => state with { ScanPending = true });
+                throw new NotFoundException($"The resolved file '{resolvedFilename}' could not be located on disk. A share scan should be performed.");
+            }
+
+            return Task.FromResult(fileInfo);
         }
 
         /// <summary>
@@ -123,7 +147,16 @@ namespace slskd.Shares
         /// <param name="query">The query for which to search.</param>
         /// <returns>The matching files.</returns>
         public Task<IEnumerable<File>> SearchAsync(SearchQuery query)
-            => Cache.SearchAsync(query);
+        {
+            var results = Cache.Search(query);
+
+            return Task.FromResult(results.Select(r => new File(
+                r.Code,
+                r.Filename.NormalizePath(),
+                r.Size,
+                r.Extension,
+                r.Attributes)));
+        }
 
         /// <summary>
         ///     Starts a scan of the configured shares.
@@ -131,7 +164,18 @@ namespace slskd.Shares
         /// <returns>The operation context.</returns>
         /// <exception cref="ShareScanInProgressException">Thrown when a scan is already in progress.</exception>
         public Task StartScanAsync()
-            => Cache.FillAsync(Shares, FilterRegexes);
+        {
+            return Cache.FillAsync(Shares, FilterRegexes);
+        }
+
+        /// <summary>
+        ///     Attempt to load shares from disk.
+        /// </summary>
+        /// <returns>A value indicating whether shares were loaded.</returns>
+        public Task<bool> TryLoadFromDiskAsync()
+        {
+            return Task.FromResult(Cache.TryLoad());
+        }
 
         private void Configure(Options options)
         {
@@ -139,21 +183,21 @@ namespace slskd.Shares
 
             try
             {
-                var optionsHash = Compute.Sha1Hash(string.Join(';', options.Directories.Shared));
+                var optionsHash = Compute.Sha1Hash(string.Join(';', options.Shares.Directories));
 
                 if (optionsHash == LastOptionsHash)
                 {
                     return;
                 }
 
-                var shares = options.Directories.Shared
+                var shares = options.Shares.Directories
                     .Select(share => share.TrimEnd('/', '\\'))
                     .ToHashSet() // remove duplicates
                     .Select(share => new Share(share)) // convert to Shares
                     .OrderByDescending(share => share.LocalPath.Length) // process subdirectories first.  this allows them to be aliased separately from their parent
                     .ToList();
 
-                var regexes = options.Filters.Share
+                var regexes = options.Shares.Filters
                     .Select(filter => new Regex(filter, RegexOptions.Compiled))
                     .ToList();
 

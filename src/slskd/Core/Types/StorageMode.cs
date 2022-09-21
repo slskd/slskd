@@ -1,4 +1,4 @@
-﻿// <copyright file="UploadGroup.cs" company="slskd Team">
+﻿// <copyright file="StorageMode.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -15,15 +15,21 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-namespace slskd.Transfers
+namespace slskd
 {
-    public sealed record UploadGroup
+    /// <summary>
+    ///     Storage mode.
+    /// </summary>
+    public enum StorageMode
     {
-        public string Name { get; init; }
-        public int Priority { get; set; }
-        public bool SlotAvailable => UsedSlots < Slots;
-        public int Slots { get; set; }
-        public QueueStrategy Strategy { get; set; }
-        public int UsedSlots { get; set; }
+        /// <summary>
+        ///     Stored in memory.
+        /// </summary>
+        Memory = 0,
+
+        /// <summary>
+        ///     Stored on disk.
+        /// </summary>
+        Disk = 1,
     }
 }

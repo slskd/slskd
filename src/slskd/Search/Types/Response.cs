@@ -24,7 +24,7 @@ namespace slskd.Search
     {
         public int FileCount { get; init; }
         public ICollection<File> Files { get; init; } = new List<File>();
-        public int FreeUploadSlots { get; init; }
+        public bool HasFreeUploadSlot { get; init; }
         public int LockedFileCount { get; init; }
         public ICollection<File> LockedFiles { get; init; } = new List<File>();
         public long QueueLength { get; init; }
@@ -38,7 +38,7 @@ namespace slskd.Search
             {
                 FileCount = searchResponse.FileCount,
                 Files = searchResponse.Files.Select(file => File.FromSoulseekFile(file)).ToList(),
-                FreeUploadSlots = searchResponse.FreeUploadSlots,
+                HasFreeUploadSlot = searchResponse.HasFreeUploadSlot,
                 LockedFileCount = searchResponse.LockedFileCount,
                 LockedFiles = searchResponse.LockedFiles.Select(file => File.FromSoulseekFile(file)).ToList(),
                 QueueLength = searchResponse.QueueLength,

@@ -1,4 +1,4 @@
-﻿// <copyright file="UploadGroup.cs" company="slskd Team">
+﻿// <copyright file="SqliteConnectionExtensions.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -15,15 +15,18 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-namespace slskd.Transfers
+namespace slskd
 {
-    public sealed record UploadGroup
+    using System;
+    using Microsoft.Data.Sqlite;
+
+    public static class SqliteConnectionExtensions
     {
-        public string Name { get; init; }
-        public int Priority { get; set; }
-        public bool SlotAvailable => UsedSlots < Slots;
-        public int Slots { get; set; }
-        public QueueStrategy Strategy { get; set; }
-        public int UsedSlots { get; set; }
+        public static int ExecuteNonQuery(this SqliteConnection conn, string query, Action<SqliteCommand> action = null)
+        {
+            using var cmd = new SqliteCommand(query, conn);
+            action?.Invoke(cmd);
+            return cmd.ExecuteNonQuery();
+        }
     }
 }

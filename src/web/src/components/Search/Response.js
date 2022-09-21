@@ -65,7 +65,7 @@ class Response extends Component {
 
   render = () => {
     let {response} = this.props;
-    let free = response.freeUploadSlots > 0;
+    let free = response.hasFreeUploadSlot;
 
     let { tree, downloadRequest, downloadError, isFolded } = this.state;
 

@@ -45,7 +45,6 @@ namespace slskd
     using Microsoft.Extensions.FileProviders.Physical;
     using Microsoft.IdentityModel.Tokens;
     using Microsoft.OpenApi.Models;
-    using Prometheus;
     using Prometheus.DotNetRuntime;
     using Prometheus.SystemMetrics;
     using Serilog;
@@ -161,6 +160,16 @@ namespace slskd
         public static string ConfigurationFile { get; private set; } = null;
 
         /// <summary>
+        ///     Gets the connection strings for application databases.
+        /// </summary>
+        public static ConnectionStrings ConnectionStrings { get; private set; } = null;
+
+        /// <summary>
+        ///     Gets the path where persistent data is saved.
+        /// </summary>
+        public static string DataDirectory { get; private set; } = null;
+
+        /// <summary>
         ///     Gets the default fully qualified path to the configuration file.
         /// </summary>
         public static string DefaultConfigurationFile { get; private set; }
@@ -246,6 +255,7 @@ namespace slskd
             // the application isn't being run in command mode. derive the application directory value
             // and defaults that are dependent upon it
             AppDirectory ??= DefaultAppDirectory;
+            DataDirectory = Path.Combine(AppDirectory, "data");
 
             DefaultConfigurationFile = Path.Combine(AppDirectory, $"{AppName}.yml");
             DefaultDownloadsDirectory = Path.Combine(AppDirectory, "downloads");
@@ -260,7 +270,7 @@ namespace slskd
             try
             {
                 VerifyDirectory(AppDirectory, createIfMissing: true, verifyWriteable: true);
-                VerifyDirectory(Path.Combine(AppDirectory, "data"), createIfMissing: true, verifyWriteable: true);
+                VerifyDirectory(DataDirectory, createIfMissing: true, verifyWriteable: true);
                 VerifyDirectory(DefaultDownloadsDirectory, createIfMissing: true, verifyWriteable: true);
                 VerifyDirectory(DefaultIncompleteDirectory, createIfMissing: true, verifyWriteable: true);
             }
@@ -323,10 +333,37 @@ namespace slskd
             Log.Information("Process ID: {ProcessId}", ProcessId);
             Log.Information("Instance Name: {InstanceName}", OptionsAtStartup.InstanceName);
 
+            // SQLite must have specific capabilities to function properly. this shouldn't be a concern for shrinkwrapped
+            // binaries or in Docker, but if someone builds from source weird things can happen.
+            InitSQLiteOrFailFast();
+
             Log.Information("Using application directory {AppDirectory}", AppDirectory);
             Log.Information("Using configuration file {ConfigurationFile}", ConfigurationFile);
+            Log.Information("Storing application data in {DataDirectory}", DataDirectory);
 
             RecreateConfigurationFileIfMissing(ConfigurationFile);
+
+            // configure connection strings and configure SQLite
+            string shareDbDataSource = default;
+
+            if (OptionsAtStartup.Shares.Cache.StorageMode.ToEnum<StorageMode>() == StorageMode.Disk)
+            {
+                Log.Information("Using on-disk shared file cache");
+                shareDbDataSource = Path.Combine(DataDirectory, "shares.db");
+            }
+            else
+            {
+                Log.Information("Using in-memory shared file cache");
+                shareDbDataSource = "file:shares?mode=memory";
+            }
+
+            ConnectionStrings = new()
+            {
+                Search = $"Data Source={Path.Combine(DataDirectory, "search.db")};Cache=shared;Pooling=True;",
+                Transfers = $"Data Source={Path.Combine(DataDirectory, "transfers.db")};Cache=shared;Pooling=True;",
+                Shares = $"Data Source={shareDbDataSource};Cache=shared",
+                SharesBackup = $"Data Source={Path.Combine(DataDirectory, "shares.db.bak")};",
+            };
 
             if (!string.IsNullOrEmpty(OptionsAtStartup.Logger.Loki))
             {
@@ -447,10 +484,8 @@ namespace slskd
 
             services.AddSingleton<IConnectionWatchdog, ConnectionWatchdog>();
 
-            ConfigureSQLite();
-
-            services.AddDbContext<SearchDbContext>("search.db");
-            services.AddDbContext<TransfersDbContext>("transfers.db");
+            services.AddDbContext<SearchDbContext>(ConnectionStrings.Search);
+            services.AddDbContext<TransfersDbContext>(ConnectionStrings.Transfers);
 
             services.AddSingleton<IBrowseTracker, BrowseTracker>();
             services.AddSingleton<IConversationTracker, ConversationTracker>();
@@ -474,7 +509,7 @@ namespace slskd
             return services;
         }
 
-        private static void ConfigureSQLite()
+        private static void InitSQLiteOrFailFast()
         {
             // initialize
             // avoids: System.Exception: You need to call SQLitePCL.raw.SetProvider().  If you are using a bundle package, this is done by calling SQLitePCL.Batteries.Init().
@@ -512,7 +547,7 @@ namespace slskd
             using var runtimeMetrics = DotNetRuntimeStatsBuilder.Default().StartCollecting();
 
             services.AddDataProtection()
-                .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(AppDirectory, "data", ".DataProtection-Keys")));
+                .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(DataDirectory, ".DataProtection-Keys")));
 
             var jwtSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(OptionsAtStartup.Web.Authentication.Jwt.Key));
 
@@ -838,7 +873,7 @@ namespace slskd
                     commandLine: Environment.CommandLine);
         }
 
-        private static IServiceCollection AddDbContext<T>(this IServiceCollection services, string filename)
+        private static IServiceCollection AddDbContext<T>(this IServiceCollection services, string connectionString)
             where T : DbContext
         {
             Log.Debug("Initializing database context {Name}", typeof(T).Name);
@@ -847,7 +882,7 @@ namespace slskd
             {
                 services.AddDbContextFactory<T>(options =>
                 {
-                    options.UseSqlite($"Data Source={Path.Combine(AppDirectory, "data", filename)};Cache=shared;Pooling=True;");
+                    options.UseSqlite(connectionString);
 
                     if (OptionsAtStartup.Debug && OptionsAtStartup.Flags.LogSQL)
                     {

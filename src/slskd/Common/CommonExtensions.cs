@@ -254,11 +254,21 @@ namespace slskd
         }
 
         /// <summary>
-        ///     Converts the given path to the local format (normalizes path separators).
+        ///     Converts the given path to the normalized format (normalizes path separators to backslashes).
         /// </summary>
         /// <param name="path">The path to convert.</param>
         /// <returns>The converted path.</returns>
-        public static string ToLocalOSPath(this string path)
+        public static string NormalizePath(this string path)
+        {
+            return path.Replace('/', '\\');
+        }
+
+        /// <summary>
+        ///     Converts the given path to the local format (normalizes path separators to Path.DirectorySeparatorChar).
+        /// </summary>
+        /// <param name="path">The path to convert.</param>
+        /// <returns>The converted path.</returns>
+        public static string LocalizePath(this string path)
         {
             return path.Replace('\\', Path.DirectorySeparatorChar).Replace('/', Path.DirectorySeparatorChar);
         }
@@ -278,7 +288,7 @@ namespace slskd
             }
 
             // normalize path separators
-            var localizedRemoteFilename = remoteFilename.ToLocalOSPath();
+            var localizedRemoteFilename = remoteFilename.LocalizePath();
 
             var parts = localizedRemoteFilename.Split(Path.DirectorySeparatorChar);
 
@@ -347,6 +357,17 @@ namespace slskd
             return obj is IDictionary &&
                    obj.GetType().IsGenericType &&
                    obj.GetType().GetGenericTypeDefinition().IsAssignableFrom(typeof(Dictionary<,>));
+        }
+
+        /// <summary>
+        ///     Casts the string to <typeparamref name="T"/>.
+        /// </summary>
+        /// <typeparam name="T">The Enum type to which to cast.</typeparam>
+        /// <param name="str">The string to cast.</param>
+        /// <returns>The cast enum</returns>
+        public static T ToEnum<T>(this string str)
+        {
+            return (T)Enum.Parse(typeof(T), str, ignoreCase: true);
         }
 
         /// <summary>

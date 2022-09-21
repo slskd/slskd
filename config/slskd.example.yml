@@ -12,8 +12,16 @@
 # directories:
 #   incomplete: ~
 #   downloads: ~
-#   shared:
+# shares:
+#   directories:
 #     - ~
+#   filters:
+#     - \.ini$
+#     - Thumbs.db$
+#     - \.DS_Store$
+#   cache:
+#     storage_mode: memory
+#     workers: 16
 # rooms:
 #   - ~
 # global:
@@ -48,10 +56,6 @@
 #         - alice
 #         - bob
 # filters:
-#   share:
-#     - \.ini$
-#     - Thumbs.db$
-#     - \.DS_Store$
 #   search:
 #     request:
 #       - ^.{1,2}$
