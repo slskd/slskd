@@ -991,16 +991,6 @@ namespace slskd
 
                 State.SetValue(s => s with { Shares = current });
 
-                try
-                {
-                    System.IO.File.Delete(Path.Combine(Program.DataDirectory, "browse.cache"));
-                    Log.Information("Cleared browse response cache");
-                }
-                catch
-                {
-                    // noop
-                }
-
                 Log.Information("Share scan started");
             }
             else if (previous.Scanning && !current.Scanning)
