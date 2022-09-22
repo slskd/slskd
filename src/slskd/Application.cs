@@ -29,8 +29,8 @@ namespace slskd
     using System.Net.Sockets;
     using System.Reflection;
     using System.Runtime;
-    using System.Text.RegularExpressions;
     using System.Runtime.InteropServices;
+    using System.Text.RegularExpressions;
     using System.Threading;
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.SignalR;
