@@ -29,8 +29,8 @@ namespace slskd
     using System.Net.Sockets;
     using System.Reflection;
     using System.Runtime;
-    using System.Text.RegularExpressions;
     using System.Runtime.InteropServices;
+    using System.Text.RegularExpressions;
     using System.Threading;
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.SignalR;
@@ -383,6 +383,7 @@ namespace slskd
                 }
                 else
                 {
+                    // todo: should this be forced prior to connection if the cache can't be loaded?
                     _ = Shares.StartScanAsync();
                 }
             }
@@ -989,17 +990,8 @@ namespace slskd
                 SharesRefreshStarted = DateTime.UtcNow;
 
                 State.SetValue(s => s with { Shares = current });
-                Log.Information("Share scan started");
 
-                try
-                {
-                    System.IO.File.Delete(Path.Combine(Program.DataDirectory, "browse.cache"));
-                    Log.Information("Cleared browse response cache");
-                }
-                catch
-                {
-                    // noop
-                }
+                Log.Information("Share scan started");
             }
             else if (previous.Scanning && !current.Scanning)
             {
