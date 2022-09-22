@@ -137,32 +137,11 @@ namespace slskd.Shares
         }
 
         /// <summary>
-        ///     (Re)Creates the cache.
-        /// </summary>
-        /// <param name="discardExisting">A value indicating whether an existing cache should be discarded prior to creation.</param>
-        public void Create(bool discardExisting = false)
-        {
-            using var conn = GetConnection();
-
-            if (discardExisting)
-            {
-                conn.ExecuteNonQuery("DROP TABLE IF EXISTS directories; DROP TABLE IF EXISTS filenames; DROP TABLE IF EXISTS files;");
-            }
-
-            conn.ExecuteNonQuery("CREATE TABLE IF NOT EXISTS directories (name TEXT PRIMARY KEY, timestamp INTEGER NOT NULL);");
-
-            conn.ExecuteNonQuery("CREATE VIRTUAL TABLE IF NOT EXISTS filenames USING fts5(maskedFilename);");
-
-            conn.ExecuteNonQuery("CREATE TABLE IF NOT EXISTS files " +
-                "(maskedFilename TEXT PRIMARY KEY, originalFilename TEXT NOT NULL, size BIGINT NOT NULL, touchedAt TEXT NOT NULL, code INTEGER DEFAULT 1 NOT NULL, " +
-                "extension TEXT, attributeJson TEXT NOT NULL, timestamp INTEGER NOT NULL);");
-        }
-
-        /// <summary>
         ///     Scans the configured shares and fills the cache.
         /// </summary>
         /// <param name="shares">The list of shares from which to fill the cache.</param>
         /// <param name="filters">The list of regular expressions used to exclude files or paths from scanning.</param>
+        /// <param name="cancellationToken">The optional cancellation token to monitor for cancellation requests.</param>
         /// <returns>The operation context.</returns>
         public async Task FillAsync(IEnumerable<Share> shares, IEnumerable<Regex> filters, CancellationToken cancellationToken = default)
         {
@@ -175,15 +154,6 @@ namespace slskd.Shares
 
             try
             {
-                // it's possible that the database was tampered with between the time it was checked at startup and now
-                // validate the tables, and if there's an issue, drop and recreate everything.
-                if (!ValidateTables(Program.ConnectionStrings.Shares))
-                {
-                    Log.Warning("Shared file cache invalid; dropping and re-creating prior to scan.");
-                    Create(discardExisting: true);
-                    Log.Information("Share file cache ready.");
-                }
-
                 State.SetValue(state => state with
                 {
                     Filling = true,
@@ -194,9 +164,23 @@ namespace slskd.Shares
                     ExcludedDirectories = 0,
                 });
 
+                // it's possible that the database was tampered with between the time it was checked at startup and now
+                // validate the tables, and if there's an issue, drop and recreate everything.
+                if (!ValidateTables(Program.ConnectionStrings.Shares))
+                {
+                    Log.Warning("Shared file cache invalid; dropping and re-creating prior to scan.");
+                    CreateTables(discardExisting: true);
+                    Log.Information("Share file cache ready.");
+                }
+
                 Log.Debug("Starting shared file scan");
 
                 await Task.Yield();
+
+                // there's an *extremely* unlikely chance that scans run back to back and result in a duplicate scanId
+                // to be super safe, wait a few milliseconds to make sure that we'll get a new timestamp.
+                await Task.Delay(50, cancellationToken);
+                var timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
                 var sw = new Stopwatch();
                 var swSnapshot = 0L;
@@ -217,7 +201,7 @@ namespace slskd.Shares
                 Shares.Where(s => s.IsExcluded).ToList()
                     .ForEach(s => Log.Information("Excluding {Local}", s.LocalPath));
 
-                Log.Debug("Enumerating shared directories");
+                Log.Information("Enumerating shared directories");
                 swSnapshot = sw.ElapsedMilliseconds;
 
                 // derive a list of all directories from all shares skip hidden and system directories, as well as anything that
@@ -251,10 +235,9 @@ namespace slskd.Shares
                 unmaskedDirectories = unmaskedDirectories.Except(excludedDirectories).ToHashSet();
 
                 State.SetValue(state => state with { Directories = unmaskedDirectories.Count, ExcludedDirectories = excludedDirectories.Count() });
-                Log.Debug("Found {Directories} shared directories (and {Excluded} were excluded) in {Elapsed}ms.  Starting file scan.", unmaskedDirectories.Count, excludedDirectories.Count(), sw.ElapsedMilliseconds - swSnapshot);
+                Log.Information("Found {Directories} shared directories (and {Excluded} were excluded) in {Elapsed}ms.  Starting file scan.", unmaskedDirectories.Count, excludedDirectories.Count(), sw.ElapsedMilliseconds - swSnapshot);
                 swSnapshot = sw.ElapsedMilliseconds;
 
-                var maskedDirectories = new HashSet<string>();
                 var current = 0;
                 var cached = 0;
                 var filtered = 0;
@@ -285,8 +268,7 @@ namespace slskd.Shares
 
                             var share = Shares.First(share => directory.StartsWith(share.LocalPath));
 
-                            maskedDirectories.Add(directory.ReplaceFirst(share.LocalPath, share.RemotePath));
-                            InsertDirectory(directory.ReplaceFirst(share.LocalPath, share.RemotePath));
+                            InsertDirectory(directory.ReplaceFirst(share.LocalPath, share.RemotePath), timestamp);
 
                             // recursively find all files in the directory and stick a record in a dictionary, keyed on the sanitized
                             // filename and with a value of a Soulseek.File object
@@ -316,7 +298,7 @@ namespace slskd.Shares
                                         continue;
                                     }
 
-                                    InsertFile(maskedFilename: file.Filename, originalFilename, touchedAt: info.LastWriteTimeUtc, file);
+                                    InsertFile(maskedFilename: file.Filename, originalFilename, touchedAt: info.LastWriteTimeUtc, file, timestamp);
                                 }
                             }
                             catch (Exception ex)
@@ -360,10 +342,13 @@ namespace slskd.Shares
                 await Task.WhenAll(workers.Select(w => w.Completed));
                 Log.Debug("All workers finished");
 
-                Log.Debug("Directory scan found {Files} files (and {Filtered} were filtered) in {Elapsed}ms", cached, filtered, sw.ElapsedMilliseconds - swSnapshot);
+                Log.Information("Scan found {Files} files (and {Filtered} were filtered) in {Elapsed}ms", cached, filtered, sw.ElapsedMilliseconds - swSnapshot);
                 swSnapshot = sw.ElapsedMilliseconds;
 
-                Log.Debug("Inserted {Files} records in {Elapsed}ms", cached, sw.ElapsedMilliseconds - swSnapshot);
+                var deletedFiles = DeleteStaleFiles(timestamp);
+                var deletedDirectories = DeleteStaleDirectories(timestamp);
+
+                Log.Information("Removed or renamed {Files} files and {Directories} directories in {Elapsed}ms", deletedFiles, deletedDirectories, sw.ElapsedMilliseconds - swSnapshot);
 
                 Log.Debug("Backing up shared file cache database...");
                 Backup();
@@ -550,6 +535,24 @@ namespace slskd.Shares
             }
         }
 
+        private void CreateTables(bool discardExisting = false)
+        {
+            using var conn = GetConnection();
+
+            if (discardExisting)
+            {
+                conn.ExecuteNonQuery("DROP TABLE IF EXISTS directories; DROP TABLE IF EXISTS filenames; DROP TABLE IF EXISTS files;");
+            }
+
+            conn.ExecuteNonQuery("CREATE TABLE IF NOT EXISTS directories (name TEXT PRIMARY KEY, timestamp INTEGER NOT NULL);");
+
+            conn.ExecuteNonQuery("CREATE VIRTUAL TABLE IF NOT EXISTS filenames USING fts5(maskedFilename);");
+
+            conn.ExecuteNonQuery("CREATE TABLE IF NOT EXISTS files " +
+                "(maskedFilename TEXT PRIMARY KEY, originalFilename TEXT NOT NULL, size BIGINT NOT NULL, touchedAt TEXT NOT NULL, code INTEGER DEFAULT 1 NOT NULL, " +
+                "extension TEXT, attributeJson TEXT NOT NULL, timestamp INTEGER NOT NULL);");
+        }
+
         private bool ValidateTables(string connectionString)
         {
             var schema = new Dictionary<string, string>()
@@ -635,23 +638,38 @@ namespace slskd.Shares
             return conn;
         }
 
-        private void InsertDirectory(string name)
+        private void InsertDirectory(string name, long timestamp)
         {
             using var conn = GetConnection();
 
-            conn.ExecuteNonQuery("INSERT INTO directories VALUES(@name) ON CONFLICT DO NOTHING;", cmd =>
+            conn.ExecuteNonQuery("INSERT INTO directories VALUES(@name, @timestamp) ON CONFLICT DO UPDATE SET timestamp = excluded.timestamp;", cmd =>
             {
                 cmd.Parameters.AddWithValue("name", name);
+                cmd.Parameters.AddWithValue("timestamp", timestamp);
             });
         }
 
-        private void InsertFile(string maskedFilename, string originalFilename, DateTime touchedAt, File file)
+        private long DeleteStaleDirectories(long timestamp)
         {
             using var conn = GetConnection();
 
-            conn.ExecuteNonQuery("INSERT INTO files (maskedFilename, originalFilename, size, touchedAt, code, extension, attributeJson) " +
-                "VALUES(@maskedFilename, @originalFilename, @size, @touchedAt, @code, @extension, @attributeJson) " +
-                "ON CONFLICT DO UPDATE SET originalFilename = excluded.originalFilename, size = excluded.size, touchedAt = excluded.touchedAt, code = excluded.code, extension = excluded.extension, attributeJson = excluded.attributeJson;", cmd =>
+            using var cmd = new SqliteCommand("DELETE FROM directories WHERE timestamp < @timestamp; SELECT changes()", conn);
+            cmd.Parameters.AddWithValue("timestamp", timestamp);
+
+            var reader = cmd.ExecuteReader();
+            reader.Read();
+
+            return reader.GetInt64(0);
+        }
+
+        private void InsertFile(string maskedFilename, string originalFilename, DateTime touchedAt, File file, long timestamp)
+        {
+            using var conn = GetConnection();
+
+            conn.ExecuteNonQuery("INSERT INTO files (maskedFilename, originalFilename, size, touchedAt, code, extension, attributeJson, timestamp) " +
+                "VALUES(@maskedFilename, @originalFilename, @size, @touchedAt, @code, @extension, @attributeJson, @timestamp) " +
+                "ON CONFLICT DO UPDATE SET originalFilename = excluded.originalFilename, size = excluded.size, touchedAt = excluded.touchedAt, " +
+                "code = excluded.code, extension = excluded.extension, attributeJson = excluded.attributeJson, timestamp = excluded.timestamp;", cmd =>
                 {
                     cmd.Parameters.AddWithValue("maskedFilename", maskedFilename);
                     cmd.Parameters.AddWithValue("originalFilename", originalFilename);
@@ -660,12 +678,26 @@ namespace slskd.Shares
                     cmd.Parameters.AddWithValue("code", file.Code);
                     cmd.Parameters.AddWithValue("extension", file.Extension);
                     cmd.Parameters.AddWithValue("attributeJson", file.Attributes.ToJson());
+                    cmd.Parameters.AddWithValue("timestamp", timestamp);
                 });
 
             conn.ExecuteNonQuery("INSERT INTO filenames (maskedFilename) VALUES(@maskedFilename);", cmd =>
             {
                 cmd.Parameters.AddWithValue("maskedFilename", maskedFilename);
             });
+        }
+
+        private long DeleteStaleFiles(long timestamp)
+        {
+            using var conn = GetConnection();
+
+            using var cmd = new SqliteCommand("DELETE FROM files WHERE timestamp < @timestamp; SELECT changes()", conn);
+            cmd.Parameters.AddWithValue("timestamp", timestamp);
+
+            var reader = cmd.ExecuteReader();
+            reader.Read();
+
+            return reader.GetInt64(0);
         }
 
         private IEnumerable<string> ListDirectories()
