@@ -40,12 +40,6 @@ namespace slskd.Shares
         IEnumerable<Directory> Browse();
 
         /// <summary>
-        ///     (Re)Creates the cache.
-        /// </summary>
-        /// <param name="discardExisting">A value indicating whether an existing cache should be discarded prior to creation.</param>
-        void Create(bool discardExisting = false);
-
-        /// <summary>
         ///     Scans the configured shares and fills the cache.
         /// </summary>
         /// <remarks>Initiates the scan, then yields execution back to the caller; does not wait for the operation to complete.</remarks>
