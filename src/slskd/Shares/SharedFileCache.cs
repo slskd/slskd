@@ -71,16 +71,6 @@ namespace slskd.Shares
         /// <returns>The contents of the cache.</returns>
         public IEnumerable<Directory> Browse()
         {
-            if (!State.CurrentValue.Filled)
-            {
-                if (State.CurrentValue.Filling)
-                {
-                    return new[] { new Directory("Scanning shares, please check back in a few minutes.") };
-                }
-
-                return Enumerable.Empty<Directory>();
-            }
-
             var directories = new ConcurrentDictionary<string, Directory>();
 
             // Soulseek requires that each directory in the tree have an entry in the list returned in a browse response. if
@@ -382,16 +372,6 @@ namespace slskd.Shares
         /// <returns>The contents of the directory.</returns>
         public Directory List(string directory)
         {
-            if (!State.CurrentValue.Filled)
-            {
-                if (State.CurrentValue.Filling)
-                {
-                    return new Directory(directory, new[] { new File(1, "Scanning shares, please check back in a few minutes.", 0, string.Empty) });
-                }
-
-                return null;
-            }
-
             var files = ListFiles(directory);
             return new Directory(directory, files);
         }
@@ -428,11 +408,6 @@ namespace slskd.Shares
         /// <returns>The matching files.</returns>
         public IEnumerable<File> Search(SearchQuery query)
         {
-            if (!State.CurrentValue.Filled)
-            {
-                return Enumerable.Empty<File>();
-            }
-
             string Clean(string str) => str.Replace("/", " ")
                 .Replace("\\", " ")
                 .Replace(":", " ")
