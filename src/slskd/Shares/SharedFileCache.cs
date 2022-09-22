@@ -137,6 +137,28 @@ namespace slskd.Shares
         }
 
         /// <summary>
+        ///     (Re)Creates the cache.
+        /// </summary>
+        /// <param name="discardExisting">A value indicating whether an existing cache should be discarded prior to creation.</param>
+        public void Create(bool discardExisting = false)
+        {
+            using var conn = GetConnection();
+
+            if (discardExisting)
+            {
+                conn.ExecuteNonQuery("DROP TABLE IF EXISTS directories; DROP TABLE IF EXISTS filenames; DROP TABLE IF EXISTS files;");
+            }
+
+            conn.ExecuteNonQuery("CREATE TABLE IF NOT EXISTS directories (name TEXT PRIMARY KEY, timestamp INTEGER NOT NULL);");
+
+            conn.ExecuteNonQuery("CREATE VIRTUAL TABLE IF NOT EXISTS filenames USING fts5(maskedFilename);");
+
+            conn.ExecuteNonQuery("CREATE TABLE IF NOT EXISTS files " +
+                "(maskedFilename TEXT PRIMARY KEY, originalFilename TEXT NOT NULL, size BIGINT NOT NULL, touchedAt TEXT NOT NULL, code INTEGER DEFAULT 1 NOT NULL, " +
+                "extension TEXT, attributeJson TEXT NOT NULL, timestamp INTEGER NOT NULL);");
+        }
+
+        /// <summary>
         ///     Scans the configured shares and fills the cache.
         /// </summary>
         /// <param name="shares">The list of shares from which to fill the cache.</param>
@@ -153,9 +175,14 @@ namespace slskd.Shares
 
             try
             {
-                // drop and recreate the tables to clear them
-                // note: leave the backup in place. this will leave the app in a better position if the app stops during the scan.
-                CreateTables();
+                // it's possible that the database was tampered with between the time it was checked at startup and now
+                // validate the tables, and if there's an issue, drop and recreate everything.
+                if (!ValidateTables(Program.ConnectionStrings.Shares))
+                {
+                    Log.Warning("Shared file cache invalid; dropping and re-creating prior to scan.");
+                    Create(discardExisting: true);
+                    Log.Information("Share file cache ready.");
+                }
 
                 State.SetValue(state => state with
                 {
@@ -527,9 +554,9 @@ namespace slskd.Shares
         {
             var schema = new Dictionary<string, string>()
             {
-                { "directories", "CREATE TABLE directories (name TEXT PRIMARY KEY)" },
+                { "directories", "CREATE TABLE directories (name TEXT PRIMARY KEY, timestamp INTEGER NOT NULL)" },
                 { "filenames", "CREATE VIRTUAL TABLE filenames USING fts5(maskedFilename)" },
-                { "files", "CREATE TABLE files (maskedFilename TEXT PRIMARY KEY, originalFilename TEXT NOT NULL, size BIGINT NOT NULL, touchedAt TEXT NOT NULL, code INTEGER DEFAULT 1 NOT NULL, extension TEXT, attributeJson TEXT NOT NULL)" },
+                { "files", "CREATE TABLE files (maskedFilename TEXT PRIMARY KEY, originalFilename TEXT NOT NULL, size BIGINT NOT NULL, touchedAt TEXT NOT NULL, code INTEGER DEFAULT 1 NOT NULL, extension TEXT, attributeJson TEXT NOT NULL, timestamp INTEGER NOT NULL)" },
             };
 
             try
@@ -599,19 +626,6 @@ namespace slskd.Shares
             var reader = cmd.ExecuteReader();
             reader.Read();
             return reader.GetInt32(0);
-        }
-
-        private void CreateTables()
-        {
-            using var conn = GetConnection();
-
-            conn.ExecuteNonQuery("DROP TABLE IF EXISTS directories; CREATE TABLE directories (name TEXT PRIMARY KEY);");
-
-            conn.ExecuteNonQuery("DROP TABLE IF EXISTS filenames; CREATE VIRTUAL TABLE filenames USING fts5(maskedFilename);");
-
-            conn.ExecuteNonQuery("DROP TABLE IF EXISTS files; CREATE TABLE files " +
-                "(maskedFilename TEXT PRIMARY KEY, originalFilename TEXT NOT NULL, size BIGINT NOT NULL, touchedAt TEXT NOT NULL, code INTEGER DEFAULT 1 NOT NULL, " +
-                "extension TEXT, attributeJson TEXT NOT NULL);");
         }
 
         private SqliteConnection GetConnection(string connectionString = null)
