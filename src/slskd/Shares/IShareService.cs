@@ -45,6 +45,16 @@ namespace slskd.Shares
         Task<IEnumerable<Directory>> BrowseAsync();
 
         /// <summary>
+        ///     (Re)Creates the cache.
+        /// </summary>
+        /// <remarks>
+        ///     This should generally only be called if <see cref="TryLoadFromDiskAsync"/> has returned false.
+        /// </remarks>
+        /// <param name="discardExisting">A value indicating whether an existing cache should be discarded prior to creation.</param>
+        /// <returns>The operation context.</returns>
+        Task CreateAsync(bool discardExisting = false);
+
+        /// <summary>
         ///     Returns the contents of the specified <paramref name="directory"/>.
         /// </summary>
         /// <param name="directory">The directory for which the contents are to be listed.</param>
