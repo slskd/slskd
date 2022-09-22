@@ -177,9 +177,6 @@ namespace slskd.Shares
 
                 await Task.Yield();
 
-                // there's an *extremely* unlikely chance that scans run back to back and result in a duplicate scanId
-                // to be super safe, wait a few milliseconds to make sure that we'll get a new timestamp.
-                await Task.Delay(50, cancellationToken);
                 var timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
                 var sw = new Stopwatch();
