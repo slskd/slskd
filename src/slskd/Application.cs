@@ -375,6 +375,11 @@ namespace slskd
             {
                 Log.Warning("Unable to load share cache from disk. A share scan is required.");
 
+                // drop all of the existing tables and recreate them
+                Log.Information("Recreating share cache...");
+                await Shares.CreateAsync(discardExisting: true);
+                Log.Information("Share cache ready.");
+
                 State.SetValue(state => state with { Shares = state.Shares with { ScanPending = true } });
 
                 if (OptionsAtStartup.Flags.NoShareScan)
