@@ -511,6 +511,8 @@ namespace slskd.Shares
         {
             using var conn = GetConnection();
 
+            conn.ExecuteNonQuery("PRAGMA journal_mode=WAL");
+
             if (discardExisting)
             {
                 conn.ExecuteNonQuery("DROP TABLE IF EXISTS directories; DROP TABLE IF EXISTS filenames; DROP TABLE IF EXISTS files;");
