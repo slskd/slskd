@@ -63,7 +63,6 @@ namespace slskd.Shares
         private ISoulseekFileFactory SoulseekFileFactory { get; }
         private IManagedState<SharedFileCacheState> State { get; } = new ManagedState<SharedFileCacheState>();
         private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1);
-        private Channel<string> DirectoryChannel { get; set; }
 
         /// <summary>
         ///     Returns the contents of the cache.
@@ -165,8 +164,6 @@ namespace slskd.Shares
 
                 Log.Debug("Starting shared file scan");
 
-                await Task.Yield();
-
                 var timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
                 var sw = new Stopwatch();
@@ -230,7 +227,7 @@ namespace slskd.Shares
                 var filtered = 0;
 
                 // set up a channel to fan out for directory scanning
-                DirectoryChannel = Channel.CreateBounded<string>(new BoundedChannelOptions(1000)
+                var channel = Channel.CreateBounded<string>(new BoundedChannelOptions(1000)
                 {
                     AllowSynchronousContinuations = false,
                     FullMode = BoundedChannelFullMode.Wait,
@@ -244,7 +241,7 @@ namespace slskd.Shares
                 foreach (var id in Enumerable.Range(0, WorkerCount))
                 {
                     workers.Add(new ChannelReader<string>(
-                        channel: DirectoryChannel,
+                        channel: channel,
                         cancellationToken: cancellationToken,
                         handler: (directory) =>
                         {
@@ -319,27 +316,38 @@ namespace slskd.Shares
                 Log.Debug("Filling DirectoryChannel...");
                 foreach (var directory in unmaskedDirectories)
                 {
-                    await DirectoryChannel.Writer.WriteAsync(directory);
+                    await channel.Writer.WriteAsync(directory, cancellationToken);
                 }
 
-                DirectoryChannel.Writer.Complete();
+                channel.Writer.Complete();
                 Log.Debug("DirectoryChannel filled");
 
-                Log.Debug("Waiting for workers to finish working...");
-                await Task.WhenAll(workers.Select(w => w.Completed));
-                Log.Debug("All workers finished");
+                try
+                {
+                    Log.Debug("Waiting for workers to finish working...");
+                    await Task.WhenAll(workers.Select(w => w.Completed));
+                    Log.Debug("All workers finished");
 
-                Log.Information("Scan found {Files} files (and {Filtered} were filtered) in {Elapsed}ms", cached, filtered, sw.ElapsedMilliseconds - swSnapshot);
-                swSnapshot = sw.ElapsedMilliseconds;
+                    Log.Information("Scan found {Files} files (and {Filtered} were filtered) in {Elapsed}ms", cached, filtered, sw.ElapsedMilliseconds - swSnapshot);
+                    swSnapshot = sw.ElapsedMilliseconds;
 
-                var deletedFiles = DeleteStaleFiles(timestamp);
-                var deletedDirectories = DeleteStaleDirectories(timestamp);
+                    var deletedFiles = DeleteStaleFiles(timestamp);
+                    var deletedDirectories = DeleteStaleDirectories(timestamp);
 
-                Log.Information("Removed or renamed {Files} files and {Directories} directories in {Elapsed}ms", deletedFiles, deletedDirectories, sw.ElapsedMilliseconds - swSnapshot);
+                    Log.Information("Removed or renamed {Files} files and {Directories} directories in {Elapsed}ms", deletedFiles, deletedDirectories, sw.ElapsedMilliseconds - swSnapshot);
+                }
+                catch (OperationCanceledException)
+                {
+                    // important! don't try to delete stale files in this case; unscanned records will have a stale timestamp
+                    Log.Warning("Shared file scan cancelled by user");
+                }
 
                 Log.Debug("Backing up shared file cache database...");
                 Backup();
                 Log.Debug("Shared file cache database backup complete");
+
+                var directoryCount = CountDirectories();
+                var fileCount = CountFiles();
 
                 State.SetValue(state => state with
                 {
@@ -347,11 +355,11 @@ namespace slskd.Shares
                     Faulted = false,
                     Filled = true,
                     FillProgress = 1,
-                    Directories = CountDirectories(),
-                    Files = CountFiles(),
+                    Directories = directoryCount,
+                    Files = fileCount,
                 });
 
-                Log.Debug($"Shared file cache recreated in {sw.ElapsedMilliseconds}ms.  Directories: {unmaskedDirectories.Count}, Files: {cached}");
+                Log.Debug($"Shared file cache created or updated in {sw.ElapsedMilliseconds}ms.  Directories: {directoryCount}, Files: {fileCount}");
             }
             catch (Exception ex)
             {
