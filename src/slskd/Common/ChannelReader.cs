@@ -130,7 +130,7 @@ namespace slskd.Shares
             }
             finally
             {
-                TaskCompletionSource.SetResult();
+                TaskCompletionSource.TrySetResult();
             }
         }
     }
