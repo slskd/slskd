@@ -986,6 +986,8 @@ namespace slskd
         {
             var (previous, current) = state;
 
+            Console.WriteLine(current);
+
             if (!previous.Scanning && current.Scanning)
             {
                 // the scan is starting
@@ -1025,7 +1027,7 @@ namespace slskd
             else if (!previous.Ready && current.Ready)
             {
                 // the share transitioned into ready without completing a scan; it was loaded from disk
-                State.SetValue(state => state with { Shares = state.Shares with { ScanPending = false } });
+                State.SetValue(state => state with { Shares = current with { ScanPending = false } });
                 Log.Information("Share cache loaded from disk successfully. Sharing {Directories} directories and {Files} files", current.Directories, current.Files);
                 _ = CacheBrowseResponse();
             }
