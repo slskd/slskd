@@ -189,5 +189,26 @@ namespace slskd.Shares.API
 
             return Ok();
         }
+
+        /// <summary>
+        ///     Cancels a share scan, if one is running.
+        /// </summary>
+        /// <returns></returns>
+        /// <response code="204">The request completed successfully.</response>
+        /// <response code="409">A share scan was not in progress.</response>
+        [HttpDelete]
+        [Route("")]
+        [Authorize]
+        [ProducesResponseType(204)]
+        [ProducesResponseType(404)]
+        public IActionResult CancelShareScan()
+        {
+            if (Shares.TryCancelScan())
+            {
+                return StatusCode(204);
+            }
+
+            return NotFound();
+        }
     }
 }
