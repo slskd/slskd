@@ -176,11 +176,11 @@ namespace slskd.Shares.API
         [Authorize]
         [ProducesResponseType(204)]
         [ProducesResponseType(409)]
-        public async Task<IActionResult> RescanSharesAsync()
+        public IActionResult RescanSharesAsync()
         {
             try
             {
-                await Shares.StartScanAsync();
+                _ = Shares.ScanAsync();
             }
             catch (ShareScanInProgressException)
             {
