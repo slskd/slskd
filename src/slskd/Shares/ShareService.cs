@@ -91,9 +91,9 @@ namespace slskd.Shares
         ///     Returns the entire contents of the share.
         /// </summary>
         /// <returns>The entire contents of the share.</returns>
-        public Task<IEnumerable<Directory>> BrowseAsync()
+        public Task<IEnumerable<Directory>> BrowseAsync(Share share = null)
         {
-            var results = Cache.Browse();
+            var results = Cache.Browse(share);
             var normalizedResults = results.Select(r => new Directory(r.Name.NormalizePath(), r.Files));
 
             return Task.FromResult(normalizedResults);
@@ -167,6 +167,18 @@ namespace slskd.Shares
         public Task ScanAsync()
         {
             return Cache.FillAsync(Shares, FilterRegexes);
+        }
+
+        /// <summary>
+        ///     Gets summary information for the specified <paramref name="share"/>.
+        /// </summary>
+        /// <param name="share">The share to summarize.</param>
+        /// <returns>The summary information.</returns>
+        public Task<(int Directories, int Files)> SummarizeShareAsync(Share share)
+        {
+            var dirs = Cache.CountDirectories(share);
+            var files = Cache.CountFiles(share);
+            return Task.FromResult((dirs, files));
         }
 
         /// <summary>

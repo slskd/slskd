@@ -57,18 +57,13 @@ namespace slskd.Shares.API
         [ProducesResponseType(typeof(IEnumerable<SummarizedShare>), 200)]
         public async Task<IActionResult> List()
         {
-            var browse = await Shares.BrowseAsync();
+            var shares = new List<SummarizedShare>();
 
-            var summary = Shares.Shares.Select(share =>
+            foreach (var share in Shares.Shares)
             {
-                var directories = browse.Where(directory => directory.Name.StartsWith(share.RemotePath));
-                var fileCount = directories.Aggregate(seed: 0, (sum, directory) =>
-                {
-                    sum += directory.FileCount;
-                    return sum;
-                });
+                var (directories, files) = await Shares.SummarizeShareAsync(share);
 
-                return new SummarizedShare()
+                shares.Add(new SummarizedShare()
                 {
                     Id = share.Id,
                     Alias = share.Alias,
@@ -76,12 +71,12 @@ namespace slskd.Shares.API
                     LocalPath = share.LocalPath,
                     Raw = share.Raw,
                     RemotePath = share.RemotePath,
-                    Directories = directories.Count(),
-                    Files = fileCount,
-                };
-            });
+                    Directories = directories,
+                    Files = files,
+                });
+            }
 
-            return Ok(summary);
+            return Ok(shares);
         }
 
         /// <summary>
@@ -104,13 +99,7 @@ namespace slskd.Shares.API
                 return NotFound();
             }
 
-            var browse = await Shares.BrowseAsync();
-            var directories = browse.Where(directory => directory.Name.StartsWith(share.RemotePath));
-            var fileCount = directories.Aggregate(seed: 0, (sum, directory) =>
-            {
-                sum += directory.FileCount;
-                return sum;
-            });
+            var (directories, files) = await Shares.SummarizeShareAsync(share);
 
             var summary = new SummarizedShare()
             {
@@ -120,8 +109,8 @@ namespace slskd.Shares.API
                 LocalPath = share.LocalPath,
                 Raw = share.Raw,
                 RemotePath = share.RemotePath,
-                Directories = directories.Count(),
-                Files = fileCount,
+                Directories = directories,
+                Files = files,
             };
 
             return Ok(summary);
@@ -159,8 +148,7 @@ namespace slskd.Shares.API
                 return NotFound();
             }
 
-            var contents = (await Shares.BrowseAsync())
-                .Where(directory => directory.Name.StartsWith(share.RemotePath));
+            var contents = await Shares.BrowseAsync(share);
 
             return Ok(contents);
         }

@@ -35,8 +35,23 @@ namespace slskd.Shares
         /// <summary>
         ///     Returns the contents of the cache.
         /// </summary>
+        /// <param name="share">The optional share to which to limit the scope of the browse.</param>
         /// <returns>The contents of the cache.</returns>
-        IEnumerable<Directory> Browse();
+        IEnumerable<Directory> Browse(Share share = null);
+
+        /// <summary>
+        ///     Returns the number of directories in the specified <paramref name="share"/>.
+        /// </summary>
+        /// <param name="share">The share for which the directories are to be counted.</param>
+        /// <returns>The number of directories.</returns>
+        int CountDirectories(Share share);
+
+        /// <summary>
+        ///     Returns the number of files in the specified <paramref name="share"/>.
+        /// </summary>
+        /// <param name="share">The share for which the files are to be counted.</param>
+        /// <returns>The number of files.</returns>
+        int CountFiles(Share share);
 
         /// <summary>
         ///     Scans the configured shares and fills the cache.

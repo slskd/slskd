@@ -25,6 +25,7 @@ namespace slskd.Shares
     using System.Data;
     using System.Diagnostics;
     using System.Linq;
+    using System.Security.Cryptography;
     using System.Text.RegularExpressions;
     using System.Threading;
     using System.Threading.Channels;
@@ -68,41 +69,30 @@ namespace slskd.Shares
         /// <summary>
         ///     Returns the contents of the cache.
         /// </summary>
+        /// <param name="share">The optional share to which to limit the scope of the browse.</param>
         /// <returns>The contents of the cache.</returns>
-        public IEnumerable<Directory> Browse()
+        public IEnumerable<Directory> Browse(Share share = null)
         {
             var directories = new ConcurrentDictionary<string, Directory>();
+
+            string prefix = null;
+
+            if (share != null)
+            {
+                prefix = share.RemotePath + Path.DirectorySeparatorChar;
+            }
 
             // Soulseek requires that each directory in the tree have an entry in the list returned in a browse response. if
             // missing, files that are nested within directories which contain only directories (no files) are displayed as being
             // in the root. to get around this, prime a dictionary with all known directories, and an empty Soulseek.Directory. if
             // there are any files in the directory, this entry will be overwritten with a new Soulseek.Directory containing the
             // files. if not they'll be left as is.
-            foreach (var directory in ListDirectories())
+            foreach (var directory in ListDirectories(prefix))
             {
                 directories.TryAdd(directory, new Directory(directory));
             }
 
-            var files = new List<File>();
-
-            using var conn = GetConnection();
-            using var cmd = new SqliteCommand("SELECT maskedFilename, code, size, extension, attributeJson FROM files ORDER BY maskedFilename ASC;", conn);
-            var reader = cmd.ExecuteReader();
-
-            while (reader.Read())
-            {
-                var filename = reader.GetString(0);
-                var code = reader.GetInt32(1);
-                var size = reader.GetInt64(2);
-                var extension = reader.GetString(3);
-                var attributeJson = reader.GetString(4);
-
-                var attributeList = attributeJson.FromJson<List<FileAttribute>>();
-
-                var file = new File(code, filename, size, extension, attributeList);
-
-                files.Add(file);
-            }
+            var files = ListFiles(prefix, includeFullPath: true);
 
             var groups = files
                 .GroupBy(file => Path.GetDirectoryName(file.Filename))
@@ -124,6 +114,28 @@ namespace slskd.Shares
             }
 
             return directories.Values.OrderBy(d => d.Name);
+        }
+
+        /// <summary>
+        ///     Returns the number of directories in the specified <paramref name="share"/>.
+        /// </summary>
+        /// <param name="share">The share for which the directories are to be counted.</param>
+        /// <returns>The number of directories.</returns>
+        public int CountDirectories(Share share)
+        {
+            var path = share.RemotePath + Path.DirectorySeparatorChar;
+            return CountDirectories(path);
+        }
+
+        /// <summary>
+        ///     Returns the number of files in the specified <paramref name="share"/>.
+        /// </summary>
+        /// <param name="share">The share for which the files are to be counted.</param>
+        /// <returns>The number of files.</returns>
+        public int CountFiles(Share share)
+        {
+            var path = share.RemotePath + Path.DirectorySeparatorChar;
+            return CountFiles(path);
         }
 
         /// <summary>
@@ -623,22 +635,60 @@ namespace slskd.Shares
             sourceConn.BackupDatabase(backupConn);
         }
 
-        private int CountDirectories()
+        private int CountDirectories(string prefix = null)
         {
             using var conn = GetConnection();
-            using var cmd = new SqliteCommand("SELECT COUNT(*) FROM directories;", conn);
-            var reader = cmd.ExecuteReader();
-            reader.Read();
-            return reader.GetInt32(0);
+
+            SqliteCommand cmd = default;
+
+            try
+            {
+                if (string.IsNullOrEmpty(prefix))
+                {
+                    cmd = new SqliteCommand("SELECT COUNT(*) FROM directories;", conn);
+                }
+                else
+                {
+                    cmd = new SqliteCommand("SELECT COUNT(*) FROM directories WHERE name LIKE @prefix || '%'", conn);
+                    cmd.Parameters.AddWithValue("prefix", prefix);
+                }
+
+                var reader = cmd.ExecuteReader();
+                reader.Read();
+                return reader.GetInt32(0);
+            }
+            finally
+            {
+                cmd.Dispose();
+            }
         }
 
-        private int CountFiles()
+        private int CountFiles(string prefix = null)
         {
             using var conn = GetConnection();
-            using var cmd = new SqliteCommand("SELECT COUNT(*) FROM files;", conn);
-            var reader = cmd.ExecuteReader();
-            reader.Read();
-            return reader.GetInt32(0);
+
+            SqliteCommand cmd = default;
+
+            try
+            {
+                if (string.IsNullOrEmpty(prefix))
+                {
+                    cmd = new SqliteCommand("SELECT COUNT(*) FROM files;", conn);
+                }
+                else
+                {
+                    cmd = new SqliteCommand("SELECT COUNT(*) FROM files WHERE maskedFilename LIKE @prefix || '%'", conn);
+                    cmd.Parameters.AddWithValue("prefix", prefix);
+                }
+
+                var reader = cmd.ExecuteReader();
+                reader.Read();
+                return reader.GetInt32(0);
+            }
+            finally
+            {
+                cmd.Dispose();
+            }
         }
 
         private SqliteConnection GetConnection(string connectionString = null)
@@ -710,24 +760,42 @@ namespace slskd.Shares
             return reader.GetInt64(0);
         }
 
-        private IEnumerable<string> ListDirectories()
+        private IEnumerable<string> ListDirectories(string prefix = null)
         {
             var results = new List<string>();
 
             using var conn = GetConnection();
 
-            using var cmd = new SqliteCommand("SELECT name FROM directories ORDER BY name ASC;", conn);
-            var reader = cmd.ExecuteReader();
+            SqliteCommand cmd = default;
 
-            while (reader.Read())
+            try
             {
-                results.Add(reader.GetString(0));
-            }
+                if (string.IsNullOrEmpty(prefix))
+                {
+                    cmd = new SqliteCommand("SELECT name FROM directories ORDER BY name ASC;", conn);
+                }
+                else
+                {
+                    cmd = new SqliteCommand("SELECT name from directories WHERE name LIKE @prefix || '%' ORDER BY name ASC;", conn);
+                    cmd.Parameters.AddWithValue("prefix", prefix);
+                }
 
-            return results;
+                var reader = cmd.ExecuteReader();
+
+                while (reader.Read())
+                {
+                    results.Add(reader.GetString(0));
+                }
+
+                return results;
+            }
+            finally
+            {
+                cmd.Dispose();
+            }
         }
 
-        private IEnumerable<File> ListFiles(string directory = null)
+        private IEnumerable<File> ListFiles(string directory = null, bool includeFullPath = false)
         {
             var results = new List<File>();
 
@@ -758,7 +826,9 @@ namespace slskd.Shares
 
                     var attributeList = attributeJson.FromJson<List<FileAttribute>>();
 
-                    var file = new File(code, filename: Path.GetFileName(filename), size, extension, attributeList);
+                    filename = includeFullPath ? filename : Path.GetFileName(filename);
+
+                    var file = new File(code, filename, size, extension, attributeList);
 
                     results.Add(file);
                 }

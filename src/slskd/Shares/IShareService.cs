@@ -42,7 +42,7 @@ namespace slskd.Shares
         ///     Returns the entire contents of the share.
         /// </summary>
         /// <returns>The entire contents of the share.</returns>
-        Task<IEnumerable<Directory>> BrowseAsync();
+        Task<IEnumerable<Directory>> BrowseAsync(Share share = null);
 
         /// <summary>
         ///     Returns the contents of the specified <paramref name="directory"/>.
@@ -75,6 +75,13 @@ namespace slskd.Shares
         /// <returns>The operation context.</returns>
         /// <exception cref="ShareScanInProgressException">Thrown when a scan is already in progress.</exception>
         Task ScanAsync();
+
+        /// <summary>
+        ///     Gets summary information for the specified <paramref name="share"/>.
+        /// </summary>
+        /// <param name="share">The share to summarize.</param>
+        /// <returns>The summary information.</returns>
+        Task<(int Directories, int Files)> SummarizeShareAsync(Share share);
 
         /// <summary>
         ///     Cancels the currently running scan, if one is running.
