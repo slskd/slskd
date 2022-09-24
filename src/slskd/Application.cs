@@ -94,6 +94,7 @@ namespace slskd
             Console.CancelKeyPress += (_, args) =>
             {
                 ShuttingDown = true;
+                Program.MasterCancellationTokenSource.Cancel();
                 Log.Warning("Received SIGINT");
             };
 
@@ -102,6 +103,7 @@ namespace slskd
                 PosixSignalRegistration.Create(signal, context =>
                 {
                     ShuttingDown = true;
+                    Program.MasterCancellationTokenSource.Cancel();
                     Log.Fatal("Received {Signal}", signal);
                 });
             }

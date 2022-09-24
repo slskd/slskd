@@ -157,7 +157,7 @@ namespace slskd.Shares
                 throw new ShareScanInProgressException("Shared files are already being scanned.");
             }
 
-            CancellationTokenSource = new CancellationTokenSource();
+            CancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(Program.MasterCancellationTokenSource.Token);
             var cancellationToken = CancellationTokenSource.Token;
 
             try

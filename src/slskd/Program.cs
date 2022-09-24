@@ -30,6 +30,7 @@ namespace slskd
     using System.Security.Cryptography.X509Certificates;
     using System.Text;
     using System.Text.Json.Serialization;
+    using System.Threading;
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.Authentication.JwtBearer;
     using Microsoft.AspNetCore.Builder;
@@ -188,6 +189,16 @@ namespace slskd
         ///     Gets a buffer containing the last few log events.
         /// </summary>
         public static ConcurrentFixedSizeQueue<LogRecord> LogBuffer { get; } = new ConcurrentFixedSizeQueue<LogRecord>(size: 100);
+
+        /// <summary>
+        ///     Gets the master cancellation token source for the program.
+        /// </summary>
+        /// <remarks>
+        ///     The token from this source should be used (or linked) to any long-running asynchronous task, so that when the application
+        ///     begins to shut down these tasks also shut down in a timely manner. Actions that control the lifecycle of the program
+        ///     (POSIX signals, a restart from the API, etc) should cancel this source.
+        /// </remarks>
+        public static CancellationTokenSource MasterCancellationTokenSource { get; } = new CancellationTokenSource();
 
         private static IConfigurationRoot Configuration { get; set; }
         private static OptionsAtStartup OptionsAtStartup { get; } = new OptionsAtStartup();
