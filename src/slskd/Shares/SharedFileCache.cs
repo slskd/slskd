@@ -63,6 +63,7 @@ namespace slskd.Shares
         private ISoulseekFileFactory SoulseekFileFactory { get; }
         private IManagedState<SharedFileCacheState> State { get; } = new ManagedState<SharedFileCacheState>();
         private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1);
+        private CancellationTokenSource CancellationTokenSource { get; set; }
 
         /// <summary>
         ///     Returns the contents of the cache.
@@ -126,13 +127,28 @@ namespace slskd.Shares
         }
 
         /// <summary>
+        ///     Starts a scan of the configured shares and fills the cache.
+        /// </summary>
+        /// <param name="shares">The list of shares from which to fill the cache.</param>
+        /// <param name="filters">The list of regular expressions used to exclude files or paths from scanning.</param>
+        /// <returns>The operation context.</returns>
+        public Task StartFillAsync(IEnumerable<Share> shares, IEnumerable<Regex> filters)
+        {
+            return FillInternalAsync(shares, filters, continueAsync: true);
+        }
+
+        /// <summary>
         ///     Scans the configured shares and fills the cache.
         /// </summary>
         /// <param name="shares">The list of shares from which to fill the cache.</param>
         /// <param name="filters">The list of regular expressions used to exclude files or paths from scanning.</param>
-        /// <param name="cancellationToken">The optional cancellation token to monitor for cancellation requests.</param>
         /// <returns>The operation context.</returns>
-        public async Task FillAsync(IEnumerable<Share> shares, IEnumerable<Regex> filters, CancellationToken cancellationToken = default)
+        public Task FillAsync(IEnumerable<Share> shares, IEnumerable<Regex> filters)
+        {
+            return FillInternalAsync(shares, filters, continueAsync: false);
+        }
+
+        private async Task FillInternalAsync(IEnumerable<Share> shares, IEnumerable<Regex> filters, bool continueAsync = true)
         {
             // obtain the semaphore, or fail if it can't be obtained immediately, indicating that a scan is running.
             if (!await SyncRoot.WaitAsync(millisecondsTimeout: 0))
@@ -140,6 +156,9 @@ namespace slskd.Shares
                 Log.Warning("Shared file scan rejected; scan is already in progress.");
                 throw new ShareScanInProgressException("Shared files are already being scanned.");
             }
+
+            CancellationTokenSource = new CancellationTokenSource();
+            var cancellationToken = CancellationTokenSource.Token;
 
             try
             {
@@ -163,6 +182,11 @@ namespace slskd.Shares
                 }
 
                 Log.Debug("Starting shared file scan");
+
+                if (continueAsync)
+                {
+                    await Task.Yield();
+                }
 
                 var timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
@@ -369,6 +393,7 @@ namespace slskd.Shares
             }
             finally
             {
+                CancellationTokenSource = null;
                 SyncRoot.Release();
             }
         }
@@ -460,6 +485,21 @@ namespace slskd.Shares
                 Log.Warning(ex, "Failed to execute shared file query '{Query}': {Message}", query, ex.Message);
                 return Enumerable.Empty<File>();
             }
+        }
+
+        /// <summary>
+        ///     Cancels the currently running fill operation, if one is running.
+        /// </summary>
+        /// <returns>A value indicating whether a fill operation was cancelled.</returns>
+        public bool TryCancelFill()
+        {
+            if (CancellationTokenSource != null)
+            {
+                CancellationTokenSource.Cancel();
+                return true;
+            }
+
+            return false;
         }
 
         /// <summary>

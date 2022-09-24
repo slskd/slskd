@@ -19,7 +19,6 @@ namespace slskd.Shares
 {
     using System.Collections.Generic;
     using System.Text.RegularExpressions;
-    using System.Threading;
     using System.Threading.Tasks;
     using Soulseek;
 
@@ -42,12 +41,10 @@ namespace slskd.Shares
         /// <summary>
         ///     Scans the configured shares and fills the cache.
         /// </summary>
-        /// <remarks>Initiates the scan, then yields execution back to the caller; does not wait for the operation to complete.</remarks>
         /// <param name="shares">The list of shares from which to fill the cache.</param>
         /// <param name="filters">The list of regular expressions used to exclude files or paths from scanning.</param>
-        /// <param name="cancellationToken">The optional cancellation token to monitor.</param>
         /// <returns>The operation context.</returns>
-        Task FillAsync(IEnumerable<Share> shares, IEnumerable<Regex> filters, CancellationToken cancellationToken = default);
+        Task FillAsync(IEnumerable<Share> shares, IEnumerable<Regex> filters);
 
         /// <summary>
         ///     Returns the contents of the specified <paramref name="directory"/>.
@@ -62,7 +59,7 @@ namespace slskd.Shares
         /// </summary>
         /// <param name="filename">The fully qualified filename to unmask.</param>
         /// <returns>The unmasked filename.</returns>
-        public string Resolve(string filename);
+        string Resolve(string filename);
 
         /// <summary>
         ///     Searches the cache for the specified <paramref name="query"/> and returns the matching files.
@@ -70,6 +67,20 @@ namespace slskd.Shares
         /// <param name="query">The query for which to search.</param>
         /// <returns>The matching files.</returns>
         IEnumerable<File> Search(SearchQuery query);
+
+        /// <summary>
+        ///     Starts a scan of the configured shares and fills the cache.
+        /// </summary>
+        /// <param name="shares">The list of shares from which to fill the cache.</param>
+        /// <param name="filters">The list of regular expressions used to exclude files or paths from scanning.</param>
+        /// <returns>The operation context.</returns>
+        Task StartFillAsync(IEnumerable<Share> shares, IEnumerable<Regex> filters);
+
+        /// <summary>
+        ///     Cancels the currently running fill operation, if one is running.
+        /// </summary>
+        /// <returns>A value indicating whether a fill operation was cancelled.</returns>
+        bool TryCancelFill();
 
         /// <summary>
         ///     Attempts to load the cache from disk.
