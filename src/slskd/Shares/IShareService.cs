@@ -70,11 +70,24 @@ namespace slskd.Shares
         Task<IEnumerable<File>> SearchAsync(SearchQuery query);
 
         /// <summary>
+        ///     Scans the configured shares.
+        /// </summary>
+        /// <returns>The operation context.</returns>
+        /// <exception cref="ShareScanInProgressException">Thrown when a scan is already in progress.</exception>
+        Task ScanAsync();
+
+        /// <summary>
         ///     Starts a scan of the configured shares.
         /// </summary>
         /// <returns>The operation context.</returns>
         /// <exception cref="ShareScanInProgressException">Thrown when a scan is already in progress.</exception>
         Task StartScanAsync();
+
+        /// <summary>
+        ///     Cancels the currently running scan, if one is running.
+        /// </summary>
+        /// <returns>A value indicating whether a scan was cancelled.</returns>
+        bool TryCancelScan();
 
         /// <summary>
         ///     Attempt to load shares from disk.

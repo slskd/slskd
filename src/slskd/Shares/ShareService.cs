@@ -159,13 +159,32 @@ namespace slskd.Shares
         }
 
         /// <summary>
+        ///     Scans the configured shares.
+        /// </summary>
+        /// <returns>The operation context.</returns>
+        /// <exception cref="ShareScanInProgressException">Thrown when a scan is already in progress.</exception>
+        public Task ScanAsync()
+        {
+            return Cache.FillAsync(Shares, FilterRegexes);
+        }
+
+        /// <summary>
         ///     Starts a scan of the configured shares.
         /// </summary>
         /// <returns>The operation context.</returns>
         /// <exception cref="ShareScanInProgressException">Thrown when a scan is already in progress.</exception>
         public Task StartScanAsync()
         {
-            return Cache.FillAsync(Shares, FilterRegexes);
+            return Cache.StartFillAsync(Shares, FilterRegexes);
+        }
+
+        /// <summary>
+        ///     Cancels the currently running scan, if one is running.
+        /// </summary>
+        /// <returns>A value indicating whether a scan was cancelled.</returns>
+        public bool TryCancelScan()
+        {
+            return Cache.TryCancelFill();
         }
 
         /// <summary>
