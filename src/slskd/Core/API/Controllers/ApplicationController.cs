@@ -72,6 +72,7 @@ namespace slskd.Core.API
         [Authorize]
         public IActionResult Shutdown()
         {
+            Program.MasterCancellationTokenSource.Cancel();
             Lifetime.StopApplication();
 
             Task.Run(async () =>
@@ -91,6 +92,7 @@ namespace slskd.Core.API
         [Authorize]
         public IActionResult Restart()
         {
+            Program.MasterCancellationTokenSource.Cancel();
             Process.Start(Process.GetCurrentProcess().MainModule.FileName, Environment.CommandLine);
             Lifetime.StopApplication();
 
