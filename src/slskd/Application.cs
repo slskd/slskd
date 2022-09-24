@@ -386,7 +386,7 @@ namespace slskd
                 else
                 {
                     // todo: should this be forced prior to connection if the cache can't be loaded?
-                    await Shares.StartScanAsync();
+                    _ = Shares.ScanAsync();
                 }
             }
 
