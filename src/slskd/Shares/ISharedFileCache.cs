@@ -69,14 +69,6 @@ namespace slskd.Shares
         IEnumerable<File> Search(SearchQuery query);
 
         /// <summary>
-        ///     Starts a scan of the configured shares and fills the cache.
-        /// </summary>
-        /// <param name="shares">The list of shares from which to fill the cache.</param>
-        /// <param name="filters">The list of regular expressions used to exclude files or paths from scanning.</param>
-        /// <returns>The operation context.</returns>
-        Task StartFillAsync(IEnumerable<Share> shares, IEnumerable<Regex> filters);
-
-        /// <summary>
         ///     Cancels the currently running fill operation, if one is running.
         /// </summary>
         /// <returns>A value indicating whether a fill operation was cancelled.</returns>

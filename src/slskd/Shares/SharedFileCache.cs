@@ -127,28 +127,12 @@ namespace slskd.Shares
         }
 
         /// <summary>
-        ///     Starts a scan of the configured shares and fills the cache.
-        /// </summary>
-        /// <param name="shares">The list of shares from which to fill the cache.</param>
-        /// <param name="filters">The list of regular expressions used to exclude files or paths from scanning.</param>
-        /// <returns>The operation context.</returns>
-        public Task StartFillAsync(IEnumerable<Share> shares, IEnumerable<Regex> filters)
-        {
-            return FillInternalAsync(shares, filters, continueAsync: true);
-        }
-
-        /// <summary>
         ///     Scans the configured shares and fills the cache.
         /// </summary>
         /// <param name="shares">The list of shares from which to fill the cache.</param>
         /// <param name="filters">The list of regular expressions used to exclude files or paths from scanning.</param>
         /// <returns>The operation context.</returns>
-        public Task FillAsync(IEnumerable<Share> shares, IEnumerable<Regex> filters)
-        {
-            return FillInternalAsync(shares, filters, continueAsync: false);
-        }
-
-        private async Task FillInternalAsync(IEnumerable<Share> shares, IEnumerable<Regex> filters, bool continueAsync = true)
+        public async Task FillAsync(IEnumerable<Share> shares, IEnumerable<Regex> filters)
         {
             // obtain the semaphore, or fail if it can't be obtained immediately, indicating that a scan is running.
             if (!await SyncRoot.WaitAsync(millisecondsTimeout: 0))
@@ -160,12 +144,17 @@ namespace slskd.Shares
             CancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(Program.MasterCancellationTokenSource.Token);
             var cancellationToken = CancellationTokenSource.Token;
 
+            // send control back to the calling context. if we don't do this, the caller will block until
+            // directories have been enumerated.
+            await Task.Yield();
+
             try
             {
                 State.SetValue(state => state with
                 {
                     Filling = true,
                     Filled = false,
+                    Cancelled = false,
                     FillProgress = 0,
                     Directories = 0,
                     Files = 0,
@@ -182,11 +171,6 @@ namespace slskd.Shares
                 }
 
                 Log.Debug("Starting shared file scan");
-
-                if (continueAsync)
-                {
-                    await Task.Yield();
-                }
 
                 var timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
@@ -320,16 +304,7 @@ namespace slskd.Shares
                             cached += addedFiles;
 
                             Log.Debug("Finished scanning {Directory}: {Added} files added and {Filtered} filtered", directory, addedFiles, filteredFiles);
-
-                            try
-                            {
-                                State.SetValue(state => state with { FillProgress = current / (double)unmaskedDirectories.Count, Files = cached });
-                            }
-                            catch (Exception ex)
-                            {
-                                Log.Error(ex, "Failed to set cache state following scan of {Directory}: {Message}", directory, ex.Message);
-                                throw;
-                            }
+                            State.SetValue(state => state with { FillProgress = current / (double)unmaskedDirectories.Count, Files = cached });
                         }));
                 }
 
@@ -337,17 +312,28 @@ namespace slskd.Shares
                 workers.ForEach(w => w.Start());
                 Log.Debug("All workers started");
 
-                Log.Debug("Filling DirectoryChannel...");
-                foreach (var directory in unmaskedDirectories)
-                {
-                    await channel.Writer.WriteAsync(directory, cancellationToken);
-                }
-
-                channel.Writer.Complete();
-                Log.Debug("DirectoryChannel filled");
-
                 try
                 {
+                    try
+                    {
+                        Log.Debug("Filling DirectoryChannel...");
+                        foreach (var directory in unmaskedDirectories)
+                        {
+                            await channel.Writer.WriteAsync(directory, cancellationToken);
+                        }
+
+                        Log.Debug("DirectoryChannel filled");
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        Log.Warning("Shared file scan cancellation requested");
+                        Log.Debug("DirectoryChannel fill aborted");
+                    }
+                    finally
+                    {
+                        channel.Writer.Complete();
+                    }
+
                     Log.Debug("Waiting for workers to finish working...");
                     await Task.WhenAll(workers.Select(w => w.Completed));
                     Log.Debug("All workers finished");
@@ -363,7 +349,9 @@ namespace slskd.Shares
                 catch (OperationCanceledException)
                 {
                     // important! don't try to delete stale files in this case; unscanned records will have a stale timestamp
-                    Log.Warning("Shared file scan cancelled by user");
+                    Log.Warning("Shared file scan cancelled successfully");
+
+                    State.SetValue(state => state with { Cancelled = true });
                 }
 
                 Log.Debug("Backing up shared file cache database...");
