@@ -1035,7 +1035,7 @@ namespace slskd
                 var lastProgress = Math.Round(previous.ScanProgress * 100);
                 var currentProgress = Math.Round(current.ScanProgress * 100);
 
-                if (lastProgress != currentProgress && Math.Round(currentProgress, 0) % 5d == 0)
+                if (lastProgress != currentProgress && Math.Round(currentProgress, 0) % 1d == 0)
                 {
                     State.SetValue(s => s with { Shares = current });
                     Log.Information("Scanned {Percent}% of shared directories. Found {Files} files so far.", currentProgress, current.Files);
