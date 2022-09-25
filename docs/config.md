@@ -170,7 +170,7 @@ Scanning shares is an I/O intensive operation; all of the files and directories 
 are used to allow metadata to be read from several files concurrently. The scan generally gets faster as additional workers are added, but each worker also adds additional I/O pressure and increases CPU and memory usage. At some number of workers
 performance will start to get worse as more are added.  The optimal number of workers will vary from system to system, so if scan performance is important to you it will be a good idea to experiment to see what the optimal number is for your system.
 
-The default number of workers is 16.
+The default number of workers determined by the [Environment.ProcessorCount](https://learn.microsoft.com/en-us/dotnet/api/system.environment.processorcount?view=net-6.0) property.
 
 | Command Line                 | Environment Variable       | Description                                             |
 | ---------------------------- | -------------------------- | ------------------------------------------------------- |

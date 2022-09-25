@@ -381,32 +381,6 @@ namespace slskd
             public ShareCacheOptions Cache { get; init; } = new ShareCacheOptions();
 
             /// <summary>
-            ///     Share caching options.
-            /// </summary>
-            public class ShareCacheOptions
-            {
-                /// <summary>
-                ///     Gets the type of storage to use for the share cache.
-                /// </summary>
-                [Argument(default, "share-cache-storage-mode")]
-                [EnvironmentVariable("SHARE_CACHE_STORAGE_MODE")]
-                [Description("the type of storage to use for the cache")]
-                [Enum(typeof(StorageMode))]
-                [RequiresRestart]
-                public string StorageMode { get; init; } = slskd.StorageMode.Memory.ToString().ToLowerInvariant();
-
-                /// <summary>
-                ///     Gets the number of workers to use while scanning shares.
-                /// </summary>
-                [Argument(default, "share-cache-workers")]
-                [EnvironmentVariable("SHARE_CACHE_WORKERS")]
-                [Description("the number of workers to use while scanning shares")]
-                [Range(1, 128)]
-                [RequiresRestart]
-                public int Workers { get; init; } = 16;
-            }
-
-            /// <summary>
             ///     Extended validation.
             /// </summary>
             /// <param name="validationContext"></param>
@@ -491,6 +465,32 @@ namespace slskd
                 }
 
                 return results;
+            }
+
+            /// <summary>
+            ///     Share caching options.
+            /// </summary>
+            public class ShareCacheOptions
+            {
+                /// <summary>
+                ///     Gets the type of storage to use for the share cache.
+                /// </summary>
+                [Argument(default, "share-cache-storage-mode")]
+                [EnvironmentVariable("SHARE_CACHE_STORAGE_MODE")]
+                [Description("the type of storage to use for the cache")]
+                [Enum(typeof(StorageMode))]
+                [RequiresRestart]
+                public string StorageMode { get; init; } = slskd.StorageMode.Memory.ToString().ToLowerInvariant();
+
+                /// <summary>
+                ///     Gets the number of workers to use while scanning shares.
+                /// </summary>
+                [Argument(default, "share-cache-workers")]
+                [EnvironmentVariable("SHARE_CACHE_WORKERS")]
+                [Description("the number of workers to use while scanning shares")]
+                [Range(1, 128)]
+                [RequiresRestart]
+                public int Workers { get; init; } = Environment.ProcessorCount;
             }
         }
 
