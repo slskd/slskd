@@ -117,7 +117,7 @@ Shares can be excluded by prefixing them with `-` or `!`. This is useful in situ
 shares:
   directories:
     - 'D:\Music'
-    - '!D:\Music\Personal Recordings`
+    - '!D:\Music\Personal Recordings'
 ```
 
 Shares can be aliased to improve privacy (for example, if a username is present in the path). A share alias can be specified by prefixing the share with the alias in square brackets, for example:
