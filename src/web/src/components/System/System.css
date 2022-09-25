@@ -63,3 +63,8 @@
 .share-count-column {
   width: 110px;
 }
+
+.share-scan-detail {
+  margin-top: 10px;
+  font-size: 14px;
+}
