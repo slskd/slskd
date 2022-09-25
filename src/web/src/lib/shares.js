@@ -21,3 +21,7 @@ export const browse = async ({ id } = {}) => {
 export const rescan = async () => {
   return (await api.put('/shares')).data;
 };
+
+export const cancel = async () => {
+  return (await api.delete('/shares')).data;
+};

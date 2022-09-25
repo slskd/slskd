@@ -19,7 +19,6 @@ namespace slskd.Shares
 {
     using System.Collections.Generic;
     using System.Text.RegularExpressions;
-    using System.Threading;
     using System.Threading.Tasks;
     using Soulseek;
 
@@ -36,18 +35,31 @@ namespace slskd.Shares
         /// <summary>
         ///     Returns the contents of the cache.
         /// </summary>
+        /// <param name="share">The optional share to which to limit the scope of the browse.</param>
         /// <returns>The contents of the cache.</returns>
-        IEnumerable<Directory> Browse();
+        IEnumerable<Directory> Browse(Share share = null);
+
+        /// <summary>
+        ///     Returns the number of directories in the specified <paramref name="share"/>.
+        /// </summary>
+        /// <param name="share">The share for which the directories are to be counted.</param>
+        /// <returns>The number of directories.</returns>
+        int CountDirectories(Share share);
+
+        /// <summary>
+        ///     Returns the number of files in the specified <paramref name="share"/>.
+        /// </summary>
+        /// <param name="share">The share for which the files are to be counted.</param>
+        /// <returns>The number of files.</returns>
+        int CountFiles(Share share);
 
         /// <summary>
         ///     Scans the configured shares and fills the cache.
         /// </summary>
-        /// <remarks>Initiates the scan, then yields execution back to the caller; does not wait for the operation to complete.</remarks>
         /// <param name="shares">The list of shares from which to fill the cache.</param>
         /// <param name="filters">The list of regular expressions used to exclude files or paths from scanning.</param>
-        /// <param name="cancellationToken">The optional cancellation token to monitor.</param>
         /// <returns>The operation context.</returns>
-        Task FillAsync(IEnumerable<Share> shares, IEnumerable<Regex> filters, CancellationToken cancellationToken = default);
+        Task FillAsync(IEnumerable<Share> shares, IEnumerable<Regex> filters);
 
         /// <summary>
         ///     Returns the contents of the specified <paramref name="directory"/>.
@@ -62,7 +74,7 @@ namespace slskd.Shares
         /// </summary>
         /// <param name="filename">The fully qualified filename to unmask.</param>
         /// <returns>The unmasked filename.</returns>
-        public string Resolve(string filename);
+        string Resolve(string filename);
 
         /// <summary>
         ///     Searches the cache for the specified <paramref name="query"/> and returns the matching files.
@@ -70,6 +82,12 @@ namespace slskd.Shares
         /// <param name="query">The query for which to search.</param>
         /// <returns>The matching files.</returns>
         IEnumerable<File> Search(SearchQuery query);
+
+        /// <summary>
+        ///     Cancels the currently running fill operation, if one is running.
+        /// </summary>
+        /// <returns>A value indicating whether a fill operation was cancelled.</returns>
+        bool TryCancelFill();
 
         /// <summary>
         ///     Attempts to load the cache from disk.

@@ -68,8 +68,7 @@ namespace slskd.Shares
             Handler = handler;
             ExceptionHandler = exceptionHandler;
 
-            CancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            CancellationToken = CancellationTokenSource.Token;
+            CancellationToken = cancellationToken;
 
             if (automaticallyStart)
             {
@@ -91,7 +90,6 @@ namespace slskd.Shares
         private Action<T> Handler { get; }
         private Action<Exception> ExceptionHandler { get; }
         private TaskCompletionSource TaskCompletionSource { get; } = new TaskCompletionSource();
-        private CancellationTokenSource CancellationTokenSource { get; }
         private CancellationToken CancellationToken { get; }
         private object SyncRoot { get; } = new object();
 
@@ -114,7 +112,7 @@ namespace slskd.Shares
         {
             try
             {
-                while (!CancellationTokenSource.Token.IsCancellationRequested && !Channel.Reader.Completion.IsCompleted)
+                while (!Channel.Reader.Completion.IsCompleted)
                 {
                     var item = await Channel.Reader.ReadAsync(CancellationToken);
                     Handler(item);
@@ -132,7 +130,7 @@ namespace slskd.Shares
             }
             finally
             {
-                TaskCompletionSource.SetResult();
+                TaskCompletionSource.TrySetResult();
             }
         }
     }

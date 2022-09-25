@@ -94,6 +94,7 @@ namespace slskd
             Console.CancelKeyPress += (_, args) =>
             {
                 ShuttingDown = true;
+                Program.MasterCancellationTokenSource.Cancel();
                 Log.Warning("Received SIGINT");
             };
 
@@ -102,6 +103,7 @@ namespace slskd
                 PosixSignalRegistration.Create(signal, context =>
                 {
                     ShuttingDown = true;
+                    Program.MasterCancellationTokenSource.Cancel();
                     Log.Fatal("Received {Signal}", signal);
                 });
             }
@@ -383,8 +385,7 @@ namespace slskd
                 }
                 else
                 {
-                    // todo: should this be forced prior to connection if the cache can't be loaded?
-                    _ = Shares.StartScanAsync();
+                    await Shares.ScanAsync();
                 }
             }
 
@@ -1023,7 +1024,7 @@ namespace slskd
             else if (!previous.Ready && current.Ready)
             {
                 // the share transitioned into ready without completing a scan; it was loaded from disk
-                State.SetValue(state => state with { Shares = state.Shares with { ScanPending = false } });
+                State.SetValue(state => state with { Shares = current with { ScanPending = false } });
                 Log.Information("Share cache loaded from disk successfully. Sharing {Directories} directories and {Files} files", current.Directories, current.Files);
                 _ = CacheBrowseResponse();
             }
@@ -1033,7 +1034,7 @@ namespace slskd
                 var lastProgress = Math.Round(previous.ScanProgress * 100);
                 var currentProgress = Math.Round(current.ScanProgress * 100);
 
-                if (lastProgress != currentProgress && Math.Round(currentProgress, 0) % 5d == 0)
+                if (lastProgress != currentProgress && Math.Round(currentProgress, 0) % 1d == 0)
                 {
                     State.SetValue(s => s with { Shares = current });
                     Log.Information("Scanned {Percent}% of shared directories. Found {Files} files so far.", currentProgress, current.Files);

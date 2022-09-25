@@ -104,6 +104,7 @@ namespace slskd
         public bool Scanning { get; init; }
         public bool Ready { get; init; }
         public bool Faulted { get; init; }
+        public bool Cancelled { get; init; }
         public double ScanProgress { get; init; }
         public int Directories { get; init; }
         public int Files { get; init; }
@@ -125,6 +126,8 @@ namespace slskd
         ///     Gets a value indicating whether the cache is faulted.
         /// </summary>
         public bool Faulted { get; init; } = false;
+
+        public bool Cancelled { get; init; } = false;
 
         /// <summary>
         ///     Gets the current fill progress.

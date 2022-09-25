@@ -52,9 +52,10 @@ namespace slskd.Shares
                 State.SetValue(state => state with
                 {
                     // scan is pending if faulted, or if state DIDN'T just transition from filling to not filling AND a scan was already pending
-                    ScanPending = current.Faulted || (!(previous.Filling && !current.Filling) && state.ScanPending),
+                    ScanPending = current.Faulted || current.Cancelled || (!(previous.Filling && !current.Filling) && state.ScanPending),
                     Scanning = current.Filling,
                     Faulted = current.Faulted,
+                    Cancelled = current.Cancelled,
                     Ready = current.Filled,
                     ScanProgress = current.FillProgress,
                     Directories = current.Directories,
@@ -90,9 +91,9 @@ namespace slskd.Shares
         ///     Returns the entire contents of the share.
         /// </summary>
         /// <returns>The entire contents of the share.</returns>
-        public Task<IEnumerable<Directory>> BrowseAsync()
+        public Task<IEnumerable<Directory>> BrowseAsync(Share share = null)
         {
-            var results = Cache.Browse();
+            var results = Cache.Browse(share);
             var normalizedResults = results.Select(r => new Directory(r.Name.NormalizePath(), r.Files));
 
             return Task.FromResult(normalizedResults);
@@ -159,13 +160,34 @@ namespace slskd.Shares
         }
 
         /// <summary>
-        ///     Starts a scan of the configured shares.
+        ///     Scans the configured shares.
         /// </summary>
         /// <returns>The operation context.</returns>
         /// <exception cref="ShareScanInProgressException">Thrown when a scan is already in progress.</exception>
-        public Task StartScanAsync()
+        public Task ScanAsync()
         {
             return Cache.FillAsync(Shares, FilterRegexes);
+        }
+
+        /// <summary>
+        ///     Gets summary information for the specified <paramref name="share"/>.
+        /// </summary>
+        /// <param name="share">The share to summarize.</param>
+        /// <returns>The summary information.</returns>
+        public Task<(int Directories, int Files)> SummarizeShareAsync(Share share)
+        {
+            var dirs = Cache.CountDirectories(share);
+            var files = Cache.CountFiles(share);
+            return Task.FromResult((dirs, files));
+        }
+
+        /// <summary>
+        ///     Cancels the currently running scan, if one is running.
+        /// </summary>
+        /// <returns>A value indicating whether a scan was cancelled.</returns>
+        public bool TryCancelScan()
+        {
+            return Cache.TryCancelFill();
         }
 
         /// <summary>

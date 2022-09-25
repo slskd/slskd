@@ -42,7 +42,7 @@ namespace slskd.Shares
         ///     Returns the entire contents of the share.
         /// </summary>
         /// <returns>The entire contents of the share.</returns>
-        Task<IEnumerable<Directory>> BrowseAsync();
+        Task<IEnumerable<Directory>> BrowseAsync(Share share = null);
 
         /// <summary>
         ///     Returns the contents of the specified <paramref name="directory"/>.
@@ -70,11 +70,24 @@ namespace slskd.Shares
         Task<IEnumerable<File>> SearchAsync(SearchQuery query);
 
         /// <summary>
-        ///     Starts a scan of the configured shares.
+        ///     Scans the configured shares.
         /// </summary>
         /// <returns>The operation context.</returns>
         /// <exception cref="ShareScanInProgressException">Thrown when a scan is already in progress.</exception>
-        Task StartScanAsync();
+        Task ScanAsync();
+
+        /// <summary>
+        ///     Gets summary information for the specified <paramref name="share"/>.
+        /// </summary>
+        /// <param name="share">The share to summarize.</param>
+        /// <returns>The summary information.</returns>
+        Task<(int Directories, int Files)> SummarizeShareAsync(Share share);
+
+        /// <summary>
+        ///     Cancels the currently running scan, if one is running.
+        /// </summary>
+        /// <returns>A value indicating whether a scan was cancelled.</returns>
+        bool TryCancelScan();
 
         /// <summary>
         ///     Attempt to load shares from disk.

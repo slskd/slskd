@@ -25,6 +25,7 @@ namespace slskd.Shares
     using System.Data;
     using System.Diagnostics;
     using System.Linq;
+    using System.Security.Cryptography;
     using System.Text.RegularExpressions;
     using System.Threading;
     using System.Threading.Channels;
@@ -63,46 +64,35 @@ namespace slskd.Shares
         private ISoulseekFileFactory SoulseekFileFactory { get; }
         private IManagedState<SharedFileCacheState> State { get; } = new ManagedState<SharedFileCacheState>();
         private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1);
-        private Channel<string> DirectoryChannel { get; set; }
+        private CancellationTokenSource CancellationTokenSource { get; set; }
 
         /// <summary>
         ///     Returns the contents of the cache.
         /// </summary>
+        /// <param name="share">The optional share to which to limit the scope of the browse.</param>
         /// <returns>The contents of the cache.</returns>
-        public IEnumerable<Directory> Browse()
+        public IEnumerable<Directory> Browse(Share share = null)
         {
             var directories = new ConcurrentDictionary<string, Directory>();
+
+            string prefix = null;
+
+            if (share != null)
+            {
+                prefix = share.RemotePath + Path.DirectorySeparatorChar;
+            }
 
             // Soulseek requires that each directory in the tree have an entry in the list returned in a browse response. if
             // missing, files that are nested within directories which contain only directories (no files) are displayed as being
             // in the root. to get around this, prime a dictionary with all known directories, and an empty Soulseek.Directory. if
             // there are any files in the directory, this entry will be overwritten with a new Soulseek.Directory containing the
             // files. if not they'll be left as is.
-            foreach (var directory in ListDirectories())
+            foreach (var directory in ListDirectories(prefix))
             {
                 directories.TryAdd(directory, new Directory(directory));
             }
 
-            var files = new List<File>();
-
-            using var conn = GetConnection();
-            using var cmd = new SqliteCommand("SELECT maskedFilename, code, size, extension, attributeJson FROM files ORDER BY maskedFilename ASC;", conn);
-            var reader = cmd.ExecuteReader();
-
-            while (reader.Read())
-            {
-                var filename = reader.GetString(0);
-                var code = reader.GetInt32(1);
-                var size = reader.GetInt64(2);
-                var extension = reader.GetString(3);
-                var attributeJson = reader.GetString(4);
-
-                var attributeList = attributeJson.FromJson<List<FileAttribute>>();
-
-                var file = new File(code, filename, size, extension, attributeList);
-
-                files.Add(file);
-            }
+            var files = ListFiles(prefix, includeFullPath: true);
 
             var groups = files
                 .GroupBy(file => Path.GetDirectoryName(file.Filename))
@@ -127,13 +117,34 @@ namespace slskd.Shares
         }
 
         /// <summary>
+        ///     Returns the number of directories in the specified <paramref name="share"/>.
+        /// </summary>
+        /// <param name="share">The share for which the directories are to be counted.</param>
+        /// <returns>The number of directories.</returns>
+        public int CountDirectories(Share share)
+        {
+            var path = share.RemotePath + Path.DirectorySeparatorChar;
+            return CountDirectories(path);
+        }
+
+        /// <summary>
+        ///     Returns the number of files in the specified <paramref name="share"/>.
+        /// </summary>
+        /// <param name="share">The share for which the files are to be counted.</param>
+        /// <returns>The number of files.</returns>
+        public int CountFiles(Share share)
+        {
+            var path = share.RemotePath + Path.DirectorySeparatorChar;
+            return CountFiles(path);
+        }
+
+        /// <summary>
         ///     Scans the configured shares and fills the cache.
         /// </summary>
         /// <param name="shares">The list of shares from which to fill the cache.</param>
         /// <param name="filters">The list of regular expressions used to exclude files or paths from scanning.</param>
-        /// <param name="cancellationToken">The optional cancellation token to monitor for cancellation requests.</param>
         /// <returns>The operation context.</returns>
-        public async Task FillAsync(IEnumerable<Share> shares, IEnumerable<Regex> filters, CancellationToken cancellationToken = default)
+        public async Task FillAsync(IEnumerable<Share> shares, IEnumerable<Regex> filters)
         {
             // obtain the semaphore, or fail if it can't be obtained immediately, indicating that a scan is running.
             if (!await SyncRoot.WaitAsync(millisecondsTimeout: 0))
@@ -142,12 +153,20 @@ namespace slskd.Shares
                 throw new ShareScanInProgressException("Shared files are already being scanned.");
             }
 
+            CancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(Program.MasterCancellationTokenSource.Token);
+            var cancellationToken = CancellationTokenSource.Token;
+
+            // send control back to the calling context. if we don't do this, the caller will block until
+            // directories have been enumerated.
+            await Task.Yield();
+
             try
             {
                 State.SetValue(state => state with
                 {
                     Filling = true,
                     Filled = false,
+                    Cancelled = false,
                     FillProgress = 0,
                     Directories = 0,
                     Files = 0,
@@ -164,8 +183,6 @@ namespace slskd.Shares
                 }
 
                 Log.Debug("Starting shared file scan");
-
-                await Task.Yield();
 
                 var timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
@@ -230,7 +247,7 @@ namespace slskd.Shares
                 var filtered = 0;
 
                 // set up a channel to fan out for directory scanning
-                DirectoryChannel = Channel.CreateBounded<string>(new BoundedChannelOptions(1000)
+                var channel = Channel.CreateBounded<string>(new BoundedChannelOptions(1000)
                 {
                     AllowSynchronousContinuations = false,
                     FullMode = BoundedChannelFullMode.Wait,
@@ -244,7 +261,7 @@ namespace slskd.Shares
                 foreach (var id in Enumerable.Range(0, WorkerCount))
                 {
                     workers.Add(new ChannelReader<string>(
-                        channel: DirectoryChannel,
+                        channel: channel,
                         cancellationToken: cancellationToken,
                         handler: (directory) =>
                         {
@@ -299,16 +316,7 @@ namespace slskd.Shares
                             cached += addedFiles;
 
                             Log.Debug("Finished scanning {Directory}: {Added} files added and {Filtered} filtered", directory, addedFiles, filteredFiles);
-
-                            try
-                            {
-                                State.SetValue(state => state with { FillProgress = current / (double)unmaskedDirectories.Count, Files = cached });
-                            }
-                            catch (Exception ex)
-                            {
-                                Log.Error(ex, "Failed to set cache state following scan of {Directory}: {Message}", directory, ex.Message);
-                                throw;
-                            }
+                            State.SetValue(state => state with { FillProgress = current / (double)unmaskedDirectories.Count, Files = cached });
                         }));
                 }
 
@@ -316,30 +324,54 @@ namespace slskd.Shares
                 workers.ForEach(w => w.Start());
                 Log.Debug("All workers started");
 
-                Log.Debug("Filling DirectoryChannel...");
-                foreach (var directory in unmaskedDirectories)
+                try
                 {
-                    await DirectoryChannel.Writer.WriteAsync(directory);
+                    try
+                    {
+                        Log.Debug("Filling DirectoryChannel...");
+                        foreach (var directory in unmaskedDirectories)
+                        {
+                            await channel.Writer.WriteAsync(directory, cancellationToken);
+                        }
+
+                        Log.Debug("DirectoryChannel filled");
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        Log.Warning("Shared file scan cancellation requested");
+                        Log.Debug("DirectoryChannel fill aborted");
+                    }
+                    finally
+                    {
+                        channel.Writer.Complete();
+                    }
+
+                    Log.Debug("Waiting for workers to finish working...");
+                    await Task.WhenAll(workers.Select(w => w.Completed));
+                    Log.Debug("All workers finished");
+
+                    Log.Information("Scan found {Files} files (and {Filtered} were filtered) in {Elapsed}ms", cached, filtered, sw.ElapsedMilliseconds - swSnapshot);
+                    swSnapshot = sw.ElapsedMilliseconds;
+
+                    var deletedFiles = DeleteStaleFiles(timestamp);
+                    var deletedDirectories = DeleteStaleDirectories(timestamp);
+
+                    Log.Information("Removed or renamed {Files} files and {Directories} directories in {Elapsed}ms", deletedFiles, deletedDirectories, sw.ElapsedMilliseconds - swSnapshot);
                 }
+                catch (OperationCanceledException)
+                {
+                    // important! don't try to delete stale files in this case; unscanned records will have a stale timestamp
+                    Log.Warning("Shared file scan cancelled successfully");
 
-                DirectoryChannel.Writer.Complete();
-                Log.Debug("DirectoryChannel filled");
-
-                Log.Debug("Waiting for workers to finish working...");
-                await Task.WhenAll(workers.Select(w => w.Completed));
-                Log.Debug("All workers finished");
-
-                Log.Information("Scan found {Files} files (and {Filtered} were filtered) in {Elapsed}ms", cached, filtered, sw.ElapsedMilliseconds - swSnapshot);
-                swSnapshot = sw.ElapsedMilliseconds;
-
-                var deletedFiles = DeleteStaleFiles(timestamp);
-                var deletedDirectories = DeleteStaleDirectories(timestamp);
-
-                Log.Information("Removed or renamed {Files} files and {Directories} directories in {Elapsed}ms", deletedFiles, deletedDirectories, sw.ElapsedMilliseconds - swSnapshot);
+                    State.SetValue(state => state with { Cancelled = true });
+                }
 
                 Log.Debug("Backing up shared file cache database...");
                 Backup();
                 Log.Debug("Shared file cache database backup complete");
+
+                var directoryCount = CountDirectories();
+                var fileCount = CountFiles();
 
                 State.SetValue(state => state with
                 {
@@ -347,11 +379,11 @@ namespace slskd.Shares
                     Faulted = false,
                     Filled = true,
                     FillProgress = 1,
-                    Directories = CountDirectories(),
-                    Files = CountFiles(),
+                    Directories = directoryCount,
+                    Files = fileCount,
                 });
 
-                Log.Debug($"Shared file cache recreated in {sw.ElapsedMilliseconds}ms.  Directories: {unmaskedDirectories.Count}, Files: {cached}");
+                Log.Debug($"Shared file cache created or updated in {sw.ElapsedMilliseconds}ms.  Directories: {directoryCount}, Files: {fileCount}");
             }
             catch (Exception ex)
             {
@@ -361,6 +393,7 @@ namespace slskd.Shares
             }
             finally
             {
+                CancellationTokenSource = null;
                 SyncRoot.Release();
             }
         }
@@ -452,6 +485,21 @@ namespace slskd.Shares
                 Log.Warning(ex, "Failed to execute shared file query '{Query}': {Message}", query, ex.Message);
                 return Enumerable.Empty<File>();
             }
+        }
+
+        /// <summary>
+        ///     Cancels the currently running fill operation, if one is running.
+        /// </summary>
+        /// <returns>A value indicating whether a fill operation was cancelled.</returns>
+        public bool TryCancelFill()
+        {
+            if (CancellationTokenSource != null)
+            {
+                CancellationTokenSource.Cancel();
+                return true;
+            }
+
+            return false;
         }
 
         /// <summary>
@@ -587,22 +635,60 @@ namespace slskd.Shares
             sourceConn.BackupDatabase(backupConn);
         }
 
-        private int CountDirectories()
+        private int CountDirectories(string prefix = null)
         {
             using var conn = GetConnection();
-            using var cmd = new SqliteCommand("SELECT COUNT(*) FROM directories;", conn);
-            var reader = cmd.ExecuteReader();
-            reader.Read();
-            return reader.GetInt32(0);
+
+            SqliteCommand cmd = default;
+
+            try
+            {
+                if (string.IsNullOrEmpty(prefix))
+                {
+                    cmd = new SqliteCommand("SELECT COUNT(*) FROM directories;", conn);
+                }
+                else
+                {
+                    cmd = new SqliteCommand("SELECT COUNT(*) FROM directories WHERE name LIKE @prefix || '%'", conn);
+                    cmd.Parameters.AddWithValue("prefix", prefix);
+                }
+
+                var reader = cmd.ExecuteReader();
+                reader.Read();
+                return reader.GetInt32(0);
+            }
+            finally
+            {
+                cmd.Dispose();
+            }
         }
 
-        private int CountFiles()
+        private int CountFiles(string prefix = null)
         {
             using var conn = GetConnection();
-            using var cmd = new SqliteCommand("SELECT COUNT(*) FROM files;", conn);
-            var reader = cmd.ExecuteReader();
-            reader.Read();
-            return reader.GetInt32(0);
+
+            SqliteCommand cmd = default;
+
+            try
+            {
+                if (string.IsNullOrEmpty(prefix))
+                {
+                    cmd = new SqliteCommand("SELECT COUNT(*) FROM files;", conn);
+                }
+                else
+                {
+                    cmd = new SqliteCommand("SELECT COUNT(*) FROM files WHERE maskedFilename LIKE @prefix || '%'", conn);
+                    cmd.Parameters.AddWithValue("prefix", prefix);
+                }
+
+                var reader = cmd.ExecuteReader();
+                reader.Read();
+                return reader.GetInt32(0);
+            }
+            finally
+            {
+                cmd.Dispose();
+            }
         }
 
         private SqliteConnection GetConnection(string connectionString = null)
@@ -674,24 +760,42 @@ namespace slskd.Shares
             return reader.GetInt64(0);
         }
 
-        private IEnumerable<string> ListDirectories()
+        private IEnumerable<string> ListDirectories(string prefix = null)
         {
             var results = new List<string>();
 
             using var conn = GetConnection();
 
-            using var cmd = new SqliteCommand("SELECT name FROM directories ORDER BY name ASC;", conn);
-            var reader = cmd.ExecuteReader();
+            SqliteCommand cmd = default;
 
-            while (reader.Read())
+            try
             {
-                results.Add(reader.GetString(0));
-            }
+                if (string.IsNullOrEmpty(prefix))
+                {
+                    cmd = new SqliteCommand("SELECT name FROM directories ORDER BY name ASC;", conn);
+                }
+                else
+                {
+                    cmd = new SqliteCommand("SELECT name from directories WHERE name LIKE @prefix || '%' ORDER BY name ASC;", conn);
+                    cmd.Parameters.AddWithValue("prefix", prefix);
+                }
 
-            return results;
+                var reader = cmd.ExecuteReader();
+
+                while (reader.Read())
+                {
+                    results.Add(reader.GetString(0));
+                }
+
+                return results;
+            }
+            finally
+            {
+                cmd.Dispose();
+            }
         }
 
-        private IEnumerable<File> ListFiles(string directory = null)
+        private IEnumerable<File> ListFiles(string directory = null, bool includeFullPath = false)
         {
             var results = new List<File>();
 
@@ -722,7 +826,9 @@ namespace slskd.Shares
 
                     var attributeList = attributeJson.FromJson<List<FileAttribute>>();
 
-                    var file = new File(code, filename: Path.GetFileName(filename), size, extension, attributeList);
+                    filename = includeFullPath ? filename : Path.GetFileName(filename);
+
+                    var file = new File(code, filename, size, extension, attributeList);
 
                     results.Add(file);
                 }

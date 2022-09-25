@@ -30,6 +30,7 @@ namespace slskd
     using System.Security.Cryptography.X509Certificates;
     using System.Text;
     using System.Text.Json.Serialization;
+    using System.Threading;
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.Authentication.JwtBearer;
     using Microsoft.AspNetCore.Builder;
@@ -189,6 +190,16 @@ namespace slskd
         /// </summary>
         public static ConcurrentFixedSizeQueue<LogRecord> LogBuffer { get; } = new ConcurrentFixedSizeQueue<LogRecord>(size: 100);
 
+        /// <summary>
+        ///     Gets the master cancellation token source for the program.
+        /// </summary>
+        /// <remarks>
+        ///     The token from this source should be used (or linked) to any long-running asynchronous task, so that when the application
+        ///     begins to shut down these tasks also shut down in a timely manner. Actions that control the lifecycle of the program
+        ///     (POSIX signals, a restart from the API, etc) should cancel this source.
+        /// </remarks>
+        public static CancellationTokenSource MasterCancellationTokenSource { get; } = new CancellationTokenSource();
+
         private static IConfigurationRoot Configuration { get; set; }
         private static OptionsAtStartup OptionsAtStartup { get; } = new OptionsAtStartup();
         private static ILogger Log { get; set; } = new ConsoleWriteLineLogger();
@@ -329,8 +340,10 @@ namespace slskd
                 Log.Warning($"Please report any issues here: {IssuesUrl}");
             }
 
+            Log.Information("System: .NET {DotNet}, {OS}, {BitNess} bit, {ProcessorCount} processors", Environment.Version, Environment.OSVersion, Environment.Is64BitOperatingSystem ? 64 : 32, Environment.ProcessorCount);
+            Log.Information("Process ID: {ProcessId} ({BitNess} bit)", ProcessId, Environment.Is64BitProcess ? 64 : 32);
+
             Log.Information("Invocation ID: {InvocationId}", InvocationId);
-            Log.Information("Process ID: {ProcessId}", ProcessId);
             Log.Information("Instance Name: {InstanceName}", OptionsAtStartup.InstanceName);
 
             // SQLite must have specific capabilities to function properly. this shouldn't be a concern for shrinkwrapped
