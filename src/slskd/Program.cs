@@ -340,8 +340,10 @@ namespace slskd
                 Log.Warning($"Please report any issues here: {IssuesUrl}");
             }
 
+            Log.Information("System: .NET {DotNet}, {OS}, {BitNess} bit, {ProcessorCount} processors", Environment.Version, Environment.OSVersion, Environment.Is64BitOperatingSystem ? 64 : 32, Environment.ProcessorCount);
+            Log.Information("Process ID: {ProcessId} ({BitNess} bit)", ProcessId, Environment.Is64BitProcess ? 64 : 32);
+
             Log.Information("Invocation ID: {InvocationId}", InvocationId);
-            Log.Information("Process ID: {ProcessId}", ProcessId);
             Log.Information("Instance Name: {InstanceName}", OptionsAtStartup.InstanceName);
 
             // SQLite must have specific capabilities to function properly. this shouldn't be a concern for shrinkwrapped
