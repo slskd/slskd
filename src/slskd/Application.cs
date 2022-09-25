@@ -985,8 +985,6 @@ namespace slskd
         {
             var (previous, current) = state;
 
-            Console.WriteLine(current);
-
             if (!previous.Scanning && current.Scanning)
             {
                 // the scan is starting
