@@ -220,8 +220,10 @@ namespace slskd.Shares
         /// <returns>The summary information.</returns>
         public Task<(int Directories, int Files)> SummarizeShareAsync(Share share)
         {
-            var dirs = Cache.CountDirectories(share);
-            var files = Cache.CountFiles(share);
+            var prefix = share.RemotePath + Path.DirectorySeparatorChar;
+
+            var dirs = Repository.CountDirectories(prefix);
+            var files = Repository.CountFiles(prefix);
             return Task.FromResult((dirs, files));
         }
 

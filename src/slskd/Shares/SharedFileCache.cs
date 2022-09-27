@@ -43,20 +43,6 @@ namespace slskd.Shares
         IStateMonitor<SharedFileCacheState> StateMonitor { get; }
 
         /// <summary>
-        ///     Returns the number of directories in the specified <paramref name="share"/>.
-        /// </summary>
-        /// <param name="share">The share for which the directories are to be counted.</param>
-        /// <returns>The number of directories.</returns>
-        int CountDirectories(Share share);
-
-        /// <summary>
-        ///     Returns the number of files in the specified <paramref name="share"/>.
-        /// </summary>
-        /// <param name="share">The share for which the files are to be counted.</param>
-        /// <returns>The number of files.</returns>
-        int CountFiles(Share share);
-
-        /// <summary>
         ///     Scans the configured shares and fills the cache.
         /// </summary>
         /// <param name="shares">The list of shares from which to fill the cache.</param>
@@ -132,28 +118,6 @@ namespace slskd.Shares
         private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1);
         private CancellationTokenSource CancellationTokenSource { get; set; }
         private IShareRepository Repository { get; }
-
-        /// <summary>
-        ///     Returns the number of directories in the specified <paramref name="share"/>.
-        /// </summary>
-        /// <param name="share">The share for which the directories are to be counted.</param>
-        /// <returns>The number of directories.</returns>
-        public int CountDirectories(Share share)
-        {
-            var path = share.RemotePath + Path.DirectorySeparatorChar;
-            return Repository.CountDirectories(path);
-        }
-
-        /// <summary>
-        ///     Returns the number of files in the specified <paramref name="share"/>.
-        /// </summary>
-        /// <param name="share">The share for which the files are to be counted.</param>
-        /// <returns>The number of files.</returns>
-        public int CountFiles(Share share)
-        {
-            var path = share.RemotePath + Path.DirectorySeparatorChar;
-            return Repository.CountFiles(path);
-        }
 
         /// <summary>
         ///     Scans the configured shares and fills the cache.
