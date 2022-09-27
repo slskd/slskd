@@ -113,14 +113,15 @@ namespace slskd.Shares
             // files. if not they'll be left as is.
             foreach (var directory in Repository.ListDirectories(prefix))
             {
-                directories.TryAdd(directory, new Directory(directory));
+                var name = directory.NormalizePathForSoulseek();
+                directories.TryAdd(name, new Directory(name));
             }
 
             var files = Repository.ListFiles(prefix, includeFullPath: true);
 
             var groups = files
                 .GroupBy(file => Path.GetDirectoryName(file.Filename))
-                .Select(group => new Directory(group.Key, group.Select(f =>
+                .Select(group => new Directory(group.Key.NormalizePathForSoulseek(), group.Select(f =>
                 {
                     return new File(
                         f.Code,
@@ -137,11 +138,9 @@ namespace slskd.Shares
                 directories.AddOrUpdate(group.Name, group, (_, _) => group);
             }
 
-            var results = directories.Values.OrderBy(d => d.Name);
+            var results = directories.Values.AsEnumerable();
 
-            var normalizedResults = results.Select(r => new Directory(r.Name.NormalizePath(), r.Files));
-
-            return Task.FromResult(normalizedResults);
+            return Task.FromResult(results);
         }
 
         /// <summary>
@@ -152,7 +151,7 @@ namespace slskd.Shares
         public Task<Directory> ListDirectoryAsync(string directory)
         {
             var list = Cache.List(directory.LocalizePath());
-            var normalizedList = new Directory(list.Name.NormalizePath(), list.Files);
+            var normalizedList = new Directory(list.Name.NormalizePathForSoulseek(), list.Files);
 
             return Task.FromResult(normalizedList);
         }
@@ -198,7 +197,7 @@ namespace slskd.Shares
 
             return Task.FromResult(results.Select(r => new File(
                 r.Code,
-                r.Filename.NormalizePath(),
+                r.Filename.NormalizePathForSoulseek(),
                 r.Size,
                 r.Extension,
                 r.Attributes)));
