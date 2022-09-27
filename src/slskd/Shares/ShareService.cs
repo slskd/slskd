@@ -20,6 +20,7 @@ using Microsoft.Extensions.Options;
 
 namespace slskd.Shares
 {
+    using System.Collections.Concurrent;
     using System.Collections.Generic;
     using System.Linq;
     using System.Text.RegularExpressions;
@@ -96,7 +97,48 @@ namespace slskd.Shares
         /// <returns>The entire contents of the share.</returns>
         public Task<IEnumerable<Directory>> BrowseAsync(Share share = null)
         {
-            var results = Cache.Browse(share);
+            var directories = new ConcurrentDictionary<string, Directory>();
+
+            string prefix = null;
+
+            if (share != null)
+            {
+                prefix = share.RemotePath + Path.DirectorySeparatorChar;
+            }
+
+            // Soulseek requires that each directory in the tree have an entry in the list returned in a browse response. if
+            // missing, files that are nested within directories which contain only directories (no files) are displayed as being
+            // in the root. to get around this, prime a dictionary with all known directories, and an empty Soulseek.Directory. if
+            // there are any files in the directory, this entry will be overwritten with a new Soulseek.Directory containing the
+            // files. if not they'll be left as is.
+            foreach (var directory in Repository.ListDirectories(prefix))
+            {
+                directories.TryAdd(directory, new Directory(directory));
+            }
+
+            var files = Repository.ListFiles(prefix, includeFullPath: true);
+
+            var groups = files
+                .GroupBy(file => Path.GetDirectoryName(file.Filename))
+                .Select(group => new Directory(group.Key, group.Select(f =>
+                {
+                    return new File(
+                        f.Code,
+                        Path.GetFileName(f.Filename), // we can send the full path, or just the filename.  save bandwidth and omit the path.
+                        f.Size,
+                        f.Extension,
+                        f.Attributes);
+                }).OrderBy(f => f.Filename)));
+
+            // merge the dictionary containing all directories with the Soulseek.Directory instances containing their files.
+            // entries with no files will remain untouched.
+            foreach (var group in groups)
+            {
+                directories.AddOrUpdate(group.Name, group, (_, _) => group);
+            }
+
+            var results = directories.Values.OrderBy(d => d.Name);
+
             var normalizedResults = results.Select(r => new Directory(r.Name.NormalizePath(), r.Files));
 
             return Task.FromResult(normalizedResults);

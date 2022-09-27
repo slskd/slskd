@@ -20,7 +20,6 @@ using System.IO;
 namespace slskd.Shares
 {
     using System;
-    using System.Collections.Concurrent;
     using System.Collections.Generic;
     using System.Data;
     using System.Diagnostics;
@@ -32,6 +31,73 @@ namespace slskd.Shares
     using Microsoft.Data.Sqlite;
     using Serilog;
     using Soulseek;
+
+    /// <summary>
+    ///     Shared file cache.
+    /// </summary>
+    public interface ISharedFileCache
+    {
+        /// <summary>
+        ///     Gets the cache state monitor.
+        /// </summary>
+        IStateMonitor<SharedFileCacheState> StateMonitor { get; }
+
+        /// <summary>
+        ///     Returns the number of directories in the specified <paramref name="share"/>.
+        /// </summary>
+        /// <param name="share">The share for which the directories are to be counted.</param>
+        /// <returns>The number of directories.</returns>
+        int CountDirectories(Share share);
+
+        /// <summary>
+        ///     Returns the number of files in the specified <paramref name="share"/>.
+        /// </summary>
+        /// <param name="share">The share for which the files are to be counted.</param>
+        /// <returns>The number of files.</returns>
+        int CountFiles(Share share);
+
+        /// <summary>
+        ///     Scans the configured shares and fills the cache.
+        /// </summary>
+        /// <param name="shares">The list of shares from which to fill the cache.</param>
+        /// <param name="filters">The list of regular expressions used to exclude files or paths from scanning.</param>
+        /// <returns>The operation context.</returns>
+        Task FillAsync(IEnumerable<Share> shares, IEnumerable<Regex> filters);
+
+        /// <summary>
+        ///     Returns the contents of the specified <paramref name="directory"/>.
+        /// </summary>
+        /// <param name="directory">The directory for which the contents are to be listed.</param>
+        /// <returns>The contents of the directory.</returns>
+        Directory List(string directory);
+
+        /// <summary>
+        ///     Substitutes the mask in the specified <paramref name="filename"/> with the original path, if the mask is tracked
+        ///     by the cache.
+        /// </summary>
+        /// <param name="filename">The fully qualified filename to unmask.</param>
+        /// <returns>The unmasked filename.</returns>
+        string Resolve(string filename);
+
+        /// <summary>
+        ///     Searches the cache for the specified <paramref name="query"/> and returns the matching files.
+        /// </summary>
+        /// <param name="query">The query for which to search.</param>
+        /// <returns>The matching files.</returns>
+        IEnumerable<File> Search(SearchQuery query);
+
+        /// <summary>
+        ///     Cancels the currently running fill operation, if one is running.
+        /// </summary>
+        /// <returns>A value indicating whether a fill operation was cancelled.</returns>
+        bool TryCancelFill();
+
+        /// <summary>
+        ///     Attempts to load the cache from disk.
+        /// </summary>
+        /// <returns>A value indicating whether the load was successful.</returns>
+        bool TryLoad();
+    }
 
     /// <summary>
     ///     Shared file cache.
@@ -66,56 +132,6 @@ namespace slskd.Shares
         private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1);
         private CancellationTokenSource CancellationTokenSource { get; set; }
         private IShareRepository Repository { get; }
-
-        /// <summary>
-        ///     Returns the contents of the cache.
-        /// </summary>
-        /// <param name="share">The optional share to which to limit the scope of the browse.</param>
-        /// <returns>The contents of the cache.</returns>
-        public IEnumerable<Directory> Browse(Share share = null)
-        {
-            var directories = new ConcurrentDictionary<string, Directory>();
-
-            string prefix = null;
-
-            if (share != null)
-            {
-                prefix = share.RemotePath + Path.DirectorySeparatorChar;
-            }
-
-            // Soulseek requires that each directory in the tree have an entry in the list returned in a browse response. if
-            // missing, files that are nested within directories which contain only directories (no files) are displayed as being
-            // in the root. to get around this, prime a dictionary with all known directories, and an empty Soulseek.Directory. if
-            // there are any files in the directory, this entry will be overwritten with a new Soulseek.Directory containing the
-            // files. if not they'll be left as is.
-            foreach (var directory in Repository.ListDirectories(prefix))
-            {
-                directories.TryAdd(directory, new Directory(directory));
-            }
-
-            var files = Repository.ListFiles(prefix, includeFullPath: true);
-
-            var groups = files
-                .GroupBy(file => Path.GetDirectoryName(file.Filename))
-                .Select(group => new Directory(group.Key, group.Select(f =>
-                {
-                    return new File(
-                        f.Code,
-                        Path.GetFileName(f.Filename), // we can send the full path, or just the filename.  save bandwidth and omit the path.
-                        f.Size,
-                        f.Extension,
-                        f.Attributes);
-                }).OrderBy(f => f.Filename)));
-
-            // merge the dictionary containing all directories with the Soulseek.Directory instances containing their files.
-            // entries with no files will remain untouched.
-            foreach (var group in groups)
-            {
-                directories.AddOrUpdate(group.Name, group, (_, _) => group);
-            }
-
-            return directories.Values.OrderBy(d => d.Name);
-        }
 
         /// <summary>
         ///     Returns the number of directories in the specified <paramref name="share"/>.
