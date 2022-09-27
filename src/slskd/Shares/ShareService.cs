@@ -168,7 +168,7 @@ namespace slskd.Shares
         /// </exception>
         public Task<FileInfo> ResolveFileAsync(string remoteFilename)
         {
-            var resolvedFilename = Cache.Resolve(remoteFilename.LocalizePath());
+            var resolvedFilename = Repository.FindOriginalFilename(remoteFilename.LocalizePath());
 
             if (string.IsNullOrEmpty(resolvedFilename))
             {

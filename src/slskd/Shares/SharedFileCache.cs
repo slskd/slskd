@@ -51,14 +51,6 @@ namespace slskd.Shares
         Task FillAsync(IEnumerable<Share> shares, IEnumerable<Regex> filters);
 
         /// <summary>
-        ///     Substitutes the mask in the specified <paramref name="filename"/> with the original path, if the mask is tracked
-        ///     by the cache.
-        /// </summary>
-        /// <param name="filename">The fully qualified filename to unmask.</param>
-        /// <returns>The unmasked filename.</returns>
-        string Resolve(string filename);
-
-        /// <summary>
         ///     Searches the cache for the specified <paramref name="query"/> and returns the matching files.
         /// </summary>
         /// <param name="query">The query for which to search.</param>
@@ -370,31 +362,6 @@ namespace slskd.Shares
                 CancellationTokenSource = null;
                 SyncRoot.Release();
             }
-        }
-
-        /// <summary>
-        ///     Substitutes the mask in the specified <paramref name="filename"/> with the original path, if the mask is tracked
-        ///     by the cache.
-        /// </summary>
-        /// <param name="filename">The fully qualified filename to unmask.</param>
-        /// <returns>The unmasked filename.</returns>
-        public string Resolve(string filename)
-        {
-            using var conn = GetConnection();
-            using var cmd = new SqliteCommand("SELECT originalFilename FROM files WHERE maskedFilename = @maskedFilename;", conn);
-            cmd.Parameters.AddWithValue("maskedFilename", filename);
-
-            var reader = cmd.ExecuteReader();
-
-            if (!reader.Read())
-            {
-                Log.Warning("Failed to resolve shared file {Filename}", filename);
-                return null;
-            }
-
-            var resolved = reader.GetString(0);
-            Log.Debug($"Resolved requested shared file {filename} to {resolved}");
-            return resolved;
         }
 
         /// <summary>

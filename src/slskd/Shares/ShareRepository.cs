@@ -37,6 +37,7 @@ namespace slskd.Shares
         IEnumerable<string> ListDirectories(string prefix = null);
         IEnumerable<Soulseek.File> ListFiles(string directory = null, bool includeFullPath = false);
         void Backup(string backupConnectionString);
+        string FindOriginalFilename(string maskedFilename);
     }
 
     public class ShareRepository : IShareRepository
@@ -55,6 +56,25 @@ namespace slskd.Shares
             var conn = new SqliteConnection(connectionString);
             conn.Open();
             return conn;
+        }
+
+        public string FindOriginalFilename(string maskedFilename)
+        {
+            using var conn = GetConnection();
+            using var cmd = new SqliteCommand("SELECT originalFilename FROM files WHERE maskedFilename = @maskedFilename;", conn);
+            cmd.Parameters.AddWithValue("maskedFilename", maskedFilename);
+
+            var reader = cmd.ExecuteReader();
+
+            if (!reader.Read())
+            {
+                Log.Warning("Failed to resolve shared file {Filename}", maskedFilename);
+                return null;
+            }
+
+            var resolved = reader.GetString(0);
+            Log.Debug($"Resolved requested shared file {maskedFilename} to {resolved}");
+            return resolved;
         }
 
         public void CreateTables(bool discardExisting = false)
