@@ -150,10 +150,11 @@ namespace slskd.Shares
         /// <returns>The contents of the directory.</returns>
         public Task<Directory> ListDirectoryAsync(string directory)
         {
-            var list = Cache.List(directory.LocalizePath());
-            var normalizedList = new Directory(list.Name.NormalizePathForSoulseek(), list.Files);
+            var localPath = directory.LocalizePath();
 
-            return Task.FromResult(normalizedList);
+            var files = Repository.ListFiles(localPath);
+
+            return Task.FromResult(new Directory(directory, files));
         }
 
         /// <summary>
