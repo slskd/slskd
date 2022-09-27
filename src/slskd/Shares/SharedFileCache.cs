@@ -25,7 +25,6 @@ namespace slskd.Shares
     using System.Data;
     using System.Diagnostics;
     using System.Linq;
-    using System.Security.Cryptography;
     using System.Text.RegularExpressions;
     using System.Threading;
     using System.Threading.Channels;
@@ -50,6 +49,7 @@ namespace slskd.Shares
             StorageMode = storageMode;
             WorkerCount = workerCount;
             SoulseekFileFactory = soulseekFileFactory ?? new SoulseekFileFactory();
+            Repository = new ShareRepository(Program.ConnectionStrings.Shares);
         }
 
         /// <summary>
@@ -65,6 +65,7 @@ namespace slskd.Shares
         private IManagedState<SharedFileCacheState> State { get; } = new ManagedState<SharedFileCacheState>();
         private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1);
         private CancellationTokenSource CancellationTokenSource { get; set; }
+        private IShareRepository Repository { get; }
 
         /// <summary>
         ///     Returns the contents of the cache.
@@ -87,12 +88,12 @@ namespace slskd.Shares
             // in the root. to get around this, prime a dictionary with all known directories, and an empty Soulseek.Directory. if
             // there are any files in the directory, this entry will be overwritten with a new Soulseek.Directory containing the
             // files. if not they'll be left as is.
-            foreach (var directory in ListDirectories(prefix))
+            foreach (var directory in Repository.ListDirectories(prefix))
             {
                 directories.TryAdd(directory, new Directory(directory));
             }
 
-            var files = ListFiles(prefix, includeFullPath: true);
+            var files = Repository.ListFiles(prefix, includeFullPath: true);
 
             var groups = files
                 .GroupBy(file => Path.GetDirectoryName(file.Filename))
@@ -124,7 +125,7 @@ namespace slskd.Shares
         public int CountDirectories(Share share)
         {
             var path = share.RemotePath + Path.DirectorySeparatorChar;
-            return CountDirectories(path);
+            return Repository.CountDirectories(path);
         }
 
         /// <summary>
@@ -135,7 +136,7 @@ namespace slskd.Shares
         public int CountFiles(Share share)
         {
             var path = share.RemotePath + Path.DirectorySeparatorChar;
-            return CountFiles(path);
+            return Repository.CountFiles(path);
         }
 
         /// <summary>
@@ -175,10 +176,10 @@ namespace slskd.Shares
 
                 // it's possible that the database was tampered with between the time it was checked at startup and now
                 // validate the tables, and if there's an issue, drop and recreate everything.
-                if (!ValidateTables(Program.ConnectionStrings.Shares))
+                if (!Repository.TryValidateTables(Program.ConnectionStrings.Shares))
                 {
                     Log.Warning("Shared file cache invalid; dropping and re-creating prior to scan.");
-                    CreateTables(discardExisting: true);
+                    Repository.CreateTables(discardExisting: true);
                     Log.Information("Share file cache ready.");
                 }
 
@@ -272,7 +273,7 @@ namespace slskd.Shares
 
                             var share = Shares.First(share => directory.StartsWith(share.LocalPath));
 
-                            InsertDirectory(directory.ReplaceFirst(share.LocalPath, share.RemotePath), timestamp);
+                            Repository.InsertDirectory(directory.ReplaceFirst(share.LocalPath, share.RemotePath), timestamp);
 
                             // recursively find all files in the directory and stick a record in a dictionary, keyed on the sanitized
                             // filename and with a value of a Soulseek.File object
@@ -302,7 +303,7 @@ namespace slskd.Shares
                                         continue;
                                     }
 
-                                    InsertFile(maskedFilename: file.Filename, originalFilename, touchedAt: info.LastWriteTimeUtc, file, timestamp);
+                                    Repository.InsertFile(maskedFilename: file.Filename, originalFilename, touchedAt: info.LastWriteTimeUtc, file, timestamp);
                                 }
                             }
                             catch (Exception ex)
@@ -353,8 +354,8 @@ namespace slskd.Shares
                     Log.Information("Scan found {Files} files (and {Filtered} were filtered) in {Elapsed}ms", cached, filtered, sw.ElapsedMilliseconds - swSnapshot);
                     swSnapshot = sw.ElapsedMilliseconds;
 
-                    var deletedFiles = DeleteStaleFiles(timestamp);
-                    var deletedDirectories = DeleteStaleDirectories(timestamp);
+                    var deletedFiles = Repository.DeleteFiles(timestamp);
+                    var deletedDirectories = Repository.DeleteDirectories(timestamp);
 
                     Log.Information("Removed or renamed {Files} files and {Directories} directories in {Elapsed}ms", deletedFiles, deletedDirectories, sw.ElapsedMilliseconds - swSnapshot);
                 }
@@ -367,11 +368,11 @@ namespace slskd.Shares
                 }
 
                 Log.Debug("Backing up shared file cache database...");
-                Backup();
+                Repository.Backup(Program.ConnectionStrings.SharesBackup);
                 Log.Debug("Shared file cache database backup complete");
 
-                var directoryCount = CountDirectories();
-                var fileCount = CountFiles();
+                var directoryCount = Repository.CountDirectories();
+                var fileCount = Repository.CountFiles();
 
                 State.SetValue(state => state with
                 {
@@ -405,7 +406,7 @@ namespace slskd.Shares
         /// <returns>The contents of the directory.</returns>
         public Directory List(string directory)
         {
-            var files = ListFiles(directory);
+            var files = Repository.ListFiles(directory);
             return new Directory(directory, files);
         }
 
@@ -511,12 +512,12 @@ namespace slskd.Shares
             try
             {
                 // see if we need to 'restore' the database from disk, and do so
-                if (StorageMode == StorageMode.Memory || (StorageMode == StorageMode.Disk && !ValidateTables(Program.ConnectionStrings.Shares)))
+                if (StorageMode == StorageMode.Memory || (StorageMode == StorageMode.Disk && !Repository.TryValidateTables(Program.ConnectionStrings.Shares)))
                 {
                     Log.Debug($"Share cache {(StorageMode == StorageMode.Memory ? "StorageMode is 'Memory'" : "database is missing from disk")}. Attempting to load from backup...");
 
                     // the backup is missing; we can't do anything but recreate it from scratch
-                    if (!ValidateTables(Program.ConnectionStrings.SharesBackup))
+                    if (!Repository.TryValidateTables(Program.ConnectionStrings.SharesBackup))
                     {
                         Log.Debug("Share cache backup is missing; unable to restore");
                         return false;
@@ -542,8 +543,8 @@ namespace slskd.Shares
                     Faulted = false,
                     Filled = true,
                     FillProgress = 1,
-                    Directories = CountDirectories(),
-                    Files = CountFiles(),
+                    Directories = Repository.CountDirectories(),
+                    Files = Repository.CountFiles(),
                 });
 
                 return true;
@@ -555,290 +556,11 @@ namespace slskd.Shares
             }
         }
 
-        private void CreateTables(bool discardExisting = false)
-        {
-            using var conn = GetConnection();
-
-            conn.ExecuteNonQuery("PRAGMA journal_mode=WAL");
-
-            if (discardExisting)
-            {
-                conn.ExecuteNonQuery("DROP TABLE IF EXISTS directories; DROP TABLE IF EXISTS filenames; DROP TABLE IF EXISTS files;");
-            }
-
-            conn.ExecuteNonQuery("CREATE TABLE IF NOT EXISTS directories (name TEXT PRIMARY KEY, timestamp INTEGER NOT NULL);");
-
-            conn.ExecuteNonQuery("CREATE VIRTUAL TABLE IF NOT EXISTS filenames USING fts5(maskedFilename);");
-
-            conn.ExecuteNonQuery("CREATE TABLE IF NOT EXISTS files " +
-                "(maskedFilename TEXT PRIMARY KEY, originalFilename TEXT NOT NULL, size BIGINT NOT NULL, touchedAt TEXT NOT NULL, code INTEGER DEFAULT 1 NOT NULL, " +
-                "extension TEXT, attributeJson TEXT NOT NULL, timestamp INTEGER NOT NULL);");
-        }
-
-        private bool ValidateTables(string connectionString)
-        {
-            var schema = new Dictionary<string, string>()
-            {
-                { "directories", "CREATE TABLE directories (name TEXT PRIMARY KEY, timestamp INTEGER NOT NULL)" },
-                { "filenames", "CREATE VIRTUAL TABLE filenames USING fts5(maskedFilename)" },
-                { "files", "CREATE TABLE files (maskedFilename TEXT PRIMARY KEY, originalFilename TEXT NOT NULL, size BIGINT NOT NULL, touchedAt TEXT NOT NULL, code INTEGER DEFAULT 1 NOT NULL, extension TEXT, attributeJson TEXT NOT NULL, timestamp INTEGER NOT NULL)" },
-            };
-
-            try
-            {
-                Log.Debug("Validating shares database with connection string {String}", connectionString);
-
-                using var conn = GetConnection(connectionString);
-                using var cmd = new SqliteCommand("SELECT name, sql from sqlite_master WHERE type = 'table' AND name IN ('directories', 'filenames', 'files');", conn);
-
-                var reader = cmd.ExecuteReader();
-                var rows = 0;
-
-                while (reader.Read())
-                {
-                    var table = reader.GetString(0);
-                    var expectedSql = reader.GetString(1);
-
-                    if (schema.TryGetValue(table, out var actualSql))
-                    {
-                        if (actualSql != expectedSql)
-                        {
-                            throw new MissingFieldException($"Expected {table} schema to be {expectedSql}, found {actualSql}");
-                        }
-                        else
-                        {
-                            Log.Debug("Shares database table {Table} is valid: {Actual}", table, actualSql);
-                        }
-                    }
-
-                    rows++;
-                }
-
-                if (rows != schema.Count)
-                {
-                    throw new MissingMemberException($"Expected {schema.Count} tables, found {rows}");
-                }
-
-                return true;
-            }
-            catch (Exception ex)
-            {
-                Log.Debug(ex, $"Failed to validate shares database with connection string {connectionString}: {ex.Message}");
-                return false;
-            }
-        }
-
-        private void Backup()
-        {
-            using var sourceConn = GetConnection();
-            using var backupConn = GetConnection(Program.ConnectionStrings.SharesBackup);
-            sourceConn.BackupDatabase(backupConn);
-        }
-
-        private int CountDirectories(string prefix = null)
-        {
-            using var conn = GetConnection();
-
-            SqliteCommand cmd = default;
-
-            try
-            {
-                if (string.IsNullOrEmpty(prefix))
-                {
-                    cmd = new SqliteCommand("SELECT COUNT(*) FROM directories;", conn);
-                }
-                else
-                {
-                    cmd = new SqliteCommand("SELECT COUNT(*) FROM directories WHERE name LIKE @prefix || '%'", conn);
-                    cmd.Parameters.AddWithValue("prefix", prefix);
-                }
-
-                var reader = cmd.ExecuteReader();
-                reader.Read();
-                return reader.GetInt32(0);
-            }
-            finally
-            {
-                cmd.Dispose();
-            }
-        }
-
-        private int CountFiles(string prefix = null)
-        {
-            using var conn = GetConnection();
-
-            SqliteCommand cmd = default;
-
-            try
-            {
-                if (string.IsNullOrEmpty(prefix))
-                {
-                    cmd = new SqliteCommand("SELECT COUNT(*) FROM files;", conn);
-                }
-                else
-                {
-                    cmd = new SqliteCommand("SELECT COUNT(*) FROM files WHERE maskedFilename LIKE @prefix || '%'", conn);
-                    cmd.Parameters.AddWithValue("prefix", prefix);
-                }
-
-                var reader = cmd.ExecuteReader();
-                reader.Read();
-                return reader.GetInt32(0);
-            }
-            finally
-            {
-                cmd.Dispose();
-            }
-        }
-
         private SqliteConnection GetConnection(string connectionString = null)
         {
             var conn = new SqliteConnection(connectionString ?? Program.ConnectionStrings.Shares);
             conn.Open();
             return conn;
-        }
-
-        private void InsertDirectory(string name, long timestamp)
-        {
-            using var conn = GetConnection();
-
-            conn.ExecuteNonQuery("INSERT INTO directories VALUES(@name, @timestamp) ON CONFLICT DO UPDATE SET timestamp = excluded.timestamp;", cmd =>
-            {
-                cmd.Parameters.AddWithValue("name", name);
-                cmd.Parameters.AddWithValue("timestamp", timestamp);
-            });
-        }
-
-        private long DeleteStaleDirectories(long timestamp)
-        {
-            using var conn = GetConnection();
-
-            using var cmd = new SqliteCommand("DELETE FROM directories WHERE timestamp < @timestamp; SELECT changes()", conn);
-            cmd.Parameters.AddWithValue("timestamp", timestamp);
-
-            var reader = cmd.ExecuteReader();
-            reader.Read();
-
-            return reader.GetInt64(0);
-        }
-
-        private void InsertFile(string maskedFilename, string originalFilename, DateTime touchedAt, File file, long timestamp)
-        {
-            using var conn = GetConnection();
-
-            conn.ExecuteNonQuery("INSERT INTO files (maskedFilename, originalFilename, size, touchedAt, code, extension, attributeJson, timestamp) " +
-                "VALUES(@maskedFilename, @originalFilename, @size, @touchedAt, @code, @extension, @attributeJson, @timestamp) " +
-                "ON CONFLICT DO UPDATE SET originalFilename = excluded.originalFilename, size = excluded.size, touchedAt = excluded.touchedAt, " +
-                "code = excluded.code, extension = excluded.extension, attributeJson = excluded.attributeJson, timestamp = excluded.timestamp;", cmd =>
-                {
-                    cmd.Parameters.AddWithValue("maskedFilename", maskedFilename);
-                    cmd.Parameters.AddWithValue("originalFilename", originalFilename);
-                    cmd.Parameters.AddWithValue("size", file.Size);
-                    cmd.Parameters.AddWithValue("touchedAt", touchedAt.ToLongDateString());
-                    cmd.Parameters.AddWithValue("code", file.Code);
-                    cmd.Parameters.AddWithValue("extension", file.Extension);
-                    cmd.Parameters.AddWithValue("attributeJson", file.Attributes.ToJson());
-                    cmd.Parameters.AddWithValue("timestamp", timestamp);
-                });
-
-            conn.ExecuteNonQuery("INSERT INTO filenames (maskedFilename) VALUES(@maskedFilename);", cmd =>
-            {
-                cmd.Parameters.AddWithValue("maskedFilename", maskedFilename);
-            });
-        }
-
-        private long DeleteStaleFiles(long timestamp)
-        {
-            using var conn = GetConnection();
-
-            using var cmd = new SqliteCommand("DELETE FROM files WHERE timestamp < @timestamp; SELECT changes()", conn);
-            cmd.Parameters.AddWithValue("timestamp", timestamp);
-
-            var reader = cmd.ExecuteReader();
-            reader.Read();
-
-            return reader.GetInt64(0);
-        }
-
-        private IEnumerable<string> ListDirectories(string prefix = null)
-        {
-            var results = new List<string>();
-
-            using var conn = GetConnection();
-
-            SqliteCommand cmd = default;
-
-            try
-            {
-                if (string.IsNullOrEmpty(prefix))
-                {
-                    cmd = new SqliteCommand("SELECT name FROM directories ORDER BY name ASC;", conn);
-                }
-                else
-                {
-                    cmd = new SqliteCommand("SELECT name from directories WHERE name LIKE @prefix || '%' ORDER BY name ASC;", conn);
-                    cmd.Parameters.AddWithValue("prefix", prefix);
-                }
-
-                var reader = cmd.ExecuteReader();
-
-                while (reader.Read())
-                {
-                    results.Add(reader.GetString(0));
-                }
-
-                return results;
-            }
-            finally
-            {
-                cmd.Dispose();
-            }
-        }
-
-        private IEnumerable<File> ListFiles(string directory = null, bool includeFullPath = false)
-        {
-            var results = new List<File>();
-
-            SqliteCommand cmd = default;
-            using var conn = GetConnection();
-
-            try
-            {
-                if (string.IsNullOrEmpty(directory))
-                {
-                    cmd = new SqliteCommand("SELECT maskedFilename, code, size, extension, attributeJson FROM files ORDER BY maskedFilename ASC;", conn);
-                }
-                else
-                {
-                    cmd = new SqliteCommand("SELECT maskedFilename, code, size, extension, attributeJson FROM files WHERE maskedFilename LIKE @match ORDER BY maskedFilename ASC;", conn);
-                    cmd.Parameters.AddWithValue("match", directory + '%');
-                }
-
-                var reader = cmd.ExecuteReader();
-
-                while (reader.Read())
-                {
-                    var filename = reader.GetString(0);
-                    var code = reader.GetInt32(1);
-                    var size = reader.GetInt64(2);
-                    var extension = reader.GetString(3);
-                    var attributeJson = reader.GetString(4);
-
-                    var attributeList = attributeJson.FromJson<List<FileAttribute>>();
-
-                    filename = includeFullPath ? filename : Path.GetFileName(filename);
-
-                    var file = new File(code, filename, size, extension, attributeList);
-
-                    results.Add(file);
-                }
-
-                return results;
-            }
-            finally
-            {
-                cmd?.Dispose();
-            }
         }
     }
 }

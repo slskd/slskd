@@ -63,6 +63,8 @@ namespace slskd.Shares
                 });
             });
 
+            Repository = new ShareRepository(connectionString: Program.ConnectionStrings.Shares);
+
             OptionsMonitor = optionsMonitor;
             OptionsMonitor.OnChange(options => Configure(options));
 
@@ -80,6 +82,7 @@ namespace slskd.Shares
         public IStateMonitor<ShareState> StateMonitor => State;
 
         private ISharedFileCache Cache { get; }
+        private IShareRepository Repository { get; }
         private string LastOptionsHash { get; set; }
         private IOptionsMonitor<Options> OptionsMonitor { get; }
         private List<Share> SharesList { get; set; } = new List<Share>();
