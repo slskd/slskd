@@ -20,6 +20,7 @@ namespace slskd.Shares
     using System;
     using System.Collections.Generic;
     using System.IO;
+    using System.Linq;
     using Microsoft.Data.Sqlite;
     using Serilog;
     using Soulseek;
@@ -38,6 +39,7 @@ namespace slskd.Shares
         IEnumerable<Soulseek.File> ListFiles(string directory = null, bool includeFullPath = false);
         void Backup(string backupConnectionString);
         string FindOriginalFilename(string maskedFilename);
+        IEnumerable<Soulseek.File> Search(SearchQuery query);
     }
 
     public class ShareRepository : IShareRepository
@@ -56,6 +58,59 @@ namespace slskd.Shares
             var conn = new SqliteConnection(connectionString);
             conn.Open();
             return conn;
+        }
+
+        /// <summary>
+        ///     Searches the cache for the specified <paramref name="query"/> and returns the matching files.
+        /// </summary>
+        /// <param name="query">The query for which to search.</param>
+        /// <returns>The matching files.</returns>
+        public IEnumerable<Soulseek.File> Search(SearchQuery query)
+        {
+            string Clean(string str) => str.Replace("/", " ")
+                .Replace("\\", " ")
+                .Replace(":", " ")
+                .Replace("\"", " ")
+                .Replace("'", "''");
+
+            var match = string.Join(" AND ", query.Terms.Select(token => $"\"{Clean(token)}\""));
+            var exclusions = string.Join(" OR ", query.Exclusions.Select(exclusion => $"\"{Clean(exclusion)}\""));
+
+            var sql = $"SELECT files.maskedFilename, files.code, files.size, files.extension, files.attributeJson FROM filenames " +
+                "INNER JOIN files ON filenames.maskedFilename = files.maskedFilename " +
+                $"WHERE filenames MATCH '({match}) {(query.Exclusions.Any() ? $"NOT ({exclusions})" : string.Empty)}' " +
+                "ORDER BY filenames.maskedFilename ASC;";
+
+            var results = new List<Soulseek.File>();
+            SqliteDataReader reader = default;
+
+            try
+            {
+                using var conn = GetConnection();
+                using var cmd = new SqliteCommand(sql, conn);
+                reader = cmd.ExecuteReader();
+
+                while (reader.Read())
+                {
+                    var filename = reader.GetString(0);
+                    var code = reader.GetInt32(1);
+                    var size = reader.GetInt64(2);
+                    var extension = reader.GetString(3);
+                    var attributeJson = reader.GetString(4);
+
+                    var attributeList = attributeJson.FromJson<List<FileAttribute>>();
+
+                    var file = new Soulseek.File(code, filename, size, extension, attributeList);
+                    results.Add(file);
+                }
+
+                return results;
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "Failed to execute shared file query '{Query}': {Message}", query, ex.Message);
+                return Enumerable.Empty<Soulseek.File>();
+            }
         }
 
         public string FindOriginalFilename(string maskedFilename)

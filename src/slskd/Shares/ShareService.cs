@@ -194,7 +194,7 @@ namespace slskd.Shares
         /// <returns>The matching files.</returns>
         public Task<IEnumerable<File>> SearchAsync(SearchQuery query)
         {
-            var results = Cache.Search(query);
+            var results = Repository.Search(query);
 
             return Task.FromResult(results.Select(r => new File(
                 r.Code,

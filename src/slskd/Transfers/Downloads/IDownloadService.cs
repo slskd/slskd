@@ -30,7 +30,7 @@ namespace slskd.Transfers.Downloads
         /// <summary>
         ///     Adds the specified <paramref name="transfer"/>. Supersedes any existing record for the same file and username.
         /// </summary>
-        /// <remarks>This should generally not be called; use <see cref="EnqueueAsync(string, IEnumerable(string Filename, long Size)})"/> instead.</remarks>
+        /// <remarks>This should generally not be called; use EnqueueAsync() instead.</remarks>
         /// <param name="transfer"></param>
         void AddOrSupersede(Transfer transfer);
 
