@@ -20,12 +20,14 @@ using Microsoft.Extensions.Options;
 
 namespace slskd.Shares
 {
+    using System;
     using System.Collections.Concurrent;
     using System.Collections.Generic;
     using System.Linq;
     using System.Text.RegularExpressions;
     using System.Threading;
     using System.Threading.Tasks;
+    using Serilog;
     using Soulseek;
 
     /// <summary>
@@ -42,8 +44,9 @@ namespace slskd.Shares
             IOptionsMonitor<Options> optionsMonitor,
             IShareScanner scanner = null)
         {
+            CacheStorageMode = optionsMonitor.CurrentValue.Shares.Cache.StorageMode.ToEnum<StorageMode>();
+
             Scanner = scanner ?? new ShareScanner(
-                storageMode: optionsMonitor.CurrentValue.Shares.Cache.StorageMode.ToEnum<StorageMode>(),
                 workerCount: optionsMonitor.CurrentValue.Shares.Cache.Workers);
 
             Scanner.StateMonitor.OnChange(cacheState =>
@@ -69,6 +72,8 @@ namespace slskd.Shares
             OptionsMonitor = optionsMonitor;
             OptionsMonitor.OnChange(options => Configure(options));
 
+            StateMonitor = State;
+
             Configure(OptionsMonitor.CurrentValue);
         }
 
@@ -80,7 +85,7 @@ namespace slskd.Shares
         /// <summary>
         ///     Gets the state monitor for the service.
         /// </summary>
-        public IStateMonitor<ShareState> StateMonitor => State;
+        public IStateMonitor<ShareState> StateMonitor { get; }
 
         private IShareScanner Scanner { get; }
         private IShareRepository Repository { get; }
@@ -90,6 +95,7 @@ namespace slskd.Shares
         private IManagedState<ShareState> State { get; } = new ManagedState<ShareState>();
         private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1, 1);
         private List<Regex> FilterRegexes { get; set; } = new List<Regex>();
+        private StorageMode CacheStorageMode { get; }
 
         /// <summary>
         ///     Returns the entire contents of the share.
@@ -241,9 +247,53 @@ namespace slskd.Shares
         ///     Attempt to load shares from disk.
         /// </summary>
         /// <returns>A value indicating whether shares were loaded.</returns>
-        public Task<bool> TryLoadFromDiskAsync()
+        public bool TryLoadFromDisk()
         {
-            return Task.FromResult(Scanner.TryLoad());
+            try
+            {
+                // see if we need to 'restore' the database from disk, and do so
+                if (CacheStorageMode == StorageMode.Memory || (CacheStorageMode == StorageMode.Disk && !Repository.TryValidateTables(Program.ConnectionStrings.Shares)))
+                {
+                    Log.Debug($"Share cache {(CacheStorageMode == StorageMode.Memory ? "StorageMode is 'Memory'" : "database is missing from disk")}. Attempting to load from backup...");
+
+                    // the backup is missing; we can't do anything but recreate it from scratch
+                    if (!Repository.TryValidateTables(Program.ConnectionStrings.SharesBackup))
+                    {
+                        Log.Debug("Share cache backup is missing; unable to restore");
+                        return false;
+                    }
+
+                    Log.Debug("Share cache backup located. Attempting to restore...");
+
+                    Sqlite.Restore(
+                        sourceConnectionString: Program.ConnectionStrings.SharesBackup,
+                        destinationConnectionString: Program.ConnectionStrings.Shares);
+
+                    Log.Debug("Share cache successfully restored from backup");
+                }
+
+                // one of several thigns happened above before we got here:
+                //   the storage mode is memory, and we loaded the in-memory db from a valid backup
+                //   the storage mode is disk, and the file is there and valid
+                //   the storage mode is disk but either missing or invalid, and we restored from a valid backup
+                // at this point there is a valid (existing, schema matching expected schema) database at the primary connection string
+                State.SetValue(state => state with
+                {
+                    Scanning = false,
+                    Faulted = false,
+                    Ready = true,
+                    ScanProgress = 1,
+                    Directories = Repository.CountDirectories(),
+                    Files = Repository.CountFiles(),
+                });
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Log.Debug(ex, "Error loading shared file cache: {Message}", ex.Message);
+                return false;
+            }
         }
 
         private void Configure(Options options)

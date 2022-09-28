@@ -373,7 +373,7 @@ namespace slskd
 
             // try to load the share cache from disk.
             // if not successful, the file is missing one or more tables, or is not present at all
-            if (!await Shares.TryLoadFromDiskAsync())
+            if (!Shares.TryLoadFromDisk())
             {
                 Log.Warning("Unable to load share cache from disk. A share scan is required.");
 

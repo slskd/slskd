@@ -93,6 +93,6 @@ namespace slskd.Shares
         ///     Attempt to load shares from disk.
         /// </summary>
         /// <returns>A value indicating whether shares were loaded.</returns>
-        Task<bool> TryLoadFromDiskAsync();
+        bool TryLoadFromDisk();
     }
 }

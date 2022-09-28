@@ -53,12 +53,6 @@ namespace slskd.Shares
         /// </summary>
         /// <returns>A value indicating whether a fill operation was cancelled.</returns>
         bool TryCancelScan();
-
-        /// <summary>
-        ///     Attempts to load the cache from disk.
-        /// </summary>
-        /// <returns>A value indicating whether the load was successful.</returns>
-        bool TryLoad();
     }
 
     /// <summary>
@@ -69,12 +63,10 @@ namespace slskd.Shares
         /// <summary>
         ///     Initializes a new instance of the <see cref="ShareScanner"/> class.
         /// </summary>
-        /// <param name="storageMode"></param>
         /// <param name="workerCount"></param>
         /// <param name="soulseekFileFactory"></param>
-        public ShareScanner(StorageMode storageMode, int workerCount, ISoulseekFileFactory soulseekFileFactory = null)
+        public ShareScanner(int workerCount, ISoulseekFileFactory soulseekFileFactory = null)
         {
-            StorageMode = storageMode;
             WorkerCount = workerCount;
             SoulseekFileFactory = soulseekFileFactory ?? new SoulseekFileFactory();
             Repository = new ShareRepository(Program.ConnectionStrings.Shares);
@@ -85,7 +77,6 @@ namespace slskd.Shares
         /// </summary>
         public IStateMonitor<SharedFileCacheState> StateMonitor => State;
 
-        private StorageMode StorageMode { get; }
         private int WorkerCount { get; }
         private ILogger Log { get; } = Serilog.Log.ForContext<ShareScanner>();
         private List<Share> Shares { get; set; }
@@ -368,59 +359,6 @@ namespace slskd.Shares
             }
 
             return false;
-        }
-
-        /// <summary>
-        ///     Attempts to load the cache from disk.
-        /// </summary>
-        /// <returns>A value indicating whether the load was successful.</returns>
-        public bool TryLoad()
-        {
-            try
-            {
-                // see if we need to 'restore' the database from disk, and do so
-                if (StorageMode == StorageMode.Memory || (StorageMode == StorageMode.Disk && !Repository.TryValidateTables(Program.ConnectionStrings.Shares)))
-                {
-                    Log.Debug($"Share cache {(StorageMode == StorageMode.Memory ? "StorageMode is 'Memory'" : "database is missing from disk")}. Attempting to load from backup...");
-
-                    // the backup is missing; we can't do anything but recreate it from scratch
-                    if (!Repository.TryValidateTables(Program.ConnectionStrings.SharesBackup))
-                    {
-                        Log.Debug("Share cache backup is missing; unable to restore");
-                        return false;
-                    }
-
-                    Log.Debug("Share cache backup located. Attempting to restore...");
-
-                    Sqlite.Restore(
-                        sourceConnectionString: Program.ConnectionStrings.SharesBackup,
-                        destinationConnectionString: Program.ConnectionStrings.Shares);
-
-                    Log.Debug("Share cache successfully restored from backup");
-                }
-
-                // one of several thigns happened above before we got here:
-                //   the storage mode is memory, and we loaded the in-memory db from a valid backup
-                //   the storage mode is disk, and the file is there and valid
-                //   the storage mode is disk but either missing or invalid, and we restored from a valid backup
-                // at this point there is a valid (existing, schema matching expected schema) database at the primary connection string
-                State.SetValue(state => state with
-                {
-                    Filling = false,
-                    Faulted = false,
-                    Filled = true,
-                    FillProgress = 1,
-                    Directories = Repository.CountDirectories(),
-                    Files = Repository.CountFiles(),
-                });
-
-                return true;
-            }
-            catch (Exception ex)
-            {
-                Log.Debug(ex, "Error loading shared file cache: {Message}", ex.Message);
-                return false;
-            }
         }
     }
 }
