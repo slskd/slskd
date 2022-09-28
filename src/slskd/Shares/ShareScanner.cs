@@ -1,4 +1,4 @@
-﻿// <copyright file="SharedFileCache.cs" company="slskd Team">
+﻿// <copyright file="ShareScanner.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -28,13 +28,12 @@ namespace slskd.Shares
     using System.Threading;
     using System.Threading.Channels;
     using System.Threading.Tasks;
-    using Microsoft.Data.Sqlite;
     using Serilog;
 
     /// <summary>
     ///     Shared file cache.
     /// </summary>
-    public interface ISharedFileCache
+    public interface IShareScanner
     {
         /// <summary>
         ///     Gets the cache state monitor.
@@ -47,13 +46,13 @@ namespace slskd.Shares
         /// <param name="shares">The list of shares from which to fill the cache.</param>
         /// <param name="filters">The list of regular expressions used to exclude files or paths from scanning.</param>
         /// <returns>The operation context.</returns>
-        Task FillAsync(IEnumerable<Share> shares, IEnumerable<Regex> filters);
+        Task ScanAsync(IEnumerable<Share> shares, IEnumerable<Regex> filters);
 
         /// <summary>
         ///     Cancels the currently running fill operation, if one is running.
         /// </summary>
         /// <returns>A value indicating whether a fill operation was cancelled.</returns>
-        bool TryCancelFill();
+        bool TryCancelScan();
 
         /// <summary>
         ///     Attempts to load the cache from disk.
@@ -65,15 +64,15 @@ namespace slskd.Shares
     /// <summary>
     ///     Shared file cache.
     /// </summary>
-    public class SharedFileCache : ISharedFileCache
+    public class ShareScanner : IShareScanner
     {
         /// <summary>
-        ///     Initializes a new instance of the <see cref="SharedFileCache"/> class.
+        ///     Initializes a new instance of the <see cref="ShareScanner"/> class.
         /// </summary>
         /// <param name="storageMode"></param>
         /// <param name="workerCount"></param>
         /// <param name="soulseekFileFactory"></param>
-        public SharedFileCache(StorageMode storageMode, int workerCount, ISoulseekFileFactory soulseekFileFactory = null)
+        public ShareScanner(StorageMode storageMode, int workerCount, ISoulseekFileFactory soulseekFileFactory = null)
         {
             StorageMode = storageMode;
             WorkerCount = workerCount;
@@ -88,7 +87,7 @@ namespace slskd.Shares
 
         private StorageMode StorageMode { get; }
         private int WorkerCount { get; }
-        private ILogger Log { get; } = Serilog.Log.ForContext<SharedFileCache>();
+        private ILogger Log { get; } = Serilog.Log.ForContext<ShareScanner>();
         private List<Share> Shares { get; set; }
         private ISoulseekFileFactory SoulseekFileFactory { get; }
         private IManagedState<SharedFileCacheState> State { get; } = new ManagedState<SharedFileCacheState>();
@@ -102,7 +101,7 @@ namespace slskd.Shares
         /// <param name="shares">The list of shares from which to fill the cache.</param>
         /// <param name="filters">The list of regular expressions used to exclude files or paths from scanning.</param>
         /// <returns>The operation context.</returns>
-        public async Task FillAsync(IEnumerable<Share> shares, IEnumerable<Regex> filters)
+        public async Task ScanAsync(IEnumerable<Share> shares, IEnumerable<Regex> filters)
         {
             // obtain the semaphore, or fail if it can't be obtained immediately, indicating that a scan is running.
             if (!await SyncRoot.WaitAsync(millisecondsTimeout: 0))
@@ -360,7 +359,7 @@ namespace slskd.Shares
         ///     Cancels the currently running fill operation, if one is running.
         /// </summary>
         /// <returns>A value indicating whether a fill operation was cancelled.</returns>
-        public bool TryCancelFill()
+        public bool TryCancelScan()
         {
             if (CancellationTokenSource != null)
             {

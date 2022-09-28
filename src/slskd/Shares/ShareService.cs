@@ -37,16 +37,16 @@ namespace slskd.Shares
         ///     Initializes a new instance of the <see cref="ShareService"/> class.
         /// </summary>
         /// <param name="optionsMonitor"></param>
-        /// <param name="sharedFileCache"></param>
+        /// <param name="scanner"></param>
         public ShareService(
             IOptionsMonitor<Options> optionsMonitor,
-            ISharedFileCache sharedFileCache = null)
+            IShareScanner scanner = null)
         {
-            Cache = sharedFileCache ?? new SharedFileCache(
+            Scanner = scanner ?? new ShareScanner(
                 storageMode: optionsMonitor.CurrentValue.Shares.Cache.StorageMode.ToEnum<StorageMode>(),
                 workerCount: optionsMonitor.CurrentValue.Shares.Cache.Workers);
 
-            Cache.StateMonitor.OnChange(cacheState =>
+            Scanner.StateMonitor.OnChange(cacheState =>
             {
                 var (previous, current) = cacheState;
 
@@ -82,7 +82,7 @@ namespace slskd.Shares
         /// </summary>
         public IStateMonitor<ShareState> StateMonitor => State;
 
-        private ISharedFileCache Cache { get; }
+        private IShareScanner Scanner { get; }
         private IShareRepository Repository { get; }
         private string LastOptionsHash { get; set; }
         private IOptionsMonitor<Options> OptionsMonitor { get; }
@@ -211,7 +211,7 @@ namespace slskd.Shares
         /// <exception cref="ShareScanInProgressException">Thrown when a scan is already in progress.</exception>
         public Task ScanAsync()
         {
-            return Cache.FillAsync(Shares, FilterRegexes);
+            return Scanner.ScanAsync(Shares, FilterRegexes);
         }
 
         /// <summary>
@@ -234,7 +234,7 @@ namespace slskd.Shares
         /// <returns>A value indicating whether a scan was cancelled.</returns>
         public bool TryCancelScan()
         {
-            return Cache.TryCancelFill();
+            return Scanner.TryCancelScan();
         }
 
         /// <summary>
@@ -243,7 +243,7 @@ namespace slskd.Shares
         /// <returns>A value indicating whether shares were loaded.</returns>
         public Task<bool> TryLoadFromDiskAsync()
         {
-            return Task.FromResult(Cache.TryLoad());
+            return Task.FromResult(Scanner.TryLoad());
         }
 
         private void Configure(Options options)
