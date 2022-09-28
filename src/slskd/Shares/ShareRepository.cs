@@ -37,7 +37,7 @@ namespace slskd.Shares
         long DeleteFiles(long olderThanTimestamp);
         IEnumerable<string> ListDirectories(string prefix = null);
         IEnumerable<Soulseek.File> ListFiles(string directory = null, bool includeFullPath = false);
-        void Backup(string backupConnectionString);
+        void Backup(string destinationConnectionString);
         string FindOriginalFilename(string maskedFilename);
         IEnumerable<Soulseek.File> Search(SearchQuery query);
     }
@@ -205,10 +205,10 @@ namespace slskd.Shares
             }
         }
 
-        public void Backup(string backupConnectionString)
+        public void Backup(string destinationConnectionString)
         {
             using var sourceConn = GetConnection(ConnectionString);
-            using var backupConn = GetConnection(backupConnectionString);
+            using var backupConn = GetConnection(destinationConnectionString);
             sourceConn.BackupDatabase(backupConn);
         }
 

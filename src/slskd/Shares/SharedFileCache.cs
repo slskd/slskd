@@ -393,9 +393,9 @@ namespace slskd.Shares
 
                     Log.Debug("Share cache backup located. Attempting to restore...");
 
-                    using var backupConn = GetConnection(Program.ConnectionStrings.SharesBackup);
-                    using var conn = GetConnection();
-                    backupConn.BackupDatabase(conn);
+                    Sqlite.Restore(
+                        sourceConnectionString: Program.ConnectionStrings.SharesBackup,
+                        destinationConnectionString: Program.ConnectionStrings.Shares);
 
                     Log.Debug("Share cache successfully restored from backup");
                 }
@@ -422,13 +422,6 @@ namespace slskd.Shares
                 Log.Debug(ex, "Error loading shared file cache: {Message}", ex.Message);
                 return false;
             }
-        }
-
-        private SqliteConnection GetConnection(string connectionString = null)
-        {
-            var conn = new SqliteConnection(connectionString ?? Program.ConnectionStrings.Shares);
-            conn.Open();
-            return conn;
         }
     }
 }
