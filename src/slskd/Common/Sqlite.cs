@@ -22,20 +22,6 @@ namespace slskd
 
     public static class Sqlite
     {
-        public static void Backup(string sourceConnectionString, string destinationConnectionString)
-        {
-            using var source = new SqliteConnection(sourceConnectionString);
-            using var destination = new SqliteConnection(destinationConnectionString);
-
-            source.Open();
-            destination.Open();
-
-            source.BackupDatabase(destination);
-        }
-
-        public static void Restore(string sourceConnectionString, string destinationConnectionString)
-            => Backup(sourceConnectionString, destinationConnectionString);
-
         public static int ExecuteNonQuery(this SqliteConnection conn, string query, Action<SqliteCommand> action = null)
         {
             using var cmd = new SqliteCommand(query, conn);

@@ -38,6 +38,7 @@ namespace slskd.Shares
         IEnumerable<string> ListDirectories(string prefix = null);
         IEnumerable<Soulseek.File> ListFiles(string directory = null, bool includeFullPath = false);
         void Backup(string destinationConnectionString);
+        void Restore(string sourceConnectionString);
         string FindOriginalFilename(string maskedFilename);
         IEnumerable<Soulseek.File> Search(SearchQuery query);
     }
@@ -210,6 +211,13 @@ namespace slskd.Shares
             using var sourceConn = GetConnection(ConnectionString);
             using var backupConn = GetConnection(destinationConnectionString);
             sourceConn.BackupDatabase(backupConn);
+        }
+
+        public void Restore(string sourceConnectionString)
+        {
+            using var sourceConn = GetConnection(sourceConnectionString);
+            using var restoreConn = GetConnection();
+            sourceConn.BackupDatabase(restoreConn);
         }
 
         public int CountDirectories(string prefix = null)

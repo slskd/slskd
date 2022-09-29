@@ -265,9 +265,7 @@ namespace slskd.Shares
 
                     Log.Debug("Share cache backup located. Attempting to restore...");
 
-                    Sqlite.Restore(
-                        sourceConnectionString: Program.ConnectionStrings.SharesBackup,
-                        destinationConnectionString: Program.ConnectionStrings.Shares);
+                    Repository.Restore(sourceConnectionString: Program.ConnectionStrings.SharesBackup);
 
                     Log.Debug("Share cache successfully restored from backup");
                 }
