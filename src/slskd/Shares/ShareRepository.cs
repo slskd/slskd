@@ -25,26 +25,117 @@ namespace slskd.Shares
     using Serilog;
     using Soulseek;
 
+    /// <summary>
+    ///     Persistent storage of shared files and metadata.
+    /// </summary>
     public interface IShareRepository
     {
-        int CountDirectories(string prefix = null);
-        int CountFiles(string prefix = null);
-        void CreateTables(bool discardExisting = false);
-        bool TryValidateTables(string connectionString);
+        /// <summary>
+        ///     Backs the current database up to the database at the specified <paramref name="connectionString"/>.
+        /// </summary>
+        /// <param name="connectionString">The connection string of the destination database.</param>
+        void BackupTo(string connectionString);
+
+        /// <summary>
+        ///     Counts the number of directories in the database.
+        /// </summary>
+        /// <param name="parentDirectory">The optional directory prefix used for counting subdirectories.</param>
+        /// <returns>The number of directories.</returns>
+        int CountDirectories(string parentDirectory = null);
+
+        /// <summary>
+        ///     Counts the number of files in the database.
+        /// </summary>
+        /// <param name="parentDirectory">The optional directory prefix used for counting files in a subdirectory.</param>
+        /// <returns>The number of files.</returns>
+        int CountFiles(string parentDirectory = null);
+
+        /// <summary>
+        ///     Creates a new database.
+        /// </summary>
+        /// <remarks>
+        ///     Creates tables using 'IF NOT EXISTS', so this is idempotent unless 'discardExisting` is specified, in which case
+        ///     tables are explicitly dropped prior to creation.
+        /// </remarks>
+        /// <param name="discardExisting">An optional value that determines whether the existing database should be discarded.</param>
+        void Create(bool discardExisting = false);
+
+        /// <summary>
+        ///     Finds the filename of the file matching the specified <paramref name="maskedFilename"/>.
+        /// </summary>
+        /// <param name="maskedFilename">The fully qualified remote path of the file.</param>
+        /// <returns>The filename, if found.</returns>
+        string FindFilename(string maskedFilename);
+
+        /// <summary>
+        ///     Inserts a directory.
+        /// </summary>
+        /// <param name="name">The fully qualified local name of the directory.</param>
+        /// <param name="timestamp">The timestamp to assign to the record.</param>
         void InsertDirectory(string name, long timestamp);
+
+        /// <summary>
+        ///     Inserts a file.
+        /// </summary>
+        /// <param name="maskedFilename">The fully qualified remote path of the file.</param>
+        /// <param name="originalFilename">The fully qualified local path of the file.</param>
+        /// <param name="touchedAt">The timestamp at which the file was last modified, according to the host OS.</param>
+        /// <param name="file">The Soulseek.File instance representing the file.</param>
+        /// <param name="timestamp">The timestamp to assign to the record.</param>
         void InsertFile(string maskedFilename, string originalFilename, DateTime touchedAt, Soulseek.File file, long timestamp);
-        long DeleteDirectories(long olderThanTimestamp);
-        long DeleteFiles(long olderThanTimestamp);
-        IEnumerable<string> ListDirectories(string prefix = null);
-        IEnumerable<Soulseek.File> ListFiles(string directory = null, bool includeFullPath = false);
-        void Backup(string destinationConnectionString);
-        void Restore(string sourceConnectionString);
-        string FindOriginalFilename(string maskedFilename);
+
+        /// <summary>
+        ///     Lists all directories.
+        /// </summary>
+        /// <param name="parentDirectory">The optional directory prefix used for listing subdirectories.</param>
+        /// <returns>The list of directories.</returns>
+        IEnumerable<string> ListDirectories(string parentDirectory = null);
+
+        /// <summary>
+        ///     Lists all files.
+        /// </summary>
+        /// <param name="parentDirectory">The optional parent directory.</param>
+        /// <param name="includeFullPath">A value indicating whether the fully qualified path should be returned.</param>
+        /// <returns>The list of files.</returns>
+        IEnumerable<Soulseek.File> ListFiles(string parentDirectory = null, bool includeFullPath = false);
+
+        /// <summary>
+        ///     Deletes directory records with a timestamp prior to the specified <paramref name="olderThanTimestamp"/>.
+        /// </summary>
+        /// <param name="olderThanTimestamp">The timestamp before which to delete directories.</param>
+        /// <returns>The number of records deleted.</returns>
+        long PruneDirectories(long olderThanTimestamp);
+
+        /// <summary>
+        ///     Deletes file records with a timestamp prior to the specified <paramref name="olderThanTimestamp"/>.
+        /// </summary>
+        /// <param name="olderThanTimestamp">The timestamp before which to delete files.</param>
+        /// <returns>The number of records deleted.</returns>
+        long PruneFiles(long olderThanTimestamp);
+
+        /// <summary>
+        ///     Restores the current database from the database at the specified <paramref name="connectionString"/>.
+        /// </summary>
+        /// <param name="connectionString">The connection string of the source database.</param>
+        void RestoreFrom(string connectionString);
+
+        /// <summary>
+        ///     Searches the database for files matching the specified <paramref name="query"/>.
+        /// </summary>
+        /// <param name="query">The search query.</param>
+        /// <returns>The list of matching files.</returns>
         IEnumerable<Soulseek.File> Search(SearchQuery query);
     }
 
+    /// <summary>
+    ///     Persistent storage of shared files and metadata.
+    /// </summary>
     public class ShareRepository : IShareRepository
     {
+        /// <summary>
+        ///     Initializes a new instance of the <see cref="ShareRepository"/> class.
+        /// </summary>
+        /// <param name="connectionString"></param>
         public ShareRepository(string connectionString)
         {
             ConnectionString = connectionString;
@@ -52,20 +143,394 @@ namespace slskd.Shares
 
         private string ConnectionString { get; }
 
-        private SqliteConnection GetConnection(string connectionString = null)
+        /// <summary>
+        ///     Attempts to validate the database at the specified <paramref name="connectionString"/>.
+        /// </summary>
+        /// <param name="connectionString">The connection string of the database to validate.</param>
+        /// <returns>A value indicating whether the database is valid.</returns>
+        /// <exception cref="ArgumentNullException">Thrown if no connection string is provided.</exception>
+        public static bool TryValidateDatabase(string connectionString)
         {
-            connectionString ??= ConnectionString;
+            if (connectionString == null)
+            {
+                throw new ArgumentNullException(nameof(connectionString), "A connection string is required");
+            }
 
-            var conn = new SqliteConnection(connectionString);
-            conn.Open();
-            return conn;
+            var schema = new Dictionary<string, string>()
+            {
+                { "directories", "CREATE TABLE directories (name TEXT PRIMARY KEY, timestamp INTEGER NOT NULL)" },
+                { "filenames", "CREATE VIRTUAL TABLE filenames USING fts5(maskedFilename)" },
+                { "files", "CREATE TABLE files (maskedFilename TEXT PRIMARY KEY, originalFilename TEXT NOT NULL, size BIGINT NOT NULL, touchedAt TEXT NOT NULL, code INTEGER DEFAULT 1 NOT NULL, extension TEXT, attributeJson TEXT NOT NULL, timestamp INTEGER NOT NULL)" },
+            };
+
+            try
+            {
+                Log.Debug("Validating shares database with connection string {String}", connectionString);
+
+                using var conn = new SqliteConnection(connectionString);
+                conn.Open();
+
+                using var cmd = new SqliteCommand("SELECT name, sql from sqlite_master WHERE type = 'table' AND name IN ('directories', 'filenames', 'files');", conn);
+
+                var reader = cmd.ExecuteReader();
+                var rows = 0;
+
+                while (reader.Read())
+                {
+                    var table = reader.GetString(0);
+                    var expectedSql = reader.GetString(1);
+
+                    if (schema.TryGetValue(table, out var actualSql))
+                    {
+                        if (actualSql != expectedSql)
+                        {
+                            throw new MissingFieldException($"Expected {table} schema to be {expectedSql}, found {actualSql}");
+                        }
+                        else
+                        {
+                            Log.Debug("Shares database table {Table} is valid: {Actual}", table, actualSql);
+                        }
+                    }
+
+                    rows++;
+                }
+
+                if (rows != schema.Count)
+                {
+                    throw new MissingMemberException($"Expected {schema.Count} tables, found {rows}");
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Log.Debug(ex, $"Failed to validate shares database with connection string {connectionString}: {ex.Message}");
+                return false;
+            }
         }
 
         /// <summary>
-        ///     Searches the cache for the specified <paramref name="query"/> and returns the matching files.
+        ///     Backs the current database up to the database at the specified <paramref name="connectionString"/>.
         /// </summary>
-        /// <param name="query">The query for which to search.</param>
-        /// <returns>The matching files.</returns>
+        /// <param name="connectionString">The connection string of the destination database.</param>
+        public void BackupTo(string connectionString)
+        {
+            using var sourceConn = GetConnection(ConnectionString);
+            using var backupConn = GetConnection(connectionString);
+            sourceConn.BackupDatabase(backupConn);
+        }
+
+        /// <summary>
+        ///     Counts the number of directories in the database.
+        /// </summary>
+        /// <param name="parentDirectory">The optional directory prefix used for counting subdirectories.</param>
+        /// <returns>The number of directories.</returns>
+        public int CountDirectories(string parentDirectory = null)
+        {
+            using var conn = GetConnection();
+
+            SqliteCommand cmd = default;
+
+            try
+            {
+                if (string.IsNullOrEmpty(parentDirectory))
+                {
+                    cmd = new SqliteCommand("SELECT COUNT(*) FROM directories;", conn);
+                }
+                else
+                {
+                    cmd = new SqliteCommand("SELECT COUNT(*) FROM directories WHERE name LIKE @prefix || '%'", conn);
+                    cmd.Parameters.AddWithValue("prefix", parentDirectory);
+                }
+
+                var reader = cmd.ExecuteReader();
+                reader.Read();
+                return reader.GetInt32(0);
+            }
+            finally
+            {
+                cmd.Dispose();
+            }
+        }
+
+        /// <summary>
+        ///     Counts the number of files in the database.
+        /// </summary>
+        /// <param name="parentDirectory">The optional directory prefix used for counting files in a subdirectory.</param>
+        /// <returns>The number of files.</returns>
+        public int CountFiles(string parentDirectory = null)
+        {
+            using var conn = GetConnection();
+
+            SqliteCommand cmd = default;
+
+            try
+            {
+                if (string.IsNullOrEmpty(parentDirectory))
+                {
+                    cmd = new SqliteCommand("SELECT COUNT(*) FROM files;", conn);
+                }
+                else
+                {
+                    cmd = new SqliteCommand("SELECT COUNT(*) FROM files WHERE maskedFilename LIKE @prefix || '%'", conn);
+                    cmd.Parameters.AddWithValue("prefix", parentDirectory);
+                }
+
+                var reader = cmd.ExecuteReader();
+                reader.Read();
+                return reader.GetInt32(0);
+            }
+            finally
+            {
+                cmd.Dispose();
+            }
+        }
+
+        /// <summary>
+        ///     Creates a new database.
+        /// </summary>
+        /// <remarks>
+        ///     Creates tables using 'IF NOT EXISTS', so this is idempotent unless 'discardExisting` is specified, in which case
+        ///     tables are explicitly dropped prior to creation.
+        /// </remarks>
+        /// <param name="discardExisting">An optional value that determines whether the existing database should be discarded.</param>
+        public void Create(bool discardExisting = false)
+        {
+            using var conn = GetConnection();
+
+            conn.ExecuteNonQuery("PRAGMA journal_mode=WAL");
+
+            if (discardExisting)
+            {
+                conn.ExecuteNonQuery("DROP TABLE IF EXISTS directories; DROP TABLE IF EXISTS filenames; DROP TABLE IF EXISTS files;");
+            }
+
+            conn.ExecuteNonQuery("CREATE TABLE IF NOT EXISTS directories (name TEXT PRIMARY KEY, timestamp INTEGER NOT NULL);");
+
+            conn.ExecuteNonQuery("CREATE VIRTUAL TABLE IF NOT EXISTS filenames USING fts5(maskedFilename);");
+
+            conn.ExecuteNonQuery("CREATE TABLE IF NOT EXISTS files " +
+                "(maskedFilename TEXT PRIMARY KEY, originalFilename TEXT NOT NULL, size BIGINT NOT NULL, touchedAt TEXT NOT NULL, code INTEGER DEFAULT 1 NOT NULL, " +
+                "extension TEXT, attributeJson TEXT NOT NULL, timestamp INTEGER NOT NULL);");
+        }
+
+        /// <summary>
+        ///     Finds the filename of the file matching the specified <paramref name="maskedFilename"/>.
+        /// </summary>
+        /// <param name="maskedFilename">The fully qualified remote path of the file.</param>
+        /// <returns>The filename, if found.</returns>
+        public string FindFilename (string maskedFilename)
+        {
+            using var conn = GetConnection();
+            using var cmd = new SqliteCommand("SELECT originalFilename FROM files WHERE maskedFilename = @maskedFilename;", conn);
+            cmd.Parameters.AddWithValue("maskedFilename", maskedFilename);
+
+            var reader = cmd.ExecuteReader();
+
+            if (!reader.Read())
+            {
+                Log.Warning("Failed to resolve shared file {Filename}", maskedFilename);
+                return null;
+            }
+
+            var resolved = reader.GetString(0);
+            Log.Debug($"Resolved requested shared file {maskedFilename} to {resolved}");
+            return resolved;
+        }
+
+        /// <summary>
+        ///     Inserts a directory.
+        /// </summary>
+        /// <param name="name">The fully qualified local name of the directory.</param>
+        /// <param name="timestamp">The timestamp to assign to the record.</param>
+        public void InsertDirectory(string name, long timestamp)
+        {
+            using var conn = GetConnection();
+
+            conn.ExecuteNonQuery("INSERT INTO directories VALUES(@name, @timestamp) ON CONFLICT DO UPDATE SET timestamp = excluded.timestamp;", cmd =>
+            {
+                cmd.Parameters.AddWithValue("name", name);
+                cmd.Parameters.AddWithValue("timestamp", timestamp);
+            });
+        }
+
+        /// <summary>
+        ///     Inserts a file.
+        /// </summary>
+        /// <param name="maskedFilename">The fully qualified remote path of the file.</param>
+        /// <param name="originalFilename">The fully qualified local path of the file.</param>
+        /// <param name="touchedAt">The timestamp at which the file was last modified, according to the host OS.</param>
+        /// <param name="file">The Soulseek.File instance representing the file.</param>
+        /// <param name="timestamp">The timestamp to assign to the record.</param>
+        public void InsertFile(string maskedFilename, string originalFilename, DateTime touchedAt, Soulseek.File file, long timestamp)
+        {
+            using var conn = GetConnection();
+
+            conn.ExecuteNonQuery("INSERT INTO files (maskedFilename, originalFilename, size, touchedAt, code, extension, attributeJson, timestamp) " +
+                "VALUES(@maskedFilename, @originalFilename, @size, @touchedAt, @code, @extension, @attributeJson, @timestamp) " +
+                "ON CONFLICT DO UPDATE SET originalFilename = excluded.originalFilename, size = excluded.size, touchedAt = excluded.touchedAt, " +
+                "code = excluded.code, extension = excluded.extension, attributeJson = excluded.attributeJson, timestamp = excluded.timestamp;", cmd =>
+                {
+                    cmd.Parameters.AddWithValue("maskedFilename", maskedFilename);
+                    cmd.Parameters.AddWithValue("originalFilename", originalFilename);
+                    cmd.Parameters.AddWithValue("size", file.Size);
+                    cmd.Parameters.AddWithValue("touchedAt", touchedAt.ToLongDateString());
+                    cmd.Parameters.AddWithValue("code", file.Code);
+                    cmd.Parameters.AddWithValue("extension", file.Extension);
+                    cmd.Parameters.AddWithValue("attributeJson", file.Attributes.ToJson());
+                    cmd.Parameters.AddWithValue("timestamp", timestamp);
+                });
+
+            conn.ExecuteNonQuery("INSERT INTO filenames (maskedFilename) VALUES(@maskedFilename);", cmd =>
+            {
+                cmd.Parameters.AddWithValue("maskedFilename", maskedFilename);
+            });
+        }
+
+        /// <summary>
+        ///     Lists all directories.
+        /// </summary>
+        /// <param name="parentDirectory">The optional directory prefix used for listing subdirectories.</param>
+        /// <returns>The list of directories.</returns>
+        public IEnumerable<string> ListDirectories(string parentDirectory = null)
+        {
+            var results = new List<string>();
+
+            using var conn = GetConnection();
+
+            SqliteCommand cmd = default;
+
+            try
+            {
+                if (string.IsNullOrEmpty(parentDirectory))
+                {
+                    cmd = new SqliteCommand("SELECT name FROM directories ORDER BY name ASC;", conn);
+                }
+                else
+                {
+                    cmd = new SqliteCommand("SELECT name from directories WHERE name LIKE @prefix || '%' ORDER BY name ASC;", conn);
+                    cmd.Parameters.AddWithValue("prefix", parentDirectory);
+                }
+
+                var reader = cmd.ExecuteReader();
+
+                while (reader.Read())
+                {
+                    results.Add(reader.GetString(0));
+                }
+
+                return results;
+            }
+            finally
+            {
+                cmd.Dispose();
+            }
+        }
+
+        /// <summary>
+        ///     Lists all files.
+        /// </summary>
+        /// <param name="parentDirectory">The optional parent directory.</param>
+        /// <param name="includeFullPath">A value indicating whether the fully qualified path should be returned.</param>
+        /// <returns>The list of files.</returns>
+        public IEnumerable<Soulseek.File> ListFiles(string parentDirectory = null, bool includeFullPath = false)
+        {
+            var results = new List<Soulseek.File>();
+
+            SqliteCommand cmd = default;
+            using var conn = GetConnection();
+
+            try
+            {
+                if (string.IsNullOrEmpty(parentDirectory))
+                {
+                    cmd = new SqliteCommand("SELECT maskedFilename, code, size, extension, attributeJson FROM files ORDER BY maskedFilename ASC;", conn);
+                }
+                else
+                {
+                    cmd = new SqliteCommand("SELECT maskedFilename, code, size, extension, attributeJson FROM files WHERE maskedFilename LIKE @match ORDER BY maskedFilename ASC;", conn);
+                    cmd.Parameters.AddWithValue("match", parentDirectory + '%');
+                }
+
+                var reader = cmd.ExecuteReader();
+
+                while (reader.Read())
+                {
+                    var filename = reader.GetString(0);
+                    var code = reader.GetInt32(1);
+                    var size = reader.GetInt64(2);
+                    var extension = reader.GetString(3);
+                    var attributeJson = reader.GetString(4);
+
+                    var attributeList = attributeJson.FromJson<List<FileAttribute>>();
+
+                    filename = includeFullPath ? filename : Path.GetFileName(filename);
+
+                    var file = new Soulseek.File(code, filename, size, extension, attributeList);
+
+                    results.Add(file);
+                }
+
+                return results;
+            }
+            finally
+            {
+                cmd?.Dispose();
+            }
+        }
+
+        /// <summary>
+        ///     Deletes directory records with a timestamp prior to the specified <paramref name="olderThanTimestamp"/>.
+        /// </summary>
+        /// <param name="olderThanTimestamp">The timestamp before which to delete directories.</param>
+        /// <returns>The number of records deleted.</returns>
+        public long PruneDirectories(long olderThanTimestamp)
+        {
+            using var conn = GetConnection();
+
+            using var cmd = new SqliteCommand("DELETE FROM directories WHERE timestamp < @timestamp; SELECT changes()", conn);
+            cmd.Parameters.AddWithValue("timestamp", olderThanTimestamp);
+
+            var reader = cmd.ExecuteReader();
+            reader.Read();
+
+            return reader.GetInt64(0);
+        }
+
+        /// <summary>
+        ///     Deletes file records with a timestamp prior to the specified <paramref name="olderThanTimestamp"/>.
+        /// </summary>
+        /// <param name="olderThanTimestamp">The timestamp before which to delete files.</param>
+        /// <returns>The number of records deleted.</returns>
+        public long PruneFiles(long olderThanTimestamp)
+        {
+            using var conn = GetConnection();
+
+            using var cmd = new SqliteCommand("DELETE FROM files WHERE timestamp < @timestamp; SELECT changes()", conn);
+            cmd.Parameters.AddWithValue("timestamp", olderThanTimestamp);
+
+            var reader = cmd.ExecuteReader();
+            reader.Read();
+
+            return reader.GetInt64(0);
+        }
+
+        /// <summary>
+        ///     Restores the current database from the database at the specified <paramref name="connectionString"/>.
+        /// </summary>
+        /// <param name="connectionString">The connection string of the source database.</param>
+        public void RestoreFrom(string connectionString)
+        {
+            using var sourceConn = GetConnection(connectionString);
+            using var restoreConn = GetConnection();
+            sourceConn.BackupDatabase(restoreConn);
+        }
+
+        /// <summary>
+        ///     Searches the database for files matching the specified <paramref name="query"/>.
+        /// </summary>
+        /// <param name="query">The search query.</param>
+        /// <returns>The list of matching files.</returns>
         public IEnumerable<Soulseek.File> Search(SearchQuery query)
         {
             string Clean(string str) => str.Replace("/", " ")
@@ -114,309 +579,13 @@ namespace slskd.Shares
             }
         }
 
-        public string FindOriginalFilename(string maskedFilename)
+        private SqliteConnection GetConnection(string connectionString = null)
         {
-            using var conn = GetConnection();
-            using var cmd = new SqliteCommand("SELECT originalFilename FROM files WHERE maskedFilename = @maskedFilename;", conn);
-            cmd.Parameters.AddWithValue("maskedFilename", maskedFilename);
+            connectionString ??= ConnectionString;
 
-            var reader = cmd.ExecuteReader();
-
-            if (!reader.Read())
-            {
-                Log.Warning("Failed to resolve shared file {Filename}", maskedFilename);
-                return null;
-            }
-
-            var resolved = reader.GetString(0);
-            Log.Debug($"Resolved requested shared file {maskedFilename} to {resolved}");
-            return resolved;
-        }
-
-        public void CreateTables(bool discardExisting = false)
-        {
-            using var conn = GetConnection();
-
-            conn.ExecuteNonQuery("PRAGMA journal_mode=WAL");
-
-            if (discardExisting)
-            {
-                conn.ExecuteNonQuery("DROP TABLE IF EXISTS directories; DROP TABLE IF EXISTS filenames; DROP TABLE IF EXISTS files;");
-            }
-
-            conn.ExecuteNonQuery("CREATE TABLE IF NOT EXISTS directories (name TEXT PRIMARY KEY, timestamp INTEGER NOT NULL);");
-
-            conn.ExecuteNonQuery("CREATE VIRTUAL TABLE IF NOT EXISTS filenames USING fts5(maskedFilename);");
-
-            conn.ExecuteNonQuery("CREATE TABLE IF NOT EXISTS files " +
-                "(maskedFilename TEXT PRIMARY KEY, originalFilename TEXT NOT NULL, size BIGINT NOT NULL, touchedAt TEXT NOT NULL, code INTEGER DEFAULT 1 NOT NULL, " +
-                "extension TEXT, attributeJson TEXT NOT NULL, timestamp INTEGER NOT NULL);");
-        }
-
-        public bool TryValidateTables(string connectionString)
-        {
-            var schema = new Dictionary<string, string>()
-            {
-                { "directories", "CREATE TABLE directories (name TEXT PRIMARY KEY, timestamp INTEGER NOT NULL)" },
-                { "filenames", "CREATE VIRTUAL TABLE filenames USING fts5(maskedFilename)" },
-                { "files", "CREATE TABLE files (maskedFilename TEXT PRIMARY KEY, originalFilename TEXT NOT NULL, size BIGINT NOT NULL, touchedAt TEXT NOT NULL, code INTEGER DEFAULT 1 NOT NULL, extension TEXT, attributeJson TEXT NOT NULL, timestamp INTEGER NOT NULL)" },
-            };
-
-            try
-            {
-                Log.Debug("Validating shares database with connection string {String}", connectionString);
-
-                using var conn = GetConnection(connectionString);
-                using var cmd = new SqliteCommand("SELECT name, sql from sqlite_master WHERE type = 'table' AND name IN ('directories', 'filenames', 'files');", conn);
-
-                var reader = cmd.ExecuteReader();
-                var rows = 0;
-
-                while (reader.Read())
-                {
-                    var table = reader.GetString(0);
-                    var expectedSql = reader.GetString(1);
-
-                    if (schema.TryGetValue(table, out var actualSql))
-                    {
-                        if (actualSql != expectedSql)
-                        {
-                            throw new MissingFieldException($"Expected {table} schema to be {expectedSql}, found {actualSql}");
-                        }
-                        else
-                        {
-                            Log.Debug("Shares database table {Table} is valid: {Actual}", table, actualSql);
-                        }
-                    }
-
-                    rows++;
-                }
-
-                if (rows != schema.Count)
-                {
-                    throw new MissingMemberException($"Expected {schema.Count} tables, found {rows}");
-                }
-
-                return true;
-            }
-            catch (Exception ex)
-            {
-                Log.Debug(ex, $"Failed to validate shares database with connection string {connectionString}: {ex.Message}");
-                return false;
-            }
-        }
-
-        public void Backup(string destinationConnectionString)
-        {
-            using var sourceConn = GetConnection(ConnectionString);
-            using var backupConn = GetConnection(destinationConnectionString);
-            sourceConn.BackupDatabase(backupConn);
-        }
-
-        public void Restore(string sourceConnectionString)
-        {
-            using var sourceConn = GetConnection(sourceConnectionString);
-            using var restoreConn = GetConnection();
-            sourceConn.BackupDatabase(restoreConn);
-        }
-
-        public int CountDirectories(string prefix = null)
-        {
-            using var conn = GetConnection();
-
-            SqliteCommand cmd = default;
-
-            try
-            {
-                if (string.IsNullOrEmpty(prefix))
-                {
-                    cmd = new SqliteCommand("SELECT COUNT(*) FROM directories;", conn);
-                }
-                else
-                {
-                    cmd = new SqliteCommand("SELECT COUNT(*) FROM directories WHERE name LIKE @prefix || '%'", conn);
-                    cmd.Parameters.AddWithValue("prefix", prefix);
-                }
-
-                var reader = cmd.ExecuteReader();
-                reader.Read();
-                return reader.GetInt32(0);
-            }
-            finally
-            {
-                cmd.Dispose();
-            }
-        }
-
-        public int CountFiles(string prefix = null)
-        {
-            using var conn = GetConnection();
-
-            SqliteCommand cmd = default;
-
-            try
-            {
-                if (string.IsNullOrEmpty(prefix))
-                {
-                    cmd = new SqliteCommand("SELECT COUNT(*) FROM files;", conn);
-                }
-                else
-                {
-                    cmd = new SqliteCommand("SELECT COUNT(*) FROM files WHERE maskedFilename LIKE @prefix || '%'", conn);
-                    cmd.Parameters.AddWithValue("prefix", prefix);
-                }
-
-                var reader = cmd.ExecuteReader();
-                reader.Read();
-                return reader.GetInt32(0);
-            }
-            finally
-            {
-                cmd.Dispose();
-            }
-        }
-
-        public void InsertDirectory(string name, long timestamp)
-        {
-            using var conn = GetConnection();
-
-            conn.ExecuteNonQuery("INSERT INTO directories VALUES(@name, @timestamp) ON CONFLICT DO UPDATE SET timestamp = excluded.timestamp;", cmd =>
-            {
-                cmd.Parameters.AddWithValue("name", name);
-                cmd.Parameters.AddWithValue("timestamp", timestamp);
-            });
-        }
-
-        public void InsertFile(string maskedFilename, string originalFilename, DateTime touchedAt, Soulseek.File file, long timestamp)
-        {
-            using var conn = GetConnection();
-
-            conn.ExecuteNonQuery("INSERT INTO files (maskedFilename, originalFilename, size, touchedAt, code, extension, attributeJson, timestamp) " +
-                "VALUES(@maskedFilename, @originalFilename, @size, @touchedAt, @code, @extension, @attributeJson, @timestamp) " +
-                "ON CONFLICT DO UPDATE SET originalFilename = excluded.originalFilename, size = excluded.size, touchedAt = excluded.touchedAt, " +
-                "code = excluded.code, extension = excluded.extension, attributeJson = excluded.attributeJson, timestamp = excluded.timestamp;", cmd =>
-                {
-                    cmd.Parameters.AddWithValue("maskedFilename", maskedFilename);
-                    cmd.Parameters.AddWithValue("originalFilename", originalFilename);
-                    cmd.Parameters.AddWithValue("size", file.Size);
-                    cmd.Parameters.AddWithValue("touchedAt", touchedAt.ToLongDateString());
-                    cmd.Parameters.AddWithValue("code", file.Code);
-                    cmd.Parameters.AddWithValue("extension", file.Extension);
-                    cmd.Parameters.AddWithValue("attributeJson", file.Attributes.ToJson());
-                    cmd.Parameters.AddWithValue("timestamp", timestamp);
-                });
-
-            conn.ExecuteNonQuery("INSERT INTO filenames (maskedFilename) VALUES(@maskedFilename);", cmd =>
-            {
-                cmd.Parameters.AddWithValue("maskedFilename", maskedFilename);
-            });
-        }
-
-        public long DeleteDirectories(long olderThanTimestamp)
-        {
-            using var conn = GetConnection();
-
-            using var cmd = new SqliteCommand("DELETE FROM directories WHERE timestamp < @timestamp; SELECT changes()", conn);
-            cmd.Parameters.AddWithValue("timestamp", olderThanTimestamp);
-
-            var reader = cmd.ExecuteReader();
-            reader.Read();
-
-            return reader.GetInt64(0);
-        }
-
-        public long DeleteFiles(long olderThanTimestamp)
-        {
-            using var conn = GetConnection();
-
-            using var cmd = new SqliteCommand("DELETE FROM files WHERE timestamp < @timestamp; SELECT changes()", conn);
-            cmd.Parameters.AddWithValue("timestamp", olderThanTimestamp);
-
-            var reader = cmd.ExecuteReader();
-            reader.Read();
-
-            return reader.GetInt64(0);
-        }
-
-        public IEnumerable<string> ListDirectories(string prefix = null)
-        {
-            var results = new List<string>();
-
-            using var conn = GetConnection();
-
-            SqliteCommand cmd = default;
-
-            try
-            {
-                if (string.IsNullOrEmpty(prefix))
-                {
-                    cmd = new SqliteCommand("SELECT name FROM directories ORDER BY name ASC;", conn);
-                }
-                else
-                {
-                    cmd = new SqliteCommand("SELECT name from directories WHERE name LIKE @prefix || '%' ORDER BY name ASC;", conn);
-                    cmd.Parameters.AddWithValue("prefix", prefix);
-                }
-
-                var reader = cmd.ExecuteReader();
-
-                while (reader.Read())
-                {
-                    results.Add(reader.GetString(0));
-                }
-
-                return results;
-            }
-            finally
-            {
-                cmd.Dispose();
-            }
-        }
-
-        public IEnumerable<Soulseek.File> ListFiles(string directory = null, bool includeFullPath = false)
-        {
-            var results = new List<Soulseek.File>();
-
-            SqliteCommand cmd = default;
-            using var conn = GetConnection();
-
-            try
-            {
-                if (string.IsNullOrEmpty(directory))
-                {
-                    cmd = new SqliteCommand("SELECT maskedFilename, code, size, extension, attributeJson FROM files ORDER BY maskedFilename ASC;", conn);
-                }
-                else
-                {
-                    cmd = new SqliteCommand("SELECT maskedFilename, code, size, extension, attributeJson FROM files WHERE maskedFilename LIKE @match ORDER BY maskedFilename ASC;", conn);
-                    cmd.Parameters.AddWithValue("match", directory + '%');
-                }
-
-                var reader = cmd.ExecuteReader();
-
-                while (reader.Read())
-                {
-                    var filename = reader.GetString(0);
-                    var code = reader.GetInt32(1);
-                    var size = reader.GetInt64(2);
-                    var extension = reader.GetString(3);
-                    var attributeJson = reader.GetString(4);
-
-                    var attributeList = attributeJson.FromJson<List<FileAttribute>>();
-
-                    filename = includeFullPath ? filename : Path.GetFileName(filename);
-
-                    var file = new Soulseek.File(code, filename, size, extension, attributeList);
-
-                    results.Add(file);
-                }
-
-                return results;
-            }
-            finally
-            {
-                cmd?.Dispose();
-            }
+            var conn = new SqliteConnection(connectionString);
+            conn.Open();
+            return conn;
         }
     }
 }

@@ -174,7 +174,7 @@ namespace slskd.Shares
         /// </exception>
         public Task<FileInfo> ResolveFileAsync(string remoteFilename)
         {
-            var resolvedFilename = Repository.FindOriginalFilename(remoteFilename.LocalizePath());
+            var resolvedFilename = Repository.FindFilename(remoteFilename.LocalizePath());
 
             if (string.IsNullOrEmpty(resolvedFilename))
             {
@@ -252,12 +252,12 @@ namespace slskd.Shares
             try
             {
                 // see if we need to 'restore' the database from disk, and do so
-                if (CacheStorageMode == StorageMode.Memory || (CacheStorageMode == StorageMode.Disk && !Repository.TryValidateTables(Program.ConnectionStrings.Shares)))
+                if (CacheStorageMode == StorageMode.Memory || (CacheStorageMode == StorageMode.Disk && !ShareRepository.TryValidateDatabase(Program.ConnectionStrings.Shares)))
                 {
                     Log.Debug($"Share cache {(CacheStorageMode == StorageMode.Memory ? "StorageMode is 'Memory'" : "database is missing from disk")}. Attempting to load from backup...");
 
                     // the backup is missing; we can't do anything but recreate it from scratch
-                    if (!Repository.TryValidateTables(Program.ConnectionStrings.SharesBackup))
+                    if (!ShareRepository.TryValidateDatabase(Program.ConnectionStrings.SharesBackup))
                     {
                         Log.Debug("Share cache backup is missing; unable to restore");
                         return false;
@@ -265,7 +265,7 @@ namespace slskd.Shares
 
                     Log.Debug("Share cache backup located. Attempting to restore...");
 
-                    Repository.Restore(sourceConnectionString: Program.ConnectionStrings.SharesBackup);
+                    Repository.RestoreFrom(connectionString: Program.ConnectionStrings.SharesBackup);
 
                     Log.Debug("Share cache successfully restored from backup");
                 }

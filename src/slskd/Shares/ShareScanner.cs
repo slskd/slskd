@@ -123,10 +123,10 @@ namespace slskd.Shares
 
                 // it's possible that the database was tampered with between the time it was checked at startup and now
                 // validate the tables, and if there's an issue, drop and recreate everything.
-                if (!Repository.TryValidateTables(Program.ConnectionStrings.Shares))
+                if (!ShareRepository.TryValidateDatabase(Program.ConnectionStrings.Shares))
                 {
                     Log.Warning("Shared file cache invalid; dropping and re-creating prior to scan.");
-                    Repository.CreateTables(discardExisting: true);
+                    Repository.Create(discardExisting: true);
                     Log.Information("Share file cache ready.");
                 }
 
@@ -301,8 +301,8 @@ namespace slskd.Shares
                     Log.Information("Scan found {Files} files (and {Filtered} were filtered) in {Elapsed}ms", cached, filtered, sw.ElapsedMilliseconds - swSnapshot);
                     swSnapshot = sw.ElapsedMilliseconds;
 
-                    var deletedFiles = Repository.DeleteFiles(timestamp);
-                    var deletedDirectories = Repository.DeleteDirectories(timestamp);
+                    var deletedFiles = Repository.PruneFiles(olderThanTimestamp: timestamp);
+                    var deletedDirectories = Repository.PruneDirectories(olderThanTimestamp: timestamp);
 
                     Log.Information("Removed or renamed {Files} files and {Directories} directories in {Elapsed}ms", deletedFiles, deletedDirectories, sw.ElapsedMilliseconds - swSnapshot);
                 }
@@ -315,7 +315,7 @@ namespace slskd.Shares
                 }
 
                 Log.Debug("Backing up shared file cache database...");
-                Repository.Backup(Program.ConnectionStrings.SharesBackup);
+                Repository.BackupTo(Program.ConnectionStrings.SharesBackup);
                 Log.Debug("Shared file cache database backup complete");
 
                 var directoryCount = Repository.CountDirectories();
