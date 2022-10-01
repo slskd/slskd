@@ -371,11 +371,16 @@ namespace slskd
                 _ = CheckVersionAsync();
             }
 
-            // initialize shares. most of the time shares will be loaded from disk, but
-            // if this is the first run or the user deleted cached files, a full scan will be performed
             if (!OptionsAtStartup.Flags.NoShareScan)
             {
-                await Shares.InitializeAsync(forceRescan: OptionsAtStartup.Flags.ForceShareScan);
+                try
+                {
+                    await Shares.InitializeAsync(forceRescan: OptionsAtStartup.Flags.ForceShareScan);
+                }
+                catch (Exception)
+                {
+                    Log.Error("Failed to initialize shares. Sharing is disabled");
+                }
             }
 
             if (OptionsAtStartup.Flags.NoConnect)

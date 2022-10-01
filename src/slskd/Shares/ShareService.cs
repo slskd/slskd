@@ -252,8 +252,12 @@ namespace slskd.Shares
         {
             try
             {
-                // see if we need to 'restore' the database from disk, and do so
-                if (CacheStorageMode == StorageMode.Memory || (CacheStorageMode == StorageMode.Disk && !ShareRepository.TryValidateDatabase(Program.ConnectionStrings.Shares)))
+                if (forceRescan)
+                {
+                    Log.Warning("Performing a forced re-scan of shares");
+                    await ScanAsync();
+                }
+                else if (CacheStorageMode == StorageMode.Memory || (CacheStorageMode == StorageMode.Disk && !ShareRepository.TryValidateDatabase(Program.ConnectionStrings.Shares)))
                 {
                     Log.Debug($"Share cache {(CacheStorageMode == StorageMode.Memory ? "StorageMode is 'Memory'" : "database is missing from disk")}. Attempting to load from backup...");
 
@@ -261,7 +265,7 @@ namespace slskd.Shares
                     if (!ShareRepository.TryValidateDatabase(Program.ConnectionStrings.SharesBackup))
                     {
                         Log.Warning("Share cache couldn't be loaded from backup");
-                        Log.Warning("Performing a full share scan to rebuild the cache");
+                        await InitializeAsync(forceRescan: true);
                     }
 
                     Log.Debug("Share cache backup located. Attempting to restore...");
@@ -298,7 +302,7 @@ namespace slskd.Shares
                 }
                 else
                 {
-                    Log.Error("Failed to initialize shares, and an attempt to force a full scan to repair failed. Check your filesystem.");
+                    Log.Error("Failed to initialize shares, and an attempt to force a full scan to repair failed");
                     throw;
                 }
             }
