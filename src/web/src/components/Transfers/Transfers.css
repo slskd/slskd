@@ -1,13 +1,14 @@
 .transfers-header-segment {
   margin-top: 15px !important;
   height: 78px !important;
-  padding-top: 20px !important;
+  padding-top: 14px !important;
   display: flex;
 }
 
 .transfers-segment-icon {
   padding-top: 5px;
   padding-right: 1em;
+  margin-top: 6px;
 }
 
 .transfers-header-action-button {
