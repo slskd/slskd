@@ -11,7 +11,7 @@ import {
 import { sleep } from '../../../lib/util';
 import Switch from '../../Shared/Switch';
 import ErrorSegment from '../../Shared/ErrorSegment';
-import Response from '../Response';
+import { Response } from '../Response';
 import { getResponses, parseFiltersFromString, filterResponse } from '../../../lib/searches';
 import LoaderSegment from '../../Shared/LoaderSegment';
 import SearchDetailHeader from './SearchDetailHeader';
@@ -48,7 +48,7 @@ const SearchDetail = ({ search, creating, stopping, removing, disabled, onCreate
         // the results may not be ready yet.  this is very rare, but
         // if it happens the search will complete with no results.
         await sleep(500);
-        
+
         const responses = await getResponses({ id });
         setResults(responses);
         setLoading(false);
@@ -107,7 +107,7 @@ const SearchDetail = ({ search, creating, stopping, removing, disabled, onCreate
   };
 
   const create = async ({ search, navigate }) => {
-    reset();  
+    reset();
     onCreate({ search, navigate });
   };
 
@@ -121,7 +121,7 @@ const SearchDetail = ({ search, creating, stopping, removing, disabled, onCreate
   const loaded = (!removing && !creating && !loading && results && results.length > 0);
 
   if (error) {
-    return (<ErrorSegment caption={error?.message ?? error}/>);
+    return (<ErrorSegment caption={error?.message ?? error} />);
   }
 
   return (
@@ -135,11 +135,11 @@ const SearchDetail = ({ search, creating, stopping, removing, disabled, onCreate
         disabled={disabled}
         search={search}
         onCreate={create}
-        onStop={onStop} 
+        onStop={onStop}
         onRemove={remove}
       />
-      <Switch 
-        searching={!isComplete && 
+      <Switch
+        searching={!isComplete &&
           <LoaderSegment>
             {state === 'InProgress'
               ? `Found ${fileCount} files ${lockedFileCount > 0
@@ -148,9 +148,9 @@ const SearchDetail = ({ search, creating, stopping, removing, disabled, onCreate
               : 'Loading results...'}
           </LoaderSegment>
         }
-        loading={loading && <LoaderSegment/>}
+        loading={loading && <LoaderSegment />}
       >
-        {loaded && 
+        {loaded &&
           <Segment className='search-options' raised>
             <Dropdown
               button
@@ -185,7 +185,7 @@ const SearchDetail = ({ search, creating, stopping, removing, disabled, onCreate
                 label='Fold Results'
               />
             </div>
-            <Input 
+            <Input
               className='search-filter'
               placeholder='
                 lackluster container -bothersome iscbr|isvbr islossless|islossy 
@@ -194,7 +194,7 @@ const SearchDetail = ({ search, creating, stopping, removing, disabled, onCreate
               label={{ icon: 'filter', content: 'Filter' }}
               value={resultFilters}
               onChange={(e, data) => setResultFilters(data.value)}
-              action={!!resultFilters && { icon: 'x', color: 'red', onClick: () => setResultFilters('')}}
+              action={!!resultFilters && { icon: 'x', color: 'red', onClick: () => setResultFilters('') }}
             />
           </Segment>
         }
@@ -214,7 +214,7 @@ const SearchDetail = ({ search, creating, stopping, removing, disabled, onCreate
               ? 5
               : remainingCount} More Results {`(${remainingCount} remaining, ${filteredCount} hidden by filter(s))`}
           </Button>
-          : filteredCount > 0 ? 
+          : filteredCount > 0 ?
             <Button className='showmore-button' size='large' fluid disabled>{
               `All results shown. ${filteredCount} results hidden by filter(s)`
             }</Button> : '')}
