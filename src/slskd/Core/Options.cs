@@ -309,6 +309,15 @@ namespace slskd
             public bool NoShareScan { get; init; } = false;
 
             /// <summary>
+            ///     Gets a value indicating whether shares should be forcibly re-scanned on startup.
+            /// </summary>
+            [Argument(default, "force-share-scan")]
+            [EnvironmentVariable("FORCE_SHARE_SCAN")]
+            [Description("force a share scan on startup")]
+            [RequiresRestart]
+            public bool ForceShareScan { get; init; } = false;
+
+            /// <summary>
             ///     Gets a value indicating whether the application should check for a newer version on startup.
             /// </summary>
             [Argument(default, "no-version-check")]

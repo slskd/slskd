@@ -823,9 +823,11 @@ namespace slskd
                         outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}"))
                 .WriteTo.Sink(new DelegatingSink(logEvent =>
                 {
+                    string message = default;
+
                     try
                     {
-                        var message = logEvent.RenderMessage();
+                        message = logEvent.RenderMessage();
 
                         if (logEvent.Exception != null)
                         {
@@ -846,7 +848,7 @@ namespace slskd
                     }
                     catch (Exception ex)
                     {
-                        Log.Information($"Misconfigured delegating logger: {ex.Message}");
+                        Log.Error("Misconfigured delegating logger: {Exception}.  Message: {Message}", ex.Message, message);
                     }
                 }))
                 .CreateLogger();

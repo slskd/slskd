@@ -256,9 +256,12 @@ namespace slskd
         /// <summary>
         ///     Converts the given path to the normalized format (normalizes path separators to backslashes).
         /// </summary>
+        /// <remarks>
+        ///     Various Soulseek clients (including this one) assume paths to use backslashes, regardless of the host system.
+        /// </remarks>
         /// <param name="path">The path to convert.</param>
         /// <returns>The converted path.</returns>
-        public static string NormalizePath(this string path)
+        public static string NormalizePathForSoulseek(this string path)
         {
             return path.Replace('/', '\\');
         }

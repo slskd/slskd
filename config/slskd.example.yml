@@ -7,6 +7,7 @@
 #   no_start: false
 #   no_connect: false
 #   no_share_scan: false
+#   force_share_scan: false
 #   no_version_check: false
 #   log_sql: false
 # directories:

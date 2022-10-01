@@ -1,4 +1,4 @@
-﻿// <copyright file="SqliteConnectionExtensions.cs" company="slskd Team">
+﻿// <copyright file="Sqlite.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -20,7 +20,7 @@ namespace slskd
     using System;
     using Microsoft.Data.Sqlite;
 
-    public static class SqliteConnectionExtensions
+    public static class Sqlite
     {
         public static int ExecuteNonQuery(this SqliteConnection conn, string query, Action<SqliteCommand> action = null)
         {

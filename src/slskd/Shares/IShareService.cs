@@ -90,9 +90,10 @@ namespace slskd.Shares
         bool TryCancelScan();
 
         /// <summary>
-        ///     Attempt to load shares from disk.
+        ///     Initializes the service and shares.
         /// </summary>
-        /// <returns>A value indicating whether shares were loaded.</returns>
-        Task<bool> TryLoadFromDiskAsync();
+        /// <param name="forceRescan">A value indicating whether a full re-scan of shares should be performed.</param>
+        /// <returns>The operation context.</returns>
+        Task InitializeAsync(bool forceRescan = false);
     }
 }
