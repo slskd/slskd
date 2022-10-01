@@ -216,12 +216,14 @@ namespace slskd.Shares
                     {
                         try
                         {
-                            return System.IO.Directory.GetDirectories(share.LocalPath, "*", new EnumerationOptions()
+                            var directories = System.IO.Directory.GetDirectories(share.LocalPath, "*", new EnumerationOptions()
                             {
                                 AttributesToSkip = FileAttributes.Hidden | FileAttributes.System,
                                 IgnoreInaccessible = true,
                                 RecurseSubdirectories = true,
                             });
+
+                            return directories.Where(directory => !filters.Any(filter => filter.IsMatch(directory)));
                         }
                         catch (Exception ex)
                         {
