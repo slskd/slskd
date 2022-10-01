@@ -28,7 +28,6 @@ namespace slskd.Shares
     using System.Threading;
     using System.Threading.Tasks;
     using Serilog;
-    using slskd.Transfers.Uploads;
     using Soulseek;
 
     /// <summary>
