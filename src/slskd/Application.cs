@@ -371,22 +371,11 @@ namespace slskd
                 _ = CheckVersionAsync();
             }
 
-            // try to load the share cache from disk.
-            // if not successful, the file is missing one or more tables, or is not present at all
-            if (!Shares.TryLoadFromDisk())
+            // initialize shares. most of the time shares will be loaded from disk, but
+            // if this is the first run or the user deleted cached files, a full scan will be performed
+            if (!OptionsAtStartup.Flags.NoShareScan)
             {
-                Log.Warning("Unable to load share cache from disk. A share scan is required.");
-
-                State.SetValue(state => state with { Shares = state.Shares with { ScanPending = true } });
-
-                if (OptionsAtStartup.Flags.NoShareScan)
-                {
-                    Log.Warning("Not scanning shares; 'no-share-scan' option is enabled.  Search and browse results will remain disabled until a manual scan is completed.");
-                }
-                else
-                {
-                    await Shares.ScanAsync();
-                }
+                await Shares.InitializeAsync();
             }
 
             if (OptionsAtStartup.Flags.NoConnect)

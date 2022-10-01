@@ -244,10 +244,11 @@ namespace slskd.Shares
         }
 
         /// <summary>
-        ///     Attempt to load shares from disk.
+        ///     Initializes the service and shares.
         /// </summary>
-        /// <returns>A value indicating whether shares were loaded.</returns>
-        public bool TryLoadFromDisk()
+        /// <param name="forceRescan">A value indicating whether a full re-scan of shares should be performed.</param>
+        /// <returns>The operation context.</returns>
+        public async Task InitializeAsync(bool forceRescan = false)
         {
             try
             {
@@ -259,21 +260,22 @@ namespace slskd.Shares
                     // the backup is missing; we can't do anything but recreate it from scratch
                     if (!ShareRepository.TryValidateDatabase(Program.ConnectionStrings.SharesBackup))
                     {
-                        Log.Debug("Share cache backup is missing; unable to restore");
-                        return false;
+                        Log.Warning("Share cache couldn't be loaded from backup");
+                        Log.Warning("Performing a full share scan to rebuild the cache");
                     }
 
                     Log.Debug("Share cache backup located. Attempting to restore...");
 
                     Repository.RestoreFrom(connectionString: Program.ConnectionStrings.SharesBackup);
 
-                    Log.Debug("Share cache successfully restored from backup");
+                    Log.Information("Share cache successfully restored from backup");
                 }
 
                 // one of several thigns happened above before we got here:
                 //   the storage mode is memory, and we loaded the in-memory db from a valid backup
                 //   the storage mode is disk, and the file is there and valid
                 //   the storage mode is disk but either missing or invalid, and we restored from a valid backup
+                //   we failed to load the cache from disk or backup, and performed a full scan successfully
                 // at this point there is a valid (existing, schema matching expected schema) database at the primary connection string
                 State.SetValue(state => state with
                 {
@@ -284,13 +286,21 @@ namespace slskd.Shares
                     Directories = Repository.CountDirectories(),
                     Files = Repository.CountFiles(),
                 });
-
-                return true;
             }
             catch (Exception ex)
             {
-                Log.Debug(ex, "Error loading shared file cache: {Message}", ex.Message);
-                return false;
+                Log.Warning(ex, "Error initializing shares: {Message}", ex.Message);
+
+                if (!forceRescan)
+                {
+                    Log.Warning("Re-attempting initializtion");
+                    await InitializeAsync(forceRescan: true);
+                }
+                else
+                {
+                    Log.Error("Failed to initialize shares, and an attempt to force a full scan to repair failed. Check your filesystem.");
+                    throw;
+                }
             }
         }
 
