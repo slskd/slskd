@@ -125,12 +125,12 @@ namespace slskd.Shares
                 // validate the tables, and if there's an issue, drop and recreate everything.
                 if (!ShareRepository.TryValidateDatabase(Program.ConnectionStrings.Shares))
                 {
-                    Log.Warning("Shared file cache invalid; dropping and re-creating prior to scan.");
+                    Log.Warning("Shared file cache missing or invalid. Re-creating prior to scan.");
                     Repository.Create(discardExisting: true);
-                    Log.Information("Share file cache ready.");
+                    Log.Information("Shared file cache re-created and ready for scan.");
                 }
 
-                Log.Debug("Starting shared file scan");
+                Log.Information("Starting shared file scan");
 
                 var timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 

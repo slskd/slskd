@@ -28,6 +28,7 @@ namespace slskd.Shares
     using System.Threading;
     using System.Threading.Tasks;
     using Serilog;
+    using slskd.Transfers.Uploads;
     using Soulseek;
 
     /// <summary>
@@ -96,6 +97,7 @@ namespace slskd.Shares
         private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1, 1);
         private List<Regex> FilterRegexes { get; set; } = new List<Regex>();
         private StorageMode CacheStorageMode { get; }
+        private ILogger Log { get; } = Serilog.Log.ForContext<ShareService>();
 
         /// <summary>
         ///     Returns the entire contents of the share.
@@ -267,12 +269,18 @@ namespace slskd.Shares
                         Log.Warning("Share cache couldn't be loaded from backup");
                         await InitializeAsync(forceRescan: true);
                     }
+                    else
+                    {
+                        Log.Debug("Share cache backup located. Attempting to restore...");
 
-                    Log.Debug("Share cache backup located. Attempting to restore...");
+                        Repository.RestoreFrom(connectionString: Program.ConnectionStrings.SharesBackup);
 
-                    Repository.RestoreFrom(connectionString: Program.ConnectionStrings.SharesBackup);
-
-                    Log.Information("Share cache successfully restored from backup");
+                        Log.Information("Share cache successfully restored from backup");
+                    }
+                }
+                else
+                {
+                    // the cache mode is disk and the existing db is valid. nothing to do.
                 }
 
                 // one of several thigns happened above before we got here:

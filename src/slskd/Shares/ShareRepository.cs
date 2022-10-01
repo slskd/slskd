@@ -23,6 +23,7 @@ namespace slskd.Shares
     using System.Linq;
     using Microsoft.Data.Sqlite;
     using Serilog;
+    using slskd.Transfers.Uploads;
     using Soulseek;
 
     /// <summary>
@@ -142,6 +143,7 @@ namespace slskd.Shares
         }
 
         private string ConnectionString { get; }
+        private ILogger Log { get; } = Serilog.Log.ForContext<ShareRepository>();
 
         /// <summary>
         ///     Attempts to validate the database at the specified <paramref name="connectionString"/>.
@@ -156,6 +158,8 @@ namespace slskd.Shares
                 throw new ArgumentNullException(nameof(connectionString), "A connection string is required");
             }
 
+            var log = Serilog.Log.ForContext<ShareRepository>();
+
             var schema = new Dictionary<string, string>()
             {
                 { "directories", "CREATE TABLE directories (name TEXT PRIMARY KEY, timestamp INTEGER NOT NULL)" },
@@ -165,7 +169,7 @@ namespace slskd.Shares
 
             try
             {
-                Log.Debug("Validating shares database with connection string {String}", connectionString);
+                log.Debug("Validating shares database with connection string {String}", connectionString);
 
                 using var conn = new SqliteConnection(connectionString);
                 conn.Open();
@@ -188,7 +192,7 @@ namespace slskd.Shares
                         }
                         else
                         {
-                            Log.Debug("Shares database table {Table} is valid: {Actual}", table, actualSql);
+                            log.Debug("Shares database table {Table} is valid: {Actual}", table, actualSql);
                         }
                     }
 
@@ -204,7 +208,7 @@ namespace slskd.Shares
             }
             catch (Exception ex)
             {
-                Log.Debug(ex, $"Failed to validate shares database with connection string {connectionString}: {ex.Message}");
+                log.Debug(ex, $"Failed to validate shares database with connection string {connectionString}: {ex.Message}");
                 return false;
             }
         }
