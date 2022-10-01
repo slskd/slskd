@@ -375,7 +375,7 @@ namespace slskd
             // if this is the first run or the user deleted cached files, a full scan will be performed
             if (!OptionsAtStartup.Flags.NoShareScan)
             {
-                await Shares.InitializeAsync();
+                await Shares.InitializeAsync(forceRescan: OptionsAtStartup.Flags.ForceShareScan);
             }
 
             if (OptionsAtStartup.Flags.NoConnect)
