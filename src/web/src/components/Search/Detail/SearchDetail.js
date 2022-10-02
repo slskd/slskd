@@ -118,7 +118,7 @@ const SearchDetail = ({ search, creating, stopping, removing, disabled, onCreate
 
   const filteredCount = results?.length - sortedAndFilteredResults.length;
   const remainingCount = sortedAndFilteredResults.length - displayCount;
-  const loaded = (!removing && !creating && !loading && results && results.length > 0);
+  const loaded = (!removing && !creating && !loading && results);
 
   if (error) {
     return (<ErrorSegment caption={error?.message ?? error}/>);
