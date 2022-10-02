@@ -70,6 +70,7 @@ namespace slskd
     using Soulseek;
     using Utility.CommandLine;
     using Utility.EnvironmentVariables;
+    using static slskd.Authentication.ApiKeyAuthenticationHandler;
     using IOFile = System.IO.File;
 
     /// <summary>
@@ -612,7 +613,12 @@ namespace slskd
                     });
 
                 services.AddAuthentication(ApiKeyAuthentication.AuthenticationScheme)
-                    .AddScheme<AuthenticationSchemeOptions, ApiKeyAuthenticationHandler>(ApiKeyAuthentication.AuthenticationScheme, configureOptions: null);
+                    .AddScheme<ApiKeyAuthenticationOptions, ApiKeyAuthenticationHandler>(ApiKeyAuthentication.AuthenticationScheme, options =>
+                    {
+                        options.EnableSignalRSupport = true;
+                        options.SignalRRoutePrefix = "/hub";
+                        options.Role = Role.Administrator;
+                    });
             }
             else
             {

@@ -27,22 +27,23 @@ namespace slskd.Authentication
     using Microsoft.AspNetCore.Authentication;
     using Microsoft.Extensions.Logging;
     using NetTools;
+    using static slskd.Authentication.ApiKeyAuthenticationHandler;
 
     /// <summary>
-    ///     Passthrough authentication.
+    ///     API key authentication.
     /// </summary>
     public static class ApiKeyAuthentication
     {
         /// <summary>
-        ///     Gets the Passthrough authentication scheme name.
+        ///     Gets the API key authentication scheme name.
         /// </summary>
         public static string AuthenticationScheme { get; } = "API Key";
     }
 
     /// <summary>
-    ///     Handles passthrough authentication.
+    ///     Handles API key authentication.
     /// </summary>
-    public class ApiKeyAuthenticationHandler : AuthenticationHandler<AuthenticationSchemeOptions>
+    public class ApiKeyAuthenticationHandler : AuthenticationHandler<ApiKeyAuthenticationOptions>
     {
         /// <summary>
         ///     Initializes a new instance of the <see cref="ApiKeyAuthenticationHandler"/> class.
@@ -54,32 +55,44 @@ namespace slskd.Authentication
         /// <param name="systemClock">A system clock interface.</param>
         public ApiKeyAuthenticationHandler(
             IOptionsSnapshot<Options> slskdOptionsSnapshot,
-            IOptionsMonitor<AuthenticationSchemeOptions> apiKeyOptionsMonitor,
+            IOptionsMonitor<ApiKeyAuthenticationOptions> apiKeyOptionsMonitor,
             ILoggerFactory logger,
             UrlEncoder urlEncoder,
             ISystemClock systemClock)
             : base(apiKeyOptionsMonitor, logger, urlEncoder, systemClock)
         {
-            Console.WriteLine("init");
             SlskdOptionsSnapshot = slskdOptionsSnapshot;
         }
 
         private IOptionsSnapshot<Options> SlskdOptionsSnapshot { get; }
 
         /// <summary>
-        ///     Authenticates using the configured <see cref="PassthroughAuthenticationOptions.Username"/> and <see cref="PassthroughAuthenticationOptions.Role"/>.
+        ///     Authenticates via API key.
         /// </summary>
         /// <returns>A successful authentication result containing a default ticket.</returns>
         protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
         {
             await Task.Yield();
 
-            if (!Request.Headers.TryGetValue("X-API-Key", out var key))
+            var slskdOptions = SlskdOptionsSnapshot.Value;
+            var apiKeyOptions = OptionsMonitor.CurrentValue;
+
+            string key = default;
+
+            if (Request.Headers.TryGetValue("X-API-Key", out var headerKeyValue))
+            {
+                key = headerKeyValue;
+            }
+            else if (apiKeyOptions.EnableSignalRSupport && Request.Path.StartsWithSegments(apiKeyOptions.SignalRRoutePrefix) && Request.Query.ContainsKey("access_token"))
+            {
+                key = Request.Query["access_token"];
+            }
+            else
             {
                 return AuthenticateResult.NoResult();
             }
 
-            var matchingRecord = SlskdOptionsSnapshot.Value.Web.Authentication.ApiKeys
+            var matchingRecord = slskdOptions.Web.Authentication.ApiKeys
                 .FirstOrDefault(kvp => kvp.Value.Key == key);
 
             if (matchingRecord.Key == null)
@@ -97,10 +110,38 @@ namespace slskd.Authentication
             }
 
             var identity = new GenericIdentity(matchingRecord.Key);
-            var principal = new GenericPrincipal(identity, new[] { Role.Administrator.ToString() });
+            var principal = new GenericPrincipal(identity, new[] { apiKeyOptions.Role.ToString() });
             var ticket = new AuthenticationTicket(principal, new AuthenticationProperties(), ApiKeyAuthentication.AuthenticationScheme);
 
             return AuthenticateResult.Success(ticket);
+        }
+
+        /// <summary>
+        ///     API key authentication options.
+        /// </summary>
+        public class ApiKeyAuthenticationOptions : AuthenticationSchemeOptions
+        {
+            /// <summary>
+            ///     Initializes a new instance of the <see cref="ApiKeyAuthenticationOptions"/> class.
+            /// </summary>
+            public ApiKeyAuthenticationOptions()
+            {
+            }
+
+            /// <summary>
+            ///     Gets or sets the route prefix used to identify SignalR authentication attempts.
+            /// </summary>
+            public string SignalRRoutePrefix { get; set; }
+
+            /// <summary>
+            ///     Gets or sets a value indicating whether to support SignalR authentication.
+            /// </summary>
+            public bool EnableSignalRSupport { get; set; }
+
+            /// <summary>
+            ///     Gets or sets the role for authenticated tickets.
+            /// </summary>
+            public Role Role { get; set; } = Role.Administrator;
         }
     }
 }
