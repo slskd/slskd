@@ -689,7 +689,7 @@ namespace slskd
             {
                 try
                 {
-                    _ = Client.SendUploadSpeedAsync(Convert.ToInt32(args.Transfer.AverageSpeed));
+                    _ = Client.SendUploadSpeedAsync(Convert.ToInt32(Math.Ceiling(args.Transfer.AverageSpeed)));
                 }
                 catch (Exception ex)
                 {
