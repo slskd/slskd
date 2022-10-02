@@ -207,6 +207,9 @@ namespace slskd
         [Argument('g', "generate-cert", "generate X509 certificate and password for HTTPs")]
         private static bool GenerateCertificate { get; set; }
 
+        [Argument('k', "generate-api-key", "generate a random API key")]
+        private static bool GenerateApiKey { get; set; }
+
         [Argument('n', "no-logo", "suppress logo on startup")]
         private static bool NoLogo { get; set; }
 
@@ -260,6 +263,12 @@ namespace slskd
             if (GenerateCertificate)
             {
                 GenerateX509Certificate(password: Cryptography.Random.GetBytes(16).ToBase62String(), filename: $"{AppName}.pfx");
+                return;
+            }
+
+            if (GenerateApiKey)
+            {
+                Log.Information($"API Key: {Cryptography.Random.GetBytes(32).ToBase62String()}");
                 return;
             }
 
@@ -945,8 +954,8 @@ namespace slskd
             var cert = X509.Generate(subject: AppName, password, X509KeyStorageFlags.Exportable);
             IOFile.WriteAllBytes(filename, cert.Export(X509ContentType.Pkcs12, password));
 
-            Log.Information($"Password: {password}");
             Log.Information($"Certificate exported to {filename}");
+            Log.Information($"Password: {password}");
         }
 
         private static void PrintCommandLineArguments(Type targetType)
