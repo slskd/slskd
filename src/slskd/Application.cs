@@ -685,11 +685,11 @@ namespace slskd
 
             Log.Information($"[{direction}] [{user}/{file}] {oldState} => {state}{(completed ? $" ({xfer.BytesTransferred}/{xfer.Size} = {xfer.PercentComplete}%) @ {xfer.AverageSpeed.SizeSuffix()}/s" : string.Empty)}");
 
-            if (xfer.Direction == TransferDirection.Upload && xfer.State.HasFlag(TransferStates.Completed | TransferStates.Succeeded))
+            if (xfer.Direction == TransferDirection.Upload && xfer.State.HasFlag(TransferStates.Completed | TransferStates.Succeeded) && args.Transfer.AverageSpeed > 0)
             {
                 try
                 {
-                    _ = Client.SendUploadSpeedAsync((int)args.Transfer.AverageSpeed);
+                    _ = Client.SendUploadSpeedAsync(Convert.ToInt32(args.Transfer.AverageSpeed));
                 }
                 catch (Exception ex)
                 {
