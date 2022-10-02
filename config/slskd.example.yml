@@ -79,6 +79,10 @@
 #     jwt:
 #       key: ~
 #       ttl: 604800000
+#     api_keys:
+#       my_api_key:
+#         key: s7o9axqCROSFJFAtr8AtGUkCAMRXG14CvU6GaG15v8q
+#         cidr: 0.0.0.0/0,::/0
 # logger:
 #   loki: ~
 # metrics:
