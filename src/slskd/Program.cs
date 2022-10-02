@@ -32,6 +32,7 @@ namespace slskd
     using System.Text.Json.Serialization;
     using System.Threading;
     using System.Threading.Tasks;
+    using Microsoft.AspNetCore.Authentication;
     using Microsoft.AspNetCore.Authentication.JwtBearer;
     using Microsoft.AspNetCore.Builder;
     using Microsoft.AspNetCore.DataProtection;
@@ -609,6 +610,9 @@ namespace slskd
                             },
                         };
                     });
+
+                services.AddAuthentication(ApiKeyAuthentication.AuthenticationScheme)
+                    .AddScheme<AuthenticationSchemeOptions, ApiKeyAuthenticationHandler>(ApiKeyAuthentication.AuthenticationScheme, configureOptions: null);
             }
             else
             {
