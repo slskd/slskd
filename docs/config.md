@@ -24,7 +24,7 @@ Default values for each option (unless the default is `null`) are specified in `
 
 ## Environment Variables
 
-Environment variables are loaded after defaults. Each environment variable name is prefixed with `SLSKD_` (this prefix is omitted for the remainder of this documentation).
+Environment variables are loaded after defaults. Each environment variable name is prefixed with `SLSKD_`.
 
 Environment variables are ideal for use cases involving Docker where configuration is expected to be changed neither often nor remotely.
 
@@ -36,7 +36,7 @@ SLSKD_SOME_OPTION=1;2;3
 
 ## YAML Configuration File
 
-Configuration is loaded from the YAML file located at `<application directory>/slskd.yml` after environment variables. The location can be changed by specifying the path in the `CONFIG` environment variable or `--config` command-line argument.
+Configuration is loaded from the YAML file located at `<application directory>/slskd.yml` after environment variables. The location can be changed by specifying the path in the `SLSKD_CONFIG` environment variable or `--config` command-line argument.
 
 The application watches for changes in the YAML file and will reload the configuration when they are detected. Options will be updated in real-time and transmitted to the web UI. If a server reconnect or application restart is required for changes to take effect fully, a flag will be set indicating so.
 
@@ -64,9 +64,9 @@ The application contains APIs for retrieving and updating the YAML configuration
 
 If an attacker were to gain access to the application and retrieve the YAML file, any secrets contained within it will be exposed.
 
-| Command-Line             | Environment Variable   | Description                                                   |
-| ------------------------ | ---------------------- | ------------------------------------------------------------- |
-| `--remote-configuration` | `REMOTE_CONFIGURATION` | Determines whether the remote configuration of options is allowed |
+| Command-Line             | Environment Variable         | Description                                                   |
+| ------------------------ | -----------------------------| ------------------------------------------------------------- |
+| `--remote-configuration` | `SLSKD_REMOTE_CONFIGURATION` | Determines whether the remote configuration of options is allowed |
 
 #### **YAML**
 ```yaml
@@ -91,10 +91,10 @@ By default, incomplete and downloaded files are saved in `APP_DIR/incomplete` an
 
 Alternative locations can be specified for each directory. Directories must exist and be writable by the application; the application will not attempt to create them.
 
-| Command-Line      | Environment Variable | Description                                   |
-| ----------------- | -------------------- | --------------------------------------------- |
-| `-o\|--downloads` | `DOWNLOADS_DIR`      | The path where downloaded files are saved     |
-| `--incomplete`    | `INCOMPLETE_DIR`     | The path where incomplete downloads are saved |
+| Command-Line      | Environment Variable       | Description                                   |
+| ----------------- | ---------------------------| --------------------------------------------- |
+| `-o\|--downloads` | `SLSKD_DOWNLOADS_DIR`      | The path where downloaded files are saved     |
+| `--incomplete`    | `SLSKD_INCOMPLETE_DIR`     | The path where incomplete downloads are saved |
 
 #### **YAML**
 ```yaml
@@ -135,17 +135,17 @@ Aliases:
 * Must be at least one character in length
 * Must not contain path separators (`\` or `/`)
 
-| Command-Line   | Environment Variable | Description                       |
-| -------------- | -------------------- | --------------------------------- |
-| `-s\|--shared` | `SHARED_DIR`         | The list of paths to shared files |
+| Command-Line   | Environment Variable       | Description                       |
+| -------------- | -------------------------- | --------------------------------- |
+| `-s\|--shared` | `SLSKD_SHARED_DIR`         | The list of paths to shared files |
 
 ## Filters
 
 Share filters can be used to prevent certain types of files from being shared.  This option is an array that can take any number of filters.  Filters must be a valid regular expression; a few examples are included below and in the example configuration included with the application, but the list is empty by default.
 
-| Command Line              | Environment Variable    | Description                                                           |
-| ------------------------- | ----------------------- | --------------------------------------------------------------------- |
-| `--share-filter`          | `SHARE_FILTER`          | A list of regular expressions used to filter files from shares        |
+| Command Line              | Environment Variable          | Description                                                           |
+| ------------------------- | ----------------------------- | --------------------------------------------------------------------- |
+| `--share-filter`          | `SLSKD_SHARE_FILTER`          | A list of regular expressions used to filter files from shares        |
 
 #### **YAML**
 ```yaml
@@ -172,10 +172,10 @@ performance will start to get worse as more are added.  The optimal number of wo
 
 The default number of workers determined by the [Environment.ProcessorCount](https://learn.microsoft.com/en-us/dotnet/api/system.environment.processorcount?view=net-6.0) property.
 
-| Command Line                 | Environment Variable       | Description                                             |
-| ---------------------------- | -------------------------- | ------------------------------------------------------- |
-| `--share-cache-storage-mode` | `SHARE_CACHE_STORAGE_MODE` | The type of storage to use for the cache (Memory, Disk) |
-| `--share-cache-workers`      | `SHARE_CACHE_WORKERS`      | The number of workers to use while scanning shares      |
+| Command Line                 | Environment Variable             | Description                                             |
+| ---------------------------- | -------------------------------- | ------------------------------------------------------- |
+| `--share-cache-storage-mode` | `SLSKD_SHARE_CACHE_STORAGE_MODE` | The type of storage to use for the cache (Memory, Disk) |
+| `--share-cache-workers`      | `SLSKD_SHARE_CACHE_WORKERS`      | The number of workers to use while scanning shares      |
 
 #### **YAML**
 ```yaml
@@ -192,12 +192,12 @@ Global limits behave as a hard limit, additive across all groups. These values s
 
 A change to slot limits requires an application restart to take effect, while speed limits can be adjusted at runtime.
 
-| Command-Line             | Environment Variable   | Description                                      |
-| ------------------------ | ---------------------- | ------------------------------------------------ |
-| `--upload-slots`         | `UPLOAD_SLOTS`         | The limit for the total number of upload slots   |
-| `--upload-speed-limit`   | `UPLOAD_SPEED_LIMIT`   | The total upload speed limit                     |
-| `--download-slots`       | `DOWNLOAD_SLOTS`       | The limit for the total number of download slots |
-| `--download-speed-limit` | `DOWNLOAD_SPEED_LIMIT` | The total download speed limit                   |
+| Command-Line             | Environment Variable         | Description                                      |
+| ------------------------ | ---------------------------- | ------------------------------------------------ |
+| `--upload-slots`         | `SLSKD_UPLOAD_SLOTS`         | The limit for the total number of upload slots   |
+| `--upload-speed-limit`   | `SLSKD_UPLOAD_SPEED_LIMIT`   | The total upload speed limit                     |
+| `--download-slots`       | `SLSKD_DOWNLOAD_SLOTS`       | The limit for the total number of download slots |
+| `--download-speed-limit` | `SLSKD_DOWNLOAD_SPEED_LIMIT` | The total download speed limit                   |
 
 #### **YAML**
 ```yaml
@@ -335,10 +335,10 @@ Changing either of these values requires the server connection to be reset.
 
 The password field is masked when serializing options to JSON or YAML to avoid inadvertently exposing the value.
 
-| Command-Line      | Environment Variable | Description                           |
-| ----------------- | -------------------- | ------------------------------------- |
-| `--slsk-username` | `SLSK_USERNAME`      | The username for the Soulseek network |
-| `--slsk-password` | `SLSK_PASSWORD`      | The password for the Soulseek network |
+| Command-Line      | Environment Variable       | Description                           |
+| ----------------- | -------------------------- | ------------------------------------- |
+| `--slsk-username` | `SLSKD_SLSK_USERNAME`      | The username for the Soulseek network |
+| `--slsk-password` | `SLSKD_SLSK_PASSWORD`      | The password for the Soulseek network |
 
 #### **YAML**
 ```yaml
@@ -359,10 +359,10 @@ Depending on the current state, changing these values may require the server con
 
 | Command-Line              | Environment Variable    | Description                                                                                                                                                                           |
 | ------------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--slsk-no-dnet`          | `SLSK_NO_DNET`          | Determines whether the distributed network is disabled. If disabled, the client will not obtain a parent or any child connections, and will not receive distributed search requests. |
-| `--slsk-dnet-no-children` | `SLSK_DNET_NO_CHILDREN` | Determines whether to disallow distributed children                                                                                                                                   |
-| `--slsk-dnet-children`    | `SLSK_DNET_CHILDREN`    | The maximum number of distributed children to accept                                                                                                                                  |
-| `--slsk-dnet-logging`     | `SLSK_DNET_LOGGING`     | Determines whether to enable distributed network logging
+| `--slsk-no-dnet`          | `SLSKD_SLSK_NO_DNET`          | Determines whether the distributed network is disabled. If disabled, the client will not obtain a parent or any child connections, and will not receive distributed search requests. |
+| `--slsk-dnet-no-children` | `SLSKD_SLSK_DNET_NO_CHILDREN` | Determines whether to disallow distributed children                                                                                                                                   |
+| `--slsk-dnet-children`    | `SLSKD_SLSK_DNET_CHILDREN`    | The maximum number of distributed children to accept                                                                                                                                  |
+| `--slsk-dnet-logging`     | `SLSKD_SLSK_DNET_LOGGING`     | Determines whether to enable distributed network logging
 
 #### **YAML**
 ```yaml
@@ -381,9 +381,9 @@ As with any other Soulseek client, configuring the listen port and port forwardi
 
 Symptoms of a misconfigured listen port include poor search results and the inability to browse or retrieve user information for some users.
 
-| Command-Line         | Environment Variable | Description                                          |
-| -------------------- | -------------------- | ---------------------------------------------------- |
-| `--slsk-listen-port` | `SLSK_LISTEN_PORT`   | The port on which to listen for incoming connections |
+| Command-Line         | Environment Variable       | Description                                          |
+| -------------------- | -------------------------- | ---------------------------------------------------- |
+| `--slsk-listen-port` | `SLSKD_SLSK_LISTEN_PORT`   | The port on which to listen for incoming connections |
 
 #### **YAML**
 ```yaml
@@ -393,9 +393,9 @@ soulseek:
 
 ## Other
 
-| Command-Line         | Environment Variable | Description                                   |
-| -------------------- | -------------------- | --------------------------------------------- |
-| `--slsk-description` | `SLSK_DESCRIPTION`   | The user description for the Soulseek network |
+| Command-Line         | Environment Variable       | Description                                   |
+| -------------------- | -------------------------- | --------------------------------------------- |
+| `--slsk-description` | `SLSKD_SLSK_DESCRIPTION`   | The user description for the Soulseek network |
 
 #### **YAML**
 ```yaml
@@ -413,10 +413,10 @@ Higher connect timeout values will help ensure that operations (browse, download
 
 Inactivity timeouts help the application determine when a distributed parent connection has stopped sending data and when connections that have delivered search results (and are unlikely to be used further) from remaining open longer than needed. Reducing this timeout can help low spec systems if port exhaustion is a concern but may result in the application "hunting" for a distributed parent connection needlessly.
 
-| Command-Line                | Environment Variable      | Description                                      |
-| --------------------------- | ------------------------- | ------------------------------------------------ |
-| `--slsk-connection-timeout` | `SLSK_CONNECTION_TIMEOUT` | The connection timeout value, in milliseconds    |
-| `--slsk-inactivity-timeout` | `SLSK_INACTIVITY_TIMEOUT` | The connection inactivity value, in milliseconds |
+| Command-Line                | Environment Variable            | Description                                      |
+| --------------------------- | ------------------------------- | ------------------------------------------------ |
+| `--slsk-connection-timeout` | `SLSKD_SLSK_CONNECTION_TIMEOUT` | The connection timeout value, in milliseconds    |
+| `--slsk-inactivity-timeout` | `SLSKD_SLSK_INACTIVITY_TIMEOUT` | The connection inactivity value, in milliseconds |
 
 #### **YAML**
 ```yaml
@@ -437,12 +437,12 @@ The transfer buffer size is used for file transfers (both read and write), and t
 
 The write queue option is the hard limit for the number of concurrent writes for a connection. It generally only applies to distributed child connections and prevents a memory leak if the application continues to try and send data after a connection has gone "bad". This value can be set as low as five if memory is a constraint, though the default has been tested extensively and should be suitable for most scenarios, including low spec.
 
-| Command-Line             | Environment Variable   | Description                                        |
-| ------------------------ | ---------------------- | -------------------------------------------------- |
-| `--slsk-read-buffer`     | `SLSK_READ_BUFFER`     | The connection read buffer size, in bytes          |
-| `--slsk-write-buffer`    | `SLSK_WRITE_BUFFER`    | The connection write buffer size, in bytes         |
-| `--slsk-transfer-buffer` | `SLSK_TRANSFER_BUFFER` | The read/write buffer size for transfers, in bytes |
-| `--slsk-write-queue`     | `SLSK_WRITE_QUEUE`     | The connection write buffer size, in bytes         |
+| Command-Line             | Environment Variable         | Description                                        |
+| ------------------------ | ---------------------------- | -------------------------------------------------- |
+| `--slsk-read-buffer`     | `SLSKD_SLSK_READ_BUFFER`     | The connection read buffer size, in bytes          |
+| `--slsk-write-buffer`    | `SLSKD_SLSK_WRITE_BUFFER`    | The connection write buffer size, in bytes         |
+| `--slsk-transfer-buffer` | `SLSKD_SLSK_TRANSFER_BUFFER` | The read/write buffer size for transfers, in bytes |
+| `--slsk-write-queue`     | `SLSKD_SLSK_WRITE_QUEUE`     | The connection write buffer size, in bytes         |
 
 #### **YAML**
 ```yaml
@@ -461,13 +461,13 @@ Connections can optionally use a SOCKS5 proxy, with or without username and pass
 
 An address and port must also be specified if the proxy is enabled.
 
-| Command-Line            | Environment Variable  | Description                              |
-| ----------------------- | --------------------- | ---------------------------------------- |
-| `--slsk-proxy`          | `SLSK_PROXY`          | Determines whether a proxy is to be used |
-| `--slsk-proxy-address`  | `SLSK_PROXY_ADDRESS`  | The proxy address                        |
-| `--slsk-proxy-port`     | `SLSK_PROXY_PORT`     | The proxy port                           |
-| `--slsk-proxy-username` | `SLSK_PROXY_USERNAME` | The proxy username, if applicable        |
-| `--slsk-proxy-password` | `SLSK_PROXY_PASSWORD` | The proxy password, if applicable        |
+| Command-Line            | Environment Variable        | Description                              |
+| ----------------------- | --------------------------- | ---------------------------------------- |
+| `--slsk-proxy`          | `SLSKD_SLSK_PROXY`          | Determines whether a proxy is to be used |
+| `--slsk-proxy-address`  | `SLSKD_SLSK_PROXY_ADDRESS`  | The proxy address                        |
+| `--slsk-proxy-port`     | `SLSKD_SLSK_PROXY_PORT`     | The proxy port                           |
+| `--slsk-proxy-username` | `SLSKD_SLSK_PROXY_USERNAME` | The proxy username, if applicable        |
+| `--slsk-proxy-password` | `SLSKD_SLSK_PROXY_PASSWORD` | The proxy password, if applicable        |
 
 #### **YAML**
 ```yaml
@@ -485,9 +485,9 @@ soulseek:
 
 The diagnostic level option is passed to the Soulseek.NET configuration and determines the level of detail the library produces diagnostic messages. This option should generally be left to `Info` or `Warning` but can be set to `Debug` if more verbose logging is desired.
 
-| Command-Line        | Environment Variable | Description                                               |
-| ------------------- | -------------------- | --------------------------------------------------------- |
-| `--slsk-diag-level` | `SLSK_DIAG_LEVEL`    | The minimum diagnostic level (None, Warning, Info, Debug) |
+| Command-Line        | Environment Variable       | Description                                               |
+| ------------------- | -------------------------- | --------------------------------------------------------- |
+| `--slsk-diag-level` | `SLSKD_SLSK_DIAG_LEVEL`    | The minimum diagnostic level (None, Warning, Info, Debug) |
 
 #### **YAML**
 ```yaml
@@ -507,12 +507,12 @@ The content path can be used to force the application to serve static web conten
 
 Logging of HTTP requests is disabled by default.
 
-| Command-Line      | Environment Variable | Description                                       |
-| ----------------- | -------------------- | ------------------------------------------------- |
-| `-l\|--http-port` | `HTTP_PORT`          | The HTTP listen port                              |
-| `--url-base`      | `URL_BASE`           | The base url for web requests                     |
-| `--content-path`  | `CONTENT_PATH`       | The path to static web content                    |
-| `--http-logging`  | `HTTP_LOGGING`       | Determines whether HTTP requests are to be logged |
+| Command-Line      | Environment Variable       | Description                                       |
+| ----------------- | -------------------------- | ------------------------------------------------- |
+| `-l\|--http-port` | `SLSKD_HTTP_PORT`          | The HTTP listen port                              |
+| `--url-base`      | `SLSKD_URL_BASE`           | The base url for web requests                     |
+| `--content-path`  | `SLSKD_CONTENT_PATH`       | The path to static web content                    |
+| `--http-logging`  | `SLSKD_HTTP_LOGGING`       | Determines whether HTTP requests are to be logged |
 
 #### **YAML**
 ```yaml
@@ -531,13 +531,13 @@ By default, the application generates a new, self-signed X509 certificate at eac
 
 The application can produce a self-signed `.pfx` file and random password using the `--generate-cert` command.
 
-| Command-Line            | Environment Variable  | Description                                                    |
-| ----------------------- | --------------------- | -------------------------------------------------------------- |
-| `-L\|--https-port`      | `HTTPS_PORT`          | The HTTPS listen port                                          |
-| `-f\|--force-https`     | `HTTPS_FORCE`         | Determines whether HTTP requests are to be redirected to HTTPS |
-| `--https-cert-pfx`      | `HTTPS_CERT_PFX`      | The path to the X509 certificate .pfx file                     |
-| `--https-cert-password` | `HTTPS_CERT_PASSWORD` | The password for the X509 certificate                          |
-| `--no-https`            | `NO_HTTPS`            | Determines whether HTTPS is to be disabled                     |
+| Command-Line            | Environment Variable        | Description                                                    |
+| ----------------------- | --------------------------- | -------------------------------------------------------------- |
+| `-L\|--https-port`      | `SLSKD_HTTPS_PORT`          | The HTTPS listen port                                          |
+| `-f\|--force-https`     | `SLSKD_HTTPS_FORCE`         | Determines whether HTTP requests are to be redirected to HTTPS |
+| `--https-cert-pfx`      | `SLSKD_HTTPS_CERT_PFX`      | The path to the X509 certificate .pfx file                     |
+| `--https-cert-password` | `SLSKD_HTTPS_CERT_PASSWORD` | The password for the X509 certificate                          |
+| `--no-https`            | `SLSKD_NO_HTTPS`            | Determines whether HTTPS is to be disabled                     |
 
 #### **YAML**
 ```yaml
@@ -570,13 +570,13 @@ Note that CIDR filtering may not work as expected behind a reverse proxy, ingres
 
 Please also note that using API key authentication without HTTPS is **NOT RECOMMENDED**.  API keys are sent in HTTP headers (and in the case of SignalR, in query parameters) and will be easily accessible to anyone eavesdropping on the network.  This is a risk with JWTs as well, but JWTs expire and API keys don't.  If you choose to use API keys over plain HTTP, seriously consider using CIDR filtering.
 
-| Command-Line     | Environment Variable | Description                                         |
-| ---------------- | -------------------- | --------------------------------------------------- |
-| `-X\|--no-auth`  | `NO_AUTH`            | Determines whether authentication is to be disabled |
-| `-u\|--username` | `USERNAME`           | The username for the web UI                         |
-| `-p\|--password` | `PASSWORD`           | The password for the web UI                         |
-| `--jwt-key`      | `JWT_KEY`            | The secret key used to sign JWTs                    |
-| `--jwt-ttl`      | `JWT_TTL`            | The TTL (duration) of JWTs, in milliseconds         |
+| Command-Line     | Environment Variable       | Description                                         |
+| ---------------- | -------------------------- | --------------------------------------------------- |
+| `-X\|--no-auth`  | `SLSKD_NO_AUTH`            | Determines whether authentication is to be disabled |
+| `-u\|--username` | `SLSKD_USERNAME`           | The username for the web UI                         |
+| `-p\|--password` | `SLSKD_PASSWORD`           | The password for the web UI                         |
+| `--jwt-key`      | `SLSKD_JWT_KEY`            | The secret key used to sign JWTs                    |
+| `--jwt-ttl`      | `SLSKD_JWT_TTL`            | The TTL (duration) of JWTs, in milliseconds         |
 
 #### **YAML**
 ```yaml
@@ -602,7 +602,7 @@ Share filters can be used to prevent certain types of files from being shared.  
 
 | Command Line              | Environment Variable    | Description                                                           |
 | ------------------------- | ----------------------- | --------------------------------------------------------------------- |
-| `--share-filter`          | `SHARE_FILTER`          | A list of regular expressions used to filter files from shares        |
+| `--share-filter`          | `SLSKD_SHARE_FILTER`          | A list of regular expressions used to filter files from shares        |
 
 #### **YAML**
 ```yaml
@@ -620,19 +620,19 @@ Files can be uploaded to a remote FTP server upon completion. Files are uploaded
 
 Uploads are attempted up to the maximum configured retry count and then discarded.
 
-| Command-Line                      | Environment Variable            | Description                                              |
-| --------------------------------- | ------------------------------- | -------------------------------------------------------- |
-| `--ftp`                           | `FTP`                           | Determines whether FTP integration is enabled            |
-| `--ftp-address`                   | `FTP_ADDRESS`                   | The FTP address                                          |
-| `--ftp-port`                      | `FTP_PORT`                      | The FTP port                                             |
-| `--ftp-username`                  | `FTP_USERNAME`                  | The FTP username                                         |
-| `--ftp-password`                  | `FTP_PASSWORD`                  | The FTP password                                         |
-| `--ftp-remote-path`               | `FTP_REMOTE_PATH`               | The remote path for uploads                              |
-| `--ftp-encryption-mode`           | `FTP_ENCRYPTION_MODE`           | The FTP encryption mode (none, implicit, explicit, auto) |
-| `--ftp-ignore-certificate-errors` | `FTP_IGNORE_CERTIFICATE_ERRORS` | Determines whether to ignore FTP certificate errors      |
-| `--ftp-overwrite-existing`        | `FTP_OVERWRITE_EXISTING`        | Determines whether existing files should be overwritten  |
-| `--ftp-connection-timeout`        | `FTP_CONNECTION_TIMEOUT`        | The connection timeout value, in milliseconds            |
-| `--ftp-retry-attempts`            | `FTP_RETRY_ATTEMPTS`            | The number of times failing uploads will be retried      |
+| Command-Line                      | Environment Variable                  | Description                                              |
+| --------------------------------- | ------------------------------------- | -------------------------------------------------------- |
+| `--ftp`                           | `SLSKD_FTP`                           | Determines whether FTP integration is enabled            |
+| `--ftp-address`                   | `SLSKD_FTP_ADDRESS`                   | The FTP address                                          |
+| `--ftp-port`                      | `SLSKD_FTP_PORT`                      | The FTP port                                             |
+| `--ftp-username`                  | `SLSKD_FTP_USERNAME`                  | The FTP username                                         |
+| `--ftp-password`                  | `SLSKD_FTP_PASSWORD`                  | The FTP password                                         |
+| `--ftp-remote-path`               | `SLSKD_FTP_REMOTE_PATH`               | The remote path for uploads                              |
+| `--ftp-encryption-mode`           | `SLSKD_FTP_ENCRYPTION_MODE`           | The FTP encryption mode (none, implicit, explicit, auto) |
+| `--ftp-ignore-certificate-errors` | `SLSKD_FTP_IGNORE_CERTIFICATE_ERRORS` | Determines whether to ignore FTP certificate errors      |
+| `--ftp-overwrite-existing`        | `SLSKD_FTP_OVERWRITE_EXISTING`        | Determines whether existing files should be overwritten  |
+| `--ftp-connection-timeout`        | `SLSKD_FTP_CONNECTION_TIMEOUT`        | The connection timeout value, in milliseconds            |
+| `--ftp-retry-attempts`            | `SLSKD_FTP_RETRY_ATTEMPTS`            | The number of times failing uploads will be retried      |
 
 #### **YAML**
 ```yaml
@@ -661,15 +661,15 @@ The Pushbullet integration is one-way, meaning the application cannot know wheth
 
 Notification API calls are made up to the maximum configured retry count and then discarded.
 
-| Command-Line                          | Environment Variable                   | Description                                                                                        |
-| ------------------------------------- | -------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| `--pushbullet`                        | `PUSHBULLET`                           | Determines whether Pushbullet integration is enabled                                               |
-| `--pushbullet-token`                  | `PUSHBULLET_TOKEN`                     | The Pushbullet API access token                                                                    |
-| `--pushbullet-prefix`                 | `PUSHBULLET_PREFIX`                    | The prefix for notification titles                                                                 |
-| `--pushbullet-notify-on-pm`           | `PUSHBULLET_NOTIFY_ON_PRIVATE_MESSAGE` | Determines whether to send a notification when a private message is received                       |
-| `--pushbullet-notify-on-room-mention` | `PUSHBULLET_NOTIFY_ON_ROOM_MENTION`    | Determines whether to send a notification when the current user's name is mentioned in a chat room |
-| `--pushbullet-retry-attempts`         | `PUSHBULLET_RETRY_ATTEMPTS`            | The number of times failing API calls will be retried                                              |
-| `--pushbullet-cooldown`               | `PUSHBULLET_COOLDOWN_TIME`             | The cooldown time for notifications, in milliseconds                                               |
+| Command-Line                          | Environment Variable                         | Description                                                                                        |
+| ------------------------------------- | -------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `--pushbullet`                        | `SLSKD_PUSHBULLET`                           | Determines whether Pushbullet integration is enabled                                               |
+| `--pushbullet-token`                  | `SLSKD_PUSHBULLET_TOKEN`                     | The Pushbullet API access token                                                                    |
+| `--pushbullet-prefix`                 | `SLSKD_PUSHBULLET_PREFIX`                    | The prefix for notification titles                                                                 |
+| `--pushbullet-notify-on-pm`           | `SLSKD_PUSHBULLET_NOTIFY_ON_PRIVATE_MESSAGE` | Determines whether to send a notification when a private message is received                       |
+| `--pushbullet-notify-on-room-mention` | `SLSKD_PUSHBULLET_NOTIFY_ON_ROOM_MENTION`    | Determines whether to send a notification when the current user's name is mentioned in a chat room |
+| `--pushbullet-retry-attempts`         | `SLSKD_PUSHBULLET_RETRY_ATTEMPTS`            | The number of times failing API calls will be retried                                              |
+| `--pushbullet-cooldown`               | `SLSKD_PUSHBULLET_COOLDOWN_TIME`             | The cooldown time for notifications, in milliseconds                                               |
 
 #### **YAML**
 ```yaml
@@ -690,9 +690,9 @@ integration:
 
 The instance name uniquely identifies the running instance of the application. It is primarily helpful for structured logging in cases where multiple instances are logging to the same remote source.
 
-| Command-Line          | Environment Variable | Description                              |
-| --------------------- | -------------------- | ---------------------------------------- |
-| `-i\|--instance-name` | `INSTANCE_NAME`      | The unique name for the running instance |
+| Command-Line          | Environment Variable       | Description                              |
+| --------------------- | -------------------------- | ---------------------------------------- |
+| `-i\|--instance-name` | `SLSKD_INSTANCE_NAME`      | The unique name for the running instance |
 
 #### **YAML**
 ```yaml
@@ -705,9 +705,9 @@ By default, the application logs to disk (`/logs` in the application directory).
 
 The current list of available targets is:
 
-| Command Line | Environment Variable | Description                        |
-| ------------ | -------------------- | ---------------------------------- |
-| `--loki`     | `LOKI`               | The URL to a Grafana Loki instance |
+| Command Line | Environment Variable       | Description                        |
+| ------------ | -------------------------- | ---------------------------------- |
+| `--loki`     | `SLSKD_LOKI`               | The URL to a Grafana Loki instance |
 
 #### **YAML**
 ```yaml
@@ -724,13 +724,13 @@ Metrics are disabled by default, and enabling them will make them available at `
 If the application will be exposed to the internet, it's a good idea to leave this disabled or to set credentials other than the defaults.  Elements of the system configuration, like operating system, architecture, and drive configuration are included and can this can make it easier for an attacker to exploit a vulnerability in your system.
 
 
-| Command Line         | Environment Variable | Description                                               |
-| -------------------- | -------------------- | --------------------------------------------------------- |
-| `--metrics`          | `METRICS`            | Determines whether the metrics endpoint should be enabled |
-| `--metrics-url`      | `METRICS_URL`        | The URL of the metrics endpoint                           |
-| `--metrics-no-auth`  | `METRICS_NO_AUTH`    | Disables authentication for the metrics endpoint          |
-| `--metrics-username` | `METRICS_USERNAME`   | The username for the metrics endpoint                     |
-| `--metrics-password` | `METRICS_PASSWORD`   | The password for the metrics endpoint                     |
+| Command Line         | Environment Variable       | Description                                               |
+| -------------------- | -------------------------- | --------------------------------------------------------- |
+| `--metrics`          | `SLSKD_METRICS`            | Determines whether the metrics endpoint should be enabled |
+| `--metrics-url`      | `SLSKD_METRICS_URL`        | The URL of the metrics endpoint                           |
+| `--metrics-no-auth`  | `SLSKD_METRICS_NO_AUTH`    | Disables authentication for the metrics endpoint          |
+| `--metrics-username` | `SLSKD_METRICS_USERNAME`   | The username for the metrics endpoint                     |
+| `--metrics-password` | `SLSKD_METRICS_PASSWORD`   | The password for the metrics endpoint                     |
 
 #### **YAML**
 
@@ -752,9 +752,9 @@ The application can publish Prometheus metrics to `/metrics` using [prometheus-n
 
 The application can publish a Swagger (OpenAPI) definition and host SwaggerUI at `/swagger` using [Swashbuckle](https://github.com/domaindrivendev/Swashbuckle.AspNetCore).  This is useful for anyone developing against the application API and/or creating a new web interface.
 
-| Command-Line   | Environment Variable | Description                                                                               |
-| -------------- | -------------------- | ----------------------------------------------------------------------------------------- |
-| `--swagger`    | `SWAGGER`            | Determines whether Swagger (OpenAPI) definitions and UI should be available at `/swagger` |
+| Command-Line   | Environment Variable       | Description                                                                               |
+| -------------- | -------------------------- | ----------------------------------------------------------------------------------------- |
+| `--swagger`    | `SLSKD_SWAGGER`            | Determines whether Swagger (OpenAPI) definitions and UI should be available at `/swagger` |
 
 #### **YAML**
 ```yaml
@@ -766,17 +766,17 @@ feature:
 
 Several additional feature flags are provided to change the application's runtime behavior, which is helpful during development. Available feature flags are:
 
-| Flag                 | Environment Variable | Description                                                      |
-| -------------------- | -------------------- | ---------------------------------------------------------------- |
-| `-d\|--debug`        | `DEBUG`              | Run the application in debug mode.  Produces verbose log output. |
-| `--experimental`     | `EXPERIMENTAL`       | Run the application in experimental mode.  YMMV. |
-| `-n\|--no-logo`      | `NO_LOGO`            | Don't show the application logo on startup                       |
-| `-x\|--no-start`     | `NO_START`           | Bootstrap the application, but don't start                       |
-| `--no-connect`       | `NO_CONNECT`         | Start the application, but don't connect to the server           |
-| `--no-share-scan`    | `NO_SHARE_SCAN`      | Don't perform a scan of shared directories on startup            |
-| `--force-share-scan` | `FORCE_SHARE_SCAN`   | Force a scan of shared directories on startup                    |
-| `--no-version-check` | `NO_VERSION_CHECK`   | Don't perform a version check on startup                         |
-| `--log-sql`          | `LOG_SQL`            | Log SQL queries generated by Entity Framework                    |
+| Flag                 | Environment Variable       | Description                                                      |
+| -------------------- | -------------------------- | ---------------------------------------------------------------- |
+| `-d\|--debug`        | `SLSKD_DEBUG`              | Run the application in debug mode.  Produces verbose log output. |
+| `--experimental`     | `SLSKD_EXPERIMENTAL`       | Run the application in experimental mode.  YMMV. |
+| `-n\|--no-logo`      | `SLSKD_NO_LOGO`            | Don't show the application logo on startup                       |
+| `-x\|--no-start`     | `SLSKD_NO_START`           | Bootstrap the application, but don't start                       |
+| `--no-connect`       | `SLSKD_NO_CONNECT`         | Start the application, but don't connect to the server           |
+| `--no-share-scan`    | `SLSKD_NO_SHARE_SCAN`      | Don't perform a scan of shared directories on startup            |
+| `--force-share-scan` | `SLSKD_FORCE_SHARE_SCAN`   | Force a scan of shared directories on startup                    |
+| `--no-version-check` | `SLSKD_NO_VERSION_CHECK`   | Don't perform a version check on startup                         |
+| `--log-sql`          | `SLSKD_LOG_SQL`            | Log SQL queries generated by Entity Framework                    |
 
 #### **YAML**
 ```yaml

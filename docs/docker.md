@@ -41,7 +41,7 @@ directories:
     - /ebooks
 ```
 
-You can achieve the same configuration by setting the `SHARED_DIR` environment variable in the `docker run` command:
+You can achieve the same configuration by setting the `SLSKD_SHARED_DIR` environment variable in the `docker run` command:
 
 ```shell
 docker run -d \
