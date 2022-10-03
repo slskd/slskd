@@ -85,6 +85,9 @@ namespace slskd.Authentication
             }
             else if (apiKeyOptions.EnableSignalRSupport && Request.Path.StartsWithSegments(apiKeyOptions.SignalRRoutePrefix) && Request.Query.ContainsKey("access_token"))
             {
+                // assign the request token from the access_token query parameter
+                // but only if the destination is a SignalR hub
+                // https://docs.microsoft.com/en-us/aspnet/core/signalr/authn-and-authz?view=aspnetcore-5.0
                 key = Request.Query["access_token"];
             }
             else
