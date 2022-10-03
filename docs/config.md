@@ -560,6 +560,8 @@ The JWT TTL option determines how long issued JWTs are valid, defaulting to 7 da
 
 API keys can be configured to allow for secure communication without requiring the caller to obtain a JWT by signing in with a username and password. Each key must be given a name and a key with a length between 16 and 255 characters (inclusive). Callers may then supply one of the configured keys in the `X-API-Key` header when making web requests. Remember that API keys are secrets, so keep them safe.
 
+You can generate a random, 32 bit API key by starting the application with `-k` or `--generate-api-key` at the command line.
+
 An optional comma separated list of [CIDRs](https://en.wikipedia.org/wiki/Classless_Inter-Domain_Routing) can be defined for each key, which will restrict usage of the key to callers with a remote IP address that falls within one of the defined CIDRs.  The default CIDR list for each key is `0.0.0.0/0,::0`, which applies to any IP address (IPv4 or IPv6).
 
 A common use case for CIDR filtering might be to restrict API access to clients within your home network. Assuming your network uses the common `192.168.1.x` addressing, you could specify a `cidr` of `192.168.1.0/24`, which would apply to any IP between `192.168.1.1` and `192.168.1.254`, inclusive.
@@ -790,9 +792,10 @@ flags:
 
 The application can be run in "command mode", causing it to execute a command and quit immediately. Available commands are:
 
-| Command               | Description                                         |
-| --------------------- | --------------------------------------------------- |
-| `-v\|--version`       | Display the current application version             |
-| `-h\|--help`          | Display available command-line arguments            |
-| `-e\|--envars`        | Display available environment variables             |
-| `-g\|--generate-cert` | Generate an X509 certificate and password for HTTPS |
+| Command                  | Description                                         |
+| ------------------------ | --------------------------------------------------- |
+| `-v\|--version`          | Display the current application version             |
+| `-h\|--help`             | Display available command-line arguments            |
+| `-e\|--envars`           | Display available environment variables             |
+| `-g\|--generate-cert`    | Generate an X509 certificate and password for HTTPS |
+| `-k\|--generate-api-key` | Generate a random 32 bit API key                    |
