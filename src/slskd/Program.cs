@@ -32,6 +32,7 @@ namespace slskd
     using System.Text.Json.Serialization;
     using System.Threading;
     using System.Threading.Tasks;
+    using Microsoft.AspNetCore.Authentication;
     using Microsoft.AspNetCore.Authentication.JwtBearer;
     using Microsoft.AspNetCore.Builder;
     using Microsoft.AspNetCore.DataProtection;
@@ -69,6 +70,7 @@ namespace slskd
     using Soulseek;
     using Utility.CommandLine;
     using Utility.EnvironmentVariables;
+    using static slskd.Authentication.ApiKeyAuthenticationHandler;
     using IOFile = System.IO.File;
 
     /// <summary>
@@ -207,6 +209,9 @@ namespace slskd
         [Argument('g', "generate-cert", "generate X509 certificate and password for HTTPs")]
         private static bool GenerateCertificate { get; set; }
 
+        [Argument('k', "generate-api-key", "generate a random API key")]
+        private static bool GenerateApiKey { get; set; }
+
         [Argument('n', "no-logo", "suppress logo on startup")]
         private static bool NoLogo { get; set; }
 
@@ -260,6 +265,12 @@ namespace slskd
             if (GenerateCertificate)
             {
                 GenerateX509Certificate(password: Cryptography.Random.GetBytes(16).ToBase62String(), filename: $"{AppName}.pfx");
+                return;
+            }
+
+            if (GenerateApiKey)
+            {
+                Log.Information($"API Key: {Cryptography.Random.GetBytes(32).ToBase62String()}");
                 return;
             }
 
@@ -600,6 +611,14 @@ namespace slskd
                             },
                         };
                     });
+
+                services.AddAuthentication(ApiKeyAuthentication.AuthenticationScheme)
+                    .AddScheme<ApiKeyAuthenticationOptions, ApiKeyAuthenticationHandler>(ApiKeyAuthentication.AuthenticationScheme, options =>
+                    {
+                        options.EnableSignalRSupport = true;
+                        options.SignalRRoutePrefix = "/hub";
+                        options.Role = Role.Administrator;
+                    });
             }
             else
             {
@@ -805,6 +824,7 @@ namespace slskd
                 .MinimumLevel.Override("Microsoft", LogEventLevel.Error)
                 .MinimumLevel.Override("System.Net.Http.HttpClient", OptionsAtStartup.Debug ? LogEventLevel.Warning : LogEventLevel.Fatal)
                 .MinimumLevel.Override("slskd.Authentication.PassthroughAuthenticationHandler", LogEventLevel.Warning)
+                .MinimumLevel.Override("slskd.Authentication.ApiKeyAuthenticationHandler", LogEventLevel.Warning)
                 .Enrich.WithProperty("InstanceName", OptionsAtStartup.InstanceName)
                 .Enrich.WithProperty("InvocationId", InvocationId)
                 .Enrich.WithProperty("ProcessId", ProcessId)
@@ -945,8 +965,8 @@ namespace slskd
             var cert = X509.Generate(subject: AppName, password, X509KeyStorageFlags.Exportable);
             IOFile.WriteAllBytes(filename, cert.Export(X509ContentType.Pkcs12, password));
 
-            Log.Information($"Password: {password}");
             Log.Information($"Certificate exported to {filename}");
+            Log.Information($"Password: {password}");
         }
 
         private static void PrintCommandLineArguments(Type targetType)

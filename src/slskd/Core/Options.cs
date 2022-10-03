@@ -28,6 +28,7 @@ namespace slskd
     using System.Text.Json.Serialization;
     using System.Text.RegularExpressions;
     using FluentFTP;
+    using NetTools;
     using slskd.Configuration;
     using slskd.Validation;
     using Soulseek.Diagnostics;
@@ -125,6 +126,16 @@ namespace slskd
         [JsonIgnore]
         [YamlIgnore]
         public bool GenerateCertificate { get; init; } = false;
+
+        /// <summary>
+        ///     Gets a value indicating whether to generate a random API key.
+        /// </summary>
+        [Argument('k', "generate-api-key")]
+        [Description("generate random API key for HTTP/S")]
+        [Obsolete("USed only for documentation; see Program for actual implementation")]
+        [JsonIgnore]
+        [YamlIgnore]
+        public bool GenerateApiKey { get; init; } = false;
 
         /// <summary>
         ///     Gets a value indicating whether the application should run in debug mode.
@@ -1215,6 +1226,12 @@ namespace slskd
                 public JwtOptions Jwt { get; init; } = new JwtOptions();
 
                 /// <summary>
+                ///     Gets API keys.
+                /// </summary>
+                [Validate]
+                public Dictionary<string, ApiKeyOptions> ApiKeys { get; init; } = new Dictionary<string, ApiKeyOptions>();
+
+                /// <summary>
                 ///     JWT options.
                 /// </summary>
                 public class JwtOptions
@@ -1239,6 +1256,50 @@ namespace slskd
                     [Range(3600, int.MaxValue)]
                     [RequiresRestart]
                     public int Ttl { get; init; } = 604800000;
+                }
+
+                /// <summary>
+                ///     API key options.
+                /// </summary>
+                public class ApiKeyOptions : IValidatableObject
+                {
+                    /// <summary>
+                    ///     Gets the API key value.
+                    /// </summary>
+                    [Description("API key value")]
+                    [StringLength(255, MinimumLength = 16)]
+                    [Secret]
+                    public string Key { get; init; }
+
+                    /// <summary>
+                    ///     Gets the comma separated list of CIDRs that are authorized to use the key.
+                    /// </summary>
+                    [Description("An optional comma separated list of CIDRs that are authorized to use the key")]
+                    public string Cidr { get; init; } = "0.0.0.0/0,::/0";
+
+                    /// <summary>
+                    ///     Extended validation.
+                    /// </summary>
+                    /// <param name="validationContext"></param>
+                    /// <returns></returns>
+                    public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+                    {
+                        var results = new List<ValidationResult>();
+
+                        foreach (var cidr in Cidr.Split(','))
+                        {
+                            try
+                            {
+                                _ = IPAddressRange.Parse(cidr);
+                            }
+                            catch (Exception ex)
+                            {
+                                results.Add(new ValidationResult($"CIDR {cidr} is invalid: {ex.Message}"));
+                            }
+                        }
+
+                        return results;
+                    }
                 }
             }
 
