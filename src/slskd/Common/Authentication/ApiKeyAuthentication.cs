@@ -48,7 +48,7 @@ namespace slskd.Authentication
         /// <summary>
         ///     Initializes a new instance of the <see cref="ApiKeyAuthenticationHandler"/> class.
         /// </summary>
-        /// <param name="slskdOptionsSnapshot">Slskd options monitor.</param>
+        /// <param name="slskdOptionsSnapshot">The current slskd options snapshot.</param>
         /// <param name="apiKeyOptionsMonitor">An options monitor.</param>
         /// <param name="logger">A logger factory.</param>
         /// <param name="urlEncoder">A url encoder.</param>
@@ -69,7 +69,7 @@ namespace slskd.Authentication
         /// <summary>
         ///     Authenticates via API key.
         /// </summary>
-        /// <returns>A successful authentication result containing a default ticket.</returns>
+        /// <returns>A successful authentication result containing a ticket for the API key.</returns>
         protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
         {
             await Task.Yield();
