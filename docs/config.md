@@ -564,6 +564,8 @@ An optional comma separated list of [CIDRs](https://en.wikipedia.org/wiki/Classl
 
 A common use case for CIDR filtering might be to restrict API access to clients within your home network. Assuming your network uses the common `192.168.1.x` addressing, you could specify a `cidr` of `192.168.1.0/24`, which would apply to any IP between `192.168.1.1` and `192.168.1.254`, inclusive.
 
+Note that CIDR filtering may not work as expected behind a reverse proxy, ingress controller, or load balancer, because the remote IP address will be that of the device that's handling ingress.  This application doesn't support the `X-Forwarded-For` header (or anything like it) because a bad actor can easily fake it.  If you wish to use CIDR filtering in this scenario, you'll need to do it at the point of ingress to your network.
+
 | Command-Line     | Environment Variable | Description                                         |
 | ---------------- | -------------------- | --------------------------------------------------- |
 | `-X\|--no-auth`  | `NO_AUTH`            | Determines whether authentication is to be disabled |
