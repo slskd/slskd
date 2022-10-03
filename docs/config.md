@@ -568,6 +568,8 @@ A common use case for CIDR filtering might be to restrict API access to clients 
 
 Note that CIDR filtering may not work as expected behind a reverse proxy, ingress controller, or load balancer, because the remote IP address will be that of the device that's handling ingress.  This application doesn't support the `X-Forwarded-For` header (or anything like it) because a bad actor can easily fake it.  If you wish to use CIDR filtering in this scenario, you'll need to do it at the point of ingress to your network.
 
+Please also note that using API key authentication without HTTPS is **NOT RECOMMENDED**.  API keys are sent in HTTP headers (and in the case of SignalR, in query parameters) and will be easily accessible to anyone eavesdropping on the network.  This is a risk with JWTs as well, but JWTs expire and API keys don't.  If you choose to use API keys over plain HTTP, seriously consider using CIDR filtering.
+
 | Command-Line     | Environment Variable | Description                                         |
 | ---------------- | -------------------- | --------------------------------------------------- |
 | `-X\|--no-auth`  | `NO_AUTH`            | Determines whether authentication is to be disabled |
