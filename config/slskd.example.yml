@@ -79,6 +79,10 @@
 #     jwt:
 #       key: ~
 #       ttl: 604800000
+#     api_keys:
+#       my_api_key:
+#         key: <some example string between 16 and 255 characters>
+#         cidr: 0.0.0.0/0,::/0
 # logger:
 #   loki: ~
 # metrics:
