@@ -32,7 +32,7 @@ namespace slskd
     using System.Text.Json.Serialization;
     using System.Threading;
     using System.Threading.Tasks;
-    using System.Threading.Mutex;
+    using System.Threading;
     using Microsoft.AspNetCore.Authentication;
     using Microsoft.AspNetCore.Authentication.JwtBearer;
     using Microsoft.AspNetCore.Builder;
@@ -264,7 +264,7 @@ namespace slskd
             }
             var reqInitialOwnership = false;
             bool mutexCreated;
-            using(Mutex mutex = new Mutex(reqInitialOwnership, AppName, out mutexCreated))
+            using(var mutex = new Mutex(reqInitialOwnership, AppName, out mutexCreated))
             {
                 var hasHandle = false;
                 try{
@@ -285,7 +285,7 @@ namespace slskd
                         mutex.ReleaseMutex();
                 }
             }            
-            }
+            
             if (GenerateCertificate)
             {
                 GenerateX509Certificate(password: Cryptography.Random.GetBytes(16).ToBase62String(), filename: $"{AppName}.pfx");
