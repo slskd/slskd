@@ -60,7 +60,7 @@ namespace slskd.Core.API
     /// <summary>
     ///     The application SignalR hub.
     /// </summary>
-    [Authorize]
+    [Authorize(Policy = AuthPolicy.Any)]
     public class ApplicationHub : Hub
     {
         public ApplicationHub(

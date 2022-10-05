@@ -66,7 +66,7 @@ namespace slskd.Messaging.API
         ///     A conversation with the specified username, or a message matching the specified id could not be found.
         /// </response>
         [HttpPut("{username}/{id}")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(200)]
         [ProducesResponseType(404)]
         public async Task<IActionResult> Acknowledge([FromRoute]string username, [FromRoute]int id)
@@ -90,7 +90,7 @@ namespace slskd.Messaging.API
         /// <response code="200">The request completed successfully.</response>
         /// <response code="404">A conversation with the specified username could not be found.</response>
         [HttpPut("{username}")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(200)]
         [ProducesResponseType(404)]
         public async Task<IActionResult> AcknowledgeAll([FromRoute]string username)
@@ -124,7 +124,7 @@ namespace slskd.Messaging.API
         /// <response code="204">The request completed successfully.</response>
         /// <response code="404">A conversation with the specified username could not be found.</response>
         [HttpDelete("{username}")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(404)]
         [ProducesResponseType(204)]
         public IActionResult Delete([FromRoute]string username)
@@ -145,7 +145,7 @@ namespace slskd.Messaging.API
         /// <returns></returns>
         /// <response code="200">The request completed successfully.</response>
         [HttpGet("")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(typeof(Dictionary<string, List<PrivateMessageResponse>>), 200)]
         public IActionResult GetAll()
         {
@@ -166,7 +166,7 @@ namespace slskd.Messaging.API
         /// <response code="200">The request completed successfully.</response>
         /// <response code="404">A matching search was not found.</response>
         [HttpGet("{username}")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(typeof(List<PrivateMessageResponse>), 200)]
         [ProducesResponseType(404)]
         public IActionResult GetByUsername([FromRoute]string username)
@@ -192,7 +192,7 @@ namespace slskd.Messaging.API
         /// <response code="201">The request completed successfully.</response>
         /// <response code="400">The specified message is null or empty.</response>
         [HttpPost("{username}")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(201)]
         [ProducesResponseType(400)]
         public async Task<IActionResult> Send([FromRoute]string username, [FromBody]string message)
