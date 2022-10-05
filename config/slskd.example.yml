@@ -10,6 +10,18 @@
 #   force_share_scan: false
 #   no_version_check: false
 #   log_sql: false
+# network:
+#   mode: controller
+#   # controller config is required when running in 'agent' mode
+#   # this specifies the network controller that will be controlling this agent
+#   controller:
+#     address:
+#     secret: <a 32-255 character string that matches the controller>
+#   # agent config is optional when running in 'controller' mode
+#   # this specifies all of the agents on the network
+#   agents:
+#     my_agent:
+#       secret: <a 32-255 character string unique to this agent>
 # directories:
 #   incomplete: ~
 #   downloads: ~
