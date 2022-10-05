@@ -263,8 +263,7 @@ namespace slskd
                 return;
             }
             var reqInitialOwnership = false;
-            bool mutexCreated;
-            using(var mutex = new Mutex(reqInitialOwnership, AppName, out mutexCreated))
+            using(var mutex = new Mutex(reqInitialOwnership, AppName))
             {
                 var hasHandle = false;
                 try{
