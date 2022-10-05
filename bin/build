@@ -42,7 +42,7 @@ done
 if [ -z "$version" ]; then 
   tag=$(git describe --tags --abbrev=0)
   sha=$(git rev-parse --short HEAD)
-  version=$tag-$sha
+  version=$tag+$sha
 fi
 
 if [ "$dotnet_only" == true ]; then
