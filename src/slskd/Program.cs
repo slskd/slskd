@@ -612,13 +612,13 @@ namespace slskd
                         };
                     });
 
-                services.AddAuthentication(ApiKeyAuthentication.AuthenticationScheme)
-                    .AddScheme<ApiKeyAuthenticationOptions, ApiKeyAuthenticationHandler>(ApiKeyAuthentication.AuthenticationScheme, options =>
-                    {
-                        options.EnableSignalRSupport = true;
-                        options.SignalRRoutePrefix = "/hub";
-                        options.Role = Role.Administrator;
-                    });
+                //services.AddAuthentication(ApiKeyAuthentication.AuthenticationScheme)
+                //    .AddScheme<ApiKeyAuthenticationOptions, ApiKeyAuthenticationHandler>(ApiKeyAuthentication.AuthenticationScheme, options =>
+                //    {
+                //        options.EnableSignalRSupport = true;
+                //        options.SignalRRoutePrefix = "/hub";
+                //        options.Role = Role.Administrator;
+                //    });
             }
             else
             {
