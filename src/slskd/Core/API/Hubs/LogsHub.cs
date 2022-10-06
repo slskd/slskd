@@ -47,7 +47,7 @@ namespace slskd.Core.API
     /// <summary>
     ///     The logs SignalR hub.
     /// </summary>
-    [Authorize]
+    [Authorize(Policy = AuthPolicy.Any)]
     public class LogsHub : Hub
     {
         public override async Task OnConnectedAsync()
