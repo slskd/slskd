@@ -132,7 +132,7 @@ namespace slskd
         /// <summary>
         ///     Gets the semantic application version.
         /// </summary>
-        public static string SemanticVersion { get; } = InformationalVersion.Split('-').First();
+        public static string SemanticVersion { get; } = InformationalVersion.Split('+').First();
 
         /// <summary>
         ///     Gets the full application version, including both assembly and informational versions.
@@ -635,13 +635,13 @@ namespace slskd
                         };
                     });
 
-                services.AddAuthentication(ApiKeyAuthentication.AuthenticationScheme)
-                    .AddScheme<ApiKeyAuthenticationOptions, ApiKeyAuthenticationHandler>(ApiKeyAuthentication.AuthenticationScheme, options =>
-                    {
-                        options.EnableSignalRSupport = true;
-                        options.SignalRRoutePrefix = "/hub";
-                        options.Role = Role.Administrator;
-                    });
+                //services.AddAuthentication(ApiKeyAuthentication.AuthenticationScheme)
+                //    .AddScheme<ApiKeyAuthenticationOptions, ApiKeyAuthenticationHandler>(ApiKeyAuthentication.AuthenticationScheme, options =>
+                //    {
+                //        options.EnableSignalRSupport = true;
+                //        options.SignalRRoutePrefix = "/hub";
+                //        options.Role = Role.Administrator;
+                //    });
             }
             else
             {
