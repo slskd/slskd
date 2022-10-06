@@ -54,7 +54,7 @@ namespace slskd.Search.API
         /// <response code="400">The specified <paramref name="request"/> was malformed.</response>
         /// <response code="500">The search terminated abnormally.</response>
         [HttpPost("")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         public async Task<IActionResult> Post([FromBody] SearchRequest request)
         {
             if (string.IsNullOrWhiteSpace(request.SearchText))
@@ -91,7 +91,7 @@ namespace slskd.Search.API
         /// <response code="200">The request completed successfully.</response>
         /// <response code="404">A matching search was not found.</response>
         [HttpGet("{id}")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         public async Task<IActionResult> GetById([FromRoute] Guid id, [FromQuery] bool includeResponses = false)
         {
             var search = await Searches.FindAsync(search => search.Id == id, includeResponses);
@@ -112,7 +112,7 @@ namespace slskd.Search.API
         /// <response code="200">The request completed successfully.</response>
         /// <response code="404">A matching search was not found.</response>
         [HttpGet("{id}/responses")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         public async Task<IActionResult> GetResponsesById([FromRoute] Guid id)
         {
             var search = await Searches.FindAsync(search => search.Id == id, includeResponses: true);
@@ -130,7 +130,7 @@ namespace slskd.Search.API
         /// </summary>
         /// <returns></returns>
         [HttpGet("")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         public async Task<IActionResult> GetAll()
         {
             var searches = await Searches.ListAsync();
@@ -145,7 +145,7 @@ namespace slskd.Search.API
         /// <response code="304">The search was not in progress.</response>
         /// <returns></returns>
         [HttpPut("{id}")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(200)]
         [ProducesResponseType(304)]
         public async Task<IActionResult> Cancel([FromRoute] Guid id)
@@ -173,7 +173,7 @@ namespace slskd.Search.API
         /// <response code="404">A search with the specified id could not be found.</response>
         /// <returns></returns>
         [HttpDelete("{id}")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(204)]
         [ProducesResponseType(404)]
         public async Task<IActionResult> Delete([FromRoute] Guid id)

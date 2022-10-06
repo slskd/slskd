@@ -1,4 +1,4 @@
-﻿// <copyright file="LogsController.cs" company="slskd Team">
+﻿// <copyright file="AuthPolicy.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -15,30 +15,14 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-namespace slskd.Core.API
+namespace slskd
 {
-    using Microsoft.AspNetCore.Authorization;
-    using Microsoft.AspNetCore.Mvc;
-
     /// <summary>
-    ///     Logs.
+    ///     Authentication policies.
     /// </summary>
-    [Route("api/v{version:apiVersion}/[controller]")]
-    [ApiVersion("0")]
-    [ApiController]
-    [Produces("application/json")]
-    [Consumes("application/json")]
-    public class LogsController : ControllerBase
+    public static class AuthPolicy
     {
-        /// <summary>
-        ///     Gets the last few application logs.
-        /// </summary>
-        /// <returns></returns>
-        [HttpGet]
-        [Authorize(Policy = AuthPolicy.Any)]
-        public IActionResult Logs()
-        {
-            return Ok(Program.LogBuffer);
-        }
+        public const string JwtOnly = "Jwt";
+        public const string Any = "Any";
     }
 }

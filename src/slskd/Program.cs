@@ -579,6 +579,22 @@ namespace slskd
 
             if (!OptionsAtStartup.Web.Authentication.Disabled)
             {
+                services.AddAuthorization(options =>
+                {
+                    options.AddPolicy(AuthPolicy.JwtOnly, policy =>
+                    {
+                        policy.AuthenticationSchemes.Add(JwtBearerDefaults.AuthenticationScheme);
+                        policy.RequireAuthenticatedUser();
+                    });
+
+                    options.AddPolicy(AuthPolicy.Any, policy =>
+                    {
+                        policy.AuthenticationSchemes.Add(ApiKeyAuthentication.AuthenticationScheme);
+                        policy.AuthenticationSchemes.Add(JwtBearerDefaults.AuthenticationScheme);
+                        policy.RequireAuthenticatedUser();
+                    });
+                });
+
                 services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                     .AddJwtBearer(options =>
                     {
@@ -610,19 +626,32 @@ namespace slskd
                                 return Task.CompletedTask;
                             },
                         };
+                    })
+                    .AddScheme<ApiKeyAuthenticationOptions, ApiKeyAuthenticationHandler>(ApiKeyAuthentication.AuthenticationScheme, options =>
+                    {
+                        options.EnableSignalRSupport = true;
+                        options.SignalRRoutePrefix = "/hub";
+                        options.Role = Role.Administrator;
                     });
-
-                //services.AddAuthentication(ApiKeyAuthentication.AuthenticationScheme)
-                //    .AddScheme<ApiKeyAuthenticationOptions, ApiKeyAuthenticationHandler>(ApiKeyAuthentication.AuthenticationScheme, options =>
-                //    {
-                //        options.EnableSignalRSupport = true;
-                //        options.SignalRRoutePrefix = "/hub";
-                //        options.Role = Role.Administrator;
-                //    });
             }
             else
             {
                 Log.Warning("Authentication of web requests is DISABLED");
+
+                services.AddAuthorization(options =>
+                {
+                    options.AddPolicy(AuthPolicy.Any, policy =>
+                    {
+                        policy.AuthenticationSchemes.Add(PassthroughAuthentication.AuthenticationScheme);
+                        policy.RequireAuthenticatedUser();
+                    });
+
+                    options.AddPolicy(AuthPolicy.JwtOnly, policy =>
+                    {
+                        policy.AuthenticationSchemes.Add(PassthroughAuthentication.AuthenticationScheme);
+                        policy.RequireAuthenticatedUser();
+                    });
+                });
 
                 services.AddAuthentication(PassthroughAuthentication.AuthenticationScheme)
                     .AddScheme<PassthroughAuthenticationOptions, PassthroughAuthenticationHandler>(PassthroughAuthentication.AuthenticationScheme, options =>
