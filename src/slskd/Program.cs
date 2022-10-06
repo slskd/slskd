@@ -645,6 +645,12 @@ namespace slskd
                         policy.AuthenticationSchemes.Add(PassthroughAuthentication.AuthenticationScheme);
                         policy.RequireAuthenticatedUser();
                     });
+
+                    options.AddPolicy(AuthPolicy.JwtOnly, policy =>
+                    {
+                        policy.AuthenticationSchemes.Add(PassthroughAuthentication.AuthenticationScheme);
+                        policy.RequireAuthenticatedUser();
+                    });
                 });
 
                 services.AddAuthentication(PassthroughAuthentication.AuthenticationScheme)
