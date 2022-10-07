@@ -264,13 +264,13 @@ namespace slskd
 
             if (GenerateCertificate)
             {
-                GenerateX509Certificate(password: Cryptography.Random.GetBytes(16).ToBase62String(), filename: $"{AppName}.pfx");
+                GenerateX509Certificate(password: Cryptography.Random.GetBytes(16).ToBase62(), filename: $"{AppName}.pfx");
                 return;
             }
 
             if (GenerateApiKey)
             {
-                Log.Information($"API Key: {Cryptography.Random.GetBytes(32).ToBase62String()}");
+                Log.Information($"API Key: {Cryptography.Random.GetBytes(32).ToBase62()}");
                 return;
             }
 
