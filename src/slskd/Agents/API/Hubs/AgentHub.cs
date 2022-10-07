@@ -35,10 +35,10 @@ namespace slskd.Agents
     /// </summary>
     public static class AgentHubExtensions
     {
-        public static Task RequestFileAsync(this IHubContext<AgentHub> hub, Guid id, string filename)
+        public static Task RequestFileAsync(this IHubContext<AgentHub> hub, string agent, string filename, Guid id)
         {
-            // todo: how to send this to a specific user?
-            return hub.Clients.All.SendAsync(AgentHubMethods.RequestFile, id, filename);
+            // todo: how to send this to the specified agent?
+            return hub.Clients.All.SendAsync(AgentHubMethods.RequestFile, filename, id);
         }
     }
 
@@ -67,11 +67,6 @@ namespace slskd.Agents
             // connect. they should at least say who they are, and we'd allow or disallow
             // todo: how to authenticate?
             // todo: how to identify?
-        }
-
-        public Task RequestFileAsync(string filename)
-        {
-            return Clients.All.SendAsync("foo");
         }
     }
 }

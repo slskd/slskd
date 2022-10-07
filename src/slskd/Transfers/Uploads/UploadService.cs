@@ -30,6 +30,7 @@ namespace slskd.Transfers.Uploads
     using System.Threading.Tasks;
     using Microsoft.EntityFrameworkCore;
     using Serilog;
+    using slskd.Agents;
     using slskd.Shares;
     using slskd.Users;
 
@@ -43,11 +44,13 @@ namespace slskd.Transfers.Uploads
             ISoulseekClient soulseekClient,
             IOptionsMonitor<Options> optionsMonitor,
             IShareService shareService,
+            IAgentService agentService,
             IDbContextFactory<TransfersDbContext> contextFactory)
         {
             Users = userService;
             Client = soulseekClient;
             Shares = shareService;
+            Agents = agentService;
             ContextFactory = contextFactory;
             OptionsMonitor = optionsMonitor;
 
@@ -72,6 +75,7 @@ namespace slskd.Transfers.Uploads
         private IShareService Shares { get; set; }
         private IUserService Users { get; set; }
         private IOptionsMonitor<Options> OptionsMonitor { get; }
+        private IAgentService Agents { get; set; }
 
         /// <summary>
         ///     Adds the specified <paramref name="transfer"/>. Supersedes any existing record for the same file and username.
@@ -214,13 +218,19 @@ namespace slskd.Transfers.Uploads
                         slotAwaiter: (tx, ct) => Queue.AwaitStartAsync(tx.Username, tx.Filename),
                         slotReleased: (tx) => Queue.Complete(tx.Username, tx.Filename));
 
-                    using var stream = new FileStream(fileInfo.FullName, FileMode.Open, FileAccess.Read);
+                    //using var stream = new FileStream(fileInfo.FullName, FileMode.Open, FileAccess.Read);
+
+                    var (stream, completion) = await Agents.GetFileStream(filename);
+
                     var completedTransfer = await Client.UploadAsync(
                         username,
                         filename,
-                        fileInfo.FullName,
+                        size: fileInfo.Length,
+                        inputStreamFactory: () => stream,
                         options: topts,
                         cancellationToken: cts.Token);
+
+                    completion.SetResult();
 
                     // explicitly dispose the rate limiter to prevent updates from it
                     // beyond this point, which may overwrite the final state
