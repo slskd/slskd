@@ -30,6 +30,7 @@ namespace slskd
     using FluentFTP;
     using NetTools;
     using slskd.Configuration;
+    using slskd.Cryptography;
     using slskd.Validation;
     using Soulseek.Diagnostics;
     using Utility.CommandLine;
@@ -1330,7 +1331,7 @@ namespace slskd
                     [StringLength(255, MinimumLength = 16)]
                     [Secret]
                     [RequiresRestart]
-                    public string Key { get; init; } = Cryptography.Random.GetBytes(16).ToBase62String();
+                    public string Key { get; init; } = Cryptography.Random.GetBytes(16).ToBase62();
 
                     /// <summary>
                     ///     Gets the TTL for JWTs, in milliseconds.
