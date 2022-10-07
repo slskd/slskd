@@ -382,17 +382,17 @@ namespace slskd
             public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
             {
                 var results = new List<ValidationResult>();
-                var controllerResults = new List<ValidationResult>();
-                var agentResults = new List<ValidationResult>();
+                //var controllerResults = new List<ValidationResult>();
+                //var agentResults = new List<ValidationResult>();
 
-                if (OperationMode.ToEnum<NetworkOperationMode>() == NetworkOperationMode.Agent && !Validator.TryValidateObject(Controller, validationContext, controllerResults))
-                {
-                    results.AddRange(controllerResults);
-                }
-                else if (!Validator.TryValidateObject(Agents, validationContext, results))
-                {
-                    results.AddRange(agentResults);
-                }
+                //if (OperationMode.ToEnum<NetworkOperationMode>() == NetworkOperationMode.Agent && !Validator.TryValidateObject(Controller, validationContext, controllerResults))
+                //{
+                //    results.AddRange(controllerResults);
+                //}
+                //else if (!Validator.TryValidateObject(Agents, validationContext, results))
+                //{
+                //    results.AddRange(agentResults);
+                //}
 
                 return results;
             }
