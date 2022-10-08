@@ -15,19 +15,20 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-using Microsoft.Extensions.Options;
-
 namespace slskd.Agents
 {
     using System;
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.SignalR;
-    using slskd;
+    using Serilog;
 
     public static class AgentHubMethods
     {
         public static readonly string RequestFile = "REQUEST_FILE";
+        public static readonly string AuthenticationChallenge = "AUTHENTICATION_CHALLENGE";
+        public static readonly string AuthenticationChallengeAccepted = "AUTHENTICATION_CHALLENGE_ACCEPTED";
+        public static readonly string AuthenticationChallengeRejected = "AUTHENTICATION_CHALLENGE_REJECTED";
     }
 
     /// <summary>
@@ -49,24 +50,42 @@ namespace slskd.Agents
     public class AgentHub : Hub
     {
         public AgentHub(
-            IStateMonitor<State> stateMonitor,
-            IOptionsMonitor<Options> optionsMonitor)
+            IAgentService agentService)
         {
-            StateMonitor = stateMonitor;
-            OptionsMonitor = optionsMonitor;
+            Agents = agentService;
         }
 
-        private IStateMonitor<State> StateMonitor { get; }
-        private IOptionsMonitor<Options> OptionsMonitor { get; }
+        private IAgentService Agents { get; }
+        private ILogger Log { get; } = Serilog.Log.ForContext<AgentService>();
 
         public override async Task OnConnectedAsync()
         {
-            // upon connection we need to do a little handshaking to establish
-            // that this is a registered agent, and which agent it is. whoever is calling
-            // has an api key or jwt, but users might disable auth, so literally anyone could
-            // connect. they should at least say who they are, and we'd allow or disallow
-            // todo: how to authenticate?
-            // todo: how to identify?
+            Log.Information("Agent connection {Id} established. Sending authentication challenge...", Context.ConnectionId);
+            await Clients.Caller.SendAsync(AgentHubMethods.AuthenticationChallenge, Agents.GenerateAuthenticationChallengeToken(Context.ConnectionId));
+        }
+
+        public override Task OnDisconnectedAsync(Exception exception)
+        {
+            if (Agents.TryRemoveAgentRegistration(Context.ConnectionId, out var agent))
+            {
+                Log.Warning("Agent {Agent} (connection {Id}) disconnected", agent, Context.ConnectionId);
+            }
+
+            return Task.CompletedTask;
+        }
+
+        public bool Login(string agent, string challengeResponse)
+        {
+            if (Agents.TryValidateAuthenticationChallengeResponse(Context.ConnectionId, agent, challengeResponse))
+            {
+                Log.Information("Agent connection {Id} authenticated as agent {Agent}", Context.ConnectionId, agent);
+                Agents.RegisterAgent(agent, Context.ConnectionId);
+                return true;
+            }
+
+            Log.Information("Agent connection {Id} authentication failed", Context.ConnectionId);
+            Agents.TryRemoveAgentRegistration(Context.ConnectionId, out var _); // just in case!
+            return false;
         }
     }
 }
