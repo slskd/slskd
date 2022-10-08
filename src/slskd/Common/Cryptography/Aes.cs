@@ -32,66 +32,46 @@ namespace slskd.Cryptography
         private static readonly int KeySizeInBits = 256;
         private static readonly int KeySizeInBytes = KeySizeInBits / 8;
 
-        public static string Decrypt(string cipherText, string keybase62)
+        public static byte[] Decrypt(byte[] encryptedBytes, byte[] key)
         {
             using var aes = System.Security.Cryptography.Aes.Create();
 
             aes.KeySize = KeySizeInBits;
             aes.BlockSize = BlockSizeInBits;
 
-            var (key, iv) = DecodeKey(keybase62);
+            var (k, iv) = DecodeKey(key);
 
-            using var decryptor = aes.CreateDecryptor(key, iv);
-            using var memoryStream = new MemoryStream(Convert.FromBase64String(cipherText));
-            using var cryptoStream = new CryptoStream(memoryStream, decryptor, CryptoStreamMode.Read);
-            using var streamReader = new StreamReader(cryptoStream);
+            using var decryptor = aes.CreateDecryptor(k, iv);
+            using var inputStream = new MemoryStream(encryptedBytes);
+            using var cryptoStream = new CryptoStream(inputStream, decryptor, CryptoStreamMode.Read);
+            using var outputStream = new MemoryStream();
 
-            return streamReader.ReadToEnd();
+            cryptoStream.CopyTo(outputStream);
+
+            return outputStream.ToArray();
         }
 
-        public static string Encrypt(string plainText, string keybase62)
+        public static byte[] Encrypt(byte[] plainBytes, byte[] key)
         {
             using var aes = System.Security.Cryptography.Aes.Create();
 
             aes.KeySize = KeySizeInBits;
             aes.BlockSize = BlockSizeInBits;
 
-            var (key, iv) = DecodeKey(keybase62);
+            var (k, iv) = DecodeKey(key);
 
-            using var encryptor = aes.CreateEncryptor(key, iv);
-            using var memoryStream = new MemoryStream();
-            using var cryptoStream = new CryptoStream(memoryStream, encryptor, CryptoStreamMode.Write);
-            using var streamWriter = new StreamWriter(cryptoStream);
+            using var encryptor = aes.CreateEncryptor(k, iv);
+            using var outputStream = new MemoryStream();
+            using var cryptoStream = new CryptoStream(outputStream, encryptor, CryptoStreamMode.Write);
 
-            streamWriter.Write(plainText);
-            streamWriter.Close();
+            cryptoStream.Write(plainBytes, 0, plainBytes.Length);
+            cryptoStream.Flush();
+            cryptoStream.Close();
 
-            return Convert.ToBase64String(memoryStream.ToArray());
+            return outputStream.ToArray();
         }
 
-        public static string GenerateRandomBase62Key()
-        {
-            var (key, iv) = GenerateRandomKey();
-            return EncodeKey(key, iv);
-        }
-
-        private static (byte[] Key, byte[] IV) DecodeKey(string keybase62)
-        {
-            var bytes = keybase62.FromBase62();
-            var mem = new Memory<byte>(bytes);
-            var key = mem.Slice(0, KeySizeInBytes);
-            var iv = mem.Slice(KeySizeInBytes, BlockSizeInBytes);
-
-            return (key.ToArray(), iv.ToArray());
-        }
-
-        private static string EncodeKey(byte[] key, byte[] iv)
-        {
-            var bytes = key.Concat(iv).ToArray();
-            return bytes.ToBase62();
-        }
-
-        private static (byte[] Key, byte[] IV) GenerateRandomKey()
+        public static byte[] GenerateRandomKey()
         {
             using var aes = System.Security.Cryptography.Aes.Create();
             aes.KeySize = KeySizeInBits;
@@ -100,7 +80,17 @@ namespace slskd.Cryptography
             aes.GenerateIV();
             aes.GenerateKey();
 
-            return (aes.Key, aes.IV);
+            var bytes = aes.Key.Concat(aes.IV).ToArray();
+            return bytes;
+        }
+
+        private static (byte[] Key, byte[] IV) DecodeKey(byte[] bytes)
+        {
+            var mem = new Memory<byte>(bytes);
+            var key = mem.Slice(0, KeySizeInBytes);
+            var iv = mem.Slice(KeySizeInBytes, BlockSizeInBytes);
+
+            return (key.ToArray(), iv.ToArray());
         }
     }
 }
