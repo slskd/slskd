@@ -213,6 +213,9 @@ namespace slskd
         [Argument('k', "generate-api-key", "generate a random API key")]
         private static bool GenerateApiKey { get; set; }
 
+        [Argument('t', "generate-agent-secret", "generate a random agent secret")]
+        private static bool GenerateAgentSecret { get; set; }
+
         [Argument('n', "no-logo", "suppress logo on startup")]
         private static bool NoLogo { get; set; }
 
@@ -272,6 +275,12 @@ namespace slskd
             if (GenerateApiKey)
             {
                 Log.Information($"API Key: {Cryptography.Random.GetBytes(32).ToBase62()}");
+                return;
+            }
+
+            if (GenerateAgentSecret)
+            {
+                Log.Information($"Agent Secret: {Aes.GenerateRandomKey().ToBase62()}");
                 return;
             }
 
@@ -962,7 +971,6 @@ namespace slskd
 
         private static void GenerateX509Certificate(string password, string filename)
         {
-            Log.Information("Generating X509 certificate...");
             filename = Path.Combine(AppContext.BaseDirectory, filename);
 
             var cert = X509.Generate(subject: AppName, password, X509KeyStorageFlags.Exportable);
