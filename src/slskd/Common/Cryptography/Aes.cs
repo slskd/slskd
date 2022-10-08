@@ -32,6 +32,12 @@ namespace slskd.Cryptography
         private static readonly int KeySizeInBits = 256;
         private static readonly int KeySizeInBytes = KeySizeInBits / 8;
 
+        /// <summary>
+        ///     Decrypts the specified <paramref name="encryptedBytes"/> with the specified <paramref name="key"/>.
+        /// </summary>
+        /// <param name="encryptedBytes">The encrypted data to decrypt.</param>
+        /// <param name="key">The encryption key.</param>
+        /// <returns>The decrypted data.</returns>
         public static byte[] Decrypt(byte[] encryptedBytes, byte[] key)
         {
             using var aes = System.Security.Cryptography.Aes.Create();
@@ -51,6 +57,12 @@ namespace slskd.Cryptography
             return outputStream.ToArray();
         }
 
+        /// <summary>
+        ///     Encrypts the specified <paramref name="plainBytes"/> with the specified <paramref name="key"/>.
+        /// </summary>
+        /// <param name="plainBytes">The plain data to encrypt.</param>
+        /// <param name="key">The encryption key.</param>
+        /// <returns>The encrypted data.</returns>
         public static byte[] Encrypt(byte[] plainBytes, byte[] key)
         {
             using var aes = System.Security.Cryptography.Aes.Create();
@@ -71,6 +83,10 @@ namespace slskd.Cryptography
             return outputStream.ToArray();
         }
 
+        /// <summary>
+        ///     Generates a random key using the default key and block sizes.
+        /// </summary>
+        /// <returns>The generated key.</returns>
         public static byte[] GenerateRandomKey()
         {
             using var aes = System.Security.Cryptography.Aes.Create();
