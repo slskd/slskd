@@ -220,7 +220,7 @@ namespace slskd.Transfers.Uploads
 
                     //using var stream = new FileStream(fileInfo.FullName, FileMode.Open, FileAccess.Read);
 
-                    var (stream, completion) = await Agents.GetFileStream(filename);
+                    var (stream, completion) = await Agents.GetUpload("any", filename);
 
                     var completedTransfer = await Client.UploadAsync(
                         username,
