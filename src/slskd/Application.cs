@@ -42,6 +42,7 @@ namespace slskd
     using slskd.Core.API;
     using slskd.Integrations.Pushbullet;
     using slskd.Messaging;
+    using slskd.Network;
     using slskd.Search;
     using slskd.Shares;
     using slskd.Transfers;
@@ -87,6 +88,7 @@ namespace slskd
             IRoomService roomService,
             IUserService userService,
             IShareService shareService,
+            INetworkClient networkClient,
             IPushbulletService pushbulletService,
             IHubContext<ApplicationHub> applicationHub,
             IHubContext<LogsHub> logHub)
@@ -135,6 +137,8 @@ namespace slskd
             LogHub = logHub;
             Program.LogEmitted += (_, log) => LogHub.EmitLogAsync(log);
 
+            NetworkClient = networkClient;
+
             Client = soulseekClient;
 
             Client.DiagnosticGenerated += Client_DiagnosticGenerated;
@@ -174,6 +178,7 @@ namespace slskd
         private static bool ShuttingDown { get; set; } = false;
 
         private ISoulseekClient Client { get; set; }
+        private INetworkClient NetworkClient { get; set; }
         private IRoomService RoomService { get; set; }
         private IBrowseTracker BrowseTracker { get; set; }
         private IConnectionWatchdog ConnectionWatchdog { get; }
@@ -391,12 +396,18 @@ namespace slskd
             {
                 Log.Warning($"Not connecting to the Soulseek server; username and/or password invalid.  Specify valid credentials and manually connect, or update config and restart.");
             }
-            //else if (OptionsAtStartup.Network.OperationMode.ToEnum<NetworkOperationMode>() == NetworkOperationMode.Agent)
-            //{
-            //    Log.Information("Running in Agent mode; not connecting to the Soulseek server.");
-            //}
+            else if (OptionsAtStartup.Network.OperationMode.ToEnum<NetworkOperationMode>() == NetworkOperationMode.Agent || !OptionsAtStartup.Flags.DualNetworkMode)
+            {
+                Log.Information("Running in Agent mode; not connecting to the Soulseek server.");
+                await NetworkClient.StartAsync(cancellationToken);
+            }
             else
             {
+                if (OptionsAtStartup.Flags.DualNetworkMode)
+                {
+                    await NetworkClient.StartAsync(cancellationToken);
+                }
+
                 await Client.ConnectAsync(OptionsAtStartup.Soulseek.Username, OptionsAtStartup.Soulseek.Password).ConfigureAwait(false);
             }
         }

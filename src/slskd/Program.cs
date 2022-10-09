@@ -533,7 +533,9 @@ namespace slskd
             services.AddSingleton<ITransferService, TransferService>();
             services.AddSingleton<IDownloadService, DownloadService>();
             services.AddSingleton<IUploadService, UploadService>();
+
             services.AddSingleton<INetworkService, NetworkService>();
+            services.AddSingleton<INetworkClient, NetworkClient>();
 
             services.AddSingleton<IFTPClientFactory, FTPClientFactory>();
             services.AddSingleton<IFTPService, FTPService>();
