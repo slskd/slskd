@@ -23,7 +23,6 @@ namespace slskd.Shares
     using System.Linq;
     using Microsoft.Data.Sqlite;
     using Serilog;
-    using slskd.Transfers.Uploads;
     using Soulseek;
 
     /// <summary>
@@ -86,6 +85,13 @@ namespace slskd.Shares
         void InsertFile(string maskedFilename, string originalFilename, DateTime touchedAt, Soulseek.File file, long timestamp);
 
         /// <summary>
+        ///     Inserts a scan record at the specified <paramref name="timestamp"/>.
+        /// </summary>
+        /// <param name="timestamp">The timestamp associated with the scan.</param>
+        /// <param name="options">The options snapshot at the start of the scan.</param>
+        void InsertScan(long timestamp, Options.SharesOptions options);
+
+        /// <summary>
         ///     Lists all directories.
         /// </summary>
         /// <param name="parentDirectory">The optional directory prefix used for listing subdirectories.</param>
@@ -126,6 +132,13 @@ namespace slskd.Shares
         /// <param name="query">The search query.</param>
         /// <returns>The list of matching files.</returns>
         IEnumerable<Soulseek.File> Search(SearchQuery query);
+
+        /// <summary>
+        ///     Updates the scan started at the specified <paramref name="timestamp"/> to set the <paramref name="end"/>.
+        /// </summary>
+        /// <param name="timestamp">The timestamp associated with the scan.</param>
+        /// <param name="end">The timestamp at the conclusion of the scan.</param>
+        void UpdateScan(long timestamp, long end);
     }
 
     /// <summary>
@@ -160,10 +173,18 @@ namespace slskd.Shares
 
             var log = Serilog.Log.ForContext<ShareRepository>();
 
+            // to update this schema map, run the following query against a valid, up-to-date database and paste the output below:
+            // select '{ "' || name || '", "' || sql || '" },' from sqlite_master where type = 'table'
             var schema = new Dictionary<string, string>()
             {
+                { "scans", "CREATE TABLE scans (timestamp INTEGER PRIMARY KEY, options TEXT NOT NULL, end INTEGER DEFAULT NULL)" },
                 { "directories", "CREATE TABLE directories (name TEXT PRIMARY KEY, timestamp INTEGER NOT NULL)" },
                 { "filenames", "CREATE VIRTUAL TABLE filenames USING fts5(maskedFilename)" },
+                { "filenames_data", "CREATE TABLE 'filenames_data'(id INTEGER PRIMARY KEY, block BLOB)" },
+                { "filenames_idx", "CREATE TABLE 'filenames_idx'(segid, term, pgno, PRIMARY KEY(segid, term)) WITHOUT ROWID" },
+                { "filenames_content", "CREATE TABLE 'filenames_content'(id INTEGER PRIMARY KEY, c0)" },
+                { "filenames_docsize", "CREATE TABLE 'filenames_docsize'(id INTEGER PRIMARY KEY, sz BLOB)" },
+                { "filenames_config", "CREATE TABLE 'filenames_config'(k PRIMARY KEY, v) WITHOUT ROWID" },
                 { "files", "CREATE TABLE files (maskedFilename TEXT PRIMARY KEY, originalFilename TEXT NOT NULL, size BIGINT NOT NULL, touchedAt TEXT NOT NULL, code INTEGER DEFAULT 1 NOT NULL, extension TEXT, attributeJson TEXT NOT NULL, timestamp INTEGER NOT NULL)" },
             };
 
@@ -174,7 +195,7 @@ namespace slskd.Shares
                 using var conn = new SqliteConnection(connectionString);
                 conn.Open();
 
-                using var cmd = new SqliteCommand("SELECT name, sql from sqlite_master WHERE type = 'table' AND name IN ('directories', 'filenames', 'files');", conn);
+                using var cmd = new SqliteCommand("SELECT name, sql from sqlite_master WHERE type = 'table';", conn);
 
                 var reader = cmd.ExecuteReader();
                 var rows = 0;
@@ -306,8 +327,10 @@ namespace slskd.Shares
 
             if (discardExisting)
             {
-                conn.ExecuteNonQuery("DROP TABLE IF EXISTS directories; DROP TABLE IF EXISTS filenames; DROP TABLE IF EXISTS files;");
+                conn.ExecuteNonQuery("DROP TABLE IF EXISTS scans; DROP TABLE IF EXISTS directories; DROP TABLE IF EXISTS filenames; DROP TABLE IF EXISTS files;");
             }
+
+            conn.ExecuteNonQuery("CREATE TABLE IF NOT EXISTS scans (timestamp INTEGER PRIMARY KEY, options TEXT NOT NULL, end INTEGER DEFAULT NULL);");
 
             conn.ExecuteNonQuery("CREATE TABLE IF NOT EXISTS directories (name TEXT PRIMARY KEY, timestamp INTEGER NOT NULL);");
 
@@ -388,6 +411,22 @@ namespace slskd.Shares
             conn.ExecuteNonQuery("INSERT INTO filenames (maskedFilename) VALUES(@maskedFilename);", cmd =>
             {
                 cmd.Parameters.AddWithValue("maskedFilename", maskedFilename);
+            });
+        }
+
+        /// <summary>
+        ///     Inserts a scan record at the specified <paramref name="timestamp"/>.
+        /// </summary>
+        /// <param name="timestamp">The timestamp associated with the scan.</param>
+        /// <param name="options">The options snapshot at the start of the scan.</param>
+        public void InsertScan(long timestamp, Options.SharesOptions options)
+        {
+            using var conn = GetConnection();
+
+            conn.ExecuteNonQuery("INSERT INTO scans (timestamp, options) VALUES(@timestamp, @options)", cmd =>
+            {
+                cmd.Parameters.AddWithValue("timestamp", timestamp);
+                cmd.Parameters.AddWithValue("options", options.ToJson());
             });
         }
 
@@ -581,6 +620,22 @@ namespace slskd.Shares
                 Log.Warning(ex, "Failed to execute shared file query '{Query}': {Message}", query, ex.Message);
                 return Enumerable.Empty<Soulseek.File>();
             }
+        }
+
+        /// <summary>
+        ///     Updates the scan started at the specified <paramref name="timestamp"/> to set the <paramref name="end"/>.
+        /// </summary>
+        /// <param name="timestamp">The timestamp associated with the scan.</param>
+        /// <param name="end">The timestamp at the conclusion of the scan.</param>
+        public void UpdateScan(long timestamp, long end)
+        {
+            using var conn = GetConnection();
+
+            conn.ExecuteNonQuery("UPDATE scans SET end = @end WHERE timestamp = @timestamp;", cmd =>
+            {
+                cmd.Parameters.AddWithValue("end", end);
+                cmd.Parameters.AddWithValue("timestamp", timestamp);
+            });
         }
 
         private SqliteConnection GetConnection(string connectionString = null)
