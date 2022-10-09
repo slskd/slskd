@@ -493,6 +493,18 @@ namespace slskd.Transfers.Downloads
                 Directory.CreateDirectory(destinationPath);
             }
 
+            if (File.Exists(destinationFilename))
+            {
+                string extensionlessFilename = Path.GetFileNameWithoutExtension(filename);
+                string extension = Path.GetExtension(filename);
+
+                while (File.Exists(destinationFilename))
+                {
+                    string filenameUTC = $"{extensionlessFilename}_{DateTime.UtcNow.Ticks}.{extension}";
+                    destinationFilename = filenameUTC.ToLocalFilename(destinationDirectory);
+                }
+            }
+
             File.Move(sourceFilename, destinationFilename, overwrite: true);
 
             if (!Directory.EnumerateFileSystemEntries(Path.GetDirectoryName(sourceFilename)).Any())
