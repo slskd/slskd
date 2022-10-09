@@ -32,7 +32,6 @@ namespace slskd
     using System.Text.Json.Serialization;
     using System.Threading;
     using System.Threading.Tasks;
-    using Microsoft.AspNetCore.Authentication;
     using Microsoft.AspNetCore.Authentication.JwtBearer;
     using Microsoft.AspNetCore.Builder;
     using Microsoft.AspNetCore.DataProtection;
@@ -52,7 +51,6 @@ namespace slskd
     using Serilog;
     using Serilog.Events;
     using Serilog.Sinks.Grafana.Loki;
-    using slskd.Agents;
     using slskd.Authentication;
     using slskd.Configuration;
     using slskd.Core.API;
@@ -60,6 +58,7 @@ namespace slskd
     using slskd.Integrations.FTP;
     using slskd.Integrations.Pushbullet;
     using slskd.Messaging;
+    using slskd.Network;
     using slskd.Search;
     using slskd.Search.API;
     using slskd.Shares;
@@ -534,7 +533,7 @@ namespace slskd
             services.AddSingleton<ITransferService, TransferService>();
             services.AddSingleton<IDownloadService, DownloadService>();
             services.AddSingleton<IUploadService, UploadService>();
-            services.AddSingleton<IAgentService, AgentService>();
+            services.AddSingleton<INetworkService, NetworkService>();
 
             services.AddSingleton<IFTPClientFactory, FTPClientFactory>();
             services.AddSingleton<IFTPService, FTPService>();
@@ -750,7 +749,7 @@ namespace slskd
                 endpoints.MapHub<ApplicationHub>("/hub/application");
                 endpoints.MapHub<LogsHub>("/hub/logs");
                 endpoints.MapHub<SearchHub>("/hub/search");
-                endpoints.MapHub<AgentHub>("/hub/agents");
+                endpoints.MapHub<NetworkHub>("/hub/agents");
 
                 endpoints.MapControllers();
                 endpoints.MapHealthChecks("/health");

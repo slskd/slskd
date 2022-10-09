@@ -1,4 +1,4 @@
-﻿// <copyright file="AgentHub.cs" company="slskd Team">
+﻿// <copyright file="NetworkHub.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -15,7 +15,7 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-namespace slskd.Agents
+namespace slskd.Network
 {
     using System;
     using System.Threading.Tasks;
@@ -23,7 +23,7 @@ namespace slskd.Agents
     using Microsoft.AspNetCore.SignalR;
     using Serilog;
 
-    public static class AgentHubMethods
+    public static class NetworkHubMethods
     {
         public static readonly string RequestFile = "REQUEST_FILE";
         public static readonly string AuthenticationChallenge = "AUTHENTICATION_CHALLENGE";
@@ -32,41 +32,41 @@ namespace slskd.Agents
     }
 
     /// <summary>
-    ///     Extension methods for the agent SignalR hub.
+    ///     Extension methods for the network SignalR hub.
     /// </summary>
-    public static class AgentHubExtensions
+    public static class NetworkHubExtensions
     {
-        public static Task RequestFileAsync(this IHubContext<AgentHub> hub, string agent, string filename, Guid id)
+        public static Task RequestFileAsync(this IHubContext<NetworkHub> hub, string agent, string filename, Guid id)
         {
             // todo: how to send this to the specified agent?
-            return hub.Clients.All.SendAsync(AgentHubMethods.RequestFile, filename, id);
+            return hub.Clients.All.SendAsync(NetworkHubMethods.RequestFile, filename, id);
         }
     }
 
     /// <summary>
-    ///     The agent SignalR hub.
+    ///     The network SignalR hub.
     /// </summary>
     [Authorize]
-    public class AgentHub : Hub
+    public class NetworkHub : Hub
     {
-        public AgentHub(
-            IAgentService agentService)
+        public NetworkHub(
+            INetworkService networkService)
         {
-            Agents = agentService;
+            Network = networkService;
         }
 
-        private IAgentService Agents { get; }
-        private ILogger Log { get; } = Serilog.Log.ForContext<AgentService>();
+        private INetworkService Network { get; }
+        private ILogger Log { get; } = Serilog.Log.ForContext<NetworkService>();
 
         public override async Task OnConnectedAsync()
         {
             Log.Information("Agent connection {Id} established. Sending authentication challenge...", Context.ConnectionId);
-            await Clients.Caller.SendAsync(AgentHubMethods.AuthenticationChallenge, Agents.GenerateAuthenticationChallengeToken(Context.ConnectionId));
+            await Clients.Caller.SendAsync(NetworkHubMethods.AuthenticationChallenge, Network.GenerateAuthenticationChallengeToken(Context.ConnectionId));
         }
 
         public override Task OnDisconnectedAsync(Exception exception)
         {
-            if (Agents.TryRemoveAgentRegistration(Context.ConnectionId, out var agent))
+            if (Network.TryRemoveAgentRegistration(Context.ConnectionId, out var agent))
             {
                 Log.Warning("Agent {Agent} (connection {Id}) disconnected", agent, Context.ConnectionId);
             }
@@ -76,15 +76,15 @@ namespace slskd.Agents
 
         public bool Login(string agent, string challengeResponse)
         {
-            if (Agents.TryValidateAuthenticationChallengeResponse(Context.ConnectionId, agent, challengeResponse))
+            if (Network.TryValidateAuthenticationChallengeResponse(Context.ConnectionId, agent, challengeResponse))
             {
                 Log.Information("Agent connection {Id} authenticated as agent {Agent}", Context.ConnectionId, agent);
-                Agents.RegisterAgent(agent, Context.ConnectionId);
+                Network.RegisterAgent(agent, Context.ConnectionId);
                 return true;
             }
 
             Log.Information("Agent connection {Id} authentication failed", Context.ConnectionId);
-            Agents.TryRemoveAgentRegistration(Context.ConnectionId, out var _); // just in case!
+            Network.TryRemoveAgentRegistration(Context.ConnectionId, out var _); // just in case!
             return false;
         }
     }

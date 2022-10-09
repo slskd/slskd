@@ -1,4 +1,4 @@
-﻿// <copyright file="AgentController.cs" company="slskd Team">
+﻿// <copyright file="NetworkController.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -15,7 +15,7 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-namespace slskd.Agents
+namespace slskd.Network
 {
     using System;
     using System.Linq;
@@ -25,20 +25,20 @@ namespace slskd.Agents
     using Serilog;
 
     /// <summary>
-    ///     Application.
+    ///     Network.
     /// </summary>
     [Route("api/v{version:apiVersion}/[controller]")]
     [ApiVersion("0")]
     [ApiController]
-    public class AgentsController : ControllerBase
+    public class NetworkController : ControllerBase
     {
-        public AgentsController(IAgentService agentService)
+        public NetworkController(INetworkService networkService)
         {
-            Agents = agentService;
+            Network = networkService;
         }
 
-        private IAgentService Agents { get; }
-        private ILogger Log { get; } = Serilog.Log.ForContext<AgentService>();
+        private INetworkService Network { get; }
+        private ILogger Log { get; } = Serilog.Log.ForContext<NetworkService>();
 
         /// <summary>
         ///     Gets the current state of the application.
@@ -54,7 +54,7 @@ namespace slskd.Agents
             }
 
             // get the record for the waiting file
-            if (Agents.PendingUploads.TryGetValue(guid, out var record))
+            if (Network.PendingUploads.TryGetValue(guid, out var record))
             {
                 // get the stream from the multipart upload
                 var stream = Request.Form.Files.First().OpenReadStream();

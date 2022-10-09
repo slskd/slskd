@@ -1,4 +1,4 @@
-﻿// <copyright file="AgentService.cs" company="slskd Team">
+﻿// <copyright file="NetworkService.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -17,13 +17,12 @@
 
 using Microsoft.Extensions.Options;
 
-namespace slskd.Agents
+namespace slskd.Network
 {
     using System;
     using System.Collections.Concurrent;
     using System.Collections.ObjectModel;
     using System.IO;
-    using System.Linq;
     using System.Net.Http;
     using System.Threading;
     using System.Threading.Tasks;
@@ -33,7 +32,7 @@ namespace slskd.Agents
     using Serilog;
     using slskd.Cryptography;
 
-    public interface IAgentService
+    public interface INetworkService
     {
         /// <summary>
         ///     Gets the collection of pending Agent uploads.
@@ -85,14 +84,14 @@ namespace slskd.Agents
         bool TryValidateAuthenticationChallengeResponse(string connectionId, string agent, string challengeResponse);
     }
 
-    public class AgentService : IAgentService
+    public class NetworkService : INetworkService
     {
-        public AgentService(
+        public NetworkService(
             IOptionsMonitor<Options> optionsMonitor,
             IHttpClientFactory httpClientFactory,
-            IHubContext<AgentHub> agentHub)
+            IHubContext<NetworkHub> networkHub)
         {
-            AgentHub = agentHub;
+            NetworkHub = networkHub;
             HttpClientFactory = httpClientFactory;
 
             OptionsMonitor = optionsMonitor;
@@ -118,10 +117,10 @@ namespace slskd.Agents
         private IHttpClientFactory HttpClientFactory { get; }
         private HttpClient HttpClient { get; set; }
         private HubConnection HubConnection { get; set; }
-        private IHubContext<AgentHub> AgentHub { get; set; }
+        private IHubContext<NetworkHub> NetworkHub { get; set; }
         private string LastOptionsHash { get; set; }
         private SemaphoreSlim ConfigurationSyncRoot { get; } = new SemaphoreSlim(1, 1);
-        private ILogger Log { get; } = Serilog.Log.ForContext<AgentService>();
+        private ILogger Log { get; } = Serilog.Log.ForContext<NetworkService>();
 
         /// <summary>
         ///     Registers the specified <paramref name="agent"/> name with the specified <paramref name="connectionId"/>.
@@ -207,7 +206,7 @@ namespace slskd.Agents
 
             PendingUploadDictionary.TryAdd(id, (upload, completion));
 
-            await AgentHub.RequestFileAsync(agent, filename, id);
+            await NetworkHub.RequestFileAsync(agent, filename, id);
             Log.Information("Requested file {Filename} from Agent {Agent} with ID {Id}. Waiting for incoming connection.", filename, agent, id);
 
             var task = await Task.WhenAny(upload.Task, Task.Delay(timeout));
@@ -316,8 +315,8 @@ namespace slskd.Agents
                 HubConnection.Reconnecting += HubConnection_Reconnecting;
                 HubConnection.Closed += HubConnection_Closed;
 
-                HubConnection.On<Guid, string>(AgentHubMethods.RequestFile, HandleFileRequest);
-                HubConnection.On<string>(AgentHubMethods.AuthenticationChallenge, HandleAuthenticationChallenge);
+                HubConnection.On<Guid, string>(NetworkHubMethods.RequestFile, HandleFileRequest);
+                HubConnection.On<string>(NetworkHubMethods.AuthenticationChallenge, HandleAuthenticationChallenge);
 
                 _ = Task.Run(async () =>
                 {

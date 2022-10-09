@@ -30,7 +30,7 @@ namespace slskd.Transfers.Uploads
     using System.Threading.Tasks;
     using Microsoft.EntityFrameworkCore;
     using Serilog;
-    using slskd.Agents;
+    using slskd.Network;
     using slskd.Shares;
     using slskd.Users;
 
@@ -44,13 +44,13 @@ namespace slskd.Transfers.Uploads
             ISoulseekClient soulseekClient,
             IOptionsMonitor<Options> optionsMonitor,
             IShareService shareService,
-            IAgentService agentService,
+            INetworkService networkService,
             IDbContextFactory<TransfersDbContext> contextFactory)
         {
             Users = userService;
             Client = soulseekClient;
             Shares = shareService;
-            Agents = agentService;
+            Network = networkService;
             ContextFactory = contextFactory;
             OptionsMonitor = optionsMonitor;
 
@@ -75,7 +75,7 @@ namespace slskd.Transfers.Uploads
         private IShareService Shares { get; set; }
         private IUserService Users { get; set; }
         private IOptionsMonitor<Options> OptionsMonitor { get; }
-        private IAgentService Agents { get; set; }
+        private INetworkService Network { get; }
 
         /// <summary>
         ///     Adds the specified <paramref name="transfer"/>. Supersedes any existing record for the same file and username.
@@ -220,7 +220,7 @@ namespace slskd.Transfers.Uploads
 
                     //using var stream = new FileStream(fileInfo.FullName, FileMode.Open, FileAccess.Read);
 
-                    var (stream, completion) = await Agents.GetUpload("any", filename);
+                    var (stream, completion) = await Network.GetUpload("any", filename);
 
                     var completedTransfer = await Client.UploadAsync(
                         username,
