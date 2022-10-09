@@ -10,6 +10,7 @@
 #   force_share_scan: false
 #   no_version_check: false
 #   log_sql: false
+#   dual_network_mode: false
 # network:
 #   mode: controller
 #   # controller config is required when running in 'agent' mode
