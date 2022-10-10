@@ -765,7 +765,7 @@ namespace slskd
 
             // serve static content from the configured path
             FileServerOptions fileServerOptions = default;
-            var contentPath = Path.GetFullPath(OptionsAtStartup.Web.ContentPath);
+            var contentPath = Path.Combine(AppContext.BaseDirectory, OptionsAtStartup.Web.ContentPath);
 
             fileServerOptions = new FileServerOptions
             {
