@@ -79,7 +79,7 @@ namespace slskd.Network
             if (Network.TryValidateAuthenticationChallengeResponse(Context.ConnectionId, agent, challengeResponse))
             {
                 Log.Information("Agent connection {Id} authenticated as agent {Agent}", Context.ConnectionId, agent);
-                Network.RegisterAgent(agent, Context.ConnectionId);
+                Network.RegisterAgent(Context.ConnectionId, agent);
                 return true;
             }
 
@@ -96,6 +96,7 @@ namespace slskd.Network
             }
 
             // this can happen if the agent attempts to upload before logging in
+            Log.Information("Agent connection {Id} requested a share upload token, but was not registered.", Context.ConnectionId);
             throw new UnauthorizedAccessException();
         }
     }
