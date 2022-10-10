@@ -27,6 +27,7 @@ namespace slskd.Network
     using Microsoft.AspNetCore.SignalR.Client;
     using Serilog;
     using slskd.Cryptography;
+    using slskd.Shares;
 
     public interface INetworkClient
     {
@@ -37,9 +38,12 @@ namespace slskd.Network
     public class NetworkClient : INetworkClient
     {
         public NetworkClient(
+            IShareService shareService,
             IOptionsMonitor<Options> optionsMonitor,
             IHttpClientFactory httpClientFactory)
         {
+            Shares = shareService;
+
             HttpClientFactory = httpClientFactory;
 
             OptionsMonitor = optionsMonitor;
@@ -48,6 +52,7 @@ namespace slskd.Network
             Configure(OptionsMonitor.CurrentValue);
         }
 
+        private IShareService Shares { get; }
         private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1, 1);
         private string LastOptionsHash { get; set; }
         private IOptionsMonitor<Options> OptionsMonitor { get; }
@@ -56,6 +61,7 @@ namespace slskd.Network
         private HubConnection HubConnection { get; set; }
         private bool StartRequested { get; set; }
         private CancellationTokenSource StartCancellationTokenSource { get; set; }
+        private ILogger Log { get; } = Serilog.Log.ForContext<NetworkClient>();
 
         public async Task StartAsync(CancellationToken cancellationToken = default)
         {
@@ -99,7 +105,17 @@ namespace slskd.Network
 
             try
             {
-                using var stream = new FileStream(Path.Combine(@"C:\slsk-downloads", "1.mp3"), FileMode.Open, FileAccess.Read);
+                var localFilename = await Shares.ResolveFileAsync(filename);
+
+                var localFileInfo = new FileInfo(filename);
+
+                if (!localFileInfo.Exists)
+                {
+                    Shares.RequestScan();
+                    throw new NotFoundException($"The file '{localFilename}' could not be located on disk. A share scan should be performed.");
+                }
+
+                using var stream = new FileStream(localFileInfo.FullName, FileMode.Open, FileAccess.Read);
                 using var request = new HttpRequestMessage(HttpMethod.Post, $"api/v0/agents/files/{id}");
                 using var content = new MultipartFormDataContent
                 {
@@ -114,23 +130,24 @@ namespace slskd.Network
                 if (!response.IsSuccessStatusCode)
                 {
                     Log.Error("Upload of file {Filename} with ID {Id} failed: {StatusCode}", response.StatusCode);
-                    Console.WriteLine("Failed");
-                    Console.WriteLine(response.StatusCode);
                 }
                 else
                 {
-                    Console.WriteLine($"{filename} sent!");
+                    Log.Information("Upload of file {Filename} with ID {Id} succeeded.", filename);
                 }
             }
             catch (Exception ex)
             {
                 Log.Error(ex, "Failed to handle file request: {Message}", ex.Message);
+
+                // report the failure to the controller. this avoids a failure due to timeout.
+                _ = HttpClient.SendAsync(new HttpRequestMessage(HttpMethod.Delete, $"api/v0/agents/files/{id}"));
             }
         }
 
         private async Task HandleAuthenticationChallenge(string challengeToken)
         {
-            Log.Information("Network controller sent an authentication challenge");
+            Log.Debug("Network controller sent an authentication challenge");
 
             try
             {
@@ -142,7 +159,7 @@ namespace slskd.Network
 
                 var response = Aes.Encrypt(tokenBytes, key).ToBase62();
 
-                Log.Information("Logging in...");
+                Log.Debug("Logging in...");
                 var success = await HubConnection.InvokeAsync<bool>("Login", agent, response);
 
                 if (!success)
@@ -150,6 +167,8 @@ namespace slskd.Network
                     await HubConnection.StopAsync();
                     Log.Error("Network controller authentication failed. Check configuration.");
                 }
+
+                Log.Information("Network controller authentication succeeded.");
             }
             catch (Exception ex)
             {
@@ -193,7 +212,7 @@ namespace slskd.Network
                     return;
                 }
 
-                Log.Information("Network options changed. Reconfiguring...");
+                Log.Debug("Network options changed. Reconfiguring...");
 
                 // if the client is attempting a connection, cancel it
                 // it's going to be dropped when we create a new instance, but we need
@@ -224,7 +243,7 @@ namespace slskd.Network
 
                 LastOptionsHash = optionsHash;
 
-                Log.Information("Network options reconfigured");
+                Log.Debug("Network options reconfigured");
 
                 // if start was requested (if StartAsync() was called externally), restart
                 // after re-configuration
