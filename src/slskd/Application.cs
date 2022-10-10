@@ -405,7 +405,7 @@ namespace slskd
             {
                 if (OptionsAtStartup.Flags.DualNetworkMode)
                 {
-                    await NetworkClient.StartAsync(cancellationToken);
+                    _ = NetworkClient.StartAsync(cancellationToken);
                 }
 
                 await Client.ConnectAsync(OptionsAtStartup.Soulseek.Username, OptionsAtStartup.Soulseek.Password).ConfigureAwait(false);
@@ -724,7 +724,7 @@ namespace slskd
                 var place = Transfers.Uploads.Queue.EstimatePosition(username, filename);
                 return Task.FromResult((int?)place);
             }
-            catch (FileNotFoundException)
+            catch (NotFoundException)
             {
                 return Task.FromResult<int?>(null);
             }
