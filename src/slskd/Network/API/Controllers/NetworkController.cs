@@ -38,7 +38,7 @@ namespace slskd.Network
         }
 
         private INetworkService Network { get; }
-        private ILogger Log { get; } = Serilog.Log.ForContext<NetworkService>();
+        private ILogger Log { get; } = Serilog.Log.ForContext<NetworkController>();
 
         [HttpPost("files/{id}")]
         [Authorize]
@@ -50,7 +50,7 @@ namespace slskd.Network
             }
 
             // get the record for the waiting file
-            if (Network.PendingUploads.TryGetValue(guid, out var record))
+            if (Network.PendingFileUploads.TryGetValue(guid, out var record))
             {
                 // get the stream from the multipart upload
                 var stream = Request.Form.Files.First().OpenReadStream();
@@ -58,7 +58,7 @@ namespace slskd.Network
                 // set the result for the stream
                 // this should pass control to the transfer service along with
                 // the stream
-                record.Upload.SetResult(stream);
+                record.Stream.SetResult(stream);
 
                 Console.WriteLine("Stream handed off. Waiting for completion...");
 
@@ -85,13 +85,36 @@ namespace slskd.Network
                 return BadRequest("Id is not a valid Guid");
             }
 
-            if (Network.PendingUploads.TryGetValue(guid, out var record))
+            if (Network.PendingFileUploads.TryGetValue(guid, out var record))
             {
-                record.Upload.SetException(new NotFoundException($"The file could not be uploaded from the remote agent"));
+                record.Stream.SetException(new NotFoundException($"The file could not be uploaded from the remote agent"));
                 return NoContent();
             }
 
             return NotFound();
+        }
+
+        [HttpPost("shares/{id}")]
+        [Authorize]
+        public IActionResult UploadShares(string id)
+        {
+            if (!Guid.TryParse(id, out var guid))
+            {
+                return BadRequest("Id is not a valid Guid");
+            }
+
+            if (!Network.TryGetShareUploadToken(guid, out var agent))
+            {
+                return Unauthorized();
+            }
+
+            // todo: save the uploaded file to a temp location
+            // todo: open the uploaded file as a sqlite database
+            // todo: load the contents of the file into the local share database
+            //       while modifying the records somehow to indicate which agent
+            //       is hosting it
+
+            return Ok();
         }
     }
 }
