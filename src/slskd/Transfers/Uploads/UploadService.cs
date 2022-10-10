@@ -124,7 +124,8 @@ namespace slskd.Transfers.Uploads
 
                 if (!localFileInfo.Exists)
                 {
-                    throw new NotFoundException($"The resolved file '{localFilename}' could not be located on disk. A share scan should be performed.");
+                    Shares.RequestScan();
+                    throw new NotFoundException($"The file '{localFilename}' could not be located on disk. A share scan should be performed.");
                 }
             }
             catch (NotFoundException)
