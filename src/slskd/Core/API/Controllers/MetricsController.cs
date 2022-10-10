@@ -36,7 +36,7 @@ namespace slskd.Core.API
         /// </summary>
         /// <returns></returns>
         [HttpGet]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         public async Task<IActionResult> Get()
         {
             var response = await Metrics.BuildAsync();

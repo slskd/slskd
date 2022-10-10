@@ -132,7 +132,7 @@ namespace slskd
         /// <summary>
         ///     Gets the semantic application version.
         /// </summary>
-        public static string SemanticVersion { get; } = InformationalVersion.Split('-').First();
+        public static string SemanticVersion { get; } = InformationalVersion.Split('+').First();
 
         /// <summary>
         ///     Gets the full application version, including both assembly and informational versions.
@@ -602,6 +602,22 @@ namespace slskd
 
             if (!OptionsAtStartup.Web.Authentication.Disabled)
             {
+                services.AddAuthorization(options =>
+                {
+                    options.AddPolicy(AuthPolicy.JwtOnly, policy =>
+                    {
+                        policy.AuthenticationSchemes.Add(JwtBearerDefaults.AuthenticationScheme);
+                        policy.RequireAuthenticatedUser();
+                    });
+
+                    options.AddPolicy(AuthPolicy.Any, policy =>
+                    {
+                        policy.AuthenticationSchemes.Add(ApiKeyAuthentication.AuthenticationScheme);
+                        policy.AuthenticationSchemes.Add(JwtBearerDefaults.AuthenticationScheme);
+                        policy.RequireAuthenticatedUser();
+                    });
+                });
+
                 services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                     .AddJwtBearer(options =>
                     {
@@ -633,9 +649,7 @@ namespace slskd
                                 return Task.CompletedTask;
                             },
                         };
-                    });
-
-                services.AddAuthentication(ApiKeyAuthentication.AuthenticationScheme)
+                    })
                     .AddScheme<ApiKeyAuthenticationOptions, ApiKeyAuthenticationHandler>(ApiKeyAuthentication.AuthenticationScheme, options =>
                     {
                         options.EnableSignalRSupport = true;
@@ -646,6 +660,21 @@ namespace slskd
             else
             {
                 Log.Warning("Authentication of web requests is DISABLED");
+
+                services.AddAuthorization(options =>
+                {
+                    options.AddPolicy(AuthPolicy.Any, policy =>
+                    {
+                        policy.AuthenticationSchemes.Add(PassthroughAuthentication.AuthenticationScheme);
+                        policy.RequireAuthenticatedUser();
+                    });
+
+                    options.AddPolicy(AuthPolicy.JwtOnly, policy =>
+                    {
+                        policy.AuthenticationSchemes.Add(PassthroughAuthentication.AuthenticationScheme);
+                        policy.RequireAuthenticatedUser();
+                    });
+                });
 
                 services.AddAuthentication(PassthroughAuthentication.AuthenticationScheme)
                     .AddScheme<PassthroughAuthenticationOptions, PassthroughAuthenticationHandler>(PassthroughAuthentication.AuthenticationScheme, options =>

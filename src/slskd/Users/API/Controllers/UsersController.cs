@@ -59,7 +59,7 @@ namespace slskd.Users.API
         /// <returns></returns>
         /// <response code="200">The request completed successfully.</response>
         [HttpGet("{username}/endpoint")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(typeof(IPEndPoint), 200)]
         [ProducesResponseType(404)]
         public async Task<IActionResult> Endpoint([FromRoute, Required] string username)
@@ -81,7 +81,7 @@ namespace slskd.Users.API
         /// <param name="username">The username of the user.</param>
         /// <returns></returns>
         [HttpGet("{username}/browse")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(typeof(IEnumerable<Directory>), 200)]
         [ProducesResponseType(404)]
         public async Task<IActionResult> Browse([FromRoute, Required] string username)
@@ -110,7 +110,7 @@ namespace slskd.Users.API
         /// <param name="username">The username of the user.</param>
         /// <returns></returns>
         [HttpGet("{username}/browse/status")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(typeof(decimal), 200)]
         [ProducesResponseType(404)]
         public IActionResult BrowseStatus([FromRoute, Required] string username)
@@ -129,7 +129,7 @@ namespace slskd.Users.API
         /// <param name="username">The username of the user.</param>
         /// <returns></returns>
         [HttpGet("{username}/info")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(typeof(Info), 200)]
         [ProducesResponseType(404)]
         public async Task<IActionResult> Info([FromRoute, Required] string username)
@@ -151,7 +151,7 @@ namespace slskd.Users.API
         /// <param name="username">The username of the user.</param>
         /// <returns></returns>
         [HttpGet("{username}/status")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(typeof(Status), 200)]
         [ProducesResponseType(404)]
         public async Task<IActionResult> Status([FromRoute, Required] string username)

@@ -44,9 +44,9 @@ namespace slskd.Shares
         ///     Scans the configured shares and fills the cache.
         /// </summary>
         /// <param name="shares">The list of shares from which to fill the cache.</param>
-        /// <param name="filters">The list of regular expressions used to exclude files or paths from scanning.</param>
+        /// <param name="options">The current options snapshot.</param>
         /// <returns>The operation context.</returns>
-        Task ScanAsync(IEnumerable<Share> shares, IEnumerable<Regex> filters);
+        Task ScanAsync(IEnumerable<Share> shares, Options.SharesOptions options);
 
         /// <summary>
         ///     Cancels the currently running fill operation, if one is running.
@@ -90,9 +90,9 @@ namespace slskd.Shares
         ///     Scans the configured shares and fills the cache.
         /// </summary>
         /// <param name="shares">The list of shares from which to fill the cache.</param>
-        /// <param name="filters">The list of regular expressions used to exclude files or paths from scanning.</param>
+        /// <param name="options">The current options snapshot.</param>
         /// <returns>The operation context.</returns>
-        public async Task ScanAsync(IEnumerable<Share> shares, IEnumerable<Regex> filters)
+        public async Task ScanAsync(IEnumerable<Share> shares, Options.SharesOptions options)
         {
             // obtain the semaphore, or fail if it can't be obtained immediately, indicating that a scan is running.
             if (!await SyncRoot.WaitAsync(millisecondsTimeout: 0))
@@ -130,9 +130,15 @@ namespace slskd.Shares
                     Log.Information("Shared file cache re-created and ready for scan.");
                 }
 
+                var filters = options.Filters
+                    .Select(filter => new Regex(filter, RegexOptions.Compiled))
+                    .ToList();
+
                 Log.Information("Starting shared file scan");
 
                 var timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+
+                Repository.InsertScan(timestamp, options);
 
                 var sw = new Stopwatch();
                 var swSnapshot = 0L;
@@ -315,6 +321,8 @@ namespace slskd.Shares
 
                     State.SetValue(state => state with { Cancelled = true });
                 }
+
+                Repository.UpdateScan(timestamp, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
 
                 Log.Debug("Backing up shared file cache database...");
                 Repository.BackupTo(Program.ConnectionStrings.SharesBackup);
