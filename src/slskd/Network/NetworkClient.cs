@@ -62,6 +62,7 @@ namespace slskd.Network
         private bool StartRequested { get; set; }
         private CancellationTokenSource StartCancellationTokenSource { get; set; }
         private ILogger Log { get; } = Serilog.Log.ForContext<NetworkClient>();
+        private TaskCompletionSource LoggedIn { get; set; }
 
         public async Task StartAsync(CancellationToken cancellationToken = default)
         {
@@ -71,6 +72,7 @@ namespace slskd.Network
             }
 
             StartCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            LoggedIn = new TaskCompletionSource();
             StartRequested = true;
 
             Log.Information("Attempting to connect to the network controller {Address}", OptionsMonitor.CurrentValue.Network.Controller.Address);
@@ -84,7 +86,24 @@ namespace slskd.Network
                 maxDelayInMilliseconds: 30000,
                 StartCancellationTokenSource.Token);
 
-            Log.Information("Network controller connection established");
+            Log.Information("Network controller connection established. Awaiting authentication...");
+
+            await LoggedIn.Task;
+
+            Log.Information("Authenticated. Uploading shares...");
+
+            try
+            {
+                await UploadSharesAsync();
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"Failed to upload shares to the network controller: {ex.Message}");
+                Log.Error("Disconnecting");
+                await StopAsync();
+            }
+
+            Log.Information("Shares uploaded. Ready to upload files.");
         }
 
         public async Task StopAsync(CancellationToken cancellationToken = default)
@@ -97,6 +116,37 @@ namespace slskd.Network
 
                 Log.Information("Network controller connection disconnected");
             }
+        }
+
+        public async Task UploadSharesAsync()
+        {
+            Log.Debug("Requesting share upload token...");
+            var token = await HubConnection.InvokeAsync<Guid>(nameof(NetworkHub.GetShareUploadToken));
+            Log.Debug("Share upload token {Token}", token);
+
+            var temp = Path.Combine(Path.GetTempPath(), $"slskd_share_backup_{Path.GetRandomFileName()}.db");
+
+            // todo: back up shares database to temp location
+            // todo: upload shares database backup to controller
+
+            using var stream = new FileStream(temp, FileMode.Open, FileAccess.Read);
+            using var request = new HttpRequestMessage(HttpMethod.Post, $"api/v0/agents/shares/{token}");
+            using var content = new MultipartFormDataContent
+            {
+                { new StreamContent(stream), "shares" },
+            };
+
+            request.Content = content;
+
+            Log.Information("Beginning upload of shares");
+            var response = await HttpClient.SendAsync(request);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new NetworkException($"Failed to upload shares to network controller: {response.StatusCode}");
+            }
+
+            Log.Information("Upload shares succeeded");
         }
 
         private async Task HandleFileRequest(Guid id, string filename)
@@ -160,7 +210,7 @@ namespace slskd.Network
                 var response = Aes.Encrypt(tokenBytes, key).ToBase62();
 
                 Log.Debug("Logging in...");
-                var success = await HubConnection.InvokeAsync<bool>("Login", agent, response);
+                var success = await HubConnection.InvokeAsync<bool>(nameof(NetworkHub.Login), agent, response);
 
                 if (!success)
                 {
@@ -168,7 +218,8 @@ namespace slskd.Network
                     Log.Error("Network controller authentication failed. Check configuration.");
                 }
 
-                Log.Information("Network controller authentication succeeded.");
+                Log.Debug("Login succeeded.");
+                LoggedIn?.TrySetResult();
             }
             catch (Exception ex)
             {
