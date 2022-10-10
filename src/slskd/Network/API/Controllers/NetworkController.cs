@@ -18,6 +18,7 @@
 namespace slskd.Network
 {
     using System;
+    using System.IO;
     using System.Linq;
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.Authorization;
@@ -96,7 +97,7 @@ namespace slskd.Network
 
         [HttpPost("shares/{id}")]
         [Authorize]
-        public IActionResult UploadShares(string id)
+        public async Task<IActionResult> UploadShares(string id)
         {
             if (!Guid.TryParse(id, out var guid))
             {
@@ -108,11 +109,19 @@ namespace slskd.Network
                 return Unauthorized();
             }
 
-            // todo: save the uploaded file to a temp location
-            // todo: open the uploaded file as a sqlite database
-            // todo: load the contents of the file into the local share database
-            //       while modifying the records somehow to indicate which agent
-            //       is hosting it
+            var temp = Path.Combine(Path.GetTempPath(), $"slskd_share_{agent}_{Path.GetRandomFileName()}.db");
+
+            Log.Debug("Uploading share from {Agent} to {Filename}", agent, temp);
+
+            using var outputStream = new FileStream(temp, FileMode.CreateNew, FileAccess.Write);
+            using var inputStream = Request.Form.Files.First().OpenReadStream();
+
+            await inputStream.CopyToAsync(outputStream);
+
+            Log.Debug("Upload of share from {Agent} to {Filename} complete", agent, temp);
+
+            // todo: validate database
+            // todo: add contents of db to local db
 
             return Ok();
         }
