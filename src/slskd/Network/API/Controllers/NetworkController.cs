@@ -40,10 +40,6 @@ namespace slskd.Network
         private INetworkService Network { get; }
         private ILogger Log { get; } = Serilog.Log.ForContext<NetworkService>();
 
-        /// <summary>
-        ///     Gets the current state of the application.
-        /// </summary>
-        /// <returns></returns>
         [HttpPost("files/{id}")]
         [Authorize]
         public async Task<IActionResult> UploadFile(string id)
@@ -78,6 +74,24 @@ namespace slskd.Network
                 Log.Warning("Agent");
                 return NotFound();
             }
+        }
+
+        [HttpDelete("files/{id}")]
+        [Authorize]
+        public IActionResult NotifyUploadFailed(string id)
+        {
+            if (!Guid.TryParse(id, out var guid))
+            {
+                return BadRequest("Id is not a valid Guid");
+            }
+
+            if (Network.PendingUploads.TryGetValue(guid, out var record))
+            {
+                record.Upload.SetException(new NotFoundException($"The file could not be uploaded from the remote agent"));
+                return NoContent();
+            }
+
+            return NotFound();
         }
     }
 }
