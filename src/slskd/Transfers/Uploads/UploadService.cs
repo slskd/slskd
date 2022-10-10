@@ -229,7 +229,7 @@ namespace slskd.Transfers.Uploads
 
                     //using var stream = new FileStream(fileInfo.FullName, FileMode.Open, FileAccess.Read);
 
-                    var (stream, completion) = await Network.GetUpload("any", filename);
+                    var (stream, completion) = await Network.GetFileUpload("any", filename);
 
                     var completedTransfer = await Client.UploadAsync(
                         username,
