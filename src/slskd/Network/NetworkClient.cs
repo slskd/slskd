@@ -25,6 +25,7 @@ namespace slskd.Network
     using System.Threading;
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.SignalR.Client;
+    using Microsoft.Data.Sqlite;
     using Serilog;
     using slskd.Cryptography;
     using slskd.Shares;
@@ -98,9 +99,10 @@ namespace slskd.Network
             }
             catch (Exception ex)
             {
-                Log.Error($"Failed to upload shares to the network controller: {ex.Message}");
-                Log.Error("Disconnecting");
+                Log.Error(ex, ex.Message);
+                Log.Error("Disconnecting from the network controller");
                 await StopAsync();
+                throw;
             }
 
             Log.Information("Shares uploaded. Ready to upload files.");
@@ -120,16 +122,34 @@ namespace slskd.Network
 
         public async Task UploadSharesAsync()
         {
+            var temp = Path.Combine(Path.GetTempPath(), Program.AppName, $"share_backup_{Path.GetRandomFileName()}.db");
+
+            Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), Program.AppName));
+
+            Log.Debug("Backing up shares to {Filename}", temp);
+            Shares.BackupTo($"Data Source={temp};Pooling=False;"); // quite a leaky abstraction
+            Log.Debug("Share backup successful");
+
             Log.Debug("Requesting share upload token...");
             var token = await HubConnection.InvokeAsync<Guid>(nameof(NetworkHub.GetShareUploadToken));
             Log.Debug("Share upload token {Token}", token);
 
-            var temp = Path.Combine(Path.GetTempPath(), $"slskd_share_backup_{Path.GetRandomFileName()}.db");
+            FileStream stream = default;
 
-            // todo: back up shares database to temp location
-            // todo: upload shares database backup to controller
+            try
+            {
+                stream = new FileStream(temp, FileMode.Open, FileAccess.Read);
+            }
+            catch (Exception ex)
+            {
+                // this happens if SQLite hangs on to the connection for whatever reason, seemingly due to pooling
+                // Pooling=False should be included in the connection string and this shouldn't be an issue, but
+                // since i don't totally understand the behavior, i'll leave this for now.
+                Log.Debug(ex, "Failed open stream to backup.  Clearing SQLite pools and trying again.");
+                SqliteConnection.ClearAllPools();
+                stream = new FileStream(temp, FileMode.Open, FileAccess.Read);
+            }
 
-            using var stream = new FileStream(temp, FileMode.Open, FileAccess.Read);
             using var request = new HttpRequestMessage(HttpMethod.Post, $"api/v0/agents/shares/{token}");
             using var content = new MultipartFormDataContent
             {
@@ -191,7 +211,8 @@ namespace slskd.Network
                 Log.Error(ex, "Failed to handle file request: {Message}", ex.Message);
 
                 // report the failure to the controller. this avoids a failure due to timeout.
-                _ = HttpClient.SendAsync(new HttpRequestMessage(HttpMethod.Delete, $"api/v0/agents/files/{id}"));
+                using var request = new HttpRequestMessage(HttpMethod.Delete, $"api/v0/agents/files/{id}");
+                _ = HttpClient.SendAsync(request);
             }
         }
 
