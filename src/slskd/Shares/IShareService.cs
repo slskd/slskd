@@ -15,8 +15,6 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-using System.IO;
-
 namespace slskd.Shares
 {
     using System.Collections.Generic;
@@ -37,6 +35,12 @@ namespace slskd.Shares
         ///     Gets the state monitor for the service.
         /// </summary>
         public IStateMonitor<ShareState> StateMonitor { get; }
+
+        /// <summary>
+        ///     Backs contents of the cache up to the specified file.
+        /// </summary>
+        /// <param name="connectionString">The destination connection string.</param>
+        void BackupTo(string connectionString);
 
         /// <summary>
         ///     Returns the entire contents of the share.

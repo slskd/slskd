@@ -99,6 +99,15 @@ namespace slskd.Shares
         private ILogger Log { get; } = Serilog.Log.ForContext<ShareService>();
 
         /// <summary>
+        ///     Backs contents of the cache up to the specified file.
+        /// </summary>
+        /// <param name="connectionString">The destination connection string.</param>
+        public void BackupTo(string connectionString)
+        {
+            Repository.BackupTo(connectionString);
+        }
+
+        /// <summary>
         ///     Returns the entire contents of the share.
         /// </summary>
         /// <returns>The entire contents of the share.</returns>
