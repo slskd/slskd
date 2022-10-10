@@ -60,7 +60,12 @@ namespace slskd.Shares
         /// <exception cref="NotFoundException">
         ///     Thrown when the specified remote filename can not be associated with a configured share.
         /// </exception>
-        Task<FileInfo> ResolveFileAsync(string remoteFilename);
+        Task<string> ResolveFileAsync(string remoteFilename);
+
+        /// <summary>
+        ///     Requests that a share scan is performed.
+        /// </summary>
+        void RequestScan();
 
         /// <summary>
         ///     Searches the cache for the specified <paramref name="query"/> and returns the matching files.
