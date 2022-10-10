@@ -87,5 +87,16 @@ namespace slskd.Network
             Network.TryRemoveAgentRegistration(Context.ConnectionId, out var _); // just in case!
             return false;
         }
+
+        public Guid GetShareUploadToken()
+        {
+            if (Network.TryGetAgentRegistration(Context.ConnectionId, out var agent))
+            {
+                return Network.GetShareUploadToken(agent);
+            }
+
+            // this can happen if the agent attempts to upload before logging in
+            throw new UnauthorizedAccessException();
+        }
     }
 }
