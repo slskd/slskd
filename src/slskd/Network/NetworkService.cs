@@ -23,11 +23,8 @@ namespace slskd.Network
     using System.Collections.Concurrent;
     using System.Collections.ObjectModel;
     using System.IO;
-    using System.Net.Http;
-    using System.Threading;
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.SignalR;
-    using Microsoft.AspNetCore.SignalR.Client;
     using Microsoft.Extensions.Caching.Memory;
     using Serilog;
     using slskd.Cryptography;
@@ -35,9 +32,9 @@ namespace slskd.Network
     public interface INetworkService
     {
         /// <summary>
-        ///     Gets the collection of pending Agent uploads.
+        ///     Gets the collection of pending Agent file uploads.
         /// </summary>
-        ReadOnlyDictionary<Guid, (TaskCompletionSource<Stream> Upload, TaskCompletionSource Completion)> PendingUploads { get; }
+        ReadOnlyDictionary<Guid, (TaskCompletionSource<Stream> Stream, TaskCompletionSource Completion)> PendingFileUploads { get; }
 
         /// <summary>
         ///     Gets the collection of registered Agents.
@@ -51,7 +48,25 @@ namespace slskd.Network
         /// <param name="filename">The file to retrieve.</param>
         /// <param name="timeout">An optional timeout value.</param>
         /// <returns>The operation context, including a stream containing the requested file, and an upload TaskCompletionSource.</returns>
-        Task<(Stream Stream, TaskCompletionSource Completion)> GetUpload(string agent, string filename, int timeout = 3000);
+        Task<(Stream Stream, TaskCompletionSource Completion)> GetFileUpload(string agent, string filename, int timeout = 3000);
+
+        /// <summary>
+        ///     Retrieves a new share upload token for the specified <paramref name="agent"/>.
+        /// </summary>
+        /// <remarks>
+        ///     The token is cached internally, and is only valid while it remains in the cache.
+        /// </remarks>
+        /// <param name="agent">The name of the agent.</param>
+        /// <returns>The generated token.</returns>
+        Guid GetShareUploadToken(string agent);
+
+        /// <summary>
+        ///     Attempts to retrieve the specified share upload <paramref name="token"/>.
+        /// </summary>
+        /// <param name="token">The token.</param>
+        /// <param name="agent">The name of the agent attempting to use the token.</param>
+        /// <returns>A value indicating whether the specified token exists.</returns>
+        bool TryGetShareUploadToken(Guid token, out string agent);
 
         /// <summary>
         ///     Registers the specified <paramref name="agent"/> name with the specified <paramref name="connectionId"/>.
@@ -61,15 +76,27 @@ namespace slskd.Network
         void RegisterAgent(string connectionId, string agent);
 
         /// <summary>
+        ///     Attempts to retrieve the registration for the specified <paramref name="connectionId"/>.
+        /// </summary>
+        /// <param name="connectionId">The ID of the agent connection.</param>
+        /// <param name="agent">The agent, if registered.</param>
+        /// <returns>A value indicating whether the registration exists.</returns>
+        bool TryGetAgentRegistration(string connectionId, out string agent);
+
+        /// <summary>
         ///     Attempts to remove the registration for the specified <paramref name="connectionId"/>.
         /// </summary>
         /// <param name="connectionId">The ID of the connection.</param>
+        /// <param name="agent">The agent, if removed.</param>
         /// <returns>A value indicating whether a registration was removed.</returns>
         bool TryRemoveAgentRegistration(string connectionId, out string agent);
 
         /// <summary>
         ///     Generates a random authentication challenge token for the specified <paramref name="connectionId"/>.
         /// </summary>
+        /// <remarks>
+        ///     The token is cached internally, and is only valid while it remains in the cache.
+        /// </remarks>
         /// <param name="connectionId">The ID of the agent connection.</param>
         /// <returns>The generated token.</returns>
         string GenerateAuthenticationChallengeToken(string connectionId);
@@ -88,11 +115,9 @@ namespace slskd.Network
     {
         public NetworkService(
             IOptionsMonitor<Options> optionsMonitor,
-            IHttpClientFactory httpClientFactory,
             IHubContext<NetworkHub> networkHub)
         {
             NetworkHub = networkHub;
-            HttpClientFactory = httpClientFactory;
 
             OptionsMonitor = optionsMonitor;
         }
@@ -100,24 +125,54 @@ namespace slskd.Network
         /// <summary>
         ///     Gets the collection of pending Agent uploads.
         /// </summary>
-        public ReadOnlyDictionary<Guid, (TaskCompletionSource<Stream> Upload, TaskCompletionSource Completion)> PendingUploads => new(PendingUploadDictionary);
+        public ReadOnlyDictionary<Guid, (TaskCompletionSource<Stream> Stream, TaskCompletionSource Completion)> PendingFileUploads => new(PendingFileUploadDictionary);
 
         /// <summary>
         ///     Gets the collection of registered Agents.
         /// </summary>
         public ReadOnlyDictionary<string, string> RegisteredAgents => new(RegisteredAgentDictionary);
 
-        private ConcurrentDictionary<Guid, (TaskCompletionSource<Stream> Upload, TaskCompletionSource Completion)> PendingUploadDictionary { get; } = new();
+        private ConcurrentDictionary<Guid, (TaskCompletionSource<Stream> Stream, TaskCompletionSource Completion)> PendingFileUploadDictionary { get; } = new();
         private ConcurrentDictionary<string, string> RegisteredAgentDictionary { get; } = new();
         private MemoryCache MemoryCache { get; } = new MemoryCache(new MemoryCacheOptions());
         private IOptionsMonitor<Options> OptionsMonitor { get; }
-        private IHttpClientFactory HttpClientFactory { get; }
-        private HttpClient HttpClient { get; set; }
-        private HubConnection HubConnection { get; set; }
         private IHubContext<NetworkHub> NetworkHub { get; set; }
-        private string LastOptionsHash { get; set; }
-        private SemaphoreSlim ConfigurationSyncRoot { get; } = new SemaphoreSlim(1, 1);
         private ILogger Log { get; } = Serilog.Log.ForContext<NetworkService>();
+
+        /// <summary>
+        ///     Retrieves a new share upload token for the specified <paramref name="agent"/>.
+        /// </summary>
+        /// <remarks>
+        ///     The token is cached internally, and is only valid while it remains in the cache.
+        /// </remarks>
+        /// <param name="agent">The name of the agent.</param>
+        /// <returns>The generated token.</returns>
+        public Guid GetShareUploadToken(string agent)
+        {
+            var token = Guid.NewGuid();
+            MemoryCache.Set(GetShareTokenCacheKey(token), agent, TimeSpan.FromMinutes(1));
+            Log.Debug("Cached share upload token {Token} for agent {Agent}", token, agent);
+
+            return token;
+        }
+
+        /// <summary>
+        ///     Attempts to retrieve the specified share upload <paramref name="token"/>.
+        /// </summary>
+        /// <param name="token">The token.</param>
+        /// <param name="agent">The name of the agent attempting to use the token.</param>
+        /// <returns>A value indicating whether the specified token exists.</returns>
+        public bool TryGetShareUploadToken(Guid token, out string agent)
+        {
+            agent = null;
+
+            if (MemoryCache.TryGetValue(GetShareTokenCacheKey(token), out agent))
+            {
+                return true;
+            }
+
+            return false;
+        }
 
         /// <summary>
         ///     Registers the specified <paramref name="agent"/> name with the specified <paramref name="connectionId"/>.
@@ -126,6 +181,15 @@ namespace slskd.Network
         /// <param name="agent">The name of the agent.</param>
         public void RegisterAgent(string connectionId, string agent)
             => RegisteredAgentDictionary.TryAdd(connectionId, agent);
+
+        /// <summary>
+        ///     Attempts to retrieve the registration for the specified <paramref name="connectionId"/>.
+        /// </summary>
+        /// <param name="connectionId">The ID of the agent connection.</param>
+        /// <param name="agent">The agent, if registered.</param>
+        /// <returns>A value indicating whether the registration exists.</returns>
+        public bool TryGetAgentRegistration(string connectionId, out string agent)
+            => RegisteredAgentDictionary.TryGetValue(connectionId, out agent);
 
         /// <summary>
         ///     Attempts to remove the registration for the specified <paramref name="connectionId"/>.
@@ -147,8 +211,8 @@ namespace slskd.Network
 
             // this token is only valid for this connection id for a short time
             // this is important to prevent replay-type attacks.
-            MemoryCache.Set(connectionId, token, TimeSpan.FromMinutes(1));
-            Log.Debug("Cached token {Token} for ID {Id}", token, connectionId);
+            MemoryCache.Set(GetAuthTokenCacheKey(connectionId), token, TimeSpan.FromMinutes(1));
+            Log.Debug("Cached auth token {Token} for ID {Id}", token, connectionId);
             return token;
         }
 
@@ -161,7 +225,7 @@ namespace slskd.Network
         /// <returns>A value indicating whether the response is valid.</returns>
         public bool TryValidateAuthenticationChallengeResponse(string connectionId, string agent, string challengeResponse)
         {
-            if (!MemoryCache.TryGetValue(connectionId, out var challengeToken))
+            if (!MemoryCache.TryGetValue(GetAuthTokenCacheKey(connectionId), out var challengeToken))
             {
                 Log.Debug("Auth challenge for {Id} failed: no challenge token cached for ID", connectionId);
                 return false;
@@ -187,7 +251,7 @@ namespace slskd.Network
         /// <param name="filename">The file to retrieve.</param>
         /// <param name="timeout">An optional timeout value.</param>
         /// <returns>The operation context, including a stream containing the requested file, and an upload TaskCompletionSource.</returns>
-        public async Task<(Stream Stream, TaskCompletionSource Completion)> GetUpload(string agent, string filename, int timeout = 3000)
+        public async Task<(Stream Stream, TaskCompletionSource Completion)> GetFileUpload(string agent, string filename, int timeout = 3000)
         {
             var id = Guid.NewGuid();
 
@@ -201,7 +265,7 @@ namespace slskd.Network
             // keep the stream open for the duration
             var completion = new TaskCompletionSource();
 
-            PendingUploadDictionary.TryAdd(id, (upload, completion));
+            PendingFileUploadDictionary.TryAdd(id, (upload, completion));
 
             await NetworkHub.RequestFileAsync(agent, filename, id);
             Log.Information("Requested file {Filename} from Agent {Agent} with ID {Id}. Waiting for incoming connection.", filename, agent, id);
@@ -218,5 +282,8 @@ namespace slskd.Network
                 throw new TimeoutException($"Timed out attempting to retrieve the file {filename} from agent {agent}");
             }
         }
+
+        private string GetAuthTokenCacheKey(string connectionId) => $"{connectionId}.auth";
+        private string GetShareTokenCacheKey(Guid token) => $"{token}.share";
     }
 }
