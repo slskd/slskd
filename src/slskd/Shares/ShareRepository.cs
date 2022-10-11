@@ -26,15 +26,14 @@ namespace slskd.Shares
     using Soulseek;
 
     /// <summary>
-    ///     Persistent storage of shared files and metadata.
+    ///     Read-only persistent storage of shared files and metadata.
     /// </summary>
-    public interface IShareRepository
+    public interface IReadOnlyShareRepository
     {
         /// <summary>
-        ///     Backs the current database up to the database at the specified <paramref name="connectionString"/>.
+        ///     Gets the connection string for this repository.
         /// </summary>
-        /// <param name="connectionString">The connection string of the destination database.</param>
-        void BackupTo(string connectionString);
+        string ConnectionString { get; }
 
         /// <summary>
         ///     Counts the number of directories in the database.
@@ -51,6 +50,41 @@ namespace slskd.Shares
         int CountFiles(string parentDirectory = null);
 
         /// <summary>
+        ///     Finds the filename of the file matching the specified <paramref name="maskedFilename"/>.
+        /// </summary>
+        /// <param name="maskedFilename">The fully qualified remote path of the file.</param>
+        /// <returns>The filename, if found.</returns>
+        string FindFilename(string maskedFilename);
+
+        /// <summary>
+        ///     Lists all directories.
+        /// </summary>
+        /// <param name="parentDirectory">The optional directory prefix used for listing subdirectories.</param>
+        /// <returns>The list of directories.</returns>
+        IEnumerable<string> ListDirectories(string parentDirectory = null);
+
+        /// <summary>
+        ///     Lists all files.
+        /// </summary>
+        /// <param name="parentDirectory">The optional parent directory.</param>
+        /// <param name="includeFullPath">A value indicating whether the fully qualified path should be returned.</param>
+        /// <returns>The list of files.</returns>
+        IEnumerable<Soulseek.File> ListFiles(string parentDirectory = null, bool includeFullPath = false);
+
+        /// <summary>
+        ///     Searches the database for files matching the specified <paramref name="query"/>.
+        /// </summary>
+        /// <param name="query">The search query.</param>
+        /// <returns>The list of matching files.</returns>
+        IEnumerable<Soulseek.File> Search(SearchQuery query);
+    }
+
+    /// <summary>
+    ///     Writeable persistent storage of shared files and metadata.
+    /// </summary>
+    public interface IShareRepository : IReadOnlyShareRepository
+    {
+        /// <summary>
         ///     Creates a new database.
         /// </summary>
         /// <remarks>
@@ -59,13 +93,6 @@ namespace slskd.Shares
         /// </remarks>
         /// <param name="discardExisting">An optional value that determines whether the existing database should be discarded.</param>
         void Create(bool discardExisting = false);
-
-        /// <summary>
-        ///     Finds the filename of the file matching the specified <paramref name="maskedFilename"/>.
-        /// </summary>
-        /// <param name="maskedFilename">The fully qualified remote path of the file.</param>
-        /// <returns>The filename, if found.</returns>
-        string FindFilename(string maskedFilename);
 
         /// <summary>
         ///     Inserts a directory.
@@ -92,19 +119,16 @@ namespace slskd.Shares
         void InsertScan(long timestamp, Options.SharesOptions options);
 
         /// <summary>
-        ///     Lists all directories.
+        ///     Backs the current database up to the database at the specified <paramref name="connectionString"/>.
         /// </summary>
-        /// <param name="parentDirectory">The optional directory prefix used for listing subdirectories.</param>
-        /// <returns>The list of directories.</returns>
-        IEnumerable<string> ListDirectories(string parentDirectory = null);
+        /// <param name="connectionString">The connection string of the destination database.</param>
+        void BackupTo(string connectionString);
 
         /// <summary>
-        ///     Lists all files.
+        ///     Restores the current database from the database at the specified <paramref name="connectionString"/>.
         /// </summary>
-        /// <param name="parentDirectory">The optional parent directory.</param>
-        /// <param name="includeFullPath">A value indicating whether the fully qualified path should be returned.</param>
-        /// <returns>The list of files.</returns>
-        IEnumerable<Soulseek.File> ListFiles(string parentDirectory = null, bool includeFullPath = false);
+        /// <param name="connectionString">The connection string of the source database.</param>
+        void RestoreFrom(string connectionString);
 
         /// <summary>
         ///     Deletes directory records with a timestamp prior to the specified <paramref name="olderThanTimestamp"/>.
@@ -119,19 +143,6 @@ namespace slskd.Shares
         /// <param name="olderThanTimestamp">The timestamp before which to delete files.</param>
         /// <returns>The number of records deleted.</returns>
         long PruneFiles(long olderThanTimestamp);
-
-        /// <summary>
-        ///     Restores the current database from the database at the specified <paramref name="connectionString"/>.
-        /// </summary>
-        /// <param name="connectionString">The connection string of the source database.</param>
-        void RestoreFrom(string connectionString);
-
-        /// <summary>
-        ///     Searches the database for files matching the specified <paramref name="query"/>.
-        /// </summary>
-        /// <param name="query">The search query.</param>
-        /// <returns>The list of matching files.</returns>
-        IEnumerable<Soulseek.File> Search(SearchQuery query);
 
         /// <summary>
         ///     Updates the scan started at the specified <paramref name="timestamp"/> to set the <paramref name="end"/>.
@@ -155,7 +166,11 @@ namespace slskd.Shares
             ConnectionString = connectionString;
         }
 
-        private string ConnectionString { get; }
+        /// <summary>
+        ///     Gets the connection string for this repository.
+        /// </summary>
+        public string ConnectionString { get; }
+
         private ILogger Log { get; } = Serilog.Log.ForContext<ShareRepository>();
 
         /// <summary>
