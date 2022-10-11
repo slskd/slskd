@@ -57,7 +57,7 @@ namespace slskd.Transfers.API
         /// <response code="204">The download was cancelled successfully.</response>
         /// <response code="404">The specified download was not found.</response>
         [HttpDelete("downloads/{username}/{id}")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(204)]
         [ProducesResponseType(404)]
         public async Task<IActionResult> CancelDownloadAsync([FromRoute, Required] string username, [FromRoute, Required]string id, [FromQuery]bool remove = false)
@@ -94,7 +94,7 @@ namespace slskd.Transfers.API
         /// <response code="204">The upload was cancelled successfully.</response>
         /// <response code="404">The specified upload was not found.</response>
         [HttpDelete("uploads/{username}/{id}")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(204)]
         [ProducesResponseType(404)]
         public async Task<IActionResult> CancelUpload([FromRoute, Required] string username, [FromRoute, Required]string id, [FromQuery]bool remove = false)
@@ -131,7 +131,7 @@ namespace slskd.Transfers.API
         /// <response code="403">The download was rejected.</response>
         /// <response code="500">An unexpected error was encountered.</response>
         [HttpPost("downloads/{username}")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(201)]
         [ProducesResponseType(typeof(string), 403)]
         [ProducesResponseType(typeof(string), 500)]
@@ -154,7 +154,7 @@ namespace slskd.Transfers.API
         /// <returns></returns>
         /// <response code="200">The request completed successfully.</response>
         [HttpGet("downloads")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(200)]
         public async Task<IActionResult> GetDownloadsAsync([FromQuery]bool includeRemoved = false)
         {
@@ -181,7 +181,7 @@ namespace slskd.Transfers.API
         /// <returns></returns>
         /// <response code="200">The request completed successfully.</response>
         [HttpGet("downloads/{username}")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(200)]
         public async Task<IActionResult> GetDownloadsAsync([FromRoute, Required] string username)
         {
@@ -207,7 +207,7 @@ namespace slskd.Transfers.API
         }
 
         [HttpGet("downloads/{username}/{id}")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(typeof(API.Transfer), 200)]
         [ProducesResponseType(404)]
         public async Task<IActionResult> GetDownload([FromRoute, Required] string username, [FromRoute, Required] string id)
@@ -237,7 +237,7 @@ namespace slskd.Transfers.API
         /// <response code="200">The request completed successfully.</response>
         /// <response code="404">The specified download was not found.</response>
         [HttpGet("downloads/{username}/{id}/position")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(typeof(API.Transfer), 200)]
         [ProducesResponseType(404)]
         public async Task<IActionResult> GetPlaceInQueueAsync([FromRoute, Required] string username, [FromRoute, Required] string id)
@@ -268,7 +268,7 @@ namespace slskd.Transfers.API
         /// <returns></returns>
         /// <response code="200">The request completed successfully.</response>
         [HttpGet("uploads")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(200)]
         public async Task<IActionResult> GetUploads([FromQuery] bool includeRemoved = false)
         {
@@ -295,7 +295,7 @@ namespace slskd.Transfers.API
         /// <returns></returns>
         /// <response code="200">The request completed successfully.</response>
         [HttpGet("uploads/{username}")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(200)]
         public async Task<IActionResult> GetUploads([FromRoute, Required] string username)
         {
@@ -328,7 +328,7 @@ namespace slskd.Transfers.API
         /// <returns></returns>
         /// <response code="200">The request completed successfully.</response>
         [HttpGet("uploads/{username}/{id}")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(200)]
         public async Task<IActionResult> GetUploads([FromRoute, Required] string username, [FromRoute, Required] string id)
         {

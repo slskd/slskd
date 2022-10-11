@@ -61,7 +61,7 @@ namespace slskd.Core.API
         /// <response code="403">The authentication is is invalid.</response>
         [HttpGet]
         [Route("")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(200)]
         [ProducesResponseType(401)]
         public IActionResult Check()

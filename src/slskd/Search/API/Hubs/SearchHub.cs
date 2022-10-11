@@ -73,7 +73,7 @@ namespace slskd.Search.API
     /// <summary>
     ///     The search SignalR hub.
     /// </summary>
-    [Authorize]
+    [Authorize(Policy = AuthPolicy.Any)]
     public class SearchHub : Hub
     {
         public SearchHub(

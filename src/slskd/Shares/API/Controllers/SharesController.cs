@@ -32,7 +32,6 @@ namespace slskd.Shares.API
     [Produces("application/json")]
     [Consumes("application/json")]
     [Route("api/v{version:apiVersion}/[controller]")]
-    [Authorize]
     public class SharesController : ControllerBase
     {
         /// <summary>
@@ -53,7 +52,7 @@ namespace slskd.Shares.API
         /// <response code="200">The request completed successfully.</response>
         /// <returns></returns>
         [HttpGet("")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(typeof(IEnumerable<SummarizedShare>), 200)]
         public async Task<IActionResult> List()
         {
@@ -87,7 +86,7 @@ namespace slskd.Shares.API
         /// <response code="404">The requested share could not be found.</response>
         /// <returns></returns>
         [HttpGet("{id}")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(typeof(SummarizedShare), 200)]
         [ProducesResponseType(404)]
         public async Task<IActionResult> Get(string id)
@@ -122,7 +121,7 @@ namespace slskd.Shares.API
         /// <returns></returns>
         /// <response code="200">The request completed successfully.</response>
         [HttpGet("contents")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(typeof(IEnumerable<Directory>), 200)]
         public async Task<IActionResult> BrowseAll()
         {
@@ -137,6 +136,7 @@ namespace slskd.Shares.API
         /// <response code="200">The request completed successfully.</response>
         /// <response code="404">The requested share could not be found.</response>
         [HttpGet("{id}/contents")]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(typeof(IEnumerable<Directory>), 200)]
         [ProducesResponseType(404)]
         public async Task<IActionResult> BrowseShare(string id)
@@ -161,7 +161,7 @@ namespace slskd.Shares.API
         /// <response code="409">A share scan is already in progress.</response>
         [HttpPut]
         [Route("")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(204)]
         [ProducesResponseType(409)]
         public IActionResult RescanSharesAsync()
@@ -186,7 +186,7 @@ namespace slskd.Shares.API
         /// <response code="409">A share scan was not in progress.</response>
         [HttpDelete]
         [Route("")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(204)]
         [ProducesResponseType(404)]
         public IActionResult CancelShareScan()

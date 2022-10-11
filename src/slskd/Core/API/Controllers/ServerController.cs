@@ -54,7 +54,7 @@ namespace slskd.Core.API
         /// <returns></returns>
         [HttpPut]
         [Route("")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(200)]
         [ProducesResponseType(403)]
         public async Task<IActionResult> Connect()
@@ -74,7 +74,7 @@ namespace slskd.Core.API
         /// <returns></returns>
         [HttpDelete]
         [Route("")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(204)]
         [ProducesResponseType(403)]
         public IActionResult Disconnect([FromBody] string message)
@@ -94,7 +94,7 @@ namespace slskd.Core.API
         /// <response code="200"></response>
         [HttpGet]
         [Route("")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(typeof(ServerState), 200)]
         [ProducesResponseType(403)]
         public IActionResult Get()

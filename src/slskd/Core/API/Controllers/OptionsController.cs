@@ -56,7 +56,7 @@ namespace slskd.Core.API
         /// </summary>
         /// <returns></returns>
         [HttpGet]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(typeof(Options), 200)]
         public IActionResult Current()
         {
@@ -69,7 +69,7 @@ namespace slskd.Core.API
         /// <returns></returns>
         [HttpGet]
         [Route("startup")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(typeof(Options), 200)]
         public IActionResult Startup()
         {
@@ -82,7 +82,7 @@ namespace slskd.Core.API
         /// <returns></returns>
         [HttpGet]
         [Route("debug")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.JwtOnly)]
         [ProducesResponseType(typeof(string), 200)]
         public IActionResult Debug()
         {
@@ -95,7 +95,7 @@ namespace slskd.Core.API
         }
 
         [HttpGet]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.JwtOnly)]
         [Route("yaml/location")]
         public IActionResult GetYamlFileLocation()
         {
@@ -103,7 +103,7 @@ namespace slskd.Core.API
         }
 
         [HttpGet]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.JwtOnly)]
         [Route("yaml")]
         public IActionResult GetYamlFile()
         {
@@ -117,7 +117,7 @@ namespace slskd.Core.API
         }
 
         [HttpPost]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.JwtOnly)]
         [Route("yaml")]
         public IActionResult UpdateYamlFile([FromBody] string yaml)
         {
@@ -144,7 +144,7 @@ namespace slskd.Core.API
         }
 
         [HttpPost]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [Route("yaml/validate")]
         public IActionResult ValidateYamlFile([FromBody] string yaml)
         {

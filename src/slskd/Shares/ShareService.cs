@@ -94,7 +94,6 @@ namespace slskd.Shares
         private List<Share> SharesList { get; set; } = new List<Share>();
         private IManagedState<ShareState> State { get; } = new ManagedState<ShareState>();
         private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1, 1);
-        private List<Regex> FilterRegexes { get; set; } = new List<Regex>();
         private StorageMode CacheStorageMode { get; }
         private ILogger Log { get; } = Serilog.Log.ForContext<ShareService>();
 
@@ -226,7 +225,7 @@ namespace slskd.Shares
         /// <exception cref="ShareScanInProgressException">Thrown when a scan is already in progress.</exception>
         public Task ScanAsync()
         {
-            return Scanner.ScanAsync(Shares, FilterRegexes);
+            return Scanner.ScanAsync(Shares, OptionsMonitor.CurrentValue.Shares);
         }
 
         /// <summary>
@@ -259,6 +258,8 @@ namespace slskd.Shares
         /// <returns>The operation context.</returns>
         public async Task InitializeAsync(bool forceRescan = false)
         {
+            Log.Information("Initializing shares");
+
             try
             {
                 if (forceRescan)
@@ -266,31 +267,54 @@ namespace slskd.Shares
                     Log.Warning("Performing a forced re-scan of shares");
                     await ScanAsync();
                 }
-                else if (CacheStorageMode == StorageMode.Memory || (CacheStorageMode == StorageMode.Disk && !ShareRepository.TryValidateDatabase(Program.ConnectionStrings.Shares)))
+                else if (CacheStorageMode == StorageMode.Memory)
                 {
-                    Log.Debug($"Share cache {(CacheStorageMode == StorageMode.Memory ? "StorageMode is 'Memory'" : "database is missing from disk")}. Attempting to load from backup...");
+                    Log.Information("Share cache StorageMode is 'Memory'. Attempting to load from backup...");
 
-                    // the backup is missing; we can't do anything but recreate it from scratch
-                    if (!ShareRepository.TryValidateDatabase(Program.ConnectionStrings.SharesBackup))
+                    if (ShareRepository.TryValidateDatabase(Program.ConnectionStrings.SharesBackup))
                     {
-                        Log.Warning("Share cache couldn't be loaded from backup");
-                        await InitializeAsync(forceRescan: true);
-                    }
-                    else
-                    {
-                        Log.Debug("Share cache backup located. Attempting to restore...");
+                        Log.Information("Share cache backup validated. Attempting to restore...");
 
                         Repository.RestoreFrom(connectionString: Program.ConnectionStrings.SharesBackup);
 
                         Log.Information("Share cache successfully restored from backup");
                     }
+                    else
+                    {
+                        Log.Warning("Share cache backup is missing, corrupt, or is out of date");
+                        throw new ShareInitializationException("Share cache backup is missing, corrupt, or is out of date");
+                    }
                 }
-                else
+                else if (CacheStorageMode == StorageMode.Disk)
                 {
-                    // the cache mode is disk and the existing db is valid. nothing to do.
+                    Log.Information("Share cache StorageMode is 'Disk'. Attempting to validate...");
+
+                    if (ShareRepository.TryValidateDatabase(Program.ConnectionStrings.Shares))
+                    {
+                        // no-op
+                    }
+                    else
+                    {
+                        Log.Warning("Share cache is missing, corrupt, or is out of date. Attempting to load from backup...");
+
+                        if (ShareRepository.TryValidateDatabase(Program.ConnectionStrings.SharesBackup))
+                        {
+                            Log.Information("Share cache backup validated. Attempting to restore...");
+
+                            Repository.RestoreFrom(connectionString: Program.ConnectionStrings.SharesBackup);
+
+                            Log.Information("Share cache successfully restored from backup");
+                        }
+                        else
+                        {
+                            Log.Warning("Share cache and backup are both missing, corrupt, or is out of date");
+                            throw new ShareInitializationException("Share cache and backup are both missing, corrupt, or is out of date");
+                        }
+                    }
                 }
 
                 // one of several thigns happened above before we got here:
+                //   this method was called with forceRescan = true
                 //   the storage mode is memory, and we loaded the in-memory db from a valid backup
                 //   the storage mode is disk, and the file is there and valid
                 //   the storage mode is disk but either missing or invalid, and we restored from a valid backup
@@ -343,13 +367,8 @@ namespace slskd.Shares
                     .OrderByDescending(share => share.LocalPath.Length) // process subdirectories first.  this allows them to be aliased separately from their parent
                     .ToList();
 
-                var regexes = options.Shares.Filters
-                    .Select(filter => new Regex(filter, RegexOptions.Compiled))
-                    .ToList();
-
                 SharesList = shares;
-                FilterRegexes = regexes;
-
+                
                 State.SetValue(state => state with { ScanPending = true });
 
                 LastOptionsHash = optionsHash;

@@ -45,7 +45,7 @@ namespace slskd.Messaging.API
         /// </summary>
         /// <returns></returns>
         [HttpPost]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         public async Task<IActionResult> Start()
         {
             await Client.StartPublicChatAsync();
@@ -57,7 +57,7 @@ namespace slskd.Messaging.API
         /// </summary>
         /// <returns></returns>
         [HttpDelete]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         public async Task<IActionResult> Stop()
         {
             await Client.StopPublicChatAsync();
