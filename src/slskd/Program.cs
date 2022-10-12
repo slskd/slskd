@@ -32,8 +32,6 @@ namespace slskd
     using System.Text.Json.Serialization;
     using System.Threading;
     using System.Threading.Tasks;
-    using System.Threading;
-    using Microsoft.AspNetCore.Authentication;
     using Microsoft.AspNetCore.Authentication.JwtBearer;
     using Microsoft.AspNetCore.Builder;
     using Microsoft.AspNetCore.DataProtection;
@@ -262,29 +260,36 @@ namespace slskd
 
                 return;
             }
+
             var reqInitialOwnership = false;
-            using(var mutex = new Mutex(reqInitialOwnership, AppName))
+
+            using (var mutex = new Mutex(reqInitialOwnership, AppName))
             {
                 var hasHandle = false;
-                try{
-                    try{
-                            if(!mutex.WaitOne(0, false)){
-                                Console.WriteLine("Another instance of this program is running");
-                        Environment.Exit(0);
-                            }
+                try
+                {
+                    try
+                    {
+                        if (!mutex.WaitOne(0, false))
+                        {
+                            Console.WriteLine("Another instance of this program is running");
+                            Environment.Exit(0);
+                        }
                      }
                     catch (AbandonedMutexException)
                     {
-                        hasHandle=true;
+                        hasHandle = true;
                     }
                 }
                 finally
                 {
-                    if(hasHandle)
+                    if (hasHandle)
+                    {
                         mutex.ReleaseMutex();
+                    }
                 }
-            }            
-            
+            }
+
             if (GenerateCertificate)
             {
                 GenerateX509Certificate(password: Cryptography.Random.GetBytes(16).ToBase62String(), filename: $"{AppName}.pfx");

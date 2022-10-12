@@ -206,6 +206,7 @@ namespace slskd.Transfers.Uploads
                         progressUpdated: (args) => rateLimiter.Invoke(() =>
                         {
                             transfer = transfer.WithSoulseekTransfer(args.Transfer);
+
                             // todo: broadcast
                             SynchronizedUpdate(transfer);
                         }),
@@ -227,7 +228,8 @@ namespace slskd.Transfers.Uploads
                     rateLimiter.Dispose();
 
                     transfer = transfer.WithSoulseekTransfer(completedTransfer);
-                    //todo: broadcast
+
+                    // todo: broadcast
                     SynchronizedUpdate(transfer, cancellable: false);
                 }
                 catch (OperationCanceledException ex)
