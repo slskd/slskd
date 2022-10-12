@@ -48,8 +48,6 @@ namespace slskd.Shares
             ConnectionStringFactory = shareConnectionStringFactory;
             CacheStorageMode = optionsMonitor.CurrentValue.Shares.Cache.StorageMode.ToEnum<StorageMode>();
 
-            Scanner = scanner ?? new ShareScanner(
-                workerCount: optionsMonitor.CurrentValue.Shares.Cache.Workers);
 
             Scanner.StateMonitor.OnChange(cacheState =>
             {
@@ -81,6 +79,10 @@ namespace slskd.Shares
             BackupConnectionString = ConnectionStringFactory.CreateBackupFromFile("shares");
 
             Repository = new SqliteShareRepository(ConnectionString);
+
+            Scanner = scanner ?? new ShareScanner(
+                shareRepository: Repository,
+                workerCount: optionsMonitor.CurrentValue.Shares.Cache.Workers);
 
             OptionsMonitor = optionsMonitor;
             OptionsMonitor.OnChange(options => Configure(options));
@@ -258,9 +260,13 @@ namespace slskd.Shares
         /// </summary>
         /// <returns>The operation context.</returns>
         /// <exception cref="ShareScanInProgressException">Thrown when a scan is already in progress.</exception>
-        public Task ScanAsync()
+        public async Task ScanAsync()
         {
-            return Scanner.ScanAsync(Shares, OptionsMonitor.CurrentValue.Shares);
+            await Scanner.ScanAsync(Shares, OptionsMonitor.CurrentValue.Shares);
+
+            Log.Debug("Backing up shared file cache database...");
+            Repository.BackupTo(BackupConnectionString);
+            Log.Debug("Shared file cache database backup complete");
         }
 
         /// <summary>
@@ -306,7 +312,7 @@ namespace slskd.Shares
                 {
                     Log.Information("Share cache StorageMode is 'Memory'. Attempting to load from backup...");
 
-                    if (SqliteShareRepository.TryValidateDatabase(BackupConnectionString))
+                    if (Repository.TryValidate(BackupConnectionString))
                     {
                         Log.Information("Share cache backup validated. Attempting to restore...");
 
@@ -324,7 +330,7 @@ namespace slskd.Shares
                 {
                     Log.Information("Share cache StorageMode is 'Disk'. Attempting to validate...");
 
-                    if (SqliteShareRepository.TryValidateDatabase(ConnectionString))
+                    if (Repository.TryValidate(ConnectionString))
                     {
                         // no-op
                     }
@@ -332,7 +338,7 @@ namespace slskd.Shares
                     {
                         Log.Warning("Share cache is missing, corrupt, or is out of date. Attempting to load from backup...");
 
-                        if (SqliteShareRepository.TryValidateDatabase(BackupConnectionString))
+                        if (Repository.TryValidate(BackupConnectionString))
                         {
                             Log.Information("Share cache backup validated. Attempting to restore...");
 

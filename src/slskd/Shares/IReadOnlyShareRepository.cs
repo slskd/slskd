@@ -72,5 +72,13 @@ namespace slskd.Shares
         /// <param name="query">The search query.</param>
         /// <returns>The list of matching files.</returns>
         IEnumerable<File> Search(SearchQuery query);
+
+        /// <summary>
+        ///     Attempts to validate the database at the specified <paramref name="connectionString"/>, or the
+        ///     default <see cref="ConnectionString"/>.
+        /// </summary>
+        /// <param name="connectionString">The connection string of the database to validate.</param>
+        /// <returns>A value indicating whether the database is valid.</returns>
+        bool TryValidate(string connectionString = null);
     }
 }

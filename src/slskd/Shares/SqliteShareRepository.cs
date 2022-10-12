@@ -47,19 +47,14 @@ namespace slskd.Shares
         private ILogger Log { get; } = Serilog.Log.ForContext<SqliteShareRepository>();
 
         /// <summary>
-        ///     Attempts to validate the database at the specified <paramref name="connectionString"/>.
+        ///     Attempts to validate the database at the specified <paramref name="connectionString"/>, or the
+        ///     default <see cref="ConnectionString"/>.
         /// </summary>
         /// <param name="connectionString">The connection string of the database to validate.</param>
         /// <returns>A value indicating whether the database is valid.</returns>
-        /// <exception cref="ArgumentNullException">Thrown if no connection string is provided.</exception>
-        public static bool TryValidateDatabase(string connectionString)
+        public bool TryValidate(string connectionString = null)
         {
-            if (connectionString == null)
-            {
-                throw new ArgumentNullException(nameof(connectionString), "A connection string is required");
-            }
-
-            var log = Serilog.Log.ForContext<SqliteShareRepository>();
+            connectionString ??= ConnectionString;
 
             // to update this schema map, run the following query against a valid, up-to-date database and paste the output below:
             // select '{ "' || name || '", "' || sql || '" },' from sqlite_master where type = 'table'
@@ -78,7 +73,7 @@ namespace slskd.Shares
 
             try
             {
-                log.Debug("Validating shares database with connection string {String}", connectionString);
+                Log.Debug("Validating shares database with connection string {String}", connectionString);
 
                 using var conn = new SqliteConnection(connectionString);
                 conn.Open();
@@ -101,7 +96,7 @@ namespace slskd.Shares
                         }
                         else
                         {
-                            log.Debug("Shares database table {Table} is valid: {Actual}", table, actualSql);
+                            Log.Debug("Shares database table {Table} is valid: {Actual}", table, actualSql);
                         }
                     }
 
@@ -117,7 +112,7 @@ namespace slskd.Shares
             }
             catch (Exception ex)
             {
-                log.Debug(ex, $"Failed to validate shares database with connection string {connectionString}: {ex.Message}");
+                Log.Debug(ex, $"Failed to validate shares database with connection string {connectionString}: {ex.Message}");
                 return false;
             }
         }
