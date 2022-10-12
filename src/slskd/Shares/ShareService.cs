@@ -48,6 +48,22 @@ namespace slskd.Shares
             ConnectionStringFactory = shareConnectionStringFactory;
             CacheStorageMode = optionsMonitor.CurrentValue.Shares.Cache.StorageMode.ToEnum<StorageMode>();
 
+            if (CacheStorageMode == StorageMode.Memory)
+            {
+                ConnectionString = ConnectionStringFactory.CreateFromMemory("shares");
+            }
+            else
+            {
+                ConnectionString = ConnectionStringFactory.CreateFromFile("shares");
+            }
+
+            BackupConnectionString = ConnectionStringFactory.CreateBackupFromFile("shares");
+
+            Repository = new SqliteShareRepository(ConnectionString);
+
+            Scanner = scanner ?? new ShareScanner(
+                shareRepository: Repository,
+                workerCount: optionsMonitor.CurrentValue.Shares.Cache.Workers);
 
             Scanner.StateMonitor.OnChange(cacheState =>
             {
@@ -66,23 +82,6 @@ namespace slskd.Shares
                     Files = current.Files,
                 });
             });
-
-            if (CacheStorageMode == StorageMode.Memory)
-            {
-                ConnectionString = ConnectionStringFactory.CreateFromMemory("shares");
-            }
-            else
-            {
-                ConnectionString = ConnectionStringFactory.CreateFromFile("shares");
-            }
-
-            BackupConnectionString = ConnectionStringFactory.CreateBackupFromFile("shares");
-
-            Repository = new SqliteShareRepository(ConnectionString);
-
-            Scanner = scanner ?? new ShareScanner(
-                shareRepository: Repository,
-                workerCount: optionsMonitor.CurrentValue.Shares.Cache.Workers);
 
             OptionsMonitor = optionsMonitor;
             OptionsMonitor.OnChange(options => Configure(options));
