@@ -66,7 +66,7 @@ namespace slskd.Shares
                 });
             });
 
-            Repository = new ShareRepository(connectionString: Program.ConnectionStrings.Shares);
+            Repository = new SqliteShareRepository(connectionString: Program.ConnectionStrings.Shares);
 
             OptionsMonitor = optionsMonitor;
             OptionsMonitor.OnChange(options => Configure(options));
@@ -110,8 +110,8 @@ namespace slskd.Shares
 
             AgentRepositories.AddOrUpdate(
                 key: agent,
-                addValue: new ShareRepository(BuildConnectionString(agent)),
-                updateValueFactory: (agent, repository) => new ShareRepository(BuildConnectionString(agent)));
+                addValue: new SqliteShareRepository(BuildConnectionString(agent)),
+                updateValueFactory: (_, repository) => new SqliteShareRepository(BuildConnectionString(agent)));
         }
 
         /// <summary>
@@ -289,7 +289,7 @@ namespace slskd.Shares
                 {
                     Log.Information("Share cache StorageMode is 'Memory'. Attempting to load from backup...");
 
-                    if (ShareRepository.TryValidateDatabase(Program.ConnectionStrings.SharesBackup))
+                    if (SqliteShareRepository.TryValidateDatabase(Program.ConnectionStrings.SharesBackup))
                     {
                         Log.Information("Share cache backup validated. Attempting to restore...");
 
@@ -307,7 +307,7 @@ namespace slskd.Shares
                 {
                     Log.Information("Share cache StorageMode is 'Disk'. Attempting to validate...");
 
-                    if (ShareRepository.TryValidateDatabase(Program.ConnectionStrings.Shares))
+                    if (SqliteShareRepository.TryValidateDatabase(Program.ConnectionStrings.Shares))
                     {
                         // no-op
                     }
@@ -315,7 +315,7 @@ namespace slskd.Shares
                     {
                         Log.Warning("Share cache is missing, corrupt, or is out of date. Attempting to load from backup...");
 
-                        if (ShareRepository.TryValidateDatabase(Program.ConnectionStrings.SharesBackup))
+                        if (SqliteShareRepository.TryValidateDatabase(Program.ConnectionStrings.SharesBackup))
                         {
                             Log.Information("Share cache backup validated. Attempting to restore...");
 

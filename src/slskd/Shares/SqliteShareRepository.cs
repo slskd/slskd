@@ -1,4 +1,4 @@
-﻿// <copyright file="ShareRepository.cs" company="slskd Team">
+﻿// <copyright file="SqliteShareRepository.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -26,142 +26,15 @@ namespace slskd.Shares
     using Soulseek;
 
     /// <summary>
-    ///     Read-only persistent storage of shared files and metadata.
-    /// </summary>
-    public interface IReadOnlyShareRepository
-    {
-        /// <summary>
-        ///     Gets the connection string for this repository.
-        /// </summary>
-        string ConnectionString { get; }
-
-        /// <summary>
-        ///     Counts the number of directories in the database.
-        /// </summary>
-        /// <param name="parentDirectory">The optional directory prefix used for counting subdirectories.</param>
-        /// <returns>The number of directories.</returns>
-        int CountDirectories(string parentDirectory = null);
-
-        /// <summary>
-        ///     Counts the number of files in the database.
-        /// </summary>
-        /// <param name="parentDirectory">The optional directory prefix used for counting files in a subdirectory.</param>
-        /// <returns>The number of files.</returns>
-        int CountFiles(string parentDirectory = null);
-
-        /// <summary>
-        ///     Finds the filename of the file matching the specified <paramref name="maskedFilename"/>.
-        /// </summary>
-        /// <param name="maskedFilename">The fully qualified remote path of the file.</param>
-        /// <returns>The filename, if found.</returns>
-        string FindFilename(string maskedFilename);
-
-        /// <summary>
-        ///     Lists all directories.
-        /// </summary>
-        /// <param name="parentDirectory">The optional directory prefix used for listing subdirectories.</param>
-        /// <returns>The list of directories.</returns>
-        IEnumerable<string> ListDirectories(string parentDirectory = null);
-
-        /// <summary>
-        ///     Lists all files.
-        /// </summary>
-        /// <param name="parentDirectory">The optional parent directory.</param>
-        /// <param name="includeFullPath">A value indicating whether the fully qualified path should be returned.</param>
-        /// <returns>The list of files.</returns>
-        IEnumerable<Soulseek.File> ListFiles(string parentDirectory = null, bool includeFullPath = false);
-
-        /// <summary>
-        ///     Searches the database for files matching the specified <paramref name="query"/>.
-        /// </summary>
-        /// <param name="query">The search query.</param>
-        /// <returns>The list of matching files.</returns>
-        IEnumerable<Soulseek.File> Search(SearchQuery query);
-    }
-
-    /// <summary>
-    ///     Writeable persistent storage of shared files and metadata.
-    /// </summary>
-    public interface IShareRepository : IReadOnlyShareRepository
-    {
-        /// <summary>
-        ///     Creates a new database.
-        /// </summary>
-        /// <remarks>
-        ///     Creates tables using 'IF NOT EXISTS', so this is idempotent unless 'discardExisting` is specified, in which case
-        ///     tables are explicitly dropped prior to creation.
-        /// </remarks>
-        /// <param name="discardExisting">An optional value that determines whether the existing database should be discarded.</param>
-        void Create(bool discardExisting = false);
-
-        /// <summary>
-        ///     Inserts a directory.
-        /// </summary>
-        /// <param name="name">The fully qualified local name of the directory.</param>
-        /// <param name="timestamp">The timestamp to assign to the record.</param>
-        void InsertDirectory(string name, long timestamp);
-
-        /// <summary>
-        ///     Inserts a file.
-        /// </summary>
-        /// <param name="maskedFilename">The fully qualified remote path of the file.</param>
-        /// <param name="originalFilename">The fully qualified local path of the file.</param>
-        /// <param name="touchedAt">The timestamp at which the file was last modified, according to the host OS.</param>
-        /// <param name="file">The Soulseek.File instance representing the file.</param>
-        /// <param name="timestamp">The timestamp to assign to the record.</param>
-        void InsertFile(string maskedFilename, string originalFilename, DateTime touchedAt, Soulseek.File file, long timestamp);
-
-        /// <summary>
-        ///     Inserts a scan record at the specified <paramref name="timestamp"/>.
-        /// </summary>
-        /// <param name="timestamp">The timestamp associated with the scan.</param>
-        /// <param name="options">The options snapshot at the start of the scan.</param>
-        void InsertScan(long timestamp, Options.SharesOptions options);
-
-        /// <summary>
-        ///     Backs the current database up to the database at the specified <paramref name="connectionString"/>.
-        /// </summary>
-        /// <param name="connectionString">The connection string of the destination database.</param>
-        void BackupTo(string connectionString);
-
-        /// <summary>
-        ///     Restores the current database from the database at the specified <paramref name="connectionString"/>.
-        /// </summary>
-        /// <param name="connectionString">The connection string of the source database.</param>
-        void RestoreFrom(string connectionString);
-
-        /// <summary>
-        ///     Deletes directory records with a timestamp prior to the specified <paramref name="olderThanTimestamp"/>.
-        /// </summary>
-        /// <param name="olderThanTimestamp">The timestamp before which to delete directories.</param>
-        /// <returns>The number of records deleted.</returns>
-        long PruneDirectories(long olderThanTimestamp);
-
-        /// <summary>
-        ///     Deletes file records with a timestamp prior to the specified <paramref name="olderThanTimestamp"/>.
-        /// </summary>
-        /// <param name="olderThanTimestamp">The timestamp before which to delete files.</param>
-        /// <returns>The number of records deleted.</returns>
-        long PruneFiles(long olderThanTimestamp);
-
-        /// <summary>
-        ///     Updates the scan started at the specified <paramref name="timestamp"/> to set the <paramref name="end"/>.
-        /// </summary>
-        /// <param name="timestamp">The timestamp associated with the scan.</param>
-        /// <param name="end">The timestamp at the conclusion of the scan.</param>
-        void UpdateScan(long timestamp, long end);
-    }
-
-    /// <summary>
     ///     Persistent storage of shared files and metadata.
     /// </summary>
-    public class ShareRepository : IShareRepository
+    public class SqliteShareRepository : IShareRepository
     {
         /// <summary>
-        ///     Initializes a new instance of the <see cref="ShareRepository"/> class.
+        ///     Initializes a new instance of the <see cref="SqliteShareRepository"/> class.
         /// </summary>
         /// <param name="connectionString"></param>
-        public ShareRepository(string connectionString)
+        public SqliteShareRepository(string connectionString)
         {
             ConnectionString = connectionString;
         }
@@ -171,7 +44,7 @@ namespace slskd.Shares
         /// </summary>
         public string ConnectionString { get; }
 
-        private ILogger Log { get; } = Serilog.Log.ForContext<ShareRepository>();
+        private ILogger Log { get; } = Serilog.Log.ForContext<SqliteShareRepository>();
 
         /// <summary>
         ///     Attempts to validate the database at the specified <paramref name="connectionString"/>.
@@ -186,7 +59,7 @@ namespace slskd.Shares
                 throw new ArgumentNullException(nameof(connectionString), "A connection string is required");
             }
 
-            var log = Serilog.Log.ForContext<ShareRepository>();
+            var log = Serilog.Log.ForContext<SqliteShareRepository>();
 
             // to update this schema map, run the following query against a valid, up-to-date database and paste the output below:
             // select '{ "' || name || '", "' || sql || '" },' from sqlite_master where type = 'table'
@@ -289,7 +162,7 @@ namespace slskd.Shares
             }
             finally
             {
-                cmd.Dispose();
+                cmd?.Dispose();
             }
         }
 
@@ -322,7 +195,7 @@ namespace slskd.Shares
             }
             finally
             {
-                cmd.Dispose();
+                cmd?.Dispose();
             }
         }
 
@@ -481,7 +354,7 @@ namespace slskd.Shares
             }
             finally
             {
-                cmd.Dispose();
+                cmd?.Dispose();
             }
         }
 
@@ -606,13 +479,12 @@ namespace slskd.Shares
                 "ORDER BY filenames.maskedFilename ASC;";
 
             var results = new List<Soulseek.File>();
-            SqliteDataReader reader = default;
 
             try
             {
                 using var conn = GetConnection();
                 using var cmd = new SqliteCommand(sql, conn);
-                reader = cmd.ExecuteReader();
+                using var reader = cmd.ExecuteReader();
 
                 while (reader.Read())
                 {
