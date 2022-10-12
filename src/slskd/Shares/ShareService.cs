@@ -365,6 +365,7 @@ namespace slskd.Shares
             }
         }
 
+        private string BuildConnectionString(string agent = null) => $"Data Source={agent}{(!string.IsNullOrEmpty(agent) ? "." : string.Empty)}shares.db";
         private void Configure(Options options)
         {
             SyncRoot.Wait();
