@@ -360,7 +360,7 @@ namespace slskd.Shares
                     .ToList();
 
                 SharesList = shares;
-                
+
                 State.SetValue(state => state with { ScanPending = true });
 
                 LastOptionsHash = optionsHash;
