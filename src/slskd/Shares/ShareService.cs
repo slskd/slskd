@@ -37,12 +37,15 @@ namespace slskd.Shares
         /// <summary>
         ///     Initializes a new instance of the <see cref="ShareService"/> class.
         /// </summary>
+        /// <param name="shareConnectionStringFactory"></param>
         /// <param name="optionsMonitor"></param>
         /// <param name="scanner"></param>
         public ShareService(
+            ShareConnectionStringFactory shareConnectionStringFactory,
             IOptionsMonitor<Options> optionsMonitor,
             IShareScanner scanner = null)
         {
+            ConnectionStringFactory = shareConnectionStringFactory;
             CacheStorageMode = optionsMonitor.CurrentValue.Shares.Cache.StorageMode.ToEnum<StorageMode>();
 
             Scanner = scanner ?? new ShareScanner(
@@ -66,7 +69,18 @@ namespace slskd.Shares
                 });
             });
 
-            Repository = new SqliteShareRepository(connectionString: Program.ConnectionStrings.Shares);
+            if (CacheStorageMode == StorageMode.Memory)
+            {
+                ConnectionString = ConnectionStringFactory.CreateFromMemory("shares");
+            }
+            else
+            {
+                ConnectionString = ConnectionStringFactory.CreateFromFile("shares");
+            }
+
+            BackupConnectionString = ConnectionStringFactory.CreateBackupFromFile("shares");
+
+            Repository = new SqliteShareRepository(ConnectionString);
 
             OptionsMonitor = optionsMonitor;
             OptionsMonitor.OnChange(options => Configure(options));
@@ -86,6 +100,9 @@ namespace slskd.Shares
         /// </summary>
         public IStateMonitor<ShareState> StateMonitor { get; }
 
+        private string ConnectionString { get; }
+        private string BackupConnectionString { get; }
+        private ShareConnectionStringFactory ConnectionStringFactory { get; }
         private IShareScanner Scanner { get; }
         private IShareRepository Repository { get; }
         private string LastOptionsHash { get; set; }
@@ -289,11 +306,11 @@ namespace slskd.Shares
                 {
                     Log.Information("Share cache StorageMode is 'Memory'. Attempting to load from backup...");
 
-                    if (SqliteShareRepository.TryValidateDatabase(Program.ConnectionStrings.SharesBackup))
+                    if (SqliteShareRepository.TryValidateDatabase(BackupConnectionString))
                     {
                         Log.Information("Share cache backup validated. Attempting to restore...");
 
-                        Repository.RestoreFrom(connectionString: Program.ConnectionStrings.SharesBackup);
+                        Repository.RestoreFrom(connectionString: BackupConnectionString);
 
                         Log.Information("Share cache successfully restored from backup");
                     }
@@ -307,7 +324,7 @@ namespace slskd.Shares
                 {
                     Log.Information("Share cache StorageMode is 'Disk'. Attempting to validate...");
 
-                    if (SqliteShareRepository.TryValidateDatabase(Program.ConnectionStrings.Shares))
+                    if (SqliteShareRepository.TryValidateDatabase(ConnectionString))
                     {
                         // no-op
                     }
@@ -315,11 +332,11 @@ namespace slskd.Shares
                     {
                         Log.Warning("Share cache is missing, corrupt, or is out of date. Attempting to load from backup...");
 
-                        if (SqliteShareRepository.TryValidateDatabase(Program.ConnectionStrings.SharesBackup))
+                        if (SqliteShareRepository.TryValidateDatabase(BackupConnectionString))
                         {
                             Log.Information("Share cache backup validated. Attempting to restore...");
 
-                            Repository.RestoreFrom(connectionString: Program.ConnectionStrings.SharesBackup);
+                            Repository.RestoreFrom(connectionString: BackupConnectionString);
 
                             Log.Information("Share cache successfully restored from backup");
                         }
