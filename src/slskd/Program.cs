@@ -390,20 +390,6 @@ namespace slskd
 
             RecreateConfigurationFileIfMissing(ConfigurationFile);
 
-            // configure connection strings and configure SQLite
-            string shareDbDataSource = default;
-
-            if (OptionsAtStartup.Shares.Cache.StorageMode.ToEnum<StorageMode>() == StorageMode.Disk)
-            {
-                Log.Information("Using on-disk shared file cache");
-                shareDbDataSource = Path.Combine(DataDirectory, "shares.db");
-            }
-            else
-            {
-                Log.Information("Using in-memory shared file cache");
-                shareDbDataSource = "file:shares?mode=memory";
-            }
-
             if (!string.IsNullOrEmpty(OptionsAtStartup.Logger.Loki))
             {
                 Log.Information("Forwarding logs to Grafana Loki instance at {LoggerLokiUrl}", OptionsAtStartup.Logger.Loki);
