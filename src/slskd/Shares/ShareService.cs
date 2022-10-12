@@ -24,7 +24,6 @@ namespace slskd.Shares
     using System.Collections.Concurrent;
     using System.Collections.Generic;
     using System.Linq;
-    using System.Text.RegularExpressions;
     using System.Threading;
     using System.Threading.Tasks;
     using Serilog;
@@ -96,6 +95,33 @@ namespace slskd.Shares
         private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1, 1);
         private StorageMode CacheStorageMode { get; }
         private ILogger Log { get; } = Serilog.Log.ForContext<ShareService>();
+        private ConcurrentDictionary<string, IReadOnlyShareRepository> AgentRepositories { get; } = new();
+
+        /// <summary>
+        ///     Adds the shares associated with the specified <paramref name="agent"/>.
+        /// </summary>
+        /// <param name="agent">The name of the agent.</param>
+        public void AddAgentShares(string agent)
+        {
+            if (string.IsNullOrEmpty(agent))
+            {
+                throw new ArgumentNullException(nameof(agent));
+            }
+
+            AgentRepositories.AddOrUpdate(
+                key: agent,
+                addValue: new ShareRepository(BuildConnectionString(agent)),
+                updateValueFactory: (agent, repository) => new ShareRepository(BuildConnectionString(agent)));
+        }
+
+        /// <summary>
+        ///     Remotes the shares associated with the specified <paramref name="agent"/>.
+        /// </summary>
+        /// <param name="agent">The name of the agent.</param>
+        public void RemoveAgentShares(string agent)
+        {
+            AgentRepositories.TryRemove(agent, out _);
+        }
 
         /// <summary>
         ///     Returns the entire contents of the share.

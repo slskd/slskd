@@ -39,6 +39,18 @@ namespace slskd.Shares
         public IStateMonitor<ShareState> StateMonitor { get; }
 
         /// <summary>
+        ///     Adds the shares associated with the specified <paramref name="agent"/>.
+        /// </summary>
+        /// <param name="agent">The name of the agent.</param>
+        void AddAgentShares(string agent);
+
+        /// <summary>
+        ///     Remotes the shares associated with the specified <paramref name="agent"/>.
+        /// </summary>
+        /// <param name="agent">The name of the agent.</param>
+        void RemoveAgentShares(string agent);
+
+        /// <summary>
         ///     Returns the entire contents of the share.
         /// </summary>
         /// <returns>The entire contents of the share.</returns>
