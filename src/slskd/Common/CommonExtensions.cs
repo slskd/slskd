@@ -367,7 +367,7 @@ namespace slskd
         /// </summary>
         /// <typeparam name="T">The Enum type to which to cast.</typeparam>
         /// <param name="str">The string to cast.</param>
-        /// <returns>The cast enum</returns>
+        /// <returns>The cast enum.</returns>
         public static T ToEnum<T>(this string str)
         {
             return (T)Enum.Parse(typeof(T), str, ignoreCase: true);

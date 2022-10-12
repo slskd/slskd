@@ -50,7 +50,7 @@ namespace slskd.Shares
     public class ChannelReader<T> : IChannelReader
     {
         /// <summary>
-        ///     Initializes a new instance of the <see cref="ChannelReader"/> class.
+        ///     Initializes a new instance of the <see cref="ChannelReader{T}"/> class.
         /// </summary>
         /// <param name="channel">The channel from which the reader will read.</param>
         /// <param name="handler">An <see cref="Action"/> to be invoked for each item read from the channel.</param>

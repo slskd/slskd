@@ -60,7 +60,7 @@ namespace slskd.Transfers.API
         [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(204)]
         [ProducesResponseType(404)]
-        public async Task<IActionResult> CancelDownloadAsync([FromRoute, Required] string username, [FromRoute, Required]string id, [FromQuery]bool remove = false)
+        public IActionResult CancelDownloadAsync([FromRoute, Required] string username, [FromRoute, Required]string id, [FromQuery]bool remove = false)
         {
             if (!Guid.TryParse(id, out var guid))
             {
@@ -97,7 +97,7 @@ namespace slskd.Transfers.API
         [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(204)]
         [ProducesResponseType(404)]
-        public async Task<IActionResult> CancelUpload([FromRoute, Required] string username, [FromRoute, Required]string id, [FromQuery]bool remove = false)
+        public IActionResult CancelUpload([FromRoute, Required] string username, [FromRoute, Required]string id, [FromQuery]bool remove = false)
         {
             if (!Guid.TryParse(id, out var guid))
             {
@@ -156,7 +156,7 @@ namespace slskd.Transfers.API
         [HttpGet("downloads")]
         [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(200)]
-        public async Task<IActionResult> GetDownloadsAsync([FromQuery]bool includeRemoved = false)
+        public IActionResult GetDownloadsAsync([FromQuery]bool includeRemoved = false)
         {
             var downloads = Transfers.Downloads.List(includeRemoved: includeRemoved);
 
@@ -183,7 +183,7 @@ namespace slskd.Transfers.API
         [HttpGet("downloads/{username}")]
         [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(200)]
-        public async Task<IActionResult> GetDownloadsAsync([FromRoute, Required] string username)
+        public IActionResult GetDownloadsAsync([FromRoute, Required] string username)
         {
             var downloads = Transfers.Downloads.List(d => d.Username == username);
 
@@ -210,7 +210,7 @@ namespace slskd.Transfers.API
         [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(typeof(API.Transfer), 200)]
         [ProducesResponseType(404)]
-        public async Task<IActionResult> GetDownload([FromRoute, Required] string username, [FromRoute, Required] string id)
+        public IActionResult GetDownload([FromRoute, Required] string username, [FromRoute, Required] string id)
         {
             if (!Guid.TryParse(id, out var guid))
             {
@@ -270,7 +270,7 @@ namespace slskd.Transfers.API
         [HttpGet("uploads")]
         [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(200)]
-        public async Task<IActionResult> GetUploads([FromQuery] bool includeRemoved = false)
+        public IActionResult GetUploads([FromQuery] bool includeRemoved = false)
         {
             var uploads = Transfers.Uploads.List(includeRemoved: includeRemoved);
 
@@ -297,7 +297,7 @@ namespace slskd.Transfers.API
         [HttpGet("uploads/{username}")]
         [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(200)]
-        public async Task<IActionResult> GetUploads([FromRoute, Required] string username)
+        public IActionResult GetUploads([FromRoute, Required] string username)
         {
             var uploads = Transfers.Uploads.List(d => d.Username == username);
 
@@ -330,7 +330,7 @@ namespace slskd.Transfers.API
         [HttpGet("uploads/{username}/{id}")]
         [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(200)]
-        public async Task<IActionResult> GetUploads([FromRoute, Required] string username, [FromRoute, Required] string id)
+        public IActionResult GetUploads([FromRoute, Required] string username, [FromRoute, Required] string id)
         {
             if (!Guid.TryParse(id, out var guid))
             {
