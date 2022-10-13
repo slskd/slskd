@@ -61,10 +61,10 @@ namespace slskd.Shares
 
             BackupConnectionString = ConnectionStringFactory.CreateBackupFromFile(options.InstanceName);
 
-            var host = new Host(options.InstanceName, state: HostState.Online);
+            var host = new Host(options.InstanceName, type: HostType.Local, state: HostState.Online);
             var repository = new SqliteShareRepository(ConnectionString);
 
-            HostDictionary.TryAdd(options.InstanceName, (host, repository));
+            Local = (host, repository);
 
             Scanner = scanner ?? new ShareScanner(
                 shareRepository: repository,
@@ -99,7 +99,7 @@ namespace slskd.Shares
         /// <summary>
         ///     Gets the list of share hosts.
         /// </summary>
-        public IReadOnlyList<Host> Hosts => HostDictionary.Values.Select(v => v.Host).ToList().AsReadOnly();
+        public IReadOnlyList<Host> Hosts => HostDictionary.Values.Select(v => v.Host).Prepend(Local.Host).ToList().AsReadOnly();
 
         /// <summary>
         ///     Gets the state monitor for the service.
@@ -117,14 +117,7 @@ namespace slskd.Shares
         private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1, 1);
         private StorageMode CacheStorageMode { get; }
         private ILogger Log { get; } = Serilog.Log.ForContext<ShareService>();
-        private (Host Host, IReadWriteShareRepository Repository) LocalHost
-        {
-            get
-            {
-                HostDictionary.TryGetValue(OptionsMonitor.CurrentValue.InstanceName, out var record);
-                return (record.Host, (IReadWriteShareRepository)record.Repository);
-            }
-        }
+        private (Host Host, IReadWriteShareRepository Repository) Local { get; set; }
 
         /// <summary>
         ///     Returns the entire contents of the share.
@@ -146,13 +139,13 @@ namespace slskd.Shares
             // in the root. to get around this, prime a dictionary with all known directories, and an empty Soulseek.Directory. if
             // there are any files in the directory, this entry will be overwritten with a new Soulseek.Directory containing the
             // files. if not they'll be left as is.
-            foreach (var directory in LocalHost.Repository.ListDirectories(prefix))
+            foreach (var directory in Local.Repository.ListDirectories(prefix))
             {
                 var name = directory.NormalizePathForSoulseek();
                 directories.TryAdd(name, new Directory(name));
             }
 
-            var files = LocalHost.Repository.ListFiles(prefix, includeFullPath: true);
+            var files = Local.Repository.ListFiles(prefix, includeFullPath: true);
 
             var groups = files
                 .GroupBy(file => Path.GetDirectoryName(file.Filename))
@@ -187,7 +180,7 @@ namespace slskd.Shares
         {
             var localPath = directory.LocalizePath();
 
-            var files = LocalHost.Repository.ListFiles(localPath);
+            var files = Local.Repository.ListFiles(localPath);
 
             return Task.FromResult(new Directory(directory, files));
         }
@@ -203,7 +196,7 @@ namespace slskd.Shares
         /// </exception>
         public Task<FileInfo> ResolveFileAsync(string remoteFilename)
         {
-            var resolvedFilename = LocalHost.Repository.FindFilename(remoteFilename.LocalizePath());
+            var resolvedFilename = Local.Repository.FindFilename(remoteFilename.LocalizePath());
 
             if (string.IsNullOrEmpty(resolvedFilename))
             {
@@ -229,7 +222,7 @@ namespace slskd.Shares
         /// <returns>The matching files.</returns>
         public Task<IEnumerable<File>> SearchAsync(SearchQuery query)
         {
-            var results = LocalHost.Repository.Search(query);
+            var results = Local.Repository.Search(query);
 
             return Task.FromResult(results.Select(r => new File(
                 r.Code,
@@ -246,10 +239,10 @@ namespace slskd.Shares
         /// <exception cref="ShareScanInProgressException">Thrown when a scan is already in progress.</exception>
         public async Task ScanAsync()
         {
-            await Scanner.ScanAsync(LocalHost.Host.Shares, OptionsMonitor.CurrentValue.Shares);
+            await Scanner.ScanAsync(Local.Host.Shares, OptionsMonitor.CurrentValue.Shares);
 
             Log.Debug("Backing up shared file cache database...");
-            LocalHost.Repository.BackupTo(BackupConnectionString);
+            Local.Repository.BackupTo(BackupConnectionString);
             Log.Debug("Shared file cache database backup complete");
         }
 
@@ -262,8 +255,8 @@ namespace slskd.Shares
         {
             var prefix = share.RemotePath + Path.DirectorySeparatorChar;
 
-            var dirs = LocalHost.Repository.CountDirectories(prefix);
-            var files = LocalHost.Repository.CountFiles(prefix);
+            var dirs = Local.Repository.CountDirectories(prefix);
+            var files = Local.Repository.CountFiles(prefix);
             return Task.FromResult((dirs, files));
         }
 
@@ -296,11 +289,11 @@ namespace slskd.Shares
                 {
                     Log.Information("Share cache StorageMode is 'Memory'. Attempting to load from backup...");
 
-                    if (LocalHost.Repository.TryValidate(BackupConnectionString))
+                    if (Local.Repository.TryValidate(BackupConnectionString))
                     {
                         Log.Information("Share cache backup validated. Attempting to restore...");
 
-                        LocalHost.Repository.RestoreFrom(connectionString: BackupConnectionString);
+                        Local.Repository.RestoreFrom(connectionString: BackupConnectionString);
 
                         Log.Information("Share cache successfully restored from backup");
                     }
@@ -314,7 +307,7 @@ namespace slskd.Shares
                 {
                     Log.Information("Share cache StorageMode is 'Disk'. Attempting to validate...");
 
-                    if (LocalHost.Repository.TryValidate(ConnectionString))
+                    if (Local.Repository.TryValidate(ConnectionString))
                     {
                         // no-op
                     }
@@ -322,11 +315,11 @@ namespace slskd.Shares
                     {
                         Log.Warning("Share cache is missing, corrupt, or is out of date. Attempting to load from backup...");
 
-                        if (LocalHost.Repository.TryValidate(BackupConnectionString))
+                        if (Local.Repository.TryValidate(BackupConnectionString))
                         {
                             Log.Information("Share cache backup validated. Attempting to restore...");
 
-                            LocalHost.Repository.RestoreFrom(connectionString: BackupConnectionString);
+                            Local.Repository.RestoreFrom(connectionString: BackupConnectionString);
 
                             Log.Information("Share cache successfully restored from backup");
                         }
@@ -351,8 +344,8 @@ namespace slskd.Shares
                     Faulted = false,
                     Ready = true,
                     ScanProgress = 1,
-                    Directories = LocalHost.Repository.CountDirectories(),
-                    Files = LocalHost.Repository.CountFiles(),
+                    Directories = Local.Repository.CountDirectories(),
+                    Files = Local.Repository.CountFiles(),
                 });
             }
             catch (Exception ex)
@@ -388,13 +381,11 @@ namespace slskd.Shares
                 var shares = options.Shares.Directories
                     .Select(share => share.TrimEnd('/', '\\'))
                     .ToHashSet() // remove duplicates
-                    .Select(share => new Share(host: options.InstanceName, share)) // convert to Shares
+                    .Select(share => new Share(share)) // convert to Shares
                     .OrderByDescending(share => share.LocalPath.Length) // process subdirectories first.  this allows them to be aliased separately from their parent
                     .ToList();
 
-                LocalHost.Host.SetShares(shares);
-
-                State.SetValue(state => state with { ScanPending = true });
+                Local.Host.SetShares(shares);
 
                 LastOptionsHash = optionsHash;
             }
