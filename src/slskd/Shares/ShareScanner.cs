@@ -67,7 +67,7 @@ namespace slskd.Shares
         /// <param name="soulseekFileFactory"></param>
         public ShareScanner(
             int workerCount,
-            IShareRepository shareRepository,
+            IReadWriteShareRepository shareRepository,
             ISoulseekFileFactory soulseekFileFactory = null)
         {
             WorkerCount = workerCount;
@@ -87,7 +87,7 @@ namespace slskd.Shares
         private IManagedState<SharedFileCacheState> State { get; } = new ManagedState<SharedFileCacheState>();
         private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1);
         private CancellationTokenSource CancellationTokenSource { get; set; }
-        private IShareRepository Repository { get; }
+        private IReadWriteShareRepository Repository { get; }
 
         /// <summary>
         ///     Scans the configured shares and fills the cache.

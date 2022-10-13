@@ -28,7 +28,7 @@ namespace slskd.Shares
     /// <summary>
     ///     Persistent storage of shared files and metadata.
     /// </summary>
-    public class SqliteShareRepository : IShareRepository
+    public class SqliteShareRepository : IReadWriteShareRepository
     {
         /// <summary>
         ///     Initializes a new instance of the <see cref="SqliteShareRepository"/> class.

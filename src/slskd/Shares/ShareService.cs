@@ -45,25 +45,30 @@ namespace slskd.Shares
             IOptionsMonitor<Options> optionsMonitor,
             IShareScanner scanner = null)
         {
+            var options = optionsMonitor.CurrentValue;
+
             ConnectionStringFactory = shareConnectionStringFactory;
-            CacheStorageMode = optionsMonitor.CurrentValue.Shares.Cache.StorageMode.ToEnum<StorageMode>();
+            CacheStorageMode = options.Shares.Cache.StorageMode.ToEnum<StorageMode>();
 
             if (CacheStorageMode == StorageMode.Memory)
             {
-                ConnectionString = ConnectionStringFactory.CreateFromMemory("shares");
+                ConnectionString = ConnectionStringFactory.CreateFromMemory(options.InstanceName);
             }
             else
             {
-                ConnectionString = ConnectionStringFactory.CreateFromFile("shares");
+                ConnectionString = ConnectionStringFactory.CreateFromFile(options.InstanceName);
             }
 
-            BackupConnectionString = ConnectionStringFactory.CreateBackupFromFile("shares");
+            BackupConnectionString = ConnectionStringFactory.CreateBackupFromFile(options.InstanceName);
 
-            Repository = new SqliteShareRepository(ConnectionString);
+            var host = new Host(options.InstanceName, state: HostState.Online);
+            var repository = new SqliteShareRepository(ConnectionString);
+
+            HostDictionary.TryAdd(options.InstanceName, (host, repository));
 
             Scanner = scanner ?? new ShareScanner(
-                shareRepository: Repository,
-                workerCount: optionsMonitor.CurrentValue.Shares.Cache.Workers);
+                shareRepository: repository,
+                workerCount: options.Shares.Cache.Workers);
 
             Scanner.StateMonitor.OnChange(cacheState =>
             {
@@ -92,9 +97,9 @@ namespace slskd.Shares
         }
 
         /// <summary>
-        ///     Gets the list of configured shares.
+        ///     Gets the list of share hosts.
         /// </summary>
-        public IReadOnlyList<Share> Shares => SharesList.AsReadOnly();
+        public IReadOnlyList<Host> Hosts => HostDictionary.Values.Select(v => v.Host).ToList().AsReadOnly();
 
         /// <summary>
         ///     Gets the state monitor for the service.
@@ -105,40 +110,20 @@ namespace slskd.Shares
         private string BackupConnectionString { get; }
         private ShareConnectionStringFactory ConnectionStringFactory { get; }
         private IShareScanner Scanner { get; }
-        private IShareRepository Repository { get; }
         private string LastOptionsHash { get; set; }
         private IOptionsMonitor<Options> OptionsMonitor { get; }
-        private List<Share> SharesList { get; set; } = new List<Share>();
+        private ConcurrentDictionary<string, (Host Host, IShareRepository Repository)> HostDictionary { get; set; } = new();
         private IManagedState<ShareState> State { get; } = new ManagedState<ShareState>();
         private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1, 1);
         private StorageMode CacheStorageMode { get; }
         private ILogger Log { get; } = Serilog.Log.ForContext<ShareService>();
-        private ConcurrentDictionary<string, IReadOnlyShareRepository> AgentRepositories { get; } = new();
-
-        /// <summary>
-        ///     Adds the shares associated with the specified <paramref name="agent"/>.
-        /// </summary>
-        /// <param name="agent">The name of the agent.</param>
-        public void AddAgentShares(string agent)
+        private (Host Host, IReadWriteShareRepository Repository) LocalHost
         {
-            if (string.IsNullOrEmpty(agent))
+            get
             {
-                throw new ArgumentNullException(nameof(agent));
+                HostDictionary.TryGetValue(OptionsMonitor.CurrentValue.InstanceName, out var record);
+                return (record.Host, (IReadWriteShareRepository)record.Repository);
             }
-
-            AgentRepositories.AddOrUpdate(
-                key: agent,
-                addValue: new SqliteShareRepository(BuildConnectionString(agent)),
-                updateValueFactory: (_, repository) => new SqliteShareRepository(BuildConnectionString(agent)));
-        }
-
-        /// <summary>
-        ///     Remotes the shares associated with the specified <paramref name="agent"/>.
-        /// </summary>
-        /// <param name="agent">The name of the agent.</param>
-        public void RemoveAgentShares(string agent)
-        {
-            AgentRepositories.TryRemove(agent, out _);
         }
 
         /// <summary>
@@ -161,13 +146,13 @@ namespace slskd.Shares
             // in the root. to get around this, prime a dictionary with all known directories, and an empty Soulseek.Directory. if
             // there are any files in the directory, this entry will be overwritten with a new Soulseek.Directory containing the
             // files. if not they'll be left as is.
-            foreach (var directory in Repository.ListDirectories(prefix))
+            foreach (var directory in LocalHost.Repository.ListDirectories(prefix))
             {
                 var name = directory.NormalizePathForSoulseek();
                 directories.TryAdd(name, new Directory(name));
             }
 
-            var files = Repository.ListFiles(prefix, includeFullPath: true);
+            var files = LocalHost.Repository.ListFiles(prefix, includeFullPath: true);
 
             var groups = files
                 .GroupBy(file => Path.GetDirectoryName(file.Filename))
@@ -202,7 +187,7 @@ namespace slskd.Shares
         {
             var localPath = directory.LocalizePath();
 
-            var files = Repository.ListFiles(localPath);
+            var files = LocalHost.Repository.ListFiles(localPath);
 
             return Task.FromResult(new Directory(directory, files));
         }
@@ -218,7 +203,7 @@ namespace slskd.Shares
         /// </exception>
         public Task<FileInfo> ResolveFileAsync(string remoteFilename)
         {
-            var resolvedFilename = Repository.FindFilename(remoteFilename.LocalizePath());
+            var resolvedFilename = LocalHost.Repository.FindFilename(remoteFilename.LocalizePath());
 
             if (string.IsNullOrEmpty(resolvedFilename))
             {
@@ -244,7 +229,7 @@ namespace slskd.Shares
         /// <returns>The matching files.</returns>
         public Task<IEnumerable<File>> SearchAsync(SearchQuery query)
         {
-            var results = Repository.Search(query);
+            var results = LocalHost.Repository.Search(query);
 
             return Task.FromResult(results.Select(r => new File(
                 r.Code,
@@ -261,10 +246,10 @@ namespace slskd.Shares
         /// <exception cref="ShareScanInProgressException">Thrown when a scan is already in progress.</exception>
         public async Task ScanAsync()
         {
-            await Scanner.ScanAsync(Shares, OptionsMonitor.CurrentValue.Shares);
+            await Scanner.ScanAsync(LocalHost.Host.Shares, OptionsMonitor.CurrentValue.Shares);
 
             Log.Debug("Backing up shared file cache database...");
-            Repository.BackupTo(BackupConnectionString);
+            LocalHost.Repository.BackupTo(BackupConnectionString);
             Log.Debug("Shared file cache database backup complete");
         }
 
@@ -277,8 +262,8 @@ namespace slskd.Shares
         {
             var prefix = share.RemotePath + Path.DirectorySeparatorChar;
 
-            var dirs = Repository.CountDirectories(prefix);
-            var files = Repository.CountFiles(prefix);
+            var dirs = LocalHost.Repository.CountDirectories(prefix);
+            var files = LocalHost.Repository.CountFiles(prefix);
             return Task.FromResult((dirs, files));
         }
 
@@ -311,11 +296,11 @@ namespace slskd.Shares
                 {
                     Log.Information("Share cache StorageMode is 'Memory'. Attempting to load from backup...");
 
-                    if (Repository.TryValidate(BackupConnectionString))
+                    if (LocalHost.Repository.TryValidate(BackupConnectionString))
                     {
                         Log.Information("Share cache backup validated. Attempting to restore...");
 
-                        Repository.RestoreFrom(connectionString: BackupConnectionString);
+                        LocalHost.Repository.RestoreFrom(connectionString: BackupConnectionString);
 
                         Log.Information("Share cache successfully restored from backup");
                     }
@@ -329,7 +314,7 @@ namespace slskd.Shares
                 {
                     Log.Information("Share cache StorageMode is 'Disk'. Attempting to validate...");
 
-                    if (Repository.TryValidate(ConnectionString))
+                    if (LocalHost.Repository.TryValidate(ConnectionString))
                     {
                         // no-op
                     }
@@ -337,11 +322,11 @@ namespace slskd.Shares
                     {
                         Log.Warning("Share cache is missing, corrupt, or is out of date. Attempting to load from backup...");
 
-                        if (Repository.TryValidate(BackupConnectionString))
+                        if (LocalHost.Repository.TryValidate(BackupConnectionString))
                         {
                             Log.Information("Share cache backup validated. Attempting to restore...");
 
-                            Repository.RestoreFrom(connectionString: BackupConnectionString);
+                            LocalHost.Repository.RestoreFrom(connectionString: BackupConnectionString);
 
                             Log.Information("Share cache successfully restored from backup");
                         }
@@ -366,8 +351,8 @@ namespace slskd.Shares
                     Faulted = false,
                     Ready = true,
                     ScanProgress = 1,
-                    Directories = Repository.CountDirectories(),
-                    Files = Repository.CountFiles(),
+                    Directories = LocalHost.Repository.CountDirectories(),
+                    Files = LocalHost.Repository.CountFiles(),
                 });
             }
             catch (Exception ex)
@@ -387,8 +372,6 @@ namespace slskd.Shares
             }
         }
 
-        private string BuildConnectionString(string agent = null) => $"Data Source={agent}{(!string.IsNullOrEmpty(agent) ? "." : string.Empty)}shares.db";
-
         private void Configure(Options options)
         {
             SyncRoot.Wait();
@@ -405,11 +388,11 @@ namespace slskd.Shares
                 var shares = options.Shares.Directories
                     .Select(share => share.TrimEnd('/', '\\'))
                     .ToHashSet() // remove duplicates
-                    .Select(share => new Share(share)) // convert to Shares
+                    .Select(share => new Share(host: options.InstanceName, share)) // convert to Shares
                     .OrderByDescending(share => share.LocalPath.Length) // process subdirectories first.  this allows them to be aliased separately from their parent
                     .ToList();
 
-                SharesList = shares;
+                LocalHost.Host.SetShares(shares);
 
                 State.SetValue(state => state with { ScanPending = true });
 

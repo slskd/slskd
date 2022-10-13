@@ -39,7 +39,6 @@ namespace slskd
     using Microsoft.AspNetCore.Hosting;
     using Microsoft.AspNetCore.Http;
     using Microsoft.AspNetCore.Mvc.ApiExplorer;
-    using Microsoft.Data.Sqlite;
     using Microsoft.EntityFrameworkCore;
     using Microsoft.Extensions.Configuration;
     using Microsoft.Extensions.DependencyInjection;
@@ -519,9 +518,9 @@ namespace slskd
 
             services.AddSingleton<IShareService, ShareService>();
             services.AddSingleton(new ShareConnectionStringFactory(
-                createFromFile: (name) => $"Data Source={Path.Combine(DataDirectory, name)}.db;Cache=shared",
-                createFromMemory: (name) => $"file:{name}?mode=memory",
-                createBackupFromFile: (name) => $"Data Source={Path.Combine(DataDirectory, name)}.db.bak;"));
+                createFromFile: (name) => $"Data Source={Path.Combine(DataDirectory, $"shares.{name}")}.db;Cache=shared",
+                createFromMemory: (name) => $"file:shares.{name}?mode=memory",
+                createBackupFromFile: (name) => $"Data Source={Path.Combine(DataDirectory, $"shares.{name}")}.db.bak;"));
 
             services.AddSingleton<ISearchService, SearchService>();
             services.AddSingleton<IUserService, UserService>();

@@ -29,26 +29,14 @@ namespace slskd.Shares
     public interface IShareService
     {
         /// <summary>
-        ///     Gets the list of configured shares.
+        ///     Gets the list of share hosts.
         /// </summary>
-        IReadOnlyList<Share> Shares { get; }
+        IReadOnlyList<Host> Hosts { get; }
 
         /// <summary>
         ///     Gets the state monitor for the service.
         /// </summary>
         public IStateMonitor<ShareState> StateMonitor { get; }
-
-        /// <summary>
-        ///     Adds the shares associated with the specified <paramref name="agent"/>.
-        /// </summary>
-        /// <param name="agent">The name of the agent.</param>
-        void AddAgentShares(string agent);
-
-        /// <summary>
-        ///     Remotes the shares associated with the specified <paramref name="agent"/>.
-        /// </summary>
-        /// <param name="agent">The name of the agent.</param>
-        void RemoveAgentShares(string agent);
 
         /// <summary>
         ///     Returns the entire contents of the share.
@@ -82,7 +70,7 @@ namespace slskd.Shares
         Task<IEnumerable<File>> SearchAsync(SearchQuery query);
 
         /// <summary>
-        ///     Scans the configured shares.
+        ///     Scans the configured shares on the local host.
         /// </summary>
         /// <returns>The operation context.</returns>
         /// <exception cref="ShareScanInProgressException">Thrown when a scan is already in progress.</exception>
@@ -96,7 +84,7 @@ namespace slskd.Shares
         Task<(int Directories, int Files)> SummarizeShareAsync(Share share);
 
         /// <summary>
-        ///     Cancels the currently running scan, if one is running.
+        ///     Cancels the currently running scan on the local host, if one is running.
         /// </summary>
         /// <returns>A value indicating whether a scan was cancelled.</returns>
         bool TryCancelScan();

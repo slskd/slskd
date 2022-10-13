@@ -17,68 +17,10 @@
 
 namespace slskd.Shares
 {
-    using System.Collections.Generic;
-    using Soulseek;
-
     /// <summary>
     ///     Read-only persistent storage of shared files and metadata.
     /// </summary>
-    public interface IReadOnlyShareRepository
+    public interface IReadOnlyShareRepository : IShareRepository
     {
-        /// <summary>
-        ///     Gets the connection string for this repository.
-        /// </summary>
-        string ConnectionString { get; }
-
-        /// <summary>
-        ///     Counts the number of directories in the database.
-        /// </summary>
-        /// <param name="parentDirectory">The optional directory prefix used for counting subdirectories.</param>
-        /// <returns>The number of directories.</returns>
-        int CountDirectories(string parentDirectory = null);
-
-        /// <summary>
-        ///     Counts the number of files in the database.
-        /// </summary>
-        /// <param name="parentDirectory">The optional directory prefix used for counting files in a subdirectory.</param>
-        /// <returns>The number of files.</returns>
-        int CountFiles(string parentDirectory = null);
-
-        /// <summary>
-        ///     Finds the filename of the file matching the specified <paramref name="maskedFilename"/>.
-        /// </summary>
-        /// <param name="maskedFilename">The fully qualified remote path of the file.</param>
-        /// <returns>The filename, if found.</returns>
-        string FindFilename(string maskedFilename);
-
-        /// <summary>
-        ///     Lists all directories.
-        /// </summary>
-        /// <param name="parentDirectory">The optional directory prefix used for listing subdirectories.</param>
-        /// <returns>The list of directories.</returns>
-        IEnumerable<string> ListDirectories(string parentDirectory = null);
-
-        /// <summary>
-        ///     Lists all files.
-        /// </summary>
-        /// <param name="parentDirectory">The optional parent directory.</param>
-        /// <param name="includeFullPath">A value indicating whether the fully qualified path should be returned.</param>
-        /// <returns>The list of files.</returns>
-        IEnumerable<File> ListFiles(string parentDirectory = null, bool includeFullPath = false);
-
-        /// <summary>
-        ///     Searches the database for files matching the specified <paramref name="query"/>.
-        /// </summary>
-        /// <param name="query">The search query.</param>
-        /// <returns>The list of matching files.</returns>
-        IEnumerable<File> Search(SearchQuery query);
-
-        /// <summary>
-        ///     Attempts to validate the database at the specified <paramref name="connectionString"/>, or the
-        ///     default <see cref="ConnectionString"/>.
-        /// </summary>
-        /// <param name="connectionString">The connection string of the database to validate.</param>
-        /// <returns>A value indicating whether the database is valid.</returns>
-        bool TryValidate(string connectionString = null);
     }
 }
