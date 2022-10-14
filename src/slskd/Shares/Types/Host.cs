@@ -23,7 +23,7 @@ namespace slskd.Shares
     /// <summary>
     ///     A share host.
     /// </summary>
-    public class Host
+    public record Host
     {
         /// <summary>
         ///     Initializes a new instance of the <see cref="Host"/> class.
@@ -49,28 +49,16 @@ namespace slskd.Shares
         /// <summary>
         ///     Gets the collection of hosted shares.
         /// </summary>
-        public IEnumerable<Share> Shares { get; private set; }
+        public IEnumerable<Share> Shares { get; init; }
 
         /// <summary>
         ///     Gets the host state.
         /// </summary>
-        public HostState State { get; private set; }
+        public HostState State { get; init; }
 
         /// <summary>
         ///     Gets the host type.
         /// </summary>
         public HostType Type { get; }
-
-        /// <summary>
-        ///     Sets the hosted shares for the host.
-        /// </summary>
-        /// <param name="shares">The collection of shares.</param>
-        public void SetShares(IEnumerable<Share> shares) => Shares = shares;
-
-        /// <summary>
-        ///     Sets the state of the host.
-        /// </summary>
-        /// <param name="state">The new state.</param>
-        public void SetState(HostState state) => State = state;
     }
 }
