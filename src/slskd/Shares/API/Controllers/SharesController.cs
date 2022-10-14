@@ -58,7 +58,7 @@ namespace slskd.Shares.API
         {
             var shares = new List<SummarizedShare>();
 
-            foreach (var share in Shares.Shares)
+            foreach (var share in Shares.Hosts.SelectMany(host => host.Shares))
             {
                 var (directories, files) = await Shares.SummarizeShareAsync(share);
 
@@ -91,7 +91,7 @@ namespace slskd.Shares.API
         [ProducesResponseType(404)]
         public async Task<IActionResult> Get(string id)
         {
-            var share = Shares.Shares.FirstOrDefault(share => share.Id == id);
+            var share = Shares.Hosts.SelectMany(host => host.Shares).FirstOrDefault(share => share.Id == id);
 
             if (share == default)
             {
@@ -141,7 +141,7 @@ namespace slskd.Shares.API
         [ProducesResponseType(404)]
         public async Task<IActionResult> BrowseShare(string id)
         {
-            var share = Shares.Shares.FirstOrDefault(share => share.Id == id);
+            var share = Shares.Hosts.SelectMany(host => host.Shares).FirstOrDefault(share => share.Id == id);
 
             if (share == default)
             {

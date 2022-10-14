@@ -65,11 +65,14 @@ namespace slskd.Shares
         /// </summary>
         /// <param name="workerCount"></param>
         /// <param name="soulseekFileFactory"></param>
-        public ShareScanner(int workerCount, ISoulseekFileFactory soulseekFileFactory = null)
+        public ShareScanner(
+            int workerCount,
+            IReadWriteShareRepository shareRepository,
+            ISoulseekFileFactory soulseekFileFactory = null)
         {
             WorkerCount = workerCount;
             SoulseekFileFactory = soulseekFileFactory ?? new SoulseekFileFactory();
-            Repository = new ShareRepository(Program.ConnectionStrings.Shares);
+            Repository = shareRepository;
         }
 
         /// <summary>
@@ -84,7 +87,7 @@ namespace slskd.Shares
         private IManagedState<SharedFileCacheState> State { get; } = new ManagedState<SharedFileCacheState>();
         private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1);
         private CancellationTokenSource CancellationTokenSource { get; set; }
-        private IShareRepository Repository { get; }
+        private IReadWriteShareRepository Repository { get; }
 
         /// <summary>
         ///     Scans the configured shares and fills the cache.
@@ -123,7 +126,7 @@ namespace slskd.Shares
 
                 // it's possible that the database was tampered with between the time it was checked at startup and now
                 // validate the tables, and if there's an issue, drop and recreate everything.
-                if (!ShareRepository.TryValidateDatabase(Program.ConnectionStrings.Shares))
+                if (!Repository.TryValidate())
                 {
                     Log.Warning("Shared file cache missing or invalid. Re-creating prior to scan.");
                     Repository.Create(discardExisting: true);
@@ -323,10 +326,6 @@ namespace slskd.Shares
                 }
 
                 Repository.UpdateScan(timestamp, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
-
-                Log.Debug("Backing up shared file cache database...");
-                Repository.BackupTo(Program.ConnectionStrings.SharesBackup);
-                Log.Debug("Shared file cache database backup complete");
 
                 var directoryCount = Repository.CountDirectories();
                 var fileCount = Repository.CountFiles();
