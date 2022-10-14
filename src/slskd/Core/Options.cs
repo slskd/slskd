@@ -1272,6 +1272,7 @@ namespace slskd
             [Description("path to static web content")]
             [StringLength(255, MinimumLength = 1)]
             [DirectoryExists]
+            [DirectoryIsRelative]
             [RequiresRestart]
             public string ContentPath { get; init; } = "wwwroot";
 

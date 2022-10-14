@@ -163,11 +163,6 @@ namespace slskd
         public static string ConfigurationFile { get; private set; } = null;
 
         /// <summary>
-        ///     Gets the connection strings for application databases.
-        /// </summary>
-        public static ConnectionStrings ConnectionStrings { get; private set; } = null;
-
-        /// <summary>
         ///     Gets the path where persistent data is saved.
         /// </summary>
         public static string DataDirectory { get; private set; } = null;
@@ -406,28 +401,6 @@ namespace slskd
 
             RecreateConfigurationFileIfMissing(ConfigurationFile);
 
-            // configure connection strings and configure SQLite
-            string shareDbDataSource = default;
-
-            if (OptionsAtStartup.Shares.Cache.StorageMode.ToEnum<StorageMode>() == StorageMode.Disk)
-            {
-                Log.Information("Using on-disk shared file cache");
-                shareDbDataSource = Path.Combine(DataDirectory, "shares.db");
-            }
-            else
-            {
-                Log.Information("Using in-memory shared file cache");
-                shareDbDataSource = "file:shares?mode=memory";
-            }
-
-            ConnectionStrings = new()
-            {
-                Search = $"Data Source={Path.Combine(DataDirectory, "search.db")};Cache=shared;Pooling=True;",
-                Transfers = $"Data Source={Path.Combine(DataDirectory, "transfers.db")};Cache=shared;Pooling=True;",
-                Shares = $"Data Source={shareDbDataSource};Cache=shared",
-                SharesBackup = $"Data Source={Path.Combine(DataDirectory, "shares.db.bak")};",
-            };
-
             if (!string.IsNullOrEmpty(OptionsAtStartup.Logger.Loki))
             {
                 Log.Information("Forwarding logs to Grafana Loki instance at {LoggerLokiUrl}", OptionsAtStartup.Logger.Loki);
@@ -547,14 +520,18 @@ namespace slskd
 
             services.AddSingleton<IConnectionWatchdog, ConnectionWatchdog>();
 
-            services.AddDbContext<SearchDbContext>(ConnectionStrings.Search);
-            services.AddDbContext<TransfersDbContext>(ConnectionStrings.Transfers);
+            services.AddDbContext<SearchDbContext>($"Data Source={Path.Combine(DataDirectory, "search.db")};Cache=shared;Pooling=True;");
+            services.AddDbContext<TransfersDbContext>($"Data Source={Path.Combine(DataDirectory, "transfers.db")};Cache=shared;Pooling=True;");
 
             services.AddSingleton<IBrowseTracker, BrowseTracker>();
             services.AddSingleton<IConversationTracker, ConversationTracker>();
             services.AddSingleton<IRoomTracker, RoomTracker>(_ => new RoomTracker(messageLimit: 250));
 
             services.AddSingleton<IShareService, ShareService>();
+            services.AddSingleton(new ShareConnectionStringFactory(
+                createFromFile: (name) => $"Data Source={Path.Combine(DataDirectory, $"shares.{name}")}.db;Cache=shared",
+                createFromMemory: (name) => $"file:shares.{name}?mode=memory",
+                createBackupFromFile: (name) => $"Data Source={Path.Combine(DataDirectory, $"shares.{name}")}.db.bak;"));
 
             services.AddSingleton<ISearchService, SearchService>();
             services.AddSingleton<IUserService, UserService>();

@@ -1,4 +1,4 @@
-﻿// <copyright file="ConnectionStrings.cs" company="slskd Team">
+﻿// <copyright file="HostType.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -15,16 +15,21 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-namespace slskd
+namespace slskd.Shares
 {
     /// <summary>
-    ///     Application connection strings.
+    ///     The type of host.
     /// </summary>
-    public record ConnectionStrings
+    public enum HostType
     {
-        public string Transfers { get; init; }
-        public string Shares { get; init; }
-        public string SharesBackup { get; init; }
-        public string Search { get; init; }
+        /// <summary>
+        ///     Local.
+        /// </summary>
+        Local = 0,
+
+        /// <summary>
+        ///     Remote; shares are hosted by an Agent.
+        /// </summary>
+        Remote = 1,
     }
 }
