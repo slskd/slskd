@@ -66,6 +66,8 @@ namespace slskd.Shares
 
             Local = (host, repository);
 
+            AllRepositories = new List<IShareRepository>(new[] { repository });
+
             Scanner = scanner ?? new ShareScanner(
                 shareRepository: repository,
                 workerCount: options.Shares.Cache.Workers);
@@ -118,6 +120,24 @@ namespace slskd.Shares
         private StorageMode CacheStorageMode { get; }
         private ILogger Log { get; } = Serilog.Log.ForContext<ShareService>();
         private (Host Host, IReadWriteShareRepository Repository) Local { get; set; }
+        private IEnumerable<IShareRepository> AllRepositories { get; set; }
+
+        /// <summary>
+        ///     Adds a new, or updates an existing, share host.
+        /// </summary>
+        /// <param name="host">The host to add or update.</param>
+        public void AddOrUpdateHost(Host host)
+        {
+            HostDictionary.AddOrUpdate(
+                key: host.Name,
+                addValueFactory: (key) => (host, new SqliteShareRepository(ConnectionStringFactory.CreateFromFile(host.Name))),
+                updateValueFactory: (_, existing) => (host, existing.Repository));
+
+            AllRepositories = HostDictionary.Values
+                .Where(value => value.Host.State == HostState.Online)
+                .Select(value => value.Repository)
+                .Prepend(Local.Repository);
+        }
 
         /// <summary>
         ///     Returns the entire contents of the share.
@@ -139,13 +159,13 @@ namespace slskd.Shares
             // in the root. to get around this, prime a dictionary with all known directories, and an empty Soulseek.Directory. if
             // there are any files in the directory, this entry will be overwritten with a new Soulseek.Directory containing the
             // files. if not they'll be left as is.
-            foreach (var directory in Local.Repository.ListDirectories(prefix))
+            foreach (var directory in AllRepositories.SelectMany(r => r.ListDirectories(prefix)))
             {
                 var name = directory.NormalizePathForSoulseek();
                 directories.TryAdd(name, new Directory(name));
             }
 
-            var files = Local.Repository.ListFiles(prefix, includeFullPath: true);
+            var files = AllRepositories.SelectMany(r => r.ListFiles(prefix, includeFullPath: true));
 
             var groups = files
                 .GroupBy(file => Path.GetDirectoryName(file.Filename))
@@ -180,7 +200,7 @@ namespace slskd.Shares
         {
             var localPath = directory.LocalizePath();
 
-            var files = Local.Repository.ListFiles(localPath);
+            var files = AllRepositories.SelectMany(r => r.ListFiles(localPath));
 
             return Task.FromResult(new Directory(directory, files));
         }
@@ -196,7 +216,9 @@ namespace slskd.Shares
         /// </exception>
         public Task<FileInfo> ResolveFileAsync(string remoteFilename)
         {
-            var resolvedFilename = Local.Repository.FindFilename(remoteFilename.LocalizePath());
+            var resolvedFilename = AllRepositories
+                .Select(r => r.FindFilename(remoteFilename.LocalizePath()))
+                .FirstOrDefault(r => !string.IsNullOrEmpty(r));
 
             if (string.IsNullOrEmpty(resolvedFilename))
             {
@@ -222,7 +244,7 @@ namespace slskd.Shares
         /// <returns>The matching files.</returns>
         public Task<IEnumerable<File>> SearchAsync(SearchQuery query)
         {
-            var results = Local.Repository.Search(query);
+            var results = AllRepositories.SelectMany(r => r.Search(query));
 
             return Task.FromResult(results.Select(r => new File(
                 r.Code,
@@ -255,8 +277,8 @@ namespace slskd.Shares
         {
             var prefix = share.RemotePath + Path.DirectorySeparatorChar;
 
-            var dirs = Local.Repository.CountDirectories(prefix);
-            var files = Local.Repository.CountFiles(prefix);
+            var dirs = AllRepositories.Select(r => r.CountDirectories(prefix)).Sum();
+            var files = AllRepositories.Select(r => r.CountFiles(prefix)).Sum();
             return Task.FromResult((dirs, files));
         }
 
@@ -385,7 +407,10 @@ namespace slskd.Shares
                     .OrderByDescending(share => share.LocalPath.Length) // process subdirectories first.  this allows them to be aliased separately from their parent
                     .ToList();
 
-                Local.Host.SetShares(shares);
+                Local = (Local.Host with { Shares = shares }, Local.Repository);
+
+                // todo: initialize agent hosts
+                // todo: don't destroy or overwrite existing hosts!
 
                 LastOptionsHash = optionsHash;
             }

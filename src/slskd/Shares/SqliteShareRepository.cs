@@ -229,7 +229,7 @@ namespace slskd.Shares
         /// </summary>
         /// <param name="maskedFilename">The fully qualified remote path of the file.</param>
         /// <returns>The filename, if found.</returns>
-        public string FindFilename (string maskedFilename)
+        public string FindFilename(string maskedFilename)
         {
             using var conn = GetConnection();
             using var cmd = new SqliteCommand("SELECT originalFilename FROM files WHERE maskedFilename = @maskedFilename;", conn);

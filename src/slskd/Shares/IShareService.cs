@@ -36,7 +36,13 @@ namespace slskd.Shares
         /// <summary>
         ///     Gets the state monitor for the service.
         /// </summary>
-        public IStateMonitor<ShareState> StateMonitor { get; }
+        IStateMonitor<ShareState> StateMonitor { get; }
+
+        /// <summary>
+        ///     Adds a new, or updates an existing, share host.
+        /// </summary>
+        /// <param name="host">The host to add or update.</param>
+        void AddOrUpdateHost(Host host);
 
         /// <summary>
         ///     Returns the entire contents of the share.
