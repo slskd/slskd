@@ -24,6 +24,7 @@ namespace slskd.Network
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
     using Serilog;
+    using slskd.Shares;
 
     /// <summary>
     ///     Network.
@@ -33,11 +34,19 @@ namespace slskd.Network
     [ApiController]
     public class NetworkController : ControllerBase
     {
-        public NetworkController(INetworkService networkService)
+        public NetworkController(
+            INetworkService networkService,
+            IShareService shareService,
+            IShareRepositoryFactory shareRepositoryFactory)
         {
             Network = networkService;
+            Shares = shareService;
+
+            ShareRepositoryFactory = shareRepositoryFactory;
         }
 
+        private IShareRepositoryFactory ShareRepositoryFactory { get; }
+        private IShareService Shares { get; }
         private INetworkService Network { get; }
         private ILogger Log { get; } = Serilog.Log.ForContext<NetworkController>();
 
@@ -114,14 +123,22 @@ namespace slskd.Network
             Log.Debug("Uploading share from {Agent} to {Filename}", agent, temp);
 
             using var outputStream = new FileStream(temp, FileMode.CreateNew, FileAccess.Write);
-            using var inputStream = Request.Form.Files.First().OpenReadStream();
+            using var inputStream = Request.Form.Files[0].OpenReadStream();
 
             await inputStream.CopyToAsync(outputStream);
 
             Log.Debug("Upload of share from {Agent} to {Filename} complete", agent, temp);
 
-            // todo: validate database
-            // todo: add contents of db to local db
+            var repository = ShareRepositoryFactory.CreateFromFile(temp);
+
+            if (!repository.TryValidate(out var problems))
+            {
+                return BadRequest(string.Join(", ", problems));
+            }
+
+            var destinationRepository = ShareRepositoryFactory.CreateFromHost(agent);
+
+            destinationRepository.RestoreFrom(repository);
 
             return Ok();
         }

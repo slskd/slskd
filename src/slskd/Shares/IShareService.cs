@@ -43,16 +43,17 @@ namespace slskd.Shares
         void AddOrUpdateHost(Host host);
 
         /// <summary>
-        ///     Backs contents of the cache up to the specified file.
-        /// </summary>
-        /// <param name="connectionString">The destination connection string.</param>
-        void BackupTo(string connectionString);
-
-        /// <summary>
         ///     Returns the entire contents of the share.
         /// </summary>
         /// <returns>The entire contents of the share.</returns>
         Task<IEnumerable<Directory>> BrowseAsync(Share share = null);
+
+        /// <summary>
+        ///     Dumps the local share cache to a file.
+        /// </summary>
+        /// <param name="filename">The destination file.</param>
+        /// <returns>The operation context.</returns>
+        Task DumpAsync(string filename);
 
         /// <summary>
         ///     Returns the contents of the specified <paramref name="directory"/>.

@@ -17,6 +17,7 @@
 
 namespace slskd.Shares
 {
+    using System;
     using System.Collections.Generic;
     using Soulseek;
 
@@ -29,6 +30,12 @@ namespace slskd.Shares
         ///     Gets the connection string for this repository.
         /// </summary>
         string ConnectionString { get; }
+
+        /// <summary>
+        ///     Backs the current database up to the database at the specified <paramref name="repository"/>.
+        /// </summary>
+        /// <param name="repository">The destination repository.</param>
+        void BackupTo(IShareRepository repository);
 
         /// <summary>
         ///     Counts the number of directories in the database.
@@ -45,11 +52,51 @@ namespace slskd.Shares
         int CountFiles(string parentDirectory = null);
 
         /// <summary>
+        ///     Creates a new database.
+        /// </summary>
+        /// <remarks>
+        ///     Creates tables using 'IF NOT EXISTS', so this is idempotent unless 'discardExisting` is specified, in which case
+        ///     tables are explicitly dropped prior to creation.
+        /// </remarks>
+        /// <param name="discardExisting">An optional value that determines whether the existing database should be discarded.</param>
+        void Create(bool discardExisting = false);
+
+        /// <summary>
+        ///     Dumps the contents of the database to a file.
+        /// </summary>
+        /// <param name="filename">The destination file.</param>
+        void DumpTo(string filename);
+
+        /// <summary>
         ///     Finds the filename of the file matching the specified <paramref name="maskedFilename"/>.
         /// </summary>
         /// <param name="maskedFilename">The fully qualified remote path of the file.</param>
         /// <returns>The filename, if found.</returns>
         string FindFilename(string maskedFilename);
+
+        /// <summary>
+        ///     Inserts a directory.
+        /// </summary>
+        /// <param name="name">The fully qualified local name of the directory.</param>
+        /// <param name="timestamp">The timestamp to assign to the record.</param>
+        void InsertDirectory(string name, long timestamp);
+
+        /// <summary>
+        ///     Inserts a file.
+        /// </summary>
+        /// <param name="maskedFilename">The fully qualified remote path of the file.</param>
+        /// <param name="originalFilename">The fully qualified local path of the file.</param>
+        /// <param name="touchedAt">The timestamp at which the file was last modified, according to the host OS.</param>
+        /// <param name="file">The Soulseek.File instance representing the file.</param>
+        /// <param name="timestamp">The timestamp to assign to the record.</param>
+        void InsertFile(string maskedFilename, string originalFilename, DateTime touchedAt, File file, long timestamp);
+
+        /// <summary>
+        ///     Inserts a scan record at the specified <paramref name="timestamp"/>.
+        /// </summary>
+        /// <param name="timestamp">The timestamp associated with the scan.</param>
+        /// <param name="options">The options snapshot at the start of the scan.</param>
+        void InsertScan(long timestamp, Options.SharesOptions options);
 
         /// <summary>
         ///     Lists all directories.
@@ -67,6 +114,26 @@ namespace slskd.Shares
         IEnumerable<File> ListFiles(string parentDirectory = null, bool includeFullPath = false);
 
         /// <summary>
+        ///     Deletes directory records with a timestamp prior to the specified <paramref name="olderThanTimestamp"/>.
+        /// </summary>
+        /// <param name="olderThanTimestamp">The timestamp before which to delete directories.</param>
+        /// <returns>The number of records deleted.</returns>
+        long PruneDirectories(long olderThanTimestamp);
+
+        /// <summary>
+        ///     Deletes file records with a timestamp prior to the specified <paramref name="olderThanTimestamp"/>.
+        /// </summary>
+        /// <param name="olderThanTimestamp">The timestamp before which to delete files.</param>
+        /// <returns>The number of records deleted.</returns>
+        long PruneFiles(long olderThanTimestamp);
+
+        /// <summary>
+        ///     Restores the current database from the database at the specified <paramref name="repository"/>.
+        /// </summary>
+        /// <param name="repository">The destination repository.</param>
+        void RestoreFrom(IShareRepository repository);
+
+        /// <summary>
         ///     Searches the database for files matching the specified <paramref name="query"/>.
         /// </summary>
         /// <param name="query">The search query.</param>
@@ -74,11 +141,23 @@ namespace slskd.Shares
         IEnumerable<File> Search(SearchQuery query);
 
         /// <summary>
-        ///     Attempts to validate the database at the specified <paramref name="connectionString"/>, or the
-        ///     default <see cref="ConnectionString"/>.
+        ///     Attempts to validate the backing database.
         /// </summary>
-        /// <param name="connectionString">The connection string of the database to validate.</param>
         /// <returns>A value indicating whether the database is valid.</returns>
-        bool TryValidate(string connectionString = null);
+        bool TryValidate();
+
+        /// <summary>
+        ///     Attempts to validate the backing database.
+        /// </summary>
+        /// <param name="problems">The list of problems, if the database is invalid.</param>
+        /// <returns>A value indicating whether the database is valid.</returns>
+        bool TryValidate(out IEnumerable<string> problems);
+
+        /// <summary>
+        ///     Updates the scan started at the specified <paramref name="timestamp"/> to set the <paramref name="end"/>.
+        /// </summary>
+        /// <param name="timestamp">The timestamp associated with the scan.</param>
+        /// <param name="end">The timestamp at the conclusion of the scan.</param>
+        void UpdateScan(long timestamp, long end);
     }
 }

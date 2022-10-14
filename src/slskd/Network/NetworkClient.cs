@@ -127,7 +127,7 @@ namespace slskd.Network
             Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), Program.AppName));
 
             Log.Debug("Backing up shares to {Filename}", temp);
-            Shares.BackupTo($"Data Source={temp};Pooling=False;"); // quite a leaky abstraction
+            await Shares.DumpAsync(temp);
             Log.Debug("Share backup successful");
 
             Log.Debug("Requesting share upload token...");
@@ -136,18 +136,22 @@ namespace slskd.Network
 
             FileStream stream = default;
 
-            try
+            while (true)
             {
-                stream = new FileStream(temp, FileMode.Open, FileAccess.Read);
-            }
-            catch (Exception ex)
-            {
-                // this happens if SQLite hangs on to the connection for whatever reason, seemingly due to pooling
-                // Pooling=False should be included in the connection string and this shouldn't be an issue, but
-                // since i don't totally understand the behavior, i'll leave this for now.
-                Log.Debug(ex, "Failed open stream to backup.  Clearing SQLite pools and trying again.");
-                SqliteConnection.ClearAllPools();
-                stream = new FileStream(temp, FileMode.Open, FileAccess.Read);
+                try
+                {
+                    stream = new FileStream(temp, FileMode.Open, FileAccess.Read);
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    // this happens if SQLite hangs on to the connection for whatever reason, seemingly due to pooling
+                    // Pooling=False should be included in the connection string and this shouldn't be an issue, but
+                    // since i don't totally understand the behavior, i'll leave this for now.
+                    Log.Debug(ex, "Failed open stream to backup.  Clearing SQLite pools and trying again.");
+                    SqliteConnection.ClearAllPools();
+                    await Task.Delay(100);
+                }
             }
 
             using var request = new HttpRequestMessage(HttpMethod.Post, $"api/v0/agents/shares/{token}");

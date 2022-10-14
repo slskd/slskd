@@ -37,32 +37,22 @@ namespace slskd.Shares
         /// <summary>
         ///     Initializes a new instance of the <see cref="ShareService"/> class.
         /// </summary>
-        /// <param name="shareConnectionStringFactory"></param>
+        /// <param name="shareRepositoryFactory"></param>
         /// <param name="optionsMonitor"></param>
         /// <param name="scanner"></param>
         public ShareService(
-            ShareConnectionStringFactory shareConnectionStringFactory,
+            IShareRepositoryFactory shareRepositoryFactory,
             IOptionsMonitor<Options> optionsMonitor,
             IShareScanner scanner = null)
         {
             var options = optionsMonitor.CurrentValue;
 
-            ConnectionStringFactory = shareConnectionStringFactory;
             CacheStorageMode = options.Shares.Cache.StorageMode.ToEnum<StorageMode>();
 
-            if (CacheStorageMode == StorageMode.Memory)
-            {
-                ConnectionString = ConnectionStringFactory.CreateFromMemory(options.InstanceName);
-            }
-            else
-            {
-                ConnectionString = ConnectionStringFactory.CreateFromFile(options.InstanceName);
-            }
-
-            BackupConnectionString = ConnectionStringFactory.CreateBackupFromFile(options.InstanceName);
+            ShareRepositoryFactory = shareRepositoryFactory;
 
             var host = new Host(options.InstanceName, type: HostType.Local, state: HostState.Online);
-            var repository = new SqliteShareRepository(ConnectionString);
+            var repository = ShareRepositoryFactory.CreateFromHost(options.InstanceName);
 
             Local = (host, repository);
 
@@ -108,9 +98,7 @@ namespace slskd.Shares
         /// </summary>
         public IStateMonitor<ShareState> StateMonitor { get; }
 
-        private string ConnectionString { get; }
-        private string BackupConnectionString { get; }
-        private ShareConnectionStringFactory ConnectionStringFactory { get; }
+        private IShareRepositoryFactory ShareRepositoryFactory { get; }
         private IShareScanner Scanner { get; }
         private string LastOptionsHash { get; set; }
         private IOptionsMonitor<Options> OptionsMonitor { get; }
@@ -119,7 +107,7 @@ namespace slskd.Shares
         private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1, 1);
         private StorageMode CacheStorageMode { get; }
         private ILogger Log { get; } = Serilog.Log.ForContext<ShareService>();
-        private (Host Host, IReadWriteShareRepository Repository) Local { get; set; }
+        private (Host Host, IShareRepository Repository) Local { get; set; }
         private IEnumerable<IShareRepository> AllRepositories { get; set; }
 
         /// <summary>
@@ -128,24 +116,17 @@ namespace slskd.Shares
         /// <param name="host">The host to add or update.</param>
         public void AddOrUpdateHost(Host host)
         {
+            // we assume that if this method is called that the caller has verified that the
+            // file for the host exists and is valid.
             HostDictionary.AddOrUpdate(
                 key: host.Name,
-                addValueFactory: (key) => (host, new SqliteShareRepository(ConnectionStringFactory.CreateFromFile(host.Name))),
+                addValueFactory: (key) => (host, ShareRepositoryFactory.CreateFromHost(host.Name)),
                 updateValueFactory: (_, existing) => (host, existing.Repository));
 
             AllRepositories = HostDictionary.Values
                 .Where(value => value.Host.State == HostState.Online)
                 .Select(value => value.Repository)
                 .Prepend(Local.Repository);
-        }
-
-        /// <summary>
-        ///     Backs contents of the cache up to the specified file.
-        /// </summary>
-        /// <param name="connectionString">The destination connection string.</param>
-        public void BackupTo(string connectionString)
-        {
-            Repository.BackupTo(connectionString);
         }
 
         /// <summary>
@@ -198,6 +179,17 @@ namespace slskd.Shares
             var results = directories.Values.AsEnumerable();
 
             return Task.FromResult(results);
+        }
+
+        /// <summary>
+        ///     Dumps the local share cache to a file.
+        /// </summary>
+        /// <param name="filename">The destination file.</param>
+        /// <returns>The operation context.</returns>
+        public Task DumpAsync(string filename)
+        {
+            Local.Repository.DumpTo(filename);
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -272,7 +264,7 @@ namespace slskd.Shares
             await Scanner.ScanAsync(Local.Host.Shares, OptionsMonitor.CurrentValue.Shares);
 
             Log.Debug("Backing up shared file cache database...");
-            Local.Repository.BackupTo(BackupConnectionString);
+            Local.Repository.BackupTo(ShareRepositoryFactory.CreateFromHostBackup(OptionsMonitor.CurrentValue.InstanceName));
             Log.Debug("Shared file cache database backup complete");
         }
 
@@ -319,11 +311,13 @@ namespace slskd.Shares
                 {
                     Log.Information("Share cache StorageMode is 'Memory'. Attempting to load from backup...");
 
-                    if (Local.Repository.TryValidate(BackupConnectionString))
+                    var backupRepository = ShareRepositoryFactory.CreateFromHostBackup(OptionsMonitor.CurrentValue.InstanceName);
+
+                    if (backupRepository.TryValidate(out _))
                     {
                         Log.Information("Share cache backup validated. Attempting to restore...");
 
-                        Local.Repository.RestoreFrom(connectionString: BackupConnectionString);
+                        Local.Repository.RestoreFrom(backupRepository);
 
                         Log.Information("Share cache successfully restored from backup");
                     }
@@ -337,7 +331,7 @@ namespace slskd.Shares
                 {
                     Log.Information("Share cache StorageMode is 'Disk'. Attempting to validate...");
 
-                    if (Local.Repository.TryValidate(ConnectionString))
+                    if (Local.Repository.TryValidate(out _))
                     {
                         // no-op
                     }
@@ -345,11 +339,13 @@ namespace slskd.Shares
                     {
                         Log.Warning("Share cache is missing, corrupt, or is out of date. Attempting to load from backup...");
 
-                        if (Local.Repository.TryValidate(BackupConnectionString))
+                        var backupRepository = ShareRepositoryFactory.CreateFromHostBackup(OptionsMonitor.CurrentValue.InstanceName);
+
+                        if (backupRepository.TryValidate(out _))
                         {
                             Log.Information("Share cache backup validated. Attempting to restore...");
 
-                            Local.Repository.RestoreFrom(connectionString: BackupConnectionString);
+                            Local.Repository.RestoreFrom(backupRepository);
 
                             Log.Information("Share cache successfully restored from backup");
                         }
