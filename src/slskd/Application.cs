@@ -445,11 +445,13 @@ namespace slskd
                 if (!cacheFileInfo.Exists)
                 {
                     Log.Warning("Browse response not cached. Rebuilding...");
-                    await CacheBrowseResponse();
+                    response = await CacheBrowseResponse();
                 }
-
-                var stream = new FileStream(cacheFilename, FileMode.Open, FileAccess.Read);
-                response = new RawBrowseResponse(cacheFileInfo.Length, stream);
+                else
+                {
+                    var stream = new FileStream(cacheFilename, FileMode.Open, FileAccess.Read);
+                    response = new RawBrowseResponse(cacheFileInfo.Length, stream);
+                }
 
                 Log.Information("Sent browse response to {User}", username);
 
@@ -1051,14 +1053,34 @@ namespace slskd
             }
         }
 
-        private async Task CacheBrowseResponse()
+        private async Task<BrowseResponse> CacheBrowseResponse()
         {
-            var directories = await Shares.BrowseAsync();
-            var response = new BrowseResponse(directories);
+            try
+            {
+                var sw = new Stopwatch();
+                sw.Start();
 
-            Log.Information("Warming browse response cache...");
-            System.IO.File.WriteAllBytes(Path.Combine(Program.DataDirectory, "browse.cache"), response.ToByteArray());
-            Log.Information("Browse response cached successfully");
+                var directories = await Shares.BrowseAsync();
+                var response = new BrowseResponse(directories);
+                var temp = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+                var destination = Path.Combine(Program.DataDirectory, "browse.cache");
+
+                Log.Information("Warming browse response cache...");
+                await System.IO.File.WriteAllBytesAsync(temp, response.ToByteArray());
+
+                Log.Debug("Saved cache to temp file {File}", temp);
+
+                System.IO.File.Move(temp, destination, overwrite: true);
+
+                sw.Stop();
+                Log.Information("Browse response cached successfully in {Duration}ms", sw.ElapsedMilliseconds);
+                return response;
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Error caching browse response: {Message}", ex.Message);
+                throw;
+            }
         }
 
         private void State_OnChange((State Previous, State Current) state)
