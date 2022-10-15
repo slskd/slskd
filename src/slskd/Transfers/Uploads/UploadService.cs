@@ -113,7 +113,7 @@ namespace slskd.Transfers.Uploads
         {
             string host = default;
             string localFilename = default;
-            FileInfo localFileInfo = default;
+            long localFileLength = default;
 
             Log.Information("[{Context}] {Username} requested {Filename}", "UPLOAD REQUESTED", username, filename);
 
@@ -121,12 +121,19 @@ namespace slskd.Transfers.Uploads
             {
                 (host, localFilename) = await Shares.ResolveFileAsync(filename.LocalizePath());
 
-                localFileInfo = new FileInfo(filename);
-
-                if (!localFileInfo.Exists)
+                if (host == "local")
                 {
-                    Shares.RequestScan();
-                    throw new NotFoundException($"The file '{localFilename}' could not be located on disk. A share scan should be performed.");
+                    // if it's local, do a quick check to see if it exists to spare the caller from
+                    // queueing up if the transfer is doomed to fail. for remote files, take a leap of faith.
+                    if (!File.Exists(localFilename))
+                    {
+                        Shares.RequestScan();
+                        throw new NotFoundException($"The file '{localFilename}' could not be located on disk. A share scan should be performed.");
+                    }
+                }
+                else
+                {
+                    localFileLength = 9001;
                 }
             }
             catch (NotFoundException)
@@ -135,13 +142,15 @@ namespace slskd.Transfers.Uploads
                 throw new DownloadEnqueueException($"File not shared.");
             }
 
+            Log.Information("Resolved {Remote} to physical file {Physical} on host '{Host}'", filename, localFilename, host);
+
             // find existing records for this username and file that haven't been removed from the UI
-            var existingRecords = List(t => t.Username == username && t.Filename == localFileInfo.FullName && !t.Removed);
+            var existingRecords = List(t => t.Username == username && t.Filename == localFilename && !t.Removed);
 
             // check whether any of these records is in a non-complete state and bail out if so
             if (existingRecords.Any(t => !t.State.HasFlag(TransferStates.Completed)))
             {
-                Log.Information("Upload {Filename} to {Username} is already queued or in progress", localFileInfo.FullName, username);
+                Log.Information("Upload {Filename} to {Username} is already queued or in progress", localFilename, username);
                 return;
             }
 
@@ -152,8 +161,8 @@ namespace slskd.Transfers.Uploads
                 Id = id,
                 Username = username,
                 Direction = TransferDirection.Upload,
-                Filename = localFileInfo.FullName,
-                Size = localFileInfo.Length,
+                Filename = localFilename,
+                Size = localFileLength,
                 StartOffset = 0, // potentially updated later during handshaking
                 RequestedAt = DateTime.UtcNow,
             };
@@ -198,7 +207,7 @@ namespace slskd.Transfers.Uploads
                     var topts = new TransferOptions(
                         stateChanged: (args) =>
                         {
-                            Log.Debug("Upload of {Filename} to user {Username} changed state from {Previous} to {New}", localFileInfo.FullName, username, args.PreviousState, args.Transfer.State);
+                            Log.Debug("Upload of {Filename} to user {Username} changed state from {Previous} to {New}", localFilename, username, args.PreviousState, args.Transfer.State);
 
                             if (Application.IsShuttingDown)
                             {
@@ -232,12 +241,12 @@ namespace slskd.Transfers.Uploads
 
                     if (host == "local")
                     {
-                        using var stream = new FileStream(localFileInfo.FullName, FileMode.Open, FileAccess.Read);
+                        using var stream = new FileStream(localFilename, FileMode.Open, FileAccess.Read);
 
                         var completedTransfer = await Client.UploadAsync(
                             username,
                             filename,
-                            size: localFileInfo.Length,
+                            size: localFileLength,
                             inputStreamFactory: () => stream,
                             options: topts,
                             cancellationToken: cts.Token);
@@ -253,7 +262,7 @@ namespace slskd.Transfers.Uploads
                             var completedTransfer = await Client.UploadAsync(
                                 username,
                                 filename,
-                                size: localFileInfo.Length,
+                                size: localFileLength,
                                 inputStreamFactory: () => stream,
                                 options: topts,
                                 cancellationToken: cts.Token);
