@@ -29,36 +29,22 @@ namespace slskd.Shares
         ///     Initializes a new instance of the <see cref="Host"/> class.
         /// </summary>
         /// <param name="name">The name of the host.</param>
-        /// <param name="type">The type of the host.</param>
         /// <param name="shares">The collection of hosted shares.</param>
-        /// <param name="state">The initial state of the host.</param>
-        public Host(string name, HostType type, IEnumerable<Share> shares = null, HostState state = HostState.Offline)
+        public Host(string name, IEnumerable<Share> shares = null)
         {
             Name = name;
-            Type = type;
             Shares = shares ?? Enumerable.Empty<Share>();
-            State = state;
         }
 
         /// <summary>
         ///     Gets the name of the host.
         /// </summary>
-        /// <remarks>Corresponds to the configured <see cref="Options.InstanceName"/> of the host.</remarks>
+        /// <remarks>Corresponds to the configured <see cref="Options.InstanceName"/> of the host, or "local" for the local host.</remarks>
         public string Name { get; }
 
         /// <summary>
         ///     Gets the collection of hosted shares.
         /// </summary>
         public IEnumerable<Share> Shares { get; init; }
-
-        /// <summary>
-        ///     Gets the host state.
-        /// </summary>
-        public HostState State { get; init; }
-
-        /// <summary>
-        ///     Gets the host type.
-        /// </summary>
-        public HostType Type { get; }
     }
 }

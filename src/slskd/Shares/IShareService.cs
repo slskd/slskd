@@ -32,6 +32,11 @@ namespace slskd.Shares
         IReadOnlyList<Host> Hosts { get; }
 
         /// <summary>
+        ///     Gets the local share host.
+        /// </summary>
+        Host LocalHost { get; }
+
+        /// <summary>
         ///     Gets the state monitor for the service.
         /// </summary>
         IStateMonitor<ShareState> StateMonitor { get; }
@@ -56,11 +61,26 @@ namespace slskd.Shares
         Task DumpAsync(string filename);
 
         /// <summary>
+        ///     Returns the share host with the specified <paramref name="name"/>.
+        /// </summary>
+        /// <param name="name">The name of the host.</param>
+        /// <param name="host">The host, if found.</param>
+        /// <returns>A value indicating whether the host was found.</returns>
+        bool TryGetHost(string name, out Host host);
+
+        /// <summary>
         ///     Returns the contents of the specified <paramref name="directory"/>.
         /// </summary>
         /// <param name="directory">The directory for which the contents are to be listed.</param>
         /// <returns>The contents of the directory.</returns>
         Task<Directory> ListDirectoryAsync(string directory);
+
+        /// <summary>
+        ///     Removes the share host with the specified <paramref name="name"/>.
+        /// </summary>
+        /// <param name="name">The name of the host.</param>
+        /// <returns>A value indicating whether the host was removed.</returns>
+        bool TryRemoveHost(string name);
 
         /// <summary>
         ///     Resolves the local filename of the specified <paramref name="remoteFilename"/>, if the mask is associated with a

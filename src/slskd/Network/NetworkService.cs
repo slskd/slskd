@@ -23,6 +23,7 @@ namespace slskd.Network
     using System.Collections.Concurrent;
     using System.Collections.ObjectModel;
     using System.IO;
+    using System.Threading;
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.SignalR;
     using Microsoft.Extensions.Caching.Memory;
@@ -120,6 +121,9 @@ namespace slskd.Network
             NetworkHub = networkHub;
 
             OptionsMonitor = optionsMonitor;
+            OptionsMonitor.OnChange(options => Configure(options));
+
+            Configure(OptionsMonitor.CurrentValue);
         }
 
         /// <summary>
@@ -138,6 +142,7 @@ namespace slskd.Network
         private IOptionsMonitor<Options> OptionsMonitor { get; }
         private IHubContext<NetworkHub> NetworkHub { get; set; }
         private ILogger Log { get; } = Serilog.Log.ForContext<NetworkService>();
+        private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1, 1);
 
         /// <summary>
         ///     Retrieves a new share upload token for the specified <paramref name="agent"/>.
@@ -285,5 +290,18 @@ namespace slskd.Network
 
         private string GetAuthTokenCacheKey(string connectionId) => $"{connectionId}.auth";
         private string GetShareTokenCacheKey(Guid token) => $"{token}.share";
+
+        private void Configure(Options options)
+        {
+            SyncRoot.Wait();
+
+            try
+            {
+            }
+            finally
+            {
+                SyncRoot.Release();
+            }
+        }
     }
 }

@@ -18,10 +18,12 @@
 namespace slskd.Network
 {
     using System;
+    using System.Collections.Generic;
     using System.IO;
     using System.Linq;
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.Authorization;
+    using Microsoft.AspNetCore.Http;
     using Microsoft.AspNetCore.Mvc;
     using Serilog;
     using slskd.Shares;
@@ -86,24 +88,6 @@ namespace slskd.Network
             }
         }
 
-        [HttpDelete("files/{id}")]
-        [Authorize]
-        public IActionResult NotifyUploadFailed(string id)
-        {
-            if (!Guid.TryParse(id, out var guid))
-            {
-                return BadRequest("Id is not a valid Guid");
-            }
-
-            if (Network.PendingFileUploads.TryGetValue(guid, out var record))
-            {
-                record.Stream.SetException(new NotFoundException($"The file could not be uploaded from the remote agent"));
-                return NoContent();
-            }
-
-            return NotFound();
-        }
-
         [HttpPost("shares/{id}")]
         [Authorize]
         public async Task<IActionResult> UploadShares(string id)
@@ -118,12 +102,26 @@ namespace slskd.Network
                 return Unauthorized();
             }
 
+            IEnumerable<Share> shares;
+            IFormFile database;
+
+            try
+            {
+                shares = Request.Form["shares"].ToString().FromJson<IEnumerable<Share>>();
+                database = Request.Form.Files[0];
+            }
+            catch (Exception ex)
+            {
+                Log.Warning("Failed to handle share upload from agent {Agent}: {Message}", agent, ex.Message);
+                return BadRequest();
+            }
+
             var temp = Path.Combine(Path.GetTempPath(), $"slskd_share_{agent}_{Path.GetRandomFileName()}.db");
 
             Log.Debug("Uploading share from {Agent} to {Filename}", agent, temp);
 
             using var outputStream = new FileStream(temp, FileMode.CreateNew, FileAccess.Write);
-            using var inputStream = Request.Form.Files[0].OpenReadStream();
+            using var inputStream = database.OpenReadStream();
 
             await inputStream.CopyToAsync(outputStream);
 
@@ -133,12 +131,14 @@ namespace slskd.Network
 
             if (!repository.TryValidate(out var problems))
             {
-                return BadRequest(string.Join(", ", problems));
+                return BadRequest("Invalid database: " + string.Join(", ", problems));
             }
 
             var destinationRepository = ShareRepositoryFactory.CreateFromHost(agent);
 
             destinationRepository.RestoreFrom(repository);
+
+            Shares.AddOrUpdateHost(new Host(agent, shares));
 
             return Ok();
         }

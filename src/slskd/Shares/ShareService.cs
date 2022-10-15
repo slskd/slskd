@@ -51,8 +51,8 @@ namespace slskd.Shares
 
             ShareRepositoryFactory = shareRepositoryFactory;
 
-            var host = new Host(options.InstanceName, type: HostType.Local, state: HostState.Online);
-            var repository = ShareRepositoryFactory.CreateFromHost(options.InstanceName);
+            var host = new Host("local");
+            var repository = ShareRepositoryFactory.CreateFromHost(host.Name);
 
             Local = (host, repository);
 
@@ -94,6 +94,11 @@ namespace slskd.Shares
         public IReadOnlyList<Host> Hosts => HostDictionary.Values.Select(v => v.Host).Prepend(Local.Host).ToList().AsReadOnly();
 
         /// <summary>
+        ///     Gets the local share host.
+        /// </summary>
+        public Host LocalHost => Local.Host;
+
+        /// <summary>
         ///     Gets the state monitor for the service.
         /// </summary>
         public IStateMonitor<ShareState> StateMonitor { get; }
@@ -124,7 +129,6 @@ namespace slskd.Shares
                 updateValueFactory: (_, existing) => (host, existing.Repository));
 
             AllRepositories = HostDictionary.Values
-                .Where(value => value.Host.State == HostState.Online)
                 .Select(value => value.Repository)
                 .Prepend(Local.Repository);
         }
@@ -191,6 +195,32 @@ namespace slskd.Shares
             Local.Repository.DumpTo(filename);
             return Task.CompletedTask;
         }
+
+        /// <summary>
+        ///     Returns the share host with the specified <paramref name="name"/>.
+        /// </summary>
+        /// <param name="name">The name of the host.</param>
+        /// <param name="host">The host, if found.</param>
+        /// <returns>A value indicating whether the host was found.</returns>
+        public bool TryGetHost(string name, out Host host)
+        {
+            if (HostDictionary.TryGetValue(name, out var record))
+            {
+                host = record.Host;
+                return true;
+            }
+
+            host = null;
+            return false;
+        }
+
+        /// <summary>
+        ///     Removes the share host with the specified <paramref name="name"/>.
+        /// </summary>
+        /// <param name="name">The name of the host.</param>
+        /// <returns>A value indicating whether the host was removed.</returns>
+        public bool TryRemoveHost(string name)
+            => HostDictionary.TryRemove(name, out _);
 
         /// <summary>
         ///     Returns the contents of the specified <paramref name="directory"/>.
@@ -264,7 +294,7 @@ namespace slskd.Shares
             await Scanner.ScanAsync(Local.Host.Shares, OptionsMonitor.CurrentValue.Shares);
 
             Log.Debug("Backing up shared file cache database...");
-            Local.Repository.BackupTo(ShareRepositoryFactory.CreateFromHostBackup(OptionsMonitor.CurrentValue.InstanceName));
+            Local.Repository.BackupTo(ShareRepositoryFactory.CreateFromHostBackup(Local.Host.Name));
             Log.Debug("Shared file cache database backup complete");
         }
 
@@ -311,7 +341,7 @@ namespace slskd.Shares
                 {
                     Log.Information("Share cache StorageMode is 'Memory'. Attempting to load from backup...");
 
-                    var backupRepository = ShareRepositoryFactory.CreateFromHostBackup(OptionsMonitor.CurrentValue.InstanceName);
+                    var backupRepository = ShareRepositoryFactory.CreateFromHostBackup(Local.Host.Name);
 
                     if (backupRepository.TryValidate(out _))
                     {
@@ -339,7 +369,7 @@ namespace slskd.Shares
                     {
                         Log.Warning("Share cache is missing, corrupt, or is out of date. Attempting to load from backup...");
 
-                        var backupRepository = ShareRepositoryFactory.CreateFromHostBackup(OptionsMonitor.CurrentValue.InstanceName);
+                        var backupRepository = ShareRepositoryFactory.CreateFromHostBackup(Local.Host.Name);
 
                         if (backupRepository.TryValidate(out _))
                         {
@@ -412,9 +442,6 @@ namespace slskd.Shares
                     .ToList();
 
                 Local = (Local.Host with { Shares = shares }, Local.Repository);
-
-                // todo: initialize agent hosts
-                // todo: don't destroy or overwrite existing hosts!
 
                 LastOptionsHash = optionsHash;
             }

@@ -160,10 +160,10 @@ namespace slskd.Shares
         public void DumpTo(string filename)
         {
             using var sourceConn = GetConnection(ConnectionString);
-            using var backupConn = GetConnection($"Data Source={filename}");
-            sourceConn.BackupDatabase(backupConn);
 
-            Sqlite.
+            // very important! don't use pooling for the backup connection or the file will remain locked
+            using var backupConn = GetConnection($"Data Source={filename};Pooling=False");
+            sourceConn.BackupDatabase(backupConn);
         }
 
         /// <summary>

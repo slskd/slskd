@@ -99,5 +99,13 @@ namespace slskd.Network
             Log.Information("Agent connection {Id} requested a share upload token, but was not registered.", Context.ConnectionId);
             throw new UnauthorizedAccessException();
         }
+
+        public void NotifyUploadFailed(Guid id)
+        {
+            if (Network.PendingFileUploads.TryGetValue(id, out var record))
+            {
+                record.Stream.SetException(new NotFoundException("The file could not be uploaded from the remote agent"));
+            }
+        }
     }
 }

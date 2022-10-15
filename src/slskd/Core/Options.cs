@@ -401,6 +401,9 @@ namespace slskd
             public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
             {
                 var results = new List<ValidationResult>();
+
+                // todo: can't run in agent mode if instancename is default
+
                 //var controllerResults = new List<ValidationResult>();
                 //var agentResults = new List<ValidationResult>();
 
