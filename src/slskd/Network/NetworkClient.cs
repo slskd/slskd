@@ -134,30 +134,13 @@ namespace slskd.Network
             var token = await HubConnection.InvokeAsync<Guid>(nameof(NetworkHub.GetShareUploadToken));
             Log.Debug("Share upload token {Token}", token);
 
-            FileStream stream = default;
+            var stream = new FileStream(temp, FileMode.Open, FileAccess.Read);
 
-            while (true)
-            {
-                try
-                {
-                    stream = new FileStream(temp, FileMode.Open, FileAccess.Read);
-                    break;
-                }
-                catch (Exception ex)
-                {
-                    // this happens if SQLite hangs on to the connection for whatever reason, seemingly due to pooling
-                    // Pooling=False should be included in the connection string and this shouldn't be an issue, but
-                    // since i don't totally understand the behavior, i'll leave this for now.
-                    Log.Debug(ex, "Failed open stream to backup.  Clearing SQLite pools and trying again.");
-                    SqliteConnection.ClearAllPools();
-                    await Task.Delay(100);
-                }
-            }
-
-            using var request = new HttpRequestMessage(HttpMethod.Post, $"api/v0/agents/shares/{token}");
+            using var request = new HttpRequestMessage(HttpMethod.Post, $"api/v0/network/shares/{token}");
             using var content = new MultipartFormDataContent
             {
-                { new StreamContent(stream), "shares" },
+                { new StringContent(Shares.LocalHost.Shares.ToJson()), "shares" },
+                { new StreamContent(stream), "database", "shares" },
             };
 
             request.Content = content;
@@ -190,7 +173,7 @@ namespace slskd.Network
                 }
 
                 using var stream = new FileStream(localFileInfo.FullName, FileMode.Open, FileAccess.Read);
-                using var request = new HttpRequestMessage(HttpMethod.Post, $"api/v0/agents/files/{id}");
+                using var request = new HttpRequestMessage(HttpMethod.Post, $"api/v0/network/files/{id}");
                 using var content = new MultipartFormDataContent
                 {
                     { new StreamContent(stream), "file", filename },
@@ -215,8 +198,7 @@ namespace slskd.Network
                 Log.Error(ex, "Failed to handle file request: {Message}", ex.Message);
 
                 // report the failure to the controller. this avoids a failure due to timeout.
-                using var request = new HttpRequestMessage(HttpMethod.Delete, $"api/v0/agents/files/{id}");
-                _ = HttpClient.SendAsync(request);
+                await HubConnection.InvokeAsync(nameof(NetworkHub.NotifyUploadFailed), id);
             }
         }
 
