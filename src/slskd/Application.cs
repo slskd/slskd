@@ -396,7 +396,7 @@ namespace slskd
             {
                 Log.Warning($"Not connecting to the Soulseek server; username and/or password invalid.  Specify valid credentials and manually connect, or update config and restart.");
             }
-            else if (OptionsAtStartup.Network.OperationMode.ToEnum<NetworkOperationMode>() == NetworkOperationMode.Agent || !OptionsAtStartup.Flags.DualNetworkMode)
+            else if (OptionsAtStartup.Network.OperationMode.ToEnum<NetworkOperationMode>() == NetworkOperationMode.Agent && !OptionsAtStartup.Flags.DualNetworkMode)
             {
                 Log.Information("Running in Agent mode; not connecting to the Soulseek server.");
                 await NetworkClient.StartAsync(cancellationToken);
