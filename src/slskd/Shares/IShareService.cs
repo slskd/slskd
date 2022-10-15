@@ -87,11 +87,11 @@ namespace slskd.Shares
         ///     configured share.
         /// </summary>
         /// <param name="remoteFilename">The fully qualified filename to resolve.</param>
-        /// <returns>The resolved local filename.</returns>
+        /// <returns>The resolved host and filename.</returns>
         /// <exception cref="NotFoundException">
         ///     Thrown when the specified remote filename can not be associated with a configured share.
         /// </exception>
-        Task<string> ResolveFileAsync(string remoteFilename);
+        Task<(string Host, string Filename)> ResolveFileAsync(string remoteFilename);
 
         /// <summary>
         ///     Requests that a share scan is performed.
