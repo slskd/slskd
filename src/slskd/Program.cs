@@ -528,10 +528,7 @@ namespace slskd
             services.AddSingleton<IRoomTracker, RoomTracker>(_ => new RoomTracker(messageLimit: 250));
 
             services.AddSingleton<IShareService, ShareService>();
-            services.AddSingleton(new ShareConnectionStringFactory(
-                createFromFile: (name) => $"Data Source={Path.Combine(DataDirectory, $"shares.{name}")}.db;Cache=shared",
-                createFromMemory: (name) => $"file:shares.{name}?mode=memory",
-                createBackupFromFile: (name) => $"Data Source={Path.Combine(DataDirectory, $"shares.{name}")}.db.bak;"));
+            services.AddTransient<IShareRepositoryFactory, SqliteShareRepositoryFactory>();
 
             services.AddSingleton<ISearchService, SearchService>();
             services.AddSingleton<IUserService, UserService>();
