@@ -111,6 +111,7 @@ namespace slskd.Transfers.Uploads
         /// <returns>The operation context.</returns>
         public async Task EnqueueAsync(string username, string filename)
         {
+            string host = default;
             string localFilename = default;
             FileInfo localFileInfo = default;
 
@@ -118,7 +119,7 @@ namespace slskd.Transfers.Uploads
 
             try
             {
-                localFilename = await Shares.ResolveFileAsync(filename.LocalizePath());
+                (host, localFilename) = await Shares.ResolveFileAsync(filename.LocalizePath());
 
                 localFileInfo = new FileInfo(filename);
 
@@ -223,30 +224,48 @@ namespace slskd.Transfers.Uploads
                             // todo: broadcast
                             SynchronizedUpdate(transfer);
                         }),
+                        disposeInputStreamOnCompletion: true,
                         governor: (tx, req, ct) => Governor.GetBytesAsync(tx.Username, req, ct),
                         reporter: (tx, att, grant, act) => Governor.ReturnBytes(tx.Username, att, grant, act),
                         slotAwaiter: (tx, ct) => Queue.AwaitStartAsync(tx.Username, tx.Filename),
                         slotReleased: (tx) => Queue.Complete(tx.Username, tx.Filename));
 
-                    //using var stream = new FileStream(fileInfo.FullName, FileMode.Open, FileAccess.Read);
+                    if (host == "local")
+                    {
+                        using var stream = new FileStream(localFileInfo.FullName, FileMode.Open, FileAccess.Read);
 
-                    var (stream, completion) = await Network.GetFileUpload("any", filename);
+                        var completedTransfer = await Client.UploadAsync(
+                            username,
+                            filename,
+                            size: localFileInfo.Length,
+                            inputStreamFactory: () => stream,
+                            options: topts,
+                            cancellationToken: cts.Token);
 
-                    var completedTransfer = await Client.UploadAsync(
-                        username,
-                        filename,
-                        size: localFileInfo.Length,
-                        inputStreamFactory: () => stream,
-                        options: topts,
-                        cancellationToken: cts.Token);
+                        transfer = transfer.WithSoulseekTransfer(completedTransfer);
+                    }
+                    else
+                    {
+                        var (stream, completion) = await Network.GetFileUpload(agent: host, filename);
 
-                    completion.SetResult();
+                        using (stream)
+                        {
+                            var completedTransfer = await Client.UploadAsync(
+                                username,
+                                filename,
+                                size: localFileInfo.Length,
+                                inputStreamFactory: () => stream,
+                                options: topts,
+                                cancellationToken: cts.Token);
+
+                            completion.SetResult();
+                            transfer = transfer.WithSoulseekTransfer(completedTransfer);
+                        }
+                    }
 
                     // explicitly dispose the rate limiter to prevent updates from it
                     // beyond this point, which may overwrite the final state
                     rateLimiter.Dispose();
-
-                    transfer = transfer.WithSoulseekTransfer(completedTransfer);
 
                     // todo: broadcast
                     SynchronizedUpdate(transfer, cancellable: false);
