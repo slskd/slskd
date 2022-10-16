@@ -249,13 +249,11 @@ namespace slskd.Transfers.Uploads
 
                     if (host == "local")
                     {
-                        using var stream = new FileStream(localFilename, FileMode.Open, FileAccess.Read);
-
                         var completedTransfer = await Client.UploadAsync(
                             username,
                             filename,
                             size: localFileLength,
-                            inputStreamFactory: () => stream,
+                            inputStreamFactory: () => Task.FromResult((Stream)new FileStream(localFilename, FileMode.Open, FileAccess.Read)),
                             options: topts,
                             cancellationToken: cts.Token);
 
@@ -263,21 +261,23 @@ namespace slskd.Transfers.Uploads
                     }
                     else
                     {
-                        var (stream, completion) = await Network.GetFileUpload(agent: host, filename);
+                        TaskCompletionSource uploadCompletion = default;
 
-                        using (stream)
-                        {
-                            var completedTransfer = await Client.UploadAsync(
-                                username,
-                                filename,
-                                size: localFileLength,
-                                inputStreamFactory: () => stream,
-                                options: topts,
-                                cancellationToken: cts.Token);
+                        var completedTransfer = await Client.UploadAsync(
+                            username,
+                            filename,
+                            size: localFileLength,
+                            inputStreamFactory: async () =>
+                            {
+                                var (stream, completion) = await Network.GetFileUpload(agent: host, filename);
+                                uploadCompletion = completion;
+                                return stream;
+                            },
+                            options: topts,
+                            cancellationToken: cts.Token);
 
-                            completion.SetResult();
-                            transfer = transfer.WithSoulseekTransfer(completedTransfer);
-                        }
+                        uploadCompletion.SetResult();
+                        transfer = transfer.WithSoulseekTransfer(completedTransfer);
                     }
 
                     // explicitly dispose the rate limiter to prevent updates from it
