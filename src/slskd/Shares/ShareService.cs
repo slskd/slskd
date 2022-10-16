@@ -245,18 +245,31 @@ namespace slskd.Shares
         /// <exception cref="NotFoundException">
         ///     Thrown when the specified remote filename can not be associated with a configured share.
         /// </exception>
-        public Task<string> ResolveFileAsync(string remoteFilename)
+        public Task<(string Host, string Filename)> ResolveFileAsync(string remoteFilename)
         {
-            var resolvedFilename = AllRepositories
-                .Select(r => r.FindFilename(remoteFilename.LocalizePath()))
-                .FirstOrDefault(r => !string.IsNullOrEmpty(r));
+            string resolvedHost = "local";
+            string resolvedFilename = default;
 
-            if (string.IsNullOrEmpty(resolvedFilename))
+            resolvedFilename = Local.Repository.FindFilename(remoteFilename.LocalizePath());
+
+            if (!string.IsNullOrEmpty(resolvedFilename))
             {
-                throw new NotFoundException($"The requested filename '{remoteFilename}' could not be resolved to a local file");
+                return Task.FromResult((resolvedHost, resolvedFilename));
             }
 
-            return Task.FromResult(resolvedFilename);
+            // file not found locally.  begin searching other hosts one by one.
+            // this is the slow, dumb way to do this, but it's plenty fast in this context.
+            foreach (var host in HostDictionary.Values)
+            {
+                resolvedFilename = host.Repository.FindFilename(remoteFilename.LocalizePath());
+
+                if (!string.IsNullOrEmpty(resolvedFilename))
+                {
+                    return Task.FromResult((host.Host.Name, resolvedFilename));
+                }
+            }
+
+            throw new NotFoundException($"The requested filename '{remoteFilename}' could not be resolved to a physical file");
         }
 
         /// <summary>
