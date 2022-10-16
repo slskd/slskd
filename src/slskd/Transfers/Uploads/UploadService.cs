@@ -125,11 +125,15 @@ namespace slskd.Transfers.Uploads
                 {
                     // if it's local, do a quick check to see if it exists to spare the caller from
                     // queueing up if the transfer is doomed to fail. for remote files, take a leap of faith.
-                    if (!File.Exists(localFilename))
+                    var info = new FileInfo(localFilename);
+
+                    if (!info.Exists)
                     {
                         Shares.RequestScan();
                         throw new NotFoundException($"The file '{localFilename}' could not be located on disk. A share scan should be performed.");
                     }
+
+                    localFileLength = info.Length;
                 }
                 else
                 {
