@@ -156,7 +156,7 @@ namespace slskd.Network
             Log.Information("Upload shares succeeded");
         }
 
-        private async Task HandleFileRequest(Guid id, string filename)
+        private async Task HandleFileRequest(string filename, Guid id)
         {
             Log.Information("Network controller requested file {Filename} with ID {Id}", filename, id);
 
@@ -164,7 +164,7 @@ namespace slskd.Network
             {
                 var localFilename = await Shares.ResolveFileAsync(filename);
 
-                var localFileInfo = new FileInfo(filename);
+                var localFileInfo = new FileInfo(localFilename);
 
                 if (!localFileInfo.Exists)
                 {
@@ -199,6 +199,25 @@ namespace slskd.Network
 
                 // report the failure to the controller. this avoids a failure due to timeout.
                 await HubConnection.InvokeAsync(nameof(NetworkHub.NotifyUploadFailed), id);
+            }
+        }
+
+        private async Task HandleFileInfoRequest(string filename, Guid id)
+        {
+            Log.Information("Network controller requested file info for {Filename} with ID {Id}", filename, id);
+
+            try
+            {
+                var localFilename = await Shares.ResolveFileAsync(filename);
+
+                var localFileInfo = new FileInfo(localFilename);
+
+                await HubConnection.InvokeAsync(nameof(NetworkHub.ReturnFileInfo), id, localFileInfo.Exists, localFileInfo.Length);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to handle file info request: {Message}", ex.Message);
+                await HubConnection.InvokeAsync(nameof(NetworkHub.ReturnFileInfo), id, false, 0);
             }
         }
 
@@ -296,7 +315,7 @@ namespace slskd.Network
                 HubConnection.Reconnecting += HubConnection_Reconnecting;
                 HubConnection.Closed += HubConnection_Closed;
 
-                HubConnection.On<Guid, string>(NetworkHubMethods.RequestFile, HandleFileRequest);
+                HubConnection.On<string, Guid>(NetworkHubMethods.RequestFile, HandleFileRequest);
                 HubConnection.On<string>(NetworkHubMethods.AuthenticationChallenge, HandleAuthenticationChallenge);
 
                 LastOptionsHash = optionsHash;

@@ -26,6 +26,7 @@ namespace slskd.Network
     public static class NetworkHubMethods
     {
         public static readonly string RequestFile = "REQUEST_FILE";
+        public static readonly string RequestFileInfo = "REQUEST_FILE_INFO";
         public static readonly string AuthenticationChallenge = "AUTHENTICATION_CHALLENGE";
         public static readonly string AuthenticationChallengeAccepted = "AUTHENTICATION_CHALLENGE_ACCEPTED";
         public static readonly string AuthenticationChallengeRejected = "AUTHENTICATION_CHALLENGE_REJECTED";
@@ -40,6 +41,11 @@ namespace slskd.Network
         {
             // todo: how to send this to the specified agent?
             return hub.Clients.All.SendAsync(NetworkHubMethods.RequestFile, filename, id);
+        }
+
+        public static Task RequestFileInfoAsync(this IHubContext<NetworkHub> hub, string agent, string filename, Guid id)
+        {
+            return hub.Clients.All.SendAsync(NetworkHubMethods.RequestFileInfo, filename, id);
         }
     }
 
@@ -104,7 +110,15 @@ namespace slskd.Network
         {
             if (Network.PendingFileUploads.TryGetValue(id, out var record))
             {
-                record.Stream.SetException(new NotFoundException("The file could not be uploaded from the remote agent"));
+                record.Stream.TrySetException(new NotFoundException("The file could not be uploaded from the remote agent"));
+            }
+        }
+
+        public void ReturnFileInfo(Guid id, bool exists, long length)
+        {
+            if (Network.PendingFileInquiries.TryGetValue(id, out var record))
+            {
+                record.TrySetResult((exists, length));
             }
         }
     }

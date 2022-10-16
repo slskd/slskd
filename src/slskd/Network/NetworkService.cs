@@ -38,9 +38,23 @@ namespace slskd.Network
         ReadOnlyDictionary<Guid, (TaskCompletionSource<Stream> Stream, TaskCompletionSource Completion)> PendingFileUploads { get; }
 
         /// <summary>
+        ///     Gets the collection of pending Agent file inquiries.
+        /// </summary>
+        ReadOnlyDictionary<Guid, TaskCompletionSource<(bool Exists, long Length)>> PendingFileInquiries { get; }
+
+        /// <summary>
         ///     Gets the collection of registered Agents.
         /// </summary>
         ReadOnlyDictionary<string, string> RegisteredAgents { get; }
+
+        /// <summary>
+        ///     Retrieves information about the specified <paramref name="filename"/> from the specified <paramref name="agent"/>.
+        /// </summary>
+        /// <param name="agent">The agent from which to retrieve the file information.</param>
+        /// <param name="filename">The file for which to retrieve information.</param>
+        /// <param name="timeout">An optional timeout value.</param>
+        /// <returns>A value indicating whether the file exists, and the length in bytes.</returns>
+        Task<(bool Exists, long Length)> GetFileInfo(string agent, string filename, int timeout = 3000);
 
         /// <summary>
         ///     Retrieves an upload of the specified <paramref name="filename"/> from the specified <paramref name="agent"/>.
@@ -132,17 +146,105 @@ namespace slskd.Network
         public ReadOnlyDictionary<Guid, (TaskCompletionSource<Stream> Stream, TaskCompletionSource Completion)> PendingFileUploads => new(PendingFileUploadDictionary);
 
         /// <summary>
+        ///     Gets the collection of pending Agent file inquiries.
+        /// </summary>
+        public ReadOnlyDictionary<Guid, TaskCompletionSource<(bool Exists, long Length)>> PendingFileInquiries => new(PendingFileInquiryDictionary);
+
+        /// <summary>
         ///     Gets the collection of registered Agents.
         /// </summary>
         public ReadOnlyDictionary<string, string> RegisteredAgents => new(RegisteredAgentDictionary);
 
         private ConcurrentDictionary<Guid, (TaskCompletionSource<Stream> Stream, TaskCompletionSource Completion)> PendingFileUploadDictionary { get; } = new();
+        private ConcurrentDictionary<Guid, TaskCompletionSource<(bool Exists, long Length)>> PendingFileInquiryDictionary { get; } = new();
         private ConcurrentDictionary<string, string> RegisteredAgentDictionary { get; } = new();
         private MemoryCache MemoryCache { get; } = new MemoryCache(new MemoryCacheOptions());
         private IOptionsMonitor<Options> OptionsMonitor { get; }
         private IHubContext<NetworkHub> NetworkHub { get; set; }
         private ILogger Log { get; } = Serilog.Log.ForContext<NetworkService>();
         private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1, 1);
+
+        /// <summary>
+        ///     Retrieves information about the specified <paramref name="filename"/> from the specified <paramref name="agent"/>.
+        /// </summary>
+        /// <param name="agent">The agent from which to retrieve the file information.</param>
+        /// <param name="filename">The file for which to retrieve information.</param>
+        /// <param name="timeout">An optional timeout value.</param>
+        /// <returns>A value indicating whether the file exists, and the length in bytes.</returns>
+        public async Task<(bool Exists, long Length)> GetFileInfo(string agent, string filename, int timeout = 3000)
+        {
+            var id = Guid.NewGuid();
+            var tcs = new TaskCompletionSource<(bool Exists, long Length)>();
+
+            PendingFileInquiryDictionary.TryAdd(id, tcs);
+
+            try
+            {
+                await NetworkHub.RequestFileInfoAsync(agent, filename, id);
+                Log.Information("Requested file information for {Filename} from Agent {Agent} with ID {Id}. Waiting for response.", filename, agent, id);
+
+                var task = await Task.WhenAny(tcs.Task, Task.Delay(timeout));
+
+                if (task == tcs.Task)
+                {
+                    return await tcs.Task;
+                }
+                else
+                {
+                    throw new TimeoutException($"Timed out attempting to retrieve file information for {filename} from Agent {agent}");
+                }
+            }
+            finally
+            {
+                PendingFileInquiryDictionary.TryRemove(id, out _);
+            }
+        }
+
+        /// <summary>
+        ///     Retrieves an upload of the specified <paramref name="filename"/> from the specified <paramref name="agent"/>.
+        /// </summary>
+        /// <param name="agent">The agent from which to retrieve the file.</param>
+        /// <param name="filename">The file to retrieve.</param>
+        /// <param name="timeout">An optional timeout value.</param>
+        /// <returns>The operation context, including a stream containing the requested file, and an upload TaskCompletionSource.</returns>
+        public async Task<(Stream Stream, TaskCompletionSource Completion)> GetFileUpload(string agent, string filename, int timeout = 3000)
+        {
+            var id = Guid.NewGuid();
+
+            // create a TCS for the upload stream. this is awaited below and completed in
+            // the API controller when the agent POSTs the file
+            var upload = new TaskCompletionSource<Stream>();
+
+            // create a TCS for the upload itself. this is awaited by the API controller
+            // and completed by the transfer service when the upload to the remote user is complete
+            // the API controller needs to wait until the remote transfer is complete in order to
+            // keep the stream open for the duration
+            var completion = new TaskCompletionSource();
+
+            PendingFileUploadDictionary.TryAdd(id, (upload, completion));
+
+            try
+            {
+                await NetworkHub.RequestFileAsync(agent, filename, id);
+                Log.Information("Requested file {Filename} from Agent {Agent} with ID {Id}. Waiting for incoming connection.", filename, agent, id);
+
+                var task = await Task.WhenAny(upload.Task, Task.Delay(timeout));
+
+                if (task == upload.Task)
+                {
+                    var stream = await upload.Task;
+                    return (stream, completion);
+                }
+                else
+                {
+                    throw new TimeoutException($"Timed out attempting to retrieve the file {filename} from agent {agent}");
+                }
+            }
+            finally
+            {
+                PendingFileUploadDictionary.TryRemove(id, out _);
+            }
+        }
 
         /// <summary>
         ///     Retrieves a new share upload token for the specified <paramref name="agent"/>.
@@ -247,45 +349,6 @@ namespace slskd.Network
             var expectedResponse = Aes.Encrypt(tokenBytes, key).ToBase62();
 
             return expectedResponse == challengeResponse;
-        }
-
-        /// <summary>
-        ///     Retrieves an upload of the specified <paramref name="filename"/> from the specified <paramref name="agent"/>.
-        /// </summary>
-        /// <param name="agent">The agent from which to retrieve the file.</param>
-        /// <param name="filename">The file to retrieve.</param>
-        /// <param name="timeout">An optional timeout value.</param>
-        /// <returns>The operation context, including a stream containing the requested file, and an upload TaskCompletionSource.</returns>
-        public async Task<(Stream Stream, TaskCompletionSource Completion)> GetFileUpload(string agent, string filename, int timeout = 3000)
-        {
-            var id = Guid.NewGuid();
-
-            // create a TCS for the upload stream. this is awaited below and completed in
-            // the API controller when the agent POSTs the file
-            var upload = new TaskCompletionSource<Stream>();
-
-            // create a TCS for the upload itself. this is awaited by the API controller
-            // and completed by the transfer service when the upload to the remote user is complete
-            // the API controller needs to wait until the remote transfer is complete in order to
-            // keep the stream open for the duration
-            var completion = new TaskCompletionSource();
-
-            PendingFileUploadDictionary.TryAdd(id, (upload, completion));
-
-            await NetworkHub.RequestFileAsync(agent, filename, id);
-            Log.Information("Requested file {Filename} from Agent {Agent} with ID {Id}. Waiting for incoming connection.", filename, agent, id);
-
-            var task = await Task.WhenAny(upload.Task, Task.Delay(timeout));
-
-            if (task == upload.Task)
-            {
-                var stream = await upload.Task;
-                return (stream, completion);
-            }
-            else
-            {
-                throw new TimeoutException($"Timed out attempting to retrieve the file {filename} from agent {agent}");
-            }
         }
 
         private string GetAuthTokenCacheKey(string connectionId) => $"{connectionId}.auth";
