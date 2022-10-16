@@ -162,7 +162,7 @@ namespace slskd.Network
 
             try
             {
-                var localFilename = await Shares.ResolveFileAsync(filename);
+                var (_, localFilename) = await Shares.ResolveFileAsync(filename);
 
                 var localFileInfo = new FileInfo(localFilename);
 
@@ -208,7 +208,7 @@ namespace slskd.Network
 
             try
             {
-                var localFilename = await Shares.ResolveFileAsync(filename);
+                var (_, localFilename) = await Shares.ResolveFileAsync(filename);
 
                 var localFileInfo = new FileInfo(localFilename);
 

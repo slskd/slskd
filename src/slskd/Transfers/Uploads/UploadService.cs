@@ -133,7 +133,15 @@ namespace slskd.Transfers.Uploads
                 }
                 else
                 {
-                    localFileLength = 9001;
+                    var (exists, length) = await Network.GetFileInfo(agent: host, filename);
+
+                    if (!exists || length <= 0)
+                    {
+                        // todo: force a remote scan
+                        throw new NotFoundException($"The file '{localFilename}' could not be located on Agent {host}. A share scan should be performed.");
+                    }
+
+                    localFileLength = length;
                 }
             }
             catch (NotFoundException)
