@@ -30,6 +30,7 @@ namespace slskd.Transfers.Uploads
     using System.Threading.Tasks;
     using Microsoft.EntityFrameworkCore;
     using Serilog;
+    using slskd.Network;
     using slskd.Shares;
     using slskd.Users;
 
@@ -43,11 +44,13 @@ namespace slskd.Transfers.Uploads
             ISoulseekClient soulseekClient,
             IOptionsMonitor<Options> optionsMonitor,
             IShareService shareService,
+            INetworkService networkService,
             IDbContextFactory<TransfersDbContext> contextFactory)
         {
             Users = userService;
             Client = soulseekClient;
             Shares = shareService;
+            Network = networkService;
             ContextFactory = contextFactory;
             OptionsMonitor = optionsMonitor;
 
@@ -72,6 +75,7 @@ namespace slskd.Transfers.Uploads
         private IShareService Shares { get; set; }
         private IUserService Users { get; set; }
         private IOptionsMonitor<Options> OptionsMonitor { get; }
+        private INetworkService Network { get; }
 
         /// <summary>
         ///     Adds the specified <paramref name="transfer"/>. Supersedes any existing record for the same file and username.
@@ -107,13 +111,42 @@ namespace slskd.Transfers.Uploads
         /// <returns>The operation context.</returns>
         public async Task EnqueueAsync(string username, string filename)
         {
-            FileInfo fileInfo = default;
+            string host = default;
+            string localFilename = default;
+            long localFileLength = default;
 
             Log.Information("[{Context}] {Username} requested {Filename}", "UPLOAD REQUESTED", username, filename);
 
             try
             {
-                fileInfo = await Shares.ResolveFileAsync(filename.LocalizePath());
+                (host, localFilename) = await Shares.ResolveFileAsync(filename.LocalizePath());
+
+                if (host == "local")
+                {
+                    // if it's local, do a quick check to see if it exists to spare the caller from
+                    // queueing up if the transfer is doomed to fail. for remote files, take a leap of faith.
+                    var info = new FileInfo(localFilename);
+
+                    if (!info.Exists)
+                    {
+                        Shares.RequestScan();
+                        throw new NotFoundException($"The file '{localFilename}' could not be located on disk. A share scan should be performed.");
+                    }
+
+                    localFileLength = info.Length;
+                }
+                else
+                {
+                    var (exists, length) = await Network.GetFileInfo(agent: host, filename);
+
+                    if (!exists || length <= 0)
+                    {
+                        // todo: force a remote scan
+                        throw new NotFoundException($"The file '{localFilename}' could not be located on Agent {host}. A share scan should be performed.");
+                    }
+
+                    localFileLength = length;
+                }
             }
             catch (NotFoundException)
             {
@@ -121,13 +154,15 @@ namespace slskd.Transfers.Uploads
                 throw new DownloadEnqueueException($"File not shared.");
             }
 
+            Log.Information("Resolved {Remote} to physical file {Physical} on host '{Host}'", filename, localFilename, host);
+
             // find existing records for this username and file that haven't been removed from the UI
-            var existingRecords = List(t => t.Username == username && t.Filename == fileInfo.FullName && !t.Removed);
+            var existingRecords = List(t => t.Username == username && t.Filename == localFilename && !t.Removed);
 
             // check whether any of these records is in a non-complete state and bail out if so
             if (existingRecords.Any(t => !t.State.HasFlag(TransferStates.Completed)))
             {
-                Log.Information("Upload {Filename} to {Username} is already queued or in progress", fileInfo.FullName, username);
+                Log.Information("Upload {Filename} to {Username} is already queued or in progress", localFilename, username);
                 return;
             }
 
@@ -138,8 +173,8 @@ namespace slskd.Transfers.Uploads
                 Id = id,
                 Username = username,
                 Direction = TransferDirection.Upload,
-                Filename = fileInfo.FullName,
-                Size = fileInfo.Length,
+                Filename = localFilename,
+                Size = localFileLength,
                 StartOffset = 0, // potentially updated later during handshaking
                 RequestedAt = DateTime.UtcNow,
             };
@@ -184,7 +219,7 @@ namespace slskd.Transfers.Uploads
                     var topts = new TransferOptions(
                         stateChanged: (args) =>
                         {
-                            Log.Debug("Upload of {Filename} to user {Username} changed state from {Previous} to {New}", fileInfo.FullName, username, args.PreviousState, args.Transfer.State);
+                            Log.Debug("Upload of {Filename} to user {Username} changed state from {Previous} to {New}", localFilename, username, args.PreviousState, args.Transfer.State);
 
                             if (Application.IsShuttingDown)
                             {
@@ -210,24 +245,48 @@ namespace slskd.Transfers.Uploads
                             // todo: broadcast
                             SynchronizedUpdate(transfer);
                         }),
+                        disposeInputStreamOnCompletion: true,
                         governor: (tx, req, ct) => Governor.GetBytesAsync(tx.Username, req, ct),
                         reporter: (tx, att, grant, act) => Governor.ReturnBytes(tx.Username, att, grant, act),
                         slotAwaiter: (tx, ct) => Queue.AwaitStartAsync(tx.Username, tx.Filename),
                         slotReleased: (tx) => Queue.Complete(tx.Username, tx.Filename));
 
-                    using var stream = new FileStream(fileInfo.FullName, FileMode.Open, FileAccess.Read);
-                    var completedTransfer = await Client.UploadAsync(
-                        username,
-                        filename,
-                        fileInfo.FullName,
-                        options: topts,
-                        cancellationToken: cts.Token);
+                    if (host == "local")
+                    {
+                        var completedTransfer = await Client.UploadAsync(
+                            username,
+                            filename,
+                            size: localFileLength,
+                            inputStreamFactory: () => Task.FromResult((Stream)new FileStream(localFilename, FileMode.Open, FileAccess.Read)),
+                            options: topts,
+                            cancellationToken: cts.Token);
+
+                        transfer = transfer.WithSoulseekTransfer(completedTransfer);
+                    }
+                    else
+                    {
+                        TaskCompletionSource uploadCompletion = default;
+
+                        var completedTransfer = await Client.UploadAsync(
+                            username,
+                            filename,
+                            size: localFileLength,
+                            inputStreamFactory: async () =>
+                            {
+                                var (stream, completion) = await Network.GetFileUpload(agent: host, filename);
+                                uploadCompletion = completion;
+                                return stream;
+                            },
+                            options: topts,
+                            cancellationToken: cts.Token);
+
+                        uploadCompletion.SetResult();
+                        transfer = transfer.WithSoulseekTransfer(completedTransfer);
+                    }
 
                     // explicitly dispose the rate limiter to prevent updates from it
                     // beyond this point, which may overwrite the final state
                     rateLimiter.Dispose();
-
-                    transfer = transfer.WithSoulseekTransfer(completedTransfer);
 
                     // todo: broadcast
                     SynchronizedUpdate(transfer, cancellable: false);

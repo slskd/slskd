@@ -58,6 +58,7 @@ namespace slskd
     using slskd.Integrations.FTP;
     using slskd.Integrations.Pushbullet;
     using slskd.Messaging;
+    using slskd.Network;
     using slskd.Search;
     using slskd.Search.API;
     using slskd.Shares;
@@ -206,6 +207,9 @@ namespace slskd
         [Argument('k', "generate-api-key", "generate a random API key")]
         private static bool GenerateApiKey { get; set; }
 
+        [Argument('t', "generate-agent-secret", "generate a random agent secret")]
+        private static bool GenerateAgentSecret { get; set; }
+
         [Argument('n', "no-logo", "suppress logo on startup")]
         private static bool NoLogo { get; set; }
 
@@ -261,6 +265,7 @@ namespace slskd
             using (var mutex = new Mutex(reqInitialOwnership, AppName))
             {
                 var hasHandle = false;
+
                 try
                 {
                     try
@@ -270,7 +275,7 @@ namespace slskd
                             Console.WriteLine("Another instance of this program is running");
                             Environment.Exit(0);
                         }
-                     }
+                    }
                     catch (AbandonedMutexException)
                     {
                         hasHandle = true;
@@ -287,13 +292,19 @@ namespace slskd
 
             if (GenerateCertificate)
             {
-                GenerateX509Certificate(password: Cryptography.Random.GetBytes(16).ToBase62String(), filename: $"{AppName}.pfx");
+                GenerateX509Certificate(password: Cryptography.Random.GetBytes(16).ToBase62(), filename: $"{AppName}.pfx");
                 return;
             }
 
             if (GenerateApiKey)
             {
-                Log.Information($"API Key: {Cryptography.Random.GetBytes(32).ToBase62String()}");
+                Log.Information($"API Key: {Cryptography.Random.GetBytes(32).ToBase62()}");
+                return;
+            }
+
+            if (GenerateAgentSecret)
+            {
+                Log.Information($"Agent Secret: {Aes.GenerateRandomKey().ToBase62()}");
                 return;
             }
 
@@ -517,10 +528,7 @@ namespace slskd
             services.AddSingleton<IRoomTracker, RoomTracker>(_ => new RoomTracker(messageLimit: 250));
 
             services.AddSingleton<IShareService, ShareService>();
-            services.AddSingleton(new ShareConnectionStringFactory(
-                createFromFile: (name) => $"Data Source={Path.Combine(DataDirectory, $"shares.{name}")}.db;Cache=shared",
-                createFromMemory: (name) => $"file:shares.{name}?mode=memory",
-                createBackupFromFile: (name) => $"Data Source={Path.Combine(DataDirectory, $"shares.{name}")}.db.bak;"));
+            services.AddTransient<IShareRepositoryFactory, SqliteShareRepositoryFactory>();
 
             services.AddSingleton<ISearchService, SearchService>();
             services.AddSingleton<IUserService, UserService>();
@@ -529,6 +537,9 @@ namespace slskd
             services.AddSingleton<ITransferService, TransferService>();
             services.AddSingleton<IDownloadService, DownloadService>();
             services.AddSingleton<IUploadService, UploadService>();
+
+            services.AddSingleton<INetworkService, NetworkService>();
+            services.AddSingleton<INetworkClient, NetworkClient>();
 
             services.AddSingleton<IFTPClientFactory, FTPClientFactory>();
             services.AddSingleton<IFTPService, FTPService>();
@@ -773,6 +784,7 @@ namespace slskd
                 endpoints.MapHub<ApplicationHub>("/hub/application");
                 endpoints.MapHub<LogsHub>("/hub/logs");
                 endpoints.MapHub<SearchHub>("/hub/search");
+                endpoints.MapHub<NetworkHub>("/hub/agents");
 
                 endpoints.MapControllers();
                 endpoints.MapHealthChecks("/health");
@@ -993,7 +1005,6 @@ namespace slskd
 
         private static void GenerateX509Certificate(string password, string filename)
         {
-            Log.Information("Generating X509 certificate...");
             filename = Path.Combine(AppContext.BaseDirectory, filename);
 
             var cert = X509.Generate(subject: AppName, password, X509KeyStorageFlags.Exportable);

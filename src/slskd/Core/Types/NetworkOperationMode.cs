@@ -1,4 +1,4 @@
-﻿// <copyright file="HostType.cs" company="slskd Team">
+﻿// <copyright file="NetworkOperationMode.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -15,21 +15,21 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-namespace slskd.Shares
+namespace slskd
 {
     /// <summary>
-    ///     The type of host.
+    ///     The network operation mode.
     /// </summary>
-    public enum HostType
+    public enum NetworkOperationMode
     {
         /// <summary>
-        ///     Local.
+        ///     Controller operation mode.
         /// </summary>
-        Local = 0,
+        Controller = 0,
 
         /// <summary>
-        ///     Remote; shares are hosted by an Agent.
+        ///     Agent operation mode.
         /// </summary>
-        Remote = 1,
+        Agent = 1,
     }
 }

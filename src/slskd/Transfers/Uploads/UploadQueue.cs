@@ -69,7 +69,7 @@ namespace slskd.Transfers
         /// <param name="username">The username associated with the file.</param>
         /// <param name="filename">The filename of the file for which the position is to be estimated.</param>
         /// <returns>The estimated queue position of the file.</returns>
-        /// <exception cref="FileNotFoundException">Thrown if the specified filename is not enqueued.</exception>
+        /// <exception cref="NotFoundException">Thrown if the specified filename is not enqueued.</exception>
         int EstimatePosition(string username, string filename);
 
         /// <summary>
@@ -251,7 +251,7 @@ namespace slskd.Transfers
         /// <param name="username">The username associated with the file.</param>
         /// <param name="filename">The filename of the file for which the position is to be estimated.</param>
         /// <returns>The estimated queue position of the file.</returns>
-        /// <exception cref="FileNotFoundException">Thrown if the specified filename is not enqueued.</exception>
+        /// <exception cref="NotFoundException">Thrown if the specified filename is not enqueued.</exception>
         public int EstimatePosition(string username, string filename)
         {
             var groupName = Users.GetGroup(username);
@@ -269,7 +269,7 @@ namespace slskd.Transfers
                 // find this user's uploads
                 if (!Uploads.TryGetValue(username, out var uploadsForUser))
                 {
-                    throw new FileNotFoundException($"File {filename} is not enqueued for user {username}");
+                    throw new NotFoundException($"File {filename} is not enqueued for user {username}");
                 }
 
                 // find the position of the requested file in the user's queue
@@ -280,7 +280,7 @@ namespace slskd.Transfers
 
                 if (localPosition < 0)
                 {
-                    throw new FileNotFoundException($"File {filename} is not enqueued for user {username}");
+                    throw new NotFoundException($"File {filename} is not enqueued for user {username}");
                 }
 
                 // start the position to the local position within this user's queue; the user's own files must be completed
@@ -321,7 +321,7 @@ namespace slskd.Transfers
 
             if (globalPosition < 0)
             {
-                throw new FileNotFoundException($"File {filename} is not enqueued for user {username}");
+                throw new NotFoundException($"File {filename} is not enqueued for user {username}");
             }
 
             return globalPosition;

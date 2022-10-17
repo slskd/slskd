@@ -42,6 +42,7 @@ namespace slskd
     using slskd.Core.API;
     using slskd.Integrations.Pushbullet;
     using slskd.Messaging;
+    using slskd.Network;
     using slskd.Search;
     using slskd.Shares;
     using slskd.Transfers;
@@ -87,6 +88,7 @@ namespace slskd
             IRoomService roomService,
             IUserService userService,
             IShareService shareService,
+            INetworkClient networkClient,
             IPushbulletService pushbulletService,
             IHubContext<ApplicationHub> applicationHub,
             IHubContext<LogsHub> logHub)
@@ -135,6 +137,8 @@ namespace slskd
             LogHub = logHub;
             Program.LogEmitted += (_, log) => LogHub.EmitLogAsync(log);
 
+            NetworkClient = networkClient;
+
             Client = soulseekClient;
 
             Client.DiagnosticGenerated += Client_DiagnosticGenerated;
@@ -174,6 +178,7 @@ namespace slskd
         private static bool ShuttingDown { get; set; } = false;
 
         private ISoulseekClient Client { get; set; }
+        private INetworkClient NetworkClient { get; set; }
         private IRoomService RoomService { get; set; }
         private IBrowseTracker BrowseTracker { get; set; }
         private IConnectionWatchdog ConnectionWatchdog { get; }
@@ -391,8 +396,18 @@ namespace slskd
             {
                 Log.Warning($"Not connecting to the Soulseek server; username and/or password invalid.  Specify valid credentials and manually connect, or update config and restart.");
             }
+            else if (OptionsAtStartup.Network.OperationMode.ToEnum<NetworkOperationMode>() == NetworkOperationMode.Agent && !OptionsAtStartup.Flags.DualNetworkMode)
+            {
+                Log.Information("Running in Agent mode; not connecting to the Soulseek server.");
+                await NetworkClient.StartAsync(cancellationToken);
+            }
             else
             {
+                if (OptionsAtStartup.Flags.DualNetworkMode)
+                {
+                    _ = NetworkClient.StartAsync(cancellationToken);
+                }
+
                 await Client.ConnectAsync(OptionsAtStartup.Soulseek.Username, OptionsAtStartup.Soulseek.Password).ConfigureAwait(false);
             }
         }
@@ -430,11 +445,13 @@ namespace slskd
                 if (!cacheFileInfo.Exists)
                 {
                     Log.Warning("Browse response not cached. Rebuilding...");
-                    await CacheBrowseResponse();
+                    response = await CacheBrowseResponse();
                 }
-
-                var stream = new FileStream(cacheFilename, FileMode.Open, FileAccess.Read);
-                response = new RawBrowseResponse(cacheFileInfo.Length, stream);
+                else
+                {
+                    var stream = new FileStream(cacheFilename, FileMode.Open, FileAccess.Read);
+                    response = new RawBrowseResponse(cacheFileInfo.Length, stream);
+                }
 
                 Log.Information("Sent browse response to {User}", username);
 
@@ -709,7 +726,7 @@ namespace slskd
                 var place = Transfers.Uploads.Queue.EstimatePosition(username, filename);
                 return Task.FromResult((int?)place);
             }
-            catch (FileNotFoundException)
+            catch (NotFoundException)
             {
                 return Task.FromResult<int?>(null);
             }
@@ -1036,14 +1053,34 @@ namespace slskd
             }
         }
 
-        private async Task CacheBrowseResponse()
+        private async Task<BrowseResponse> CacheBrowseResponse()
         {
-            var directories = await Shares.BrowseAsync();
-            var response = new BrowseResponse(directories);
+            try
+            {
+                var sw = new Stopwatch();
+                sw.Start();
 
-            Log.Information("Warming browse response cache...");
-            System.IO.File.WriteAllBytes(Path.Combine(Program.DataDirectory, "browse.cache"), response.ToByteArray());
-            Log.Information("Browse response cached successfully");
+                var directories = await Shares.BrowseAsync();
+                var response = new BrowseResponse(directories);
+                var temp = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+                var destination = Path.Combine(Program.DataDirectory, "browse.cache");
+
+                Log.Information("Warming browse response cache...");
+                await System.IO.File.WriteAllBytesAsync(temp, response.ToByteArray());
+
+                Log.Debug("Saved cache to temp file {File}", temp);
+
+                System.IO.File.Move(temp, destination, overwrite: true);
+
+                sw.Stop();
+                Log.Information("Browse response cached successfully in {Duration}ms", sw.ElapsedMilliseconds);
+                return response;
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Error caching browse response: {Message}", ex.Message);
+                throw;
+            }
         }
 
         private void State_OnChange((State Previous, State Current) state)

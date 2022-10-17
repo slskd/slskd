@@ -203,7 +203,7 @@ namespace slskd.Transfers.Downloads
                                 var completedTransfer = await Client.DownloadAsync(
                                     username: username,
                                     remoteFilename: file.Filename,
-                                    outputStreamFactory: () => GetLocalFileStream(file.Filename, OptionsMonitor.CurrentValue.Directories.Incomplete),
+                                    outputStreamFactory: () => Task.FromResult(GetLocalFileStream(file.Filename, OptionsMonitor.CurrentValue.Directories.Incomplete)),
                                     size: file.Size,
                                     startOffset: 0,
                                     token: null,
@@ -470,7 +470,7 @@ namespace slskd.Transfers.Downloads
             }
         }
 
-        private static FileStream GetLocalFileStream(string remoteFilename, string saveDirectory)
+        private static Stream GetLocalFileStream(string remoteFilename, string saveDirectory)
         {
             var localFilename = remoteFilename.ToLocalFilename(baseDirectory: saveDirectory);
             var path = Path.GetDirectoryName(localFilename);

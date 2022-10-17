@@ -325,27 +325,6 @@ namespace slskd
         }
 
         /// <summary>
-        ///     Converts the byte array into a base 62 encoded string.
-        /// </summary>
-        /// <param name="bytes">The bytes to convert.</param>
-        /// <returns>The converted bytes as a base 62 string.</returns>
-        public static string ToBase62String(this byte[] bytes)
-        {
-            const string alphabet = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
-
-            BigInteger dividend = new BigInteger(bytes);
-            var builder = new StringBuilder();
-
-            while (dividend != 0)
-            {
-                dividend = BigInteger.DivRem(dividend, alphabet.Length, out BigInteger remainder);
-                builder.Insert(0, alphabet[Math.Abs((int)remainder)]);
-            }
-
-            return builder.ToString();
-        }
-
-        /// <summary>
         ///     Determines whether the given object is a <see cref="Dictionary{TKey, TValue}"/>.
         /// </summary>
         /// <param name="obj">The object to check.</param>

@@ -15,8 +15,6 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-using System.IO;
-
 namespace slskd.Shares
 {
     using System.Collections.Generic;
@@ -32,6 +30,11 @@ namespace slskd.Shares
         ///     Gets the list of share hosts.
         /// </summary>
         IReadOnlyList<Host> Hosts { get; }
+
+        /// <summary>
+        ///     Gets the local share host.
+        /// </summary>
+        Host LocalHost { get; }
 
         /// <summary>
         ///     Gets the state monitor for the service.
@@ -51,6 +54,21 @@ namespace slskd.Shares
         Task<IEnumerable<Directory>> BrowseAsync(Share share = null);
 
         /// <summary>
+        ///     Dumps the local share cache to a file.
+        /// </summary>
+        /// <param name="filename">The destination file.</param>
+        /// <returns>The operation context.</returns>
+        Task DumpAsync(string filename);
+
+        /// <summary>
+        ///     Returns the share host with the specified <paramref name="name"/>.
+        /// </summary>
+        /// <param name="name">The name of the host.</param>
+        /// <param name="host">The host, if found.</param>
+        /// <returns>A value indicating whether the host was found.</returns>
+        bool TryGetHost(string name, out Host host);
+
+        /// <summary>
         ///     Returns the contents of the specified <paramref name="directory"/>.
         /// </summary>
         /// <param name="directory">The directory for which the contents are to be listed.</param>
@@ -58,15 +76,27 @@ namespace slskd.Shares
         Task<Directory> ListDirectoryAsync(string directory);
 
         /// <summary>
+        ///     Removes the share host with the specified <paramref name="name"/>.
+        /// </summary>
+        /// <param name="name">The name of the host.</param>
+        /// <returns>A value indicating whether the host was removed.</returns>
+        bool TryRemoveHost(string name);
+
+        /// <summary>
         ///     Resolves the local filename of the specified <paramref name="remoteFilename"/>, if the mask is associated with a
         ///     configured share.
         /// </summary>
         /// <param name="remoteFilename">The fully qualified filename to resolve.</param>
-        /// <returns>The resolved local filename.</returns>
+        /// <returns>The resolved host and filename.</returns>
         /// <exception cref="NotFoundException">
         ///     Thrown when the specified remote filename can not be associated with a configured share.
         /// </exception>
-        Task<FileInfo> ResolveFileAsync(string remoteFilename);
+        Task<(string Host, string Filename)> ResolveFileAsync(string remoteFilename);
+
+        /// <summary>
+        ///     Requests that a share scan is performed.
+        /// </summary>
+        void RequestScan();
 
         /// <summary>
         ///     Searches the cache for the specified <paramref name="query"/> and returns the matching files.

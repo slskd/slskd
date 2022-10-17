@@ -28,7 +28,7 @@ namespace slskd.Shares
     /// <summary>
     ///     Persistent storage of shared files and metadata.
     /// </summary>
-    public class SqliteShareRepository : IReadWriteShareRepository
+    public class SqliteShareRepository : IShareRepository
     {
         /// <summary>
         ///     Initializes a new instance of the <see cref="SqliteShareRepository"/> class.
@@ -47,84 +47,13 @@ namespace slskd.Shares
         private ILogger Log { get; } = Serilog.Log.ForContext<SqliteShareRepository>();
 
         /// <summary>
-        ///     Attempts to validate the database at the specified <paramref name="connectionString"/>, or the
-        ///     default <see cref="ConnectionString"/>.
+        ///     Backs the current database up to the database at the specified <paramref name="repository"/>.
         /// </summary>
-        /// <param name="connectionString">The connection string of the database to validate.</param>
-        /// <returns>A value indicating whether the database is valid.</returns>
-        public bool TryValidate(string connectionString = null)
-        {
-            connectionString ??= ConnectionString;
-
-            // to update this schema map, run the following query against a valid, up-to-date database and paste the output below:
-            // select '{ "' || name || '", "' || sql || '" },' from sqlite_master where type = 'table'
-            var schema = new Dictionary<string, string>()
-            {
-                { "scans", "CREATE TABLE scans (timestamp INTEGER PRIMARY KEY, options TEXT NOT NULL, end INTEGER DEFAULT NULL)" },
-                { "directories", "CREATE TABLE directories (name TEXT PRIMARY KEY, timestamp INTEGER NOT NULL)" },
-                { "filenames", "CREATE VIRTUAL TABLE filenames USING fts5(maskedFilename)" },
-                { "filenames_data", "CREATE TABLE 'filenames_data'(id INTEGER PRIMARY KEY, block BLOB)" },
-                { "filenames_idx", "CREATE TABLE 'filenames_idx'(segid, term, pgno, PRIMARY KEY(segid, term)) WITHOUT ROWID" },
-                { "filenames_content", "CREATE TABLE 'filenames_content'(id INTEGER PRIMARY KEY, c0)" },
-                { "filenames_docsize", "CREATE TABLE 'filenames_docsize'(id INTEGER PRIMARY KEY, sz BLOB)" },
-                { "filenames_config", "CREATE TABLE 'filenames_config'(k PRIMARY KEY, v) WITHOUT ROWID" },
-                { "files", "CREATE TABLE files (maskedFilename TEXT PRIMARY KEY, originalFilename TEXT NOT NULL, size BIGINT NOT NULL, touchedAt TEXT NOT NULL, code INTEGER DEFAULT 1 NOT NULL, extension TEXT, attributeJson TEXT NOT NULL, timestamp INTEGER NOT NULL)" },
-            };
-
-            try
-            {
-                Log.Debug("Validating shares database with connection string {String}", connectionString);
-
-                using var conn = new SqliteConnection(connectionString);
-                conn.Open();
-
-                using var cmd = new SqliteCommand("SELECT name, sql from sqlite_master WHERE type = 'table';", conn);
-
-                var reader = cmd.ExecuteReader();
-                var rows = 0;
-
-                while (reader.Read())
-                {
-                    var table = reader.GetString(0);
-                    var expectedSql = reader.GetString(1);
-
-                    if (schema.TryGetValue(table, out var actualSql))
-                    {
-                        if (actualSql != expectedSql)
-                        {
-                            throw new MissingFieldException($"Expected {table} schema to be {expectedSql}, found {actualSql}");
-                        }
-                        else
-                        {
-                            Log.Debug("Shares database table {Table} is valid: {Actual}", table, actualSql);
-                        }
-                    }
-
-                    rows++;
-                }
-
-                if (rows != schema.Count)
-                {
-                    throw new MissingMemberException($"Expected {schema.Count} tables, found {rows}");
-                }
-
-                return true;
-            }
-            catch (Exception ex)
-            {
-                Log.Debug(ex, $"Failed to validate shares database with connection string {connectionString}: {ex.Message}");
-                return false;
-            }
-        }
-
-        /// <summary>
-        ///     Backs the current database up to the database at the specified <paramref name="connectionString"/>.
-        /// </summary>
-        /// <param name="connectionString">The connection string of the destination database.</param>
-        public void BackupTo(string connectionString)
+        /// <param name="repository">The destination repository.</param>
+        public void BackupTo(IShareRepository repository)
         {
             using var sourceConn = GetConnection(ConnectionString);
-            using var backupConn = GetConnection(connectionString);
+            using var backupConn = GetConnection(repository.ConnectionString);
             sourceConn.BackupDatabase(backupConn);
         }
 
@@ -222,6 +151,19 @@ namespace slskd.Shares
             conn.ExecuteNonQuery("CREATE TABLE IF NOT EXISTS files " +
                 "(maskedFilename TEXT PRIMARY KEY, originalFilename TEXT NOT NULL, size BIGINT NOT NULL, touchedAt TEXT NOT NULL, code INTEGER DEFAULT 1 NOT NULL, " +
                 "extension TEXT, attributeJson TEXT NOT NULL, timestamp INTEGER NOT NULL);");
+        }
+
+        /// <summary>
+        ///     Dumps the contents of the database to a file.
+        /// </summary>
+        /// <param name="filename">The destination file.</param>
+        public void DumpTo(string filename)
+        {
+            using var sourceConn = GetConnection(ConnectionString);
+
+            // very important! don't use pooling for the backup connection or the file will remain locked
+            using var backupConn = GetConnection($"Data Source={filename};Pooling=False");
+            sourceConn.BackupDatabase(backupConn);
         }
 
         /// <summary>
@@ -442,12 +384,12 @@ namespace slskd.Shares
         }
 
         /// <summary>
-        ///     Restores the current database from the database at the specified <paramref name="connectionString"/>.
+        ///     Restores the current database from the database at the specified <paramref name="repository"/>.
         /// </summary>
-        /// <param name="connectionString">The connection string of the source database.</param>
-        public void RestoreFrom(string connectionString)
+        /// <param name="repository">The destination repository.</param>
+        public void RestoreFrom(IShareRepository repository)
         {
-            using var sourceConn = GetConnection(connectionString);
+            using var sourceConn = GetConnection(repository.ConnectionString);
             using var restoreConn = GetConnection();
             sourceConn.BackupDatabase(restoreConn);
         }
@@ -501,6 +443,87 @@ namespace slskd.Shares
             {
                 Log.Warning(ex, "Failed to execute shared file query '{Query}': {Message}", query, ex.Message);
                 return Enumerable.Empty<Soulseek.File>();
+            }
+        }
+
+        /// <summary>
+        ///     Attempts to validate the backing database.
+        /// </summary>
+        /// <returns>A value indicating whether the database is valid.</returns>
+        public bool TryValidate()
+        {
+            return TryValidate(out _);
+        }
+
+        /// <summary>
+        ///     Attempts to validate the backing database.
+        /// </summary>
+        /// <param name="problems">The list of problems, if the database is invalid.</param>
+        /// <returns>A value indicating whether the database is valid.</returns>
+        public bool TryValidate(out IEnumerable<string> problems)
+        {
+            var list = new List<string>();
+            problems = list;
+
+            // to update this schema map, run the following query against a valid, up-to-date database and paste the output below:
+            // select '{ "' || name || '", "' || sql || '" },' from sqlite_master where type = 'table'
+            var schema = new Dictionary<string, string>()
+            {
+                { "scans", "CREATE TABLE scans (timestamp INTEGER PRIMARY KEY, options TEXT NOT NULL, end INTEGER DEFAULT NULL)" },
+                { "directories", "CREATE TABLE directories (name TEXT PRIMARY KEY, timestamp INTEGER NOT NULL)" },
+                { "filenames", "CREATE VIRTUAL TABLE filenames USING fts5(maskedFilename)" },
+                { "filenames_data", "CREATE TABLE 'filenames_data'(id INTEGER PRIMARY KEY, block BLOB)" },
+                { "filenames_idx", "CREATE TABLE 'filenames_idx'(segid, term, pgno, PRIMARY KEY(segid, term)) WITHOUT ROWID" },
+                { "filenames_content", "CREATE TABLE 'filenames_content'(id INTEGER PRIMARY KEY, c0)" },
+                { "filenames_docsize", "CREATE TABLE 'filenames_docsize'(id INTEGER PRIMARY KEY, sz BLOB)" },
+                { "filenames_config", "CREATE TABLE 'filenames_config'(k PRIMARY KEY, v) WITHOUT ROWID" },
+                { "files", "CREATE TABLE files (maskedFilename TEXT PRIMARY KEY, originalFilename TEXT NOT NULL, size BIGINT NOT NULL, touchedAt TEXT NOT NULL, code INTEGER DEFAULT 1 NOT NULL, extension TEXT, attributeJson TEXT NOT NULL, timestamp INTEGER NOT NULL)" },
+            };
+
+            try
+            {
+                Log.Debug("Validating shares database with connection string {String}", ConnectionString);
+
+                using var conn = new SqliteConnection(ConnectionString);
+                conn.Open();
+
+                using var cmd = new SqliteCommand("SELECT name, sql from sqlite_master WHERE type = 'table';", conn);
+
+                var reader = cmd.ExecuteReader();
+                var rows = 0;
+
+                while (reader.Read())
+                {
+                    var table = reader.GetString(0);
+                    var expectedSql = reader.GetString(1);
+
+                    if (schema.TryGetValue(table, out var actualSql))
+                    {
+                        if (actualSql != expectedSql)
+                        {
+                            list.Add($"Expected {table} schema to be {expectedSql}, found {actualSql}");
+                        }
+                        else
+                        {
+                            Log.Debug("Shares database table {Table} is valid: {Actual}", table, actualSql);
+                        }
+                    }
+
+                    rows++;
+                }
+
+                if (rows != schema.Count)
+                {
+                    list.Add($"Expected {schema.Count} tables, found {rows}");
+                }
+
+                return !problems.Any();
+            }
+            catch (Exception ex)
+            {
+                Log.Debug(ex, $"Failed to validate database: {ex.Message}");
+                list.Add($"Failed to validate database: {ex.Message}");
+                return false;
             }
         }
 

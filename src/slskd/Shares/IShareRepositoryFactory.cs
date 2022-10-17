@@ -1,4 +1,4 @@
-﻿// <copyright file="Host.cs" company="slskd Team">
+﻿// <copyright file="IShareRepositoryFactory.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -17,34 +17,30 @@
 
 namespace slskd.Shares
 {
-    using System.Collections.Generic;
-    using System.Linq;
-
     /// <summary>
-    ///     A share host.
+    ///     Persistent storage of a shared file cache.
     /// </summary>
-    public record Host
+    public interface IShareRepositoryFactory
     {
         /// <summary>
-        ///     Initializes a new instance of the <see cref="Host"/> class.
+        ///     Create a repository for the specified <paramref name="name"/>.
         /// </summary>
-        /// <param name="name">The name of the host.</param>
-        /// <param name="shares">The collection of hosted shares.</param>
-        public Host(string name, IEnumerable<Share> shares = null)
-        {
-            Name = name;
-            Shares = shares ?? Enumerable.Empty<Share>();
-        }
+        /// <param name="name">The name of the agent.</param>
+        /// <returns>The created repository.</returns>
+        IShareRepository CreateFromHost(string name);
 
         /// <summary>
-        ///     Gets the name of the host.
+        ///     Create a repository backup for the specified <paramref name="name"/>.
         /// </summary>
-        /// <remarks>Corresponds to the configured <see cref="Options.InstanceName"/> of the host, or "local" for the local host.</remarks>
-        public string Name { get; }
+        /// <param name="name">The name of the agent.</param>
+        /// <returns>The created repository.</returns>
+        IShareRepository CreateFromHostBackup(string name);
 
         /// <summary>
-        ///     Gets the collection of hosted shares.
+        ///     Create a repository for the specified <paramref name="filename"/>.
         /// </summary>
-        public IEnumerable<Share> Shares { get; init; }
+        /// <param name="filename">The fully qualified path of the filename.</param>
+        /// <returns>The created repository.</returns>
+        IShareRepository CreateFromFile(string filename);
     }
 }
