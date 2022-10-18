@@ -94,11 +94,13 @@ namespace slskd.Transfers.API
         [ProducesResponseType(204)]
         public IActionResult ClearCompletedDownloads()
         {
-            var transfers = Transfers.Downloads.List(t => t.State.HasFlag(Soulseek.TransferStates.Completed));
+            var transfers = Transfers.Downloads
+                .List() // https://github.com/dotnet/efcore/issues/10434
+                .Where(t => t.State.HasFlag(Soulseek.TransferStates.Completed));
 
-            foreach (var transfer in transfers)
+            foreach (var id in transfers.Select(t => t.Id))
             {
-                Transfers.Downloads.Remove(transfer.Id);
+                Transfers.Downloads.Remove(id);
             }
 
             return NoContent();
@@ -151,11 +153,13 @@ namespace slskd.Transfers.API
         [ProducesResponseType(204)]
         public IActionResult ClearCompletedUploads()
         {
-            var transfers = Transfers.Uploads.List(t => t.State.HasFlag(Soulseek.TransferStates.Completed));
+            var transfers = Transfers.Uploads
+                .List() // https://github.com/dotnet/efcore/issues/10434
+                .Where(t => t.State.HasFlag(Soulseek.TransferStates.Completed));
 
-            foreach (var transfer in transfers)
+            foreach (var id in transfers.Select(t => t.Id))
             {
-                Transfers.Uploads.Remove(transfer.Id);
+                Transfers.Uploads.Remove(id);
             }
 
             return NoContent();
