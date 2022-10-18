@@ -85,6 +85,28 @@ namespace slskd.Transfers.API
         }
 
         /// <summary>
+        ///     Removes all completed downloads, regardless of whether they failed or succeeded.
+        /// </summary>
+        /// <returns></returns>
+        /// <response code="204">The downloads were removed successfully.</response>
+        [HttpDelete("downloads/all/completed")]
+        [Authorize(Policy = AuthPolicy.Any)]
+        [ProducesResponseType(204)]
+        public IActionResult ClearCompletedDownloads()
+        {
+            var transfers = Transfers.Downloads
+                .List() // https://github.com/dotnet/efcore/issues/10434
+                .Where(t => t.State.HasFlag(Soulseek.TransferStates.Completed));
+
+            foreach (var id in transfers.Select(t => t.Id))
+            {
+                Transfers.Downloads.Remove(id);
+            }
+
+            return NoContent();
+        }
+
+        /// <summary>
         ///     Cancels the specified upload.
         /// </summary>
         /// <param name="username">The username of the upload destination.</param>
@@ -119,6 +141,28 @@ namespace slskd.Transfers.API
             {
                 return NotFound();
             }
+        }
+
+        /// <summary>
+        ///     Removes all completed uploads, regardless of whether they failed or succeeded.
+        /// </summary>
+        /// <returns></returns>
+        /// <response code="204">The uploads were removed successfully.</response>
+        [HttpDelete("uploads/all/completed")]
+        [Authorize(Policy = AuthPolicy.Any)]
+        [ProducesResponseType(204)]
+        public IActionResult ClearCompletedUploads()
+        {
+            var transfers = Transfers.Uploads
+                .List() // https://github.com/dotnet/efcore/issues/10434
+                .Where(t => t.State.HasFlag(Soulseek.TransferStates.Completed));
+
+            foreach (var id in transfers.Select(t => t.Id))
+            {
+                Transfers.Uploads.Remove(id);
+            }
+
+            return NoContent();
         }
 
         /// <summary>

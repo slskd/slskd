@@ -10,6 +10,7 @@ import Logs from './Logs';
 import Options from './Options';
 import Shares from './Shares';
 import { Switch } from '../Shared';
+import Data from './Data';
 
 const System = ({ state = {}, options = {} }) => {
   const { params: { tab }, ...route } = useRouteMatch();
@@ -49,6 +50,15 @@ const System = ({ state = {}, options = {} }) => {
         Shares
       </Menu.Item>),
       render: () => <Tab.Pane><Shares state={state.shares}/></Tab.Pane>,
+    },
+    {
+      route: 'data',
+      menuItem: {
+        key: 'data',
+        icon: 'database',
+        content: 'Data',
+      },
+      render: () => <Tab.Pane className='full-height'><Data/></Tab.Pane>,
     },
     { 
       route: 'logs', 
