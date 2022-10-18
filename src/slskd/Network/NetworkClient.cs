@@ -25,7 +25,6 @@ namespace slskd.Network
     using System.Threading;
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.SignalR.Client;
-    using Microsoft.Data.Sqlite;
     using Serilog;
     using slskd.Cryptography;
     using slskd.Shares;
@@ -58,7 +57,6 @@ namespace slskd.Network
         private string LastOptionsHash { get; set; }
         private IOptionsMonitor<Options> OptionsMonitor { get; }
         private IHttpClientFactory HttpClientFactory { get; }
-        private HttpClient HttpClient { get; set; }
         private HubConnection HubConnection { get; set; }
         private bool StartRequested { get; set; }
         private CancellationTokenSource StartCancellationTokenSource { get; set; }
@@ -146,7 +144,7 @@ namespace slskd.Network
             request.Content = content;
 
             Log.Information("Beginning upload of shares");
-            var response = await HttpClient.SendAsync(request);
+            var response = await CreateHttpClient().SendAsync(request);
 
             if (!response.IsSuccessStatusCode)
             {
@@ -182,7 +180,7 @@ namespace slskd.Network
                 request.Content = content;
 
                 Log.Information("Beginning upload of file {Filename} with ID {Id}", filename, id);
-                var response = await HttpClient.SendAsync(request);
+                var response = await CreateHttpClient().SendAsync(request);
 
                 if (!response.IsSuccessStatusCode)
                 {
@@ -271,6 +269,14 @@ namespace slskd.Network
             return Task.CompletedTask;
         }
 
+        private HttpClient CreateHttpClient()
+        {
+            var client = new HttpClient();
+            client.Timeout = TimeSpan.FromMilliseconds(int.MaxValue);
+            client.BaseAddress = new(OptionsMonitor.CurrentValue.Network.Controller.Address);
+            return client;
+        }
+
         private void Configure(Options options)
         {
             if (options.Network.OperationMode.ToEnum<NetworkOperationMode>() != NetworkOperationMode.Agent && !options.Flags.DualNetworkMode)
@@ -295,9 +301,6 @@ namespace slskd.Network
                 // it's going to be dropped when we create a new instance, but we need
                 // the retry loop around connection to stop.
                 StartCancellationTokenSource?.Cancel();
-
-                HttpClient = HttpClientFactory.CreateClient();
-                HttpClient.BaseAddress = new(options.Network.Controller.Address);
 
                 HubConnection = new HubConnectionBuilder()
                     .WithUrl($"{options.Network.Controller.Address}/hub/agents")
