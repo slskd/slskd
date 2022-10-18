@@ -85,6 +85,26 @@ namespace slskd.Transfers.API
         }
 
         /// <summary>
+        ///     Removes all completed downloads, regardless of whether they failed or succeeded.
+        /// </summary>
+        /// <returns></returns>
+        /// <response code="204">The downloads were removed successfully.</response>
+        [HttpDelete("downloads/all/completed")]
+        [Authorize(Policy = AuthPolicy.Any)]
+        [ProducesResponseType(204)]
+        public IActionResult ClearCompletedDownloads()
+        {
+            var transfers = Transfers.Downloads.List(t => t.State.HasFlag(Soulseek.TransferStates.Completed));
+
+            foreach (var transfer in transfers)
+            {
+                Transfers.Downloads.Remove(transfer.Id);
+            }
+
+            return NoContent();
+        }
+
+        /// <summary>
         ///     Cancels the specified upload.
         /// </summary>
         /// <param name="username">The username of the upload destination.</param>
