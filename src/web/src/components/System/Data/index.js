@@ -19,9 +19,10 @@ const Data = () => {
     <div>
       <Header as='h3' className='transfer-header'>Transfer Data</Header>
       <Divider/>
-      <p>
-        The Uploads and Downloads pages can become unresponsive if too many transfers are displayed. If you're having trouble with either page, try using the buttons below to remove completed transfers.
-      </p>
+      <p><span>
+        The Uploads and Downloads pages can become unresponsive if too many transfers are displayed. If you're having 
+        trouble with either page, try using the buttons below to remove completed transfers.
+      </span></p>
       <Button
         primary
         loading={up}
