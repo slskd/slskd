@@ -28,32 +28,37 @@ namespace slskd.Network
         public static readonly string RequestFile = "REQUEST_FILE";
         public static readonly string RequestFileInfo = "REQUEST_FILE_INFO";
         public static readonly string AuthenticationChallenge = "AUTHENTICATION_CHALLENGE";
-        public static readonly string AuthenticationChallengeAccepted = "AUTHENTICATION_CHALLENGE_ACCEPTED";
-        public static readonly string AuthenticationChallengeRejected = "AUTHENTICATION_CHALLENGE_REJECTED";
     }
 
-    /// <summary>
-    ///     Extension methods for the network SignalR hub.
-    /// </summary>
-    public static class NetworkHubExtensions
-    {
-        public static Task RequestFileAsync(this IHubContext<NetworkHub> hub, string agent, string filename, Guid id)
-        {
-            // todo: how to send this to the specified agent?
-            return hub.Clients.All.SendAsync(NetworkHubMethods.RequestFile, filename, id);
-        }
+    ///// <summary>
+    /////     Extension methods for the network SignalR hub.
+    ///// </summary>
+    //public static class NetworkHubExtensions
+    //{
+    //    public static Task RequestFileAsync(this IHubContext<NetworkHub> hub, string agent, string filename, Guid id)
+    //    {
+    //        // todo: how to send this to the specified agent?
+    //        return hub.Clients.All.SendAsync(NetworkHubMethods.RequestFile, filename, id);
+    //    }
 
-        public static Task RequestFileInfoAsync(this IHubContext<NetworkHub> hub, string agent, string filename, Guid id)
-        {
-            return hub.Clients.All.SendAsync(NetworkHubMethods.RequestFileInfo, filename, id);
-        }
+    //    public static Task RequestFileInfoAsync(this IHubContext<NetworkHub> hub, string agent, string filename, Guid id)
+    //    {
+    //        return hub.Clients.All.SendAsync(NetworkHubMethods.RequestFileInfo, filename, id);
+    //    }
+    //}
+
+    public interface INetworkHub
+    {
+        Task RequestFile(string filename, Guid id);
+        Task RequestFileInfo(string filename, Guid id);
+        Task AuthenticationChallenge(string token);
     }
 
     /// <summary>
     ///     The network SignalR hub.
     /// </summary>
     [Authorize]
-    public class NetworkHub : Hub
+    public class NetworkHub : Hub<INetworkHub>
     {
         public NetworkHub(
             INetworkService networkService)
@@ -67,7 +72,7 @@ namespace slskd.Network
         public override async Task OnConnectedAsync()
         {
             Log.Information("Agent connection {Id} established. Sending authentication challenge...", Context.ConnectionId);
-            await Clients.Caller.SendAsync(NetworkHubMethods.AuthenticationChallenge, Network.GenerateAuthenticationChallengeToken(Context.ConnectionId));
+            await Clients.Caller.AuthenticationChallenge(Network.GenerateAuthenticationChallengeToken(Context.ConnectionId));
         }
 
         public override Task OnDisconnectedAsync(Exception exception)

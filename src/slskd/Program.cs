@@ -685,11 +685,17 @@ namespace slskd
                 options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
             });
 
-            services.AddSignalR().AddJsonProtocol(options =>
-            {
-                options.PayloadSerializerOptions.Converters.Add(new IPAddressConverter());
-                options.PayloadSerializerOptions.Converters.Add(new JsonStringEnumConverter());
-            });
+            services
+                .AddSignalR(options =>
+                {
+                    // https://github.com/SignalR/SignalR/issues/1149#issuecomment-973887222
+                    options.MaximumParallelInvocationsPerClient = 2;
+                })
+                .AddJsonProtocol(options =>
+                {
+                    options.PayloadSerializerOptions.Converters.Add(new IPAddressConverter());
+                    options.PayloadSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+                });
 
             services.AddHealthChecks();
 
