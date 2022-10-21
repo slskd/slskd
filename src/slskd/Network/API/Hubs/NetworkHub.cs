@@ -27,8 +27,8 @@ namespace slskd.Network
     public interface INetworkHub
     {
         Task Challenge(string token);
-        Task RequestFileAsync(string filename, Guid id);
-        Task RequestFileInfoAsync(string filename, Guid id);
+        Task RequestFile(string filename, Guid id);
+        Task RequestFileInfo(string filename, Guid id);
     }
 
     /// <summary>
@@ -105,10 +105,13 @@ namespace slskd.Network
 
         public void ReturnFileInfo(Guid id, bool exists, long length)
         {
-            if (Network.PendingFileInquiries.TryGetValue(id, out var record))
+            if (!Network.TryGetAgentRegistration(Context.ConnectionId, out var record))
             {
-                record.TrySetResult((exists, length));
+                Log.Warning("Agent connection {Id} responded to a file info request with Id {Id}, but is not registered.", Context.ConnectionId, id);
+                return;
             }
+
+            Network.HandleGetFileInfoResponse(record.Agent.Name, id, (exists, length));
         }
     }
 }

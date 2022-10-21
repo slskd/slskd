@@ -1,4 +1,4 @@
-﻿// <copyright file="NetworkService.cs" company="slskd Team">
+// <copyright file="NetworkService.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -24,7 +24,6 @@ namespace slskd.Network
     using System.Collections.ObjectModel;
     using System.IO;
     using System.Linq;
-    using System.Threading;
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.SignalR;
     using Microsoft.Extensions.Caching.Memory;

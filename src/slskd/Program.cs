@@ -70,7 +70,6 @@ namespace slskd
     using Soulseek;
     using Utility.CommandLine;
     using Utility.EnvironmentVariables;
-    using static slskd.Authentication.ApiKeyAuthenticationHandler;
     using IOFile = System.IO.File;
 
     /// <summary>
@@ -517,6 +516,8 @@ namespace slskd
             // access instance methods
             services.AddSingleton<IApplication, Application>();
             services.AddHostedService(p => p.GetRequiredService<IApplication>());
+
+            services.AddSingleton<IWaiter, Waiter>();
 
             services.AddSingleton<IConnectionWatchdog, ConnectionWatchdog>();
 
