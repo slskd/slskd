@@ -318,9 +318,9 @@ namespace slskd.Network
                 HubConnection.Reconnecting += HubConnection_Reconnecting;
                 HubConnection.Closed += HubConnection_Closed;
 
-                HubConnection.On<string, Guid>(NetworkHubMethods.RequestFile, HandleFileRequest);
-                HubConnection.On<string, Guid>(NetworkHubMethods.RequestFileInfo, HandleFileInfoRequest);
-                HubConnection.On<string>(NetworkHubMethods.AuthenticationChallenge, HandleAuthenticationChallenge);
+                HubConnection.On<string, Guid>(nameof(INetworkHub.RequestFile), HandleFileRequest);
+                HubConnection.On<string, Guid>(nameof(INetworkHub.RequestFileInfo), HandleFileInfoRequest);
+                HubConnection.On<string>(nameof(INetworkHub.Challenge), HandleAuthenticationChallenge);
 
                 LastOptionsHash = optionsHash;
 
