@@ -23,6 +23,7 @@ namespace slskd.Network
     using System.Collections.Concurrent;
     using System.Collections.ObjectModel;
     using System.IO;
+    using System.Linq;
     using System.Threading;
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.SignalR;
@@ -33,88 +34,76 @@ namespace slskd.Network
     public interface INetworkService
     {
         /// <summary>
-        ///     Gets the collection of pending Agent file uploads.
-        /// </summary>
-        ReadOnlyDictionary<Guid, (TaskCompletionSource<Stream> Stream, TaskCompletionSource Completion)> PendingFileUploads { get; }
-
-        /// <summary>
         ///     Gets the collection of pending Agent file inquiries.
         /// </summary>
         ReadOnlyDictionary<Guid, TaskCompletionSource<(bool Exists, long Length)>> PendingFileInquiries { get; }
 
         /// <summary>
+        ///     Gets the collection of pending Agent file uploads.
+        /// </summary>
+        ReadOnlyDictionary<Guid, (TaskCompletionSource<Stream> Stream, TaskCompletionSource Completion)> PendingFileUploads { get; }
+
+        /// <summary>
         ///     Gets the collection of registered Agents.
         /// </summary>
-        ReadOnlyDictionary<string, string> RegisteredAgents { get; }
-
-        /// <summary>
-        ///     Retrieves information about the specified <paramref name="filename"/> from the specified <paramref name="agent"/>.
-        /// </summary>
-        /// <param name="agent">The agent from which to retrieve the file information.</param>
-        /// <param name="filename">The file for which to retrieve information.</param>
-        /// <param name="timeout">An optional timeout value.</param>
-        /// <returns>A value indicating whether the file exists, and the length in bytes.</returns>
-        Task<(bool Exists, long Length)> GetFileInfo(string agent, string filename, int timeout = 3000);
-
-        /// <summary>
-        ///     Retrieves an upload of the specified <paramref name="filename"/> from the specified <paramref name="agent"/>.
-        /// </summary>
-        /// <param name="agent">The agent from which to retrieve the file.</param>
-        /// <param name="filename">The file to retrieve.</param>
-        /// <param name="timeout">An optional timeout value.</param>
-        /// <returns>The operation context, including a stream containing the requested file, and an upload TaskCompletionSource.</returns>
-        Task<(Stream Stream, TaskCompletionSource Completion)> GetFileUpload(string agent, string filename, int timeout = 3000);
-
-        /// <summary>
-        ///     Retrieves a new share upload token for the specified <paramref name="agent"/>.
-        /// </summary>
-        /// <remarks>
-        ///     The token is cached internally, and is only valid while it remains in the cache.
-        /// </remarks>
-        /// <param name="agent">The name of the agent.</param>
-        /// <returns>The generated token.</returns>
-        Guid GetShareUploadToken(string agent);
-
-        /// <summary>
-        ///     Attempts to retrieve the specified share upload <paramref name="token"/>.
-        /// </summary>
-        /// <param name="token">The token.</param>
-        /// <param name="agent">The name of the agent attempting to use the token.</param>
-        /// <returns>A value indicating whether the specified token exists.</returns>
-        bool TryGetShareUploadToken(Guid token, out string agent);
-
-        /// <summary>
-        ///     Registers the specified <paramref name="agent"/> name with the specified <paramref name="connectionId"/>.
-        /// </summary>
-        /// <param name="connectionId">The ID of the connection.</param>
-        /// <param name="agent">The name of the agent.</param>
-        void RegisterAgent(string connectionId, string agent);
-
-        /// <summary>
-        ///     Attempts to retrieve the registration for the specified <paramref name="connectionId"/>.
-        /// </summary>
-        /// <param name="connectionId">The ID of the agent connection.</param>
-        /// <param name="agent">The agent, if registered.</param>
-        /// <returns>A value indicating whether the registration exists.</returns>
-        bool TryGetAgentRegistration(string connectionId, out string agent);
-
-        /// <summary>
-        ///     Attempts to remove the registration for the specified <paramref name="connectionId"/>.
-        /// </summary>
-        /// <param name="connectionId">The ID of the connection.</param>
-        /// <param name="agent">The agent, if removed.</param>
-        /// <returns>A value indicating whether a registration was removed.</returns>
-        bool TryRemoveAgentRegistration(string connectionId, out string agent);
+        ReadOnlyCollection<Agent> RegisteredAgents { get; }
 
         /// <summary>
         ///     Generates a random authentication challenge token for the specified <paramref name="connectionId"/>.
         /// </summary>
-        /// <remarks>
-        ///     The token is cached internally, and is only valid while it remains in the cache.
-        /// </remarks>
+        /// <remarks>The token is cached internally, and is only valid while it remains in the cache.</remarks>
         /// <param name="connectionId">The ID of the agent connection.</param>
         /// <returns>The generated token.</returns>
-        string GenerateAuthenticationChallengeToken(string connectionId);
+        string GenerateAuthenticationChallengeToken(ConnectionId connectionId);
+
+        /// <summary>
+        ///     Retrieves a new share upload token for the specified <paramref name="agentName"/>.
+        /// </summary>
+        /// <remarks>The token is cached internally, and is only valid while it remains in the cache.</remarks>
+        /// <param name="agentName">The name of the agent.</param>
+        /// <returns>The generated token.</returns>
+        Guid GenerateShareUploadToken(string agentName);
+
+        /// <summary>
+        ///     Retrieves information about the specified <paramref name="filename"/> from the specified <paramref name="agentName"/>.
+        /// </summary>
+        /// <param name="agentName">The agent from which to retrieve the file information.</param>
+        /// <param name="filename">The file for which to retrieve information.</param>
+        /// <param name="timeout">An optional timeout value.</param>
+        /// <returns>A value indicating whether the file exists, and the length in bytes.</returns>
+        Task<(bool Exists, long Length)> GetFileInfo(string agentName, string filename, int timeout = 3000);
+
+        /// <summary>
+        ///     Retrieves an upload of the specified <paramref name="filename"/> from the specified <paramref name="agentName"/>.
+        /// </summary>
+        /// <param name="agentName">The agent from which to retrieve the file.</param>
+        /// <param name="filename">The file to retrieve.</param>
+        /// <param name="timeout">An optional timeout value.</param>
+        /// <returns>The operation context, including a stream containing the requested file, and an upload TaskCompletionSource.</returns>
+        Task<(Stream Stream, TaskCompletionSource Completion)> GetFileUpload(string agentName, string filename, int timeout = 3000);
+
+        /// <summary>
+        ///     Registers the specified <paramref name="agent"/> with the specified <paramref name="connectionId"/>.
+        /// </summary>
+        /// <param name="connectionId">The ID of the connection.</param>
+        /// <param name="agent">The agent.</param>
+        void RegisterAgent(ConnectionId connectionId, Agent agent);
+
+        /// <summary>
+        ///     Attempts to remove the registration for the specified <paramref name="connectionId"/>.
+        /// </summary>
+        /// <param name="connectionId">The connection ID associated with the registration.</param>
+        /// <param name="record">The registration record, if removed.</param>
+        /// <returns>A value indicating whether a registration was removed.</returns>
+        bool TryDeregisterAgent(ConnectionId connectionId, out (ConnectionId ConnectionId, Agent Agent) record);
+
+        /// <summary>
+        ///     Attempts to retrieve the registration for the specified <paramref name="connectionId"/>.
+        /// </summary>
+        /// <param name="connectionId">The connection ID associated with the registration.</param>
+        /// <param name="record">The registration record, if found.</param>
+        /// <returns>A value indicating whether the registration exists.</returns>
+        bool TryGetAgentRegistration(ConnectionId connectionId, out (ConnectionId ConnectionId, Agent Agent) record);
 
         /// <summary>
         ///     Validates an authentication challenge response.
@@ -123,27 +112,27 @@ namespace slskd.Network
         /// <param name="agent">The agent name.</param>
         /// <param name="challengeResponse">The challenge response provided by the agent.</param>
         /// <returns>A value indicating whether the response is valid.</returns>
-        bool TryValidateAuthenticationChallengeResponse(string connectionId, string agent, string challengeResponse);
+        bool TryValidateAuthenticationChallengeResponse(ConnectionId connectionId, string agent, string challengeResponse);
+
+        /// <summary>
+        ///     Attempts to retrieve the specified share upload <paramref name="token"/>.
+        /// </summary>
+        /// <param name="token">The token.</param>
+        /// <param name="agentName">The name of the agent attempting to use the token.</param>
+        /// <returns>A value indicating whether the specified token exists.</returns>
+        bool TryValidateShareUploadToken(Guid token, string agentName);
     }
 
     public class NetworkService : INetworkService
     {
         public NetworkService(
             IOptionsMonitor<Options> optionsMonitor,
-            IHubContext<NetworkHub> networkHub)
+            IHubContext<NetworkHub, INetworkHub> networkHub)
         {
             NetworkHub = networkHub;
 
             OptionsMonitor = optionsMonitor;
-            OptionsMonitor.OnChange(options => Configure(options));
-
-            Configure(OptionsMonitor.CurrentValue);
         }
-
-        /// <summary>
-        ///     Gets the collection of pending Agent uploads.
-        /// </summary>
-        public ReadOnlyDictionary<Guid, (TaskCompletionSource<Stream> Stream, TaskCompletionSource Completion)> PendingFileUploads => new(PendingFileUploadDictionary);
 
         /// <summary>
         ///     Gets the collection of pending Agent file inquiries.
@@ -151,37 +140,79 @@ namespace slskd.Network
         public ReadOnlyDictionary<Guid, TaskCompletionSource<(bool Exists, long Length)>> PendingFileInquiries => new(PendingFileInquiryDictionary);
 
         /// <summary>
-        ///     Gets the collection of registered Agents.
+        ///     Gets the collection of pending Agent uploads.
         /// </summary>
-        public ReadOnlyDictionary<string, string> RegisteredAgents => new(RegisteredAgentDictionary);
-
-        private ConcurrentDictionary<Guid, (TaskCompletionSource<Stream> Stream, TaskCompletionSource Completion)> PendingFileUploadDictionary { get; } = new();
-        private ConcurrentDictionary<Guid, TaskCompletionSource<(bool Exists, long Length)>> PendingFileInquiryDictionary { get; } = new();
-        private ConcurrentDictionary<string, string> RegisteredAgentDictionary { get; } = new();
-        private MemoryCache MemoryCache { get; } = new MemoryCache(new MemoryCacheOptions());
-        private IOptionsMonitor<Options> OptionsMonitor { get; }
-        private IHubContext<NetworkHub> NetworkHub { get; set; }
-        private ILogger Log { get; } = Serilog.Log.ForContext<NetworkService>();
-        private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1, 1);
+        public ReadOnlyDictionary<Guid, (TaskCompletionSource<Stream> Stream, TaskCompletionSource Completion)> PendingFileUploads => new(PendingFileUploadDictionary);
 
         /// <summary>
-        ///     Retrieves information about the specified <paramref name="filename"/> from the specified <paramref name="agent"/>.
+        ///     Gets the collection of registered Agents.
         /// </summary>
-        /// <param name="agent">The agent from which to retrieve the file information.</param>
+        public ReadOnlyCollection<Agent> RegisteredAgents => RegisteredAgentDictionary.Values.Select(v => v.Agent).ToList().AsReadOnly();
+
+        private SemaphoreSlim AgentSyncRoot { get; } = new SemaphoreSlim(1, 1);
+        private ILogger Log { get; } = Serilog.Log.ForContext<NetworkService>();
+        private MemoryCache MemoryCache { get; } = new MemoryCache(new MemoryCacheOptions());
+        private IHubContext<NetworkHub, INetworkHub> NetworkHub { get; set; }
+        private IOptionsMonitor<Options> OptionsMonitor { get; }
+        private ConcurrentDictionary<Guid, TaskCompletionSource<(bool Exists, long Length)>> PendingFileInquiryDictionary { get; } = new();
+        private ConcurrentDictionary<Guid, (TaskCompletionSource<Stream> Stream, TaskCompletionSource Completion)> PendingFileUploadDictionary { get; } = new();
+        private ConcurrentDictionary<string, (ConnectionId ConnectionId, Agent Agent)> RegisteredAgentDictionary { get; } = new();
+
+        /// <summary>
+        ///     Generates a random authentication challenge token for the specified <paramref name="connectionId"/>.
+        /// </summary>
+        /// <remarks>The token is cached internally, and is only valid while it remains in the cache.</remarks>
+        /// <param name="connectionId">The ID of the agent connection.</param>
+        /// <returns>The generated token.</returns>
+        public string GenerateAuthenticationChallengeToken(ConnectionId connectionId)
+        {
+            var token = Cryptography.Random.GetBytes(32).ToBase62();
+
+            // this token is only valid for this connection id for a short time this is important to prevent replay-type attacks.
+            MemoryCache.Set(GetAuthTokenCacheKey(connectionId), token, TimeSpan.FromMinutes(1));
+            Log.Debug("Cached auth token {Token} for ID {Id}", token, connectionId);
+            return token;
+        }
+
+        /// <summary>
+        ///     Retrieves a new share upload token for the specified <paramref name="agentName"/>.
+        /// </summary>
+        /// <remarks>The token is cached internally, and is only valid while it remains in the cache.</remarks>
+        /// <param name="agentName">The name of the agent.</param>
+        /// <returns>The generated token.</returns>
+        public Guid GenerateShareUploadToken(string agentName)
+        {
+            var token = Guid.NewGuid();
+
+            MemoryCache.Set(GetShareTokenCacheKey(token), agentName, TimeSpan.FromMinutes(1));
+            Log.Debug("Cached share upload token {Token} for agent {Agent}", token, agentName);
+
+            return token;
+        }
+
+        /// <summary>
+        ///     Retrieves information about the specified <paramref name="filename"/> from the specified <paramref name="agentName"/>.
+        /// </summary>
+        /// <param name="agentName">The agent from which to retrieve the file information.</param>
         /// <param name="filename">The file for which to retrieve information.</param>
         /// <param name="timeout">An optional timeout value.</param>
         /// <returns>A value indicating whether the file exists, and the length in bytes.</returns>
-        public async Task<(bool Exists, long Length)> GetFileInfo(string agent, string filename, int timeout = 3000)
+        public async Task<(bool Exists, long Length)> GetFileInfo(string agentName, string filename, int timeout = 3000)
         {
             var id = Guid.NewGuid();
             var tcs = new TaskCompletionSource<(bool Exists, long Length)>();
+
+            if (!RegisteredAgentDictionary.TryGetValue(agentName, out var record))
+            {
+                throw new NotFoundException($"Agent {agentName} is not registered");
+            }
 
             PendingFileInquiryDictionary.TryAdd(id, tcs);
 
             try
             {
-                await NetworkHub.RequestFileInfoAsync(agent, filename, id);
-                Log.Information("Requested file information for {Filename} from Agent {Agent} with ID {Id}. Waiting for response.", filename, agent, id);
+                await NetworkHub.Clients.Client(record.ConnectionId).RequestFileInfoAsync(filename, id);
+                Log.Information("Requested file information for {Filename} from Agent {Agent} with ID {Id}. Waiting for response.", filename, agentName, id);
 
                 var task = await Task.WhenAny(tcs.Task, Task.Delay(timeout));
 
@@ -191,7 +222,7 @@ namespace slskd.Network
                 }
                 else
                 {
-                    throw new TimeoutException($"Timed out attempting to retrieve file information for {filename} from Agent {agent}");
+                    throw new TimeoutException($"Timed out attempting to retrieve file information for {filename} from Agent {agentName}");
                 }
             }
             finally
@@ -201,32 +232,36 @@ namespace slskd.Network
         }
 
         /// <summary>
-        ///     Retrieves an upload of the specified <paramref name="filename"/> from the specified <paramref name="agent"/>.
+        ///     Retrieves an upload of the specified <paramref name="filename"/> from the specified <paramref name="agentName"/>.
         /// </summary>
-        /// <param name="agent">The agent from which to retrieve the file.</param>
+        /// <param name="agentName">The agent from which to retrieve the file.</param>
         /// <param name="filename">The file to retrieve.</param>
         /// <param name="timeout">An optional timeout value.</param>
         /// <returns>The operation context, including a stream containing the requested file, and an upload TaskCompletionSource.</returns>
-        public async Task<(Stream Stream, TaskCompletionSource Completion)> GetFileUpload(string agent, string filename, int timeout = 3000)
+        public async Task<(Stream Stream, TaskCompletionSource Completion)> GetFileUpload(string agentName, string filename, int timeout = 3000)
         {
             var id = Guid.NewGuid();
 
-            // create a TCS for the upload stream. this is awaited below and completed in
-            // the API controller when the agent POSTs the file
+            // create a TCS for the upload stream. this is awaited below and completed in the API controller when the agent POSTs
+            // the file
             var upload = new TaskCompletionSource<Stream>();
 
-            // create a TCS for the upload itself. this is awaited by the API controller
-            // and completed by the transfer service when the upload to the remote user is complete
-            // the API controller needs to wait until the remote transfer is complete in order to
-            // keep the stream open for the duration
+            // create a TCS for the upload itself. this is awaited by the API controller and completed by the transfer service
+            // when the upload to the remote user is complete the API controller needs to wait until the remote transfer is
+            // complete in order to keep the stream open for the duration
             var completion = new TaskCompletionSource();
+
+            if (!RegisteredAgentDictionary.TryGetValue(agentName, out var record))
+            {
+                throw new NotFoundException($"Agent {agentName} is not registered");
+            }
 
             PendingFileUploadDictionary.TryAdd(id, (upload, completion));
 
             try
             {
-                await NetworkHub.RequestFileAsync(agent, filename, id);
-                Log.Information("Requested file {Filename} from Agent {Agent} with ID {Id}. Waiting for incoming connection.", filename, agent, id);
+                await NetworkHub.Clients.Client(record.ConnectionId).RequestFileAsync(filename, id);
+                Log.Information("Requested file {Filename} from Agent {Agent} with ID {Id}. Waiting for incoming connection.", filename, agentName, id);
 
                 var task = await Task.WhenAny(upload.Task, Task.Delay(timeout));
 
@@ -237,7 +272,7 @@ namespace slskd.Network
                 }
                 else
                 {
-                    throw new TimeoutException($"Timed out attempting to retrieve the file {filename} from agent {agent}");
+                    throw new TimeoutException($"Timed out attempting to retrieve the file {filename} from agent {agentName}");
                 }
             }
             finally
@@ -247,90 +282,52 @@ namespace slskd.Network
         }
 
         /// <summary>
-        ///     Retrieves a new share upload token for the specified <paramref name="agent"/>.
-        /// </summary>
-        /// <remarks>
-        ///     The token is cached internally, and is only valid while it remains in the cache.
-        /// </remarks>
-        /// <param name="agent">The name of the agent.</param>
-        /// <returns>The generated token.</returns>
-        public Guid GetShareUploadToken(string agent)
-        {
-            var token = Guid.NewGuid();
-            MemoryCache.Set(GetShareTokenCacheKey(token), agent, TimeSpan.FromMinutes(1));
-            Log.Debug("Cached share upload token {Token} for agent {Agent}", token, agent);
-
-            return token;
-        }
-
-        /// <summary>
-        ///     Attempts to retrieve the specified share upload <paramref name="token"/>.
-        /// </summary>
-        /// <param name="token">The token.</param>
-        /// <param name="agent">The name of the agent attempting to use the token.</param>
-        /// <returns>A value indicating whether the specified token exists.</returns>
-        public bool TryGetShareUploadToken(Guid token, out string agent)
-        {
-            agent = null;
-
-            if (MemoryCache.TryGetValue(GetShareTokenCacheKey(token), out agent))
-            {
-                return true;
-            }
-
-            return false;
-        }
-
-        /// <summary>
         ///     Registers the specified <paramref name="agent"/> name with the specified <paramref name="connectionId"/>.
         /// </summary>
         /// <param name="connectionId">The ID of the connection.</param>
-        /// <param name="agent">The name of the agent.</param>
-        public void RegisterAgent(string connectionId, string agent)
-            => RegisteredAgentDictionary.TryAdd(connectionId, agent);
-
-        /// <summary>
-        ///     Attempts to retrieve the registration for the specified <paramref name="connectionId"/>.
-        /// </summary>
-        /// <param name="connectionId">The ID of the agent connection.</param>
-        /// <param name="agent">The agent, if registered.</param>
-        /// <returns>A value indicating whether the registration exists.</returns>
-        public bool TryGetAgentRegistration(string connectionId, out string agent)
-            => RegisteredAgentDictionary.TryGetValue(connectionId, out agent);
+        /// <param name="agent">The agent.</param>
+        public void RegisterAgent(ConnectionId connectionId, Agent agent)
+            => RegisteredAgentDictionary.AddOrUpdate(agent.Name, addValue: (connectionId, agent), updateValueFactory: (k, v) => (connectionId, agent));
 
         /// <summary>
         ///     Attempts to remove the registration for the specified <paramref name="connectionId"/>.
         /// </summary>
         /// <param name="connectionId">The ID of the connection.</param>
-        /// <param name="agent">The name of the agent, if a registration was removed.</param>
+        /// <param name="record">The registration record, if one was removed.</param>
         /// <returns>A value indicating whether a registration was removed.</returns>
-        public bool TryRemoveAgentRegistration(string connectionId, out string agent)
-            => RegisteredAgentDictionary.TryRemove(connectionId, out agent);
+        public bool TryDeregisterAgent(ConnectionId connectionId, out (ConnectionId ConnectionId, Agent Agent) record)
+        {
+            if (TryGetAgentRegistration(connectionId, out var found))
+            {
+                return RegisteredAgentDictionary.TryRemove(found.Agent.Name, out record);
+            }
+
+            record = default;
+            return false;
+        }
 
         /// <summary>
-        ///     Generates a random authentication challenge token for the specified <paramref name="connectionId"/>.
+        ///     Attempts to retrieve the registration for the specified <paramref name="connectionId"/>.
         /// </summary>
         /// <param name="connectionId">The ID of the agent connection.</param>
-        /// <returns>The generated token.</returns>
-        public string GenerateAuthenticationChallengeToken(string connectionId)
+        /// <param name="record">The registration record, if one exists.</param>
+        /// <returns>A value indicating whether the registration exists.</returns>
+        public bool TryGetAgentRegistration(ConnectionId connectionId, out (ConnectionId ConnectionId, Agent Agent) record)
         {
-            var token = Cryptography.Random.GetBytes(16).ToBase62();
+            var found = RegisteredAgentDictionary.Values.FirstOrDefault(v => v.ConnectionId == connectionId);
+            record = found;
 
-            // this token is only valid for this connection id for a short time
-            // this is important to prevent replay-type attacks.
-            MemoryCache.Set(GetAuthTokenCacheKey(connectionId), token, TimeSpan.FromMinutes(1));
-            Log.Debug("Cached auth token {Token} for ID {Id}", token, connectionId);
-            return token;
+            return record != default;
         }
 
         /// <summary>
         ///     Validates an authentication challenge response.
         /// </summary>
         /// <param name="connectionId">The ID of the agent connection.</param>
-        /// <param name="agent">The agent name.</param>
+        /// <param name="agentName">The agent name.</param>
         /// <param name="challengeResponse">The challenge response provided by the agent.</param>
         /// <returns>A value indicating whether the response is valid.</returns>
-        public bool TryValidateAuthenticationChallengeResponse(string connectionId, string agent, string challengeResponse)
+        public bool TryValidateAuthenticationChallengeResponse(ConnectionId connectionId, string agentName, string challengeResponse)
         {
             if (!MemoryCache.TryGetValue(GetAuthTokenCacheKey(connectionId), out var challengeToken))
             {
@@ -338,9 +335,9 @@ namespace slskd.Network
                 return false;
             }
 
-            if (!OptionsMonitor.CurrentValue.Network.Agents.TryGetValue(agent, out var agentOptions))
+            if (!OptionsMonitor.CurrentValue.Network.Agents.TryGetValue(agentName, out var agentOptions))
             {
-                Log.Debug("Auth challenge for {Id} failed: no configuration for agent '{Agent}'", connectionId, agent);
+                Log.Debug("Auth challenge for {Id} failed: no configuration for agent '{Agent}'", connectionId, agentName);
                 return false;
             }
 
@@ -351,20 +348,24 @@ namespace slskd.Network
             return expectedResponse == challengeResponse;
         }
 
-        private string GetAuthTokenCacheKey(string connectionId) => $"{connectionId}.auth";
-        private string GetShareTokenCacheKey(Guid token) => $"{token}.share";
-
-        private void Configure(Options options)
+        /// <summary>
+        ///     Attempts to retrieve the specified share upload <paramref name="token"/>.
+        /// </summary>
+        /// <param name="token">The token.</param>
+        /// <param name="agentName">The name of the agent attempting to use the token.</param>
+        /// <returns>A value indicating whether the specified token exists.</returns>
+        public bool TryValidateShareUploadToken(Guid token, string agentName)
         {
-            SyncRoot.Wait();
+            if (MemoryCache.TryGetValue(GetShareTokenCacheKey(token), out var cachedAgentName) && (string)cachedAgentName == agentName)
+            {
+                return true;
+            }
 
-            try
-            {
-            }
-            finally
-            {
-                SyncRoot.Release();
-            }
+            return false;
         }
+
+        private string GetAuthTokenCacheKey(string connectionId) => $"{connectionId}.auth";
+
+        private string GetShareTokenCacheKey(Guid token) => $"{token}.share";
     }
 }
