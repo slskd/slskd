@@ -270,7 +270,7 @@ namespace slskd.Network
 
             try
             {
-                await NetworkHub.Clients.Client(record.ConnectionId).RequestFileAsync(filename, id);
+                await NetworkHub.Clients.Client(record.ConnectionId).RequestFile(filename, id);
                 Log.Information("Requested file {Filename} from Agent {Agent} with ID {Id}. Waiting for incoming connection.", filename, agentName, id);
 
                 var task = await Task.WhenAny(upload.Task, Task.Delay(timeout));

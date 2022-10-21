@@ -97,7 +97,7 @@ namespace slskd.Network
                 return BadRequest("Id is not a valid Guid");
             }
 
-            if (!Network.TryGetShareUploadToken(guid, out var agent))
+            if (!Network.TryValidateShareUploadToken(guid, out var agent))
             {
                 return Unauthorized();
             }

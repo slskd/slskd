@@ -137,7 +137,7 @@ namespace slskd.Transfers.Uploads
                 }
                 else
                 {
-                    var (exists, length) = await Network.GetFileInfo(agent: host, filename);
+                    var (exists, length) = await Network.GetFileInfo(agentName: host, filename);
 
                     if (!exists || length <= 0)
                     {
@@ -273,7 +273,7 @@ namespace slskd.Transfers.Uploads
                             size: localFileLength,
                             inputStreamFactory: async () =>
                             {
-                                var (stream, completion) = await Network.GetFileUpload(agent: host, filename);
+                                var (stream, completion) = await Network.GetFileUpload(agentName: host, filename);
                                 uploadCompletion = completion;
                                 return stream;
                             },
