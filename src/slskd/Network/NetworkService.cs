@@ -1,4 +1,4 @@
-// <copyright file="NetworkService.cs" company="slskd Team">
+﻿// <copyright file="NetworkService.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -33,11 +33,6 @@ namespace slskd.Network
     public interface INetworkService
     {
         /// <summary>
-        ///     Gets the collection of pending Agent file inquiries.
-        /// </summary>
-        ReadOnlyDictionary<Guid, TaskCompletionSource<(bool Exists, long Length)>> PendingFileInquiries { get; }
-
-        /// <summary>
         ///     Gets the collection of pending Agent file uploads.
         /// </summary>
         ReadOnlyDictionary<Guid, (TaskCompletionSource<Stream> Stream, TaskCompletionSource Completion)> PendingFileUploads { get; }
@@ -53,7 +48,7 @@ namespace slskd.Network
         /// <remarks>The token is cached internally, and is only valid while it remains in the cache.</remarks>
         /// <param name="connectionId">The ID of the agent connection.</param>
         /// <returns>The generated token.</returns>
-        string GenerateAuthenticationChallengeToken(ConnectionId connectionId);
+        string GenerateAuthenticationChallengeToken(string connectionId);
 
         /// <summary>
         ///     Retrieves a new share upload token for the specified <paramref name="agentName"/>.
@@ -86,7 +81,15 @@ namespace slskd.Network
         /// </summary>
         /// <param name="connectionId">The ID of the connection.</param>
         /// <param name="agent">The agent.</param>
-        void RegisterAgent(ConnectionId connectionId, Agent agent);
+        void RegisterAgent(string connectionId, Agent agent);
+
+        /// <summary>
+        ///     Handles the client response for a <see cref="GetFileInfo"/> request.
+        /// </summary>
+        /// <param name="agentName">The agent that provided the response.</param>
+        /// <param name="id">The ID of the request.</param>
+        /// <param name="response">The client response to the request.</param>
+        void HandleGetFileInfoResponse(string agentName, Guid id, (bool Exists, long Length) response);
 
         /// <summary>
         ///     Attempts to remove the registration for the specified <paramref name="connectionId"/>.
@@ -94,7 +97,7 @@ namespace slskd.Network
         /// <param name="connectionId">The connection ID associated with the registration.</param>
         /// <param name="record">The registration record, if removed.</param>
         /// <returns>A value indicating whether a registration was removed.</returns>
-        bool TryDeregisterAgent(ConnectionId connectionId, out (ConnectionId ConnectionId, Agent Agent) record);
+        bool TryDeregisterAgent(string connectionId, out (string ConnectionId, Agent Agent) record);
 
         /// <summary>
         ///     Attempts to retrieve the registration for the specified <paramref name="connectionId"/>.
@@ -102,7 +105,7 @@ namespace slskd.Network
         /// <param name="connectionId">The connection ID associated with the registration.</param>
         /// <param name="record">The registration record, if found.</param>
         /// <returns>A value indicating whether the registration exists.</returns>
-        bool TryGetAgentRegistration(ConnectionId connectionId, out (ConnectionId ConnectionId, Agent Agent) record);
+        bool TryGetAgentRegistration(string connectionId, out (string ConnectionId, Agent Agent) record);
 
         /// <summary>
         ///     Validates an authentication challenge response.
@@ -111,32 +114,29 @@ namespace slskd.Network
         /// <param name="agent">The agent name.</param>
         /// <param name="challengeResponse">The challenge response provided by the agent.</param>
         /// <returns>A value indicating whether the response is valid.</returns>
-        bool TryValidateAuthenticationChallengeResponse(ConnectionId connectionId, string agent, string challengeResponse);
+        bool TryValidateAuthenticationChallengeResponse(string connectionId, string agent, string challengeResponse);
 
         /// <summary>
         ///     Attempts to retrieve the specified share upload <paramref name="token"/>.
         /// </summary>
         /// <param name="token">The token.</param>
-        /// <param name="agentName">The name of the agent attempting to use the token.</param>
+        /// <param name="agentName">The name of the agent associated with the token.</param>
         /// <returns>A value indicating whether the specified token exists.</returns>
-        bool TryValidateShareUploadToken(Guid token, string agentName);
+        bool TryValidateShareUploadToken(Guid token, out string agentName);
     }
 
     public class NetworkService : INetworkService
     {
         public NetworkService(
+            IWaiter waiter,
             IOptionsMonitor<Options> optionsMonitor,
             IHubContext<NetworkHub, INetworkHub> networkHub)
         {
+            Waiter = waiter;
             NetworkHub = networkHub;
 
             OptionsMonitor = optionsMonitor;
         }
-
-        /// <summary>
-        ///     Gets the collection of pending Agent file inquiries.
-        /// </summary>
-        public ReadOnlyDictionary<Guid, TaskCompletionSource<(bool Exists, long Length)>> PendingFileInquiries => new(PendingFileInquiryDictionary);
 
         /// <summary>
         ///     Gets the collection of pending Agent uploads.
@@ -148,14 +148,14 @@ namespace slskd.Network
         /// </summary>
         public ReadOnlyCollection<Agent> RegisteredAgents => RegisteredAgentDictionary.Values.Select(v => v.Agent).ToList().AsReadOnly();
 
-        private SemaphoreSlim AgentSyncRoot { get; } = new SemaphoreSlim(1, 1);
+        private IWaiter Waiter { get; }
         private ILogger Log { get; } = Serilog.Log.ForContext<NetworkService>();
         private MemoryCache MemoryCache { get; } = new MemoryCache(new MemoryCacheOptions());
         private IHubContext<NetworkHub, INetworkHub> NetworkHub { get; set; }
         private IOptionsMonitor<Options> OptionsMonitor { get; }
         private ConcurrentDictionary<Guid, TaskCompletionSource<(bool Exists, long Length)>> PendingFileInquiryDictionary { get; } = new();
         private ConcurrentDictionary<Guid, (TaskCompletionSource<Stream> Stream, TaskCompletionSource Completion)> PendingFileUploadDictionary { get; } = new();
-        private ConcurrentDictionary<string, (ConnectionId ConnectionId, Agent Agent)> RegisteredAgentDictionary { get; } = new();
+        private ConcurrentDictionary<string, (string ConnectionId, Agent Agent)> RegisteredAgentDictionary { get; } = new();
 
         /// <summary>
         ///     Generates a random authentication challenge token for the specified <paramref name="connectionId"/>.
@@ -163,7 +163,7 @@ namespace slskd.Network
         /// <remarks>The token is cached internally, and is only valid while it remains in the cache.</remarks>
         /// <param name="connectionId">The ID of the agent connection.</param>
         /// <returns>The generated token.</returns>
-        public string GenerateAuthenticationChallengeToken(ConnectionId connectionId)
+        public string GenerateAuthenticationChallengeToken(string connectionId)
         {
             var token = Cryptography.Random.GetBytes(32).ToBase62();
 
@@ -198,36 +198,47 @@ namespace slskd.Network
         /// <returns>A value indicating whether the file exists, and the length in bytes.</returns>
         public async Task<(bool Exists, long Length)> GetFileInfo(string agentName, string filename, int timeout = 3000)
         {
-            var id = Guid.NewGuid();
-            var tcs = new TaskCompletionSource<(bool Exists, long Length)>();
-
             if (!RegisteredAgentDictionary.TryGetValue(agentName, out var record))
             {
                 throw new NotFoundException($"Agent {agentName} is not registered");
             }
 
-            PendingFileInquiryDictionary.TryAdd(id, tcs);
+            var id = Guid.NewGuid();
+            var key = new WaitKey(nameof(GetFileInfo), agentName, id);
+            var wait = Waiter.Wait<(bool Exists, long Length)>(key, timeout);
 
             try
             {
-                await NetworkHub.Clients.Client(record.ConnectionId).RequestFileInfoAsync(filename, id);
+                await NetworkHub.Clients.Client(record.ConnectionId).RequestFileInfo(filename, id);
                 Log.Information("Requested file information for {Filename} from Agent {Agent} with ID {Id}. Waiting for response.", filename, agentName, id);
 
-                var task = await Task.WhenAny(tcs.Task, Task.Delay(timeout));
-
-                if (task == tcs.Task)
-                {
-                    return await tcs.Task;
-                }
-                else
-                {
-                    throw new TimeoutException($"Timed out attempting to retrieve file information for {filename} from Agent {agentName}");
-                }
+                return await wait;
             }
-            finally
+            catch (Exception ex)
             {
-                PendingFileInquiryDictionary.TryRemove(id, out _);
+                Log.Error("Failed to fetch file information for {Filename} from Agent {Agent}: {Message}", filename, agentName, ex.Message);
+                throw;
             }
+        }
+
+        /// <summary>
+        ///     Handles the client response for a <see cref="GetFileInfo"/> request.
+        /// </summary>
+        /// <param name="agentName">The agent that provided the response.</param>
+        /// <param name="id">The ID of the request.</param>
+        /// <param name="response">The client response to the request.</param>
+        public void HandleGetFileInfoResponse(string agentName, Guid id, (bool Exists, long Length) response)
+        {
+            var key = new WaitKey(nameof(GetFileInfo), agentName, id);
+
+            if (!Waiter.ContainsKey(key))
+            {
+                Log.Warning("Agent {Agent} responded to a file info request with Id {Id}, but a response was not expected", agentName, id);
+                return;
+            }
+
+            Waiter.Complete(key, response);
+            Log.Information("Agent {Agent} responded to a file info request with Id {Id}: Exists: {Exists}, Length: {Length}", agentName, id, response.Exists, response.Length);
         }
 
         /// <summary>
@@ -285,7 +296,7 @@ namespace slskd.Network
         /// </summary>
         /// <param name="connectionId">The ID of the connection.</param>
         /// <param name="agent">The agent.</param>
-        public void RegisterAgent(ConnectionId connectionId, Agent agent)
+        public void RegisterAgent(string connectionId, Agent agent)
             => RegisteredAgentDictionary.AddOrUpdate(agent.Name, addValue: (connectionId, agent), updateValueFactory: (k, v) => (connectionId, agent));
 
         /// <summary>
@@ -294,7 +305,7 @@ namespace slskd.Network
         /// <param name="connectionId">The ID of the connection.</param>
         /// <param name="record">The registration record, if one was removed.</param>
         /// <returns>A value indicating whether a registration was removed.</returns>
-        public bool TryDeregisterAgent(ConnectionId connectionId, out (ConnectionId ConnectionId, Agent Agent) record)
+        public bool TryDeregisterAgent(string connectionId, out (string ConnectionId, Agent Agent) record)
         {
             if (TryGetAgentRegistration(connectionId, out var found))
             {
@@ -311,7 +322,7 @@ namespace slskd.Network
         /// <param name="connectionId">The ID of the agent connection.</param>
         /// <param name="record">The registration record, if one exists.</param>
         /// <returns>A value indicating whether the registration exists.</returns>
-        public bool TryGetAgentRegistration(ConnectionId connectionId, out (ConnectionId ConnectionId, Agent Agent) record)
+        public bool TryGetAgentRegistration(string connectionId, out (string ConnectionId, Agent Agent) record)
         {
             var found = RegisteredAgentDictionary.Values.FirstOrDefault(v => v.ConnectionId == connectionId);
             record = found;
@@ -326,7 +337,7 @@ namespace slskd.Network
         /// <param name="agentName">The agent name.</param>
         /// <param name="challengeResponse">The challenge response provided by the agent.</param>
         /// <returns>A value indicating whether the response is valid.</returns>
-        public bool TryValidateAuthenticationChallengeResponse(ConnectionId connectionId, string agentName, string challengeResponse)
+        public bool TryValidateAuthenticationChallengeResponse(string connectionId, string agentName, string challengeResponse)
         {
             if (!MemoryCache.TryGetValue(GetAuthTokenCacheKey(connectionId), out var challengeToken))
             {
@@ -351,11 +362,11 @@ namespace slskd.Network
         ///     Attempts to retrieve the specified share upload <paramref name="token"/>.
         /// </summary>
         /// <param name="token">The token.</param>
-        /// <param name="agentName">The name of the agent attempting to use the token.</param>
+        /// <param name="agentName">The name of the agent associated with the token.</param>
         /// <returns>A value indicating whether the specified token exists.</returns>
-        public bool TryValidateShareUploadToken(Guid token, string agentName)
+        public bool TryValidateShareUploadToken(Guid token, out string agentName)
         {
-            if (MemoryCache.TryGetValue(GetShareTokenCacheKey(token), out var cachedAgentName) && (string)cachedAgentName == agentName)
+            if (MemoryCache.TryGetValue(GetShareTokenCacheKey(token), out agentName))
             {
                 return true;
             }
