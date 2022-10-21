@@ -1,4 +1,4 @@
-# slskd
+# slskd.
 
 [![Build](https://img.shields.io/github/workflow/status/slskd/slskd/CI/master?logo=github)](https://github.com/slskd/slskd/actions/workflows/ci.yml)
 [![Docker Pulls](https://img.shields.io/docker/pulls/slskd/slskd?logo=docker)](https://hub.docker.com/r/slskd/slskd)
