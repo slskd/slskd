@@ -134,9 +134,10 @@ namespace slskd.Network
 
             var stream = new FileStream(temp, FileMode.Open, FileAccess.Read);
 
-            using var request = new HttpRequestMessage(HttpMethod.Post, $"api/v0/network/shares/{token}");
+            using var request = new HttpRequestMessage(HttpMethod.Post, $"api/v0/network/shares/{OptionsMonitor.CurrentValue.InstanceName}/{token}");
             using var content = new MultipartFormDataContent
             {
+                { new StringContent(ComputeCredential(token)), "credential" },
                 { new StringContent(Shares.LocalHost.Shares.ToJson()), "shares" },
                 { new StreamContent(stream), "database", "shares" },
             };
@@ -154,9 +155,19 @@ namespace slskd.Network
             Log.Information("Upload shares succeeded");
         }
 
-        private async Task HandleFileRequest(string filename, Guid id)
+        private string ComputeCredential(Guid token)
         {
-            Log.Information("Network controller requested file {Filename} with ID {Id}", filename, id);
+            var options = OptionsMonitor.CurrentValue;
+
+            var key = options.Network.Controller.Secret.FromBase62();
+            var tokenBytes = token.ToString().FromBase62();
+
+            return Aes.Encrypt(tokenBytes, key).ToBase62();
+        }
+
+        private async Task HandleFileRequest(string filename, Guid token)
+        {
+            Log.Information("Network controller requested file {Filename} with ID {Id}", filename, token);
 
             try
             {
@@ -171,15 +182,16 @@ namespace slskd.Network
                 }
 
                 using var stream = new FileStream(localFileInfo.FullName, FileMode.Open, FileAccess.Read);
-                using var request = new HttpRequestMessage(HttpMethod.Post, $"api/v0/network/files/{id}");
+                using var request = new HttpRequestMessage(HttpMethod.Post, $"api/v0/network/files/{OptionsMonitor.CurrentValue.InstanceName}/{token}");
                 using var content = new MultipartFormDataContent
                 {
+                    { new StringContent(ComputeCredential(token)), "credential" },
                     { new StreamContent(stream), "file", filename },
                 };
 
                 request.Content = content;
 
-                Log.Information("Beginning upload of file {Filename} with ID {Id}", filename, id);
+                Log.Information("Beginning upload of file {Filename} with ID {Id}", filename, token);
                 var response = await CreateHttpClient().SendAsync(request);
 
                 if (!response.IsSuccessStatusCode)
@@ -196,7 +208,7 @@ namespace slskd.Network
                 Log.Error(ex, "Failed to handle file request: {Message}", ex.Message);
 
                 // report the failure to the controller. this avoids a failure due to timeout.
-                await HubConnection.InvokeAsync(nameof(NetworkHub.NotifyUploadFailed), id);
+                await HubConnection.InvokeAsync(nameof(NetworkHub.NotifyUploadFailed), token);
             }
         }
 
