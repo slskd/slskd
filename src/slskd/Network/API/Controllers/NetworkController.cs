@@ -75,7 +75,7 @@ namespace slskd.Network
                 return BadRequest();
             }
 
-            if (!Network.TryValidateFileUploadCredential(token: guid, agentName, credential))
+            if (!Network.TryValidateFileUploadCredential(token: guid, agentName, filename: file.FileName, credential))
             {
                 Log.Warning("Failed to authenticate file upload from caller claiming to be agent {Agent}", agentName);
                 return Unauthorized();

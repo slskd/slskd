@@ -130,9 +130,10 @@ namespace slskd.Network
         /// </summary>
         /// <param name="token">The token.</param>
         /// <param name="agentName">The name of the responding agent.</param>
+        /// <param name="filename">The name of the file being uploaded.</param>
         /// <param name="credential">The response credential.</param>
         /// <returns>A value indicating whether the credential is valid.</returns>
-        bool TryValidateFileUploadCredential(Guid token, string agentName, string credential);
+        bool TryValidateFileUploadCredential(Guid token, string agentName, string filename, string credential);
     }
 
     public class NetworkService : INetworkService
@@ -269,7 +270,7 @@ namespace slskd.Network
             var key = new WaitKey(nameof(GetFile), agentName, token);
             var wait = Waiter.Wait(key, timeout);
 
-            MemoryCache.Set(GetFileTokenCacheKey(token), agentName, TimeSpan.FromMinutes(1));
+            MemoryCache.Set(GetFileTokenCacheKey(filename, token), agentName, TimeSpan.FromMinutes(1));
             Log.Debug("Cached file upload token {Token} for agent {Agent}", token, agentName);
 
             // create a TCS for the upload stream. this is awaited below and completed in the API controller when the agent POSTs
@@ -404,11 +405,12 @@ namespace slskd.Network
         /// </summary>
         /// <param name="token">The token.</param>
         /// <param name="agentName">The name of the responding agent.</param>
+        /// <param name="filename">The name of the file being uploaded.</param>
         /// <param name="credential">The response credential.</param>
         /// <returns>A value indicating whether the credential is valid.</returns>
-        public bool TryValidateFileUploadCredential(Guid token, string agentName, string credential)
+        public bool TryValidateFileUploadCredential(Guid token, string agentName, string filename, string credential)
         {
-            return TryValidateCredential(token.ToString(), agentName, credential, GetFileTokenCacheKey(token));
+            return TryValidateCredential(token.ToString(), agentName, credential, GetFileTokenCacheKey(filename, token));
         }
 
         private bool TryValidateCredential(string token, string agentName, string credential, string cacheKey)
@@ -461,6 +463,6 @@ namespace slskd.Network
         private string GetAuthTokenCacheKey(string connectionId) => $"{connectionId}.auth";
 
         private string GetShareTokenCacheKey(Guid token) => $"{token}.share";
-        private string GetFileTokenCacheKey(Guid token) => $"{token}.file";
+        private string GetFileTokenCacheKey(string filename, Guid token) => $"{filename}.{token}.file";
     }
 }
