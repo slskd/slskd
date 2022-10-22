@@ -237,6 +237,7 @@ namespace slskd.Network
             if (task == wait)
             {
                 // send the stream back to the caller so it can be used to feed data to the remote client
+                Log.Information("Agent {Agent} provided file stream for file {Filename} with ID {Id}", agentName, filename, token);
                 var stream = await wait;
                 return stream;
             }
@@ -338,6 +339,7 @@ namespace slskd.Network
             // will complete.
             var key = new WaitKey(nameof(GetFileStream), "completion", agentName, filename);
             Waiter.Complete(key);
+            Log.Information("Upload of {File} from agent {Agent} reported as completed", filename, agentName);
         }
 
         /// <summary>
