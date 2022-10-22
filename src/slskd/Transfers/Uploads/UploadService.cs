@@ -265,22 +265,16 @@ namespace slskd.Transfers.Uploads
                     }
                     else
                     {
-                        TaskCompletionSource uploadCompletion = default;
-
                         var completedTransfer = await Client.UploadAsync(
                             username,
                             filename,
                             size: localFileLength,
-                            inputStreamFactory: async () =>
-                            {
-                                var (stream, completion) = await Network.GetFile(agentName: host, filename);
-                                uploadCompletion = completion;
-                                return stream;
-                            },
+                            inputStreamFactory: () => Network.GetFileStream(agentName: host, filename),
                             options: topts,
                             cancellationToken: cts.Token);
 
-                        uploadCompletion.SetResult();
+                        Network.HandleGetFileStreamCompletion(agentName: host, filename);
+
                         transfer = transfer.WithSoulseekTransfer(completedTransfer);
                     }
 
