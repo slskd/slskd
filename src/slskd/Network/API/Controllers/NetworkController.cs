@@ -81,31 +81,17 @@ namespace slskd.Network
                 return Unauthorized();
             }
 
-            // get the record for the waiting file
-            if (Network.PendingFileUploads.TryGetValue(guid, out var record))
-            {
-                // get the stream from the multipart upload
-                var stream = Request.Form.Files.First().OpenReadStream();
+            // get the stream from the multipart upload
+            var stream = Request.Form.Files.First().OpenReadStream();
 
-                // set the result for the stream
-                // this should pass control to the transfer service along with
-                // the stream
-                record.Stream.SetResult(stream);
+            // pass the stream back to the network service, which will in turn pass it to the
+            // upload service, and use it to feed data into the remote upload. await this call,
+            // it will complete when the upload is complete.
+            await Network.HandleGetFileStreamResponse(agentName, filename: file.FileName, id: guid, stream);
 
-                Console.WriteLine("Stream handed off. Waiting for completion...");
-
-                // wait for the transfer service to set the completion result
-                await record.Completion.Task;
-
-                stream.Dispose();
-                Console.WriteLine("Upload complete");
-                return Ok();
-            }
-            else
-            {
-                Log.Warning("Agent");
-                return NotFound();
-            }
+            stream.Dispose();
+            Console.WriteLine("Upload complete");
+            return Ok();
         }
 
         [HttpPost("shares/{agentName}/{token}")]
