@@ -40,6 +40,7 @@ ARG BUILD_DATE
 
 RUN apt-get update && apt-get install -y \
   wget \
+  tini \
   && rm -rf /var/lib/apt/lists/*
 
 RUN bash -c 'mkdir -p /app/{incomplete,downloads} \ 
@@ -78,4 +79,4 @@ LABEL org.opencontainers.image.title=slskd \
 WORKDIR /slskd
 COPY --from=publish /slskd/dist/${TARGETPLATFORM} .
 
-ENTRYPOINT ["./slskd"]
+ENTRYPOINT ["/usr/bin/tini", "--", "./slskd"]
