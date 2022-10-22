@@ -396,7 +396,7 @@ namespace slskd.Network
         /// <returns>A value indicating whether the credential is valid.</returns>
         public bool TryValidateShareUploadCredential(Guid token, string agentName, string credential)
         {
-            return TryValidateCredential(token.ToString(), agentName, credential, GetFileTokenCacheKey(token));
+            return TryValidateCredential(token.ToString(), agentName, credential, GetShareTokenCacheKey(token));
         }
 
         /// <summary>
@@ -408,28 +408,54 @@ namespace slskd.Network
         /// <returns>A value indicating whether the credential is valid.</returns>
         public bool TryValidateFileUploadCredential(Guid token, string agentName, string credential)
         {
-            return TryValidateCredential(token.ToString(), agentName, credential, GetShareTokenCacheKey(token));
+            return TryValidateCredential(token.ToString(), agentName, credential, GetFileTokenCacheKey(token));
         }
 
         private bool TryValidateCredential(string token, string agentName, string credential, string cacheKey)
         {
-            bool valid = false;
-
-            if (OptionsMonitor.CurrentValue.Network.Agents.TryGetValue(agentName, out var agentOptions)
-                && RegisteredAgentDictionary.TryGetValue(agentName, out _)
-                && MemoryCache.TryGetValue(cacheKey, out var cachedAgentName)
-                && (string)cachedAgentName == agentName)
+            try
             {
+                if (!OptionsMonitor.CurrentValue.Network.Agents.TryGetValue(agentName, out var agentOptions))
+                {
+                    Log.Debug("Validation failed: Agent {Agent} not configured", agentName);
+                    return false;
+                }
+
+                if (!RegisteredAgentDictionary.TryGetValue(agentName, out _))
+                {
+                    Log.Debug("Validation failed: Agent {Agent} not registered", agentName);
+                    return false;
+                }
+
+                if (!MemoryCache.TryGetValue(cacheKey, out var cachedAgentName))
+                {
+                    Log.Debug("Validation failed: Cache key {Key} not cached", cacheKey);
+                    return false;
+                }
+
+                if ((string)cachedAgentName != agentName)
+                {
+                    Log.Debug("Validation failed: Cached agent {Cached} does not match supplied agent {Agent}", cachedAgentName, agentName);
+                    return false;
+                }
+
                 var key = agentOptions.Secret.FromBase62();
                 var tokenBytes = token.ToString().FromBase62();
                 var expectedCredential = Aes.Encrypt(tokenBytes, key).ToBase62();
 
-                valid = expectedCredential == credential;
-            }
+                if (expectedCredential != credential)
+                {
+                    Log.Debug("Validation failed: Supplied credential {Credential} does not match expected credential {Expected}", credential, expectedCredential);
+                    return false;
+                }
 
-            // tokens can be used exactly once, pass or fail
-            MemoryCache.Remove(cacheKey);
-            return valid;
+                return true;
+            }
+            finally
+            {
+                // tokens can be used exactly once, pass or fail
+                MemoryCache.Remove(cacheKey);
+            }
         }
 
         private string GetAuthTokenCacheKey(string connectionId) => $"{connectionId}.auth";
