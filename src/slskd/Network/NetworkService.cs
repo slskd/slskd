@@ -117,12 +117,22 @@ namespace slskd.Network
         bool TryValidateAuthenticationChallengeResponse(string connectionId, string agentName, string challengeResponse);
 
         /// <summary>
-        ///     Attempts to retrieve the specified share upload <paramref name="token"/>.
+        ///     Attempts to validate the share upload response credential associated with the specified <paramref name="token"/>.
         /// </summary>
         /// <param name="token">The token.</param>
-        /// <param name="agentName">The name of the agent associated with the token.</param>
-        /// <returns>A value indicating whether the specified token exists.</returns>
-        bool TryValidateShareUploadToken(Guid token, out string agentName);
+        /// <param name="agentName">The name of the responding agent.</param>
+        /// <param name="credential">The response credential.</param>
+        /// <returns>A value indicating whether the credential is valid.</returns>
+        bool TryValidateShareUploadCredential(Guid token, string agentName, string credential);
+
+        /// <summary>
+        ///     Attempts to validate the file upload response credential associated with the specified <paramref name="token"/>.
+        /// </summary>
+        /// <param name="token">The token.</param>
+        /// <param name="agentName">The name of the responding agent.</param>
+        /// <param name="credential">The response credential.</param>
+        /// <returns>A value indicating whether the credential is valid.</returns>
+        bool TryValidateFileUploadCredential(Guid token, string agentName, string credential);
     }
 
     public class NetworkService : INetworkService
@@ -250,7 +260,17 @@ namespace slskd.Network
         /// <returns>The operation context, including a stream containing the requested file, and an upload TaskCompletionSource.</returns>
         public async Task<(Stream Stream, TaskCompletionSource Completion)> GetFile(string agentName, string filename, int timeout = 3000)
         {
-            var id = Guid.NewGuid();
+            if (!RegisteredAgentDictionary.TryGetValue(agentName, out var record))
+            {
+                throw new NotFoundException($"Agent {agentName} is not registered");
+            }
+
+            var token = Guid.NewGuid();
+            var key = new WaitKey(nameof(GetFile), agentName, token);
+            var wait = Waiter.Wait(key, timeout);
+
+            MemoryCache.Set(GetFileTokenCacheKey(token), agentName, TimeSpan.FromMinutes(1));
+            Log.Debug("Cached file upload token {Token} for agent {Agent}", token, agentName);
 
             // create a TCS for the upload stream. this is awaited below and completed in the API controller when the agent POSTs
             // the file
@@ -261,17 +281,12 @@ namespace slskd.Network
             // complete in order to keep the stream open for the duration
             var completion = new TaskCompletionSource();
 
-            if (!RegisteredAgentDictionary.TryGetValue(agentName, out var record))
-            {
-                throw new NotFoundException($"Agent {agentName} is not registered");
-            }
-
-            PendingFileUploadDictionary.TryAdd(id, (upload, completion));
+            PendingFileUploadDictionary.TryAdd(token, (upload, completion));
 
             try
             {
-                await NetworkHub.Clients.Client(record.ConnectionId).RequestFile(filename, id);
-                Log.Information("Requested file {Filename} from Agent {Agent} with ID {Id}. Waiting for incoming connection.", filename, agentName, id);
+                await NetworkHub.Clients.Client(record.ConnectionId).RequestFile(filename, token);
+                Log.Information("Requested file {Filename} from Agent {Agent} with ID {Id}. Waiting for incoming connection.", filename, agentName, token);
 
                 var task = await Task.WhenAny(upload.Task, Task.Delay(timeout));
 
@@ -287,8 +302,22 @@ namespace slskd.Network
             }
             finally
             {
-                PendingFileUploadDictionary.TryRemove(id, out _);
+                PendingFileUploadDictionary.TryRemove(token, out _);
             }
+        }
+
+        public void HandleGetFileResponse(string agentName, Guid id, Stream response)
+        {
+            var key = new WaitKey(nameof(GetFile), agentName, id);
+
+            if (!Waiter.ContainsKey(key))
+            {
+                Log.Warning("Agent {Agent} responded to a file request with Id {Id}, but a response was not expected", agentName, id);
+                return;
+            }
+
+            Waiter.Complete(key, response);
+            Log.Information("Agent {Agent} responded to a file request with Id {Id}", agentName, id);
         }
 
         /// <summary>
@@ -359,23 +388,53 @@ namespace slskd.Network
         }
 
         /// <summary>
-        ///     Attempts to retrieve the specified share upload <paramref name="token"/>.
+        ///     Attempts to validate the share upload response credential associated with the specified <paramref name="token"/>.
         /// </summary>
         /// <param name="token">The token.</param>
-        /// <param name="agentName">The name of the agent associated with the token.</param>
-        /// <returns>A value indicating whether the specified token exists.</returns>
-        public bool TryValidateShareUploadToken(Guid token, out string agentName)
+        /// <param name="agentName">The name of the responding agent.</param>
+        /// <param name="credential">The response credential.</param>
+        /// <returns>A value indicating whether the credential is valid.</returns>
+        public bool TryValidateShareUploadCredential(Guid token, string agentName, string credential)
         {
-            if (MemoryCache.TryGetValue(GetShareTokenCacheKey(token), out agentName))
+            return TryValidateCredential(token.ToString(), agentName, credential, GetFileTokenCacheKey(token));
+        }
+
+        /// <summary>
+        ///     Attempts to validate the file upload response credential associated with the specified <paramref name="token"/>.
+        /// </summary>
+        /// <param name="token">The token.</param>
+        /// <param name="agentName">The name of the responding agent.</param>
+        /// <param name="credential">The response credential.</param>
+        /// <returns>A value indicating whether the credential is valid.</returns>
+        public bool TryValidateFileUploadCredential(Guid token, string agentName, string credential)
+        {
+            return TryValidateCredential(token.ToString(), agentName, credential, GetShareTokenCacheKey(token));
+        }
+
+        private bool TryValidateCredential(string token, string agentName, string credential, string cacheKey)
+        {
+            bool valid = false;
+
+            if (OptionsMonitor.CurrentValue.Network.Agents.TryGetValue(agentName, out var agentOptions)
+                && RegisteredAgentDictionary.TryGetValue(agentName, out _)
+                && MemoryCache.TryGetValue(cacheKey, out var cachedAgentName)
+                && (string)cachedAgentName == agentName)
             {
-                return true;
+                var key = agentOptions.Secret.FromBase62();
+                var tokenBytes = token.ToString().FromBase62();
+                var expectedCredential = Aes.Encrypt(tokenBytes, key).ToBase62();
+
+                valid = expectedCredential == credential;
             }
 
-            return false;
+            // tokens can be used exactly once, pass or fail
+            MemoryCache.Remove(cacheKey);
+            return valid;
         }
 
         private string GetAuthTokenCacheKey(string connectionId) => $"{connectionId}.auth";
 
         private string GetShareTokenCacheKey(Guid token) => $"{token}.share";
+        private string GetFileTokenCacheKey(Guid token) => $"{token}.file";
     }
 }
