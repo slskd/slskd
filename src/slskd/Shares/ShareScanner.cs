@@ -64,6 +64,7 @@ namespace slskd.Shares
         ///     Initializes a new instance of the <see cref="ShareScanner"/> class.
         /// </summary>
         /// <param name="workerCount"></param>
+        /// <param name="shareRepository"></param>
         /// <param name="soulseekFileFactory"></param>
         public ShareScanner(
             int workerCount,

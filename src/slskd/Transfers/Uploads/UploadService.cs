@@ -273,7 +273,7 @@ namespace slskd.Transfers.Uploads
                             size: localFileLength,
                             inputStreamFactory: async () =>
                             {
-                                var (stream, completion) = await Network.GetFileUpload(agentName: host, filename);
+                                var (stream, completion) = await Network.GetFile(agentName: host, filename);
                                 uploadCompletion = completion;
                                 return stream;
                             },

@@ -68,13 +68,13 @@ namespace slskd.Network
         Task<(bool Exists, long Length)> GetFileInfo(string agentName, string filename, int timeout = 3000);
 
         /// <summary>
-        ///     Retrieves an upload of the specified <paramref name="filename"/> from the specified <paramref name="agentName"/>.
+        ///     Retrieves a stream of the specified <paramref name="filename"/> from the specified <paramref name="agentName"/>.
         /// </summary>
         /// <param name="agentName">The agent from which to retrieve the file.</param>
         /// <param name="filename">The file to retrieve.</param>
         /// <param name="timeout">An optional timeout value.</param>
         /// <returns>The operation context, including a stream containing the requested file, and an upload TaskCompletionSource.</returns>
-        Task<(Stream Stream, TaskCompletionSource Completion)> GetFileUpload(string agentName, string filename, int timeout = 3000);
+        Task<(Stream Stream, TaskCompletionSource Completion)> GetFile(string agentName, string filename, int timeout = 3000);
 
         /// <summary>
         ///     Registers the specified <paramref name="agent"/> with the specified <paramref name="connectionId"/>.
@@ -111,10 +111,10 @@ namespace slskd.Network
         ///     Validates an authentication challenge response.
         /// </summary>
         /// <param name="connectionId">The ID of the agent connection.</param>
-        /// <param name="agent">The agent name.</param>
+        /// <param name="agentName">The agent name.</param>
         /// <param name="challengeResponse">The challenge response provided by the agent.</param>
         /// <returns>A value indicating whether the response is valid.</returns>
-        bool TryValidateAuthenticationChallengeResponse(string connectionId, string agent, string challengeResponse);
+        bool TryValidateAuthenticationChallengeResponse(string connectionId, string agentName, string challengeResponse);
 
         /// <summary>
         ///     Attempts to retrieve the specified share upload <paramref name="token"/>.
@@ -242,13 +242,13 @@ namespace slskd.Network
         }
 
         /// <summary>
-        ///     Retrieves an upload of the specified <paramref name="filename"/> from the specified <paramref name="agentName"/>.
+        ///     Retrieves a stream of the specified <paramref name="filename"/> from the specified <paramref name="agentName"/>.
         /// </summary>
         /// <param name="agentName">The agent from which to retrieve the file.</param>
         /// <param name="filename">The file to retrieve.</param>
         /// <param name="timeout">An optional timeout value.</param>
         /// <returns>The operation context, including a stream containing the requested file, and an upload TaskCompletionSource.</returns>
-        public async Task<(Stream Stream, TaskCompletionSource Completion)> GetFileUpload(string agentName, string filename, int timeout = 3000)
+        public async Task<(Stream Stream, TaskCompletionSource Completion)> GetFile(string agentName, string filename, int timeout = 3000)
         {
             var id = Guid.NewGuid();
 
