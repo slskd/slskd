@@ -274,6 +274,7 @@ namespace slskd.Transfers.Uploads
                             cancellationToken: cts.Token);
 
                         Network.HandleGetFileStreamCompletion(agentName: host, filename);
+                        // todo: how to report a failure? the http request will stick open if we dont!
 
                         transfer = transfer.WithSoulseekTransfer(completedTransfer);
                     }
