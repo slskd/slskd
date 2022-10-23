@@ -38,6 +38,11 @@ namespace slskd.Network
         ReadOnlyDictionary<Guid, (TaskCompletionSource<Stream> Stream, TaskCompletionSource Completion)> PendingFileUploads { get; }
 
         /// <summary>
+        ///     Gets the name of the local host.
+        /// </summary>
+        string LocalHostName { get; }
+
+        /// <summary>
         ///     Gets the collection of registered Agents.
         /// </summary>
         ReadOnlyCollection<Agent> RegisteredAgents { get; }
@@ -162,6 +167,11 @@ namespace slskd.Network
         ///     Gets the collection of registered Agents.
         /// </summary>
         public ReadOnlyCollection<Agent> RegisteredAgents => RegisteredAgentDictionary.Values.Select(v => v.Agent).ToList().AsReadOnly();
+
+        /// <summary>
+        ///     Gets the name of the local host.
+        /// </summary>
+        public string LocalHostName => "local";
 
         private ILogger Log { get; } = Serilog.Log.ForContext<NetworkService>();
         private MemoryCache MemoryCache { get; } = new MemoryCache(new MemoryCacheOptions());
