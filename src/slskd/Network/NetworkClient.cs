@@ -165,51 +165,56 @@ namespace slskd.Network
             return Aes.Encrypt(tokenBytes, key).ToBase62();
         }
 
-        private async Task HandleFileRequest(string filename, Guid token)
+        private Task HandleFileRequest(string filename, Guid token)
         {
-            Log.Information("Network controller requested file {Filename} with ID {Id}", filename, token);
-
-            try
+            _ = Task.Run(async () =>
             {
-                var (_, localFilename) = await Shares.ResolveFileAsync(filename);
+                Log.Information("Network controller requested file {Filename} with ID {Id}", filename, token);
 
-                var localFileInfo = new FileInfo(localFilename);
-
-                if (!localFileInfo.Exists)
+                try
                 {
-                    Shares.RequestScan();
-                    throw new NotFoundException($"The file '{localFilename}' could not be located on disk. A share scan should be performed.");
+                    var (_, localFilename) = await Shares.ResolveFileAsync(filename);
+
+                    var localFileInfo = new FileInfo(localFilename);
+
+                    if (!localFileInfo.Exists)
+                    {
+                        Shares.RequestScan();
+                        throw new NotFoundException($"The file '{localFilename}' could not be located on disk. A share scan should be performed.");
+                    }
+
+                    using var stream = new FileStream(localFileInfo.FullName, FileMode.Open, FileAccess.Read);
+                    using var request = new HttpRequestMessage(HttpMethod.Post, $"api/v0/network/files/{OptionsMonitor.CurrentValue.InstanceName}/{token}");
+                    using var content = new MultipartFormDataContent
+                    {
+                        { new StringContent(ComputeCredential(token)), "credential" },
+                        { new StreamContent(stream), "file", filename },
+                    };
+
+                    request.Content = content;
+
+                    Log.Information("Beginning upload of file {Filename} with ID {Id}", filename, token);
+                    var response = await CreateHttpClient().SendAsync(request);
+
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        Log.Error("Upload of file {Filename} with ID {Id} failed: {StatusCode}", response.StatusCode);
+                    }
+                    else
+                    {
+                        Log.Information("Upload of file {Filename} with ID {Id} succeeded.", filename);
+                    }
                 }
-
-                using var stream = new FileStream(localFileInfo.FullName, FileMode.Open, FileAccess.Read);
-                using var request = new HttpRequestMessage(HttpMethod.Post, $"api/v0/network/files/{OptionsMonitor.CurrentValue.InstanceName}/{token}");
-                using var content = new MultipartFormDataContent
+                catch (Exception ex)
                 {
-                    { new StringContent(ComputeCredential(token)), "credential" },
-                    { new StreamContent(stream), "file", filename },
-                };
+                    Log.Error(ex, "Failed to handle file request: {Message}", ex.Message);
 
-                request.Content = content;
-
-                Log.Information("Beginning upload of file {Filename} with ID {Id}", filename, token);
-                var response = await CreateHttpClient().SendAsync(request);
-
-                if (!response.IsSuccessStatusCode)
-                {
-                    Log.Error("Upload of file {Filename} with ID {Id} failed: {StatusCode}", response.StatusCode);
+                    // report the failure to the controller. this avoids a failure due to timeout.
+                    await HubConnection.InvokeAsync(nameof(NetworkHub.NotifyUploadFailed), token);
                 }
-                else
-                {
-                    Log.Information("Upload of file {Filename} with ID {Id} succeeded.", filename);
-                }
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "Failed to handle file request: {Message}", ex.Message);
+            });
 
-                // report the failure to the controller. this avoids a failure due to timeout.
-                await HubConnection.InvokeAsync(nameof(NetworkHub.NotifyUploadFailed), token);
-            }
+            return Task.CompletedTask;
         }
 
         private async Task HandleFileInfoRequest(string filename, Guid id)
