@@ -24,7 +24,7 @@ namespace slskd.Shares
     /// <summary>
     ///     Persistent storage of shared files and metadata.
     /// </summary>
-    public interface IShareRepository
+    public interface IShareRepository : IDisposable
     {
         /// <summary>
         ///     Gets the connection string for this repository.
@@ -66,6 +66,12 @@ namespace slskd.Shares
         /// </summary>
         /// <param name="filename">The destination file.</param>
         void DumpTo(string filename);
+
+        /// <summary>
+        ///     Enable connection keepalive.
+        /// </summary>
+        /// <param name="enable">A value indicating whether the keepalive logic should be executed.</param>
+        void EnableKeepalive(bool enable);
 
         /// <summary>
         ///     Finds the filename of the file matching the specified <paramref name="maskedFilename"/>.
