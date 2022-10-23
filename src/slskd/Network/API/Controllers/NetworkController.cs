@@ -25,6 +25,8 @@ namespace slskd.Network
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Http;
     using Microsoft.AspNetCore.Mvc;
+    using Microsoft.AspNetCore.WebUtilities;
+    using Microsoft.Net.Http.Headers;
     using Serilog;
     using slskd.Shares;
 
@@ -61,37 +63,64 @@ namespace slskd.Network
                 return BadRequest("Token is not a valid Guid");
             }
 
-            string credential;
-            IFormFile file;
+            // todo: make sure agent is registered and return unauthorized if not
+
+            if (!HttpContext.Request.HasFormContentType
+                || !MediaTypeHeaderValue.TryParse(HttpContext.Request.ContentType, out var mediaTypeHeader)
+                || string.IsNullOrEmpty(mediaTypeHeader.Boundary.Value))
+            {
+                return new UnsupportedMediaTypeResult();
+            }
+
+            Log.Debug("Handling file upload for token {Token} from a caller claiming to be agent {Agent}", token, agentName);
+
+            string credential = default;
+            Stream stream = default;
+            string filename = default;
 
             try
             {
-                credential = Request.Form["credential"].ToString();
-                file = Request.Form.Files[0];
+                try
+                {
+                    var reader = new MultipartReader(mediaTypeHeader.Boundary.Value, Request.Body);
+
+                    // the first section contains the credentail
+                    var section = await reader.ReadNextSectionAsync();
+                    using var sectionReader = new StreamReader(section.Body);
+                    credential = sectionReader.ReadToEnd();
+
+                    // the second section contains the file
+                    section = await reader.ReadNextSectionAsync();
+                    var contentDisposition = ContentDispositionHeaderValue.Parse(section.ContentDisposition);
+                    filename = contentDisposition.FileName.Value;
+                    stream = section.Body;
+                }
+                catch (Exception ex)
+                {
+                    Log.Warning("Failed to handle file upload for token {Token} from a caller claiming to be agent {Agent}: {Message}", token, agentName, ex.Message);
+                    return BadRequest();
+                }
+
+                if (!Network.TryValidateFileUploadCredential(token: guid, agentName, filename, credential))
+                {
+                    Log.Warning("Failed to authenticate file upload token {Token} from a caller claiming to be agent {Agent}", agentName);
+                    return Unauthorized();
+                }
+
+                Log.Information("File upload of {Filename} ({Token}) from agent {Agent} validated and authenticated. Forwarding file stream.", filename, token, agentName);
+
+                // pass the stream back to the network service, which will in turn pass it to the
+                // upload service, and use it to feed data into the remote upload. await this call,
+                // it will complete when the upload is complete.
+                await Network.HandleGetFileStreamResponse(agentName, filename, id: guid, stream);
+
+                Log.Information("File upload of {Filename} ({Token}) from agent {Agent} complete", filename, token, agentName);
+                return Ok();
             }
-            catch (Exception ex)
+            finally
             {
-                Log.Warning("Failed to handle file upload from agent {Agent}: {Message}", agentName, ex.Message);
-                return BadRequest();
+                stream?.Dispose();
             }
-
-            if (!Network.TryValidateFileUploadCredential(token: guid, agentName, filename: file.FileName, credential))
-            {
-                Log.Warning("Failed to authenticate file upload from caller claiming to be agent {Agent}", agentName);
-                return Unauthorized();
-            }
-
-            // get the stream from the multipart upload
-            var stream = Request.Form.Files.First().OpenReadStream();
-
-            // pass the stream back to the network service, which will in turn pass it to the
-            // upload service, and use it to feed data into the remote upload. await this call,
-            // it will complete when the upload is complete.
-            await Network.HandleGetFileStreamResponse(agentName, filename: file.FileName, id: guid, stream);
-
-            stream.Dispose();
-            Console.WriteLine("Upload complete");
-            return Ok();
         }
 
         [HttpPost("shares/{agentName}/{token}")]

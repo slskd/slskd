@@ -251,7 +251,7 @@ namespace slskd.Transfers.Uploads
                         slotAwaiter: (tx, ct) => Queue.AwaitStartAsync(tx.Username, tx.Filename),
                         slotReleased: (tx) => Queue.Complete(tx.Username, tx.Filename));
 
-                    if (host == "local")
+                    if (host == "locassssl")
                     {
                         var completedTransfer = await Client.UploadAsync(
                             username,
@@ -269,7 +269,7 @@ namespace slskd.Transfers.Uploads
                             username,
                             filename,
                             size: localFileLength,
-                            inputStreamFactory: () => Network.GetFileStream(agentName: host, filename),
+                            inputStreamFactory: () => Network.GetFileStream(agentName: "vdesktop", filename),
                             options: topts,
                             cancellationToken: cts.Token);
 
