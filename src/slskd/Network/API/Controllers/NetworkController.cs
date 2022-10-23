@@ -25,6 +25,8 @@ namespace slskd.Network
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Http;
     using Microsoft.AspNetCore.Mvc;
+    using Microsoft.AspNetCore.WebUtilities;
+    using Microsoft.Net.Http.Headers;
     using Serilog;
     using slskd.Shares;
 
@@ -53,6 +55,9 @@ namespace slskd.Network
         private ILogger Log { get; } = Serilog.Log.ForContext<NetworkController>();
 
         [HttpPost("files/{agentName}/{token}")]
+        [RequestSizeLimit(10L * 1024L * 1024L * 1024L)]
+        [RequestFormLimits(MultipartBodyLengthLimit = 10L * 1024L * 1024L * 1024L)]
+        [DisableFormValueModelBinding]
         [Authorize]
         public async Task<IActionResult> UploadFile(string agentName, string token)
         {
@@ -61,13 +66,23 @@ namespace slskd.Network
                 return BadRequest("Token is not a valid Guid");
             }
 
-            string credential;
-            IFormFile file;
+            string credential = default;
+            Stream stream = default;
+            string filename = default;
 
             try
             {
-                credential = Request.Form["credential"].ToString();
-                file = Request.Form.Files[0];
+                var boundary = MultipartRequestHelper.GetBoundary(MediaTypeHeaderValue.Parse(Request.ContentType));
+                var reader = new MultipartReader(boundary, Request.Body);
+
+                var credentialSection = await reader.ReadNextSectionAsync();
+                using var sr = new StreamReader(credentialSection.Body);
+                credential = sr.ReadToEnd();
+
+                var fileSection = await reader.ReadNextSectionAsync();
+                ContentDispositionHeaderValue.TryParse(fileSection.ContentDisposition, out var contentDisposition);
+                filename = contentDisposition.FileName.Value;
+                stream = fileSection.Body;
             }
             catch (Exception ex)
             {
@@ -75,24 +90,60 @@ namespace slskd.Network
                 return BadRequest();
             }
 
-            if (!Network.TryValidateFileUploadCredential(token: guid, agentName, filename: file.FileName, credential))
+            if (!Network.TryValidateFileUploadCredential(token: guid, agentName, filename, credential))
             {
                 Log.Warning("Failed to authenticate file upload from caller claiming to be agent {Agent}", agentName);
                 return Unauthorized();
             }
 
-            // get the stream from the multipart upload
-            var stream = Request.Form.Files.First().OpenReadStream();
+            Console.WriteLine($"credential: {credential}, filename: {filename}, stream pos {stream.Position} len {stream.Length}");
+
+            Console.WriteLine("Opening request stream...");
+
+            Console.WriteLine("Stream open. calling handler...");
 
             // pass the stream back to the network service, which will in turn pass it to the
             // upload service, and use it to feed data into the remote upload. await this call,
             // it will complete when the upload is complete.
-            await Network.HandleGetFileStreamResponse(agentName, filename: file.FileName, id: guid, stream);
+            await Network.HandleGetFileStreamResponse(agentName, filename, id: guid, stream);
 
             stream.Dispose();
             Console.WriteLine("Upload complete");
             return Ok();
         }
+
+        //[DisableFormValueModelBinding]
+        //[RequestSizeLimit(MaxFileSize)]
+        //[RequestFormLimits(MultipartBodyLengthLimit = MaxFileSize)]
+        //public async Task ReceiveFile()
+        //{
+        //    if (!MultipartRequestHelper.IsMultipartContentType(Request.ContentType))
+        //        throw new BadRequestException("Not a multipart request");
+
+        //    var boundary = MultipartRequestHelper.GetBoundary(MediaTypeHeaderValue.Parse(Request.ContentType));
+        //    var reader = new MultipartReader(boundary, Request.Body);
+
+        //    // note: this is for a single file, you could also process multiple files
+        //    var section = await reader.ReadNextSectionAsync();
+
+        //    if (section == null)
+        //        throw new BadRequestException("No sections in multipart defined");
+
+        //    if (!ContentDispositionHeaderValue.TryParse(section.ContentDisposition, out var contentDisposition))
+        //        throw new BadRequestException("No content disposition in multipart defined");
+
+        //    var fileName = contentDisposition.FileNameStar.ToString();
+        //    if (string.IsNullOrEmpty(fileName))
+        //    {
+        //        fileName = contentDisposition.FileName.ToString();
+        //    }
+
+        //    if (string.IsNullOrEmpty(fileName))
+        //        throw new BadRequestException("No filename defined.");
+
+        //    using var fileStream = section.Body;
+        //    await SendFileSomewhere(fileStream);
+        //}
 
         [HttpPost("shares/{agentName}/{token}")]
         [Authorize]
