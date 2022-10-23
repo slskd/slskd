@@ -20,7 +20,6 @@ namespace slskd.Network
     using System;
     using System.Collections.Generic;
     using System.IO;
-    using System.Linq;
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Http;
@@ -68,14 +67,14 @@ namespace slskd.Network
 
             // todo: make sure agent is registered and return unauthorized if not
 
-            if (!HttpContext.Request.HasFormContentType
-                || !MediaTypeHeaderValue.TryParse(HttpContext.Request.ContentType, out var mediaTypeHeader)
+            if (!Request.HasFormContentType
+                || !MediaTypeHeaderValue.TryParse(Request.ContentType, out var mediaTypeHeader)
                 || string.IsNullOrEmpty(mediaTypeHeader.Boundary.Value))
             {
                 return new UnsupportedMediaTypeResult();
             }
 
-            Log.Debug("Handling file upload for token {Token} from a caller claiming to be agent {Agent}", token, agentName);
+            Log.Information("Handling file upload for token {Token} from a caller claiming to be agent {Agent}", token, agentName);
 
             string credential = default;
             Stream stream = default;
@@ -85,18 +84,16 @@ namespace slskd.Network
             {
                 try
                 {
-                    var reader = new MultipartReader(mediaTypeHeader.Boundary.Value, Request.Body);
+                    var reader = new MultipartReader(HeaderUtilities.RemoveQuotes(mediaTypeHeader.Boundary).Value, Request.Body);
 
-                    // the first section contains the credentail
-                    var section = await reader.ReadNextSectionAsync();
-                    using var sectionReader = new StreamReader(section.Body);
-                    credential = sectionReader.ReadToEnd();
+                    var credentialSection = await reader.ReadNextSectionAsync();
+                    using var sr = new StreamReader(credentialSection.Body);
+                    credential = sr.ReadToEnd();
 
-                    // the second section contains the file
-                    section = await reader.ReadNextSectionAsync();
-                    var contentDisposition = ContentDispositionHeaderValue.Parse(section.ContentDisposition);
+                    var fileSection = await reader.ReadNextSectionAsync();
+                    var contentDisposition = ContentDispositionHeaderValue.Parse(fileSection.ContentDisposition);
                     filename = contentDisposition.FileName.Value;
-                    stream = section.Body;
+                    stream = fileSection.Body;
                 }
                 catch (Exception ex)
                 {
@@ -125,39 +122,6 @@ namespace slskd.Network
                 stream?.Dispose();
             }
         }
-
-        //[DisableFormValueModelBinding]
-        //[RequestSizeLimit(MaxFileSize)]
-        //[RequestFormLimits(MultipartBodyLengthLimit = MaxFileSize)]
-        //public async Task ReceiveFile()
-        //{
-        //    if (!MultipartRequestHelper.IsMultipartContentType(Request.ContentType))
-        //        throw new BadRequestException("Not a multipart request");
-
-        //    var boundary = MultipartRequestHelper.GetBoundary(MediaTypeHeaderValue.Parse(Request.ContentType));
-        //    var reader = new MultipartReader(boundary, Request.Body);
-
-        //    // note: this is for a single file, you could also process multiple files
-        //    var section = await reader.ReadNextSectionAsync();
-
-        //    if (section == null)
-        //        throw new BadRequestException("No sections in multipart defined");
-
-        //    if (!ContentDispositionHeaderValue.TryParse(section.ContentDisposition, out var contentDisposition))
-        //        throw new BadRequestException("No content disposition in multipart defined");
-
-        //    var fileName = contentDisposition.FileNameStar.ToString();
-        //    if (string.IsNullOrEmpty(fileName))
-        //    {
-        //        fileName = contentDisposition.FileName.ToString();
-        //    }
-
-        //    if (string.IsNullOrEmpty(fileName))
-        //        throw new BadRequestException("No filename defined.");
-
-        //    using var fileStream = section.Body;
-        //    await SendFileSomewhere(fileStream);
-        //}
 
         [HttpPost("shares/{agentName}/{token}")]
         [Authorize]
