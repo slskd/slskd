@@ -400,6 +400,8 @@ namespace slskd.Shares
                     }
                 }
 
+                Local.Repository.EnableKeepalive(true);
+
                 // one of several thigns happened above before we got here:
                 //   this method was called with forceRescan = true
                 //   the storage mode is memory, and we loaded the in-memory db from a valid backup
