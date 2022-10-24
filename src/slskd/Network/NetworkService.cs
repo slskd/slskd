@@ -66,21 +66,21 @@ namespace slskd.Network
         /// <param name="id">A unique ID for the stream.</param>
         /// <param name="timeout">An optional timeout value.</param>
         /// <returns>The operation context, including a stream containing the requested file.</returns>
-        Task<Stream> GetFileStream(string agentName, string filename, Guid id, int timeout = 3000);
+        Task<Stream> GetFileStreamAsync(string agentName, string filename, Guid id, int timeout = 3000);
 
         /// <summary>
-        ///     Safely attempts to close a stream obtained with <see cref="GetFileStream"/>.
+        ///     Safely attempts to close a stream obtained with <see cref="GetFileStreamAsync"/>.
         /// </summary>
         /// <param name="id">The unique ID for the stream.</param>
         /// <param name="exception">If the transfer associated with the stream failed, the exception that caused the failure.</param>
         void TryCloseFileStream(Guid id, Exception exception = null);
 
         /// <summary>
-        ///     Notifies the caller of <see cref="GetFileStream"/> of a failure to obtain a file stream from the requested agent.
+        ///     Notifies the caller of <see cref="GetFileStreamAsync"/> of a failure to obtain a file stream from the requested agent.
         /// </summary>
         /// <param name="id">The unique ID for the stream.</param>
         /// <param name="exception">The remote exception that caused the failure.</param>
-        void NotifyFileStreamFailure(Guid id, Exception exception);
+        void NotifyFileStreamException(Guid id, Exception exception);
 
         /// <summary>
         ///     Retrieves information about the specified <paramref name="filename"/> from the specified <paramref name="agentName"/>.
@@ -89,25 +89,23 @@ namespace slskd.Network
         /// <param name="filename">The file for which to retrieve information.</param>
         /// <param name="timeout">An optional timeout value.</param>
         /// <returns>A value indicating whether the file exists, and the length in bytes.</returns>
-        Task<(bool Exists, long Length)> GetFileInfo(string agentName, string filename, int timeout = 3000);
+        Task<(bool Exists, long Length)> GetFileInfoAsync(string agentName, string filename, int timeout = 3000);
 
         /// <summary>
-        ///     Handles the client response for a <see cref="GetFileInfo"/> request.
+        ///     Handles the client response for a <see cref="GetFileInfoAsync"/> request.
         /// </summary>
         /// <param name="agentName">The agent that provided the response.</param>
         /// <param name="id">The ID of the request.</param>
         /// <param name="response">The client response to the request.</param>
-        void HandleGetFileInfoResponse(string agentName, Guid id, (bool Exists, long Length) response);
+        void HandleFileInfoResponse(string agentName, Guid id, (bool Exists, long Length) response);
 
         /// <summary>
-        ///     Handles the client response for a <see cref="GetFileStream"/> request, returning when the corresponding file upload is complete.
+        ///     Handles the client response for a <see cref="GetFileStreamAsync"/> request, returning when the corresponding file upload is complete.
         /// </summary>
         /// <param name="id">The ID of the request.</param>
         /// <param name="response">The client response to the request.</param>
         /// <returns>The operation context.</returns>
-        Task HandleGetFileStreamResponse(Guid id, Stream response);
-
-        void HandleGetFileStreamCompletion(string agentName, string filename);
+        Task HandleFileStreamResponse(Guid id, Stream response);
 
         /// <summary>
         ///     Registers the specified <paramref name="agent"/> with the specified <paramref name="connectionId"/>.
@@ -233,7 +231,7 @@ namespace slskd.Network
         /// <param name="id">A unique ID for the stream.</param>
         /// <param name="timeout">An optional timeout value.</param>
         /// <returns>The operation context, including a stream containing the requested file, and an upload TaskCompletionSource.</returns>
-        public async Task<Stream> GetFileStream(string agentName, string filename, Guid id, int timeout = 3000)
+        public async Task<Stream> GetFileStreamAsync(string agentName, string filename, Guid id, int timeout = 3000)
         {
             if (!RegisteredAgentDictionary.TryGetValue(agentName, out var record))
             {
@@ -247,7 +245,7 @@ namespace slskd.Network
 
             // create a wait for the agent response. this wait will be completed in the response handler,
             // ultimately called from the API controller when the agent makes an HTTP request to return the file
-            var key = new WaitKey(nameof(GetFileStream), id);
+            var key = new WaitKey(nameof(GetFileStreamAsync), id);
             var wait = Waiter.Wait<Stream>(key, timeout);
 
             await NetworkHub.Clients.Client(record.ConnectionId).RequestFile(filename, id);
@@ -269,24 +267,24 @@ namespace slskd.Network
         }
 
         /// <summary>
-        ///     Notifies the caller of <see cref="GetFileStream"/> of a failure to obtain a file stream from the requested agent.
+        ///     Notifies the caller of <see cref="GetFileStreamAsync"/> of a failure to obtain a file stream from the requested agent.
         /// </summary>
         /// <param name="id">The unique ID for the stream.</param>
         /// <param name="exception">The remote exception that caused the failure.</param>
-        public void NotifyFileStreamFailure(Guid id, Exception exception)
+        public void NotifyFileStreamException(Guid id, Exception exception)
         {
-            var key = new WaitKey(nameof(GetFileStream), id);
+            var key = new WaitKey(nameof(GetFileStreamAsync), id);
             Waiter.Throw(key, exception);
         }
 
         /// <summary>
-        ///     Safely attempts to close a stream obtained with <see cref="GetFileStream"/>.
+        ///     Safely attempts to close a stream obtained with <see cref="GetFileStreamAsync"/>.
         /// </summary>
         /// <param name="id">The unique ID for the stream.</param>
         /// <param name="exception">If the transfer associated with the stream failed, the exception that caused the failure.</param>
         public void TryCloseFileStream(Guid id, Exception exception = default)
         {
-            var key = new WaitKey(nameof(HandleGetFileStreamResponse), id);
+            var key = new WaitKey(nameof(HandleFileStreamResponse), id);
 
             if (exception != default)
             {
@@ -304,7 +302,7 @@ namespace slskd.Network
         /// <param name="filename">The file for which to retrieve information.</param>
         /// <param name="timeout">An optional timeout value.</param>
         /// <returns>A value indicating whether the file exists, and the length in bytes.</returns>
-        public async Task<(bool Exists, long Length)> GetFileInfo(string agentName, string filename, int timeout = 3000)
+        public async Task<(bool Exists, long Length)> GetFileInfoAsync(string agentName, string filename, int timeout = 3000)
         {
             if (!RegisteredAgentDictionary.TryGetValue(agentName, out var record))
             {
@@ -312,7 +310,7 @@ namespace slskd.Network
             }
 
             var id = Guid.NewGuid();
-            var key = new WaitKey(nameof(GetFileInfo), agentName, id);
+            var key = new WaitKey(nameof(GetFileInfoAsync), agentName, id);
             var wait = Waiter.Wait<(bool Exists, long Length)>(key, timeout);
 
             try
@@ -330,14 +328,14 @@ namespace slskd.Network
         }
 
         /// <summary>
-        ///     Handles the client response for a <see cref="GetFileInfo"/> request.
+        ///     Handles the client response for a <see cref="GetFileInfoAsync"/> request.
         /// </summary>
         /// <param name="agentName">The agent that provided the response.</param>
         /// <param name="id">The ID of the request.</param>
         /// <param name="response">The client response to the request.</param>
-        public void HandleGetFileInfoResponse(string agentName, Guid id, (bool Exists, long Length) response)
+        public void HandleFileInfoResponse(string agentName, Guid id, (bool Exists, long Length) response)
         {
-            var key = new WaitKey(nameof(GetFileInfo), agentName, id);
+            var key = new WaitKey(nameof(GetFileInfoAsync), agentName, id);
 
             if (!Waiter.IsWaitingFor(key))
             {
@@ -350,14 +348,14 @@ namespace slskd.Network
         }
 
         /// <summary>
-        ///     Handles the client response for a <see cref="GetFileStream"/> request, returning when the corresponding file upload is complete.
+        ///     Handles the client response for a <see cref="GetFileStreamAsync"/> request, returning when the corresponding file upload is complete.
         /// </summary>
         /// <param name="id">The ID of the request.</param>
         /// <param name="response">The client response to the request.</param>
         /// <returns>The operation context.</returns>
-        public async Task HandleGetFileStreamResponse(Guid id, Stream response)
+        public async Task HandleFileStreamResponse(Guid id, Stream response)
         {
-            var streamKey = new WaitKey(nameof(GetFileStream), id);
+            var streamKey = new WaitKey(nameof(GetFileStreamAsync), id);
 
             if (!Waiter.IsWaitingFor(streamKey))
             {
@@ -368,7 +366,7 @@ namespace slskd.Network
             // create a wait (but do not await it) for the completion of the upload to the remote client. we need to await this
             // to keep execution in the body of the API controller that provided the stream, in order to keep
             // the stream open for the duration of the remote transfer. omit the id from the key, the caller doesn't know it.
-            var completionKey = new WaitKey(nameof(HandleGetFileStreamResponse), id);
+            var completionKey = new WaitKey(nameof(HandleFileStreamResponse), id);
             var completion = Waiter.WaitIndefinitely(completionKey);
 
             // complete the wait that's waiting for the stream, so we can send the stream back to the caller of GetFileStream
@@ -385,7 +383,7 @@ namespace slskd.Network
             // complete the indefinite wait for this upload. this sends execution back to the body of the file
             // stream response handler, and ultimately back to the API controller. the agent's original HTTP request
             // will complete.
-            var key = new WaitKey(nameof(GetFileStream), "completion", agentName, filename);
+            var key = new WaitKey(nameof(GetFileStreamAsync), "completion", agentName, filename);
             Waiter.Complete(key);
             Log.Information("Upload of {File} from agent {Agent} reported as completed", filename, agentName);
         }

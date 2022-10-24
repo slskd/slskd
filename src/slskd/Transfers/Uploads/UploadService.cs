@@ -1,4 +1,4 @@
-// <copyright file="UploadService.cs" company="slskd Team">
+﻿// <copyright file="UploadService.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -137,7 +137,7 @@ namespace slskd.Transfers.Uploads
                 }
                 else
                 {
-                    var (exists, length) = await Network.GetFileInfo(agentName: host, filename);
+                    var (exists, length) = await Network.GetFileInfoAsync(agentName: host, filename);
 
                     if (!exists || length <= 0)
                     {
@@ -269,7 +269,7 @@ namespace slskd.Transfers.Uploads
                             username,
                             filename,
                             size: localFileLength,
-                            inputStreamFactory: () => Network.GetFileStream(agentName: host, filename, id),
+                            inputStreamFactory: () => Network.GetFileStreamAsync(agentName: host, filename, id),
                             options: topts,
                             cancellationToken: cts.Token);
 

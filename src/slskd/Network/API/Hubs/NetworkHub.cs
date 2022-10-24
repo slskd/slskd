@@ -97,7 +97,7 @@ namespace slskd.Network
 
         public void NotifyUploadFailed(Guid id, Exception exception)
         {
-            Network.NotifyFileStreamFailure(id, exception);
+            Network.NotifyFileStreamException(id, exception);
         }
 
         public void ReturnFileInfo(Guid id, bool exists, long length)
@@ -108,7 +108,7 @@ namespace slskd.Network
                 return;
             }
 
-            Network.HandleGetFileInfoResponse(record.Agent.Name, id, (exists, length));
+            Network.HandleFileInfoResponse(record.Agent.Name, id, (exists, length));
         }
     }
 }
