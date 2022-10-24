@@ -112,7 +112,7 @@ namespace slskd.Network
                 // pass the stream back to the network service, which will in turn pass it to the
                 // upload service, and use it to feed data into the remote upload. await this call,
                 // it will complete when the upload is complete.
-                await Network.HandleGetFileStreamResponse(agentName, filename, id: guid, stream);
+                await Network.HandleGetFileStreamResponse(id: guid, stream);
 
                 Log.Information("File upload of {Filename} ({Token}) from agent {Agent} complete", filename, token, agentName);
                 return Ok();
