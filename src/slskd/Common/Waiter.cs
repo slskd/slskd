@@ -63,7 +63,7 @@ namespace slskd
         /// </summary>
         /// <param name="key">The unique WaitKey to check.</param>
         /// <returns>A value indicating whether the specified key is being waited upon.</returns>
-        bool ContainsKey(WaitKey key);
+        bool IsWaitingFor(WaitKey key);
 
         /// <summary>
         ///     Throws the specified <paramref name="exception"/> on the oldest wait matching the specified <paramref name="key"/>.
@@ -197,7 +197,7 @@ namespace slskd
         /// </summary>
         /// <param name="key">The unique WaitKey to check.</param>
         /// <returns>A value indicating whether the specified key is being waited upon.</returns>
-        public bool ContainsKey(WaitKey key)
+        public bool IsWaitingFor(WaitKey key)
             => Waits.ContainsKey(key);
 
         /// <summary>
