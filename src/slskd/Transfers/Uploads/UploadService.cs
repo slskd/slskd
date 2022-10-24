@@ -1,4 +1,4 @@
-﻿// <copyright file="UploadService.cs" company="slskd Team">
+// <copyright file="UploadService.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -269,12 +269,11 @@ namespace slskd.Transfers.Uploads
                             username,
                             filename,
                             size: localFileLength,
-                            inputStreamFactory: () => Network.GetFileStream(agentName: host, filename),
+                            inputStreamFactory: () => Network.GetFileStream(agentName: host, filename, id),
                             options: topts,
                             cancellationToken: cts.Token);
 
-                        Network.HandleGetFileStreamCompletion(agentName: host, filename);
-                        // todo: how to report a failure? the http request will stick open if we dont!
+                        Network.TryCloseFileStream(id);
 
                         transfer = transfer.WithSoulseekTransfer(completedTransfer);
                     }
@@ -295,6 +294,8 @@ namespace slskd.Transfers.Uploads
                     // todo: broadcast
                     SynchronizedUpdate(transfer, cancellable: false);
 
+                    Network.TryCloseFileStream(id, ex);
+
                     throw;
                 }
                 catch (Exception ex)
@@ -308,6 +309,7 @@ namespace slskd.Transfers.Uploads
                     // todo: broadcast
                     SynchronizedUpdate(transfer, cancellable: false);
 
+                    Network.TryCloseFileStream(id, ex);
                     throw;
                 }
                 finally
