@@ -33,11 +33,6 @@ namespace slskd.Network
     public interface INetworkService
     {
         /// <summary>
-        ///     Gets the collection of pending Agent file uploads.
-        /// </summary>
-        ReadOnlyDictionary<Guid, (TaskCompletionSource<Stream> Stream, TaskCompletionSource Completion)> PendingFileUploads { get; }
-
-        /// <summary>
         ///     Gets the name of the local host.
         /// </summary>
         string LocalHostName { get; }
@@ -68,9 +63,24 @@ namespace slskd.Network
         /// </summary>
         /// <param name="agentName">The agent from which to retrieve the file.</param>
         /// <param name="filename">The file to retrieve.</param>
+        /// <param name="id">A unique ID for the stream.</param>
         /// <param name="timeout">An optional timeout value.</param>
         /// <returns>The operation context, including a stream containing the requested file.</returns>
-        Task<Stream> GetFileStream(string agentName, string filename, int timeout = 3000);
+        Task<Stream> GetFileStream(string agentName, string filename, Guid id, int timeout = 3000);
+
+        /// <summary>
+        ///     Safely attempts to close a stream obtained with <see cref="GetFileStream"/>.
+        /// </summary>
+        /// <param name="id">The unique ID for the stream.</param>
+        /// <param name="exception">If the transfer associated with the stream failed, the exception that caused the failure.</param>
+        void TryCloseFileStream(Guid id, Exception exception = null);
+
+        /// <summary>
+        ///     Notifies the caller of <see cref="GetFileStream"/> of a failure to obtain a file stream from the requested agent.
+        /// </summary>
+        /// <param name="id">The unique ID for the stream.</param>
+        /// <param name="exception">The remote exception that caused the failure.</param>
+        void NotifyFileStreamFailure(Guid id, Exception exception);
 
         /// <summary>
         ///     Retrieves information about the specified <paramref name="filename"/> from the specified <paramref name="agentName"/>.
@@ -89,7 +99,13 @@ namespace slskd.Network
         /// <param name="response">The client response to the request.</param>
         void HandleGetFileInfoResponse(string agentName, Guid id, (bool Exists, long Length) response);
 
-        Task HandleGetFileStreamResponse(string agentName, string filename, Guid id, Stream response);
+        /// <summary>
+        ///     Handles the client response for a <see cref="GetFileStream"/> request, returning when the corresponding file upload is complete.
+        /// </summary>
+        /// <param name="id">The ID of the request.</param>
+        /// <param name="response">The client response to the request.</param>
+        /// <returns>The operation context.</returns>
+        Task HandleGetFileStreamResponse(Guid id, Stream response);
 
         void HandleGetFileStreamCompletion(string agentName, string filename);
 
@@ -159,11 +175,6 @@ namespace slskd.Network
         }
 
         /// <summary>
-        ///     Gets the collection of pending Agent uploads.
-        /// </summary>
-        public ReadOnlyDictionary<Guid, (TaskCompletionSource<Stream> Stream, TaskCompletionSource Completion)> PendingFileUploads => new(PendingFileUploadDictionary);
-
-        /// <summary>
         ///     Gets the collection of registered Agents.
         /// </summary>
         public ReadOnlyCollection<Agent> RegisteredAgents => RegisteredAgentDictionary.Values.Select(v => v.Agent).ToList().AsReadOnly();
@@ -178,7 +189,7 @@ namespace slskd.Network
         private IHubContext<NetworkHub, INetworkHub> NetworkHub { get; set; }
         private IOptionsMonitor<Options> OptionsMonitor { get; }
         private ConcurrentDictionary<Guid, TaskCompletionSource<(bool Exists, long Length)>> PendingFileInquiryDictionary { get; } = new();
-        private ConcurrentDictionary<Guid, (TaskCompletionSource<Stream> Stream, TaskCompletionSource Completion)> PendingFileUploadDictionary { get; } = new();
+        private ConcurrentDictionary<WaitKey, Guid> WaitIdDictionary { get; } = new();
         private ConcurrentDictionary<string, (string ConnectionId, Agent Agent)> RegisteredAgentDictionary { get; } = new();
         private IWaiter Waiter { get; }
 
@@ -219,35 +230,35 @@ namespace slskd.Network
         /// </summary>
         /// <param name="agentName">The agent from which to retrieve the file.</param>
         /// <param name="filename">The file to retrieve.</param>
+        /// <param name="id">A unique ID for the stream.</param>
         /// <param name="timeout">An optional timeout value.</param>
         /// <returns>The operation context, including a stream containing the requested file, and an upload TaskCompletionSource.</returns>
-        public async Task<Stream> GetFileStream(string agentName, string filename, int timeout = 3000)
+        public async Task<Stream> GetFileStream(string agentName, string filename, Guid id, int timeout = 3000)
         {
             if (!RegisteredAgentDictionary.TryGetValue(agentName, out var record))
             {
                 throw new NotFoundException($"Agent {agentName} is not registered");
             }
 
-            var token = Guid.NewGuid();
             // cache the id to prevent replay attacks; the agent should respond within the timeout, otherwise
             // when it does we will no longer know about it
-            MemoryCache.Set(GetFileTokenCacheKey(filename, token), agentName, TimeSpan.FromMilliseconds(timeout));
-            Log.Debug("Cached file upload token {Token} for agent {Agent}", token, agentName);
-
-            await NetworkHub.Clients.Client(record.ConnectionId).RequestFile(filename, token);
-            Log.Information("Requested file {Filename} from Agent {Agent} with ID {Id}. Waiting for incoming connection.", filename, agentName, token);
+            MemoryCache.Set(GetFileTokenCacheKey(filename, id), agentName, TimeSpan.FromMilliseconds(timeout));
+            Log.Debug("Cached file upload token {Token} for agent {Agent}", id, agentName);
 
             // create a wait for the agent response. this wait will be completed in the response handler,
             // ultimately called from the API controller when the agent makes an HTTP request to return the file
-            var key = new WaitKey(nameof(GetFileStream), agentName, filename, token);
+            var key = new WaitKey(nameof(GetFileStream), id);
             var wait = Waiter.Wait<Stream>(key, timeout);
+
+            await NetworkHub.Clients.Client(record.ConnectionId).RequestFile(filename, id);
+            Log.Information("Requested file {Filename} from Agent {Agent} with ID {Id}. Waiting for incoming connection.", filename, agentName, id);
 
             var task = await Task.WhenAny(wait, Task.Delay(timeout));
 
             if (task == wait)
             {
                 // send the stream back to the caller so it can be used to feed data to the remote client
-                Log.Information("Agent {Agent} provided file stream for file {Filename} with ID {Id}", agentName, filename, token);
+                Log.Information("Agent {Agent} provided file stream for file {Filename} with ID {Id}", agentName, filename, id);
                 var stream = await wait;
                 return stream;
             }
@@ -255,6 +266,35 @@ namespace slskd.Network
             {
                 throw new TimeoutException($"Timed out attempting to retrieve the file {filename} from agent {agentName}");
             }
+        }
+
+        /// <summary>
+        ///     Notifies the caller of <see cref="GetFileStream"/> of a failure to obtain a file stream from the requested agent.
+        /// </summary>
+        /// <param name="id">The unique ID for the stream.</param>
+        /// <param name="exception">The remote exception that caused the failure.</param>
+        public void NotifyFileStreamFailure(Guid id, Exception exception)
+        {
+            var key = new WaitKey(nameof(GetFileStream), id);
+            Waiter.Throw(key, exception);
+        }
+
+        /// <summary>
+        ///     Safely attempts to close a stream obtained with <see cref="GetFileStream"/>.
+        /// </summary>
+        /// <param name="id">The unique ID for the stream.</param>
+        /// <param name="exception">If the transfer associated with the stream failed, the exception that caused the failure.</param>
+        public void TryCloseFileStream(Guid id, Exception exception = default)
+        {
+            var key = new WaitKey(nameof(HandleGetFileStreamResponse), id);
+
+            if (exception != default)
+            {
+                Waiter.Throw(key, exception);
+                return;
+            }
+
+            Waiter.Complete(key);
         }
 
         /// <summary>
@@ -299,7 +339,7 @@ namespace slskd.Network
         {
             var key = new WaitKey(nameof(GetFileInfo), agentName, id);
 
-            if (!Waiter.ContainsKey(key))
+            if (!Waiter.IsWaitingFor(key))
             {
                 Log.Warning("Agent {Agent} responded to a file info request with Id {Id}, but a response was not expected", agentName, id);
                 return;
@@ -312,33 +352,31 @@ namespace slskd.Network
         /// <summary>
         ///     Handles the client response for a <see cref="GetFileStream"/> request, returning when the corresponding file upload is complete.
         /// </summary>
-        /// <param name="agentName">The agent that provided the response.</param>
-        /// <param name="filename">The name of the file.</param>
         /// <param name="id">The ID of the request.</param>
         /// <param name="response">The client response to the request.</param>
         /// <returns>The operation context.</returns>
-        public async Task HandleGetFileStreamResponse(string agentName, string filename, Guid id, Stream response)
+        public async Task HandleGetFileStreamResponse(Guid id, Stream response)
         {
-            var streamKey = new WaitKey(nameof(GetFileStream), agentName, filename, id);
+            var streamKey = new WaitKey(nameof(GetFileStream), id);
 
-            if (!Waiter.ContainsKey(streamKey))
+            if (!Waiter.IsWaitingFor(streamKey))
             {
-                Log.Warning("Agent {Agent} responded to a file request with Id {Id}, but a response was not expected", agentName, id);
+                Log.Warning("A file stream response matching Id {Id} is not expected", id);
                 return;
             }
 
             // create a wait (but do not await it) for the completion of the upload to the remote client. we need to await this
             // to keep execution in the body of the API controller that provided the stream, in order to keep
             // the stream open for the duration of the remote transfer. omit the id from the key, the caller doesn't know it.
-            var completionKey = new WaitKey(nameof(GetFileStream), "completion", agentName, filename);
+            var completionKey = new WaitKey(nameof(HandleGetFileStreamResponse), id);
             var completion = Waiter.WaitIndefinitely(completionKey);
 
             // complete the wait that's waiting for the stream, so we can send the stream back to the caller of GetFileStream
             // this sends execution back to the body of GetFileStream and the upload will begin transferring data
             Waiter.Complete(streamKey, response);
-            Log.Information("Agent {Agent} responded to a file request with Id {Id}", agentName, id);
 
             // wait for the caller of GetFileStream to report that the upload/stream is complete
+            // this is the wait that keeps the HTTP handler running
             await completion;
         }
 

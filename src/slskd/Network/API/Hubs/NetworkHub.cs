@@ -95,12 +95,9 @@ namespace slskd.Network
             throw new UnauthorizedAccessException();
         }
 
-        public void NotifyUploadFailed(Guid id)
+        public void NotifyUploadFailed(Guid id, Exception exception)
         {
-            if (Network.PendingFileUploads.TryGetValue(id, out var record))
-            {
-                record.Stream.TrySetException(new NotFoundException("The file could not be uploaded from the remote agent"));
-            }
+            Network.NotifyFileStreamFailure(id, exception);
         }
 
         public void ReturnFileInfo(Guid id, bool exists, long length)
