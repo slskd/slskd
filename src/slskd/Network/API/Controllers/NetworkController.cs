@@ -20,6 +20,7 @@ namespace slskd.Network
     using System;
     using System.Collections.Generic;
     using System.IO;
+    using System.Linq;
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Http;
@@ -65,7 +66,10 @@ namespace slskd.Network
                 return BadRequest("Token is not a valid Guid");
             }
 
-            // todo: make sure agent is registered and return unauthorized if not
+            if (!Network.RegisteredAgents.Any(a => a.Name == agentName))
+            {
+                return Unauthorized();
+            }
 
             if (!Request.HasFormContentType
                 || !MediaTypeHeaderValue.TryParse(Request.ContentType, out var mediaTypeHeader)
@@ -86,6 +90,7 @@ namespace slskd.Network
                 {
                     var reader = new MultipartReader(HeaderUtilities.RemoveQuotes(mediaTypeHeader.Boundary).Value, Request.Body);
 
+                    // the multipart response contains two sections; a credential, and the file
                     var credentialSection = await reader.ReadNextSectionAsync();
                     using var sr = new StreamReader(credentialSection.Body);
                     credential = sr.ReadToEnd();
@@ -101,7 +106,11 @@ namespace slskd.Network
                     return BadRequest();
                 }
 
-                if (!Network.TryValidateFileUploadCredential(token: guid, agentName, filename, credential))
+                // agents must encrypt the Id they were given in the request with the secret they share with the controller, and provide
+                // the encrypted value as the credential with the request. the validation below verifies a bunch of things, including that
+                // the encrypted value matches the expected value. the goal here is to ensure that the caller is the same caller that
+                // received the request, and that the caller knows the shared secret.
+                if (!Network.TryValidateFileStreamResponseCredential(token: guid, agentName, filename, credential))
                 {
                     Log.Warning("Failed to authenticate file upload token {Token} from a caller claiming to be agent {Agent}", agentName);
                     return Unauthorized();
@@ -111,7 +120,7 @@ namespace slskd.Network
 
                 // pass the stream back to the network service, which will in turn pass it to the
                 // upload service, and use it to feed data into the remote upload. await this call,
-                // it will complete when the upload is complete.
+                // it will complete when the upload is complete, one way or the other.
                 await Network.HandleFileStreamResponse(id: guid, stream);
 
                 Log.Information("File upload of {Filename} ({Token}) from agent {Agent} complete", filename, token, agentName);
