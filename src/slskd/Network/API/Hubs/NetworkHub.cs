@@ -102,13 +102,7 @@ namespace slskd.Network
 
         public void ReturnFileInfo(Guid id, bool exists, long length)
         {
-            if (!Network.TryGetAgentRegistration(Context.ConnectionId, out var record))
-            {
-                Log.Warning("Agent connection {Id} responded to a file info request with Id {Id}, but is not registered.", Context.ConnectionId, id);
-                return;
-            }
-
-            Network.HandleFileInfoResponse(record.Agent.Name, id, (exists, length));
+            Network.HandleFileInfoResponse(id, (exists, length));
         }
     }
 }

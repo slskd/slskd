@@ -65,6 +65,20 @@ namespace slskd.Network
         /// <summary>
         ///     Retrieves information about the specified <paramref name="filename"/> from the specified <paramref name="agentName"/>.
         /// </summary>
+        /// <remarks>
+        ///     <para>This is the first step in a mult-step workflow. The entire sequence is:</para>
+        ///     <list type="number">
+        ///         <item>
+        ///             Upload service calls and awaits <see cref="GetFileInfoAsync"/>, which requests the file info from the
+        ///             remote agent, and waits for the response before returning it to the caller.
+        ///         </item>
+        ///         <item>
+        ///             The remote agent sends the response via the SignalR hub, and the hub invokes
+        ///             <see cref="HandleFileInfoResponse"/>. The response is passed back to <see cref="GetFileInfoAsync"/> and
+        ///             returned to the caller.
+        ///         </item>
+        ///     </list>
+        /// </remarks>
         /// <param name="agentName">The agent from which to retrieve the file information.</param>
         /// <param name="filename">The file for which to retrieve information.</param>
         /// <param name="timeout">An optional timeout value.</param>
@@ -118,10 +132,9 @@ namespace slskd.Network
         /// <summary>
         ///     Handles the client response for a <see cref="GetFileInfoAsync"/> request.
         /// </summary>
-        /// <param name="agentName">The agent that provided the response.</param>
         /// <param name="id">The ID of the request.</param>
         /// <param name="response">The client response to the request.</param>
-        void HandleFileInfoResponse(string agentName, Guid id, (bool Exists, long Length) response);
+        void HandleFileInfoResponse(Guid id, (bool Exists, long Length) response);
 
         /// <summary>
         ///     Handles the client response for a <see cref="GetFileStreamAsync"/> request, returning when the corresponding file
@@ -131,13 +144,6 @@ namespace slskd.Network
         /// <param name="response">The client response to the request.</param>
         /// <returns>The operation context.</returns>
         Task HandleFileStreamResponse(Guid id, Stream response);
-
-        /// <summary>
-        ///     Returns a value indicating whether an agent with the specified <paramref name="agentName"/> is registered.
-        /// </summary>
-        /// <param name="agentName">The name of the agent.</param>
-        /// <returns>A value indicating whether an agent with the specified name is registered.</returns>
-        bool IsAgentRegistered(string agentName);
 
         /// <summary>
         ///     Notifies the caller of <see cref="GetFileStreamAsync"/> of a failure to obtain a file stream from the requested agent.
@@ -275,6 +281,20 @@ namespace slskd.Network
         /// <summary>
         ///     Retrieves information about the specified <paramref name="filename"/> from the specified <paramref name="agentName"/>.
         /// </summary>
+        /// <remarks>
+        ///     <para>This is the first step in a mult-step workflow. The entire sequence is:</para>
+        ///     <list type="number">
+        ///         <item>
+        ///             Upload service calls and awaits <see cref="GetFileInfoAsync"/>, which requests the file info from the
+        ///             remote agent, and waits for the response before returning it to the caller.
+        ///         </item>
+        ///         <item>
+        ///             The remote agent sends the response via the SignalR hub, and the hub invokes
+        ///             <see cref="HandleFileInfoResponse"/>. The response is passed back to <see cref="GetFileInfoAsync"/> and
+        ///             returned to the caller.
+        ///         </item>
+        ///     </list>
+        /// </remarks>
         /// <param name="agentName">The agent from which to retrieve the file information.</param>
         /// <param name="filename">The file for which to retrieve information.</param>
         /// <param name="timeout">An optional timeout value.</param>
@@ -286,8 +306,10 @@ namespace slskd.Network
                 throw new NotFoundException($"Agent {agentName} is not registered");
             }
 
+            // prepare a wait for the response. we don't cache the token along with the agent here, as all data is exchanged over
+            // an authenticated SignalR connection
             var id = Guid.NewGuid();
-            var key = new WaitKey(nameof(GetFileInfoAsync), agentName, id);
+            var key = new WaitKey(nameof(GetFileInfoAsync), id);
             var wait = Waiter.Wait<(bool Exists, long Length)>(key, timeout);
 
             try
@@ -353,9 +375,9 @@ namespace slskd.Network
                 throw new NotFoundException($"Agent {agentName} is not registered");
             }
 
-            // cache the id to prevent replay attacks; the agent should respond within the timeout. this is somewhat redundant
-            // due to the wait using only the id, however caching the agent name along with the other elements of the request
-            // allows us to ensure that tokens are used only by the agent they were intended for.
+            // cache the id to prevent replay attacks; the agent should respond within the timeout. this is somewhat redundant due
+            // to the wait using only the id, however caching the agent name along with the other elements of the request allows
+            // us to ensure that tokens are used only by the agent they were intended for.
             MemoryCache.Set(GetFileTokenCacheKey(filename, id), agentName, TimeSpan.FromMilliseconds(timeout));
             Log.Debug("Cached file upload token {Token} for agent {Agent}", id, agentName);
 
@@ -385,21 +407,20 @@ namespace slskd.Network
         /// <summary>
         ///     Handles the client response for a <see cref="GetFileInfoAsync"/> request.
         /// </summary>
-        /// <param name="agentName">The agent that provided the response.</param>
         /// <param name="id">The ID of the request.</param>
         /// <param name="response">The client response to the request.</param>
-        public void HandleFileInfoResponse(string agentName, Guid id, (bool Exists, long Length) response)
+        public void HandleFileInfoResponse(Guid id, (bool Exists, long Length) response)
         {
-            var key = new WaitKey(nameof(GetFileInfoAsync), agentName, id);
+            var key = new WaitKey(nameof(GetFileInfoAsync), id);
 
             if (!Waiter.IsWaitingFor(key))
             {
-                Log.Warning("Agent {Agent} responded to a file info request with Id {Id}, but a response was not expected", agentName, id);
-                return;
+                var msg = $"A file info response matching Id {id} was not expected";
+                Log.Warning(msg);
+                throw new NotFoundException(msg);
             }
 
             Waiter.Complete(key, response);
-            Log.Information("Agent {Agent} responded to a file info request with Id {Id}: Exists: {Exists}, Length: {Length}", agentName, id, response.Exists, response.Length);
         }
 
         /// <summary>
@@ -407,7 +428,7 @@ namespace slskd.Network
         ///     upload is complete.
         /// </summary>
         /// <remarks>
-        ///     Assumes <see cref="TryValidateFileUploadCredential"/> has previously been used to ensure the Id and agent match.
+        ///     Assumes <see cref="TryValidateFileStreamResponseCredential"/> has previously been used to ensure the Id and agent match.
         /// </remarks>
         /// <param name="id">The ID of the request.</param>
         /// <param name="response">The client response to the request.</param>
@@ -436,15 +457,6 @@ namespace slskd.Network
             // wait for the caller of GetFileStream to report that the upload/stream is complete this is the wait that keeps the
             // HTTP handler running
             await completion;
-        }
-
-        public void HandleGetFileStreamCompletion(string agentName, string filename)
-        {
-            // complete the indefinite wait for this upload. this sends execution back to the body of the file stream response
-            // handler, and ultimately back to the API controller. the agent's original HTTP request will complete.
-            var key = new WaitKey(nameof(GetFileStreamAsync), "completion", agentName, filename);
-            Waiter.Complete(key);
-            Log.Information("Upload of {File} from agent {Agent} reported as completed", filename, agentName);
         }
 
         /// <summary>
