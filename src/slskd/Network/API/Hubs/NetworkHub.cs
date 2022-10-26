@@ -66,7 +66,7 @@ namespace slskd.Network
 
         public bool Login(string agent, string challengeResponse)
         {
-            if (Network.TryValidateAuthenticationChallengeResponse(Context.ConnectionId, agent, challengeResponse))
+            if (Network.TryValidateAuthenticationCredential(Context.ConnectionId, agent, challengeResponse))
             {
                 var remoteIp = Context.Features.Get<IHttpConnectionFeature>().RemoteIpAddress.ToString();
                 var record = new Agent { Name = agent, ConnectedAt = DateTime.UtcNow, IPAddress = remoteIp };

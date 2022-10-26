@@ -187,9 +187,9 @@ namespace slskd.Network
         /// </summary>
         /// <param name="connectionId">The ID of the agent connection.</param>
         /// <param name="agentName">The agent name.</param>
-        /// <param name="challengeResponse">The challenge response provided by the agent.</param>
+        /// <param name="credential">The response credential.</param>
         /// <returns>A value indicating whether the response is valid.</returns>
-        bool TryValidateAuthenticationChallengeResponse(string connectionId, string agentName, string challengeResponse);
+        bool TryValidateAuthenticationCredential(string connectionId, string agentName, string credential);
 
         /// <summary>
         ///     Attempts to validate the file stream response credential associated with the specified <paramref name="token"/>.
@@ -257,7 +257,7 @@ namespace slskd.Network
             var token = Cryptography.Random.GetBytes(32).ToBase62();
 
             // this token is only valid for this connection id for a short time this is important to prevent replay-type attacks.
-            MemoryCache.Set(GetAuthTokenCacheKey(connectionId), token, TimeSpan.FromMinutes(1));
+            MemoryCache.Set(GetAuthTokenCacheKey(connectionId), token, TimeSpan.FromSeconds(10));
             Log.Debug("Cached auth token {Token} for ID {Id}", token, connectionId);
             return token;
         }
@@ -532,9 +532,9 @@ namespace slskd.Network
         /// </summary>
         /// <param name="connectionId">The ID of the agent connection.</param>
         /// <param name="agentName">The agent name.</param>
-        /// <param name="challengeResponse">The challenge response provided by the agent.</param>
+        /// <param name="credential">The response credential.</param>
         /// <returns>A value indicating whether the response is valid.</returns>
-        public bool TryValidateAuthenticationChallengeResponse(string connectionId, string agentName, string challengeResponse)
+        public bool TryValidateAuthenticationCredential(string connectionId, string agentName, string credential)
         {
             if (!MemoryCache.TryGetValue(GetAuthTokenCacheKey(connectionId), out var challengeToken))
             {
@@ -552,7 +552,7 @@ namespace slskd.Network
             var tokenBytes = ((string)challengeToken).FromBase62();
             var expectedResponse = Aes.Encrypt(tokenBytes, key).ToBase62();
 
-            return expectedResponse == challengeResponse;
+            return expectedResponse == credential;
         }
 
         /// <summary>
