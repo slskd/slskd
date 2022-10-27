@@ -21,6 +21,7 @@ namespace slskd.Shares
     using System.Collections.Generic;
     using System.IO;
     using System.Linq;
+    using System.Timers;
     using Microsoft.Data.Sqlite;
     using Serilog;
     using Soulseek;
@@ -37,6 +38,20 @@ namespace slskd.Shares
         public SqliteShareRepository(string connectionString)
         {
             ConnectionString = connectionString;
+
+            // in-memory databases will be destroyed if at any point the number of connections reaches zero to prevent this,
+            // create a connection and hold it open for the duration of the application. SQLite will destroy this database when
+            // the connection that created it closes. since this is the first connection, it *should* keep the db alive.
+            // it's possible that this connection will be recycled somehow due to pooling; the app will crash if this happens
+            // so i'll know to keep digging.
+            KeepaliveConnection = GetConnection(ConnectionString);
+            KeepaliveTimer = new Timer(1000)
+            {
+                AutoReset = true,
+                Enabled = false, // enabled later
+            };
+
+            KeepaliveTimer.Elapsed += (_, _) => Keepalive();
         }
 
         /// <summary>
@@ -44,6 +59,9 @@ namespace slskd.Shares
         /// </summary>
         public string ConnectionString { get; }
 
+        private bool Disposed { get; set; }
+        private SqliteConnection KeepaliveConnection { get; }
+        private Timer KeepaliveTimer { get; }
         private ILogger Log { get; } = Serilog.Log.ForContext<SqliteShareRepository>();
 
         /// <summary>
@@ -154,6 +172,15 @@ namespace slskd.Shares
         }
 
         /// <summary>
+        ///     Diposes this object.
+        /// </summary>
+        public void Dispose()
+        {
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
         ///     Dumps the contents of the database to a file.
         /// </summary>
         /// <param name="filename">The destination file.</param>
@@ -165,6 +192,12 @@ namespace slskd.Shares
             using var backupConn = GetConnection($"Data Source={filename};Pooling=False");
             sourceConn.BackupDatabase(backupConn);
         }
+
+        /// <summary>
+        ///     Enable connection keepalive.
+        /// </summary>
+        /// <param name="enable">A value indicating whether the keepalive logic should be executed.</param>
+        public void EnableKeepalive(bool enable) => KeepaliveTimer.Enabled = enable;
 
         /// <summary>
         ///     Finds the filename of the file matching the specified <paramref name="maskedFilename"/>.
@@ -543,6 +576,23 @@ namespace slskd.Shares
             });
         }
 
+        /// <summary>
+        ///     Disposes this object.
+        /// </summary>
+        /// <param name="disposing"></param>
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!Disposed)
+            {
+                if (disposing)
+                {
+                    KeepaliveConnection.Dispose();
+                }
+
+                Disposed = true;
+            }
+        }
+
         private SqliteConnection GetConnection(string connectionString = null)
         {
             connectionString ??= ConnectionString;
@@ -550,6 +600,21 @@ namespace slskd.Shares
             var conn = new SqliteConnection(connectionString);
             conn.Open();
             return conn;
+        }
+
+        private void Keepalive()
+        {
+            using var cmd = new SqliteCommand("SELECT COUNT(*) FROM pragma_table_info(\"filenames\");", KeepaliveConnection);
+
+            var reader = cmd.ExecuteReader();
+
+            if (!reader.Read() || reader.GetInt32(0) != 1)
+            {
+                var msg = "The internal share database has been corrupted or lost, and the application cannot continue to run. Please report this in a GitHub issue here: https://github.com/slskd/slskd/issues";
+                Log.Fatal(msg);
+                Environment.Exit(1);
+                throw new ApplicationException(msg);
+            }
         }
     }
 }
