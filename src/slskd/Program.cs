@@ -70,7 +70,6 @@ namespace slskd
     using Soulseek;
     using Utility.CommandLine;
     using Utility.EnvironmentVariables;
-    using static slskd.Authentication.ApiKeyAuthenticationHandler;
     using IOFile = System.IO.File;
 
     /// <summary>
@@ -518,6 +517,8 @@ namespace slskd
             services.AddSingleton<IApplication, Application>();
             services.AddHostedService(p => p.GetRequiredService<IApplication>());
 
+            services.AddSingleton<IWaiter, Waiter>();
+
             services.AddSingleton<IConnectionWatchdog, ConnectionWatchdog>();
 
             services.AddDbContext<SearchDbContext>($"Data Source={Path.Combine(DataDirectory, "search.db")};Cache=shared;Pooling=True;");
@@ -685,11 +686,17 @@ namespace slskd
                 options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
             });
 
-            services.AddSignalR().AddJsonProtocol(options =>
-            {
-                options.PayloadSerializerOptions.Converters.Add(new IPAddressConverter());
-                options.PayloadSerializerOptions.Converters.Add(new JsonStringEnumConverter());
-            });
+            services
+                .AddSignalR(options =>
+                {
+                    // https://github.com/SignalR/SignalR/issues/1149#issuecomment-973887222
+                    options.MaximumParallelInvocationsPerClient = 2;
+                })
+                .AddJsonProtocol(options =>
+                {
+                    options.PayloadSerializerOptions.Converters.Add(new IPAddressConverter());
+                    options.PayloadSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+                });
 
             services.AddHealthChecks();
 
@@ -876,11 +883,11 @@ namespace slskd
                 .Enrich.WithProperty("ProcessId", ProcessId)
                 .Enrich.FromLogContext()
                 .WriteTo.Console(
-                    outputTemplate: (OptionsAtStartup.Debug ? "[{SubContext}] " : string.Empty) + "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
+                    outputTemplate: (OptionsAtStartup.Debug ? "[{SourceContext}] " : string.Empty) + "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
                 .WriteTo.Async(config =>
                     config.File(
                         Path.Combine(AppDirectory, "logs", $"{AppName}-.log"),
-                        outputTemplate: (OptionsAtStartup.Debug ? "[{SubContext}] " : string.Empty) + "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}",
+                        outputTemplate: (OptionsAtStartup.Debug ? "[{SourceContext}] " : string.Empty) + "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}",
                         rollingInterval: RollingInterval.Day))
                 .WriteTo.Conditional(
                     e => !string.IsNullOrEmpty(OptionsAtStartup.Logger.Loki),

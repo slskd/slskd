@@ -27,7 +27,6 @@ namespace slskd.Authentication
     using Microsoft.AspNetCore.Authentication;
     using Microsoft.Extensions.Logging;
     using NetTools;
-    using static slskd.Authentication.ApiKeyAuthenticationHandler;
 
     /// <summary>
     ///     API key authentication.
@@ -118,33 +117,33 @@ namespace slskd.Authentication
 
             return AuthenticateResult.Success(ticket);
         }
+    }
+
+    /// <summary>
+    ///     API key authentication options.
+    /// </summary>
+    public class ApiKeyAuthenticationOptions : AuthenticationSchemeOptions
+    {
+        /// <summary>
+        ///     Initializes a new instance of the <see cref="ApiKeyAuthenticationOptions"/> class.
+        /// </summary>
+        public ApiKeyAuthenticationOptions()
+        {
+        }
 
         /// <summary>
-        ///     API key authentication options.
+        ///     Gets or sets the route prefix used to identify SignalR authentication attempts.
         /// </summary>
-        public class ApiKeyAuthenticationOptions : AuthenticationSchemeOptions
-        {
-            /// <summary>
-            ///     Initializes a new instance of the <see cref="ApiKeyAuthenticationOptions"/> class.
-            /// </summary>
-            public ApiKeyAuthenticationOptions()
-            {
-            }
+        public string SignalRRoutePrefix { get; set; }
 
-            /// <summary>
-            ///     Gets or sets the route prefix used to identify SignalR authentication attempts.
-            /// </summary>
-            public string SignalRRoutePrefix { get; set; }
+        /// <summary>
+        ///     Gets or sets a value indicating whether to support SignalR authentication.
+        /// </summary>
+        public bool EnableSignalRSupport { get; set; }
 
-            /// <summary>
-            ///     Gets or sets a value indicating whether to support SignalR authentication.
-            /// </summary>
-            public bool EnableSignalRSupport { get; set; }
-
-            /// <summary>
-            ///     Gets or sets the role for authenticated tickets.
-            /// </summary>
-            public Role Role { get; set; } = Role.Administrator;
-        }
+        /// <summary>
+        ///     Gets or sets the role for authenticated tickets.
+        /// </summary>
+        public Role Role { get; set; } = Role.Administrator;
     }
 }

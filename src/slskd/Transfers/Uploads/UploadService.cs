@@ -137,7 +137,7 @@ namespace slskd.Transfers.Uploads
                 }
                 else
                 {
-                    var (exists, length) = await Network.GetFileInfo(agent: host, filename);
+                    var (exists, length) = await Network.GetFileInfoAsync(agentName: host, filename);
 
                     if (!exists || length <= 0)
                     {
@@ -251,7 +251,7 @@ namespace slskd.Transfers.Uploads
                         slotAwaiter: (tx, ct) => Queue.AwaitStartAsync(tx.Username, tx.Filename),
                         slotReleased: (tx) => Queue.Complete(tx.Username, tx.Filename));
 
-                    if (host == "local")
+                    if (host == Network.LocalHostName + "!")
                     {
                         var completedTransfer = await Client.UploadAsync(
                             username,
@@ -265,22 +265,16 @@ namespace slskd.Transfers.Uploads
                     }
                     else
                     {
-                        TaskCompletionSource uploadCompletion = default;
-
                         var completedTransfer = await Client.UploadAsync(
                             username,
                             filename,
                             size: localFileLength,
-                            inputStreamFactory: async () =>
-                            {
-                                var (stream, completion) = await Network.GetFileUpload(agent: host, filename);
-                                uploadCompletion = completion;
-                                return stream;
-                            },
+                            inputStreamFactory: () => Network.GetFileStreamAsync(agentName: "vdesktop", filename, id),
                             options: topts,
                             cancellationToken: cts.Token);
 
-                        uploadCompletion.SetResult();
+                        Network.TryCloseFileStream(id);
+
                         transfer = transfer.WithSoulseekTransfer(completedTransfer);
                     }
 
@@ -300,6 +294,8 @@ namespace slskd.Transfers.Uploads
                     // todo: broadcast
                     SynchronizedUpdate(transfer, cancellable: false);
 
+                    Network.TryCloseFileStream(id, ex);
+
                     throw;
                 }
                 catch (Exception ex)
@@ -313,6 +309,7 @@ namespace slskd.Transfers.Uploads
                     // todo: broadcast
                     SynchronizedUpdate(transfer, cancellable: false);
 
+                    Network.TryCloseFileStream(id, ex);
                     throw;
                 }
                 finally

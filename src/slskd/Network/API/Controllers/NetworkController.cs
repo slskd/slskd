@@ -25,6 +25,8 @@ namespace slskd.Network
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Http;
     using Microsoft.AspNetCore.Mvc;
+    using Microsoft.AspNetCore.WebUtilities;
+    using Microsoft.Net.Http.Headers;
     using Serilog;
     using slskd.Shares;
 
@@ -52,80 +54,125 @@ namespace slskd.Network
         private INetworkService Network { get; }
         private ILogger Log { get; } = Serilog.Log.ForContext<NetworkController>();
 
-        [HttpPost("files/{id}")]
+        [HttpPost("files/{agentName}/{token}")]
+        [RequestSizeLimit(10L * 1024L * 1024L * 1024L)]
+        [RequestFormLimits(MultipartBodyLengthLimit = 10L * 1024L * 1024L * 1024L)]
+        [DisableFormValueModelBinding]
         [Authorize]
-        public async Task<IActionResult> UploadFile(string id)
+        public async Task<IActionResult> UploadFile(string agentName, string token)
         {
-            if (!Guid.TryParse(id, out var guid))
+            if (!Guid.TryParse(token, out var guid))
             {
-                return BadRequest("Id is not a valid Guid");
+                return BadRequest("Token is not a valid Guid");
             }
 
-            // get the record for the waiting file
-            if (Network.PendingFileUploads.TryGetValue(guid, out var record))
-            {
-                // get the stream from the multipart upload
-                var stream = Request.Form.Files.First().OpenReadStream();
-
-                // set the result for the stream
-                // this should pass control to the transfer service along with
-                // the stream
-                record.Stream.SetResult(stream);
-
-                Console.WriteLine("Stream handed off. Waiting for completion...");
-
-                // wait for the transfer service to set the completion result
-                await record.Completion.Task;
-
-                stream.Dispose();
-                Console.WriteLine("Upload complete");
-                return Ok();
-            }
-            else
-            {
-                Log.Warning("Agent");
-                return NotFound();
-            }
-        }
-
-        [HttpPost("shares/{id}")]
-        [Authorize]
-        public async Task<IActionResult> UploadShares(string id)
-        {
-            if (!Guid.TryParse(id, out var guid))
-            {
-                return BadRequest("Id is not a valid Guid");
-            }
-
-            if (!Network.TryGetShareUploadToken(guid, out var agent))
+            if (!Network.RegisteredAgents.Any(a => a.Name == agentName))
             {
                 return Unauthorized();
             }
 
+            if (!Request.HasFormContentType
+                || !MediaTypeHeaderValue.TryParse(Request.ContentType, out var mediaTypeHeader)
+                || string.IsNullOrEmpty(mediaTypeHeader.Boundary.Value))
+            {
+                return new UnsupportedMediaTypeResult();
+            }
+
+            Log.Information("Handling file upload for token {Token} from a caller claiming to be agent {Agent}", token, agentName);
+
+            string credential = default;
+            Stream stream = default;
+            string filename = default;
+
+            try
+            {
+                try
+                {
+                    var reader = new MultipartReader(HeaderUtilities.RemoveQuotes(mediaTypeHeader.Boundary).Value, Request.Body);
+
+                    // the multipart response contains two sections; a credential, and the file
+                    var credentialSection = await reader.ReadNextSectionAsync();
+                    using var sr = new StreamReader(credentialSection.Body);
+                    credential = sr.ReadToEnd();
+
+                    var fileSection = await reader.ReadNextSectionAsync();
+                    var contentDisposition = ContentDispositionHeaderValue.Parse(fileSection.ContentDisposition);
+                    filename = contentDisposition.FileName.Value;
+                    stream = fileSection.Body;
+                }
+                catch (Exception ex)
+                {
+                    Log.Warning("Failed to handle file upload for token {Token} from a caller claiming to be agent {Agent}: {Message}", token, agentName, ex.Message);
+                    return BadRequest();
+                }
+
+                // agents must encrypt the Id they were given in the request with the secret they share with the controller, and provide
+                // the encrypted value as the credential with the request. the validation below verifies a bunch of things, including that
+                // the encrypted value matches the expected value. the goal here is to ensure that the caller is the same caller that
+                // received the request, and that the caller knows the shared secret.
+                if (!Network.TryValidateFileStreamResponseCredential(token: guid, agentName, filename, credential))
+                {
+                    Log.Warning("Failed to authenticate file upload token {Token} from a caller claiming to be agent {Agent}", agentName);
+                    return Unauthorized();
+                }
+
+                Log.Information("File upload of {Filename} ({Token}) from agent {Agent} validated and authenticated. Forwarding file stream.", filename, token, agentName);
+
+                // pass the stream back to the network service, which will in turn pass it to the
+                // upload service, and use it to feed data into the remote upload. await this call,
+                // it will complete when the upload is complete, one way or the other.
+                await Network.HandleFileStreamResponse(id: guid, stream);
+
+                Log.Information("File upload of {Filename} ({Token}) from agent {Agent} complete", filename, token, agentName);
+                return Ok();
+            }
+            finally
+            {
+                stream?.Dispose();
+            }
+        }
+
+        [HttpPost("shares/{agentName}/{token}")]
+        [Authorize]
+        public async Task<IActionResult> UploadShares(string agentName, string token)
+        {
+            if (!Guid.TryParse(token, out var guid))
+            {
+                return BadRequest("Token is not a valid Guid");
+            }
+
+            string credential;
             IEnumerable<Share> shares;
             IFormFile database;
 
             try
             {
+                credential = Request.Form["credential"].ToString();
                 shares = Request.Form["shares"].ToString().FromJson<IEnumerable<Share>>();
                 database = Request.Form.Files[0];
             }
             catch (Exception ex)
             {
-                Log.Warning("Failed to handle share upload from agent {Agent}: {Message}", agent, ex.Message);
+                Log.Warning("Failed to handle share upload from agent {Agent}: {Message}", agentName, ex.Message);
                 return BadRequest();
             }
 
-            var temp = Path.Combine(Path.GetTempPath(), $"slskd_share_{agent}_{Path.GetRandomFileName()}.db");
+            if (!Network.TryValidateShareUploadCredential(token: guid, agentName, credential))
+            {
+                Log.Warning("Failed to authenticate share upload from caller claiming to be agent {Agent}");
+                return Unauthorized();
+            }
 
-            Log.Debug("Uploading share from {Agent} to {Filename}", agent, temp);
+            var temp = Path.Combine(Path.GetTempPath(), $"slskd_share_{agentName}_{Path.GetRandomFileName()}.db");
+
+            Log.Debug("Uploading share from {Agent} to {Filename}", agentName, temp);
 
             using var outputStream = new FileStream(temp, FileMode.CreateNew, FileAccess.Write);
             using var inputStream = database.OpenReadStream();
 
             await inputStream.CopyToAsync(outputStream);
 
-            Log.Debug("Upload of share from {Agent} to {Filename} complete", agent, temp);
+            Log.Debug("Upload of share from {Agent} to {Filename} complete", agentName, temp);
 
             var repository = ShareRepositoryFactory.CreateFromFile(temp);
 
@@ -134,11 +181,11 @@ namespace slskd.Network
                 return BadRequest("Invalid database: " + string.Join(", ", problems));
             }
 
-            var destinationRepository = ShareRepositoryFactory.CreateFromHost(agent);
+            var destinationRepository = ShareRepositoryFactory.CreateFromHost(agentName);
 
             destinationRepository.RestoreFrom(repository);
 
-            Shares.AddOrUpdateHost(new Host(agent, shares));
+            Shares.AddOrUpdateHost(new Host(agentName, shares));
 
             return Ok();
         }

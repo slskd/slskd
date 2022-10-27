@@ -134,9 +134,10 @@ namespace slskd.Network
 
             var stream = new FileStream(temp, FileMode.Open, FileAccess.Read);
 
-            using var request = new HttpRequestMessage(HttpMethod.Post, $"api/v0/network/shares/{token}");
+            using var request = new HttpRequestMessage(HttpMethod.Post, $"api/v0/network/shares/{OptionsMonitor.CurrentValue.InstanceName}/{token}");
             using var content = new MultipartFormDataContent
             {
+                { new StringContent(ComputeCredential(token)), "credential" },
                 { new StringContent(Shares.LocalHost.Shares.ToJson()), "shares" },
                 { new StreamContent(stream), "database", "shares" },
             };
@@ -154,50 +155,66 @@ namespace slskd.Network
             Log.Information("Upload shares succeeded");
         }
 
-        private async Task HandleFileRequest(string filename, Guid id)
+        private string ComputeCredential(Guid token)
         {
-            Log.Information("Network controller requested file {Filename} with ID {Id}", filename, id);
+            var options = OptionsMonitor.CurrentValue;
 
-            try
+            var key = options.Network.Controller.Secret.FromBase62();
+            var tokenBytes = token.ToString().FromBase62();
+
+            return Aes.Encrypt(tokenBytes, key).ToBase62();
+        }
+
+        private Task HandleFileRequest(string filename, Guid token)
+        {
+            _ = Task.Run(async () =>
             {
-                var (_, localFilename) = await Shares.ResolveFileAsync(filename);
+                Log.Information("Network controller requested file {Filename} with ID {Id}", filename, token);
 
-                var localFileInfo = new FileInfo(localFilename);
-
-                if (!localFileInfo.Exists)
+                try
                 {
-                    Shares.RequestScan();
-                    throw new NotFoundException($"The file '{localFilename}' could not be located on disk. A share scan should be performed.");
+                    var (_, localFilename) = await Shares.ResolveFileAsync(filename);
+
+                    var localFileInfo = new FileInfo(localFilename);
+
+                    if (!localFileInfo.Exists)
+                    {
+                        Shares.RequestScan();
+                        throw new NotFoundException($"The file '{localFilename}' could not be located on disk. A share scan should be performed.");
+                    }
+
+                    using var stream = new FileStream(localFileInfo.FullName, FileMode.Open, FileAccess.Read);
+                    using var request = new HttpRequestMessage(HttpMethod.Post, $"api/v0/network/files/{OptionsMonitor.CurrentValue.InstanceName}/{token}");
+                    using var content = new MultipartFormDataContent
+                    {
+                        { new StringContent(ComputeCredential(token)), "credential" },
+                        { new StreamContent(stream), "file", filename },
+                    };
+
+                    request.Content = content;
+
+                    Log.Information("Beginning upload of file {Filename} with ID {Id}", filename, token);
+                    var response = await CreateHttpClient().SendAsync(request);
+
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        Log.Error("Upload of file {Filename} with ID {Id} failed: {StatusCode}", response.StatusCode);
+                    }
+                    else
+                    {
+                        Log.Information("Upload of file {Filename} with ID {Id} succeeded.", filename);
+                    }
                 }
-
-                using var stream = new FileStream(localFileInfo.FullName, FileMode.Open, FileAccess.Read);
-                using var request = new HttpRequestMessage(HttpMethod.Post, $"api/v0/network/files/{id}");
-                using var content = new MultipartFormDataContent
+                catch (Exception ex)
                 {
-                    { new StreamContent(stream), "file", filename },
-                };
+                    Log.Error(ex, "Failed to handle file request: {Message}", ex.Message);
 
-                request.Content = content;
-
-                Log.Information("Beginning upload of file {Filename} with ID {Id}", filename, id);
-                var response = await CreateHttpClient().SendAsync(request);
-
-                if (!response.IsSuccessStatusCode)
-                {
-                    Log.Error("Upload of file {Filename} with ID {Id} failed: {StatusCode}", response.StatusCode);
+                    // report the failure to the controller. this avoids a failure due to timeout.
+                    await HubConnection.InvokeAsync(nameof(NetworkHub.NotifyUploadFailed), token);
                 }
-                else
-                {
-                    Log.Information("Upload of file {Filename} with ID {Id} succeeded.", filename);
-                }
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "Failed to handle file request: {Message}", ex.Message);
+            });
 
-                // report the failure to the controller. this avoids a failure due to timeout.
-                await HubConnection.InvokeAsync(nameof(NetworkHub.NotifyUploadFailed), id);
-            }
+            return Task.CompletedTask;
         }
 
         private async Task HandleFileInfoRequest(string filename, Guid id)
@@ -318,9 +335,9 @@ namespace slskd.Network
                 HubConnection.Reconnecting += HubConnection_Reconnecting;
                 HubConnection.Closed += HubConnection_Closed;
 
-                HubConnection.On<string, Guid>(NetworkHubMethods.RequestFile, HandleFileRequest);
-                HubConnection.On<string, Guid>(NetworkHubMethods.RequestFileInfo, HandleFileInfoRequest);
-                HubConnection.On<string>(NetworkHubMethods.AuthenticationChallenge, HandleAuthenticationChallenge);
+                HubConnection.On<string, Guid>(nameof(INetworkHub.RequestFile), HandleFileRequest);
+                HubConnection.On<string, Guid>(nameof(INetworkHub.RequestFileInfo), HandleFileInfoRequest);
+                HubConnection.On<string>(nameof(INetworkHub.Challenge), HandleAuthenticationChallenge);
 
                 LastOptionsHash = optionsHash;
 
