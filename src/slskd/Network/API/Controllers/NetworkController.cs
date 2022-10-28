@@ -121,7 +121,7 @@ namespace slskd.Network
                 // pass the stream back to the network service, which will in turn pass it to the
                 // upload service, and use it to feed data into the remote upload. await this call,
                 // it will complete when the upload is complete, one way or the other.
-                await Network.HandleFileStreamResponse(id: guid, stream);
+                await Network.HandleFileStreamResponse(agentName, id: guid, stream);
 
                 Log.Information("File upload of {Filename} ({Token}) from agent {Agent} complete", filename, token, agentName);
                 return Ok();
@@ -174,18 +174,14 @@ namespace slskd.Network
 
             Log.Debug("Upload of share from {Agent} to {Filename} complete", agentName, temp);
 
-            var repository = ShareRepositoryFactory.CreateFromFile(temp);
-
-            if (!repository.TryValidate(out var problems))
+            try
             {
-                return BadRequest("Invalid database: " + string.Join(", ", problems));
+                await Network.HandleShareUpload(agentName, id: guid, shares, temp);
             }
-
-            var destinationRepository = ShareRepositoryFactory.CreateFromHost(agentName);
-
-            destinationRepository.RestoreFrom(repository);
-
-            Shares.AddOrUpdateHost(new Host(agentName, shares));
+            catch (ShareValidationException ex)
+            {
+                return BadRequest(ex.Message);
+            }
 
             return Ok();
         }

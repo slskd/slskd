@@ -155,15 +155,17 @@ namespace slskd.Network
             Log.Information("Upload shares succeeded");
         }
 
-        private string ComputeCredential(Guid token)
+        private string ComputeCredential(string token)
         {
             var options = OptionsMonitor.CurrentValue;
 
-            var key = options.Network.Controller.Secret.FromBase62();
-            var tokenBytes = token.ToString().FromBase62();
+            var key = Pbkdf2.GetKey(options.Network.Controller.Secret, options.InstanceName, 48);
+            var tokenBytes = System.Text.Encoding.UTF8.GetBytes(token);
 
             return Aes.Encrypt(tokenBytes, key).ToBase62();
         }
+
+        private string ComputeCredential(Guid token) => ComputeCredential(token.ToString());
 
         private Task HandleFileRequest(string filename, Guid token)
         {
@@ -245,10 +247,7 @@ namespace slskd.Network
                 var options = OptionsMonitor.CurrentValue;
 
                 var agent = options.InstanceName;
-                var key = options.Network.Controller.Secret.FromBase62();
-                var tokenBytes = challengeToken.FromBase62();
-
-                var response = Aes.Encrypt(tokenBytes, key).ToBase62();
+                var response = ComputeCredential(challengeToken);
 
                 Log.Debug("Logging in...");
                 var success = await HubConnection.InvokeAsync<bool>(nameof(NetworkHub.Login), agent, response);

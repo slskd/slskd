@@ -391,6 +391,7 @@ namespace slskd
             /// <summary>
             ///     Gets the controller configuration.
             /// </summary>
+            [Validate]
             public NetworkControllerConfigurationOptions Controller { get; init; } = new NetworkControllerConfigurationOptions();
 
             /// <summary>
@@ -429,6 +430,7 @@ namespace slskd
                 /// </summary>
                 [Argument(default, "controller-address")]
                 [EnvironmentVariable("CONTROLLER_ADDRESS")]
+                [Url]
                 public string Address { get; init; }
 
                 /// <summary>
@@ -436,7 +438,7 @@ namespace slskd
                 /// </summary>
                 [Argument(default, "controller-secret")]
                 [EnvironmentVariable("CONTROLLER_SECRET")]
-                [StringLength(48, MinimumLength = 48)]
+                [StringLength(255, MinimumLength = 16)]
                 [Secret]
                 public string Secret { get; init; }
             }
@@ -449,7 +451,7 @@ namespace slskd
                 /// <summary>
                 ///     Gets the agent secret.
                 /// </summary>
-                [StringLength(48, MinimumLength = 48)]
+                [StringLength(255, MinimumLength = 16)]
                 [Secret]
                 public string Secret { get; init; }
             }
