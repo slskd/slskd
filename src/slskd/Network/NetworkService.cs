@@ -628,8 +628,8 @@ namespace slskd.Network
                 return false;
             }
 
-            var key = agentOptions.Secret.FromBase62();
-            var tokenBytes = ((string)challengeToken).FromBase62();
+            var key = Pbkdf2.GetKey(password: agentOptions.Secret, salt: agentName, length: 48);
+            var tokenBytes = System.Text.Encoding.UTF8.GetBytes((string)challengeToken);
             var expectedResponse = Aes.Encrypt(tokenBytes, key).ToBase62();
 
             return expectedResponse == credential;
@@ -694,8 +694,8 @@ namespace slskd.Network
                     return false;
                 }
 
-                var key = agentOptions.Secret.FromBase62();
-                var tokenBytes = token.ToString().FromBase62();
+                var key = Pbkdf2.GetKey(password: agentOptions.Secret, salt: agentName, length: 48);
+                var tokenBytes = System.Text.Encoding.UTF8.GetBytes(token);
                 var expectedCredential = Aes.Encrypt(tokenBytes, key).ToBase62();
 
                 if (expectedCredential != credential)
