@@ -391,6 +391,7 @@ namespace slskd
             /// <summary>
             ///     Gets the controller configuration.
             /// </summary>
+            [Validate]
             public NetworkControllerConfigurationOptions Controller { get; init; } = new NetworkControllerConfigurationOptions();
 
             /// <summary>
