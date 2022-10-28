@@ -273,7 +273,7 @@ namespace slskd.Transfers.Uploads
                             options: topts,
                             cancellationToken: cts.Token);
 
-                        Network.TryCloseFileStream(id);
+                        Network.TryCloseFileStream(host, id);
 
                         transfer = transfer.WithSoulseekTransfer(completedTransfer);
                     }
@@ -294,7 +294,7 @@ namespace slskd.Transfers.Uploads
                     // todo: broadcast
                     SynchronizedUpdate(transfer, cancellable: false);
 
-                    Network.TryCloseFileStream(id, ex);
+                    Network.TryCloseFileStream(host, id, ex);
 
                     throw;
                 }
@@ -309,7 +309,7 @@ namespace slskd.Transfers.Uploads
                     // todo: broadcast
                     SynchronizedUpdate(transfer, cancellable: false);
 
-                    Network.TryCloseFileStream(id, ex);
+                    Network.TryCloseFileStream(host, id, ex);
                     throw;
                 }
                 finally

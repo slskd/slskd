@@ -21,6 +21,7 @@ namespace slskd.Network
 {
     using System;
     using System.Collections.Concurrent;
+    using System.Collections.Generic;
     using System.Collections.ObjectModel;
     using System.IO;
     using System.Linq;
@@ -30,6 +31,7 @@ namespace slskd.Network
     using Microsoft.Extensions.Caching.Memory;
     using Serilog;
     using slskd.Cryptography;
+    using slskd.Shares;
 
     /// <summary>
     ///     Handles network (controller/agent) interactions.
@@ -58,6 +60,19 @@ namespace slskd.Network
         ///     Retrieves a new share upload token for the specified <paramref name="agentName"/>.
         /// </summary>
         /// <remarks>The token is cached internally, and is only valid while it remains in the cache.</remarks>
+        /// <remarks>
+        ///     <para>This is the first step in a multi-step workflow. The entire sequence is:</para>
+        ///     <list type="number">
+        ///         <item>
+        ///             A remote agent makes a request to the SignalR hub to retrieve a share upload token, which in turn
+        ///             calls <see cref="GenerateShareUploadToken"/>. The token is generated and cached.
+        ///         </item>
+        ///         <item>
+        ///             The remote agent makes an HTTP POST request containing a multipart upload including a backup of its
+        ///             shared database and a serialized list of locally configured shares, and the controller invokes <see cref="HandleShareUpload"/>.
+        ///         </item>
+        ///     </list>
+        /// </remarks>
         /// <param name="agentName">The name of the agent.</param>
         /// <returns>The generated token.</returns>
         Guid GenerateShareUploadToken(string agentName);
@@ -132,18 +147,30 @@ namespace slskd.Network
         /// <summary>
         ///     Handles the client response for a <see cref="GetFileInfoAsync"/> request.
         /// </summary>
+        /// <param name="agentName">The name of the agent.</param>
         /// <param name="id">The ID of the request.</param>
         /// <param name="response">The client response to the request.</param>
-        void HandleFileInfoResponse(Guid id, (bool Exists, long Length) response);
+        void HandleFileInfoResponse(string agentName, Guid id, (bool Exists, long Length) response);
 
         /// <summary>
         ///     Handles the client response for a <see cref="GetFileStreamAsync"/> request, returning when the corresponding file
         ///     upload is complete.
         /// </summary>
+        /// <param name="agentName">The name of the agent.</param>
         /// <param name="id">The ID of the request.</param>
         /// <param name="response">The client response to the request.</param>
         /// <returns>The operation context.</returns>
-        Task HandleFileStreamResponse(Guid id, Stream response);
+        Task HandleFileStreamResponse(string agentName, Guid id, Stream response);
+
+        /// <summary>
+        ///     Handles incoming share uploads.
+        /// </summary>
+        /// <param name="agentName">The name of the agent.</param>
+        /// <param name="id">The ID obtained by the caller prior to uploading.</param>
+        /// <param name="shares">The list of shares provided.</param>
+        /// <param name="filename">The filename of the temporary file containing the upload.</param>
+        /// <returns>The operation context.</returns>
+        Task HandleShareUpload(string agentName, Guid id, IEnumerable<Share> shares, string filename);
 
         /// <summary>
         ///     Notifies the caller of <see cref="GetFileStreamAsync"/> of a failure to obtain a file stream from the requested agent.
@@ -162,9 +189,10 @@ namespace slskd.Network
         /// <summary>
         ///     Safely attempts to close a stream obtained with <see cref="GetFileStreamAsync"/>.
         /// </summary>
+        /// <param name="agentName">The name of the agent.</param>
         /// <param name="id">The unique ID for the stream.</param>
         /// <param name="exception">If the transfer associated with the stream failed, the exception that caused the failure.</param>
-        void TryCloseFileStream(Guid id, Exception exception = null);
+        void TryCloseFileStream(string agentName, Guid id, Exception exception = null);
 
         /// <summary>
         ///     Attempts to remove the registration for the specified <paramref name="connectionId"/>.
@@ -218,9 +246,13 @@ namespace slskd.Network
     {
         public NetworkService(
             IWaiter waiter,
+            IShareService shareService,
+            IShareRepositoryFactory shareRepositoryFactory,
             IOptionsMonitor<Options> optionsMonitor,
             IHubContext<NetworkHub, INetworkHub> networkHub)
         {
+            Shares = shareService;
+            ShareRepositoryFactory = shareRepositoryFactory;
             Waiter = waiter;
             NetworkHub = networkHub;
 
@@ -243,6 +275,8 @@ namespace slskd.Network
         private IOptionsMonitor<Options> OptionsMonitor { get; }
         private ConcurrentDictionary<Guid, TaskCompletionSource<(bool Exists, long Length)>> PendingFileInquiryDictionary { get; } = new();
         private ConcurrentDictionary<string, (string ConnectionId, Agent Agent)> RegisteredAgentDictionary { get; } = new();
+        private IShareRepositoryFactory ShareRepositoryFactory { get; }
+        private IShareService Shares { get; }
         private IWaiter Waiter { get; }
         private ConcurrentDictionary<WaitKey, Guid> WaitIdDictionary { get; } = new();
 
@@ -266,6 +300,23 @@ namespace slskd.Network
         ///     Retrieves a new share upload token for the specified <paramref name="agentName"/>.
         /// </summary>
         /// <remarks>The token is cached internally, and is only valid while it remains in the cache.</remarks>
+        /// <remarks>
+        ///     <para>This is the first step in a multi-step workflow. The entire sequence is:</para>
+        ///     <list type="number">
+        ///         <item>
+        ///             A remote agent makes a request to the SignalR hub to retrieve a share upload token, which in turn
+        ///             calls <see cref="GenerateShareUploadToken"/>. The token is generated and cached.
+        ///         </item>
+        ///         <item>
+        ///             The remote agent makes an HTTP POST request containing a multipart upload including a backup of its
+        ///             shared database and a serialized list of locally configured shares.
+        ///         </item>
+        ///         <item>
+        ///             The HTTP controller saves the database backup to a temporary file, validates it, and then adds (or updates)
+        ///             a share host for the agent.
+        ///         </item>
+        ///     </list>
+        /// </remarks>
         /// <param name="agentName">The name of the agent.</param>
         /// <returns>The generated token.</returns>
         public Guid GenerateShareUploadToken(string agentName)
@@ -309,7 +360,7 @@ namespace slskd.Network
             // prepare a wait for the response. we don't cache the token along with the agent here, as all data is exchanged over
             // an authenticated SignalR connection
             var id = Guid.NewGuid();
-            var key = new WaitKey(nameof(GetFileInfoAsync), id);
+            var key = new WaitKey(nameof(GetFileInfoAsync), agentName, id);
             var wait = Waiter.Wait<(bool Exists, long Length)>(key, timeout);
 
             try
@@ -383,7 +434,7 @@ namespace slskd.Network
 
             // create a wait for the agent response. this wait will be completed in the response handler, ultimately called from
             // the API controller when the agent makes an HTTP request to return the file
-            var key = new WaitKey(nameof(GetFileStreamAsync), id);
+            var key = new WaitKey(nameof(GetFileStreamAsync), agentName, id);
             var wait = Waiter.Wait<Stream>(key, timeout, cancellationToken);
 
             await NetworkHub.Clients.Client(record.ConnectionId).RequestFile(filename, id);
@@ -407,15 +458,16 @@ namespace slskd.Network
         /// <summary>
         ///     Handles the client response for a <see cref="GetFileInfoAsync"/> request.
         /// </summary>
+        /// <param name="agentName">The name of the agent.</param>
         /// <param name="id">The ID of the request.</param>
         /// <param name="response">The client response to the request.</param>
-        public void HandleFileInfoResponse(Guid id, (bool Exists, long Length) response)
+        public void HandleFileInfoResponse(string agentName, Guid id, (bool Exists, long Length) response)
         {
-            var key = new WaitKey(nameof(GetFileInfoAsync), id);
+            var key = new WaitKey(nameof(GetFileInfoAsync), agentName, id);
 
             if (!Waiter.IsWaitingFor(key))
             {
-                var msg = $"A file info response matching Id {id} was not expected";
+                var msg = $"A file info response from Agent {agentName} matching Id {id} was not expected";
                 Log.Warning(msg);
                 throw new NotFoundException(msg);
             }
@@ -430,12 +482,13 @@ namespace slskd.Network
         /// <remarks>
         ///     Assumes <see cref="TryValidateFileStreamResponseCredential"/> has previously been used to ensure the Id and agent match.
         /// </remarks>
+        /// <param name="agentName">The name of the agent.</param>
         /// <param name="id">The ID of the request.</param>
         /// <param name="response">The client response to the request.</param>
         /// <returns>The operation context.</returns>
-        public async Task HandleFileStreamResponse(Guid id, Stream response)
+        public async Task HandleFileStreamResponse(string agentName, Guid id, Stream response)
         {
-            var streamKey = new WaitKey(nameof(GetFileStreamAsync), id);
+            var streamKey = new WaitKey(nameof(GetFileStreamAsync), agentName, id);
 
             if (!Waiter.IsWaitingFor(streamKey))
             {
@@ -447,7 +500,7 @@ namespace slskd.Network
             // create a wait (but do not await it) for the completion of the upload to the remote client. we need to await this to
             // keep execution in the body of the API controller that provided the stream, in order to keep the stream open for the
             // duration of the remote transfer. omit the id from the key, the caller doesn't know it.
-            var completionKey = new WaitKey(nameof(HandleFileStreamResponse), id);
+            var completionKey = new WaitKey(nameof(HandleFileStreamResponse), agentName, id);
             var completion = Waiter.WaitIndefinitely(completionKey);
 
             // complete the wait that's waiting for the stream, so we can send the stream back to the caller of GetFileStream this
@@ -457,6 +510,32 @@ namespace slskd.Network
             // wait for the caller of GetFileStream to report that the upload/stream is complete this is the wait that keeps the
             // HTTP handler running
             await completion;
+        }
+
+        /// <summary>
+        ///     Handles incoming share uploads.
+        /// </summary>
+        /// <param name="agentName">The name of the agent.</param>
+        /// <param name="id">The ID obtained by the caller prior to uploading.</param>
+        /// <param name="shares">The list of shares provided.</param>
+        /// <param name="filename">The filename of the temporary file containing the upload.</param>
+        /// <returns>The operation context.</returns>
+        public Task HandleShareUpload(string agentName, Guid id, IEnumerable<Share> shares, string filename)
+        {
+            var repository = ShareRepositoryFactory.CreateFromFile(filename);
+
+            if (!repository.TryValidate(out var problems))
+            {
+                throw new ShareValidationException("Invalid database: " + string.Join(", ", problems));
+            }
+
+            var destinationRepository = ShareRepositoryFactory.CreateFromHost(agentName);
+
+            destinationRepository.RestoreFrom(repository);
+
+            Shares.AddOrUpdateHost(new Host(agentName, shares));
+
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -481,11 +560,12 @@ namespace slskd.Network
         /// <summary>
         ///     Safely attempts to close a stream obtained with <see cref="GetFileStreamAsync"/>.
         /// </summary>
+        /// <param name="agentName">The name of the agent.</param>
         /// <param name="id">The unique ID for the stream.</param>
         /// <param name="exception">If the transfer associated with the stream failed, the exception that caused the failure.</param>
-        public void TryCloseFileStream(Guid id, Exception exception = default)
+        public void TryCloseFileStream(string agentName, Guid id, Exception exception = default)
         {
-            var key = new WaitKey(nameof(HandleFileStreamResponse), id);
+            var key = new WaitKey(nameof(HandleFileStreamResponse), agentName, id);
 
             if (exception != default)
             {

@@ -79,6 +79,7 @@ namespace slskd.Network
             Log.Information("Agent connection {Id} authentication failed", Context.ConnectionId);
             Network.TryDeregisterAgent(Context.ConnectionId, out var _); // just in case!
             return false;
+            // todo: throw UnauthorizedAccessException()?
         }
 
         public Guid GetShareUploadToken()
@@ -97,12 +98,24 @@ namespace slskd.Network
 
         public void NotifyUploadFailed(Guid id, Exception exception)
         {
-            Network.NotifyFileStreamException(id, exception);
+            if (Network.TryGetAgentRegistration(Context.ConnectionId, out var record))
+            {
+                Network.NotifyFileStreamException(id, exception);
+            }
+
+            Log.Warning("Agent connection {Id} attempted to report a failed upload, but is not registered.", Context.ConnectionId);
+            throw new UnauthorizedAccessException();
         }
 
         public void ReturnFileInfo(Guid id, bool exists, long length)
         {
-            Network.HandleFileInfoResponse(id, (exists, length));
+            if (Network.TryGetAgentRegistration(Context.ConnectionId, out var record))
+            {
+                Network.HandleFileInfoResponse(record.Agent.Name, id, (exists, length));
+            }
+
+            Log.Warning("Agent connection {Id} attempted to return file information, but is not registered.", Context.ConnectionId);
+            throw new UnauthorizedAccessException();
         }
     }
 }
