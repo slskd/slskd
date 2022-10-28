@@ -29,15 +29,16 @@ namespace slskd.Cryptography
         ///     Gets a 256 bit (32 byte) key derived from the specified <paramref name="password"/> using PBKDF2/RFC 2898.
         /// </summary>
         /// <param name="password">The password from which to derive the key.</param>
+        /// <param name="length">The desired length of the key, in bytes.</param>
         /// <returns>The derived key.</returns>
-        public static byte[] GetKey(string password)
+        public static byte[] GetKey(string password, int length = 32)
         {
             byte[] salt = new byte[16];
             int iterations = 1000;
 
             using var rng = RandomNumberGenerator.Create();
             rng.GetBytes(salt);
-            return KeyDerivation.Pbkdf2(password, salt, KeyDerivationPrf.HMACSHA256, iterations, 32);
+            return KeyDerivation.Pbkdf2(password, salt, KeyDerivationPrf.HMACSHA256, iterations, length);
         }
     }
 }
