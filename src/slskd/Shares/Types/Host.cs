@@ -37,6 +37,11 @@ namespace slskd.Shares
         }
 
         /// <summary>
+        ///     Gets a value indicating whether this host is the local host.
+        /// </summary>
+        public bool IsLocalHost => Name == Program.LocalHostName;
+
+        /// <summary>
         ///     Gets the name of the host.
         /// </summary>
         /// <remarks>Corresponds to the configured <see cref="Options.InstanceName"/> of the host, or "local" for the local host.</remarks>
