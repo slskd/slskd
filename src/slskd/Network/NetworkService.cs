@@ -39,11 +39,6 @@ namespace slskd.Network
     public interface INetworkService
     {
         /// <summary>
-        ///     Gets the name of the local host.
-        /// </summary>
-        string LocalHostName { get; }
-
-        /// <summary>
         ///     Gets the collection of registered Agents.
         /// </summary>
         ReadOnlyCollection<Agent> RegisteredAgents { get; }
@@ -258,11 +253,6 @@ namespace slskd.Network
 
             OptionsMonitor = optionsMonitor;
         }
-
-        /// <summary>
-        ///     Gets the name of the local host.
-        /// </summary>
-        public string LocalHostName => "local";
 
         /// <summary>
         ///     Gets the collection of registered Agents.
