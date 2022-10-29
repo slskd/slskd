@@ -65,9 +65,9 @@ namespace slskd.Network
 
         public async Task StartAsync(CancellationToken cancellationToken = default)
         {
-            if (OptionsMonitor.CurrentValue.Network.OperationMode.ToEnum<NetworkOperationMode>() != NetworkOperationMode.Agent && !OptionsMonitor.CurrentValue.Flags.DualNetworkMode)
+            if (OptionsMonitor.CurrentValue.Network.OperationMode.ToEnum<OperationMode>() != OperationMode.Agent && !OptionsMonitor.CurrentValue.Flags.DualNetworkMode)
             {
-                throw new InvalidOperationException($"Network client can only be started when operation mode is {NetworkOperationMode.Agent}");
+                throw new InvalidOperationException($"Network client can only be started when operation mode is {OperationMode.Agent}");
             }
 
             StartCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -295,7 +295,7 @@ namespace slskd.Network
 
         private void Configure(Options options)
         {
-            if (options.Network.OperationMode.ToEnum<NetworkOperationMode>() != NetworkOperationMode.Agent && !options.Flags.DualNetworkMode)
+            if (options.Network.OperationMode.ToEnum<OperationMode>() != OperationMode.Agent && !options.Flags.DualNetworkMode)
             {
                 return;
             }
