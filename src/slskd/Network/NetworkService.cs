@@ -312,7 +312,8 @@ namespace slskd.Network
         {
             var token = Guid.NewGuid();
 
-            MemoryCache.Set(GetShareTokenCacheKey(token), agentName, TimeSpan.FromMinutes(1));
+            // allow a generous amount of time, in case it takes a while to upload the response
+            MemoryCache.Set(GetShareTokenCacheKey(token), agentName, TimeSpan.FromMinutes(5));
             Log.Debug("Cached share upload token {Token} for agent {Agent}", token, agentName);
 
             return token;
