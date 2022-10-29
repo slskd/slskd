@@ -83,6 +83,11 @@ namespace slskd
         public static readonly string AppName = "slskd";
 
         /// <summary>
+        ///     The name of the local share host.
+        /// </summary>
+        public static readonly string LocalHostName = "local";
+
+        /// <summary>
         ///     The url to the issues/support site.
         /// </summary>
         public static readonly string IssuesUrl = "https://github.com/slskd/slskd/issues";
