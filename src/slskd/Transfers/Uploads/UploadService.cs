@@ -251,7 +251,7 @@ namespace slskd.Transfers.Uploads
                         slotAwaiter: (tx, ct) => Queue.AwaitStartAsync(tx.Username, tx.Filename),
                         slotReleased: (tx) => Queue.Complete(tx.Username, tx.Filename));
 
-                    if (host == Network.LocalHostName + "!")
+                    if (host == Program.LocalHostName + "!")
                     {
                         var completedTransfer = await Client.UploadAsync(
                             username,
