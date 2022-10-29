@@ -43,8 +43,6 @@ namespace slskd.Shares
         /// <returns>The created repository.</returns>
         public IShareRepository CreateFromHost(string name)
         {
-            name = name != Program.LocalHostName ? $"agent.{name}" : name;
-
             if (StorageMode == StorageMode.Memory)
             {
                 return new SqliteShareRepository($"Data Source=file:shares.{name}?mode=memory;Cache=shared");
