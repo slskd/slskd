@@ -162,7 +162,7 @@ namespace slskd.Network
 
             try
             {
-                agentName = Request.Form["agent"].ToString();
+                agentName = Request.Form["name"].ToString();
                 credential = Request.Form["credential"].ToString();
                 shares = Request.Form["shares"].ToString().FromJson<IEnumerable<Share>>();
                 database = Request.Form.Files[0];
@@ -185,15 +185,18 @@ namespace slskd.Network
             }
 
             var temp = Path.Combine(Path.GetTempPath(), $"slskd_share_{agentName}_{Path.GetRandomFileName()}.db");
+            Stream outputStream = default;
 
             try
             {
                 Log.Debug("Uploading share from {Agent} to {Filename}", agentName, temp);
 
-                using var outputStream = new FileStream(temp, FileMode.CreateNew, FileAccess.Write);
+                outputStream = new FileStream(temp, FileMode.CreateNew, FileAccess.Write);
                 using var inputStream = database.OpenReadStream();
 
                 await inputStream.CopyToAsync(outputStream);
+
+                await outputStream.FlushAsync();
 
                 Log.Debug("Upload of share from {Agent} to {Filename} complete", agentName, temp);
 
@@ -209,6 +212,7 @@ namespace slskd.Network
             {
                 try
                 {
+                    outputStream?.TryDispose();
                     System.IO.File.Delete(temp);
                 }
                 catch (Exception ex)

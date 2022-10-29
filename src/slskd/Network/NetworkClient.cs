@@ -275,26 +275,24 @@ namespace slskd.Network
 
         private async Task HandleAuthenticationChallenge(string challengeToken)
         {
-            Log.Debug("Network controller sent an authentication challenge");
-
             try
             {
+                Log.Debug("Network controller sent an authentication challenge");
+
                 var options = OptionsMonitor.CurrentValue;
 
                 var agent = options.InstanceName;
                 var response = ComputeCredential(challengeToken);
 
                 Log.Debug("Logging in...");
-                var success = await HubConnection.InvokeAsync<bool>(nameof(NetworkHub.Login), agent, response);
-
-                if (!success)
-                {
-                    await HubConnection.StopAsync();
-                    Log.Error("Network controller authentication failed. Check configuration.");
-                }
-
+                await HubConnection.InvokeAsync(nameof(NetworkHub.Login), agent, response);
                 Log.Debug("Login succeeded.");
                 LoggedIn?.TrySetResult();
+            }
+            catch (UnauthorizedAccessException)
+            {
+                await HubConnection.StopAsync();
+                Log.Error("Network controller authentication failed. Check configuration.");
             }
             catch (Exception ex)
             {
