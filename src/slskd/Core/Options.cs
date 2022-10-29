@@ -31,6 +31,8 @@ namespace slskd
     using NetTools;
     using slskd.Configuration;
     using slskd.Cryptography;
+    using slskd.Network;
+    using slskd.Shares;
     using slskd.Validation;
     using Soulseek.Diagnostics;
     using Utility.CommandLine;
@@ -402,8 +404,8 @@ namespace slskd
             [EnvironmentVariable("NETWORK_OPERATION_MODE")]
             [Description("network operation mode; controller, agent")]
             [RequiresRestart]
-            [Enum(typeof(NetworkOperationMode))]
-            public string OperationMode { get; init; } = NetworkOperationMode.Controller.ToString().ToLowerInvariant();
+            [Enum(typeof(OperationMode))]
+            public string OperationMode { get; init; } = slskd.Network.OperationMode.Controller.ToString().ToLowerInvariant();
 
             /// <summary>
             ///     Gets the controller configuration.
@@ -627,7 +629,7 @@ namespace slskd
                 [Description("the type of storage to use for the cache")]
                 [Enum(typeof(StorageMode))]
                 [RequiresRestart]
-                public string StorageMode { get; init; } = slskd.StorageMode.Memory.ToString().ToLowerInvariant();
+                public string StorageMode { get; init; } = slskd.Shares.StorageMode.Memory.ToString().ToLowerInvariant();
 
                 /// <summary>
                 ///     Gets the number of workers to use while scanning shares.
@@ -831,8 +833,8 @@ namespace slskd
                 /// <summary>
                 ///     Gets the queue strategy for the group.
                 /// </summary>
-                [Enum(typeof(QueueStrategy))]
-                public string Strategy { get; init; } = QueueStrategy.RoundRobin.ToString().ToLowerInvariant();
+                [Enum(typeof(Transfers.QueueStrategy))]
+                public string Strategy { get; init; } = Transfers.QueueStrategy.RoundRobin.ToString().ToLowerInvariant();
 
                 /// <summary>
                 ///     Gets the limit for the total number of upload slots for the group.
