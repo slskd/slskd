@@ -410,7 +410,6 @@ namespace slskd
             /// <summary>
             ///     Gets the controller configuration.
             /// </summary>
-            [Validate]
             public NetworkControllerConfigurationOptions Controller { get; init; } = new NetworkControllerConfigurationOptions();
 
             /// <summary>
@@ -420,21 +419,30 @@ namespace slskd
 
             public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
             {
+                var mode = OperationMode.ToEnum<OperationMode>();
                 var results = new List<ValidationResult>();
+                var modeResults = new List<ValidationResult>();
 
-                // todo: can't run in agent mode if instancename is default
+                if (mode == slskd.Network.OperationMode.Agent && !Validator.TryValidateObject(Controller, new ValidationContext(Controller), modeResults, validateAllProperties: true))
+                {
+                    results.Add(new CompositeValidationResult("Controller", modeResults));
+                }
+                else
+                {
+                    foreach (var (name, agent) in Agents)
+                    {
+                        var res = new List<ValidationResult>();
+                        if (!Validator.TryValidateObject(agent, new ValidationContext(agent), res, validateAllProperties: true))
+                        {
+                            modeResults.Add(new CompositeValidationResult(name, res));
+                        }
+                    }
 
-                //var controllerResults = new List<ValidationResult>();
-                //var agentResults = new List<ValidationResult>();
-
-                //if (OperationMode.ToEnum<NetworkOperationMode>() == NetworkOperationMode.Agent && !Validator.TryValidateObject(Controller, validationContext, controllerResults))
-                //{
-                //    results.AddRange(controllerResults);
-                //}
-                //else if (!Validator.TryValidateObject(Agents, validationContext, results))
-                //{
-                //    results.AddRange(agentResults);
-                //}
+                    if (modeResults.Any())
+                    {
+                        results.Add(new CompositeValidationResult("Agents", modeResults));
+                    }
+                }
 
                 return results;
             }
@@ -449,8 +457,18 @@ namespace slskd
                 /// </summary>
                 [Argument(default, "controller-address")]
                 [EnvironmentVariable("CONTROLLER_ADDRESS")]
+                [Description("controller address url")]
                 [Url]
+                [NotNullOrWhiteSpace]
                 public string Address { get; init; }
+
+                /// <summary>
+                ///     Gets a value indicating whether controller certificate errors should be ignored.
+                /// </summary>
+                [Argument(default, "controller-ignore-certificate-errors")]
+                [EnvironmentVariable("CONTROLLER_IGNORE_CERTIFICATE_ERRORS")]
+                [Description("ignore controller certificate errors")]
+                public bool IgnoreCertificateErrors { get; init; } = false;
 
                 /// <summary>
                 ///     Gets the controller secret.
@@ -458,6 +476,7 @@ namespace slskd
                 [Argument(default, "controller-secret")]
                 [EnvironmentVariable("CONTROLLER_SECRET")]
                 [StringLength(255, MinimumLength = 16)]
+                [NotNullOrWhiteSpace]
                 [Secret]
                 public string Secret { get; init; }
             }
@@ -471,6 +490,7 @@ namespace slskd
                 ///     Gets the agent secret.
                 /// </summary>
                 [StringLength(255, MinimumLength = 16)]
+                [NotNullOrWhiteSpace]
                 [Secret]
                 public string Secret { get; init; }
             }
