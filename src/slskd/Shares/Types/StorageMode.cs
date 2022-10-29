@@ -1,4 +1,4 @@
-﻿// <copyright file="NetworkOperationMode.cs" company="slskd Team">
+﻿// <copyright file="StorageMode.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -15,21 +15,21 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-namespace slskd
+namespace slskd.Shares
 {
     /// <summary>
-    ///     The network operation mode.
+    ///     Storage mode.
     /// </summary>
-    public enum NetworkOperationMode
+    public enum StorageMode
     {
         /// <summary>
-        ///     Controller operation mode.
+        ///     Stored in memory.
         /// </summary>
-        Controller = 0,
+        Memory = 0,
 
         /// <summary>
-        ///     Agent operation mode.
+        ///     Stored on disk.
         /// </summary>
-        Agent = 1,
+        Disk = 1,
     }
 }
