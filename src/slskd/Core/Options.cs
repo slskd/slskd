@@ -86,7 +86,7 @@ namespace slskd
     ///         nature of the command line string after the application is started.
     ///     </para>
     /// </remarks>
-    public class Options
+    public class Options : IValidatableObject
     {
         /// <summary>
         ///     Gets a value indicating whether to display the application version.
@@ -294,6 +294,23 @@ namespace slskd
         /// </summary>
         [Validate]
         public IntegrationOptions Integration { get; init; } = new IntegrationOptions();
+
+        /// <summary>
+        ///     Handles top-level validation that doesn't fit anywhere else.
+        /// </summary>
+        /// <param name="validationContext"></param>
+        /// <returns></returns>
+        public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+        {
+            var results = new List<ValidationResult>();
+
+            if (InstanceName == "local" && Network.OperationMode.ToEnum<OperationMode>() == OperationMode.Agent)
+            {
+                results.Add(new ValidationResult("Instance name must be something other than 'local' when operating in Network Agent mode"));
+            }
+
+            return results;
+        }
 
         /// <summary>
         ///     Optional flags.
