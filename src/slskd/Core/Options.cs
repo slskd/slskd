@@ -131,24 +131,14 @@ namespace slskd
         public bool GenerateCertificate { get; init; } = false;
 
         /// <summary>
-        ///     Gets a value indicating whether to generate a random API key.
+        ///     Gets a value indicating whether to generate a random secret.
         /// </summary>
-        [Argument('k', "generate-api-key")]
-        [Description("generate random API key for HTTP/S")]
+        [Argument('k', "generate-secret")]
+        [Description("generate random secret of the specified length")]
         [Obsolete("Used only for documentation; see Program for actual implementation")]
         [JsonIgnore]
         [YamlIgnore]
-        public bool GenerateApiKey { get; init; } = false;
-
-        /// <summary>
-        ///     Gets a value indicating whether to generate a random agent secret.
-        /// </summary>
-        [Argument('t', "generate-agent-secret")]
-        [Description("generate random agent secret")]
-        [Obsolete("Used only for documentation; see Program for actual implementation")]
-        [JsonIgnore]
-        [YamlIgnore]
-        public bool GenerateAgentSecret { get; init; } = false;
+        public bool GenerateSecret { get; init; } = false;
 
         /// <summary>
         ///     Gets a value indicating whether the application should run in debug mode.
