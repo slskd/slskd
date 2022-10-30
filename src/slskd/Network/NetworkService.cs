@@ -54,13 +54,12 @@ namespace slskd.Network
         /// <summary>
         ///     Retrieves a new share upload token for the specified <paramref name="agentName"/>.
         /// </summary>
-        /// <remarks>The token is cached internally, and is only valid while it remains in the cache.</remarks>
         /// <remarks>
         ///     <para>This is the first step in a multi-step workflow. The entire sequence is:</para>
         ///     <list type="number">
         ///         <item>
         ///             A remote agent makes a request to the SignalR hub to retrieve a share upload token, which in turn
-        ///             calls <see cref="GenerateShareUploadToken"/>. The token is generated and cached.
+        ///             calls <see cref="GenerateShareUploadToken"/>. The token is generated and cached, and is only valid while it is in the cache.
         ///         </item>
         ///         <item>
         ///             The remote agent makes an HTTP POST request containing a multipart upload including a backup of its
@@ -313,7 +312,8 @@ namespace slskd.Network
         {
             var token = Guid.NewGuid();
 
-            MemoryCache.Set(GetShareTokenCacheKey(token), agentName, TimeSpan.FromMinutes(1));
+            // allow a generous amount of time, in case it takes a while to upload the response
+            MemoryCache.Set(GetShareTokenCacheKey(token), agentName, TimeSpan.FromMinutes(5));
             Log.Debug("Cached share upload token {Token} for agent {Agent}", token, agentName);
 
             return token;
@@ -427,7 +427,7 @@ namespace slskd.Network
             var key = new WaitKey(nameof(GetFileStreamAsync), agentName, id);
             var wait = Waiter.Wait<Stream>(key, timeout, cancellationToken);
 
-            await NetworkHub.Clients.Client(record.ConnectionId).RequestFile(filename, id);
+            await NetworkHub.Clients.Client(record.ConnectionId).RequestFileUpload(filename, id);
             Log.Information("Requested file {Filename} from Agent {Agent} with ID {Id}. Waiting for incoming connection.", filename, agentName, id);
 
             var task = await Task.WhenAny(wait, Task.Delay(timeout, cancellationToken));

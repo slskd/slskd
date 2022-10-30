@@ -29,14 +29,37 @@ namespace slskd.Network
     using slskd.Cryptography;
     using slskd.Shares;
 
+    /// <summary>
+    ///     Network client (agent).
+    /// </summary>
     public interface INetworkClient
     {
+        /// <summary>
+        ///     Starts the client and connects to the controller.
+        /// </summary>
+        /// <param name="cancellationToken"></param>
+        /// <returns></returns>
         Task StartAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>
+        ///     Stops the client and disconnects from the controller.
+        /// </summary>
+        /// <param name="cancellationToken"></param>
+        /// <returns></returns>
         Task StopAsync(CancellationToken cancellationToken = default);
     }
 
+    /// <summary>
+    ///     Network client (agent).
+    /// </summary>
     public class NetworkClient : INetworkClient
     {
+        /// <summary>
+        ///     Initializes a new instance of the <see cref="NetworkClient"/> class.
+        /// </summary>
+        /// <param name="shareService"></param>
+        /// <param name="optionsMonitor"></param>
+        /// <param name="httpClientFactory"></param>
         public NetworkClient(
             IShareService shareService,
             IOptionsMonitor<Options> optionsMonitor,
@@ -63,6 +86,11 @@ namespace slskd.Network
         private ILogger Log { get; } = Serilog.Log.ForContext<NetworkClient>();
         private TaskCompletionSource LoggedIn { get; set; }
 
+        /// <summary>
+        ///     Starts the client and connects to the controller.
+        /// </summary>
+        /// <param name="cancellationToken"></param>
+        /// <returns></returns>
         public async Task StartAsync(CancellationToken cancellationToken = default)
         {
             if (OptionsMonitor.CurrentValue.Network.OperationMode.ToEnum<OperationMode>() != OperationMode.Agent && !OptionsMonitor.CurrentValue.Flags.DualNetworkMode)
@@ -106,6 +134,11 @@ namespace slskd.Network
             Log.Information("Shares uploaded. Ready to upload files.");
         }
 
+        /// <summary>
+        ///     Stops the client and disconnects from the controller.
+        /// </summary>
+        /// <param name="cancellationToken"></param>
+        /// <returns></returns>
         public async Task StopAsync(CancellationToken cancellationToken = default)
         {
             StartRequested = false;
@@ -129,14 +162,15 @@ namespace slskd.Network
             Log.Debug("Share backup successful");
 
             Log.Debug("Requesting share upload token...");
-            var token = await HubConnection.InvokeAsync<Guid>(nameof(NetworkHub.GetShareUploadToken));
+            var token = await HubConnection.InvokeAsync<Guid>(nameof(NetworkHub.BeginShareUpload));
             Log.Debug("Share upload token {Token}", token);
 
             var stream = new FileStream(temp, FileMode.Open, FileAccess.Read);
 
-            using var request = new HttpRequestMessage(HttpMethod.Post, $"api/v0/network/shares/{OptionsMonitor.CurrentValue.InstanceName}/{token}");
+            using var request = new HttpRequestMessage(HttpMethod.Post, $"api/v0/network/shares/{token}");
             using var content = new MultipartFormDataContent
             {
+                { new StringContent(OptionsMonitor.CurrentValue.InstanceName), "name" },
                 { new StringContent(ComputeCredential(token)), "credential" },
                 { new StringContent(Shares.LocalHost.Shares.ToJson()), "shares" },
                 { new StreamContent(stream), "database", "shares" },
@@ -167,7 +201,7 @@ namespace slskd.Network
 
         private string ComputeCredential(Guid token) => ComputeCredential(token.ToString());
 
-        private Task HandleFileRequest(string filename, Guid token)
+        private Task HandleFileUploadRequest(string filename, Guid token)
         {
             _ = Task.Run(async () =>
             {
@@ -186,9 +220,10 @@ namespace slskd.Network
                     }
 
                     using var stream = new FileStream(localFileInfo.FullName, FileMode.Open, FileAccess.Read);
-                    using var request = new HttpRequestMessage(HttpMethod.Post, $"api/v0/network/files/{OptionsMonitor.CurrentValue.InstanceName}/{token}");
+                    using var request = new HttpRequestMessage(HttpMethod.Post, $"api/v0/network/files/{token}");
                     using var content = new MultipartFormDataContent
                     {
+                        { new StringContent(OptionsMonitor.CurrentValue.InstanceName), "name" },
                         { new StringContent(ComputeCredential(token)), "credential" },
                         { new StreamContent(stream), "file", filename },
                     };
@@ -212,7 +247,7 @@ namespace slskd.Network
                     Log.Error(ex, "Failed to handle file request: {Message}", ex.Message);
 
                     // report the failure to the controller. this avoids a failure due to timeout.
-                    await HubConnection.InvokeAsync(nameof(NetworkHub.NotifyUploadFailed), token);
+                    await HubConnection.InvokeAsync(nameof(NetworkHub.NotifyFileUploadFailed), token);
                 }
             });
 
@@ -240,26 +275,24 @@ namespace slskd.Network
 
         private async Task HandleAuthenticationChallenge(string challengeToken)
         {
-            Log.Debug("Network controller sent an authentication challenge");
-
             try
             {
+                Log.Debug("Network controller sent an authentication challenge");
+
                 var options = OptionsMonitor.CurrentValue;
 
                 var agent = options.InstanceName;
                 var response = ComputeCredential(challengeToken);
 
                 Log.Debug("Logging in...");
-                var success = await HubConnection.InvokeAsync<bool>(nameof(NetworkHub.Login), agent, response);
-
-                if (!success)
-                {
-                    await HubConnection.StopAsync();
-                    Log.Error("Network controller authentication failed. Check configuration.");
-                }
-
+                await HubConnection.InvokeAsync(nameof(NetworkHub.Login), agent, response);
                 Log.Debug("Login succeeded.");
                 LoggedIn?.TrySetResult();
+            }
+            catch (UnauthorizedAccessException)
+            {
+                await HubConnection.StopAsync();
+                Log.Error("Network controller authentication failed. Check configuration.");
             }
             catch (Exception ex)
             {
@@ -334,7 +367,7 @@ namespace slskd.Network
                 HubConnection.Reconnecting += HubConnection_Reconnecting;
                 HubConnection.Closed += HubConnection_Closed;
 
-                HubConnection.On<string, Guid>(nameof(INetworkHub.RequestFile), HandleFileRequest);
+                HubConnection.On<string, Guid>(nameof(INetworkHub.RequestFileUpload), HandleFileUploadRequest);
                 HubConnection.On<string, Guid>(nameof(INetworkHub.RequestFileInfo), HandleFileInfoRequest);
                 HubConnection.On<string>(nameof(INetworkHub.Challenge), HandleAuthenticationChallenge);
 
