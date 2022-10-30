@@ -56,7 +56,7 @@ namespace slskd.Network
         [RequestSizeLimit(10L * 1024L * 1024L * 1024L)]
         [RequestFormLimits(MultipartBodyLengthLimit = 10L * 1024L * 1024L * 1024L)]
         [DisableFormValueModelBinding]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         public async Task<IActionResult> UploadFile(string token)
         {
             if (!Guid.TryParse(token, out var guid))
@@ -140,7 +140,7 @@ namespace slskd.Network
         /// <param name="token">The unique identifier for the request.</param>
         /// <returns></returns>
         [HttpPost("shares/{token}")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         public async Task<IActionResult> UploadShares(string token)
         {
             if (!Guid.TryParse(token, out var guid))
