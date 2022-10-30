@@ -584,11 +584,12 @@ namespace slskd
             using var runtimeMetrics = DotNetRuntimeStatsBuilder.Default().StartCollecting();
 
             services.AddDataProtection()
-                .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(DataDirectory, ".DataProtection-Keys")));
+                .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(DataDirectory, "misc", ".DataProtection-Keys")));
 
             var jwtSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(OptionsAtStartup.Web.Authentication.Jwt.Key));
 
             services.AddSingleton(jwtSigningKey);
+            services.AddSingleton<ISecurityService, SecurityService>();
 
             if (!OptionsAtStartup.Web.Authentication.Disabled)
             {
@@ -596,6 +597,7 @@ namespace slskd
                 {
                     options.AddPolicy(AuthPolicy.JwtOnly, policy =>
                     {
+                        policy.RequireRole(Role.Administrator.ToString());
                         policy.AuthenticationSchemes.Add(JwtBearerDefaults.AuthenticationScheme);
                         policy.RequireAuthenticatedUser();
                     });
@@ -628,24 +630,36 @@ namespace slskd
                         {
                             OnMessageReceived = context =>
                             {
-                                // assign the request token from the access_token query parameter
-                                // but only if the destination is a SignalR hub
-                                // https://docs.microsoft.com/en-us/aspnet/core/signalr/authn-and-authz?view=aspnetcore-5.0
-                                if (context.HttpContext.Request.Path.StartsWithSegments("/hub"))
+                                // signalr authentication is stupid
+                                if (context.Request.Path.StartsWithSegments("/hub"))
                                 {
-                                    context.Token = context.Request.Query["access_token"];
+                                    // some clients (like the one used for agents) provide the token in a header
+                                    // in this case it'll be an API key, presented as a bearer token
+                                    if (context.Request.Headers.ContainsKey("Authorization"))
+                                    {
+                                        var key = context.Request.Headers["Authorization"].ToString().Split(' ')?[1];
+
+                                        // derive the key name and role from the key value
+                                        var service = services.BuildServiceProvider().GetRequiredService<ISecurityService>();
+                                        var (name, role) = service.AuthenticateWithApiKey(key, callerIpAddress: context.HttpContext.Connection.RemoteIpAddress);
+
+                                        // create a new, short lived jwt for the key name and role
+                                        context.Token = service.GenerateJwt(name, role, ttl: 1000).Serialize();
+                                    }
+                                    else if (context.Request.Query.ContainsKey("access_token"))
+                                    {
+                                        // assign the request token from the access_token query parameter
+                                        // but only if the destination is a SignalR hub
+                                        // https://docs.microsoft.com/en-us/aspnet/core/signalr/authn-and-authz?view=aspnetcore-5.0
+                                        context.Token = context.Request.Query["access_token"];
+                                    }
                                 }
 
                                 return Task.CompletedTask;
                             },
                         };
                     })
-                    .AddScheme<ApiKeyAuthenticationOptions, ApiKeyAuthenticationHandler>(ApiKeyAuthentication.AuthenticationScheme, options =>
-                    {
-                        options.EnableSignalRSupport = true;
-                        options.SignalRRoutePrefix = "/hub";
-                        options.Role = Role.Administrator;
-                    });
+                    .AddScheme<ApiKeyAuthenticationOptions, ApiKeyAuthenticationHandler>(ApiKeyAuthentication.AuthenticationScheme, (_) => { });
             }
             else
             {
