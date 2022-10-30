@@ -176,6 +176,7 @@ namespace slskd.Network
                 { new StreamContent(stream), "database", "shares" },
             };
 
+            request.Headers.Add("X-API-Key", OptionsMonitor.CurrentValue.Network.Controller.ApiKey);
             request.Content = content;
 
             Log.Information("Beginning upload of shares");
@@ -228,6 +229,7 @@ namespace slskd.Network
                         { new StreamContent(stream), "file", filename },
                     };
 
+                    request.Headers.Add("X-API-Key", OptionsMonitor.CurrentValue.Network.Controller.ApiKey);
                     request.Content = content;
 
                     Log.Information("Beginning upload of file {Filename} with ID {Id}", filename, token);
