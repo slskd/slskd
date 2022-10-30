@@ -95,6 +95,22 @@ namespace slskd
         }
 
         /// <summary>
+        ///     Safely disposes this object without throwing if it is already exposed.
+        /// </summary>
+        /// <param name="obj">The object.</param>
+        public static void TryDispose(this IDisposable obj)
+        {
+            try
+            {
+                obj?.Dispose();
+            }
+            catch (ObjectDisposedException)
+            {
+                // no-op; something else beat us to it
+            }
+        }
+
+        /// <summary>
         ///     Recursively retrieves all properties.
         /// </summary>
         /// <param name="type">The type from which to retrieve properties.</param>

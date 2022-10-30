@@ -24,11 +24,33 @@ namespace slskd.Network
     using Microsoft.AspNetCore.SignalR;
     using Serilog;
 
+    /// <summary>
+    ///     Methods for the <see cref="NetworkHub"/>.
+    /// </summary>
     public interface INetworkHub
     {
+        /// <summary>
+        ///     Sends an authentication challenge token to the newly connected agent.
+        /// </summary>
+        /// <param name="token">The token.</param>
+        /// <returns>The operation context.</returns>
         Task Challenge(string token);
-        Task RequestFile(string filename, Guid id);
+
+        /// <summary>
+        ///     Requests information about the specified <paramref name="filename"/> from the agent.
+        /// </summary>
+        /// <param name="filename">The name of the file.</param>
+        /// <param name="id">The unique identifier for the request.</param>
+        /// <returns>The operation context.</returns>
         Task RequestFileInfo(string filename, Guid id);
+
+        /// <summary>
+        ///     Requests the specified <paramref name="filename"/> from the agent.
+        /// </summary>
+        /// <param name="filename">The name of the file.</param>
+        /// <param name="id">The unique identifier for the request.</param>
+        /// <returns>The operation context.</returns>
+        Task RequestFileUpload(string filename, Guid id);
     }
 
     /// <summary>
@@ -37,15 +59,23 @@ namespace slskd.Network
     [Authorize]
     public class NetworkHub : Hub<INetworkHub>
     {
+        /// <summary>
+        ///     Initializes a new instance of the <see cref="NetworkHub"/> class.
+        /// </summary>
+        /// <param name="networkService"></param>
         public NetworkHub(
             INetworkService networkService)
         {
             Network = networkService;
         }
 
-        private INetworkService Network { get; }
         private ILogger Log { get; } = Serilog.Log.ForContext<NetworkService>();
+        private INetworkService Network { get; }
 
+        /// <summary>
+        ///     Executed when a new connection is established.
+        /// </summary>
+        /// <returns></returns>
         public override async Task OnConnectedAsync()
         {
             var token = Network.GenerateAuthenticationChallengeToken(Context.ConnectionId);
@@ -54,6 +84,11 @@ namespace slskd.Network
             await Clients.Caller.Challenge(token);
         }
 
+        /// <summary>
+        ///     Executed when a connection is disconnected.
+        /// </summary>
+        /// <param name="exception">The Exception that caused the disconnect.</param>
+        /// <returns></returns>
         public override Task OnDisconnectedAsync(Exception exception)
         {
             if (Network.TryDeregisterAgent(Context.ConnectionId, out var record))
@@ -64,25 +99,34 @@ namespace slskd.Network
             return Task.CompletedTask;
         }
 
-        public bool Login(string agent, string challengeResponse)
+        /// <summary>
+        ///     Executed by the agent after receipt of an authentication challenge token, shortly after the connection is established.
+        /// </summary>
+        /// <param name="agent">The agent's name.</param>
+        /// <param name="challengeResponse">The response to the challenge token.</param>
+        /// <exception cref="UnauthorizedAccessException">Thrown when the challenge response is invalid.</exception>
+        public void Login(string agent, string challengeResponse)
         {
-            if (Network.TryValidateAuthenticationCredential(Context.ConnectionId, agent, challengeResponse))
+            if (!Network.TryValidateAuthenticationCredential(Context.ConnectionId, agent, challengeResponse))
             {
-                var remoteIp = Context.Features.Get<IHttpConnectionFeature>().RemoteIpAddress.ToString();
-                var record = new Agent { Name = agent, ConnectedAt = DateTime.UtcNow, IPAddress = remoteIp };
-
-                Log.Information("Agent connection {Id} ({IP}) authenticated as agent {Agent}", Context.ConnectionId, remoteIp, agent);
-                Network.RegisterAgent(Context.ConnectionId, record);
-                return true;
+                Log.Information("Agent connection {Id} authentication failed", Context.ConnectionId);
+                Network.TryDeregisterAgent(Context.ConnectionId, out var _); // just in case!
+                throw new UnauthorizedAccessException();
             }
 
-            Log.Information("Agent connection {Id} authentication failed", Context.ConnectionId);
-            Network.TryDeregisterAgent(Context.ConnectionId, out var _); // just in case!
-            return false;
-            // todo: throw UnauthorizedAccessException()?
+            var remoteIp = Context.Features.Get<IHttpConnectionFeature>().RemoteIpAddress.ToString();
+            var record = new Agent { Name = agent, ConnectedAt = DateTime.UtcNow, IPAddress = remoteIp };
+
+            Log.Information("Agent connection {Id} ({IP}) authenticated as agent {Agent}", Context.ConnectionId, remoteIp, agent);
+            Network.RegisterAgent(Context.ConnectionId, record);
         }
 
-        public Guid GetShareUploadToken()
+        /// <summary>
+        ///     Initiates the share upload workflow by generating and retrieving a request token.
+        /// </summary>
+        /// <returns>The generated token.</returns>
+        /// <exception cref="UnauthorizedAccessException">Thrown when the agent is not fully authenticated.</exception>
+        public Guid BeginShareUpload()
         {
             if (Network.TryGetAgentRegistration(Context.ConnectionId, out var record))
             {
@@ -96,7 +140,13 @@ namespace slskd.Network
             throw new UnauthorizedAccessException();
         }
 
-        public void NotifyUploadFailed(Guid id, Exception exception)
+        /// <summary>
+        ///     Notifies the controller that the agent was unable to upload the file requested by a call to <see cref="INetworkHub.RequestFileUpload"/>.
+        /// </summary>
+        /// <param name="id">The unique identifier of the request.</param>
+        /// <param name="exception">The Exception that caused the failure.</param>
+        /// <exception cref="UnauthorizedAccessException">Thrown when the agent is not fully authenticated.</exception>
+        public void NotifyFileUploadFailed(Guid id, Exception exception)
         {
             if (Network.TryGetAgentRegistration(Context.ConnectionId, out var record))
             {
@@ -107,6 +157,13 @@ namespace slskd.Network
             throw new UnauthorizedAccessException();
         }
 
+        /// <summary>
+        ///     Returns the response to a call to <see cref="INetworkHub.RequestFileInfo"/>.
+        /// </summary>
+        /// <param name="id">The unique identifier for the request.</param>
+        /// <param name="exists">A value indicating whether the requested file exists on the agent's filesystem.</param>
+        /// <param name="length">The length of the file, or 0 if the file does not exist.</param>
+        /// <exception cref="UnauthorizedAccessException">Thrown when the agent is not fully authenticated.</exception>
         public void ReturnFileInfo(Guid id, bool exists, long length)
         {
             if (Network.TryGetAgentRegistration(Context.ConnectionId, out var record))
