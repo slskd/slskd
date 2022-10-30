@@ -322,9 +322,24 @@ namespace slskd.Network
 
         private HttpClient CreateHttpClient()
         {
-            var client = new HttpClient();
+            var options = OptionsMonitor.CurrentValue.Network.Controller;
+            HttpClient client;
+
+            if (options.IgnoreCertificateErrors)
+            {
+                client = new HttpClient(new HttpClientHandler()
+                {
+                    ClientCertificateOptions = ClientCertificateOption.Manual,
+                    ServerCertificateCustomValidationCallback = (_, _, _, _) => true,
+                });
+            }
+            else
+            {
+                client = new HttpClient();
+            }
+
             client.Timeout = TimeSpan.FromMilliseconds(int.MaxValue);
-            client.BaseAddress = new(OptionsMonitor.CurrentValue.Network.Controller.Address);
+            client.BaseAddress = new(options.Address);
             return client;
         }
 
