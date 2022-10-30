@@ -296,7 +296,7 @@ namespace slskd
         {
             var results = new List<ValidationResult>();
 
-            if (InstanceName == "local" && Network.OperationMode.ToEnum<OperationMode>() == OperationMode.Agent)
+            if (InstanceName == "local" && Network.Mode.ToEnum<OperationMode>() == OperationMode.Agent)
             {
                 results.Add(new ValidationResult("Instance name must be something other than 'local' when operating in Network Agent mode"));
             }
@@ -395,7 +395,7 @@ namespace slskd
             [Description("network operation mode; controller, agent")]
             [RequiresRestart]
             [Enum(typeof(OperationMode))]
-            public string OperationMode { get; init; } = slskd.Network.OperationMode.Controller.ToString().ToLowerInvariant();
+            public string Mode { get; init; } = slskd.Network.OperationMode.Controller.ToString().ToLowerInvariant();
 
             /// <summary>
             ///     Gets the controller configuration.
@@ -409,7 +409,7 @@ namespace slskd
 
             public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
             {
-                var mode = OperationMode.ToEnum<OperationMode>();
+                var mode = Mode.ToEnum<OperationMode>();
                 var results = new List<ValidationResult>();
                 var modeResults = new List<ValidationResult>();
 
@@ -461,10 +461,22 @@ namespace slskd
                 public bool IgnoreCertificateErrors { get; init; } = false;
 
                 /// <summary>
+                ///     Gets the controller API key.
+                /// </summary>
+                [Argument(default, "controller-api-key")]
+                [EnvironmentVariable("CONTROLLER_API_KEY")]
+                [Description("controller api key")]
+                [StringLength(255, MinimumLength = 16)]
+                [NotNullOrWhiteSpace]
+                [Secret]
+                public string ApiKey { get; init; }
+
+                /// <summary>
                 ///     Gets the controller secret.
                 /// </summary>
                 [Argument(default, "controller-secret")]
                 [EnvironmentVariable("CONTROLLER_SECRET")]
+                [Description("shared secret")]
                 [StringLength(255, MinimumLength = 16)]
                 [NotNullOrWhiteSpace]
                 [Secret]

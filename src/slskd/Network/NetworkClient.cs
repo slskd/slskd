@@ -93,7 +93,7 @@ namespace slskd.Network
         /// <returns></returns>
         public async Task StartAsync(CancellationToken cancellationToken = default)
         {
-            if (OptionsMonitor.CurrentValue.Network.OperationMode.ToEnum<OperationMode>() != OperationMode.Agent && !OptionsMonitor.CurrentValue.Flags.DualNetworkMode)
+            if (OptionsMonitor.CurrentValue.Network.Mode.ToEnum<OperationMode>() != OperationMode.Agent && !OptionsMonitor.CurrentValue.Flags.DualNetworkMode)
             {
                 throw new InvalidOperationException($"Network client can only be started when operation mode is {OperationMode.Agent}");
             }
@@ -328,7 +328,7 @@ namespace slskd.Network
 
         private void Configure(Options options)
         {
-            if (options.Network.OperationMode.ToEnum<OperationMode>() != OperationMode.Agent && !options.Flags.DualNetworkMode)
+            if (options.Network.Mode.ToEnum<OperationMode>() != OperationMode.Agent && !options.Flags.DualNetworkMode)
             {
                 return;
             }
@@ -352,7 +352,21 @@ namespace slskd.Network
                 StartCancellationTokenSource?.Cancel();
 
                 HubConnection = new HubConnectionBuilder()
-                    .WithUrl($"{options.Network.Controller.Address}/hub/agents")
+                    .WithUrl($"{options.Network.Controller.Address}/hub/agents", builder =>
+                    {
+                        builder.AccessTokenProvider = () => Task.FromResult(options.Network.Controller.ApiKey);
+                        // options.HttpMessageHandlerFactory = (message) =>
+                        // {
+                        //     if (message is HttpClientHandler clientHandler)
+                        //     {
+                        //         // always verify the SSL certificate
+                        //         clientHandler.ServerCertificateCustomValidationCallback +=
+                        //                 (sender, certificate, chain, sslPolicyErrors) => true;
+                        //     }
+
+                        //     return message;
+                        // };
+                    })
                     .WithAutomaticReconnect(new[]
                     {
                         TimeSpan.FromSeconds(0),
