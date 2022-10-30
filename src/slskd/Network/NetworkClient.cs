@@ -357,17 +357,15 @@ namespace slskd.Network
                     .WithUrl($"{options.Network.Controller.Address}/hub/agents", builder =>
                     {
                         builder.AccessTokenProvider = () => Task.FromResult(options.Network.Controller.ApiKey);
-                        // options.HttpMessageHandlerFactory = (message) =>
-                        // {
-                        //     if (message is HttpClientHandler clientHandler)
-                        //     {
-                        //         // always verify the SSL certificate
-                        //         clientHandler.ServerCertificateCustomValidationCallback +=
-                        //                 (sender, certificate, chain, sslPolicyErrors) => true;
-                        //     }
+                        builder.HttpMessageHandlerFactory = (message) =>
+                        {
+                            if (message is HttpClientHandler clientHandler && options.Network.Controller.IgnoreCertificateErrors)
+                            {
+                                clientHandler.ServerCertificateCustomValidationCallback += (_, _, _, _) => true;
+                            }
 
-                        //     return message;
-                        // };
+                            return message;
+                        };
                     })
                     .WithAutomaticReconnect(new[]
                     {
