@@ -20,6 +20,7 @@ namespace slskd
     using System;
     using System.Collections;
     using System.Collections.Generic;
+    using System.IdentityModel.Tokens.Jwt;
     using System.IO;
     using System.Linq;
     using System.Numerics;
@@ -176,6 +177,14 @@ namespace slskd
 
             return str.Substring(0, pos) + replacement + str.Substring(pos + phrase.Length);
         }
+
+        /// <summary>
+        ///     Serializes the JWT.
+        /// </summary>
+        /// <param name="jwt">The JWT.</param>
+        /// <returns>The serialized string.</returns>
+        public static string Serialize(this JwtSecurityToken jwt)
+            => new JwtSecurityTokenHandler().WriteToken(jwt);
 
         /// <summary>
         ///     Formats byte to nearest size (KB, MB, etc.)

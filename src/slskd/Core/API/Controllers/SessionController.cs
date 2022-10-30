@@ -19,13 +19,8 @@ using Microsoft.Extensions.Options;
 
 namespace slskd.Core.API
 {
-    using System;
-    using System.Collections.Generic;
-    using System.IdentityModel.Tokens.Jwt;
-    using System.Security.Claims;
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
-    using Microsoft.IdentityModel.Tokens;
     using slskd.Authentication;
 
     /// <summary>
@@ -39,18 +34,18 @@ namespace slskd.Core.API
     public class SessionController : ControllerBase
     {
         public SessionController(
+            ISecurityService securityService,
             IOptionsSnapshot<Options> optionsSnapshot,
-            OptionsAtStartup optionsAtStartup,
-            SymmetricSecurityKey jwtSigningKey)
+            OptionsAtStartup optionsAtStartup)
         {
+            Security = securityService;
             OptionsSnapshot = optionsSnapshot;
             OptionsAtStartup = optionsAtStartup;
-            JwtSigningKey = jwtSigningKey;
         }
 
-        private SymmetricSecurityKey JwtSigningKey { get; set; }
         private IOptionsSnapshot<Options> OptionsSnapshot { get; set; }
         private OptionsAtStartup OptionsAtStartup { get; set; }
+        private ISecurityService Security { get; }
 
         /// <summary>
         ///     Checks whether the provided authentication is valid.
@@ -113,36 +108,10 @@ namespace slskd.Core.API
             // only admin login for now
             if (OptionsSnapshot.Value.Web.Authentication.Username == login.Username && OptionsSnapshot.Value.Web.Authentication.Password == login.Password)
             {
-                return Ok(new TokenResponse(GetJwtSecurityToken(login.Username, Role.Administrator)));
+                return Ok(new TokenResponse(Security.GenerateJwt(login.Username, Role.Administrator)));
             }
 
             return Unauthorized();
-        }
-
-        private JwtSecurityToken GetJwtSecurityToken(string username, Role role)
-        {
-            var issuedUtc = DateTime.UtcNow;
-            var expiresUtc = DateTime.UtcNow.AddMilliseconds(OptionsAtStartup.Web.Authentication.Jwt.Ttl);
-
-            var claims = new List<Claim>()
-            {
-                new Claim(ClaimTypes.Name, username),
-                new Claim(ClaimTypes.NameIdentifier, Guid.NewGuid().ToString()),
-                new Claim(ClaimTypes.Role, role.ToString()),
-                new Claim("name", username),
-                new Claim("iat", ((DateTimeOffset)issuedUtc).ToUnixTimeSeconds().ToString()),
-            };
-
-            var credentials = new SigningCredentials(JwtSigningKey, SecurityAlgorithms.HmacSha256);
-
-            var token = new JwtSecurityToken(
-                issuer: Program.AppName,
-                claims: claims,
-                notBefore: issuedUtc,
-                expires: expiresUtc,
-                signingCredentials: credentials);
-
-            return token;
         }
     }
 }

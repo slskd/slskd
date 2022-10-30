@@ -20,13 +20,11 @@ using Microsoft.Extensions.Options;
 namespace slskd.Authentication
 {
     using System;
-    using System.Linq;
     using System.Security.Principal;
     using System.Text.Encodings.Web;
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.Authentication;
     using Microsoft.Extensions.Logging;
-    using NetTools;
 
     /// <summary>
     ///     API key authentication.
@@ -47,23 +45,23 @@ namespace slskd.Authentication
         /// <summary>
         ///     Initializes a new instance of the <see cref="ApiKeyAuthenticationHandler"/> class.
         /// </summary>
-        /// <param name="slskdOptionsSnapshot">The current slskd options snapshot.</param>
         /// <param name="apiKeyOptionsMonitor">An options monitor.</param>
+        /// <param name="securityService">The security service.</param>
         /// <param name="logger">A logger factory.</param>
         /// <param name="urlEncoder">A url encoder.</param>
         /// <param name="systemClock">A system clock interface.</param>
         public ApiKeyAuthenticationHandler(
-            IOptionsSnapshot<Options> slskdOptionsSnapshot,
             IOptionsMonitor<ApiKeyAuthenticationOptions> apiKeyOptionsMonitor,
+            ISecurityService securityService,
             ILoggerFactory logger,
             UrlEncoder urlEncoder,
             ISystemClock systemClock)
             : base(apiKeyOptionsMonitor, logger, urlEncoder, systemClock)
         {
-            SlskdOptionsSnapshot = slskdOptionsSnapshot;
+            Security = securityService;
         }
 
-        private IOptionsSnapshot<Options> SlskdOptionsSnapshot { get; }
+        private ISecurityService Security { get; }
 
         /// <summary>
         ///     Authenticates via API key.
@@ -73,49 +71,25 @@ namespace slskd.Authentication
         {
             await Task.Yield();
 
-            var slskdOptions = SlskdOptionsSnapshot.Value;
-            var apiKeyOptions = OptionsMonitor.CurrentValue;
-
-            string key = default;
-
-            if (Request.Headers.TryGetValue("X-API-Key", out var headerKeyValue))
-            {
-                key = headerKeyValue;
-            }
-            else if (apiKeyOptions.EnableSignalRSupport && Request.Path.StartsWithSegments(apiKeyOptions.SignalRRoutePrefix) && Request.Query.ContainsKey("access_token"))
-            {
-                // assign the request token from the access_token query parameter
-                // but only if the destination is a SignalR hub
-                // https://docs.microsoft.com/en-us/aspnet/core/signalr/authn-and-authz?view=aspnetcore-5.0
-                key = Request.Query["access_token"];
-            }
-            else
+            if (!Request.Headers.TryGetValue("X-API-Key", out var headerKeyValue))
             {
                 return AuthenticateResult.NoResult();
             }
 
-            var matchingRecord = slskdOptions.Web.Authentication.ApiKeys
-                .FirstOrDefault(kvp => kvp.Value.Key == key);
-
-            if (matchingRecord.Key == null)
+            try
             {
-                return AuthenticateResult.Fail(new Exception("The provided API key does not match an existing key"));
+                var key = Security.AuthenticateWithApiKey(headerKeyValue, Request.HttpContext.Connection.RemoteIpAddress);
+
+                var identity = new GenericIdentity(key.Name);
+                var principal = new GenericPrincipal(identity, new[] { key.Role.ToString() });
+                var ticket = new AuthenticationTicket(principal, new AuthenticationProperties(), ApiKeyAuthentication.AuthenticationScheme);
+
+                return AuthenticateResult.Success(ticket);
             }
-
-            var ip = Request.HttpContext.Connection.RemoteIpAddress;
-
-            if (!matchingRecord.Value.Cidr.Split(',')
-                .Select(cidr => IPAddressRange.Parse(cidr))
-                .Any(range => range.Contains(ip)))
+            catch (Exception ex)
             {
-                return AuthenticateResult.Fail(new Exception("The remote IP address is not within the range specified for the key"));
+                return AuthenticateResult.Fail(ex);
             }
-
-            var identity = new GenericIdentity(matchingRecord.Key);
-            var principal = new GenericPrincipal(identity, new[] { apiKeyOptions.Role.ToString() });
-            var ticket = new AuthenticationTicket(principal, new AuthenticationProperties(), ApiKeyAuthentication.AuthenticationScheme);
-
-            return AuthenticateResult.Success(ticket);
         }
     }
 
@@ -124,26 +98,5 @@ namespace slskd.Authentication
     /// </summary>
     public class ApiKeyAuthenticationOptions : AuthenticationSchemeOptions
     {
-        /// <summary>
-        ///     Initializes a new instance of the <see cref="ApiKeyAuthenticationOptions"/> class.
-        /// </summary>
-        public ApiKeyAuthenticationOptions()
-        {
-        }
-
-        /// <summary>
-        ///     Gets or sets the route prefix used to identify SignalR authentication attempts.
-        /// </summary>
-        public string SignalRRoutePrefix { get; set; }
-
-        /// <summary>
-        ///     Gets or sets a value indicating whether to support SignalR authentication.
-        /// </summary>
-        public bool EnableSignalRSupport { get; set; }
-
-        /// <summary>
-        ///     Gets or sets the role for authenticated tickets.
-        /// </summary>
-        public Role Role { get; set; } = Role.Administrator;
     }
 }

@@ -93,7 +93,7 @@ namespace slskd.Network
         /// <returns></returns>
         public async Task StartAsync(CancellationToken cancellationToken = default)
         {
-            if (OptionsMonitor.CurrentValue.Network.OperationMode.ToEnum<OperationMode>() != OperationMode.Agent && !OptionsMonitor.CurrentValue.Flags.DualNetworkMode)
+            if (OptionsMonitor.CurrentValue.Network.Mode.ToEnum<OperationMode>() != OperationMode.Agent && !OptionsMonitor.CurrentValue.Flags.DualNetworkMode)
             {
                 throw new InvalidOperationException($"Network client can only be started when operation mode is {OperationMode.Agent}");
             }
@@ -176,6 +176,7 @@ namespace slskd.Network
                 { new StreamContent(stream), "database", "shares" },
             };
 
+            request.Headers.Add("X-API-Key", OptionsMonitor.CurrentValue.Network.Controller.ApiKey);
             request.Content = content;
 
             Log.Information("Beginning upload of shares");
@@ -228,6 +229,7 @@ namespace slskd.Network
                         { new StreamContent(stream), "file", filename },
                     };
 
+                    request.Headers.Add("X-API-Key", OptionsMonitor.CurrentValue.Network.Controller.ApiKey);
                     request.Content = content;
 
                     Log.Information("Beginning upload of file {Filename} with ID {Id}", filename, token);
@@ -320,15 +322,30 @@ namespace slskd.Network
 
         private HttpClient CreateHttpClient()
         {
-            var client = new HttpClient();
+            var options = OptionsMonitor.CurrentValue.Network.Controller;
+            HttpClient client;
+
+            if (options.IgnoreCertificateErrors)
+            {
+                client = new HttpClient(new HttpClientHandler()
+                {
+                    ClientCertificateOptions = ClientCertificateOption.Manual,
+                    ServerCertificateCustomValidationCallback = (_, _, _, _) => true,
+                });
+            }
+            else
+            {
+                client = new HttpClient();
+            }
+
             client.Timeout = TimeSpan.FromMilliseconds(int.MaxValue);
-            client.BaseAddress = new(OptionsMonitor.CurrentValue.Network.Controller.Address);
+            client.BaseAddress = new(options.Address);
             return client;
         }
 
         private void Configure(Options options)
         {
-            if (options.Network.OperationMode.ToEnum<OperationMode>() != OperationMode.Agent && !options.Flags.DualNetworkMode)
+            if (options.Network.Mode.ToEnum<OperationMode>() != OperationMode.Agent && !options.Flags.DualNetworkMode)
             {
                 return;
             }
@@ -352,7 +369,19 @@ namespace slskd.Network
                 StartCancellationTokenSource?.Cancel();
 
                 HubConnection = new HubConnectionBuilder()
-                    .WithUrl($"{options.Network.Controller.Address}/hub/agents")
+                    .WithUrl($"{options.Network.Controller.Address}/hub/agents", builder =>
+                    {
+                        builder.AccessTokenProvider = () => Task.FromResult(options.Network.Controller.ApiKey);
+                        builder.HttpMessageHandlerFactory = (message) =>
+                        {
+                            if (message is HttpClientHandler clientHandler && options.Network.Controller.IgnoreCertificateErrors)
+                            {
+                                clientHandler.ServerCertificateCustomValidationCallback += (_, _, _, _) => true;
+                            }
+
+                            return message;
+                        };
+                    })
                     .WithAutomaticReconnect(new[]
                     {
                         TimeSpan.FromSeconds(0),
