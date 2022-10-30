@@ -208,11 +208,8 @@ namespace slskd
         [Argument('g', "generate-cert", "generate X509 certificate and password for HTTPs")]
         private static bool GenerateCertificate { get; set; }
 
-        [Argument('k', "generate-api-key", "generate a random API key")]
-        private static bool GenerateApiKey { get; set; }
-
-        [Argument('t', "generate-agent-secret", "generate a random agent secret")]
-        private static bool GenerateAgentSecret { get; set; }
+        [Argument('k', "generate-secret", "generate random secret of the specified length")]
+        private static int GenerateSecret { get; set; }
 
         [Argument('n', "no-logo", "suppress logo on startup")]
         private static bool NoLogo { get; set; }
@@ -300,15 +297,9 @@ namespace slskd
                 return;
             }
 
-            if (GenerateApiKey)
+            if (GenerateSecret > 0)
             {
-                Log.Information($"API Key: {Cryptography.Random.GetBytes(32).ToBase62()}");
-                return;
-            }
-
-            if (GenerateAgentSecret)
-            {
-                Log.Information($"Agent Secret: {Aes.GenerateRandomKey().ToBase62()}");
+                Log.Information(Cryptography.Random.GetBytes(GenerateSecret).ToBase62());
                 return;
             }
 
