@@ -29,6 +29,7 @@ namespace slskd
     using System.Text.RegularExpressions;
     using FluentFTP;
     using NetTools;
+    using slskd.Authentication;
     using slskd.Configuration;
     using slskd.Cryptography;
     using slskd.Network;
@@ -1422,6 +1423,13 @@ namespace slskd
                     [StringLength(255, MinimumLength = 16)]
                     [Secret]
                     public string Key { get; init; }
+
+                    /// <summary>
+                    ///     Gets the role for the key.
+                    /// </summary>
+                    [Description("user role for the key; readonly, readwrite, administrator")]
+                    [Enum(typeof(Role))]
+                    public string Role { get; init; } = slskd.Authentication.Role.ReadOnly.ToString();
 
                     /// <summary>
                     ///     Gets the comma separated list of CIDRs that are authorized to use the key.
