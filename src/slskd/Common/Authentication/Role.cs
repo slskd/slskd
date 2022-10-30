@@ -20,7 +20,7 @@ namespace slskd.Authentication
     public enum Role
     {
         ReadOnly = 0,
-        User = 1,
+        ReadWrite = 1,
         Administrator = 2,
     }
 }
