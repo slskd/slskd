@@ -107,6 +107,7 @@ namespace slskd
                     ShuttingDown = true;
                     Program.MasterCancellationTokenSource.Cancel();
                     Log.Fatal("Received {Signal}", signal);
+                    Environment.Exit(1);
                 });
             }
 
