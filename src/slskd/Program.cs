@@ -633,25 +633,36 @@ namespace slskd
                                 // signalr authentication is stupid
                                 if (context.Request.Path.StartsWithSegments("/hub"))
                                 {
-                                    // some clients (like the one used for agents) provide the token in a header
-                                    // in this case it'll be an API key, presented as a bearer token
-                                    if (context.Request.Headers.ContainsKey("Authorization"))
+                                    // assign the request token from the access_token query parameter if one is present
+                                    // this typically means that the calling signalr client is running in a browser. this takes
+                                    // precedent over the Authorization header value (if one is present)
+                                    // https://docs.microsoft.com/en-us/aspnet/core/signalr/authn-and-authz?view=aspnetcore-5.0
+                                    if (context.Request.Query.TryGetValue("access_token", out var accessToken))
                                     {
-                                        var key = context.Request.Headers["Authorization"].ToString().Split(' ')?[1];
-
-                                        // derive the key name and role from the key value
-                                        var service = services.BuildServiceProvider().GetRequiredService<ISecurityService>();
-                                        var (name, role) = service.AuthenticateWithApiKey(key, callerIpAddress: context.HttpContext.Connection.RemoteIpAddress);
-
-                                        // create a new, short lived jwt for the key name and role
-                                        context.Token = service.GenerateJwt(name, role, ttl: 1000).Serialize();
+                                        context.Token = accessToken;
                                     }
-                                    else if (context.Request.Query.ContainsKey("access_token"))
+                                    else if (context.Request.Headers.ContainsKey("Authorization")
+                                        && context.Request.Headers.TryGetValue("Authorization", out var authorization)
+                                        && authorization.ToString().StartsWith("Bearer ", StringComparison.InvariantCultureIgnoreCase))
                                     {
-                                        // assign the request token from the access_token query parameter
-                                        // but only if the destination is a SignalR hub
-                                        // https://docs.microsoft.com/en-us/aspnet/core/signalr/authn-and-authz?view=aspnetcore-5.0
-                                        context.Token = context.Request.Query["access_token"];
+                                        // extract the bearer token. this value might be an API key, a JWT, or some garbage value
+                                        var token = authorization.ToString().Split(' ').LastOrDefault();
+
+                                        try
+                                        {
+                                            // check to see if the provided value is a valid API key
+                                            var service = services.BuildServiceProvider().GetRequiredService<ISecurityService>();
+                                            var (name, role) = service.AuthenticateWithApiKey(token, callerIpAddress: context.HttpContext.Connection.RemoteIpAddress);
+
+                                            // the API key is valid. create a new, short lived jwt for the key name and role
+                                            context.Token = service.GenerateJwt(name, role, ttl: 1000).Serialize();
+                                        }
+                                        catch
+                                        {
+                                            // the token either isn't a valid API key. use the provided value and let the 
+                                            // rest of the auth middleware figure out whether it is valid
+                                            context.Token = token;
+                                        }
                                     }
                                 }
 
