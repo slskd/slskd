@@ -302,6 +302,26 @@ namespace slskd
         }
 
         /// <summary>
+        ///     <see cref="Path.GetDirectoryName"/>, but for paths normalized to use backslashes.
+        /// </summary>
+        /// <param name="path"></param>
+        /// <returns></returns>
+        public static string GetNormalizedDirectoryName(this string path)
+        {
+            return string.Join('\\', path.Split('\\').SkipLast(1));
+        }
+
+        /// <summary>
+        ///     <see cref="Path.GetFileName"/>, but for paths normalized to use backslashes.
+        /// </summary>
+        /// <param name="path"></param>
+        /// <returns></returns>
+        public static string GetNormalizedFileName(this string path)
+        {
+            return string.Join('\\', path.Split('\\').TakeLast(1));
+        }
+
+        /// <summary>
         ///     Converts a fully qualified remote filename to a local filename, swapping directory characters for those specific
         ///     to the local OS, removing any characters that are invalid for the local OS, and making the path relative to the
         ///     remote store (including the filename and the parent folder).
