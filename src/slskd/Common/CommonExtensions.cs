@@ -318,7 +318,7 @@ namespace slskd
         /// <returns></returns>
         public static string GetNormalizedFileName(this string path)
         {
-            return string.Join('\\', path.Split('\\').TakeLast(1));
+            return path.Split('\\').TakeLast(1).First();
         }
 
         /// <summary>
