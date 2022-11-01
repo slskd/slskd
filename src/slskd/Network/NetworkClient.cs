@@ -157,18 +157,20 @@ namespace slskd.Network
 
             Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), Program.AppName));
 
-            Log.Debug("Backing up shares to {Filename}", temp);
-            await Shares.DumpAsync(temp);
-            Log.Debug("Share backup successful");
+            try
+            {
+                Log.Debug("Backing up shares to {Filename}", temp);
+                await Shares.DumpAsync(temp);
+                Log.Debug("Share backup successful");
 
-            Log.Debug("Requesting share upload token...");
-            var token = await HubConnection.InvokeAsync<Guid>(nameof(NetworkHub.BeginShareUpload));
-            Log.Debug("Share upload token {Token}", token);
+                Log.Debug("Requesting share upload token...");
+                var token = await HubConnection.InvokeAsync<Guid>(nameof(NetworkHub.BeginShareUpload));
+                Log.Debug("Share upload token {Token}", token);
 
-            var stream = new FileStream(temp, FileMode.Open, FileAccess.Read);
+                var stream = new FileStream(temp, FileMode.Open, FileAccess.Read);
 
-            using var request = new HttpRequestMessage(HttpMethod.Post, $"api/v0/network/shares/{token}");
-            using var content = new MultipartFormDataContent
+                using var request = new HttpRequestMessage(HttpMethod.Post, $"api/v0/network/shares/{token}");
+                using var content = new MultipartFormDataContent
             {
                 { new StringContent(OptionsMonitor.CurrentValue.InstanceName), "name" },
                 { new StringContent(ComputeCredential(token)), "credential" },
@@ -176,18 +178,23 @@ namespace slskd.Network
                 { new StreamContent(stream), "database", "shares" },
             };
 
-            request.Headers.Add("X-API-Key", OptionsMonitor.CurrentValue.Network.Controller.ApiKey);
-            request.Content = content;
+                request.Headers.Add("X-API-Key", OptionsMonitor.CurrentValue.Network.Controller.ApiKey);
+                request.Content = content;
 
-            Log.Information("Beginning upload of shares");
-            var response = await CreateHttpClient().SendAsync(request);
+                Log.Information("Beginning upload of shares");
+                var response = await CreateHttpClient().SendAsync(request);
 
-            if (!response.IsSuccessStatusCode)
-            {
-                throw new NetworkException($"Failed to upload shares to network controller: {response.StatusCode}");
+                if (!response.IsSuccessStatusCode)
+                {
+                    throw new NetworkException($"Failed to upload shares to network controller: {response.StatusCode}");
+                }
+
+                Log.Information("Upload shares succeeded");
             }
-
-            Log.Information("Upload shares succeeded");
+            finally
+            {
+                File.Delete(temp);
+            }
         }
 
         private string ComputeCredential(string token)
