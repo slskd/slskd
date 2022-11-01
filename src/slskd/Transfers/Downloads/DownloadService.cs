@@ -451,6 +451,7 @@ namespace slskd.Transfers.Downloads
 
             System.Diagnostics.Stopwatch sw = default;
 
+            // todo: remove this.  or check that Path.GetFileName works as expected if it is to be kept
             if (experimental)
             {
                 sw = new System.Diagnostics.Stopwatch();
