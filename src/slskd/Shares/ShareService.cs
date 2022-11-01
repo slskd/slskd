@@ -15,7 +15,6 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-using System.IO;
 using Microsoft.Extensions.Options;
 
 namespace slskd.Shares
@@ -145,7 +144,7 @@ namespace slskd.Shares
 
             if (share != null)
             {
-                prefix = share.RemotePath + Path.DirectorySeparatorChar;
+                prefix = share.RemotePath + (share.RemotePath.EndsWith('\\') ? string.Empty : '\\');
             }
 
             // Soulseek requires that each directory in the tree have an entry in the list returned in a browse response. if
@@ -161,12 +160,12 @@ namespace slskd.Shares
             var files = AllRepositories.SelectMany(r => r.ListFiles(prefix, includeFullPath: true));
 
             var groups = files
-                .GroupBy(file => Path.GetDirectoryName(file.Filename))
+                .GroupBy(file => file.Filename.GetNormalizedDirectoryName())
                 .Select(group => new Directory(group.Key, group.Select(f =>
                 {
                     return new File(
                         f.Code,
-                        Path.GetFileName(f.Filename), // we can send the full path, or just the filename.  save bandwidth and omit the path.
+                        f.Filename.GetNormalizedFileName(), // we can send the full path, or just the filename.  save bandwidth and omit the path.
                         f.Size,
                         f.Extension,
                         f.Attributes);
@@ -308,7 +307,7 @@ namespace slskd.Shares
         /// <returns>The summary information.</returns>
         public Task<(int Directories, int Files)> SummarizeShareAsync(Share share)
         {
-            var prefix = share.RemotePath + Path.DirectorySeparatorChar;
+            var prefix = share.RemotePath + (share.RemotePath.EndsWith('\\') ? string.Empty : '\\');
 
             var dirs = AllRepositories.Select(r => r.CountDirectories(prefix)).Sum();
             var files = AllRepositories.Select(r => r.CountFiles(prefix)).Sum();
