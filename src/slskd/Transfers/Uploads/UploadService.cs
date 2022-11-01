@@ -119,7 +119,7 @@ namespace slskd.Transfers.Uploads
 
             try
             {
-                (host, localFilename) = await Shares.ResolveFileAsync(filename.LocalizePath());
+                (host, localFilename) = await Shares.ResolveFileAsync(filename);
 
                 if (host == "local")
                 {

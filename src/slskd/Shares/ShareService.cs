@@ -155,15 +155,14 @@ namespace slskd.Shares
             // files. if not they'll be left as is.
             foreach (var directory in AllRepositories.SelectMany(r => r.ListDirectories(prefix)))
             {
-                var name = directory.NormalizePathForSoulseek();
-                directories.TryAdd(name, new Directory(name));
+                directories.TryAdd(directory, new Directory(directory));
             }
 
             var files = AllRepositories.SelectMany(r => r.ListFiles(prefix, includeFullPath: true));
 
             var groups = files
                 .GroupBy(file => Path.GetDirectoryName(file.Filename))
-                .Select(group => new Directory(group.Key.NormalizePathForSoulseek(), group.Select(f =>
+                .Select(group => new Directory(group.Key, group.Select(f =>
                 {
                     return new File(
                         f.Code,
@@ -229,9 +228,7 @@ namespace slskd.Shares
         /// <returns>The contents of the directory.</returns>
         public Task<Directory> ListDirectoryAsync(string directory)
         {
-            var localPath = directory.LocalizePath();
-
-            var files = AllRepositories.SelectMany(r => r.ListFiles(localPath));
+            var files = AllRepositories.SelectMany(r => r.ListFiles(directory));
 
             return Task.FromResult(new Directory(directory, files));
         }
@@ -248,9 +245,7 @@ namespace slskd.Shares
         public Task<(string Host, string Filename)> ResolveFileAsync(string remoteFilename)
         {
             string resolvedHost = "local";
-            string resolvedFilename = default;
-
-            resolvedFilename = Local.Repository.FindFilename(remoteFilename.LocalizePath());
+            string resolvedFilename = Local.Repository.FindFilename(remoteFilename);
 
             if (!string.IsNullOrEmpty(resolvedFilename))
             {
@@ -261,7 +256,7 @@ namespace slskd.Shares
             // this is the slow, dumb way to do this, but it's plenty fast in this context.
             foreach (var host in HostDictionary.Values)
             {
-                resolvedFilename = host.Repository.FindFilename(remoteFilename.LocalizePath());
+                resolvedFilename = host.Repository.FindFilename(remoteFilename);
 
                 if (!string.IsNullOrEmpty(resolvedFilename))
                 {
@@ -289,12 +284,7 @@ namespace slskd.Shares
         {
             var results = AllRepositories.SelectMany(r => r.Search(query));
 
-            return Task.FromResult(results.Select(r => new File(
-                r.Code,
-                r.Filename.NormalizePathForSoulseek(),
-                r.Size,
-                r.Extension,
-                r.Attributes)));
+            return Task.FromResult(results);
         }
 
         /// <summary>
