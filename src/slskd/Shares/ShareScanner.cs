@@ -232,7 +232,7 @@ namespace slskd.Shares
 
                             var share = Shares.First(share => directory.StartsWith(share.LocalPath));
 
-                            Repository.InsertDirectory(directory.ReplaceFirst(share.LocalPath, share.RemotePath), timestamp);
+                            Repository.InsertDirectory(directory.ReplaceFirst(share.LocalPath, share.RemotePath).NormalizePathForSoulseek(), timestamp);
 
                             // recursively find all files in the directory and stick a record in a dictionary, keyed on the sanitized
                             // filename and with a value of a Soulseek.File object
@@ -254,7 +254,7 @@ namespace slskd.Shares
                                 foreach (var originalFilename in newFiles)
                                 {
                                     var info = new FileInfo(originalFilename);
-                                    var file = SoulseekFileFactory.Create(originalFilename, maskedFilename: originalFilename.ReplaceFirst(share.LocalPath, share.RemotePath));
+                                    var file = SoulseekFileFactory.Create(originalFilename, maskedFilename: originalFilename.ReplaceFirst(share.LocalPath, share.RemotePath).NormalizePathForSoulseek());
 
                                     if (filters.Any(filter => filter.IsMatch(originalFilename)))
                                     {
