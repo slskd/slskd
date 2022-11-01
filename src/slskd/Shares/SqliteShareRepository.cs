@@ -365,7 +365,7 @@ namespace slskd.Shares
 
                     var attributeList = attributeJson.FromJson<List<FileAttribute>>();
 
-                    filename = includeFullPath ? filename : Path.GetFileName(filename);
+                    filename = includeFullPath ? filename : filename.GetNormalizedFileName();
 
                     var file = new Soulseek.File(code, filename, size, extension, attributeList);
 
