@@ -67,8 +67,9 @@ namespace slskd.Shares
         ///     Create a repository for the specified <paramref name="filename"/>.
         /// </summary>
         /// <param name="filename">The fully qualified path of the filename.</param>
+        /// <param name="pooling">A value indicating whether pooling should be enabled.</param>
         /// <returns>The created repository.</returns>
-        public IShareRepository CreateFromFile(string filename)
-            => new SqliteShareRepository($"Data Source={filename}");
+        public IShareRepository CreateFromFile(string filename, bool pooling = false)
+            => new SqliteShareRepository($"Data Source={filename};Pooling={pooling}");
     }
 }

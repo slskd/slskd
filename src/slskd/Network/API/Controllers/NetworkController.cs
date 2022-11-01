@@ -184,19 +184,17 @@ namespace slskd.Network
                 return Unauthorized();
             }
 
-            var temp = Path.Combine(Path.GetTempPath(), $"slskd_share_{agentName}_{Path.GetRandomFileName()}.db");
-            Stream outputStream = default;
+            Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), Program.AppName));
+            var temp = Path.Combine(Path.GetTempPath(), Program.AppName, $"share_{agentName}_{Path.GetRandomFileName()}.db");
 
             try
             {
                 Log.Debug("Uploading share from {Agent} to {Filename}", agentName, temp);
 
-                outputStream = new FileStream(temp, FileMode.CreateNew, FileAccess.Write);
+                using var outputStream = new FileStream(temp, FileMode.CreateNew, FileAccess.Write);
                 using var inputStream = database.OpenReadStream();
 
                 await inputStream.CopyToAsync(outputStream);
-
-                await outputStream.FlushAsync();
 
                 Log.Debug("Upload of share from {Agent} to {Filename} complete", agentName, temp);
 
@@ -212,8 +210,9 @@ namespace slskd.Network
             {
                 try
                 {
-                    outputStream?.TryDispose();
                     System.IO.File.Delete(temp);
+                    System.IO.File.Delete(temp + "-wal");
+                    System.IO.File.Delete(temp + "-shm");
                 }
                 catch (Exception ex)
                 {

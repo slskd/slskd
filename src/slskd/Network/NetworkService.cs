@@ -512,7 +512,7 @@ namespace slskd.Network
         /// <returns>The operation context.</returns>
         public Task HandleShareUpload(string agentName, Guid id, IEnumerable<Share> shares, string filename)
         {
-            var repository = ShareRepositoryFactory.CreateFromFile(filename);
+            using var repository = ShareRepositoryFactory.CreateFromFile(filename);
 
             if (!repository.TryValidate(out var problems))
             {
