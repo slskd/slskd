@@ -40,7 +40,8 @@ namespace slskd.Shares
         ///     Create a repository for the specified <paramref name="filename"/>.
         /// </summary>
         /// <param name="filename">The fully qualified path of the filename.</param>
+        /// <param name="pooling">A value indicating whether pooling should be enabled.</param>
         /// <returns>The created repository.</returns>
-        IShareRepository CreateFromFile(string filename);
+        IShareRepository CreateFromFile(string filename, bool pooling = false);
     }
 }
