@@ -128,7 +128,7 @@ namespace slskd.Network
         /// <exception cref="UnauthorizedAccessException">Thrown when the agent is not fully authenticated.</exception>
         public Guid BeginShareUpload()
         {
-            if (Network.TryGetAgentRegistration(Context.ConnectionId, out var record))
+            if (!Network.TryGetAgentRegistration(Context.ConnectionId, out var record))
             {
                 // this can happen if the agent attempts to upload before logging in
                 Log.Information("Agent connection {Id} requested a share upload token, but is not registered.", Context.ConnectionId);
@@ -148,7 +148,7 @@ namespace slskd.Network
         /// <exception cref="UnauthorizedAccessException">Thrown when the agent is not fully authenticated.</exception>
         public void NotifyFileUploadFailed(Guid id, Exception exception)
         {
-            if (Network.TryGetAgentRegistration(Context.ConnectionId, out var record))
+            if (!Network.TryGetAgentRegistration(Context.ConnectionId, out var record))
             {
                 Log.Warning("Agent connection {Id} attempted to report a failed upload, but is not registered.", Context.ConnectionId);
                 throw new UnauthorizedAccessException();
