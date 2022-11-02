@@ -168,6 +168,8 @@ namespace slskd.Network
         {
             if (Network.TryGetAgentRegistration(Context.ConnectionId, out var record))
             {
+                Log.Information("Agent {Agent} (connection {ConnectionId}) returned file info for {Id}; exists: {Exists}, length: {Length}", record.Agent.Name, Context.ConnectionId, id, exists, length);
+
                 Network.HandleFileInfoResponse(record.Agent.Name, id, (exists, length));
             }
 

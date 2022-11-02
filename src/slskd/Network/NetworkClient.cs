@@ -321,10 +321,10 @@ namespace slskd.Network
             return Task.CompletedTask;
         }
 
-        private Task HubConnection_Reconnected(string arg)
+        private async Task HubConnection_Reconnected(string arg)
         {
             Log.Warning("Network controller connection reconnected");
-            return Task.CompletedTask;
+            await UploadSharesAsync();
         }
 
         private HttpClient CreateHttpClient()
