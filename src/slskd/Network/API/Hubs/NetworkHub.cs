@@ -130,14 +130,14 @@ namespace slskd.Network
         {
             if (Network.TryGetAgentRegistration(Context.ConnectionId, out var record))
             {
-                var token = Network.GenerateShareUploadToken(record.Agent.Name);
-                Log.Information("Agent {Agent} (connection {Id}) requested share upload token {Token}", record.Agent.Name, record.ConnectionId, token);
-                return token;
+                // this can happen if the agent attempts to upload before logging in
+                Log.Information("Agent connection {Id} requested a share upload token, but is not registered.", Context.ConnectionId);
+                throw new UnauthorizedAccessException();
             }
 
-            // this can happen if the agent attempts to upload before logging in
-            Log.Information("Agent connection {Id} requested a share upload token, but is not registered.", Context.ConnectionId);
-            throw new UnauthorizedAccessException();
+            var token = Network.GenerateShareUploadToken(record.Agent.Name);
+            Log.Information("Agent {Agent} (connection {Id}) requested share upload token {Token}", record.Agent.Name, record.ConnectionId, token);
+            return token;
         }
 
         /// <summary>
@@ -150,11 +150,13 @@ namespace slskd.Network
         {
             if (Network.TryGetAgentRegistration(Context.ConnectionId, out var record))
             {
-                Network.NotifyFileStreamException(id, exception);
+                Log.Warning("Agent connection {Id} attempted to report a failed upload, but is not registered.", Context.ConnectionId);
+                throw new UnauthorizedAccessException();
             }
 
-            Log.Warning("Agent connection {Id} attempted to report a failed upload, but is not registered.", Context.ConnectionId);
-            throw new UnauthorizedAccessException();
+            Log.Warning("Agent {Agent} (connection {ConnectionId}) reported upload failure for {Id}: {Message}", id, exception.Message);
+
+            Network.NotifyFileStreamException(id, exception);
         }
 
         /// <summary>
@@ -166,15 +168,15 @@ namespace slskd.Network
         /// <exception cref="UnauthorizedAccessException">Thrown when the agent is not fully authenticated.</exception>
         public void ReturnFileInfo(Guid id, bool exists, long length)
         {
-            if (Network.TryGetAgentRegistration(Context.ConnectionId, out var record))
+            if (!Network.TryGetAgentRegistration(Context.ConnectionId, out var record))
             {
-                Log.Information("Agent {Agent} (connection {ConnectionId}) returned file info for {Id}; exists: {Exists}, length: {Length}", record.Agent.Name, Context.ConnectionId, id, exists, length);
-
-                Network.HandleFileInfoResponse(record.Agent.Name, id, (exists, length));
+                Log.Warning("Agent connection {Id} attempted to return file information, but is not registered.", Context.ConnectionId);
+                throw new UnauthorizedAccessException();
             }
 
-            Log.Warning("Agent connection {Id} attempted to return file information, but is not registered.", Context.ConnectionId);
-            throw new UnauthorizedAccessException();
+            Log.Information("Agent {Agent} (connection {ConnectionId}) returned file info for {Id}; exists: {Exists}, length: {Length}", record.Agent.Name, Context.ConnectionId, id, exists, length);
+
+            Network.HandleFileInfoResponse(record.Agent.Name, id, (exists, length));
         }
     }
 }
