@@ -53,29 +53,14 @@ namespace slskd.Shares.API
         /// <returns></returns>
         [HttpGet("")]
         [Authorize(Policy = AuthPolicy.Any)]
-        [ProducesResponseType(typeof(IEnumerable<SummarizedShare>), 200)]
-        public async Task<IActionResult> List()
+        [ProducesResponseType(typeof(Dictionary<string, IEnumerable<Share>>), 200)]
+        public IActionResult List()
         {
-            var shares = new List<SummarizedShare>();
+            var response = Shares.Hosts.ToDictionary(
+                keySelector: host => host.Name,
+                elementSelector: host => host.Shares);
 
-            foreach (var share in Shares.Hosts.SelectMany(host => host.Shares))
-            {
-                var (directories, files) = await Shares.SummarizeShareAsync(share);
-
-                shares.Add(new SummarizedShare()
-                {
-                    Id = share.Id,
-                    Alias = share.Alias,
-                    IsExcluded = share.IsExcluded,
-                    LocalPath = share.LocalPath,
-                    Raw = share.Raw,
-                    RemotePath = share.RemotePath,
-                    Directories = directories,
-                    Files = files,
-                });
-            }
-
-            return Ok(shares);
+            return Ok(response);
         }
 
         /// <summary>
@@ -87,7 +72,7 @@ namespace slskd.Shares.API
         /// <returns></returns>
         [HttpGet("{id}")]
         [Authorize(Policy = AuthPolicy.Any)]
-        [ProducesResponseType(typeof(SummarizedShare), 200)]
+        [ProducesResponseType(typeof(Share), 200)]
         [ProducesResponseType(404)]
         public async Task<IActionResult> Get(string id)
         {
@@ -98,21 +83,7 @@ namespace slskd.Shares.API
                 return NotFound();
             }
 
-            var (directories, files) = await Shares.SummarizeShareAsync(share);
-
-            var summary = new SummarizedShare()
-            {
-                Id = share.Id,
-                Alias = share.Alias,
-                IsExcluded = share.IsExcluded,
-                LocalPath = share.LocalPath,
-                Raw = share.Raw,
-                RemotePath = share.RemotePath,
-                Directories = directories,
-                Files = files,
-            };
-
-            return Ok(summary);
+            return Ok(share);
         }
 
         /// <summary>
