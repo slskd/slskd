@@ -134,6 +134,11 @@ namespace slskd.Shares
         long PruneFiles(long olderThanTimestamp);
 
         /// <summary>
+        ///     Rebuilds the filename index table using the data in the files table.
+        /// </summary>
+        void RebuildFilenameIndex();
+
+        /// <summary>
         ///     Restores the current database from the database at the specified <paramref name="repository"/>.
         /// </summary>
         /// <param name="repository">The destination repository.</param>
