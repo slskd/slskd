@@ -50,7 +50,7 @@ namespace slskd.Shares
 
             ShareRepositoryFactory = shareRepositoryFactory;
 
-            var host = new Host("local");
+            var host = new Host(Program.LocalHostName);
             var repository = ShareRepositoryFactory.CreateFromHost(host.Name);
 
             Local = (host, repository);

@@ -265,11 +265,6 @@ namespace slskd.Shares
                     cmd.Parameters.AddWithValue("attributeJson", file.Attributes.ToJson());
                     cmd.Parameters.AddWithValue("timestamp", timestamp);
                 });
-
-            conn.ExecuteNonQuery("INSERT INTO filenames (maskedFilename) VALUES(@maskedFilename);", cmd =>
-            {
-                cmd.Parameters.AddWithValue("maskedFilename", maskedFilename);
-            });
         }
 
         /// <summary>
@@ -414,6 +409,16 @@ namespace slskd.Shares
             reader.Read();
 
             return reader.GetInt64(0);
+        }
+
+        /// <summary>
+        ///     Rebuilds the filename index table using the data in the files table.
+        /// </summary>
+        public void RebuildFilenameIndex()
+        {
+            using var conn = GetConnection();
+
+            conn.ExecuteNonQuery("DELETE from filenames; INSERT INTO filenames SELECT maskedFilename FROM files;");
         }
 
         /// <summary>

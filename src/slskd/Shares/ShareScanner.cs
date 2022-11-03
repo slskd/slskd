@@ -317,6 +317,10 @@ namespace slskd.Shares
                     var deletedDirectories = Repository.PruneDirectories(olderThanTimestamp: timestamp);
 
                     Log.Information("Removed or renamed {Files} files and {Directories} directories in {Elapsed}ms", deletedFiles, deletedDirectories, sw.ElapsedMilliseconds - swSnapshot);
+
+                    Log.Information("Rebuilding filename index...");
+                    Repository.RebuildFilenameIndex();
+                    Log.Information("Filename index rebuild complete");
                 }
                 catch (OperationCanceledException)
                 {
