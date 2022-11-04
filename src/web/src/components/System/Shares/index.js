@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
-import { flatten } from 'lodash';
 
 import * as sharesLib from '../../../lib/shares';
 import { 
