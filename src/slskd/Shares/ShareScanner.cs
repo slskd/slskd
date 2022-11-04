@@ -45,8 +45,9 @@ namespace slskd.Shares
         /// </summary>
         /// <param name="shares">The list of shares from which to fill the cache.</param>
         /// <param name="options">The current options snapshot.</param>
+        /// <param name="repository">The repository to update.</param>
         /// <returns>The operation context.</returns>
-        Task ScanAsync(IEnumerable<Share> shares, Options.SharesOptions options);
+        Task ScanAsync(IEnumerable<Share> shares, Options.SharesOptions options, IShareRepository repository);
 
         /// <summary>
         ///     Cancels the currently running fill operation, if one is running.
@@ -64,16 +65,13 @@ namespace slskd.Shares
         ///     Initializes a new instance of the <see cref="ShareScanner"/> class.
         /// </summary>
         /// <param name="workerCount"></param>
-        /// <param name="shareRepository"></param>
         /// <param name="soulseekFileFactory"></param>
         public ShareScanner(
             int workerCount,
-            IShareRepository shareRepository,
             ISoulseekFileFactory soulseekFileFactory = null)
         {
             WorkerCount = workerCount;
             SoulseekFileFactory = soulseekFileFactory ?? new SoulseekFileFactory();
-            Repository = shareRepository;
         }
 
         /// <summary>
@@ -88,15 +86,15 @@ namespace slskd.Shares
         private IManagedState<SharedFileCacheState> State { get; } = new ManagedState<SharedFileCacheState>();
         private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1);
         private CancellationTokenSource CancellationTokenSource { get; set; }
-        private IShareRepository Repository { get; }
 
         /// <summary>
         ///     Scans the configured shares and fills the cache.
         /// </summary>
         /// <param name="shares">The list of shares from which to fill the cache.</param>
         /// <param name="options">The current options snapshot.</param>
+        /// <param name="repository">The repository to update.</param>
         /// <returns>The operation context.</returns>
-        public async Task ScanAsync(IEnumerable<Share> shares, Options.SharesOptions options)
+        public async Task ScanAsync(IEnumerable<Share> shares, Options.SharesOptions options, IShareRepository repository)
         {
             // obtain the semaphore, or fail if it can't be obtained immediately, indicating that a scan is running.
             if (!await SyncRoot.WaitAsync(millisecondsTimeout: 0))
@@ -127,10 +125,10 @@ namespace slskd.Shares
 
                 // it's possible that the database was tampered with between the time it was checked at startup and now
                 // validate the tables, and if there's an issue, drop and recreate everything.
-                if (!Repository.TryValidate())
+                if (!repository.TryValidate())
                 {
                     Log.Warning("Shared file cache missing or invalid. Re-creating prior to scan.");
-                    Repository.Create(discardExisting: true);
+                    repository.Create(discardExisting: true);
                     Log.Information("Shared file cache re-created and ready for scan.");
                 }
 
@@ -142,7 +140,7 @@ namespace slskd.Shares
 
                 var timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
-                Repository.InsertScan(timestamp, options);
+                repository.InsertScan(timestamp, options);
 
                 var sw = new Stopwatch();
                 var swSnapshot = 0L;
@@ -166,7 +164,7 @@ namespace slskd.Shares
                 Log.Information("Enumerating shared directories");
                 swSnapshot = sw.ElapsedMilliseconds;
 
-                // derive a list of all directories from all shares skip hidden and system directories, as well as anything that
+                // derive a list of all directories from all shares. skip hidden and system directories, as well as anything that
                 // can't be accessed due to security restrictions. it's necessary to enumerate these directories up front so we
                 // can deduplicate directories and apply exclusions
                 var unmaskedDirectories = Shares
@@ -232,7 +230,7 @@ namespace slskd.Shares
 
                             var share = Shares.First(share => directory.StartsWith(share.LocalPath));
 
-                            Repository.InsertDirectory(directory.ReplaceFirst(share.LocalPath, share.RemotePath).NormalizePathForSoulseek(), timestamp);
+                            repository.InsertDirectory(directory.ReplaceFirst(share.LocalPath, share.RemotePath).NormalizePathForSoulseek(), timestamp);
 
                             // recursively find all files in the directory and stick a record in a dictionary, keyed on the sanitized
                             // filename and with a value of a Soulseek.File object
@@ -262,7 +260,7 @@ namespace slskd.Shares
                                         continue;
                                     }
 
-                                    Repository.InsertFile(maskedFilename: file.Filename, originalFilename, touchedAt: info.LastWriteTimeUtc, file, timestamp);
+                                    repository.InsertFile(maskedFilename: file.Filename, originalFilename, touchedAt: info.LastWriteTimeUtc, file, timestamp);
                                 }
                             }
                             catch (Exception ex)
@@ -313,13 +311,13 @@ namespace slskd.Shares
                     Log.Information("Scan found {Files} files (and {Filtered} were filtered) in {Elapsed}ms", cached, filtered, sw.ElapsedMilliseconds - swSnapshot);
                     swSnapshot = sw.ElapsedMilliseconds;
 
-                    var deletedFiles = Repository.PruneFiles(olderThanTimestamp: timestamp);
-                    var deletedDirectories = Repository.PruneDirectories(olderThanTimestamp: timestamp);
+                    var deletedFiles = repository.PruneFiles(olderThanTimestamp: timestamp);
+                    var deletedDirectories = repository.PruneDirectories(olderThanTimestamp: timestamp);
 
                     Log.Information("Removed or renamed {Files} files and {Directories} directories in {Elapsed}ms", deletedFiles, deletedDirectories, sw.ElapsedMilliseconds - swSnapshot);
 
                     Log.Information("Rebuilding filename index...");
-                    Repository.RebuildFilenameIndex();
+                    repository.RebuildFilenameIndex();
                     Log.Information("Filename index rebuild complete");
                 }
                 catch (OperationCanceledException)
@@ -330,10 +328,10 @@ namespace slskd.Shares
                     State.SetValue(state => state with { Cancelled = true });
                 }
 
-                Repository.UpdateScan(timestamp, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+                repository.UpdateScan(timestamp, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
 
-                var directoryCount = Repository.CountDirectories();
-                var fileCount = Repository.CountFiles();
+                var directoryCount = repository.CountDirectories();
+                var fileCount = repository.CountFiles();
 
                 State.SetValue(state => state with
                 {

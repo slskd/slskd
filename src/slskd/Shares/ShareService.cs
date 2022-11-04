@@ -57,9 +57,7 @@ namespace slskd.Shares
 
             AllRepositories = new List<IShareRepository>(new[] { repository });
 
-            Scanner = scanner ?? new ShareScanner(
-                shareRepository: repository,
-                workerCount: options.Shares.Cache.Workers);
+            Scanner = scanner ?? new ShareScanner(workerCount: options.Shares.Cache.Workers);
 
             Scanner.StateMonitor.OnChange(cacheState =>
             {
@@ -130,6 +128,12 @@ namespace slskd.Shares
             AllRepositories = HostDictionary.Values
                 .Select(value => value.Repository)
                 .Prepend(Local.Repository);
+
+            State.SetValue(state => state with
+            {
+                Directories = Hosts.Sum(host => host.Shares.Sum(share => share.Directories)),
+                Files = Hosts.Sum(host => host.Shares.Sum(share => share.Directories)),
+            });
         }
 
         /// <summary>
@@ -184,6 +188,23 @@ namespace slskd.Shares
         }
 
         /// <summary>
+        ///     Gets summary information for the specified <paramref name="share"/>.
+        /// </summary>
+        /// <param name="share">The share to summarize.</param>
+        /// <returns>The summary information.</returns>
+        public Task<(int Directories, int Files)> ComputeShareStatisticsAsync(Share share)
+        {
+            var prefix = share.RemotePath + (share.RemotePath.EndsWith('\\') ? string.Empty : '\\');
+
+            var dirs = AllRepositories.Select(r => r.CountDirectories(prefix)).Sum();
+            var files = AllRepositories.Select(r => r.CountFiles(prefix)).Sum();
+
+            share.UpdateStatistics(dirs, files);
+
+            return Task.FromResult((dirs, files));
+        }
+
+        /// <summary>
         ///     Dumps the local share cache to a file.
         /// </summary>
         /// <param name="filename">The destination file.</param>
@@ -218,7 +239,20 @@ namespace slskd.Shares
         /// <param name="name">The name of the host.</param>
         /// <returns>A value indicating whether the host was removed.</returns>
         public bool TryRemoveHost(string name)
-            => HostDictionary.TryRemove(name, out _);
+        {
+            if (HostDictionary.TryRemove(name, out _))
+            {
+                State.SetValue(state => state with
+                {
+                    Directories = Hosts.Sum(host => host.Shares.Sum(share => share.Directories)),
+                    Files = Hosts.Sum(host => host.Shares.Sum(share => share.Directories)),
+                });
+
+                return true;
+            }
+
+            return false;
+        }
 
         /// <summary>
         ///     Returns the contents of the specified <paramref name="directory"/>.
@@ -293,25 +327,15 @@ namespace slskd.Shares
         /// <exception cref="ShareScanInProgressException">Thrown when a scan is already in progress.</exception>
         public async Task ScanAsync()
         {
-            await Scanner.ScanAsync(Local.Host.Shares, OptionsMonitor.CurrentValue.Shares);
+            await Scanner.ScanAsync(Local.Host.Shares, OptionsMonitor.CurrentValue.Shares, Local.Repository);
 
             Log.Debug("Backing up shared file cache database...");
             Local.Repository.BackupTo(ShareRepositoryFactory.CreateFromHostBackup(Local.Host.Name));
             Log.Debug("Shared file cache database backup complete");
-        }
 
-        /// <summary>
-        ///     Gets summary information for the specified <paramref name="share"/>.
-        /// </summary>
-        /// <param name="share">The share to summarize.</param>
-        /// <returns>The summary information.</returns>
-        public Task<(int Directories, int Files)> SummarizeShareAsync(Share share)
-        {
-            var prefix = share.RemotePath + (share.RemotePath.EndsWith('\\') ? string.Empty : '\\');
-
-            var dirs = AllRepositories.Select(r => r.CountDirectories(prefix)).Sum();
-            var files = AllRepositories.Select(r => r.CountFiles(prefix)).Sum();
-            return Task.FromResult((dirs, files));
+            Log.Debug("Recomputing share statistics...");
+            await Task.WhenAll(Local.Host.Shares.Select(share => ComputeShareStatisticsAsync(share)));
+            Log.Debug("Share statistics updated");
         }
 
         /// <summary>
@@ -391,6 +415,10 @@ namespace slskd.Shares
 
                 Local.Repository.EnableKeepalive(true);
 
+                Log.Debug("Recomputing share statistics...");
+                await Task.WhenAll(Local.Host.Shares.Select(share => ComputeShareStatisticsAsync(share)));
+                Log.Debug("Share statistics updated");
+
                 // one of several thigns happened above before we got here:
                 //   this method was called with forceRescan = true
                 //   the storage mode is memory, and we loaded the in-memory db from a valid backup
@@ -404,8 +432,8 @@ namespace slskd.Shares
                     Faulted = false,
                     Ready = true,
                     ScanProgress = 1,
-                    Directories = Local.Repository.CountDirectories(),
-                    Files = Local.Repository.CountFiles(),
+                    Directories = Hosts.Sum(host => host.Shares.Sum(share => share.Directories)),
+                    Files = Hosts.Sum(host => host.Shares.Sum(share => share.Directories)),
                 });
             }
             catch (Exception ex)

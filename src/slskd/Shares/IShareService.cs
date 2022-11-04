@@ -54,6 +54,13 @@ namespace slskd.Shares
         Task<IEnumerable<Directory>> BrowseAsync(Share share = null);
 
         /// <summary>
+        ///     Gets statistical information for the specified <paramref name="share"/>.
+        /// </summary>
+        /// <param name="share">The share to summarize.</param>
+        /// <returns>The summary information.</returns>
+        Task<(int Directories, int Files)> ComputeShareStatisticsAsync(Share share);
+
+        /// <summary>
         ///     Dumps the local share cache to a file.
         /// </summary>
         /// <param name="filename">The destination file.</param>
@@ -111,13 +118,6 @@ namespace slskd.Shares
         /// <returns>The operation context.</returns>
         /// <exception cref="ShareScanInProgressException">Thrown when a scan is already in progress.</exception>
         Task ScanAsync();
-
-        /// <summary>
-        ///     Gets summary information for the specified <paramref name="share"/>.
-        /// </summary>
-        /// <param name="share">The share to summarize.</param>
-        /// <returns>The summary information.</returns>
-        Task<(int Directories, int Files)> SummarizeShareAsync(Share share);
 
         /// <summary>
         ///     Cancels the currently running scan on the local host, if one is running.
