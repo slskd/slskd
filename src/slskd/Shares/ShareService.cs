@@ -131,6 +131,7 @@ namespace slskd.Shares
 
             State.SetValue(state => state with
             {
+                Hosts = Hosts.Select(host => host.Name).ToArray(),
                 Directories = Hosts.Sum(host => host.Shares.Sum(share => share.Directories)),
                 Files = Hosts.Sum(host => host.Shares.Sum(share => share.Directories)),
             });
@@ -244,6 +245,7 @@ namespace slskd.Shares
             {
                 State.SetValue(state => state with
                 {
+                    Hosts = Hosts.Select(host => host.Name).ToList().AsReadOnly(),
                     Directories = Hosts.Sum(host => host.Shares.Sum(share => share.Directories)),
                     Files = Hosts.Sum(host => host.Shares.Sum(share => share.Directories)),
                 });
@@ -432,6 +434,7 @@ namespace slskd.Shares
                     Faulted = false,
                     Ready = true,
                     ScanProgress = 1,
+                    Hosts = Hosts.Select(host => host.Name).ToList().AsReadOnly(),
                     Directories = Hosts.Sum(host => host.Shares.Sum(share => share.Directories)),
                     Files = Hosts.Sum(host => host.Shares.Sum(share => share.Directories)),
                 });

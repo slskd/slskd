@@ -996,6 +996,7 @@ namespace slskd
         private void ShareState_OnChange((ShareState Previous, ShareState Current) state)
         {
             var (previous, current) = state;
+            bool rebuildBrowseCache = false;
 
             if (!previous.Scanning && current.Scanning)
             {
@@ -1019,7 +1020,7 @@ namespace slskd
                 {
                     State.SetValue(state => state with { Shares = state.Shares with { ScanPending = false } });
                     Log.Information("Shares scanned successfully. Found {Directories} directories and {Files} files in {Duration}ms", current.Directories, current.Files, (DateTime.UtcNow - SharesRefreshStarted).TotalMilliseconds);
-                    _ = CacheBrowseResponse();
+                    rebuildBrowseCache = true;
 
                     SharesRefreshStarted = default;
 
@@ -1038,7 +1039,7 @@ namespace slskd
                 // the share transitioned into ready without completing a scan; it was loaded from disk
                 State.SetValue(state => state with { Shares = current with { ScanPending = false } });
                 Log.Information("Share cache loaded from disk successfully. Sharing {Directories} directories and {Files} files", current.Directories, current.Files);
-                _ = CacheBrowseResponse();
+                rebuildBrowseCache = true;
             }
             else
             {
@@ -1051,6 +1052,11 @@ namespace slskd
                     State.SetValue(s => s with { Shares = current });
                     Log.Information("Scanned {Percent}% of shared directories. Found {Files} files so far.", currentProgress, current.Files);
                 }
+            }
+
+            if (rebuildBrowseCache || previous.Hosts.ToJson() != current.Hosts.ToJson())
+            {
+                _ = CacheBrowseResponse();
             }
         }
 
