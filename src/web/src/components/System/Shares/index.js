@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
+import { flatten } from 'lodash';
 
 import * as sharesLib from '../../../lib/shares';
 import { 
@@ -39,7 +40,13 @@ const Index = ({ state = {} } = {}) => {
   const getAll = async () => {
     try {
       setLoading(true);
-      setShares(await sharesLib.getAll());
+
+      const sharesByHost = await sharesLib.getAll();
+      const flattened = Object.entries(sharesByHost).reduce((acc, [host, shares]) => {
+        return acc.concat(shares.map(share => ({ host, ...share })));
+      }, []);
+
+      setShares(flattened);
     } catch (error) {
       console.error(error);
       toast.error(error?.response?.data ?? error?.message ?? error);
