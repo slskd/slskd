@@ -132,8 +132,8 @@ namespace slskd.Shares
             State.SetValue(state => state with
             {
                 Hosts = Hosts.Select(host => host.Name).ToArray(),
-                Directories = Hosts.Select(host => host.Shares.Sum(share => share.Directories)).Sum(),
-                Files = Hosts.Select(host => host.Shares.Sum(share => share.Files)).Sum(),
+                Directories = Hosts.SelectMany(host => host.Shares).Sum(share => share.Directories),
+                Files = Hosts.SelectMany(host => host.Shares).Sum(share => share.Files),
             });
         }
 
@@ -224,23 +224,25 @@ namespace slskd.Shares
         /// <returns>A value indicating whether the host was removed.</returns>
         public bool TryRemoveHost(string name)
         {
+            var removed = false;
+
             if (HostDictionary.TryRemove(name, out _))
             {
-                AllRepositories = HostDictionary.Values
-                    .Select(value => value.Repository)
-                    .Prepend(Local.Repository);
-
-                State.SetValue(state => state with
-                {
-                    Hosts = Hosts.Select(host => host.Name).ToArray(),
-                    Directories = Hosts.Select(host => host.Shares.Sum(share => share.Directories)).Sum(),
-                    Files = Hosts.Select(host => host.Shares.Sum(share => share.Files)).Sum(),
-                });
-
-                return true;
+                removed = true;
             }
 
-            return false;
+            AllRepositories = HostDictionary.Values
+                .Select(value => value.Repository)
+                .Prepend(Local.Repository);
+
+            State.SetValue(state => state with
+            {
+                Hosts = Hosts.Select(host => host.Name).ToArray(),
+                Directories = Hosts.SelectMany(host => host.Shares).Sum(share => share.Directories),
+                Files = Hosts.SelectMany(host => host.Shares).Sum(share => share.Files),
+            });
+
+            return removed;
         }
 
         /// <summary>
@@ -328,8 +330,8 @@ namespace slskd.Shares
 
             State.SetValue(state => state with
             {
-                Directories = Hosts.Select(host => host.Shares.Sum(share => share.Directories)).Sum(),
-                Files = Hosts.Select(host => host.Shares.Sum(share => share.Files)).Sum(),
+                Directories = Hosts.SelectMany(host => host.Shares).Sum(share => share.Directories),
+                Files = Hosts.SelectMany(host => host.Shares).Sum(share => share.Files),
             });
         }
 
@@ -428,8 +430,8 @@ namespace slskd.Shares
                     Ready = true,
                     ScanProgress = 1,
                     Hosts = Hosts.Select(host => host.Name).ToList().AsReadOnly(),
-                    Directories = Hosts.Select(host => host.Shares.Sum(share => share.Directories)).Sum(),
-                    Files = Hosts.Select(host => host.Shares.Sum(share => share.Files)).Sum(),
+                    Directories = Hosts.SelectMany(host => host.Shares).Sum(share => share.Directories),
+                    Files = Hosts.SelectMany(host => host.Shares).Sum(share => share.Files),
                 });
             }
             catch (Exception ex)

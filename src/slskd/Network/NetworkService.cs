@@ -584,6 +584,7 @@ namespace slskd.Network
         {
             if (TryGetAgentRegistration(connectionId, out var found))
             {
+                Shares.TryRemoveHost(found.Agent.Name);
                 return RegisteredAgentDictionary.TryRemove(found.Agent.Name, out record);
             }
 
