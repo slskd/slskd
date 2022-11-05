@@ -94,6 +94,7 @@ namespace slskd.Network
             if (Network.TryDeregisterAgent(Context.ConnectionId, out var record))
             {
                 Log.Warning("Agent {Agent} (connection {Id}) disconnected", record.Agent.Name, Context.ConnectionId);
+                Network.TryDeregisterAgent(record.Agent.Name, out _);
             }
 
             return Task.CompletedTask;
