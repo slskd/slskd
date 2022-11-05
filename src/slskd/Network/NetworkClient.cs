@@ -196,12 +196,12 @@ namespace slskd.Network
 
                 using var request = new HttpRequestMessage(HttpMethod.Post, $"api/v0/network/shares/{token}");
                 using var content = new MultipartFormDataContent
-            {
-                { new StringContent(OptionsMonitor.CurrentValue.InstanceName), "name" },
-                { new StringContent(ComputeCredential(token)), "credential" },
-                { new StringContent(Shares.LocalHost.Shares.ToJson()), "shares" },
-                { new StreamContent(stream), "database", "shares" },
-            };
+                {
+                    { new StringContent(OptionsMonitor.CurrentValue.InstanceName), "name" },
+                    { new StringContent(ComputeCredential(token)), "credential" },
+                    { new StringContent(Shares.LocalHost.Shares.ToJson()), "shares" },
+                    { new StreamContent(stream), "database", "shares" },
+                };
 
                 request.Headers.Add("X-API-Key", OptionsMonitor.CurrentValue.Network.Controller.ApiKey);
                 request.Content = content;

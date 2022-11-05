@@ -1000,7 +1000,7 @@ namespace slskd
 
             if (!previous.Scanning && current.Scanning)
             {
-                // the scan is starting
+                // the scan is starting. update the application state without manipulation
                 SharesRefreshStarted = DateTime.UtcNow;
 
                 State.SetValue(s => s with { Shares = current });
@@ -1009,7 +1009,7 @@ namespace slskd
             }
             else if (previous.Scanning && !current.Scanning)
             {
-                // the scan is finishing
+                // the scan is finishing. update the application state without manipulation...
                 State.SetValue(s => s with { Shares = current });
 
                 if (current.Faulted)
@@ -1018,6 +1018,7 @@ namespace slskd
                 }
                 else
                 {
+                    // ...but if it completed successfully, immediately update again to lower the pending flag
                     State.SetValue(state => state with { Shares = state.Shares with { ScanPending = false } });
                     Log.Information("Shares scanned successfully. Found {Directories} directories and {Files} files in {Duration}ms", current.Directories, current.Files, (DateTime.UtcNow - SharesRefreshStarted).TotalMilliseconds);
                     rebuildBrowseCache = true;
@@ -1037,13 +1038,17 @@ namespace slskd
             else if (!previous.Ready && current.Ready)
             {
                 // the share transitioned into ready without completing a scan; it was loaded from disk
+                // this will (or should) also be true when the scan completes, which is why the code is using an else if here,
+                // but only if it happens without a corresponding lowering of the scanning flag do we want to execute this.
                 State.SetValue(state => state with { Shares = current with { ScanPending = false } });
                 Log.Information("Share cache loaded from disk successfully. Sharing {Directories} directories and {Files} files", current.Directories, current.Files);
                 rebuildBrowseCache = true;
             }
             else
             {
-                // the scan is neither starting nor finishing; progress update
+                // the scan is neither starting nor finishing; this is a status update of some sort,
+                // not a state change. we want to clamp the frequency of these during a scan to avoid overwhelming clients,
+                // only update if the progress has changed by at least 1%.
                 var lastProgress = Math.Round(previous.ScanProgress * 100);
                 var currentProgress = Math.Round(current.ScanProgress * 100);
 
@@ -1054,7 +1059,17 @@ namespace slskd
                 }
             }
 
-            if (rebuildBrowseCache || previous.Hosts.ToJson() != current.Hosts.ToJson())
+            // if the host configuration changed, update *just* the hosts to avoid stepping on anything that might
+            // have also happened above. a change in hosts will invalidate the cache, so do that too.
+            if (previous.Hosts.ToJson() != current.Hosts.ToJson())
+            {
+                State.SetValue(state => state with { Shares = state.Shares with { Hosts = current.Hosts } });
+                rebuildBrowseCache = true;
+            }
+
+            // if a scan just completed successfully (but not failed!), shares were loaded from disk, or
+            // host configuration changed, rebuild caches and upload shares to the network controller (if connected)
+            if (rebuildBrowseCache)
             {
                 _ = CacheBrowseResponse();
                 _ = NetworkClient.SynchronizeAsync();
