@@ -1057,6 +1057,7 @@ namespace slskd
             if (rebuildBrowseCache || previous.Hosts.ToJson() != current.Hosts.ToJson())
             {
                 _ = CacheBrowseResponse();
+                _ = NetworkClient.SynchronizeAsync();
             }
         }
 

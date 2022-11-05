@@ -47,6 +47,12 @@ namespace slskd.Network
         /// <param name="cancellationToken"></param>
         /// <returns></returns>
         Task StopAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>
+        ///     Synchronizes state with the controller.
+        /// </summary>
+        /// <returns>The operation context.</returns>
+        Task SynchronizeAsync();
     }
 
     /// <summary>
@@ -84,7 +90,8 @@ namespace slskd.Network
         private bool StartRequested { get; set; }
         private CancellationTokenSource StartCancellationTokenSource { get; set; }
         private ILogger Log { get; } = Serilog.Log.ForContext<NetworkClient>();
-        private TaskCompletionSource LoggedIn { get; set; }
+        private bool LoggedIn { get; set; }
+        private TaskCompletionSource LoggedInTaskCompletionSource { get; set; }
 
         /// <summary>
         ///     Starts the client and connects to the controller.
@@ -99,7 +106,7 @@ namespace slskd.Network
             }
 
             StartCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            LoggedIn = new TaskCompletionSource();
+            LoggedInTaskCompletionSource = new TaskCompletionSource();
             StartRequested = true;
 
             Log.Information("Attempting to connect to the network controller {Address}", OptionsMonitor.CurrentValue.Network.Controller.Address);
@@ -115,7 +122,9 @@ namespace slskd.Network
 
             Log.Information("Network controller connection established. Awaiting authentication...");
 
-            await LoggedIn.Task;
+            await LoggedInTaskCompletionSource.Task;
+
+            LoggedIn = true;
 
             Log.Information("Authenticated. Uploading shares...");
 
@@ -147,12 +156,28 @@ namespace slskd.Network
             {
                 await HubConnection.StopAsync(cancellationToken);
 
+                LoggedIn = false;
+
                 Log.Information("Network controller connection disconnected");
             }
         }
 
-        public async Task UploadSharesAsync()
+        /// <summary>
+        ///     Synchronizes state with the controller.
+        /// </summary>
+        /// <returns>The operation context.</returns>
+        public Task SynchronizeAsync()
         {
+            return UploadSharesAsync();
+        }
+
+        private async Task UploadSharesAsync()
+        {
+            if (!LoggedIn)
+            {
+                return;
+            }
+
             var temp = Path.Combine(Path.GetTempPath(), Program.AppName, $"share_backup_{Path.GetRandomFileName()}.db");
 
             Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), Program.AppName));
@@ -296,7 +321,7 @@ namespace slskd.Network
                 Log.Debug("Logging in...");
                 await HubConnection.InvokeAsync(nameof(NetworkHub.Login), agent, response);
                 Log.Debug("Login succeeded.");
-                LoggedIn?.TrySetResult();
+                LoggedInTaskCompletionSource?.TrySetResult();
             }
             catch (UnauthorizedAccessException)
             {
@@ -312,18 +337,22 @@ namespace slskd.Network
         private Task HubConnection_Closed(Exception arg)
         {
             Log.Warning("Network controller connection closed: {Message}", arg.Message);
+            LoggedIn = false;
             return Task.CompletedTask;
         }
 
         private Task HubConnection_Reconnecting(Exception arg)
         {
             Log.Warning("Network controller connection reconnecting: {Message}", arg.Message);
+            LoggedIn = false;
             return Task.CompletedTask;
         }
 
         private async Task HubConnection_Reconnected(string arg)
         {
             Log.Warning("Network controller connection reconnected");
+            // todo: does this need to log in again? does it retain the same connection id?
+            LoggedIn = true;
             await UploadSharesAsync();
         }
 
