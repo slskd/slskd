@@ -132,8 +132,8 @@ namespace slskd.Shares
             State.SetValue(state => state with
             {
                 Hosts = Hosts.Select(host => host.Name).ToArray(),
-                Directories = Hosts.Sum(host => host.Shares.Sum(share => share.Directories)),
-                Files = Hosts.Sum(host => host.Shares.Sum(share => share.Directories)),
+                Directories = Hosts.Select(host => host.Shares.Sum(share => share.Directories)).Sum(),
+                Files = Hosts.Select(host => host.Shares.Sum(share => share.Files)).Sum(),
             });
         }
 
@@ -226,11 +226,15 @@ namespace slskd.Shares
         {
             if (HostDictionary.TryRemove(name, out _))
             {
+                AllRepositories = HostDictionary.Values
+                    .Select(value => value.Repository)
+                    .Prepend(Local.Repository);
+
                 State.SetValue(state => state with
                 {
-                    Hosts = Hosts.Select(host => host.Name).ToList().AsReadOnly(),
-                    Directories = Hosts.Sum(host => host.Shares.Sum(share => share.Directories)),
-                    Files = Hosts.Sum(host => host.Shares.Sum(share => share.Directories)),
+                    Hosts = Hosts.Select(host => host.Name).ToArray(),
+                    Directories = Hosts.Select(host => host.Shares.Sum(share => share.Directories)).Sum(),
+                    Files = Hosts.Select(host => host.Shares.Sum(share => share.Files)).Sum(),
                 });
 
                 return true;
@@ -321,6 +325,12 @@ namespace slskd.Shares
             Log.Debug("Recomputing share statistics...");
             ComputeShareStatistics();
             Log.Debug("Share statistics updated");
+
+            State.SetValue(state => state with
+            {
+                Directories = Hosts.Select(host => host.Shares.Sum(share => share.Directories)).Sum(),
+                Files = Hosts.Select(host => host.Shares.Sum(share => share.Files)).Sum(),
+            });
         }
 
         /// <summary>
@@ -418,8 +428,8 @@ namespace slskd.Shares
                     Ready = true,
                     ScanProgress = 1,
                     Hosts = Hosts.Select(host => host.Name).ToList().AsReadOnly(),
-                    Directories = Hosts.Sum(host => host.Shares.Sum(share => share.Directories)),
-                    Files = Hosts.Sum(host => host.Shares.Sum(share => share.Directories)),
+                    Directories = Hosts.Select(host => host.Shares.Sum(share => share.Directories)).Sum(),
+                    Files = Hosts.Select(host => host.Shares.Sum(share => share.Files)).Sum(),
                 });
             }
             catch (Exception ex)
