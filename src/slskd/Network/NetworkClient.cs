@@ -196,12 +196,12 @@ namespace slskd.Network
 
                 using var request = new HttpRequestMessage(HttpMethod.Post, $"api/v0/network/shares/{token}");
                 using var content = new MultipartFormDataContent
-            {
-                { new StringContent(OptionsMonitor.CurrentValue.InstanceName), "name" },
-                { new StringContent(ComputeCredential(token)), "credential" },
-                { new StringContent(Shares.LocalHost.Shares.ToJson()), "shares" },
-                { new StreamContent(stream), "database", "shares" },
-            };
+                {
+                    { new StringContent(OptionsMonitor.CurrentValue.InstanceName), "name" },
+                    { new StringContent(ComputeCredential(token)), "credential" },
+                    { new StringContent(Shares.LocalHost.Shares.ToJson()), "shares" },
+                    { new StreamContent(stream), "database", "shares" },
+                };
 
                 request.Headers.Add("X-API-Key", OptionsMonitor.CurrentValue.Network.Controller.ApiKey);
                 request.Content = content;
@@ -418,14 +418,7 @@ namespace slskd.Network
                             return message;
                         };
                     })
-                    .WithAutomaticReconnect(new[]
-                    {
-                        TimeSpan.FromSeconds(0),
-                        TimeSpan.FromSeconds(1),
-                        TimeSpan.FromSeconds(3),
-                        TimeSpan.FromSeconds(10),
-                        TimeSpan.FromSeconds(30),
-                    })
+                    .WithAutomaticReconnect(new ControllerRetryPolicy(0, 1, 3, 10, 30, 60))
                     .Build();
 
                 HubConnection.Reconnected += HubConnection_Reconnected;
@@ -451,6 +444,21 @@ namespace slskd.Network
             finally
             {
                 SyncRoot.Release();
+            }
+        }
+
+        private class ControllerRetryPolicy : IRetryPolicy
+        {
+            public ControllerRetryPolicy(params int[] intervals)
+            {
+                Intervals = intervals;
+            }
+
+            private int[] Intervals { get; set; }
+
+            public TimeSpan? NextRetryDelay(RetryContext retryContext)
+            {
+                return TimeSpan.FromSeconds(Intervals[Math.Min(retryContext.PreviousRetryCount, Intervals.Length - 1)]);
             }
         }
     }

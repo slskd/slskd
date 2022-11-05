@@ -189,23 +189,6 @@ namespace slskd.Shares
         }
 
         /// <summary>
-        ///     Gets summary information for the specified <paramref name="share"/>.
-        /// </summary>
-        /// <param name="share">The share to summarize.</param>
-        /// <returns>The summary information.</returns>
-        public Task<(int Directories, int Files)> ComputeShareStatisticsAsync(Share share)
-        {
-            var prefix = share.RemotePath + (share.RemotePath.EndsWith('\\') ? string.Empty : '\\');
-
-            var dirs = AllRepositories.Select(r => r.CountDirectories(prefix)).Sum();
-            var files = AllRepositories.Select(r => r.CountFiles(prefix)).Sum();
-
-            share.UpdateStatistics(dirs, files);
-
-            return Task.FromResult((dirs, files));
-        }
-
-        /// <summary>
         ///     Dumps the local share cache to a file.
         /// </summary>
         /// <param name="filename">The destination file.</param>
@@ -336,7 +319,7 @@ namespace slskd.Shares
             Log.Debug("Shared file cache database backup complete");
 
             Log.Debug("Recomputing share statistics...");
-            await Task.WhenAll(Local.Host.Shares.Select(share => ComputeShareStatisticsAsync(share)));
+            ComputeShareStatistics();
             Log.Debug("Share statistics updated");
         }
 
@@ -418,7 +401,7 @@ namespace slskd.Shares
                 Local.Repository.EnableKeepalive(true);
 
                 Log.Debug("Recomputing share statistics...");
-                await Task.WhenAll(Local.Host.Shares.Select(share => ComputeShareStatisticsAsync(share)));
+                ComputeShareStatistics();
                 Log.Debug("Share statistics updated");
 
                 // one of several thigns happened above before we got here:
@@ -453,6 +436,19 @@ namespace slskd.Shares
                     Log.Error("Failed to initialize shares, and an attempt to force a full scan to repair failed");
                     throw;
                 }
+            }
+        }
+
+        private void ComputeShareStatistics()
+        {
+            foreach (var share in Local.Host.Shares)
+            {
+                var prefix = share.RemotePath + (share.RemotePath.EndsWith('\\') ? string.Empty : '\\');
+
+                var dirs = Local.Repository.CountDirectories(prefix);
+                var files = Local.Repository.CountFiles(prefix);
+
+                share.UpdateStatistics(dirs, files);
             }
         }
 
