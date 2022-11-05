@@ -1063,7 +1063,16 @@ namespace slskd
             // have also happened above. a change in hosts will invalidate the cache, so do that too.
             if (previous.Hosts.ToJson() != current.Hosts.ToJson())
             {
-                State.SetValue(state => state with { Shares = state.Shares with { Hosts = current.Hosts } });
+                State.SetValue(state => state with
+                {
+                    Shares = state.Shares with
+                    {
+                        Hosts = current.Hosts,
+                        Directories = current.Directories,
+                        Files = current.Files,
+                    },
+                });
+
                 rebuildBrowseCache = true;
             }
 
