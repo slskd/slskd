@@ -106,6 +106,7 @@ namespace slskd
         public bool Faulted { get; init; }
         public bool Cancelled { get; init; }
         public double ScanProgress { get; init; }
+        public IReadOnlyCollection<string> Hosts { get; init; }
         public int Directories { get; init; }
         public int Files { get; init; }
     }
