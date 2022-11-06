@@ -134,7 +134,9 @@ namespace slskd
             RoomService = roomService;
             Users = userService;
             ApplicationHub = applicationHub;
+
             Network = networkService;
+            Network.StateMonitor.OnChange(networkState => State.SetValue(state => state with { Network = networkState.Current }));
 
             LogHub = logHub;
             Program.LogEmitted += (_, log) => LogHub.EmitLogAsync(log);

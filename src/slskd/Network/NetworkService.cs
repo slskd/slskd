@@ -25,6 +25,7 @@ namespace slskd.Network
     using System.Collections.ObjectModel;
     using System.IO;
     using System.Linq;
+    using System.Net.Http;
     using System.Threading;
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.SignalR;
@@ -39,9 +40,19 @@ namespace slskd.Network
     public interface INetworkService
     {
         /// <summary>
+        ///     Gets the network client (agent).
+        /// </summary>
+        INetworkClient Client { get; }
+
+        /// <summary>
         ///     Gets the collection of registered Agents.
         /// </summary>
         ReadOnlyCollection<Agent> RegisteredAgents { get; }
+
+        /// <summary>
+        ///     Gets the state monitor for the service.
+        /// </summary>
+        IStateMonitor<NetworkState> StateMonitor { get; }
 
         /// <summary>
         ///     Generates a random authentication challenge token for the specified <paramref name="connectionId"/>.
@@ -243,21 +254,41 @@ namespace slskd.Network
             IShareService shareService,
             IShareRepositoryFactory shareRepositoryFactory,
             IOptionsMonitor<Options> optionsMonitor,
-            IHubContext<NetworkHub, INetworkHub> networkHub)
+            IHubContext<NetworkHub, INetworkHub> networkHub,
+            IHttpClientFactory httpClientFactory,
+            INetworkClient networkClient = null)
         {
             Shares = shareService;
             ShareRepositoryFactory = shareRepositoryFactory;
             Waiter = waiter;
             NetworkHub = networkHub;
 
+            // wire up a dummy client so callers don't need to handle nulls
+            Client = networkClient ?? new DummyNetworkClient();
+
+            StateMonitor = State;
+
             OptionsMonitor = optionsMonitor;
+            OptionsMonitor.OnChange(options => Configure(options));
+            Configure(OptionsMonitor.CurrentValue);
         }
+
+        /// <summary>
+        ///     Gets the network client (agent).
+        /// </summary>
+        public INetworkClient Client { get; private set; }
 
         /// <summary>
         ///     Gets the collection of registered Agents.
         /// </summary>
         public ReadOnlyCollection<Agent> RegisteredAgents => RegisteredAgentDictionary.Values.Select(v => v.Agent).ToList().AsReadOnly();
 
+        /// <summary>
+        ///     Gets the state monitor for the service.
+        /// </summary>
+        public IStateMonitor<NetworkState> StateMonitor { get; }
+
+        private IHttpClientFactory HttpClientFactory { get; }
         private ILogger Log { get; } = Serilog.Log.ForContext<NetworkService>();
         private MemoryCache MemoryCache { get; } = new MemoryCache(new MemoryCacheOptions());
         private IHubContext<NetworkHub, INetworkHub> NetworkHub { get; set; }
@@ -267,7 +298,11 @@ namespace slskd.Network
         private IShareRepositoryFactory ShareRepositoryFactory { get; }
         private IShareService Shares { get; }
         private IWaiter Waiter { get; }
+        private IManagedState<NetworkState> State { get; } = new ManagedState<NetworkState>();
         private ConcurrentDictionary<WaitKey, Guid> WaitIdDictionary { get; } = new();
+        private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1, 1);
+        private string LastOptionsHash { get; set; }
+        private string LastControllerOptionsHash { get; set; }
 
         /// <summary>
         ///     Generates a random authentication challenge token for the specified <paramref name="connectionId"/>.
@@ -553,7 +588,10 @@ namespace slskd.Network
         /// <param name="connectionId">The ID of the connection.</param>
         /// <param name="agent">The agent.</param>
         public void RegisterAgent(string connectionId, Agent agent)
-            => RegisteredAgentDictionary.AddOrUpdate(agent.Name, addValue: (connectionId, agent), updateValueFactory: (k, v) => (connectionId, agent));
+        {
+            RegisteredAgentDictionary.AddOrUpdate(agent.Name, addValue: (connectionId, agent), updateValueFactory: (k, v) => (connectionId, agent));
+            State.SetValue(state => state with { Agents = RegisteredAgents });
+        }
 
         /// <summary>
         ///     Safely attempts to close a stream obtained with <see cref="GetFileStreamAsync"/>.
@@ -582,14 +620,17 @@ namespace slskd.Network
         /// <returns>A value indicating whether a registration was removed.</returns>
         public bool TryDeregisterAgent(string connectionId, out (string ConnectionId, Agent Agent) record)
         {
+            record = default;
+            var removed = false;
+
             if (TryGetAgentRegistration(connectionId, out var found))
             {
                 Shares.TryRemoveHost(found.Agent.Name);
-                return RegisteredAgentDictionary.TryRemove(found.Agent.Name, out record);
+                removed = RegisteredAgentDictionary.TryRemove(found.Agent.Name, out record);
             }
 
-            record = default;
-            return false;
+            State.SetValue(state => state with { Agents = RegisteredAgents });
+            return removed;
         }
 
         /// <summary>
@@ -657,6 +698,57 @@ namespace slskd.Network
         public bool TryValidateShareUploadCredential(Guid token, string agentName, string credential)
         {
             return TryValidateCredential(token.ToString(), agentName, credential, GetShareTokenCacheKey(token));
+        }
+
+        private void Configure(Options options)
+        {
+            SyncRoot.Wait();
+
+            try
+            {
+                var optionsHash = Compute.Sha1Hash(options.Network.ToJson());
+                var controllerOptionsHash = Compute.Sha1Hash(options.Network.Controller.ToJson());
+
+                if (optionsHash == LastOptionsHash || controllerOptionsHash == LastControllerOptionsHash)
+                {
+                    return;
+                }
+
+                var mode = options.Network.Mode.ToEnum<OperationMode>();
+
+                if (mode == OperationMode.Controller)
+                {
+                    State.SetValue(state => state with
+                    {
+                        Mode = mode,
+                        Agents = RegisteredAgents,
+                    });
+                }
+                else
+                {
+                    // the controller changed. disconnect and throw away the client and create a new one
+                    Client = new NetworkClient(Shares, OptionsMonitor, HttpClientFactory);
+                    Client.StateMonitor.OnChange(clientState
+                        => State.SetValue(state => state with { Controller = state.Controller with { State = clientState.Current } }));
+
+                    State.SetValue(state => state with
+                    {
+                        Mode = mode,
+                        Controller = new NetworkControllerState()
+                        {
+                            Address = options.Network.Controller.Address,
+                            State = Client.StateMonitor.CurrentValue,
+                        },
+                    });
+                }
+
+                LastOptionsHash = optionsHash;
+                LastControllerOptionsHash = controllerOptionsHash;
+            }
+            finally
+            {
+                SyncRoot.Release();
+            }
         }
 
         private string GetAuthTokenCacheKey(string connectionId) => $"{connectionId}.auth";
