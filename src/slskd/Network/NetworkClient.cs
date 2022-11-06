@@ -32,8 +32,13 @@ namespace slskd.Network
     /// <summary>
     ///     Network client (agent).
     /// </summary>
-    public interface INetworkClient
+    public interface INetworkClient : IDisposable
     {
+        /// <summary>
+        ///     Gets the client state.
+        /// </summary>
+        IStateMonitor<NetworkClientState> StateMonitor { get; }
+
         /// <summary>
         ///     Starts the client and connects to the controller.
         /// </summary>
@@ -52,7 +57,7 @@ namespace slskd.Network
         ///     Synchronizes state with the controller.
         /// </summary>
         /// <returns>The operation context.</returns>
-        Task SynchronizeAsync();
+        Task SynchronizeAsync(CancellationToken cancellationToken = default);
     }
 
     /// <summary>
@@ -75,12 +80,20 @@ namespace slskd.Network
 
             HttpClientFactory = httpClientFactory;
 
+            StateMonitor = State;
+
             OptionsMonitor = optionsMonitor;
             OptionsMonitor.OnChange(options => Configure(options));
 
             Configure(OptionsMonitor.CurrentValue);
         }
 
+        /// <summary>
+        ///     Gets the client state.
+        /// </summary>
+        public IStateMonitor<NetworkClientState> StateMonitor { get; }
+
+        private ManagedState<NetworkClientState> State { get; } = new();
         private IShareService Shares { get; }
         private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1, 1);
         private string LastOptionsHash { get; set; }
@@ -92,6 +105,7 @@ namespace slskd.Network
         private ILogger Log { get; } = Serilog.Log.ForContext<NetworkClient>();
         private bool LoggedIn { get; set; }
         private TaskCompletionSource LoggedInTaskCompletionSource { get; set; }
+        private bool Disposed { get; set; }
 
         /// <summary>
         ///     Starts the client and connects to the controller.
@@ -111,6 +125,8 @@ namespace slskd.Network
 
             Log.Information("Attempting to connect to the network controller {Address}", OptionsMonitor.CurrentValue.Network.Controller.Address);
 
+            State.SetValue(_ => TranslateState(HubConnectionState.Connecting));
+
             // retry indefinitely
             await Retry.Do(
                 task: () => HubConnection.StartAsync(StartCancellationTokenSource.Token),
@@ -120,6 +136,7 @@ namespace slskd.Network
                 maxDelayInMilliseconds: 30000,
                 StartCancellationTokenSource.Token);
 
+            State.SetValue(_ => TranslateState(HubConnection.State));
             Log.Information("Network controller connection established. Awaiting authentication...");
 
             await LoggedInTaskCompletionSource.Task;
@@ -166,12 +183,21 @@ namespace slskd.Network
         ///     Synchronizes state with the controller.
         /// </summary>
         /// <returns>The operation context.</returns>
-        public Task SynchronizeAsync()
+        public Task SynchronizeAsync(CancellationToken cancellationToken = default)
         {
             return UploadSharesAsync();
         }
 
-        private async Task UploadSharesAsync()
+        private NetworkClientState TranslateState(HubConnectionState hub) => hub switch
+        {
+            HubConnectionState.Disconnected => NetworkClientState.Disconnected,
+            HubConnectionState.Connected => NetworkClientState.Connected,
+            HubConnectionState.Connecting => NetworkClientState.Connecting,
+            HubConnectionState.Reconnecting => NetworkClientState.Reconnecting,
+            _ => throw new ArgumentException($"Unexpected HubConnectionState {hub}"),
+        };
+
+        private async Task UploadSharesAsync(CancellationToken cancellationToken = default)
         {
             if (!LoggedIn)
             {
@@ -207,7 +233,7 @@ namespace slskd.Network
                 request.Content = content;
 
                 Log.Information("Beginning upload of shares");
-                var response = await CreateHttpClient().SendAsync(request);
+                var response = await CreateHttpClient().SendAsync(request, cancellationToken);
 
                 if (!response.IsSuccessStatusCode)
                 {
@@ -338,6 +364,7 @@ namespace slskd.Network
         {
             Log.Warning("Network controller connection closed: {Message}", arg.Message);
             LoggedIn = false;
+            State.SetValue(_ => TranslateState(HubConnection.State));
             return Task.CompletedTask;
         }
 
@@ -345,6 +372,7 @@ namespace slskd.Network
         {
             Log.Warning("Network controller connection reconnecting: {Message}", arg.Message);
             LoggedIn = false;
+            State.SetValue(_ => TranslateState(HubConnection.State));
             return Task.CompletedTask;
         }
 
@@ -353,6 +381,7 @@ namespace slskd.Network
             Log.Warning("Network controller connection reconnected");
             // todo: does this need to log in again? does it retain the same connection id?
             LoggedIn = true;
+            State.SetValue(_ => TranslateState(HubConnection.State));
             await UploadSharesAsync();
         }
 
@@ -460,6 +489,25 @@ namespace slskd.Network
             {
                 return TimeSpan.FromSeconds(Intervals[Math.Min(retryContext.PreviousRetryCount, Intervals.Length - 1)]);
             }
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!Disposed)
+            {
+                if (disposing)
+                {
+                    _ = HubConnection?.DisposeAsync();
+                }
+
+                Disposed = true;
+            }
+        }
+
+        public void Dispose()
+        {
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
         }
     }
 }
