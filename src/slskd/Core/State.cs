@@ -21,6 +21,7 @@ namespace slskd
     using System.Collections.Generic;
     using System.Net;
     using System.Text.Json.Serialization;
+    using slskd.Network;
     using slskd.Users;
     using Soulseek;
 
@@ -60,6 +61,19 @@ namespace slskd
         public bool IsConnected => State.HasFlag(SoulseekClientStates.Connected);
         public bool IsLoggedIn => State.HasFlag(SoulseekClientStates.LoggedIn);
         public bool IsTransitioning => State.HasFlag(SoulseekClientStates.Connecting) || State.HasFlag(SoulseekClientStates.Disconnecting) || State.HasFlag(SoulseekClientStates.LoggingIn);
+    }
+
+    public record NetworkState
+    {
+        public OperationMode Mode { get; init; }
+        public NetworkControllerState Controller { get; init; }
+        public IReadOnlyCollection<Agent> Agents { get; init; }
+    }
+
+    public record NetworkControllerState
+    {
+        public string Address { get; init; }
+        public NetworkClientState State { get; init; }
     }
 
     public record UserState
