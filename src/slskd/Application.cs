@@ -88,8 +88,8 @@ namespace slskd
             IRoomService roomService,
             IUserService userService,
             IShareService shareService,
-            INetworkClient networkClient,
             IPushbulletService pushbulletService,
+            INetworkService networkService,
             IHubContext<ApplicationHub> applicationHub,
             IHubContext<LogsHub> logHub)
         {
@@ -134,11 +134,10 @@ namespace slskd
             RoomService = roomService;
             Users = userService;
             ApplicationHub = applicationHub;
+            Network = networkService;
 
             LogHub = logHub;
             Program.LogEmitted += (_, log) => LogHub.EmitLogAsync(log);
-
-            NetworkClient = networkClient;
 
             Client = soulseekClient;
 
@@ -179,7 +178,6 @@ namespace slskd
         private static bool ShuttingDown { get; set; } = false;
 
         private ISoulseekClient Client { get; set; }
-        private INetworkClient NetworkClient { get; set; }
         private IRoomService RoomService { get; set; }
         private IBrowseTracker BrowseTracker { get; set; }
         private IConnectionWatchdog ConnectionWatchdog { get; }
@@ -199,6 +197,7 @@ namespace slskd
         private IHubContext<LogsHub> LogHub { get; set; }
         private IUserService Users { get; set; }
         private IShareService Shares { get; set; }
+        private INetworkService Network { get; set; }
         private IMemoryCache Cache { get; set; } = new MemoryCache(new MemoryCacheOptions());
         private IEnumerable<Regex> CompiledSearchResponseFilters { get; set; }
         private IEnumerable<Guid> ActiveDownloadIdsAtPreviousShutdown { get; set; } = Enumerable.Empty<Guid>();
@@ -400,13 +399,13 @@ namespace slskd
             else if (OptionsAtStartup.Network.Mode.ToEnum<OperationMode>() == OperationMode.Agent && !OptionsAtStartup.Flags.DualNetworkMode)
             {
                 Log.Information("Running in Agent mode; not connecting to the Soulseek server.");
-                await NetworkClient.StartAsync(cancellationToken);
+                await Network.Client.StartAsync(cancellationToken);
             }
             else
             {
                 if (OptionsAtStartup.Flags.DualNetworkMode)
                 {
-                    _ = NetworkClient.StartAsync(cancellationToken);
+                    _ = Network.Client.StartAsync(cancellationToken);
                 }
 
                 await Client.ConnectAsync(OptionsAtStartup.Soulseek.Username, OptionsAtStartup.Soulseek.Password).ConfigureAwait(false);
@@ -1081,7 +1080,7 @@ namespace slskd
             if (rebuildBrowseCache)
             {
                 _ = CacheBrowseResponse();
-                _ = NetworkClient.SynchronizeAsync();
+                _ = Network.Client.SynchronizeAsync();
             }
         }
 
