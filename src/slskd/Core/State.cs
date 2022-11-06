@@ -34,6 +34,7 @@ namespace slskd
         public bool PendingReconnect { get; init; }
         public bool PendingRestart { get; init; }
         public ServerState Server { get; init; } = new ServerState();
+        public NetworkState Network { get; init; } = new NetworkState();
         public UserState User { get; init; } = new UserState();
         public DistributedNetworkState DistributedNetwork { get; init; } = new DistributedNetworkState();
         public ShareState Shares { get; init; } = new ShareState();
