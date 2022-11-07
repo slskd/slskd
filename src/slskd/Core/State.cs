@@ -19,6 +19,7 @@ namespace slskd
 {
     using System;
     using System.Collections.Generic;
+    using System.Linq;
     using System.Net;
     using System.Text.Json.Serialization;
     using slskd.Network;
@@ -67,14 +68,14 @@ namespace slskd
     public record NetworkState
     {
         public OperationMode Mode { get; init; }
-        public NetworkControllerState Controller { get; init; }
-        public IReadOnlyCollection<Agent> Agents { get; init; }
+        public NetworkControllerState Controller { get; init; } = new NetworkControllerState();
+        public IReadOnlyCollection<Agent> Agents { get; init; } = Enumerable.Empty<Agent>().ToList().AsReadOnly();
     }
 
     public record NetworkControllerState
     {
         public string Address { get; init; }
-        public NetworkClientState State { get; init; }
+        public NetworkClientState State { get; init; } = NetworkClientState.Disconnected;
     }
 
     public record UserState
