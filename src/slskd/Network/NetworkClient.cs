@@ -114,7 +114,9 @@ namespace slskd.Network
         /// <returns></returns>
         public async Task StartAsync(CancellationToken cancellationToken = default)
         {
-            if (OptionsMonitor.CurrentValue.Network.Mode.ToEnum<OperationMode>() != OperationMode.Agent && !OptionsMonitor.CurrentValue.Flags.DualNetworkMode)
+            var mode = OptionsMonitor.CurrentValue.Network.Mode.ToEnum<OperationMode>();
+
+            if (mode != OperationMode.Agent && mode != OperationMode.Debug)
             {
                 throw new InvalidOperationException($"Network client can only be started when operation mode is {OperationMode.Agent}");
             }
@@ -131,7 +133,11 @@ namespace slskd.Network
             await Retry.Do(
                 task: () => HubConnection.StartAsync(StartCancellationTokenSource.Token),
                 isRetryable: (attempts, ex) => true,
-                onFailure: (attempts, ex) => Log.Warning("Failed attempt #{Attempts} to connect to network controller: {Message}", attempts, ex.Message),
+                onFailure: (attempts, ex) =>
+                {
+                    Log.Debug(ex, "Network hub connection failure");
+                    Log.Warning("Failed attempt #{Attempts} to connect to network controller: {Message}", attempts, ex.Message);
+                },
                 maxAttempts: int.MaxValue,
                 maxDelayInMilliseconds: 30000,
                 StartCancellationTokenSource.Token);
@@ -410,7 +416,9 @@ namespace slskd.Network
 
         private void Configure(Options options)
         {
-            if (options.Network.Mode.ToEnum<OperationMode>() != OperationMode.Agent && !options.Flags.DualNetworkMode)
+            var mode = options.Network.Mode.ToEnum<OperationMode>();
+
+            if (mode != OperationMode.Agent && mode != OperationMode.Debug)
             {
                 return;
             }
