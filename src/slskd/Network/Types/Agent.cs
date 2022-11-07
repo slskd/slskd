@@ -17,12 +17,9 @@
 
 namespace slskd.Network
 {
-    using System;
-
     public record Agent
     {
         public string Name { get; init; }
         public string IPAddress { get; init; }
-        public DateTime ConnectedAt { get; init; } = DateTime.UtcNow;
     }
 }
