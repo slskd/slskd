@@ -1,4 +1,4 @@
-﻿// <copyright file="Agent.cs" company="slskd Team">
+﻿// <copyright file="DummyNetworkClient.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -17,9 +17,19 @@
 
 namespace slskd.Network
 {
-    public record Agent
+    using System.Threading;
+    using System.Threading.Tasks;
+
+    public class DummyNetworkClient : INetworkClient
     {
-        public string Name { get; init; }
-        public string IPAddress { get; init; }
+        public IStateMonitor<NetworkClientState> StateMonitor => new ManagedState<NetworkClientState>();
+
+        public void Dispose() { }
+
+        public Task StartAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task StopAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task SynchronizeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 }

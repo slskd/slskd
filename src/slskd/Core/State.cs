@@ -19,8 +19,10 @@ namespace slskd
 {
     using System;
     using System.Collections.Generic;
+    using System.Linq;
     using System.Net;
     using System.Text.Json.Serialization;
+    using slskd.Network;
     using slskd.Users;
     using Soulseek;
 
@@ -33,6 +35,7 @@ namespace slskd
         public bool PendingReconnect { get; init; }
         public bool PendingRestart { get; init; }
         public ServerState Server { get; init; } = new ServerState();
+        public NetworkState Network { get; init; } = new NetworkState();
         public UserState User { get; init; } = new UserState();
         public DistributedNetworkState DistributedNetwork { get; init; } = new DistributedNetworkState();
         public ShareState Shares { get; init; } = new ShareState();
@@ -60,6 +63,19 @@ namespace slskd
         public bool IsConnected => State.HasFlag(SoulseekClientStates.Connected);
         public bool IsLoggedIn => State.HasFlag(SoulseekClientStates.LoggedIn);
         public bool IsTransitioning => State.HasFlag(SoulseekClientStates.Connecting) || State.HasFlag(SoulseekClientStates.Disconnecting) || State.HasFlag(SoulseekClientStates.LoggingIn);
+    }
+
+    public record NetworkState
+    {
+        public OperationMode Mode { get; init; }
+        public NetworkControllerState Controller { get; init; } = new NetworkControllerState();
+        public IReadOnlyCollection<Agent> Agents { get; init; } = Enumerable.Empty<Agent>().ToList().AsReadOnly();
+    }
+
+    public record NetworkControllerState
+    {
+        public string Address { get; init; }
+        public NetworkClientState State { get; init; } = NetworkClientState.Disconnected;
     }
 
     public record UserState

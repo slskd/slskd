@@ -1,4 +1,4 @@
-﻿// <copyright file="Agent.cs" company="slskd Team">
+﻿// <copyright file="NetworkClientState.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -17,9 +17,11 @@
 
 namespace slskd.Network
 {
-    public record Agent
+    public enum NetworkClientState
     {
-        public string Name { get; init; }
-        public string IPAddress { get; init; }
+        Disconnected,
+        Connected,
+        Connecting,
+        Reconnecting,
     }
 }

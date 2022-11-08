@@ -88,8 +88,8 @@ namespace slskd
             IRoomService roomService,
             IUserService userService,
             IShareService shareService,
-            INetworkClient networkClient,
             IPushbulletService pushbulletService,
+            INetworkService networkService,
             IHubContext<ApplicationHub> applicationHub,
             IHubContext<LogsHub> logHub)
         {
@@ -135,10 +135,11 @@ namespace slskd
             Users = userService;
             ApplicationHub = applicationHub;
 
+            Network = networkService;
+            Network.StateMonitor.OnChange(networkState => State.SetValue(state => state with { Network = networkState.Current }));
+
             LogHub = logHub;
             Program.LogEmitted += (_, log) => LogHub.EmitLogAsync(log);
-
-            NetworkClient = networkClient;
 
             Client = soulseekClient;
 
@@ -179,7 +180,6 @@ namespace slskd
         private static bool ShuttingDown { get; set; } = false;
 
         private ISoulseekClient Client { get; set; }
-        private INetworkClient NetworkClient { get; set; }
         private IRoomService RoomService { get; set; }
         private IBrowseTracker BrowseTracker { get; set; }
         private IConnectionWatchdog ConnectionWatchdog { get; }
@@ -199,6 +199,7 @@ namespace slskd
         private IHubContext<LogsHub> LogHub { get; set; }
         private IUserService Users { get; set; }
         private IShareService Shares { get; set; }
+        private INetworkService Network { get; set; }
         private IMemoryCache Cache { get; set; } = new MemoryCache(new MemoryCacheOptions());
         private IEnumerable<Regex> CompiledSearchResponseFilters { get; set; }
         private IEnumerable<Guid> ActiveDownloadIdsAtPreviousShutdown { get; set; } = Enumerable.Empty<Guid>();
@@ -397,16 +398,17 @@ namespace slskd
             {
                 Log.Warning($"Not connecting to the Soulseek server; username and/or password invalid.  Specify valid credentials and manually connect, or update config and restart.");
             }
-            else if (OptionsAtStartup.Network.Mode.ToEnum<OperationMode>() == OperationMode.Agent && !OptionsAtStartup.Flags.DualNetworkMode)
+            else if (OptionsAtStartup.Network.Mode.ToEnum<OperationMode>() == OperationMode.Agent)
             {
                 Log.Information("Running in Agent mode; not connecting to the Soulseek server.");
-                await NetworkClient.StartAsync(cancellationToken);
+                await Network.Client.StartAsync(cancellationToken);
             }
             else
             {
-                if (OptionsAtStartup.Flags.DualNetworkMode)
+                if (OptionsAtStartup.Network.Mode.ToEnum<OperationMode>() == OperationMode.Debug)
                 {
-                    _ = NetworkClient.StartAsync(cancellationToken);
+                    Log.Warning("Running in Debug network mode; connecting to controller");
+                    _ = Network.Client.StartAsync(cancellationToken);
                 }
 
                 await Client.ConnectAsync(OptionsAtStartup.Soulseek.Username, OptionsAtStartup.Soulseek.Password).ConfigureAwait(false);
@@ -1081,7 +1083,7 @@ namespace slskd
             if (rebuildBrowseCache)
             {
                 _ = CacheBrowseResponse();
-                _ = NetworkClient.SynchronizeAsync();
+                _ = Network.Client.SynchronizeAsync();
             }
         }
 

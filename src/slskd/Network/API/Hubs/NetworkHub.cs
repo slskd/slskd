@@ -116,7 +116,7 @@ namespace slskd.Network
             }
 
             var remoteIp = Context.Features.Get<IHttpConnectionFeature>().RemoteIpAddress.ToString();
-            var record = new Agent { Name = agent, ConnectedAt = DateTime.UtcNow, IPAddress = remoteIp };
+            var record = new Agent { Name = agent, IPAddress = remoteIp };
 
             Log.Information("Agent connection {Id} ({IP}) authenticated as agent {Agent}", Context.ConnectionId, remoteIp, agent);
             Network.RegisterAgent(Context.ConnectionId, record);

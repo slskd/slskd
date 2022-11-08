@@ -10,9 +10,8 @@
 #   force_share_scan: false
 #   no_version_check: false
 #   log_sql: false
-#   dual_network_mode: false
 # network:
-#   mode: controller
+#   mode: controller # controller (default), agent, or debug (for local development)
 #   # controller config is required when running in 'agent' mode
 #   # this specifies the network controller that will be controlling this agent
 #   controller:
