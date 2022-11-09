@@ -157,8 +157,10 @@ namespace slskd.Shares
 
             if (discardExisting)
             {
-                conn.ExecuteNonQuery("DROP TABLE IF EXISTS scans; DROP TABLE IF EXISTS directories; DROP TABLE IF EXISTS filenames; DROP TABLE IF EXISTS files;");
+                conn.ExecuteNonQuery("DROP TABLE IF EXISTS version; DROP TABLE IF EXISTS scans; DROP TABLE IF EXISTS directories; DROP TABLE IF EXISTS filenames; DROP TABLE IF EXISTS files;");
             }
+
+            conn.ExecuteNonQuery("CREATE TABLE IF NOT EXISTS version (a INTEGER PRIMARY KEY)");
 
             conn.ExecuteNonQuery("CREATE TABLE IF NOT EXISTS scans (timestamp INTEGER PRIMARY KEY, options TEXT NOT NULL, end INTEGER DEFAULT NULL);");
 
@@ -507,6 +509,7 @@ namespace slskd.Shares
             // select '{ "' || name || '", "' || sql || '" },' from sqlite_master where type = 'table'
             var schema = new Dictionary<string, string>()
             {
+                { "version", "CREATE TABLE version (a INTEGER PRIMARY KEY)" },
                 { "scans", "CREATE TABLE scans (timestamp INTEGER PRIMARY KEY, options TEXT NOT NULL, end INTEGER DEFAULT NULL)" },
                 { "directories", "CREATE TABLE directories (name TEXT PRIMARY KEY, timestamp INTEGER NOT NULL)" },
                 { "filenames", "CREATE VIRTUAL TABLE filenames USING fts5(maskedFilename)" },
