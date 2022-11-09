@@ -358,7 +358,7 @@ namespace slskd
                 userInfoResolver: UserInfoResolver,
                 browseResponseResolver: BrowseResponseResolver,
                 directoryContentsResolver: DirectoryContentsResponseResolver,
-                enqueueDownload: (username, endpoint, filename) => Transfers.Uploads.EnqueueAsync(username, filename),
+                enqueueDownload: EnqueueDownload,
                 searchResponseCache: new SearchResponseCache(),
                 searchResponseResolver: SearchResponseResolver,
                 placeInQueueResolver: PlaceInQueueResolver);
@@ -425,6 +425,16 @@ namespace slskd
             return Task.CompletedTask;
         }
 
+        private Task EnqueueDownload(string username, IPEndPoint endpoint, string filename)
+        {
+            if (Options.Groups.Blacklisted.Members.Contains(username))
+            {
+                return Task.FromException(new DownloadEnqueueException($"File not shared."));
+            }
+
+            return Transfers.Uploads.EnqueueAsync(username, filename);
+        }
+
         /// <summary>
         ///     Creates and returns an instances of <see cref="BrowseResponse"/> in response to a remote request.
         /// </summary>
@@ -434,6 +444,11 @@ namespace slskd
         private async Task<BrowseResponse> BrowseResponseResolver(string username, IPEndPoint endpoint)
         {
             Metrics.Browse.RequestsReceived.Inc(1);
+
+            if (Options.Groups.Blacklisted.Members.Contains(username))
+            {
+                return new BrowseResponse();
+            }
 
             try
             {
@@ -750,6 +765,11 @@ namespace slskd
         /// <returns>A Task resolving an instance of Soulseek.Directory containing the contents of the requested directory.</returns>
         private async Task<Soulseek.Directory> DirectoryContentsResponseResolver(string username, IPEndPoint endpoint, int token, string directory)
         {
+            if (Options.Groups.Blacklisted.Members.Contains(username))
+            {
+                return new Soulseek.Directory(directory);
+            }
+
             try
             {
                 var dir = await Shares.ListDirectoryAsync(directory);
@@ -939,6 +959,11 @@ namespace slskd
         private async Task<SearchResponse> SearchResponseResolver(string username, int token, SearchQuery query)
         {
             Metrics.Search.RequestsReceived.Inc(1);
+
+            if (Options.Groups.Blacklisted.Members.Contains(username))
+            {
+                return new SearchResponse(username, token, hasFreeUploadSlot: false, uploadSpeed: 0, queueLength: int.MaxValue, fileList: Enumerable.Empty<Soulseek.File>());
+            }
 
             if (CompiledSearchResponseFilters.Any(filter => filter.IsMatch(query.SearchText)))
             {

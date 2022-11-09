@@ -750,6 +750,11 @@ namespace slskd
             public LeecherOptions Leechers { get; init; } = new LeecherOptions();
 
             /// <summary>
+            ///     Gets options for the blacklisted user group.
+            /// </summary>
+            public BlacklistedOptions Blacklisted { get; init; } = new BlacklistedOptions();
+
+            /// <summary>
             ///     Gets user defined groups and options.
             /// </summary>
             [Validate]
@@ -778,6 +783,17 @@ namespace slskd
                 /// </summary>
                 [Validate]
                 public UploadOptions Upload { get; init; } = new UploadOptions();
+            }
+
+            /// <summary>
+            ///     Built in blacklisted group options.
+            /// </summary>
+            public class BlacklistedOptions
+            {
+                /// <summary>
+                ///     Gets the list of group member usernames.
+                /// </summary>
+                public string[] Members { get; init; } = Array.Empty<string>();
             }
 
             /// <summary>
