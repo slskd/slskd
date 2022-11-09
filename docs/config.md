@@ -183,6 +183,28 @@ shares:
   cache:
     storage_mode: memory
 ```
+# User blacklist
+As of version `0.16.28` a user blacklist is available.
+
+Blacklisted users are prevented from:
+
+- Receiving search results
+- Browsing files
+- Retrieving directory contents
+- Enqueueing downloads
+
+Note:
+- Adding someone to the blacklist doesn't cancel transfers in flight; users will need to do that themselves.
+
+This could be expanded to ignore messages in chat rooms and private messages, but that's probably best done separately for now.
+
+**YAML**
+```yaml
+global:
+   blacklisted:
+     members:
+       - <username to blacklist>
+```
 
 # Limits and User Groups
 
