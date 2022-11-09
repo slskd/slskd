@@ -61,6 +61,9 @@
 #       strategy: roundrobin
 #       slots: 1
 #       speed_limit: 100
+#   blacklisted:
+#     members:
+#       - <username to blacklist>
 #   user_defined:
 #     my_buddies:
 #       upload:
