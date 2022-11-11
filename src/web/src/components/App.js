@@ -116,9 +116,19 @@ class App extends Component {
 
   render = () => {
     const { login, applicationState = {}, applicationOptions = {}, error, initialized, retriesExhausted } = this.state;
-    const { version = {}, server, pendingReconnect, pendingRestart, shares = {}, user } = applicationState;
+    const { 
+      version = {},
+      network = {},
+      server,
+      pendingReconnect,
+      pendingRestart,
+      shares = {},
+      user,
+    } = applicationState;
     const { isUpdateAvailable, current, latest } = version;
     const { scanPending: pendingShareRescan } = shares;
+
+    const { mode } = network;
 
     if (!initialized) {
       return <Loader active size='big'/>;
@@ -148,6 +158,129 @@ class App extends Component {
       );
     }
 
+    const ModeSpecificNavigation = ({ mode }) => {
+      if (mode === 'Agent') {
+        return <Link to={`${urlBase}/system`}>
+          <Menu.Item>
+            <Icon name='detective'/>Agent
+          </Menu.Item>
+        </Link>;
+      } else {
+        return <>
+          <Link to={`${urlBase}/searches`}>
+            <Menu.Item>
+              <Icon name='search'/>Search
+            </Menu.Item>
+          </Link>
+          <Link to={`${urlBase}/downloads`}>
+            <Menu.Item>
+              <Icon name='download'/>Downloads
+            </Menu.Item>
+          </Link>
+          <Link to={`${urlBase}/uploads`}>
+            <Menu.Item>
+              <Icon name='upload'/>Uploads
+            </Menu.Item>
+          </Link>
+          <Link to={`${urlBase}/rooms`}>
+            <Menu.Item>
+              <Icon name='comments'/>Rooms
+            </Menu.Item>
+          </Link>
+          <Link to={`${urlBase}/chat`}>
+            <Menu.Item>
+              <Icon name='comment'/>Chat
+            </Menu.Item>
+          </Link>
+          <Link to={`${urlBase}/users`}>
+            <Menu.Item>
+              <Icon name='users'/>Users
+            </Menu.Item>
+          </Link>
+          <Link to={`${urlBase}/browse`}>
+            <Menu.Item>
+              <Icon name='folder open'/>Browse
+            </Menu.Item>
+          </Link>
+        </>;
+      }
+    };
+
+    const ModeSpecificConnectButton = ({ mode, server }) => {
+      if (mode === 'Agent') {
+        return <></>;
+      } else {
+        return <>
+          {server?.isConnected && <Menu.Item
+            onClick={() => disconnect()}
+          >
+            <Icon.Group className='menu-icon-group'>
+              <Icon name='plug' color={pendingReconnect ? 'yellow' : 'green'}/>
+              {user?.privileges?.isPrivileged &&
+                    <Icon name='star' color='yellow' corner className='menu-icon-no-shadow'/>}
+            </Icon.Group>Connected
+          </Menu.Item>}
+          {(!server?.isConnected) && <Menu.Item 
+            onClick={() => connect()}
+          >
+            <Icon.Group className='menu-icon-group'>
+              <Icon name='plug' color='grey'/>
+              <Icon name='close' color='red' corner='bottom right' className='menu-icon-no-shadow'/>
+            </Icon.Group>Disconnected
+          </Menu.Item>}
+          {(pendingReconnect || pendingRestart || pendingShareRescan) && <Menu.Item position='right'>
+            <Icon.Group className='menu-icon-group'>
+              <Link to={`${urlBase}/system/info`}>
+                <Icon name='exclamation circle' color='yellow'/>
+              </Link>
+            </Icon.Group>Pending Action
+          </Menu.Item>}</>;
+      }
+    };
+
+    const ModeSpecificRoutes = ({ mode }) => {
+      if (mode === 'Agent') {
+        return <>
+          <Route path={`${urlBase}/system/:tab?`} render={
+            (props) => this.withTokenCheck(
+              <System {...props} state={applicationState} options={applicationOptions} />
+            )
+          }/>
+          <Redirect from='*' to={`${urlBase}/system`}/>
+        </>;
+      } else {
+        return <>
+          <Route path={`${urlBase}/searches/:id?`} render={(props) => 
+            this.withTokenCheck(<div className='view'>
+              <Searches
+                server={applicationState.server}
+                {...props}
+              />
+            </div>)}
+          />
+          <Route path={`${urlBase}/browse`} render={(props) => this.withTokenCheck(<Browse {...props}/>)}/>
+          <Route path={`${urlBase}/users`} render={(props) => this.withTokenCheck(<Users {...props}/>)}/>
+          <Route path={`${urlBase}/chat`} render={(props) => this.withTokenCheck(<Chat {...props}/>)}/>
+          <Route path={`${urlBase}/rooms`} render={(props) => this.withTokenCheck(<Rooms {...props}/>)}/>
+          <Route path={`${urlBase}/uploads`} render={
+            (props) => 
+              this.withTokenCheck(<div className='view'><Transfers {...props} direction='upload'/></div>)
+          }/>
+          <Route path={`${urlBase}/downloads`} render={
+            (props) => 
+              this.withTokenCheck(<div className='view'>
+                <Transfers {...props} direction='download' server={applicationState.server}/>
+              </div>)
+          }/>
+          <Route path={`${urlBase}/system/:tab?`} render={
+            (props) => this.withTokenCheck(
+              <System {...props} state={applicationState} options={applicationOptions} />
+            )
+          }/>
+        </>;
+      }
+    };
+
     return (
       <>
         <Sidebar.Pushable as={Segment} className='app'>
@@ -164,66 +297,9 @@ class App extends Component {
             {version.isCanary && <Menu.Item>
               <Icon name='flask' color='yellow'/>Canary
             </Menu.Item>}
-            <Link to={`${urlBase}/searches`}>
-              <Menu.Item>
-                <Icon name='search'/>Search
-              </Menu.Item>
-            </Link>
-            <Link to={`${urlBase}/downloads`}>
-              <Menu.Item>
-                <Icon name='download'/>Downloads
-              </Menu.Item>
-            </Link>
-            <Link to={`${urlBase}/uploads`}>
-              <Menu.Item>
-                <Icon name='upload'/>Uploads
-              </Menu.Item>
-            </Link>
-            <Link to={`${urlBase}/rooms`}>
-              <Menu.Item>
-                <Icon name='comments'/>Rooms
-              </Menu.Item>
-            </Link>
-            <Link to={`${urlBase}/chat`}>
-              <Menu.Item>
-                <Icon name='comment'/>Chat
-              </Menu.Item>
-            </Link>
-            <Link to={`${urlBase}/users`}>
-              <Menu.Item>
-                <Icon name='users'/>Users
-              </Menu.Item>
-            </Link>
-            <Link to={`${urlBase}/browse`}>
-              <Menu.Item>
-                <Icon name='folder open'/>Browse
-              </Menu.Item>
-            </Link>
+            <ModeSpecificNavigation mode={mode}/>
             <Menu className='right' inverted>
-              {server?.isConnected && <Menu.Item
-                onClick={() => disconnect()}
-              >
-                <Icon.Group className='menu-icon-group'>
-                  <Icon name='plug' color={pendingReconnect ? 'yellow' : 'green'}/>
-                  {user?.privileges?.isPrivileged &&
-                    <Icon name='star' color='yellow' corner className='menu-icon-no-shadow'/>}
-                </Icon.Group>Connected
-              </Menu.Item>}
-              {(!server?.isConnected) && <Menu.Item 
-                onClick={() => connect()}
-              >
-                <Icon.Group className='menu-icon-group'>
-                  <Icon name='plug' color='grey'/>
-                  <Icon name='close' color='red' corner='bottom right' className='menu-icon-no-shadow'/>
-                </Icon.Group>Disconnected
-              </Menu.Item>}
-              {(pendingReconnect || pendingRestart || pendingShareRescan) && <Menu.Item position='right'>
-                <Icon.Group className='menu-icon-group'>
-                  <Link to={`${urlBase}/system/info`}>
-                    <Icon name='exclamation circle' color='yellow'/>
-                  </Link>
-                </Icon.Group>Pending Action
-              </Menu.Item>}
+              <ModeSpecificConnectButton mode={mode} server={server} network={network}/>
               {isUpdateAvailable && <Modal
                 trigger={<Menu.Item position='right'>
                   <Icon.Group className='menu-icon-group'>
@@ -271,34 +347,7 @@ class App extends Component {
           <Sidebar.Pusher className='app-content'>
             <AppContext.Provider value={{ state: applicationState, options: applicationOptions }}>
               <Switch>
-                <Route path={`${urlBase}/searches/:id?`} render={(props) => 
-                  this.withTokenCheck(<div className='view'>
-                    <Searches
-                      server={applicationState.server}
-                      {...props}
-                    />
-                  </div>)}
-                />
-                <Route path={`${urlBase}/browse`} render={(props) => this.withTokenCheck(<Browse {...props}/>)}/>
-                <Route path={`${urlBase}/users`} render={(props) => this.withTokenCheck(<Users {...props}/>)}/>
-                <Route path={`${urlBase}/chat`} render={(props) => this.withTokenCheck(<Chat {...props}/>)}/>
-                <Route path={`${urlBase}/rooms`} render={(props) => this.withTokenCheck(<Rooms {...props}/>)}/>
-                <Route path={`${urlBase}/uploads`} render={
-                  (props) => 
-                    this.withTokenCheck(<div className='view'><Transfers {...props} direction='upload'/></div>)
-                }/>
-                <Route path={`${urlBase}/downloads`} render={
-                  (props) => 
-                    this.withTokenCheck(<div className='view'>
-                      <Transfers {...props} direction='download' server={applicationState.server}/>
-                    </div>)
-                }/>
-                <Route path={`${urlBase}/system/:tab?`} render={
-                  (props) => this.withTokenCheck(
-                    <System {...props} state={applicationState} options={applicationOptions} />
-                  )
-                }/>
-                <Redirect from='*' to={`${urlBase}/searches`}/>
+                <ModeSpecificRoutes mode={mode}/>
               </Switch>
             </AppContext.Provider>
           </Sidebar.Pusher>
