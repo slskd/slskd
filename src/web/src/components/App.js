@@ -5,6 +5,7 @@ import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 import * as session from '../lib/session';
+import * as networkAPI from '../lib/network';
 import { connect, disconnect } from '../lib/server';
 import { urlBase } from '../config';
 
@@ -128,7 +129,7 @@ class App extends Component {
     const { isUpdateAvailable, current, latest } = version;
     const { scanPending: pendingShareRescan } = shares;
 
-    const { mode } = network;
+    const { mode, controller } = network;
 
     if (!initialized) {
       return <Loader active size='big'/>;
@@ -160,11 +161,9 @@ class App extends Component {
 
     const ModeSpecificNavigation = ({ mode }) => {
       if (mode === 'Agent') {
-        return <Link to={`${urlBase}/system`}>
-          <Menu.Item>
-            <Icon name='detective'/>Agent
-          </Menu.Item>
-        </Link>;
+        return <Menu.Item>
+          <Icon name='detective'/>Agent Mode
+        </Menu.Item>;
       } else {
         return <>
           <Link to={`${urlBase}/searches`}>
@@ -206,9 +205,21 @@ class App extends Component {
       }
     };
 
-    const ModeSpecificConnectButton = ({ mode, server }) => {
+    const ModeSpecificConnectButton = ({ mode, server, controller = {} }) => {
       if (mode === 'Agent') {
-        return <></>;
+        const isConnected = controller?.state === 'Connected';
+        const isTransitioning = ['Connecting', 'Reconnecting'].includes(controller?.state);
+
+        return <>
+          <Menu.Item
+            onClick={() => isConnected ? networkAPI.connect() : networkAPI.disconnect()}
+          >
+            <Icon.Group className='menu-icon-group'>
+              <Icon name='plug' color={isConnected ? 'green' : isTransitioning ? 'yellow' : 'grey'}/>
+              {!isConnected && <Icon name='close' color='red' corner='bottom right' className='menu-icon-no-shadow'/>}
+            </Icon.Group>Controller {controller?.state}
+          </Menu.Item>
+        </>;
       } else {
         return <>
           {server?.isConnected && <Menu.Item
@@ -299,7 +310,7 @@ class App extends Component {
             </Menu.Item>}
             <ModeSpecificNavigation mode={mode}/>
             <Menu className='right' inverted>
-              <ModeSpecificConnectButton mode={mode} server={server} network={network}/>
+              <ModeSpecificConnectButton mode={mode} server={server} controller={controller}/>
               {isUpdateAvailable && <Modal
                 trigger={<Menu.Item position='right'>
                   <Icon.Group className='menu-icon-group'>
