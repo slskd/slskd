@@ -401,7 +401,7 @@ namespace slskd
             else if (OptionsAtStartup.Network.Mode.ToEnum<OperationMode>() == OperationMode.Agent)
             {
                 Log.Information("Running in Agent mode; not connecting to the Soulseek server.");
-                await Network.Client.StartAsync(cancellationToken);
+                _ = Network.Client.StartAsync(cancellationToken);
             }
             else
             {
