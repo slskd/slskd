@@ -1,36 +1,52 @@
-import React, {useState} from 'react';
+import React, { useState } from 'react';
 
 import { formatSeconds, formatBytes, getFileName, formatAttributes } from '../../lib/util';
 
-import { 
-  Header, 
-  Table, 
-  Icon, 
-  List, 
+import {
+  Button,
+  Header,
+  Table,
+  Icon,
+  List,
   Checkbox,
 } from 'semantic-ui-react';
 
 
-const FileList = ({ directoryName, files, locked, onSelectionChange, disabled, onClose }) => {
+const FileList = ({ 
+  directoryName, 
+  files, 
+  locked, 
+  onSelectionChange, 
+  disabled, 
+  onClose, 
+  getFullDirectory, 
+  username,
+}) => {
   const [folded, setFolded] = useState(false);
 
   return (
-    <div style={{opacity: locked ? 0.5 : 1}}>
-      <Header 
-        size='small' 
+    <div style={{ opacity: locked ? 0.5 : 1 }}>
+      <Header
+        size='small'
         className='filelist-header'
       >
         <div>
-          <Icon 
-            size='large' 
-            link={!locked} 
+          <Icon
+            size='large'
+            link={!locked}
             name={locked ? 'lock' : folded ? 'folder' : 'folder open'}
             onClick={() => !locked && setFolded(!folded)}/>
           {directoryName}
-      
-          {!!onClose && <Icon 
-            className='close-button' 
-            name='close' 
+
+          {onSelectionChange &&
+            <Button
+              onClick={() => getFullDirectory(username, directoryName)}
+              className="getfulldirectory-button">Get Full Directory</Button>
+          }
+
+          {!!onClose && <Icon
+            className='close-button'
+            name='close'
             color='red'
             link
             onClick={() => onClose()}
@@ -43,7 +59,7 @@ const FileList = ({ directoryName, files, locked, onSelectionChange, disabled, o
             <Table.Header>
               <Table.Row>
                 <Table.HeaderCell className='filelist-selector'>
-                  <Checkbox 
+                  <Checkbox
                     fitted
                     onChange={(event, data) => files.map(f => onSelectionChange(f, data.checked))}
                     checked={files.filter(f => !f.selected).length === 0}
@@ -57,11 +73,11 @@ const FileList = ({ directoryName, files, locked, onSelectionChange, disabled, o
               </Table.Row>
             </Table.Header>
             <Table.Body>
-              {files.sort((a, b) => a.filename > b.filename ? 1 : -1).map((f, i) => 
+              {files.sort((a, b) => a.filename > b.filename ? 1 : -1).map((f, i) =>
                 <Table.Row key={i}>
                   <Table.Cell className='filelist-selector'>
-                    <Checkbox 
-                      fitted 
+                    <Checkbox
+                      fitted
                       onChange={(event, data) => onSelectionChange(f, data.checked)}
                       checked={f.selected}
                       disabled={disabled}

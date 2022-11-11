@@ -124,6 +124,29 @@ namespace slskd.Users.API
         }
 
         /// <summary>
+        ///     Retrieves the files from the specified <paramref name="directory"/> from the specified <paramref name="username"/>.
+        /// </summary>
+        /// <param name="directory">The desired directory.</param>
+        /// <param name="username">The username of the user.</param>
+        /// <returns></returns>
+        [HttpGet("{username}/directory/{directory}")]
+        [Authorize(Policy = AuthPolicy.Any)]
+        [ProducesResponseType(typeof(IEnumerable<Directory>), 200)]
+        [ProducesResponseType(404)]
+        public async Task<IActionResult> Directory([FromRoute, Required] string username, [FromRoute, Required] string directory)
+        {
+            try
+            {
+                var result = await Client.GetDirectoryContentsAsync(username, directory);
+                return Ok(result);
+            }
+            catch (UserOfflineException ex)
+            {
+                return NotFound(ex.Message);
+            }
+        }
+
+        /// <summary>
         ///     Retrieves information about the specified <paramref name="username"/>.
         /// </summary>
         /// <param name="username">The username of the user.</param>
