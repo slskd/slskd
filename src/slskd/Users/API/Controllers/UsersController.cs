@@ -131,7 +131,7 @@ namespace slskd.Users.API
         /// <returns></returns>
         [HttpGet("{username}/directory/{directory}")]
         [Authorize(Policy = AuthPolicy.Any)]
-        [ProducesResponseType(typeof(IEnumerable<Directory>), 200)]
+        [ProducesResponseType(typeof(Directory), 200)]
         [ProducesResponseType(404)]
         public async Task<IActionResult> Directory([FromRoute, Required] string username, [FromRoute, Required] string directory)
         {
