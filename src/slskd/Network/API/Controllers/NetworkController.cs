@@ -47,6 +47,22 @@ namespace slskd.Network
         private ILogger Log { get; } = Serilog.Log.ForContext<NetworkController>();
         private INetworkService Network { get; }
 
+        [HttpPut("")]
+        [Authorize(Policy = AuthPolicy.Any)]
+        public async Task<IActionResult> Connect()
+        {
+            await Network.Client.StartAsync();
+            return Ok();
+        }
+
+        [HttpDelete("")]
+        [Authorize(Policy = AuthPolicy.Any)]
+        public async Task<IActionResult> Disconnect()
+        {
+            await Network.Client.StopAsync();
+            return NoContent();
+        }
+
         /// <summary>
         ///     Uploads a file.
         /// </summary>
