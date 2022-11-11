@@ -61,9 +61,14 @@ class Response extends Component {
   };
 
   getFullDirectory = async (username, directory) => {
-    const directoryContents = await getDirectoryContents({ username, directory });
+    const { name, files } = await getDirectoryContents({ username, directory });
+    files.forEach((file, index) => {
+      const newFilename = `${directory}\\${file.filename}`;
+      files[index] = { ...files[index], filename: newFilename };
+    });
+
     const newTree = this.state.tree;
-    newTree[directoryContents.name] = directoryContents.files;
+    newTree[name] = files;
     this.setState({ tree: { ...newTree } });
   };
 
