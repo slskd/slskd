@@ -3,7 +3,6 @@ import React, { useState } from 'react';
 import { formatSeconds, formatBytes, getFileName, formatAttributes } from '../../lib/util';
 
 import {
-  Button,
   Header,
   Table,
   Icon,
@@ -19,8 +18,7 @@ const FileList = ({
   onSelectionChange, 
   disabled, 
   onClose, 
-  getFullDirectory, 
-  username,
+  footer,
 }) => {
   const [folded, setFolded] = useState(false);
 
@@ -37,12 +35,6 @@ const FileList = ({
             name={locked ? 'lock' : folded ? 'folder' : 'folder open'}
             onClick={() => !locked && setFolded(!folded)}/>
           {directoryName}
-
-          {onSelectionChange &&
-            <Button
-              onClick={() => getFullDirectory(username, directoryName)}
-              className="getfulldirectory-button">Get Full Directory</Button>
-          }
 
           {!!onClose && <Icon
             className='close-button'
@@ -92,6 +84,13 @@ const FileList = ({
                 </Table.Row>
               )}
             </Table.Body>
+            {footer && <Table.Footer fullWidth>
+              <Table.Row>
+                <Table.HeaderCell colSpan='5'>
+                  {footer}
+                </Table.HeaderCell>
+              </Table.Row>
+            </Table.Footer>}
           </Table>
         </List.Item>
       </List>}

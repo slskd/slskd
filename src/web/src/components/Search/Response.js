@@ -120,8 +120,11 @@ class Response extends Component {
               files={tree[dir]}
               disabled={downloadRequest === 'inProgress'}
               onSelectionChange={this.onFileSelectionChange}
-              getFullDirectory={this.getFullDirectory}
-              username={response.username}
+              footer={<button
+                onClick={() => this.getFullDirectory(response.username, dir)} 
+                style={{ cursor: 'pointer', width: '100%', backgroundColor: 'transparent', border: 'none' }}>
+                <Icon name='folder'/>Get Full Directory Contents
+              </button>}
             />
           )}
         </Card.Content>
