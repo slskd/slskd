@@ -35,7 +35,7 @@ namespace slskd
         public bool PendingReconnect { get; init; }
         public bool PendingRestart { get; init; }
         public ServerState Server { get; init; } = new ServerState();
-        public NetworkState Network { get; init; } = new NetworkState();
+        public RelayState Relay { get; init; } = new RelayState();
         public UserState User { get; init; } = new UserState();
         public DistributedNetworkState DistributedNetwork { get; init; } = new DistributedNetworkState();
         public ShareState Shares { get; init; } = new ShareState();
@@ -65,14 +65,14 @@ namespace slskd
         public bool IsTransitioning => State.HasFlag(SoulseekClientStates.Connecting) || State.HasFlag(SoulseekClientStates.Disconnecting) || State.HasFlag(SoulseekClientStates.LoggingIn);
     }
 
-    public record NetworkState
+    public record RelayState
     {
         public OperationMode Mode { get; init; }
-        public NetworkControllerState Controller { get; init; } = new NetworkControllerState();
+        public RelayControllerState Controller { get; init; } = new RelayControllerState();
         public IReadOnlyCollection<Agent> Agents { get; init; } = Enumerable.Empty<Agent>().ToList().AsReadOnly();
     }
 
-    public record NetworkControllerState
+    public record RelayControllerState
     {
         public string Address { get; init; }
         public RelayClientState State { get; init; } = RelayClientState.Disconnected;
