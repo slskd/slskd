@@ -22,7 +22,7 @@ namespace slskd
     using System.Linq;
     using System.Net;
     using System.Text.Json.Serialization;
-    using slskd.Network;
+    using slskd.Relay;
     using slskd.Users;
     using Soulseek;
 
