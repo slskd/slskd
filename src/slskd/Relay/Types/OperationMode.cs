@@ -18,7 +18,7 @@
 namespace slskd.Relay
 {
     /// <summary>
-    ///     The network operation mode.
+    ///     The relay operation mode.
     /// </summary>
     public enum OperationMode
     {

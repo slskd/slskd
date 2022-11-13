@@ -1,4 +1,4 @@
-﻿// <copyright file="DummyNetworkClient.cs" company="slskd Team">
+﻿// <copyright file="DummyRelayClient.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -20,9 +20,9 @@ namespace slskd.Relay
     using System.Threading;
     using System.Threading.Tasks;
 
-    public class DummyRelayClient : INetworkClient
+    public class DummyRelayClient : IRelayClient
     {
-        public IStateMonitor<NetworkClientState> StateMonitor => new ManagedState<NetworkClientState>();
+        public IStateMonitor<RelayClientState> StateMonitor => new ManagedState<RelayClientState>();
 
         public void Dispose() { }
 

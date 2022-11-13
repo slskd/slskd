@@ -142,7 +142,7 @@ namespace slskd.Relay
         }
 
         /// <summary>
-        ///     Notifies the controller that the agent was unable to upload the file requested by a call to <see cref="INetworkHub.RequestFileUpload"/>.
+        ///     Notifies the controller that the agent was unable to upload the file requested by a call to <see cref="IRelayHub.RequestFileUpload"/>.
         /// </summary>
         /// <param name="id">The unique identifier of the request.</param>
         /// <param name="exception">The Exception that caused the failure.</param>
