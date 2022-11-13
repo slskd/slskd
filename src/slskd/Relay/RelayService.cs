@@ -1,4 +1,4 @@
-﻿// <copyright file="NetworkService.cs" company="slskd Team">
+﻿// <copyright file="RelayService.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -17,7 +17,7 @@
 
 using Microsoft.Extensions.Options;
 
-namespace slskd.Network
+namespace slskd.Relay
 {
     using System;
     using System.Collections.Concurrent;
@@ -35,14 +35,14 @@ namespace slskd.Network
     using slskd.Shares;
 
     /// <summary>
-    ///     Handles network (controller/agent) interactions.
+    ///     Handles relay (controller/agent) interactions.
     /// </summary>
-    public interface INetworkService
+    public interface IRelayService
     {
         /// <summary>
-        ///     Gets the network client (agent).
+        ///     Gets the relay client (agent).
         /// </summary>
-        INetworkClient Client { get; }
+        IRelayClient Client { get; }
 
         /// <summary>
         ///     Gets the collection of registered Agents.
@@ -245,18 +245,18 @@ namespace slskd.Network
     }
 
     /// <summary>
-    ///     Handles network (controller/agent) interactions.
+    ///     Handles relay (controller/agent) interactions.
     /// </summary>
-    public class NetworkService : INetworkService
+    public class RelayService : IRelayService
     {
-        public NetworkService(
+        public RelayService(
             IWaiter waiter,
             IShareService shareService,
             IShareRepositoryFactory shareRepositoryFactory,
             IOptionsMonitor<Options> optionsMonitor,
-            IHubContext<NetworkHub, INetworkHub> networkHub,
+            IHubContext<RelayHub, IRelayHub> relayHub,
             IHttpClientFactory httpClientFactory,
-            INetworkClient networkClient = null)
+            IRelayClient relayClient = null)
         {
             Shares = shareService;
             ShareRepositoryFactory = shareRepositoryFactory;
@@ -264,7 +264,7 @@ namespace slskd.Network
             NetworkHub = networkHub;
 
             // wire up a dummy client so callers don't need to handle nulls
-            Client = networkClient ?? new DummyNetworkClient();
+            Client = networkClient ?? new DummyRelayClient();
 
             StateMonitor = State;
 
@@ -289,9 +289,9 @@ namespace slskd.Network
         public IStateMonitor<NetworkState> StateMonitor { get; }
 
         private IHttpClientFactory HttpClientFactory { get; }
-        private ILogger Log { get; } = Serilog.Log.ForContext<NetworkService>();
+        private ILogger Log { get; } = Serilog.Log.ForContext<RelayService>();
         private MemoryCache MemoryCache { get; } = new MemoryCache(new MemoryCacheOptions());
-        private IHubContext<NetworkHub, INetworkHub> NetworkHub { get; set; }
+        private IHubContext<RelayHub, INetworkHub> NetworkHub { get; set; }
         private IOptionsMonitor<Options> OptionsMonitor { get; }
         private ConcurrentDictionary<Guid, TaskCompletionSource<(bool Exists, long Length)>> PendingFileInquiryDictionary { get; } = new();
         private ConcurrentDictionary<string, (string ConnectionId, Agent Agent)> RegisteredAgentDictionary { get; } = new();
@@ -727,7 +727,7 @@ namespace slskd.Network
                 else
                 {
                     // the controller changed. disconnect and throw away the client and create a new one
-                    Client = new NetworkClient(Shares, OptionsMonitor, HttpClientFactory);
+                    Client = new RelayClient(Shares, OptionsMonitor, HttpClientFactory);
                     Client.StateMonitor.OnChange(clientState
                         => State.SetValue(state => state with { Controller = state.Controller with { State = clientState.Current } }));
 

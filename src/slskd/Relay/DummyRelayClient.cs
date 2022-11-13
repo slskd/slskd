@@ -1,4 +1,4 @@
-﻿// <copyright file="NetworkClientState.cs" company="slskd Team">
+﻿// <copyright file="DummyNetworkClient.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -15,13 +15,21 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-namespace slskd.Network
+namespace slskd.Relay
 {
-    public enum NetworkClientState
+    using System.Threading;
+    using System.Threading.Tasks;
+
+    public class DummyRelayClient : INetworkClient
     {
-        Disconnected,
-        Connected,
-        Connecting,
-        Reconnecting,
+        public IStateMonitor<NetworkClientState> StateMonitor => new ManagedState<NetworkClientState>();
+
+        public void Dispose() { }
+
+        public Task StartAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task StopAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task SynchronizeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 }

@@ -37,7 +37,7 @@ namespace slskd.Network
         /// <summary>
         ///     Gets the client state.
         /// </summary>
-        IStateMonitor<NetworkClientState> StateMonitor { get; }
+        IStateMonitor<RelayClientState> StateMonitor { get; }
 
         /// <summary>
         ///     Starts the client and connects to the controller.
@@ -63,15 +63,15 @@ namespace slskd.Network
     /// <summary>
     ///     Network client (agent).
     /// </summary>
-    public class NetworkClient : INetworkClient
+    public class RelayClient : INetworkClient
     {
         /// <summary>
-        ///     Initializes a new instance of the <see cref="NetworkClient"/> class.
+        ///     Initializes a new instance of the <see cref="RelayClient"/> class.
         /// </summary>
         /// <param name="shareService"></param>
         /// <param name="optionsMonitor"></param>
         /// <param name="httpClientFactory"></param>
-        public NetworkClient(
+        public RelayClient(
             IShareService shareService,
             IOptionsMonitor<Options> optionsMonitor,
             IHttpClientFactory httpClientFactory)
@@ -91,9 +91,9 @@ namespace slskd.Network
         /// <summary>
         ///     Gets the client state.
         /// </summary>
-        public IStateMonitor<NetworkClientState> StateMonitor { get; }
+        public IStateMonitor<RelayClientState> StateMonitor { get; }
 
-        private ManagedState<NetworkClientState> State { get; } = new();
+        private ManagedState<RelayClientState> State { get; } = new();
         private IShareService Shares { get; }
         private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1, 1);
         private string LastOptionsHash { get; set; }
@@ -102,7 +102,7 @@ namespace slskd.Network
         private HubConnection HubConnection { get; set; }
         private bool StartRequested { get; set; }
         private CancellationTokenSource StartCancellationTokenSource { get; set; }
-        private ILogger Log { get; } = Serilog.Log.ForContext<NetworkClient>();
+        private ILogger Log { get; } = Serilog.Log.ForContext<RelayClient>();
         private bool LoggedIn { get; set; }
         private TaskCompletionSource LoggedInTaskCompletionSource { get; set; }
         private bool Disposed { get; set; }
@@ -194,12 +194,12 @@ namespace slskd.Network
             return UploadSharesAsync();
         }
 
-        private NetworkClientState TranslateState(HubConnectionState hub) => hub switch
+        private RelayClientState TranslateState(HubConnectionState hub) => hub switch
         {
-            HubConnectionState.Disconnected => NetworkClientState.Disconnected,
-            HubConnectionState.Connected => NetworkClientState.Connected,
-            HubConnectionState.Connecting => NetworkClientState.Connecting,
-            HubConnectionState.Reconnecting => NetworkClientState.Reconnecting,
+            HubConnectionState.Disconnected => RelayClientState.Disconnected,
+            HubConnectionState.Connected => RelayClientState.Connected,
+            HubConnectionState.Connecting => RelayClientState.Connecting,
+            HubConnectionState.Reconnecting => RelayClientState.Reconnecting,
             _ => throw new ArgumentException($"Unexpected HubConnectionState {hub}"),
         };
 
@@ -221,7 +221,7 @@ namespace slskd.Network
                 Log.Debug("Share backup successful");
 
                 Log.Debug("Requesting share upload token...");
-                var token = await HubConnection.InvokeAsync<Guid>(nameof(NetworkHub.BeginShareUpload));
+                var token = await HubConnection.InvokeAsync<Guid>(nameof(RelayHub.BeginShareUpload));
                 Log.Debug("Share upload token {Token}", token);
 
                 var stream = new FileStream(temp, FileMode.Open, FileAccess.Read);
@@ -313,7 +313,7 @@ namespace slskd.Network
                     Log.Error(ex, "Failed to handle file request: {Message}", ex.Message);
 
                     // report the failure to the controller. this avoids a failure due to timeout.
-                    await HubConnection.InvokeAsync(nameof(NetworkHub.NotifyFileUploadFailed), token);
+                    await HubConnection.InvokeAsync(nameof(RelayHub.NotifyFileUploadFailed), token);
                 }
             });
 
@@ -330,12 +330,12 @@ namespace slskd.Network
 
                 var localFileInfo = new FileInfo(localFilename);
 
-                await HubConnection.InvokeAsync(nameof(NetworkHub.ReturnFileInfo), id, localFileInfo.Exists, localFileInfo.Length);
+                await HubConnection.InvokeAsync(nameof(RelayHub.ReturnFileInfo), id, localFileInfo.Exists, localFileInfo.Length);
             }
             catch (Exception ex)
             {
                 Log.Error(ex, "Failed to handle file info request: {Message}", ex.Message);
-                await HubConnection.InvokeAsync(nameof(NetworkHub.ReturnFileInfo), id, false, 0);
+                await HubConnection.InvokeAsync(nameof(RelayHub.ReturnFileInfo), id, false, 0);
             }
         }
 
@@ -351,7 +351,7 @@ namespace slskd.Network
                 var response = ComputeCredential(challengeToken);
 
                 Log.Debug("Logging in...");
-                await HubConnection.InvokeAsync(nameof(NetworkHub.Login), agent, response);
+                await HubConnection.InvokeAsync(nameof(RelayHub.Login), agent, response);
                 Log.Debug("Login succeeded.");
                 LoggedInTaskCompletionSource?.TrySetResult();
             }

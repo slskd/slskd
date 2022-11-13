@@ -1,4 +1,4 @@
-﻿// <copyright file="NetworkHub.cs" company="slskd Team">
+﻿// <copyright file="RelayHub.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -15,7 +15,7 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-namespace slskd.Network
+namespace slskd.Relay
 {
     using System;
     using System.Threading.Tasks;
@@ -25,9 +25,9 @@ namespace slskd.Network
     using Serilog;
 
     /// <summary>
-    ///     Methods for the <see cref="NetworkHub"/>.
+    ///     Methods for the <see cref="RelayHub"/>.
     /// </summary>
-    public interface INetworkHub
+    public interface IRelayHub
     {
         /// <summary>
         ///     Sends an authentication challenge token to the newly connected agent.
@@ -54,23 +54,23 @@ namespace slskd.Network
     }
 
     /// <summary>
-    ///     The network SignalR hub.
+    ///     The relay SignalR hub.
     /// </summary>
     [Authorize]
-    public class NetworkHub : Hub<INetworkHub>
+    public class RelayHub : Hub<IRelayHub>
     {
         /// <summary>
-        ///     Initializes a new instance of the <see cref="NetworkHub"/> class.
+        ///     Initializes a new instance of the <see cref="RelayHub"/> class.
         /// </summary>
-        /// <param name="networkService"></param>
-        public NetworkHub(
-            INetworkService networkService)
+        /// <param name="relayService"></param>
+        public RelayHub(
+            IRelayService relayService)
         {
-            Network = networkService;
+            Relay = relayService;
         }
 
-        private ILogger Log { get; } = Serilog.Log.ForContext<NetworkService>();
-        private INetworkService Network { get; }
+        private ILogger Log { get; } = Serilog.Log.ForContext<RelayService>();
+        private IRelayService Relay { get; }
 
         /// <summary>
         ///     Executed when a new connection is established.
@@ -78,7 +78,7 @@ namespace slskd.Network
         /// <returns></returns>
         public override async Task OnConnectedAsync()
         {
-            var token = Network.GenerateAuthenticationChallengeToken(Context.ConnectionId);
+            var token = Relay.GenerateAuthenticationChallengeToken(Context.ConnectionId);
 
             Log.Information("Agent connection {Id} established. Sending authentication challenge {Token}...", Context.ConnectionId, token);
             await Clients.Caller.Challenge(token);
@@ -91,10 +91,10 @@ namespace slskd.Network
         /// <returns></returns>
         public override Task OnDisconnectedAsync(Exception exception)
         {
-            if (Network.TryDeregisterAgent(Context.ConnectionId, out var record))
+            if (Relay.TryDeregisterAgent(Context.ConnectionId, out var record))
             {
                 Log.Warning("Agent {Agent} (connection {Id}) disconnected", record.Agent.Name, Context.ConnectionId);
-                Network.TryDeregisterAgent(record.Agent.Name, out _);
+                Relay.TryDeregisterAgent(record.Agent.Name, out _);
             }
 
             return Task.CompletedTask;
@@ -108,10 +108,10 @@ namespace slskd.Network
         /// <exception cref="UnauthorizedAccessException">Thrown when the challenge response is invalid.</exception>
         public void Login(string agent, string challengeResponse)
         {
-            if (!Network.TryValidateAuthenticationCredential(Context.ConnectionId, agent, challengeResponse))
+            if (!Relay.TryValidateAuthenticationCredential(Context.ConnectionId, agent, challengeResponse))
             {
                 Log.Information("Agent connection {Id} authentication failed", Context.ConnectionId);
-                Network.TryDeregisterAgent(Context.ConnectionId, out var _); // just in case!
+                Relay.TryDeregisterAgent(Context.ConnectionId, out var _); // just in case!
                 throw new UnauthorizedAccessException();
             }
 
@@ -119,7 +119,7 @@ namespace slskd.Network
             var record = new Agent { Name = agent, IPAddress = remoteIp };
 
             Log.Information("Agent connection {Id} ({IP}) authenticated as agent {Agent}", Context.ConnectionId, remoteIp, agent);
-            Network.RegisterAgent(Context.ConnectionId, record);
+            Relay.RegisterAgent(Context.ConnectionId, record);
         }
 
         /// <summary>
@@ -129,14 +129,14 @@ namespace slskd.Network
         /// <exception cref="UnauthorizedAccessException">Thrown when the agent is not fully authenticated.</exception>
         public Guid BeginShareUpload()
         {
-            if (!Network.TryGetAgentRegistration(Context.ConnectionId, out var record))
+            if (!Relay.TryGetAgentRegistration(Context.ConnectionId, out var record))
             {
                 // this can happen if the agent attempts to upload before logging in
                 Log.Information("Agent connection {Id} requested a share upload token, but is not registered.", Context.ConnectionId);
                 throw new UnauthorizedAccessException();
             }
 
-            var token = Network.GenerateShareUploadToken(record.Agent.Name);
+            var token = Relay.GenerateShareUploadToken(record.Agent.Name);
             Log.Information("Agent {Agent} (connection {Id}) requested share upload token {Token}", record.Agent.Name, record.ConnectionId, token);
             return token;
         }
@@ -149,7 +149,7 @@ namespace slskd.Network
         /// <exception cref="UnauthorizedAccessException">Thrown when the agent is not fully authenticated.</exception>
         public void NotifyFileUploadFailed(Guid id, Exception exception)
         {
-            if (!Network.TryGetAgentRegistration(Context.ConnectionId, out var record))
+            if (!Relay.TryGetAgentRegistration(Context.ConnectionId, out var record))
             {
                 Log.Warning("Agent connection {Id} attempted to report a failed upload, but is not registered.", Context.ConnectionId);
                 throw new UnauthorizedAccessException();
@@ -157,11 +157,11 @@ namespace slskd.Network
 
             Log.Warning("Agent {Agent} (connection {ConnectionId}) reported upload failure for {Id}: {Message}", id, exception.Message);
 
-            Network.NotifyFileStreamException(id, exception);
+            Relay.NotifyFileStreamException(id, exception);
         }
 
         /// <summary>
-        ///     Returns the response to a call to <see cref="INetworkHub.RequestFileInfo"/>.
+        ///     Returns the response to a call to <see cref="IRelayHub.RequestFileInfo"/>.
         /// </summary>
         /// <param name="id">The unique identifier for the request.</param>
         /// <param name="exists">A value indicating whether the requested file exists on the agent's filesystem.</param>
@@ -169,7 +169,7 @@ namespace slskd.Network
         /// <exception cref="UnauthorizedAccessException">Thrown when the agent is not fully authenticated.</exception>
         public void ReturnFileInfo(Guid id, bool exists, long length)
         {
-            if (!Network.TryGetAgentRegistration(Context.ConnectionId, out var record))
+            if (!Relay.TryGetAgentRegistration(Context.ConnectionId, out var record))
             {
                 Log.Warning("Agent connection {Id} attempted to return file information, but is not registered.", Context.ConnectionId);
                 throw new UnauthorizedAccessException();
@@ -177,7 +177,7 @@ namespace slskd.Network
 
             Log.Information("Agent {Agent} (connection {ConnectionId}) returned file info for {Id}; exists: {Exists}, length: {Length}", record.Agent.Name, Context.ConnectionId, id, exists, length);
 
-            Network.HandleFileInfoResponse(record.Agent.Name, id, (exists, length));
+            Relay.HandleFileInfoResponse(record.Agent.Name, id, (exists, length));
         }
     }
 }

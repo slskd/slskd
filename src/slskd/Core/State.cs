@@ -75,7 +75,7 @@ namespace slskd
     public record NetworkControllerState
     {
         public string Address { get; init; }
-        public NetworkClientState State { get; init; } = NetworkClientState.Disconnected;
+        public RelayClientState State { get; init; } = RelayClientState.Disconnected;
     }
 
     public record UserState
