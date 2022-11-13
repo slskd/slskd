@@ -1,5 +1,4 @@
 # debug: false
-# experimental: false
 # remote_configuration: false
 # instance_name: default
 # flags:
@@ -10,6 +9,8 @@
 #   force_share_scan: false
 #   no_version_check: false
 #   log_sql: false
+#   experimental: false
+#   volatile: false
 # network:
 #   mode: controller # controller (default), agent, or debug (for local development)
 #   # controller config is required when running in 'agent' mode

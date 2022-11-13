@@ -446,7 +446,7 @@ namespace slskd.Transfers.Downloads
         /// <param name="transfer">The transfer to update.</param>
         public void Update(Transfer transfer)
         {
-            var experimental = OptionsMonitor.CurrentValue.Experimental;
+            var experimental = OptionsMonitor.CurrentValue.Flags.Experimental;
             var id = Guid.NewGuid();
 
             System.Diagnostics.Stopwatch sw = default;
