@@ -1,4 +1,4 @@
-﻿// <copyright file="NetworkException.cs" company="slskd Team">
+﻿// <copyright file="RelayException.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -26,27 +26,27 @@ namespace slskd
     /// </summary>
     [ExcludeFromCodeCoverage]
     [Serializable]
-    public class NetworkException : SlskdException
+    public class RelayException : SlskdException
     {
         /// <summary>
-        ///     Initializes a new instance of the <see cref="NetworkException"/> class.
+        ///     Initializes a new instance of the <see cref="RelayException"/> class.
         /// </summary>
-        public NetworkException()
+        public RelayException()
             : base()
         {
         }
 
         /// <summary>
-        ///     Initializes a new instance of the <see cref="NetworkException"/> class with a specified error message.
+        ///     Initializes a new instance of the <see cref="RelayException"/> class with a specified error message.
         /// </summary>
         /// <param name="message">The message that describes the error.</param>
-        public NetworkException(string message)
+        public RelayException(string message)
             : base(message)
         {
         }
 
         /// <summary>
-        ///     Initializes a new instance of the <see cref="NetworkException"/> class with a specified error message and a
+        ///     Initializes a new instance of the <see cref="RelayException"/> class with a specified error message and a
         ///     reference to the inner exception that is the cause of this exception.
         /// </summary>
         /// <param name="message">The message that describes the error.</param>
@@ -54,17 +54,17 @@ namespace slskd
         ///     The exception that is the cause of the current exception, or a null reference (Nothing in Visual Basic) if no
         ///     inner exception is specified.
         /// </param>
-        public NetworkException(string message, Exception innerException)
+        public RelayException(string message, Exception innerException)
             : base(message, innerException)
         {
         }
 
         /// <summary>
-        ///     Initializes a new instance of the <see cref="NetworkException"/> class with serialized data.
+        ///     Initializes a new instance of the <see cref="RelayException"/> class with serialized data.
         /// </summary>
         /// <param name="info">The SerializationInfo that holds the serialized object data about the exception being thrown.</param>
         /// <param name="context">The StreamingContext that contains contextual information about the source or destination.</param>
-        protected NetworkException(SerializationInfo info, StreamingContext context)
+        protected RelayException(SerializationInfo info, StreamingContext context)
             : base(info, context)
         {
         }
