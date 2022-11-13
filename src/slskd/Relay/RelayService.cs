@@ -52,7 +52,7 @@ namespace slskd.Relay
         /// <summary>
         ///     Gets the state monitor for the service.
         /// </summary>
-        IStateMonitor<NetworkState> StateMonitor { get; }
+        IStateMonitor<RelayState> StateMonitor { get; }
 
         /// <summary>
         ///     Generates a random authentication challenge token for the specified <paramref name="connectionId"/>.
@@ -288,7 +288,7 @@ namespace slskd.Relay
         /// <summary>
         ///     Gets the state monitor for the service.
         /// </summary>
-        public IStateMonitor<NetworkState> StateMonitor { get; }
+        public IStateMonitor<RelayState> StateMonitor { get; }
 
         private IHttpClientFactory HttpClientFactory { get; }
         private ILogger Log { get; } = Serilog.Log.ForContext<RelayService>();
@@ -300,7 +300,7 @@ namespace slskd.Relay
         private IShareRepositoryFactory ShareRepositoryFactory { get; }
         private IShareService Shares { get; }
         private IWaiter Waiter { get; }
-        private IManagedState<NetworkState> State { get; } = new ManagedState<NetworkState>();
+        private IManagedState<RelayState> State { get; } = new ManagedState<RelayState>();
         private ConcurrentDictionary<WaitKey, Guid> WaitIdDictionary { get; } = new();
         private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1, 1);
         private string LastOptionsHash { get; set; }
@@ -656,7 +656,7 @@ namespace slskd.Relay
         /// <param name="agentName">The agent name.</param>
         /// <param name="credential">The response credential.</param>
         /// <returns>A value indicating whether the response is valid.</returns>
-        public bool TrylValidateAuthenticationCredential(string connectionId, string agentName, string credential)
+        public bool TryValidateAuthenticationCredential(string connectionId, string agentName, string credential)
         {
             if (!MemoryCache.TryGetValue(GetAuthTokenCacheKey(connectionId), out var challengeToken))
             {
@@ -664,7 +664,7 @@ namespace slskd.Relay
                 return false;
             }
 
-            if (!OptionsMonitor.CurrentValue.Network.Agents.TryGetValue(agentName, out var agentOptions))
+            if (!OptionsMonitor.CurrentValue.Relay.Agents.TryGetValue(agentName, out var agentOptions))
             {
                 Log.Debug("Auth challenge for {Id} failed: no configuration for agent '{Agent}'", connectionId, agentName);
                 return false;
@@ -708,15 +708,15 @@ namespace slskd.Relay
 
             try
             {
-                var optionsHash = Compute.Sha1Hash(options.Network.ToJson());
-                var controllerOptionsHash = Compute.Sha1Hash(options.Network.Controller.ToJson());
+                var optionsHash = Compute.Sha1Hash(options.Relay.ToJson());
+                var controllerOptionsHash = Compute.Sha1Hash(options.Relay.Controller.ToJson());
 
                 if (optionsHash == LastOptionsHash || controllerOptionsHash == LastControllerOptionsHash)
                 {
                     return;
                 }
 
-                var mode = options.Network.Mode.ToEnum<OperationMode>();
+                var mode = options.Relay.Mode.ToEnum<OperationMode>();
 
                 if (mode == OperationMode.Controller)
                 {
@@ -736,9 +736,9 @@ namespace slskd.Relay
                     State.SetValue(state => state with
                     {
                         Mode = mode,
-                        Controller = new NetworkControllerState()
+                        Controller = new RelayControllerState()
                         {
-                            Address = options.Network.Controller.Address,
+                            Address = options.Relay.Controller.Address,
                             State = Client.StateMonitor.CurrentValue,
                         },
                     });
@@ -763,7 +763,7 @@ namespace slskd.Relay
         {
             try
             {
-                if (!OptionsMonitor.CurrentValue.Network.Agents.TryGetValue(agentName, out var agentOptions))
+                if (!OptionsMonitor.CurrentValue.Relay.Agents.TryGetValue(agentName, out var agentOptions))
                 {
                     Log.Debug("Validation failed: Agent {Agent} not configured", agentName);
                     return false;
