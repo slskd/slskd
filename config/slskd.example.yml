@@ -11,10 +11,10 @@
 #   log_sql: false
 #   experimental: false
 #   volatile: false
-# network:
+# relay:
 #   mode: controller # controller (default), agent, or debug (for local development)
 #   # controller config is required when running in 'agent' mode
-#   # this specifies the network controller that will be controlling this agent
+#   # this specifies the relay controller that will be controlling this agent
 #   controller:
 #     address:
 #     ignore_certificate_errors: false
