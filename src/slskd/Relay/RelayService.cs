@@ -261,10 +261,12 @@ namespace slskd.Relay
             Shares = shareService;
             ShareRepositoryFactory = shareRepositoryFactory;
             Waiter = waiter;
-            NetworkHub = networkHub;
+            RelayHub = relayHub;
+
+            HttpClientFactory = httpClientFactory;
 
             // wire up a dummy client so callers don't need to handle nulls
-            Client = networkClient ?? new DummyRelayClient();
+            Client = relayClient ?? new DummyRelayClient();
 
             StateMonitor = State;
 
@@ -276,7 +278,7 @@ namespace slskd.Relay
         /// <summary>
         ///     Gets the network client (agent).
         /// </summary>
-        public INetworkClient Client { get; private set; }
+        public IRelayClient Client { get; private set; }
 
         /// <summary>
         ///     Gets the collection of registered Agents.
@@ -291,7 +293,7 @@ namespace slskd.Relay
         private IHttpClientFactory HttpClientFactory { get; }
         private ILogger Log { get; } = Serilog.Log.ForContext<RelayService>();
         private MemoryCache MemoryCache { get; } = new MemoryCache(new MemoryCacheOptions());
-        private IHubContext<RelayHub, INetworkHub> NetworkHub { get; set; }
+        private IHubContext<RelayHub, IRelayHub> RelayHub { get; set; }
         private IOptionsMonitor<Options> OptionsMonitor { get; }
         private ConcurrentDictionary<Guid, TaskCompletionSource<(bool Exists, long Length)>> PendingFileInquiryDictionary { get; } = new();
         private ConcurrentDictionary<string, (string ConnectionId, Agent Agent)> RegisteredAgentDictionary { get; } = new();
@@ -392,7 +394,7 @@ namespace slskd.Relay
 
             try
             {
-                await NetworkHub.Clients.Client(record.ConnectionId).RequestFileInfo(filename, id);
+                await RelayHub.Clients.Client(record.ConnectionId).RequestFileInfo(filename, id);
                 Log.Information("Requested file information for {Filename} from Agent {Agent} with ID {Id}. Waiting for response.", filename, agentName, id);
 
                 return await wait;
@@ -466,7 +468,7 @@ namespace slskd.Relay
 
             Log.Information("Created wait {Key}", key);
 
-            await NetworkHub.Clients.Client(record.ConnectionId).RequestFileUpload(filename, id);
+            await RelayHub.Clients.Client(record.ConnectionId).RequestFileUpload(filename, id);
             Log.Information("Requested file {Filename} from Agent {Agent} with ID {Id}. Waiting for incoming connection.", filename, agentName, id);
 
             var task = await Task.WhenAny(wait, Task.Delay(timeout, cancellationToken));
@@ -654,7 +656,7 @@ namespace slskd.Relay
         /// <param name="agentName">The agent name.</param>
         /// <param name="credential">The response credential.</param>
         /// <returns>A value indicating whether the response is valid.</returns>
-        public bool TryValidateAuthenticationCredential(string connectionId, string agentName, string credential)
+        public bool TrylValidateAuthenticationCredential(string connectionId, string agentName, string credential)
         {
             if (!MemoryCache.TryGetValue(GetAuthTokenCacheKey(connectionId), out var challengeToken))
             {

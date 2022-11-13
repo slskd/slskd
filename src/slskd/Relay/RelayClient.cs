@@ -1,4 +1,4 @@
-﻿// <copyright file="NetworkClient.cs" company="slskd Team">
+﻿// <copyright file="RelayClient.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -17,7 +17,7 @@
 
 using Microsoft.Extensions.Options;
 
-namespace slskd.Network
+namespace slskd.Relay
 {
     using System;
     using System.IO;
@@ -30,9 +30,9 @@ namespace slskd.Network
     using slskd.Shares;
 
     /// <summary>
-    ///     Network client (agent).
+    ///     Relay client (agent).
     /// </summary>
-    public interface INetworkClient : IDisposable
+    public interface IRelayClient : IDisposable
     {
         /// <summary>
         ///     Gets the client state.
@@ -61,9 +61,9 @@ namespace slskd.Network
     }
 
     /// <summary>
-    ///     Network client (agent).
+    ///     Relay client (agent).
     /// </summary>
-    public class RelayClient : INetworkClient
+    public class RelayClient : IRelayClient
     {
         /// <summary>
         ///     Initializes a new instance of the <see cref="RelayClient"/> class.
@@ -114,18 +114,18 @@ namespace slskd.Network
         /// <returns></returns>
         public async Task StartAsync(CancellationToken cancellationToken = default)
         {
-            var mode = OptionsMonitor.CurrentValue.Network.Mode.ToEnum<OperationMode>();
+            var mode = OptionsMonitor.CurrentValue.Relay.Mode.ToEnum<OperationMode>();
 
             if (mode != OperationMode.Agent && mode != OperationMode.Debug)
             {
-                throw new InvalidOperationException($"Network client can only be started when operation mode is {OperationMode.Agent}");
+                throw new InvalidOperationException($"Relay client can only be started when operation mode is {OperationMode.Agent}");
             }
 
             StartCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             LoggedInTaskCompletionSource = new TaskCompletionSource();
             StartRequested = true;
 
-            Log.Information("Attempting to connect to the network controller {Address}", OptionsMonitor.CurrentValue.Network.Controller.Address);
+            Log.Information("Attempting to connect to the relay controller {Address}", OptionsMonitor.CurrentValue.Relay.Controller.Address);
 
             State.SetValue(_ => TranslateState(HubConnectionState.Connecting));
 
@@ -135,15 +135,15 @@ namespace slskd.Network
                 isRetryable: (attempts, ex) => true,
                 onFailure: (attempts, ex) =>
                 {
-                    Log.Debug(ex, "Network hub connection failure");
-                    Log.Warning("Failed attempt #{Attempts} to connect to network controller: {Message}", attempts, ex.Message);
+                    Log.Debug(ex, "Relay hub connection failure");
+                    Log.Warning("Failed attempt #{Attempts} to connect to relay controller: {Message}", attempts, ex.Message);
                 },
                 maxAttempts: int.MaxValue,
                 maxDelayInMilliseconds: 30000,
                 StartCancellationTokenSource.Token);
 
             State.SetValue(_ => TranslateState(HubConnection.State));
-            Log.Information("Network controller connection established. Awaiting authentication...");
+            Log.Information("Relay controller connection established. Awaiting authentication...");
 
             await LoggedInTaskCompletionSource.Task;
 
@@ -158,7 +158,7 @@ namespace slskd.Network
             catch (Exception ex)
             {
                 Log.Error(ex, ex.Message);
-                Log.Error("Disconnecting from the network controller");
+                Log.Error("Disconnecting from the relay controller");
                 await StopAsync();
                 throw;
             }
@@ -181,7 +181,7 @@ namespace slskd.Network
 
                 LoggedIn = false;
 
-                Log.Information("Network controller connection disconnected");
+                Log.Information("Relay controller connection disconnected");
             }
         }
 
@@ -226,7 +226,7 @@ namespace slskd.Network
 
                 var stream = new FileStream(temp, FileMode.Open, FileAccess.Read);
 
-                using var request = new HttpRequestMessage(HttpMethod.Post, $"api/v0/network/shares/{token}");
+                using var request = new HttpRequestMessage(HttpMethod.Post, $"api/v0/relay/shares/{token}");
                 using var content = new MultipartFormDataContent
                 {
                     { new StringContent(OptionsMonitor.CurrentValue.InstanceName), "name" },
@@ -235,7 +235,7 @@ namespace slskd.Network
                     { new StreamContent(stream), "database", "shares" },
                 };
 
-                request.Headers.Add("X-API-Key", OptionsMonitor.CurrentValue.Network.Controller.ApiKey);
+                request.Headers.Add("X-API-Key", OptionsMonitor.CurrentValue.Relay.Controller.ApiKey);
                 request.Content = content;
 
                 Log.Information("Beginning upload of shares");
@@ -243,7 +243,7 @@ namespace slskd.Network
 
                 if (!response.IsSuccessStatusCode)
                 {
-                    throw new NetworkException($"Failed to upload shares to network controller: {response.StatusCode}");
+                    throw new RelayException($"Failed to upload shares to relay controller: {response.StatusCode}");
                 }
 
                 Log.Information("Upload shares succeeded");
@@ -258,7 +258,7 @@ namespace slskd.Network
         {
             var options = OptionsMonitor.CurrentValue;
 
-            var key = Pbkdf2.GetKey(options.Network.Controller.Secret, options.InstanceName, 48);
+            var key = Pbkdf2.GetKey(options.Relay.Controller.Secret, options.InstanceName, 48);
             var tokenBytes = System.Text.Encoding.UTF8.GetBytes(token);
 
             return Aes.Encrypt(tokenBytes, key).ToBase62();
@@ -270,7 +270,7 @@ namespace slskd.Network
         {
             _ = Task.Run(async () =>
             {
-                Log.Information("Network controller requested file {Filename} with ID {Id}", filename, token);
+                Log.Information("Relay controller requested file {Filename} with ID {Id}", filename, token);
 
                 try
                 {
@@ -285,7 +285,7 @@ namespace slskd.Network
                     }
 
                     using var stream = new FileStream(localFileInfo.FullName, FileMode.Open, FileAccess.Read);
-                    using var request = new HttpRequestMessage(HttpMethod.Post, $"api/v0/network/files/{token}");
+                    using var request = new HttpRequestMessage(HttpMethod.Post, $"api/v0/relay/files/{token}");
                     using var content = new MultipartFormDataContent
                     {
                         { new StringContent(OptionsMonitor.CurrentValue.InstanceName), "name" },
@@ -293,7 +293,7 @@ namespace slskd.Network
                         { new StreamContent(stream), "file", filename },
                     };
 
-                    request.Headers.Add("X-API-Key", OptionsMonitor.CurrentValue.Network.Controller.ApiKey);
+                    request.Headers.Add("X-API-Key", OptionsMonitor.CurrentValue.Relay.Controller.ApiKey);
                     request.Content = content;
 
                     Log.Information("Beginning upload of file {Filename} with ID {Id}", filename, token);
@@ -322,7 +322,7 @@ namespace slskd.Network
 
         private async Task HandleFileInfoRequest(string filename, Guid id)
         {
-            Log.Information("Network controller requested file info for {Filename} with ID {Id}", filename, id);
+            Log.Information("Relay controller requested file info for {Filename} with ID {Id}", filename, id);
 
             try
             {
@@ -343,7 +343,7 @@ namespace slskd.Network
         {
             try
             {
-                Log.Debug("Network controller sent an authentication challenge");
+                Log.Debug("Relay controller sent an authentication challenge");
 
                 var options = OptionsMonitor.CurrentValue;
 
@@ -358,7 +358,7 @@ namespace slskd.Network
             catch (UnauthorizedAccessException)
             {
                 await HubConnection.StopAsync();
-                Log.Error("Network controller authentication failed. Check configuration.");
+                Log.Error("Relay controller authentication failed. Check configuration.");
             }
             catch (Exception ex)
             {
@@ -368,7 +368,7 @@ namespace slskd.Network
 
         private Task HubConnection_Closed(Exception arg)
         {
-            Log.Warning("Network controller connection closed: {Message}", arg.Message);
+            Log.Warning("Relay controller connection closed: {Message}", arg.Message);
             LoggedIn = false;
             State.SetValue(_ => TranslateState(HubConnection.State));
             return Task.CompletedTask;
@@ -376,7 +376,7 @@ namespace slskd.Network
 
         private Task HubConnection_Reconnecting(Exception arg)
         {
-            Log.Warning("Network controller connection reconnecting: {Message}", arg.Message);
+            Log.Warning("Relay controller connection reconnecting: {Message}", arg.Message);
             LoggedIn = false;
             State.SetValue(_ => TranslateState(HubConnection.State));
             return Task.CompletedTask;
@@ -384,7 +384,7 @@ namespace slskd.Network
 
         private async Task HubConnection_Reconnected(string arg)
         {
-            Log.Warning("Network controller connection reconnected");
+            Log.Warning("Relay controller connection reconnected");
             // todo: does this need to log in again? does it retain the same connection id?
             LoggedIn = true;
             State.SetValue(_ => TranslateState(HubConnection.State));
@@ -393,7 +393,7 @@ namespace slskd.Network
 
         private HttpClient CreateHttpClient()
         {
-            var options = OptionsMonitor.CurrentValue.Network.Controller;
+            var options = OptionsMonitor.CurrentValue.Relay.Controller;
             HttpClient client;
 
             if (options.IgnoreCertificateErrors)
@@ -416,7 +416,7 @@ namespace slskd.Network
 
         private void Configure(Options options)
         {
-            var mode = options.Network.Mode.ToEnum<OperationMode>();
+            var mode = options.Relay.Mode.ToEnum<OperationMode>();
 
             if (mode != OperationMode.Agent && mode != OperationMode.Debug)
             {
@@ -427,14 +427,14 @@ namespace slskd.Network
 
             try
             {
-                var optionsHash = Compute.Sha1Hash(options.Network.Controller.ToJson());
+                var optionsHash = Compute.Sha1Hash(options.Relay.Controller.ToJson());
 
                 if (optionsHash == LastOptionsHash)
                 {
                     return;
                 }
 
-                Log.Debug("Network options changed. Reconfiguring...");
+                Log.Debug("Relay options changed. Reconfiguring...");
 
                 // if the client is attempting a connection, cancel it
                 // it's going to be dropped when we create a new instance, but we need
@@ -442,12 +442,12 @@ namespace slskd.Network
                 StartCancellationTokenSource?.Cancel();
 
                 HubConnection = new HubConnectionBuilder()
-                    .WithUrl($"{options.Network.Controller.Address}/hub/agents", builder =>
+                    .WithUrl($"{options.Relay.Controller.Address}/hub/relay", builder =>
                     {
-                        builder.AccessTokenProvider = () => Task.FromResult(options.Network.Controller.ApiKey);
+                        builder.AccessTokenProvider = () => Task.FromResult(options.Relay.Controller.ApiKey);
                         builder.HttpMessageHandlerFactory = (message) =>
                         {
-                            if (message is HttpClientHandler clientHandler && options.Network.Controller.IgnoreCertificateErrors)
+                            if (message is HttpClientHandler clientHandler && options.Relay.Controller.IgnoreCertificateErrors)
                             {
                                 clientHandler.ServerCertificateCustomValidationCallback += (_, _, _, _) => true;
                             }
@@ -462,19 +462,19 @@ namespace slskd.Network
                 HubConnection.Reconnecting += HubConnection_Reconnecting;
                 HubConnection.Closed += HubConnection_Closed;
 
-                HubConnection.On<string, Guid>(nameof(INetworkHub.RequestFileUpload), HandleFileUploadRequest);
-                HubConnection.On<string, Guid>(nameof(INetworkHub.RequestFileInfo), HandleFileInfoRequest);
-                HubConnection.On<string>(nameof(INetworkHub.Challenge), HandleAuthenticationChallenge);
+                HubConnection.On<string, Guid>(nameof(IRelayHub.RequestFileUpload), HandleFileUploadRequest);
+                HubConnection.On<string, Guid>(nameof(IRelayHub.RequestFileInfo), HandleFileInfoRequest);
+                HubConnection.On<string>(nameof(IRelayHub.Challenge), HandleAuthenticationChallenge);
 
                 LastOptionsHash = optionsHash;
 
-                Log.Debug("Network options reconfigured");
+                Log.Debug("Relay options reconfigured");
 
                 // if start was requested (if StartAsync() was called externally), restart
                 // after re-configuration
                 if (StartRequested)
                 {
-                    Log.Information("Reconnecting the network controller connection...");
+                    Log.Information("Reconnecting the relay controller connection...");
                     _ = StartAsync();
                 }
             }
