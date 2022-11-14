@@ -276,7 +276,7 @@ namespace slskd.Relay
         }
 
         /// <summary>
-        ///     Gets the network client (agent).
+        ///     Gets the relay client (agent).
         /// </summary>
         public IRelayClient Client { get; private set; }
 

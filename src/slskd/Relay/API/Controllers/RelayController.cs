@@ -121,7 +121,7 @@ namespace slskd.Relay
 
                 Log.Information("File upload of {Filename} ({Token}) from agent {Agent} validated and authenticated. Forwarding file stream.", filename, token, agentName);
 
-                // pass the stream back to the network service, which will in turn pass it to the upload service, and use it to
+                // pass the stream back to the relay service, which will in turn pass it to the upload service, and use it to
                 // feed data into the remote upload. await this call, it will complete when the upload is complete, one way or the other.
                 await Relay.HandleFileStreamResponse(agentName, id: guid, stream);
 

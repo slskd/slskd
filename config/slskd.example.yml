@@ -21,7 +21,7 @@
 #     api_key: <a 16-255 character string corresponding to one of the controller's API keys>
 #     secret: <a 16-255 character shared secret matching the controller's config for this agent>
 #   # agent config is optional when running in 'controller' mode
-#   # this specifies all of the agents on the network
+#   # this specifies all of the agents capable of connecting
 #   agents:
 #     my_agent:
 #       secret: <a 16-255 character string unique to this agent>

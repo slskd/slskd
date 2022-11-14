@@ -22,7 +22,7 @@ namespace slskd
     using System.Runtime.Serialization;
 
     /// <summary>
-    ///     Represents an error related to the slskd network feature.
+    ///     Represents an error related to the slskd relay feature.
     /// </summary>
     [ExcludeFromCodeCoverage]
     [Serializable]
