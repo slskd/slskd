@@ -5,7 +5,7 @@ import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 import * as session from '../lib/session';
-import * as relay from '../lib/relay';
+import * as relayAPI from '../lib/relay';
 import { connect, disconnect } from '../lib/server';
 import { urlBase } from '../config';
 
@@ -212,7 +212,7 @@ class App extends Component {
 
         return <>
           <Menu.Item
-            onClick={() => isConnected ? relay.connect() : relay.disconnect()}
+            onClick={() => isConnected ? relayAPI.connect() : relayAPI.disconnect()}
           >
             <Icon.Group className='menu-icon-group'>
               <Icon name='plug' color={isConnected ? 'green' : isTransitioning ? 'yellow' : 'grey'}/>
@@ -288,6 +288,7 @@ class App extends Component {
               <System {...props} state={applicationState} options={applicationOptions} />
             )
           }/>
+          <Redirect from='*' to={`${urlBase}/searches`}/>
         </>;
       }
     };
