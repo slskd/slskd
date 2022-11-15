@@ -42,7 +42,7 @@ namespace slskd
     using slskd.Core.API;
     using slskd.Integrations.Pushbullet;
     using slskd.Messaging;
-    using slskd.Network;
+    using slskd.Relay;
     using slskd.Search;
     using slskd.Shares;
     using slskd.Transfers;
@@ -89,7 +89,7 @@ namespace slskd
             IUserService userService,
             IShareService shareService,
             IPushbulletService pushbulletService,
-            INetworkService networkService,
+            IRelayService relayService,
             IHubContext<ApplicationHub> applicationHub,
             IHubContext<LogsHub> logHub)
         {
@@ -135,8 +135,8 @@ namespace slskd
             Users = userService;
             ApplicationHub = applicationHub;
 
-            Network = networkService;
-            Network.StateMonitor.OnChange(networkState => State.SetValue(state => state with { Network = networkState.Current }));
+            Relay = relayService;
+            Relay.StateMonitor.OnChange(relayState => State.SetValue(state => state with { Relay = relayState.Current }));
 
             LogHub = logHub;
             Program.LogEmitted += (_, log) => LogHub.EmitLogAsync(log);
@@ -199,7 +199,7 @@ namespace slskd
         private IHubContext<LogsHub> LogHub { get; set; }
         private IUserService Users { get; set; }
         private IShareService Shares { get; set; }
-        private INetworkService Network { get; set; }
+        private IRelayService Relay { get; set; }
         private IMemoryCache Cache { get; set; } = new MemoryCache(new MemoryCacheOptions());
         private IEnumerable<Regex> CompiledSearchResponseFilters { get; set; }
         private IEnumerable<Guid> ActiveDownloadIdsAtPreviousShutdown { get; set; } = Enumerable.Empty<Guid>();
@@ -398,17 +398,17 @@ namespace slskd
             {
                 Log.Warning($"Not connecting to the Soulseek server; username and/or password invalid.  Specify valid credentials and manually connect, or update config and restart.");
             }
-            else if (OptionsAtStartup.Network.Mode.ToEnum<OperationMode>() == OperationMode.Agent)
+            else if (OptionsAtStartup.Relay.Mode.ToEnum<OperationMode>() == OperationMode.Agent)
             {
-                Log.Information("Running in Agent mode; not connecting to the Soulseek server.");
-                _ = Network.Client.StartAsync(cancellationToken);
+                Log.Information("Running in Agent relay mode; not connecting to the Soulseek server.");
+                await Relay.Client.StartAsync(cancellationToken);
             }
             else
             {
-                if (OptionsAtStartup.Network.Mode.ToEnum<OperationMode>() == OperationMode.Debug)
+                if (OptionsAtStartup.Relay.Mode.ToEnum<OperationMode>() == OperationMode.Debug)
                 {
-                    Log.Warning("Running in Debug network mode; connecting to controller");
-                    _ = Network.Client.StartAsync(cancellationToken);
+                    Log.Warning("Running in Debug relay mode; connecting to controller");
+                    _ = Relay.Client.StartAsync(cancellationToken);
                 }
 
                 await Client.ConnectAsync(OptionsAtStartup.Soulseek.Username, OptionsAtStartup.Soulseek.Password).ConfigureAwait(false);
@@ -1108,7 +1108,7 @@ namespace slskd
             if (rebuildBrowseCache)
             {
                 _ = CacheBrowseResponse();
-                _ = Network.Client.SynchronizeAsync();
+                _ = Relay.Client.SynchronizeAsync();
             }
         }
 

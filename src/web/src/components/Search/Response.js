@@ -11,6 +11,7 @@ import {
   Icon,
   Label,
 } from 'semantic-ui-react';
+import { getDirectoryContents } from '../../lib/users';
 
 const buildTree = (response) => {
   let { files = [], lockedFiles = [] } = response;
@@ -57,6 +58,18 @@ class Response extends Component {
         this.setState({ downloadRequest: 'error', downloadError: err.response });
       }
     });
+  };
+
+  getFullDirectory = async (username, directory) => {
+    const { name, files } = await getDirectoryContents({ username, directory });
+    files.forEach((file, index) => {
+      const newFilename = `${directory}\\${file.filename}`;
+      files[index] = { ...files[index], filename: newFilename };
+    });
+
+    const newTree = this.state.tree;
+    newTree[name] = files;
+    this.setState({ tree: { ...newTree } });
   };
 
   toggleFolded = () => {
@@ -107,6 +120,11 @@ class Response extends Component {
               files={tree[dir]}
               disabled={downloadRequest === 'inProgress'}
               onSelectionChange={this.onFileSelectionChange}
+              footer={<button
+                onClick={() => this.getFullDirectory(response.username, dir)} 
+                style={{ cursor: 'pointer', width: '100%', backgroundColor: 'transparent', border: 'none' }}>
+                <Icon name='folder'/>Get Full Directory Contents
+              </button>}
             />
           )}
         </Card.Content>

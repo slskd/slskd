@@ -1,5 +1,4 @@
 # debug: false
-# experimental: false
 # remote_configuration: false
 # instance_name: default
 # flags:
@@ -10,17 +9,19 @@
 #   force_share_scan: false
 #   no_version_check: false
 #   log_sql: false
-# network:
+#   experimental: false
+#   volatile: false
+# relay:
 #   mode: controller # controller (default), agent, or debug (for local development)
 #   # controller config is required when running in 'agent' mode
-#   # this specifies the network controller that will be controlling this agent
+#   # this specifies the relay controller that will be controlling this agent
 #   controller:
 #     address:
 #     ignore_certificate_errors: false
 #     api_key: <a 16-255 character string corresponding to one of the controller's API keys>
 #     secret: <a 16-255 character shared secret matching the controller's config for this agent>
 #   # agent config is optional when running in 'controller' mode
-#   # this specifies all of the agents on the network
+#   # this specifies all of the agents capable of connecting
 #   agents:
 #     my_agent:
 #       secret: <a 16-255 character string unique to this agent>

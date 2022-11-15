@@ -58,7 +58,7 @@ namespace slskd
     using slskd.Integrations.FTP;
     using slskd.Integrations.Pushbullet;
     using slskd.Messaging;
-    using slskd.Network;
+    using slskd.Relay;
     using slskd.Search;
     using slskd.Search.API;
     using slskd.Shares;
@@ -517,8 +517,16 @@ namespace slskd
 
             services.AddSingleton<IConnectionWatchdog, ConnectionWatchdog>();
 
-            services.AddDbContext<SearchDbContext>($"Data Source={Path.Combine(DataDirectory, "search.db")};Cache=shared;Pooling=True;");
-            services.AddDbContext<TransfersDbContext>($"Data Source={Path.Combine(DataDirectory, "transfers.db")};Cache=shared;Pooling=True;");
+            if (OptionsAtStartup.Flags.Volatile)
+            {
+                services.AddDbContext<SearchDbContext>($"Data Source=file:search?mode=memory;Cache=shared;Pooling=True;");
+                services.AddDbContext<TransfersDbContext>($"Data Source=file:transfers?mode=memory;Cache=shared;Pooling=True;");
+            }
+            else
+            {
+                services.AddDbContext<SearchDbContext>($"Data Source={Path.Combine(DataDirectory, "search.db")};Cache=shared;Pooling=True;");
+                services.AddDbContext<TransfersDbContext>($"Data Source={Path.Combine(DataDirectory, "transfers.db")};Cache=shared;Pooling=True;");
+            }
 
             services.AddSingleton<IBrowseTracker, BrowseTracker>();
             services.AddSingleton<IConversationTracker, ConversationTracker>();
@@ -535,7 +543,7 @@ namespace slskd
             services.AddSingleton<IDownloadService, DownloadService>();
             services.AddSingleton<IUploadService, UploadService>();
 
-            services.AddSingleton<INetworkService, NetworkService>();
+            services.AddSingleton<IRelayService, RelayService>();
 
             services.AddSingleton<IFTPClientFactory, FTPClientFactory>();
             services.AddSingleton<IFTPService, FTPService>();
@@ -811,7 +819,7 @@ namespace slskd
                 endpoints.MapHub<ApplicationHub>("/hub/application");
                 endpoints.MapHub<LogsHub>("/hub/logs");
                 endpoints.MapHub<SearchHub>("/hub/search");
-                endpoints.MapHub<NetworkHub>("/hub/agents");
+                endpoints.MapHub<RelayHub>("/hub/relay");
 
                 endpoints.MapControllers();
                 endpoints.MapHealthChecks("/health");

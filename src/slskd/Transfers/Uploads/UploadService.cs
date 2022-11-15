@@ -30,7 +30,7 @@ namespace slskd.Transfers.Uploads
     using System.Threading.Tasks;
     using Microsoft.EntityFrameworkCore;
     using Serilog;
-    using slskd.Network;
+    using slskd.Relay;
     using slskd.Shares;
     using slskd.Users;
 
@@ -44,13 +44,13 @@ namespace slskd.Transfers.Uploads
             ISoulseekClient soulseekClient,
             IOptionsMonitor<Options> optionsMonitor,
             IShareService shareService,
-            INetworkService networkService,
+            IRelayService relayService,
             IDbContextFactory<TransfersDbContext> contextFactory)
         {
             Users = userService;
             Client = soulseekClient;
             Shares = shareService;
-            Network = networkService;
+            Relay = relayService;
             ContextFactory = contextFactory;
             OptionsMonitor = optionsMonitor;
 
@@ -75,7 +75,7 @@ namespace slskd.Transfers.Uploads
         private IShareService Shares { get; set; }
         private IUserService Users { get; set; }
         private IOptionsMonitor<Options> OptionsMonitor { get; }
-        private INetworkService Network { get; }
+        private IRelayService Relay { get; }
 
         /// <summary>
         ///     Adds the specified <paramref name="transfer"/>. Supersedes any existing record for the same file and username.
@@ -137,7 +137,7 @@ namespace slskd.Transfers.Uploads
                 }
                 else
                 {
-                    var (exists, length) = await Network.GetFileInfoAsync(agentName: host, filename);
+                    var (exists, length) = await Relay.GetFileInfoAsync(agentName: host, filename);
 
                     if (!exists || length <= 0)
                     {
@@ -269,11 +269,11 @@ namespace slskd.Transfers.Uploads
                             username,
                             filename,
                             size: localFileLength,
-                            inputStreamFactory: () => Network.GetFileStreamAsync(agentName: host, filename, id),
+                            inputStreamFactory: () => Relay.GetFileStreamAsync(agentName: host, filename, id),
                             options: topts,
                             cancellationToken: cts.Token);
 
-                        Network.TryCloseFileStream(host, id);
+                        Relay.TryCloseFileStream(host, id);
 
                         transfer = transfer.WithSoulseekTransfer(completedTransfer);
                     }
@@ -294,7 +294,7 @@ namespace slskd.Transfers.Uploads
                     // todo: broadcast
                     SynchronizedUpdate(transfer, cancellable: false);
 
-                    Network.TryCloseFileStream(host, id, ex);
+                    Relay.TryCloseFileStream(host, id, ex);
 
                     throw;
                 }
@@ -309,7 +309,7 @@ namespace slskd.Transfers.Uploads
                     // todo: broadcast
                     SynchronizedUpdate(transfer, cancellable: false);
 
-                    Network.TryCloseFileStream(host, id, ex);
+                    Relay.TryCloseFileStream(host, id, ex);
                     throw;
                 }
                 finally
@@ -429,7 +429,7 @@ namespace slskd.Transfers.Uploads
         /// <param name="transfer">The transfer to update.</param>
         public void Update(Transfer transfer)
         {
-            var experimental = OptionsMonitor.CurrentValue.Experimental;
+            var experimental = OptionsMonitor.CurrentValue.Flags.Experimental;
             var id = Guid.NewGuid();
 
             System.Diagnostics.Stopwatch sw = default;

@@ -1,4 +1,4 @@
-﻿// <copyright file="OperationMode.cs" company="slskd Team">
+﻿// <copyright file="Agent.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -15,26 +15,11 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-namespace slskd.Network
+namespace slskd.Relay
 {
-    /// <summary>
-    ///     The network operation mode.
-    /// </summary>
-    public enum OperationMode
+    public record Agent
     {
-        /// <summary>
-        ///     Controller operation mode.
-        /// </summary>
-        Controller = 0,
-
-        /// <summary>
-        ///     Agent operation mode.
-        /// </summary>
-        Agent = 1,
-
-        /// <summary>
-        ///     Debug mode; enables operation as both a controller and agent.
-        /// </summary>
-        Debug = 2,
+        public string Name { get; init; }
+        public string IPAddress { get; init; }
     }
 }
