@@ -51,7 +51,7 @@ namespace slskd.Relay
         [Authorize(Policy = AuthPolicy.Any)]
         public async Task<IActionResult> Connect()
         {
-            await Network.Client.StartAsync();
+            await Relay.Client.StartAsync();
             return Ok();
         }
 
@@ -59,7 +59,7 @@ namespace slskd.Relay
         [Authorize(Policy = AuthPolicy.Any)]
         public async Task<IActionResult> Disconnect()
         {
-            await Network.Client.StopAsync();
+            await Relay.Client.StopAsync();
             return NoContent();
         }
 
