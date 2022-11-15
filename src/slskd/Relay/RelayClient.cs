@@ -181,6 +181,8 @@ namespace slskd.Relay
 
                 LoggedIn = false;
 
+                State.SetValue(_ => TranslateState(HubConnectionState.Disconnected));
+
                 Log.Information("Relay controller connection disconnected");
             }
         }
