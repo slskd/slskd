@@ -1,9 +1,9 @@
 import api from './api';
 
 export const connect = () => {
-  return api.put('/network');
+  return api.put('/relay');
 };
 
 export const disconnect = () => {
-  return api.delete('/network');
+  return api.delete('/relay');
 };

@@ -5,7 +5,7 @@ import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 import * as session from '../lib/session';
-import * as networkAPI from '../lib/network';
+import * as relay from '../lib/relay';
 import { connect, disconnect } from '../lib/server';
 import { urlBase } from '../config';
 
@@ -119,7 +119,7 @@ class App extends Component {
     const { login, applicationState = {}, applicationOptions = {}, error, initialized, retriesExhausted } = this.state;
     const { 
       version = {},
-      network = {},
+      relay = {},
       server,
       pendingReconnect,
       pendingRestart,
@@ -129,7 +129,7 @@ class App extends Component {
     const { isUpdateAvailable, current, latest } = version;
     const { scanPending: pendingShareRescan } = shares;
 
-    const { mode, controller } = network;
+    const { mode, controller } = relay;
 
     if (!initialized) {
       return <Loader active size='big'/>;
@@ -212,7 +212,7 @@ class App extends Component {
 
         return <>
           <Menu.Item
-            onClick={() => isConnected ? networkAPI.connect() : networkAPI.disconnect()}
+            onClick={() => isConnected ? relay.connect() : relay.disconnect()}
           >
             <Icon.Group className='menu-icon-group'>
               <Icon name='plug' color={isConnected ? 'green' : isTransitioning ? 'yellow' : 'grey'}/>
