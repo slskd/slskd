@@ -58,7 +58,7 @@ namespace slskd
     using slskd.Integrations.FTP;
     using slskd.Integrations.Pushbullet;
     using slskd.Messaging;
-    using slskd.Network;
+    using slskd.Relay;
     using slskd.Search;
     using slskd.Search.API;
     using slskd.Shares;
@@ -543,7 +543,7 @@ namespace slskd
             services.AddSingleton<IDownloadService, DownloadService>();
             services.AddSingleton<IUploadService, UploadService>();
 
-            services.AddSingleton<INetworkService, NetworkService>();
+            services.AddSingleton<IRelayService, RelayService>();
 
             services.AddSingleton<IFTPClientFactory, FTPClientFactory>();
             services.AddSingleton<IFTPService, FTPService>();
@@ -819,7 +819,7 @@ namespace slskd
                 endpoints.MapHub<ApplicationHub>("/hub/application");
                 endpoints.MapHub<LogsHub>("/hub/logs");
                 endpoints.MapHub<SearchHub>("/hub/search");
-                endpoints.MapHub<NetworkHub>("/hub/agents");
+                endpoints.MapHub<RelayHub>("/hub/relay");
 
                 endpoints.MapControllers();
                 endpoints.MapHealthChecks("/health");

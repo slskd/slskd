@@ -1,4 +1,4 @@
-﻿// <copyright file="NetworkController.cs" company="slskd Team">
+﻿// <copyright file="RelayController.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -15,7 +15,7 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-namespace slskd.Network
+namespace slskd.Relay
 {
     using System;
     using System.Collections.Generic;
@@ -31,21 +31,21 @@ namespace slskd.Network
     using slskd.Shares;
 
     /// <summary>
-    ///     Network.
+    ///     Relay.
     /// </summary>
     [Route("api/v{version:apiVersion}/[controller]")]
     [ApiVersion("0")]
     [ApiController]
-    public class NetworkController : ControllerBase
+    public class RelayController : ControllerBase
     {
-        public NetworkController(
-            INetworkService networkService)
+        public RelayController(
+            IRelayService relayService)
         {
-            Network = networkService;
+            Relay = relayService;
         }
 
-        private ILogger Log { get; } = Serilog.Log.ForContext<NetworkController>();
-        private INetworkService Network { get; }
+        private ILogger Log { get; } = Serilog.Log.ForContext<RelayController>();
+        private IRelayService Relay { get; }
 
         /// <summary>
         ///     Uploads a file.
@@ -102,7 +102,7 @@ namespace slskd.Network
                     return BadRequest();
                 }
 
-                if (!Network.RegisteredAgents.Any(a => a.Name == agentName))
+                if (!Relay.RegisteredAgents.Any(a => a.Name == agentName))
                 {
                     return Unauthorized();
                 }
@@ -113,7 +113,7 @@ namespace slskd.Network
                 // provide the encrypted value as the credential with the request. the validation below verifies a bunch of
                 // things, including that the encrypted value matches the expected value. the goal here is to ensure that the
                 // caller is the same caller that received the request, and that the caller knows the shared secret.
-                if (!Network.TryValidateFileStreamResponseCredential(token: guid, agentName, filename, credential))
+                if (!Relay.TryValidateFileStreamResponseCredential(token: guid, agentName, filename, credential))
                 {
                     Log.Warning("Failed to authenticate file upload token {Token} from a caller claiming to be agent {Agent}", agentName);
                     return Unauthorized();
@@ -121,9 +121,9 @@ namespace slskd.Network
 
                 Log.Information("File upload of {Filename} ({Token}) from agent {Agent} validated and authenticated. Forwarding file stream.", filename, token, agentName);
 
-                // pass the stream back to the network service, which will in turn pass it to the upload service, and use it to
+                // pass the stream back to the relay service, which will in turn pass it to the upload service, and use it to
                 // feed data into the remote upload. await this call, it will complete when the upload is complete, one way or the other.
-                await Network.HandleFileStreamResponse(agentName, id: guid, stream);
+                await Relay.HandleFileStreamResponse(agentName, id: guid, stream);
 
                 Log.Information("File upload of {Filename} ({Token}) from agent {Agent} complete", filename, token, agentName);
                 return Ok();
@@ -173,12 +173,12 @@ namespace slskd.Network
                 return BadRequest();
             }
 
-            if (!Network.RegisteredAgents.Any(a => a.Name == agentName))
+            if (!Relay.RegisteredAgents.Any(a => a.Name == agentName))
             {
                 return Unauthorized();
             }
 
-            if (!Network.TryValidateShareUploadCredential(token: guid, agentName, credential))
+            if (!Relay.TryValidateShareUploadCredential(token: guid, agentName, credential))
             {
                 Log.Warning("Failed to authenticate share upload from caller claiming to be agent {Agent}");
                 return Unauthorized();
@@ -198,7 +198,7 @@ namespace slskd.Network
 
                 Log.Debug("Upload of share from {Agent} to {Filename} complete", agentName, temp);
 
-                await Network.HandleShareUpload(agentName, id: guid, shares, temp);
+                await Relay.HandleShareUpload(agentName, id: guid, shares, temp);
 
                 return Ok();
             }

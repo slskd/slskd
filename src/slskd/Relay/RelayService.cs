@@ -1,4 +1,4 @@
-﻿// <copyright file="NetworkService.cs" company="slskd Team">
+﻿// <copyright file="RelayService.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -17,7 +17,7 @@
 
 using Microsoft.Extensions.Options;
 
-namespace slskd.Network
+namespace slskd.Relay
 {
     using System;
     using System.Collections.Concurrent;
@@ -35,14 +35,14 @@ namespace slskd.Network
     using slskd.Shares;
 
     /// <summary>
-    ///     Handles network (controller/agent) interactions.
+    ///     Handles relay (controller/agent) interactions.
     /// </summary>
-    public interface INetworkService
+    public interface IRelayService
     {
         /// <summary>
-        ///     Gets the network client (agent).
+        ///     Gets the relay client (agent).
         /// </summary>
-        INetworkClient Client { get; }
+        IRelayClient Client { get; }
 
         /// <summary>
         ///     Gets the collection of registered Agents.
@@ -52,7 +52,7 @@ namespace slskd.Network
         /// <summary>
         ///     Gets the state monitor for the service.
         /// </summary>
-        IStateMonitor<NetworkState> StateMonitor { get; }
+        IStateMonitor<RelayState> StateMonitor { get; }
 
         /// <summary>
         ///     Generates a random authentication challenge token for the specified <paramref name="connectionId"/>.
@@ -245,26 +245,28 @@ namespace slskd.Network
     }
 
     /// <summary>
-    ///     Handles network (controller/agent) interactions.
+    ///     Handles relay (controller/agent) interactions.
     /// </summary>
-    public class NetworkService : INetworkService
+    public class RelayService : IRelayService
     {
-        public NetworkService(
+        public RelayService(
             IWaiter waiter,
             IShareService shareService,
             IShareRepositoryFactory shareRepositoryFactory,
             IOptionsMonitor<Options> optionsMonitor,
-            IHubContext<NetworkHub, INetworkHub> networkHub,
+            IHubContext<RelayHub, IRelayHub> relayHub,
             IHttpClientFactory httpClientFactory,
-            INetworkClient networkClient = null)
+            IRelayClient relayClient = null)
         {
             Shares = shareService;
             ShareRepositoryFactory = shareRepositoryFactory;
             Waiter = waiter;
-            NetworkHub = networkHub;
+            RelayHub = relayHub;
+
+            HttpClientFactory = httpClientFactory;
 
             // wire up a dummy client so callers don't need to handle nulls
-            Client = networkClient ?? new DummyNetworkClient();
+            Client = relayClient ?? new DummyRelayClient();
 
             StateMonitor = State;
 
@@ -274,9 +276,9 @@ namespace slskd.Network
         }
 
         /// <summary>
-        ///     Gets the network client (agent).
+        ///     Gets the relay client (agent).
         /// </summary>
-        public INetworkClient Client { get; private set; }
+        public IRelayClient Client { get; private set; }
 
         /// <summary>
         ///     Gets the collection of registered Agents.
@@ -286,19 +288,19 @@ namespace slskd.Network
         /// <summary>
         ///     Gets the state monitor for the service.
         /// </summary>
-        public IStateMonitor<NetworkState> StateMonitor { get; }
+        public IStateMonitor<RelayState> StateMonitor { get; }
 
         private IHttpClientFactory HttpClientFactory { get; }
-        private ILogger Log { get; } = Serilog.Log.ForContext<NetworkService>();
+        private ILogger Log { get; } = Serilog.Log.ForContext<RelayService>();
         private MemoryCache MemoryCache { get; } = new MemoryCache(new MemoryCacheOptions());
-        private IHubContext<NetworkHub, INetworkHub> NetworkHub { get; set; }
+        private IHubContext<RelayHub, IRelayHub> RelayHub { get; set; }
         private IOptionsMonitor<Options> OptionsMonitor { get; }
         private ConcurrentDictionary<Guid, TaskCompletionSource<(bool Exists, long Length)>> PendingFileInquiryDictionary { get; } = new();
         private ConcurrentDictionary<string, (string ConnectionId, Agent Agent)> RegisteredAgentDictionary { get; } = new();
         private IShareRepositoryFactory ShareRepositoryFactory { get; }
         private IShareService Shares { get; }
         private IWaiter Waiter { get; }
-        private IManagedState<NetworkState> State { get; } = new ManagedState<NetworkState>();
+        private IManagedState<RelayState> State { get; } = new ManagedState<RelayState>();
         private ConcurrentDictionary<WaitKey, Guid> WaitIdDictionary { get; } = new();
         private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1, 1);
         private string LastOptionsHash { get; set; }
@@ -392,7 +394,7 @@ namespace slskd.Network
 
             try
             {
-                await NetworkHub.Clients.Client(record.ConnectionId).RequestFileInfo(filename, id);
+                await RelayHub.Clients.Client(record.ConnectionId).RequestFileInfo(filename, id);
                 Log.Information("Requested file information for {Filename} from Agent {Agent} with ID {Id}. Waiting for response.", filename, agentName, id);
 
                 return await wait;
@@ -466,7 +468,7 @@ namespace slskd.Network
 
             Log.Information("Created wait {Key}", key);
 
-            await NetworkHub.Clients.Client(record.ConnectionId).RequestFileUpload(filename, id);
+            await RelayHub.Clients.Client(record.ConnectionId).RequestFileUpload(filename, id);
             Log.Information("Requested file {Filename} from Agent {Agent} with ID {Id}. Waiting for incoming connection.", filename, agentName, id);
 
             var task = await Task.WhenAny(wait, Task.Delay(timeout, cancellationToken));
@@ -662,7 +664,7 @@ namespace slskd.Network
                 return false;
             }
 
-            if (!OptionsMonitor.CurrentValue.Network.Agents.TryGetValue(agentName, out var agentOptions))
+            if (!OptionsMonitor.CurrentValue.Relay.Agents.TryGetValue(agentName, out var agentOptions))
             {
                 Log.Debug("Auth challenge for {Id} failed: no configuration for agent '{Agent}'", connectionId, agentName);
                 return false;
@@ -706,15 +708,15 @@ namespace slskd.Network
 
             try
             {
-                var optionsHash = Compute.Sha1Hash(options.Network.ToJson());
-                var controllerOptionsHash = Compute.Sha1Hash(options.Network.Controller.ToJson());
+                var optionsHash = Compute.Sha1Hash(options.Relay.ToJson());
+                var controllerOptionsHash = Compute.Sha1Hash(options.Relay.Controller.ToJson());
 
                 if (optionsHash == LastOptionsHash || controllerOptionsHash == LastControllerOptionsHash)
                 {
                     return;
                 }
 
-                var mode = options.Network.Mode.ToEnum<OperationMode>();
+                var mode = options.Relay.Mode.ToEnum<OperationMode>();
 
                 if (mode == OperationMode.Controller)
                 {
@@ -727,16 +729,16 @@ namespace slskd.Network
                 else
                 {
                     // the controller changed. disconnect and throw away the client and create a new one
-                    Client = new NetworkClient(Shares, OptionsMonitor, HttpClientFactory);
+                    Client = new RelayClient(Shares, OptionsMonitor, HttpClientFactory);
                     Client.StateMonitor.OnChange(clientState
                         => State.SetValue(state => state with { Controller = state.Controller with { State = clientState.Current } }));
 
                     State.SetValue(state => state with
                     {
                         Mode = mode,
-                        Controller = new NetworkControllerState()
+                        Controller = new RelayControllerState()
                         {
-                            Address = options.Network.Controller.Address,
+                            Address = options.Relay.Controller.Address,
                             State = Client.StateMonitor.CurrentValue,
                         },
                     });
@@ -761,7 +763,7 @@ namespace slskd.Network
         {
             try
             {
-                if (!OptionsMonitor.CurrentValue.Network.Agents.TryGetValue(agentName, out var agentOptions))
+                if (!OptionsMonitor.CurrentValue.Relay.Agents.TryGetValue(agentName, out var agentOptions))
                 {
                     Log.Debug("Validation failed: Agent {Agent} not configured", agentName);
                     return false;
