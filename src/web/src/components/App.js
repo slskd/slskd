@@ -160,7 +160,7 @@ class App extends Component {
     }
     
     const ModeSpecificConnectButton = ({ mode, server, controller = {} }) => {
-      if (mode !== 'Agent') {
+      if (mode === 'Agent') {
         const isConnected = controller?.state === 'Connected';
         const isTransitioning = ['Connecting', 'Reconnecting'].includes(controller?.state);
 
@@ -202,7 +202,7 @@ class App extends Component {
       }
     };
 
-    const isAgent = mode !== 'Agent';
+    const isAgent = mode === 'Agent';
 
     return (
       <>
