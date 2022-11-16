@@ -95,7 +95,8 @@ namespace slskd.Relay
 
         private ManagedState<RelayClientState> State { get; } = new();
         private IShareService Shares { get; }
-        private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1, 1);
+        private SemaphoreSlim ConfigurationSyncRoot { get; } = new SemaphoreSlim(1, 1);
+        private SemaphoreSlim StateSyncRoot { get; } = new SemaphoreSlim(1, 1);
         private string LastOptionsHash { get; set; }
         private IOptionsMonitor<Options> OptionsMonitor { get; }
         private IHttpClientFactory HttpClientFactory { get; }
@@ -114,56 +115,69 @@ namespace slskd.Relay
         /// <returns></returns>
         public async Task StartAsync(CancellationToken cancellationToken = default)
         {
-            var mode = OptionsMonitor.CurrentValue.Relay.Mode.ToEnum<OperationMode>();
-
-            if (mode != OperationMode.Agent && mode != OperationMode.Debug)
+            if (!StateSyncRoot.Wait(0, cancellationToken))
             {
-                throw new InvalidOperationException($"Relay client can only be started when operation mode is {OperationMode.Agent}");
+                // we're already attempting to connect, let the existing attempt handle it
+                return;
             }
-
-            StartCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            LoggedInTaskCompletionSource = new TaskCompletionSource();
-            StartRequested = true;
-
-            Log.Information("Attempting to connect to the relay controller {Address}", OptionsMonitor.CurrentValue.Relay.Controller.Address);
-
-            State.SetValue(_ => TranslateState(HubConnectionState.Connecting));
-
-            // retry indefinitely
-            await Retry.Do(
-                task: () => HubConnection.StartAsync(StartCancellationTokenSource.Token),
-                isRetryable: (attempts, ex) => true,
-                onFailure: (attempts, ex) =>
-                {
-                    Log.Debug(ex, "Relay hub connection failure");
-                    Log.Warning("Failed attempt #{Attempts} to connect to relay controller: {Message}", attempts, ex.Message);
-                },
-                maxAttempts: int.MaxValue,
-                maxDelayInMilliseconds: 30000,
-                StartCancellationTokenSource.Token);
-
-            State.SetValue(_ => TranslateState(HubConnection.State));
-            Log.Information("Relay controller connection established. Awaiting authentication...");
-
-            await LoggedInTaskCompletionSource.Task;
-
-            LoggedIn = true;
-
-            Log.Information("Authenticated. Uploading shares...");
 
             try
             {
-                await UploadSharesAsync();
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, ex.Message);
-                Log.Error("Disconnecting from the relay controller");
-                await StopAsync();
-                throw;
-            }
+                var mode = OptionsMonitor.CurrentValue.Relay.Mode.ToEnum<OperationMode>();
 
-            Log.Information("Shares uploaded. Ready to upload files.");
+                if (mode != OperationMode.Agent && mode != OperationMode.Debug)
+                {
+                    throw new InvalidOperationException($"Relay client can only be started when operation mode is {OperationMode.Agent}");
+                }
+
+                StartCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                LoggedInTaskCompletionSource = new TaskCompletionSource();
+                StartRequested = true;
+
+                Log.Information("Attempting to connect to the relay controller {Address}", OptionsMonitor.CurrentValue.Relay.Controller.Address);
+
+                State.SetValue(_ => TranslateState(HubConnectionState.Connecting));
+
+                // retry indefinitely
+                await Retry.Do(
+                    task: () => HubConnection.StartAsync(StartCancellationTokenSource.Token),
+                    isRetryable: (attempts, ex) => true,
+                    onFailure: (attempts, ex) =>
+                    {
+                        Log.Debug(ex, "Relay hub connection failure");
+                        Log.Warning("Failed attempt #{Attempts} to connect to relay controller: {Message}", attempts, ex.Message);
+                    },
+                    maxAttempts: int.MaxValue,
+                    maxDelayInMilliseconds: 30000,
+                    StartCancellationTokenSource.Token);
+
+                State.SetValue(_ => TranslateState(HubConnection.State));
+                Log.Information("Relay controller connection established. Awaiting authentication...");
+
+                await LoggedInTaskCompletionSource.Task;
+
+                LoggedIn = true;
+
+                Log.Information("Authenticated. Uploading shares...");
+
+                try
+                {
+                    await UploadSharesAsync();
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, ex.Message);
+                    Log.Error("Disconnecting from the relay controller");
+                    await StopAsync();
+                    throw;
+                }
+
+                Log.Information("Shares uploaded. Ready to upload files.");
+            }
+            finally
+            {
+                StateSyncRoot.Release();
+            }
         }
 
         /// <summary>
@@ -180,6 +194,8 @@ namespace slskd.Relay
                 await HubConnection.StopAsync(cancellationToken);
 
                 LoggedIn = false;
+
+                State.SetValue(_ => TranslateState(HubConnectionState.Disconnected));
 
                 Log.Information("Relay controller connection disconnected");
             }
@@ -423,7 +439,7 @@ namespace slskd.Relay
                 return;
             }
 
-            SyncRoot.Wait();
+            ConfigurationSyncRoot.Wait();
 
             try
             {
@@ -480,7 +496,7 @@ namespace slskd.Relay
             }
             finally
             {
-                SyncRoot.Release();
+                ConfigurationSyncRoot.Release();
             }
         }
 

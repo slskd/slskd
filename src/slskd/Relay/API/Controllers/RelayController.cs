@@ -47,6 +47,22 @@ namespace slskd.Relay
         private ILogger Log { get; } = Serilog.Log.ForContext<RelayController>();
         private IRelayService Relay { get; }
 
+        [HttpPut("")]
+        [Authorize(Policy = AuthPolicy.Any)]
+        public async Task<IActionResult> Connect()
+        {
+            await Relay.Client.StartAsync();
+            return Ok();
+        }
+
+        [HttpDelete("")]
+        [Authorize(Policy = AuthPolicy.Any)]
+        public async Task<IActionResult> Disconnect()
+        {
+            await Relay.Client.StopAsync();
+            return NoContent();
+        }
+
         /// <summary>
         ///     Uploads a file.
         /// </summary>
