@@ -15,6 +15,8 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
+using Microsoft.Extensions.Options;
+
 namespace slskd.Messaging.API
 {
     using System;
@@ -24,6 +26,7 @@ namespace slskd.Messaging.API
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Http;
     using Microsoft.AspNetCore.Mvc;
+    using slskd.Relay;
     using Soulseek;
 
     /// <summary>
@@ -40,10 +43,12 @@ namespace slskd.Messaging.API
             ISoulseekClient soulseekClient,
             IRoomService roomService,
             IStateMonitor<State> applicationStateMonitor,
+            IOptionsSnapshot<Options> optionsSnapshot,
             IRoomTracker tracker)
         {
             Client = soulseekClient;
             ApplicationStateMonitor = applicationStateMonitor;
+            OptionsSnapshot = optionsSnapshot;
             Tracker = tracker;
             RoomService = roomService;
         }
@@ -52,6 +57,8 @@ namespace slskd.Messaging.API
         private ISoulseekClient Client { get; }
         private IStateMonitor<State> ApplicationStateMonitor { get; }
         private IRoomTracker Tracker { get; }
+        private IOptionsSnapshot<Options> OptionsSnapshot { get; }
+        private bool IsAgent => OptionsSnapshot.Value.Relay.Mode.ToEnum<OperationMode>() == OperationMode.Agent;
 
         /// <summary>
         ///     Gets all rooms.
@@ -63,6 +70,11 @@ namespace slskd.Messaging.API
         [ProducesResponseType(typeof(Dictionary<string, Dictionary<string, Room>>), 200)]
         public IActionResult GetAll()
         {
+            if (IsAgent)
+            {
+                return Forbid();
+            }
+
             return Ok(Tracker.Rooms.Keys);
         }
 
@@ -79,6 +91,11 @@ namespace slskd.Messaging.API
         [ProducesResponseType(404)]
         public IActionResult GetByRoomName([FromRoute]string roomName)
         {
+            if (IsAgent)
+            {
+                return Forbid();
+            }
+
             if (Tracker.TryGet(roomName, out var room))
             {
                 return Ok(MapRoomToRoomResponse(room));
@@ -101,6 +118,11 @@ namespace slskd.Messaging.API
         [ProducesResponseType(404)]
         public async Task<IActionResult> SendMessage([FromRoute]string roomName, [FromBody]string message)
         {
+            if (IsAgent)
+            {
+                return Forbid();
+            }
+
             if (Tracker.TryGet(roomName, out var _))
             {
                 await Client.SendRoomMessageAsync(roomName, message);
@@ -124,6 +146,11 @@ namespace slskd.Messaging.API
         [ProducesResponseType(404)]
         public async Task<IActionResult> SetTicker([FromRoute] string roomName, [FromBody] string message)
         {
+            if (IsAgent)
+            {
+                return Forbid();
+            }
+
             if (Tracker.TryGet(roomName, out var _))
             {
                 await Client.SetRoomTickerAsync(roomName, message);
@@ -147,6 +174,11 @@ namespace slskd.Messaging.API
         [ProducesResponseType(404)]
         public async Task<IActionResult> AddRoomMember([FromRoute]string roomName, [FromBody]string username)
         {
+            if (IsAgent)
+            {
+                return Forbid();
+            }
+
             if (Tracker.TryGet(roomName, out var _))
             {
                 await Client.AddPrivateRoomMemberAsync(roomName, username);
@@ -169,6 +201,11 @@ namespace slskd.Messaging.API
         [ProducesResponseType(404)]
         public IActionResult GetUsersByRoomName([FromRoute]string roomName)
         {
+            if (IsAgent)
+            {
+                return Forbid();
+            }
+
             if (Tracker.TryGet(roomName, out var room))
             {
                 var response = room.Users
@@ -193,6 +230,11 @@ namespace slskd.Messaging.API
         [ProducesResponseType(404)]
         public IActionResult GetMessagesByRoomName([FromRoute]string roomName)
         {
+            if (IsAgent)
+            {
+                return Forbid();
+            }
+
             if (Tracker.TryGet(roomName, out var room))
             {
                 var response = room.Messages
@@ -213,6 +255,11 @@ namespace slskd.Messaging.API
         [ProducesResponseType(typeof(List<RoomInfo>), 200)]
         public async Task<IActionResult> GetRooms()
         {
+            if (IsAgent)
+            {
+                return Forbid();
+            }
+
             var list = await Client.GetRoomListAsync();
 
             var response = new List<RoomInfoResponse>();
@@ -242,6 +289,11 @@ namespace slskd.Messaging.API
         [ProducesResponseType(304)]
         public async Task<IActionResult> JoinRoom([FromBody]string roomName)
         {
+            if (IsAgent)
+            {
+                return Forbid();
+            }
+
             if (Tracker.Rooms.ContainsKey(roomName))
             {
                 return StatusCode(StatusCodes.Status304NotModified);
@@ -278,6 +330,11 @@ namespace slskd.Messaging.API
         [ProducesResponseType(404)]
         public async Task<IActionResult> LeaveRoom([FromRoute]string roomName)
         {
+            if (IsAgent)
+            {
+                return Forbid();
+            }
+
             if (!Tracker.Rooms.ContainsKey(roomName))
             {
                 return StatusCode(StatusCodes.Status404NotFound);

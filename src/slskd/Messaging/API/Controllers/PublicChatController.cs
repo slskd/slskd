@@ -15,12 +15,15 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
+using Microsoft.Extensions.Options;
+
 namespace slskd.Messaging.API
 {
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Http;
     using Microsoft.AspNetCore.Mvc;
+    using slskd.Relay;
     using Soulseek;
 
     /// <summary>
@@ -33,12 +36,15 @@ namespace slskd.Messaging.API
     [Consumes("application/json")]
     public class PublicChatController : ControllerBase
     {
-        public PublicChatController(ISoulseekClient soulseekClient)
+        public PublicChatController(ISoulseekClient soulseekClient, IOptionsSnapshot<Options> optionsSnapshot)
         {
             Client = soulseekClient;
+            OptionsSnapshot = optionsSnapshot;
         }
 
         private ISoulseekClient Client { get; }
+        private IOptionsSnapshot<Options> OptionsSnapshot { get; }
+        private bool IsAgent => OptionsSnapshot.Value.Relay.Mode.ToEnum<OperationMode>() == OperationMode.Agent;
 
         /// <summary>
         ///     Starts public chat.
@@ -48,6 +54,11 @@ namespace slskd.Messaging.API
         [Authorize(Policy = AuthPolicy.Any)]
         public async Task<IActionResult> Start()
         {
+            if (IsAgent)
+            {
+                return Forbid();
+            }
+
             await Client.StartPublicChatAsync();
             return StatusCode(StatusCodes.Status201Created);
         }
@@ -60,6 +71,11 @@ namespace slskd.Messaging.API
         [Authorize(Policy = AuthPolicy.Any)]
         public async Task<IActionResult> Stop()
         {
+            if (IsAgent)
+            {
+                return Forbid();
+            }
+
             await Client.StopPublicChatAsync();
             return StatusCode(StatusCodes.Status204NoContent);
         }

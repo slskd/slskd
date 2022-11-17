@@ -15,6 +15,8 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
+using Microsoft.Extensions.Options;
+
 namespace slskd.Transfers.API
 {
     using System;
@@ -24,6 +26,7 @@ namespace slskd.Transfers.API
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
+    using slskd.Relay;
 
     /// <summary>
     ///     Transfers.
@@ -40,12 +43,16 @@ namespace slskd.Transfers.API
         /// </summary>
         /// <param name="transferService"></param>
         public TransfersController(
-            ITransferService transferService)
+            ITransferService transferService,
+            IOptionsSnapshot<Options> optionsSnapshot)
         {
             Transfers = transferService;
+            OptionsSnapshot = optionsSnapshot;
         }
 
         private ITransferService Transfers { get; }
+        private IOptionsSnapshot<Options> OptionsSnapshot { get; }
+        private bool IsAgent => OptionsSnapshot.Value.Relay.Mode.ToEnum<OperationMode>() == OperationMode.Agent;
 
         /// <summary>
         ///     Cancels the specified download.
@@ -62,6 +69,11 @@ namespace slskd.Transfers.API
         [ProducesResponseType(404)]
         public IActionResult CancelDownloadAsync([FromRoute, Required] string username, [FromRoute, Required]string id, [FromQuery]bool remove = false)
         {
+            if (IsAgent)
+            {
+                return Forbid();
+            }
+
             if (!Guid.TryParse(id, out var guid))
             {
                 return BadRequest();
@@ -94,6 +106,11 @@ namespace slskd.Transfers.API
         [ProducesResponseType(204)]
         public IActionResult ClearCompletedDownloads()
         {
+            if (IsAgent)
+            {
+                return Forbid();
+            }
+
             var transfers = Transfers.Downloads
                 .List() // https://github.com/dotnet/efcore/issues/10434
                 .Where(t => t.State.HasFlag(Soulseek.TransferStates.Completed));
@@ -121,6 +138,11 @@ namespace slskd.Transfers.API
         [ProducesResponseType(404)]
         public IActionResult CancelUpload([FromRoute, Required] string username, [FromRoute, Required]string id, [FromQuery]bool remove = false)
         {
+            if (IsAgent)
+            {
+                return Forbid();
+            }
+
             if (!Guid.TryParse(id, out var guid))
             {
                 return BadRequest();
@@ -153,6 +175,11 @@ namespace slskd.Transfers.API
         [ProducesResponseType(204)]
         public IActionResult ClearCompletedUploads()
         {
+            if (IsAgent)
+            {
+                return Forbid();
+            }
+
             var transfers = Transfers.Uploads
                 .List() // https://github.com/dotnet/efcore/issues/10434
                 .Where(t => t.State.HasFlag(Soulseek.TransferStates.Completed));
@@ -181,6 +208,11 @@ namespace slskd.Transfers.API
         [ProducesResponseType(typeof(string), 500)]
         public async Task<IActionResult> EnqueueAsync([FromRoute, Required]string username, [FromBody]IEnumerable<QueueDownloadRequest> requests)
         {
+            if (IsAgent)
+            {
+                return Forbid();
+            }
+
             try
             {
                 await Transfers.Downloads.EnqueueAsync(username, requests.Select(r => (r.Filename, r.Size)));
@@ -202,6 +234,11 @@ namespace slskd.Transfers.API
         [ProducesResponseType(200)]
         public IActionResult GetDownloadsAsync([FromQuery]bool includeRemoved = false)
         {
+            if (IsAgent)
+            {
+                return Forbid();
+            }
+
             var downloads = Transfers.Downloads.List(includeRemoved: includeRemoved);
 
             var response = downloads.GroupBy(t => t.Username).Select(grouping => new UserResponse()
@@ -229,6 +266,11 @@ namespace slskd.Transfers.API
         [ProducesResponseType(200)]
         public IActionResult GetDownloadsAsync([FromRoute, Required] string username)
         {
+            if (IsAgent)
+            {
+                return Forbid();
+            }
+
             var downloads = Transfers.Downloads.List(d => d.Username == username);
 
             if (!downloads.Any())
@@ -256,6 +298,11 @@ namespace slskd.Transfers.API
         [ProducesResponseType(404)]
         public IActionResult GetDownload([FromRoute, Required] string username, [FromRoute, Required] string id)
         {
+            if (IsAgent)
+            {
+                return Forbid();
+            }
+
             if (!Guid.TryParse(id, out var guid))
             {
                 return BadRequest();
@@ -286,6 +333,11 @@ namespace slskd.Transfers.API
         [ProducesResponseType(404)]
         public async Task<IActionResult> GetPlaceInQueueAsync([FromRoute, Required] string username, [FromRoute, Required] string id)
         {
+            if (IsAgent)
+            {
+                return Forbid();
+            }
+
             if (!Guid.TryParse(id, out var guid))
             {
                 return BadRequest();
@@ -316,6 +368,11 @@ namespace slskd.Transfers.API
         [ProducesResponseType(200)]
         public IActionResult GetUploads([FromQuery] bool includeRemoved = false)
         {
+            if (IsAgent)
+            {
+                return Forbid();
+            }
+
             var uploads = Transfers.Uploads.List(includeRemoved: includeRemoved);
 
             var response = uploads.GroupBy(t => t.Username).Select(grouping => new UserResponse()
@@ -343,6 +400,11 @@ namespace slskd.Transfers.API
         [ProducesResponseType(200)]
         public IActionResult GetUploads([FromRoute, Required] string username)
         {
+            if (IsAgent)
+            {
+                return Forbid();
+            }
+
             var uploads = Transfers.Uploads.List(d => d.Username == username);
 
             if (!uploads.Any())
@@ -376,6 +438,11 @@ namespace slskd.Transfers.API
         [ProducesResponseType(200)]
         public IActionResult GetUploads([FromRoute, Required] string username, [FromRoute, Required] string id)
         {
+            if (IsAgent)
+            {
+                return Forbid();
+            }
+
             if (!Guid.TryParse(id, out var guid))
             {
                 return BadRequest();

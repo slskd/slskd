@@ -15,6 +15,8 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
+using Microsoft.Extensions.Options;
+
 namespace slskd.Users.API
 {
     using System.Collections.Generic;
@@ -23,6 +25,7 @@ namespace slskd.Users.API
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
+    using slskd.Relay;
     using Soulseek;
 
     /// <summary>
@@ -41,16 +44,19 @@ namespace slskd.Users.API
         /// <param name="soulseekClient"></param>
         /// <param name="browseTracker"></param>
         /// <param name="userService"></param>
-        public UsersController(ISoulseekClient soulseekClient, IBrowseTracker browseTracker, IUserService userService)
+        public UsersController(ISoulseekClient soulseekClient, IBrowseTracker browseTracker, IUserService userService, IOptionsSnapshot<Options> optionsSnapshot)
         {
             Client = soulseekClient;
             BrowseTracker = browseTracker;
             Users = userService;
+            OptionsSnapshot = optionsSnapshot;
         }
 
         private IBrowseTracker BrowseTracker { get; }
         private ISoulseekClient Client { get; }
         private IUserService Users { get; }
+        private IOptionsSnapshot<Options> OptionsSnapshot { get; }
+        private bool IsAgent => OptionsSnapshot.Value.Relay.Mode.ToEnum<OperationMode>() == OperationMode.Agent;
 
         /// <summary>
         ///     Retrieves the address of the specified <paramref name="username"/>.
@@ -64,6 +70,11 @@ namespace slskd.Users.API
         [ProducesResponseType(404)]
         public async Task<IActionResult> Endpoint([FromRoute, Required] string username)
         {
+            if (IsAgent)
+            {
+                return Forbid();
+            }
+
             try
             {
                 var endpoint = await Users.GetIPEndPointAsync(username);
@@ -86,6 +97,11 @@ namespace slskd.Users.API
         [ProducesResponseType(404)]
         public async Task<IActionResult> Browse([FromRoute, Required] string username)
         {
+            if (IsAgent)
+            {
+                return Forbid();
+            }
+
             try
             {
                 var result = await Client.BrowseAsync(username);
@@ -115,6 +131,11 @@ namespace slskd.Users.API
         [ProducesResponseType(404)]
         public IActionResult BrowseStatus([FromRoute, Required] string username)
         {
+            if (IsAgent)
+            {
+                return Forbid();
+            }
+
             if (BrowseTracker.TryGet(username, out var progress))
             {
                 return Ok(progress);
@@ -135,6 +156,11 @@ namespace slskd.Users.API
         [ProducesResponseType(404)]
         public async Task<IActionResult> Directory([FromRoute, Required] string username, [FromRoute, Required] string directory)
         {
+            if (IsAgent)
+            {
+                return Forbid();
+            }
+
             try
             {
                 var result = await Client.GetDirectoryContentsAsync(username, directory);
@@ -157,6 +183,11 @@ namespace slskd.Users.API
         [ProducesResponseType(404)]
         public async Task<IActionResult> Info([FromRoute, Required] string username)
         {
+            if (IsAgent)
+            {
+                return Forbid();
+            }
+
             try
             {
                 var response = await Users.GetInfoAsync(username);
@@ -179,6 +210,11 @@ namespace slskd.Users.API
         [ProducesResponseType(404)]
         public async Task<IActionResult> Status([FromRoute, Required] string username)
         {
+            if (IsAgent)
+            {
+                return Forbid();
+            }
+
             try
             {
                 var response = await Users.GetStatusAsync(username);

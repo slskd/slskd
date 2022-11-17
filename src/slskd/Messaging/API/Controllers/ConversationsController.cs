@@ -15,6 +15,8 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
+using Microsoft.Extensions.Options;
+
 namespace slskd.Messaging.API
 {
     using System;
@@ -23,6 +25,7 @@ namespace slskd.Messaging.API
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
+    using slskd.Relay;
     using Soulseek;
 
     /// <summary>
@@ -44,16 +47,20 @@ namespace slskd.Messaging.API
         public ConversationsController(
             ISoulseekClient soulseekClient,
             IStateMonitor<State> applicationStateMonotor,
-            IConversationTracker tracker)
+            IConversationTracker tracker,
+            IOptionsSnapshot<Options> optionsSnapshot)
         {
             Client = soulseekClient;
             ApplicationStateMonitor = applicationStateMonotor;
             Tracker = tracker;
+            OptionsSnapshot = optionsSnapshot;
         }
 
         private ISoulseekClient Client { get; }
         private IStateMonitor<State> ApplicationStateMonitor { get; }
         private IConversationTracker Tracker { get; }
+        private IOptionsSnapshot<Options> OptionsSnapshot { get; }
+        private bool IsAgent => OptionsSnapshot.Value.Relay.Mode.ToEnum<OperationMode>() == OperationMode.Agent;
 
         /// <summary>
         ///     Acknowledges the given message id for the given username.
@@ -71,6 +78,11 @@ namespace slskd.Messaging.API
         [ProducesResponseType(404)]
         public async Task<IActionResult> Acknowledge([FromRoute]string username, [FromRoute]int id)
         {
+            if (IsAgent)
+            {
+                return Forbid();
+            }
+
             Tracker.Conversations.TryGetValue(username, out var conversation);
 
             if (conversation == default || !conversation.Any(p => p.Id == id))
@@ -95,6 +107,11 @@ namespace slskd.Messaging.API
         [ProducesResponseType(404)]
         public async Task<IActionResult> AcknowledgeAll([FromRoute]string username)
         {
+            if (IsAgent)
+            {
+                return Forbid();
+            }
+
             Tracker.Conversations.TryGetValue(username, out var conversation);
 
             if (conversation == default)
@@ -129,6 +146,11 @@ namespace slskd.Messaging.API
         [ProducesResponseType(204)]
         public IActionResult Delete([FromRoute]string username)
         {
+            if (IsAgent)
+            {
+                return Forbid();
+            }
+
             var deleted = Tracker.Conversations.TryRemove(username, out _);
 
             if (deleted)
@@ -149,6 +171,11 @@ namespace slskd.Messaging.API
         [ProducesResponseType(typeof(Dictionary<string, List<PrivateMessageResponse>>), 200)]
         public IActionResult GetAll()
         {
+            if (IsAgent)
+            {
+                return Forbid();
+            }
+
             var response = Tracker.Conversations.ToDictionary(
                 entry => entry.Key,
                 entry => entry.Value
@@ -171,6 +198,11 @@ namespace slskd.Messaging.API
         [ProducesResponseType(404)]
         public IActionResult GetByUsername([FromRoute]string username)
         {
+            if (IsAgent)
+            {
+                return Forbid();
+            }
+
             if (Tracker.TryGet(username, out var conversation))
             {
                 var response = conversation
@@ -197,6 +229,11 @@ namespace slskd.Messaging.API
         [ProducesResponseType(400)]
         public async Task<IActionResult> Send([FromRoute]string username, [FromBody]string message)
         {
+            if (IsAgent)
+            {
+                return Forbid();
+            }
+
             if (string.IsNullOrEmpty(message))
             {
                 return BadRequest();
