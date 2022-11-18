@@ -398,17 +398,21 @@ namespace slskd
             {
                 Log.Warning($"Not connecting to the Soulseek server; username and/or password invalid.  Specify valid credentials and manually connect, or update config and restart.");
             }
-            else if (OptionsAtStartup.Relay.Mode.ToEnum<OperationMode>() == OperationMode.Agent)
+            else if (OptionsAtStartup.Relay.Enabled && OptionsAtStartup.Relay.Mode.ToEnum<OperationMode>() == OperationMode.Agent)
             {
                 Log.Information("Running in Agent relay mode; not connecting to the Soulseek server.");
                 await Relay.Client.StartAsync(cancellationToken);
             }
             else
             {
-                if (OptionsAtStartup.Relay.Mode.ToEnum<OperationMode>() == OperationMode.Debug)
+                if (OptionsAtStartup.Relay.Enabled && OptionsAtStartup.Relay.Mode.ToEnum<OperationMode>() == OperationMode.Debug)
                 {
                     Log.Warning("Running in Debug relay mode; connecting to controller");
                     _ = Relay.Client.StartAsync(cancellationToken);
+                }
+                else
+                {
+                    Log.Information("Running in Controller relay mode.  Listening for incoming Agent connections.");
                 }
 
                 await Client.ConnectAsync(OptionsAtStartup.Soulseek.Username, OptionsAtStartup.Soulseek.Password).ConfigureAwait(false);

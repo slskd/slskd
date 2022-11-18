@@ -716,32 +716,35 @@ namespace slskd.Relay
                     return;
                 }
 
-                var mode = options.Relay.Mode.ToEnum<OperationMode>();
-
-                if (mode == OperationMode.Controller)
+                if (options.Relay.Enabled)
                 {
-                    State.SetValue(state => state with
-                    {
-                        Mode = mode,
-                        Agents = RegisteredAgents,
-                    });
-                }
-                else
-                {
-                    // the controller changed. disconnect and throw away the client and create a new one
-                    Client = new RelayClient(Shares, OptionsMonitor, HttpClientFactory);
-                    Client.StateMonitor.OnChange(clientState
-                        => State.SetValue(state => state with { Controller = state.Controller with { State = clientState.Current } }));
+                    var mode = options.Relay.Mode.ToEnum<OperationMode>();
 
-                    State.SetValue(state => state with
+                    if (mode == OperationMode.Controller)
                     {
-                        Mode = mode,
-                        Controller = new RelayControllerState()
+                        State.SetValue(state => state with
                         {
-                            Address = options.Relay.Controller.Address,
-                            State = Client.StateMonitor.CurrentValue,
-                        },
-                    });
+                            Mode = mode,
+                            Agents = RegisteredAgents,
+                        });
+                    }
+                    else
+                    {
+                        // the controller changed. disconnect and throw away the client and create a new one
+                        Client = new RelayClient(Shares, OptionsMonitor, HttpClientFactory);
+                        Client.StateMonitor.OnChange(clientState
+                            => State.SetValue(state => state with { Controller = state.Controller with { State = clientState.Current } }));
+
+                        State.SetValue(state => state with
+                        {
+                            Mode = mode,
+                            Controller = new RelayControllerState()
+                            {
+                                Address = options.Relay.Controller.Address,
+                                State = Client.StateMonitor.CurrentValue,
+                            },
+                        });
+                    }
                 }
 
                 LastOptionsHash = optionsHash;

@@ -389,14 +389,23 @@ namespace slskd
         public class RelayOptions : IValidatableObject
         {
             /// <summary>
-            ///     Gets the application operation mode.
+            ///     Gets a value indicating whether the relay is enabled.
+            /// </summary>
+            [Argument('r', "relay")]
+            [EnvironmentVariable("RELAY")]
+            [Description("enable relay")]
+            [RequiresRestart]
+            public bool Enabled { get; init; } = false;
+
+            /// <summary>
+            ///     Gets the relay operation mode.
             /// </summary>
             [Argument('m', "relay-operation-mode")]
             [EnvironmentVariable("RELAY_OPERATION_MODE")]
             [Description("relay operation mode; controller, agent")]
             [RequiresRestart]
             [Enum(typeof(OperationMode))]
-            public string Mode { get; init; } = slskd.Relay.OperationMode.Controller.ToString().ToLowerInvariant();
+            public string Mode { get; init; } = OperationMode.Controller.ToString().ToLowerInvariant();
 
             /// <summary>
             ///     Gets the controller configuration.
@@ -414,7 +423,7 @@ namespace slskd
                 var results = new List<ValidationResult>();
                 var modeResults = new List<ValidationResult>();
 
-                if (mode == slskd.Relay.OperationMode.Agent && !Validator.TryValidateObject(Controller, new ValidationContext(Controller), modeResults, validateAllProperties: true))
+                if (mode == OperationMode.Agent && !Validator.TryValidateObject(Controller, new ValidationContext(Controller), modeResults, validateAllProperties: true))
                 {
                     results.Add(new CompositeValidationResult("Controller", modeResults));
                 }
