@@ -410,6 +410,13 @@ namespace slskd.Shares
                     }
                 }
 
+                var cachedOptions = Local.Repository.FindLatestScan();
+
+                if (cachedOptions == default || cachedOptions.OptionsJson != OptionsMonitor.CurrentValue.Shares.ToJson())
+                {
+                    throw new ShareInitializationException("Share options changed since the last scan");
+                }
+
                 Local.Repository.EnableKeepalive(true);
 
                 Log.Debug("Recomputing share statistics...");
