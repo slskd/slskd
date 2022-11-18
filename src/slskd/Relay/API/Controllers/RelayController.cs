@@ -39,18 +39,27 @@ namespace slskd.Relay
     public class RelayController : ControllerBase
     {
         public RelayController(
-            IRelayService relayService)
+            IRelayService relayService,
+            OptionsAtStartup optionsAtStartup)
         {
             Relay = relayService;
+            OptionsAtStartup = optionsAtStartup;
         }
 
         private ILogger Log { get; } = Serilog.Log.ForContext<RelayController>();
         private IRelayService Relay { get; }
+        private OptionsAtStartup OptionsAtStartup { get; }
+        private OperationMode OperationMode => OptionsAtStartup.Relay.Mode.ToEnum<OperationMode>();
 
         [HttpPut("")]
         [Authorize(Policy = AuthPolicy.Any)]
         public async Task<IActionResult> Connect()
         {
+            if (!OptionsAtStartup.Relay.Enabled || !new[] { OperationMode.Agent, OperationMode.Debug }.Contains(OperationMode))
+            {
+                return Forbid();
+            }
+
             await Relay.Client.StartAsync();
             return Ok();
         }
@@ -59,6 +68,11 @@ namespace slskd.Relay
         [Authorize(Policy = AuthPolicy.Any)]
         public async Task<IActionResult> Disconnect()
         {
+            if (!OptionsAtStartup.Relay.Enabled || !new[] { OperationMode.Agent, OperationMode.Debug }.Contains(OperationMode))
+            {
+                return Forbid();
+            }
+
             await Relay.Client.StopAsync();
             return NoContent();
         }
@@ -75,6 +89,11 @@ namespace slskd.Relay
         [Authorize(Policy = AuthPolicy.Any)]
         public async Task<IActionResult> UploadFile(string token)
         {
+            if (!OptionsAtStartup.Relay.Enabled || !new[] { OperationMode.Controller, OperationMode.Debug }.Contains(OperationMode))
+            {
+                return Forbid();
+            }
+
             if (!Guid.TryParse(token, out var guid))
             {
                 return BadRequest("Token is not in a valid format");
@@ -159,6 +178,11 @@ namespace slskd.Relay
         [Authorize(Policy = AuthPolicy.Any)]
         public async Task<IActionResult> UploadShares(string token)
         {
+            if (!OptionsAtStartup.Relay.Enabled || !new[] { OperationMode.Controller, OperationMode.Debug }.Contains(OperationMode))
+            {
+                return Forbid();
+            }
+
             if (!Guid.TryParse(token, out var guid))
             {
                 return BadRequest("Token is not a valid Guid");
