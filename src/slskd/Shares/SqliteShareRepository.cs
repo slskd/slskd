@@ -19,7 +19,6 @@ namespace slskd.Shares
 {
     using System;
     using System.Collections.Generic;
-    using System.IO;
     using System.Linq;
     using System.Timers;
     using Microsoft.Data.Sqlite;
@@ -223,6 +222,28 @@ namespace slskd.Shares
             var resolved = reader.GetString(0);
             Log.Debug($"Resolved requested shared file {maskedFilename} to {resolved}");
             return resolved;
+        }
+
+        /// <summary>
+        ///     Finds and returns the most recent scan record.
+        /// </summary>
+        /// <returns>The most recent scan record, or default if no scan was found.</returns>
+        public (long Timestamp, string OptionsJson) FindLatestScan()
+        {
+            using var conn = GetConnection();
+            using var cmd = new SqliteCommand("SELECT timestamp, options FROM scans ORDER BY timestamp DESC LIMIT 1", conn);
+
+            var reader = cmd.ExecuteReader();
+
+            if (!reader.Read())
+            {
+                return default;
+            }
+
+            var timestamp = reader.GetInt64(0);
+            var optionsJson = reader.GetString(1);
+
+            return (timestamp, optionsJson);
         }
 
         /// <summary>

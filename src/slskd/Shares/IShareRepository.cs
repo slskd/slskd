@@ -81,6 +81,12 @@ namespace slskd.Shares
         string FindFilename(string maskedFilename);
 
         /// <summary>
+        ///     Finds and returns the most recent scan record.
+        /// </summary>
+        /// <returns>The most recent scan record, or default if no scan was found.</returns>
+        (long Timestamp, string OptionsJson) FindLatestScan();
+
+        /// <summary>
         ///     Inserts a directory.
         /// </summary>
         /// <param name="name">The fully qualified local name of the directory.</param>
