@@ -15,12 +15,15 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
+using Microsoft.Extensions.Options;
+
 namespace slskd.Search.API
 {
     using System;
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
+    using slskd.Relay;
     using SearchQuery = Soulseek.SearchQuery;
     using SearchScope = Soulseek.SearchScope;
 
@@ -38,12 +41,16 @@ namespace slskd.Search.API
         ///     Initializes a new instance of the <see cref="SearchesController"/> class.
         /// </summary>
         /// <param name="searchService"></param>
-        public SearchesController(ISearchService searchService)
+        /// <param name="optionsSnapshot"></param>
+        public SearchesController(ISearchService searchService, IOptionsSnapshot<Options> optionsSnapshot)
         {
             Searches = searchService;
+            OptionsSnapshot = optionsSnapshot;
         }
 
         private ISearchService Searches { get; }
+        private IOptionsSnapshot<Options> OptionsSnapshot { get; }
+        private bool IsAgent => OptionsSnapshot.Value.Relay.Mode.ToEnum<OperationMode>() == OperationMode.Agent;
 
         /// <summary>
         ///     Performs a search for the specified <paramref name="request"/>.
@@ -57,6 +64,11 @@ namespace slskd.Search.API
         [Authorize(Policy = AuthPolicy.Any)]
         public async Task<IActionResult> Post([FromBody] SearchRequest request)
         {
+            if (IsAgent)
+            {
+                return Forbid();
+            }
+
             if (string.IsNullOrWhiteSpace(request.SearchText))
             {
                 return BadRequest("SearchText may not be null or empty");
@@ -94,6 +106,11 @@ namespace slskd.Search.API
         [Authorize(Policy = AuthPolicy.Any)]
         public async Task<IActionResult> GetById([FromRoute] Guid id, [FromQuery] bool includeResponses = false)
         {
+            if (IsAgent)
+            {
+                return Forbid();
+            }
+
             var search = await Searches.FindAsync(search => search.Id == id, includeResponses);
 
             if (search == default)
@@ -115,6 +132,11 @@ namespace slskd.Search.API
         [Authorize(Policy = AuthPolicy.Any)]
         public async Task<IActionResult> GetResponsesById([FromRoute] Guid id)
         {
+            if (IsAgent)
+            {
+                return Forbid();
+            }
+
             var search = await Searches.FindAsync(search => search.Id == id, includeResponses: true);
 
             if (search == default)
@@ -133,6 +155,11 @@ namespace slskd.Search.API
         [Authorize(Policy = AuthPolicy.Any)]
         public async Task<IActionResult> GetAll()
         {
+            if (IsAgent)
+            {
+                return Forbid();
+            }
+
             var searches = await Searches.ListAsync();
             return Ok(searches);
         }
@@ -150,6 +177,11 @@ namespace slskd.Search.API
         [ProducesResponseType(304)]
         public async Task<IActionResult> Cancel([FromRoute] Guid id)
         {
+            if (IsAgent)
+            {
+                return Forbid();
+            }
+
             var search = await Searches.FindAsync(search => search.Id == id);
 
             if (search == default)
@@ -178,6 +210,11 @@ namespace slskd.Search.API
         [ProducesResponseType(404)]
         public async Task<IActionResult> Delete([FromRoute] Guid id)
         {
+            if (IsAgent)
+            {
+                return Forbid();
+            }
+
             var search = await Searches.FindAsync(search => search.Id == id, includeResponses: true);
 
             if (search == default)
