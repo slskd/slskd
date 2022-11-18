@@ -410,6 +410,10 @@ namespace slskd
                     Log.Warning("Running in Debug relay mode; connecting to controller");
                     _ = Relay.Client.StartAsync(cancellationToken);
                 }
+                else
+                {
+                    Log.Information("Running in Controller relay mode.  Listening for incoming Agent connections.");
+                }
 
                 await Client.ConnectAsync(OptionsAtStartup.Soulseek.Username, OptionsAtStartup.Soulseek.Password).ConfigureAwait(false);
             }
