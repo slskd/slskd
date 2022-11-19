@@ -296,6 +296,7 @@ namespace slskd.Shares
         /// </summary>
         public void RequestScan()
         {
+            Local.Repository.FlagLatestScanAsSuspect();
             State.SetValue(state => state with { ScanPending = true });
         }
 
