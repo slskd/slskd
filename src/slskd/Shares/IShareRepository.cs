@@ -84,7 +84,12 @@ namespace slskd.Shares
         ///     Finds and returns the most recent scan record.
         /// </summary>
         /// <returns>The most recent scan record, or default if no scan was found.</returns>
-        (long Timestamp, string OptionsJson) FindLatestScan();
+        Scan FindLatestScan();
+
+        /// <summary>
+        ///     Flags the latest scan as suspect, indicating that the cached contents may have divered from physical storage.
+        /// </summary>
+        void FlagLatestScanAsSuspect();
 
         /// <summary>
         ///     Inserts a directory.
