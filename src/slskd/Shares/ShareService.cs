@@ -411,11 +411,28 @@ namespace slskd.Shares
                     }
                 }
 
-                var cachedOptions = Local.Repository.FindLatestScan();
+                var options = OptionsMonitor.CurrentValue.Shares;
+                var latestScan = Local.Repository.FindLatestScan();
+                Log.Debug("Latest scan: {Scan}, current options {Options}", latestScan, options);
 
-                if (cachedOptions == default || cachedOptions.OptionsJson != OptionsMonitor.CurrentValue.Shares.ToJson())
+                if (latestScan == default)
                 {
-                    throw new ShareInitializationException("Share options changed since the last scan");
+                    throw new ShareInitializationException("Shares not yet scanned");
+                }
+
+                if (!latestScan.EndedAt.HasValue)
+                {
+                    throw new ShareInitializationException("Previous share scan did not complete");
+                }
+
+                if (latestScan.Suspect)
+                {
+                    throw new ShareInitializationException("Previous share scan was marked as suspect");
+                }
+
+                if (latestScan.OptionsJson != options.ToJson())
+                {
+                    throw new ShareInitializationException("Share options changed since previous scan");
                 }
 
                 Local.Repository.EnableKeepalive(true);
