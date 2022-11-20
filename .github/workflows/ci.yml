@@ -27,7 +27,7 @@ jobs:
 
       - name: Set Environment Variables
         run: |
-          echo "VERSION=$(git describe --tags --abbrev=0).$([[ $GITHUB_REF = refs/tags/* ]] && echo 0 || echo 65534)-$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+          echo "VERSION=$(git describe --tags --abbrev=0).$([[ $GITHUB_REF = refs/tags/* ]] && echo 0 || echo 65534)+$(git rev-parse --short HEAD)" >> $GITHUB_ENV
 
       - name: Web
         run: ./bin/build --web-only
@@ -74,7 +74,7 @@ jobs:
 
       - name: Set Environment Variables
         run: |
-          echo "VERSION=$(git describe --tags --abbrev=0).$([[ $GITHUB_REF = refs/tags/* ]] && echo 0 || echo 65534)-$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+          echo "VERSION=$(git describe --tags --abbrev=0).$([[ $GITHUB_REF = refs/tags/* ]] && echo 0 || echo 65534)+$(git rev-parse --short HEAD)" >> $GITHUB_ENV
 
       - name: Download Static Web Content
         uses: actions/download-artifact@v2
@@ -105,7 +105,7 @@ jobs:
       - name: Set Environment Variables
         run: |
           echo "TAG=$(git describe --tags --abbrev=0)" >> $GITHUB_ENV
-          echo "VERSION=$(git describe --tags --abbrev=0).$([[ $GITHUB_REF = refs/tags/* ]] && echo 0 || echo 65534)-$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+          echo "VERSION=$(git describe --tags --abbrev=0).$([[ $GITHUB_REF = refs/tags/* ]] && echo 0 || echo 65534)+$(git rev-parse --short HEAD)" >> $GITHUB_ENV
           echo "REVISION=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
           echo "BUILD_DATE=$(date --iso-8601=s)" >> $GITHUB_ENV
 
@@ -211,7 +211,7 @@ jobs:
       - name: Set Environment Variables
         run: |
           echo "TAG=$(git describe --tags --abbrev=0)" >> $GITHUB_ENV
-          echo "VERSION=$(git describe --tags --abbrev=0).$([[ $GITHUB_REF = refs/tags/* ]] && echo 0 || echo 65534)-$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+          echo "VERSION=$(git describe --tags --abbrev=0).$([[ $GITHUB_REF = refs/tags/* ]] && echo 0 || echo 65534)+$(git rev-parse --short HEAD)" >> $GITHUB_ENV
       - name: Download ${{ matrix.runtime }} Binaries
         uses: actions/download-artifact@v2
         with:
