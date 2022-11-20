@@ -19,7 +19,6 @@ namespace slskd.Shares
 {
     using System;
     using System.Collections.Generic;
-    using System.IO;
     using System.Linq;
     using System.Timers;
     using Microsoft.Data.Sqlite;
@@ -162,7 +161,7 @@ namespace slskd.Shares
 
             conn.ExecuteNonQuery("CREATE TABLE IF NOT EXISTS version (a INTEGER PRIMARY KEY)");
 
-            conn.ExecuteNonQuery("CREATE TABLE IF NOT EXISTS scans (timestamp INTEGER PRIMARY KEY, options TEXT NOT NULL, end INTEGER DEFAULT NULL);");
+            conn.ExecuteNonQuery("CREATE TABLE IF NOT EXISTS scans (timestamp INTEGER PRIMARY KEY, options TEXT NOT NULL, end INTEGER DEFAULT NULL, suspect INTEGER DEFAULT 0);");
 
             conn.ExecuteNonQuery("CREATE TABLE IF NOT EXISTS directories (name TEXT PRIMARY KEY, timestamp INTEGER NOT NULL);");
 
@@ -223,6 +222,44 @@ namespace slskd.Shares
             var resolved = reader.GetString(0);
             Log.Debug($"Resolved requested shared file {maskedFilename} to {resolved}");
             return resolved;
+        }
+
+        /// <summary>
+        ///     Finds and returns the most recent scan record.
+        /// </summary>
+        /// <returns>The most recent scan record, or default if no scan was found.</returns>
+        public Scan FindLatestScan()
+        {
+            using var conn = GetConnection();
+            using var cmd = new SqliteCommand("SELECT timestamp, options, COALESCE(end, -1), suspect FROM scans ORDER BY timestamp DESC LIMIT 1", conn);
+
+            var reader = cmd.ExecuteReader();
+
+            if (!reader.Read())
+            {
+                return default;
+            }
+
+            var timestamp = reader.GetInt64(0);
+            var optionsJson = reader.GetString(1);
+
+            var endRaw = reader.GetInt64(2);
+            long? end = endRaw == -1 ? null : endRaw;
+
+            var suspect = reader.GetInt32(3) > 0;
+
+            return new Scan { StartedAt = timestamp, OptionsJson = optionsJson, EndedAt = end, Suspect = suspect };
+        }
+
+        /// <summary>
+        ///     Flags the latest scan as suspect, indicating that the cached contents may have divered from physical storage.
+        /// </summary>
+        public void FlagLatestScanAsSuspect()
+        {
+            using var conn = GetConnection();
+            using var cmd = new SqliteCommand("UPDATE scans SET suspect = 1 WHERE timestamp = (SELECT timestamp FROM scans ORDER BY timestamp DESC LIMIT 1)", conn);
+
+            cmd.ExecuteNonQuery();
         }
 
         /// <summary>
@@ -510,7 +547,7 @@ namespace slskd.Shares
             var schema = new Dictionary<string, string>()
             {
                 { "version", "CREATE TABLE version (a INTEGER PRIMARY KEY)" },
-                { "scans", "CREATE TABLE scans (timestamp INTEGER PRIMARY KEY, options TEXT NOT NULL, end INTEGER DEFAULT NULL)" },
+                { "scans", "CREATE TABLE scans (timestamp INTEGER PRIMARY KEY, options TEXT NOT NULL, end INTEGER DEFAULT NULL, suspect INTEGER DEFAULT 0)" },
                 { "directories", "CREATE TABLE directories (name TEXT PRIMARY KEY, timestamp INTEGER NOT NULL)" },
                 { "filenames", "CREATE VIRTUAL TABLE filenames USING fts5(maskedFilename)" },
                 { "filenames_data", "CREATE TABLE 'filenames_data'(id INTEGER PRIMARY KEY, block BLOB)" },

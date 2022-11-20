@@ -81,6 +81,17 @@ namespace slskd.Shares
         string FindFilename(string maskedFilename);
 
         /// <summary>
+        ///     Finds and returns the most recent scan record.
+        /// </summary>
+        /// <returns>The most recent scan record, or default if no scan was found.</returns>
+        Scan FindLatestScan();
+
+        /// <summary>
+        ///     Flags the latest scan as suspect, indicating that the cached contents may have divered from physical storage.
+        /// </summary>
+        void FlagLatestScanAsSuspect();
+
+        /// <summary>
         ///     Inserts a directory.
         /// </summary>
         /// <param name="name">The fully qualified local name of the directory.</param>

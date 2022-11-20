@@ -296,6 +296,7 @@ namespace slskd.Shares
         /// </summary>
         public void RequestScan()
         {
+            Local.Repository.FlagLatestScanAsSuspect();
             State.SetValue(state => state with { ScanPending = true });
         }
 
@@ -408,6 +409,30 @@ namespace slskd.Shares
                             throw new ShareInitializationException("Share cache and backup are both missing, corrupt, or is out of date");
                         }
                     }
+                }
+
+                var options = OptionsMonitor.CurrentValue.Shares;
+                var latestScan = Local.Repository.FindLatestScan();
+                Log.Debug("Latest scan: {Scan}, current options {Options}", latestScan, options);
+
+                if (latestScan == default)
+                {
+                    throw new ShareInitializationException("Shares not yet scanned");
+                }
+
+                if (!latestScan.EndedAt.HasValue)
+                {
+                    throw new ShareInitializationException("Previous share scan did not complete");
+                }
+
+                if (latestScan.Suspect)
+                {
+                    throw new ShareInitializationException("Previous share scan was marked as suspect");
+                }
+
+                if (latestScan.OptionsJson != options.ToJson())
+                {
+                    throw new ShareInitializationException("Share options changed since previous scan");
                 }
 
                 Local.Repository.EnableKeepalive(true);
