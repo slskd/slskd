@@ -102,10 +102,12 @@ jobs:
         with:
           fetch-depth: 0
 
+      # docker tags aren't compatible with semver, therefore + can't be used to delimit the version and sha
+      # https://github.com/opencontainers/distribution-spec/issues/154
       - name: Set Environment Variables
         run: |
           echo "TAG=$(git describe --tags --abbrev=0)" >> $GITHUB_ENV
-          echo "VERSION=$(git describe --tags --abbrev=0).$([[ $GITHUB_REF = refs/tags/* ]] && echo 0 || echo 65534)+$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+          echo "VERSION=$(git describe --tags --abbrev=0).$([[ $GITHUB_REF = refs/tags/* ]] && echo 0 || echo 65534)-$(git rev-parse --short HEAD)" >> $GITHUB_ENV
           echo "REVISION=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
           echo "BUILD_DATE=$(date --iso-8601=s)" >> $GITHUB_ENV
 
