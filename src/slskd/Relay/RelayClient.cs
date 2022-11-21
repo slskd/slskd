@@ -317,11 +317,11 @@ namespace slskd.Relay
 
                     if (!response.IsSuccessStatusCode)
                     {
-                        Log.Error("Upload of file {Filename} with ID {Id} failed: {StatusCode}", response.StatusCode);
+                        Log.Error("Upload of file {Filename} with ID {Id} failed: {StatusCode}", filename, token, response.StatusCode);
                     }
                     else
                     {
-                        Log.Information("Upload of file {Filename} with ID {Id} succeeded.", filename);
+                        Log.Information("Upload of file {Filename} with ID {Id} succeeded.", filename, token);
                     }
                 }
                 catch (Exception ex)

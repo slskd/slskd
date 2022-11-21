@@ -150,7 +150,7 @@ namespace slskd.Relay
                 // caller is the same caller that received the request, and that the caller knows the shared secret.
                 if (!Relay.TryValidateFileStreamResponseCredential(token: guid, agentName, filename, credential))
                 {
-                    Log.Warning("Failed to authenticate file upload token {Token} from a caller claiming to be agent {Agent}", agentName);
+                    Log.Warning("Failed to authenticate file upload token {Token} from a caller claiming to be agent {Agent}", guid, agentName);
                     return Unauthorized();
                 }
 
@@ -220,7 +220,7 @@ namespace slskd.Relay
 
             if (!Relay.TryValidateShareUploadCredential(token: guid, agentName, credential))
             {
-                Log.Warning("Failed to authenticate share upload from caller claiming to be agent {Agent}");
+                Log.Warning("Failed to authenticate share upload from caller claiming to be agent {Agent} using token {Token}", agentName, guid);
                 return Unauthorized();
             }
 
