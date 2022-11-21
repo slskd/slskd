@@ -288,7 +288,7 @@ namespace slskd
         {
             var results = new List<ValidationResult>();
 
-            if (InstanceName == "local" && Relay.Mode.ToEnum<OperationMode>() == OperationMode.Agent)
+            if (InstanceName == "local" && Relay.Mode.ToEnum<RelayMode>() == RelayMode.Agent)
             {
                 results.Add(new ValidationResult("Instance name must be something other than 'local' when operating in Relay Agent mode"));
             }
@@ -398,14 +398,14 @@ namespace slskd
             public bool Enabled { get; init; } = false;
 
             /// <summary>
-            ///     Gets the relay operation mode.
+            ///     Gets the relay mode.
             /// </summary>
-            [Argument('m', "relay-operation-mode")]
-            [EnvironmentVariable("RELAY_OPERATION_MODE")]
-            [Description("relay operation mode; controller, agent")]
+            [Argument('m', "relay-mode")]
+            [EnvironmentVariable("RELAY_MODE")]
+            [Description("relay mode; controller, agent")]
             [RequiresRestart]
-            [Enum(typeof(OperationMode))]
-            public string Mode { get; init; } = OperationMode.Controller.ToString().ToLowerInvariant();
+            [Enum(typeof(RelayMode))]
+            public string Mode { get; init; } = RelayMode.Controller.ToString().ToLowerInvariant();
 
             /// <summary>
             ///     Gets the controller configuration.
@@ -419,11 +419,11 @@ namespace slskd
 
             public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
             {
-                var mode = Mode.ToEnum<OperationMode>();
+                var mode = Mode.ToEnum<RelayMode>();
                 var results = new List<ValidationResult>();
                 var modeResults = new List<ValidationResult>();
 
-                if (mode == OperationMode.Agent && !Validator.TryValidateObject(Controller, new ValidationContext(Controller), modeResults, validateAllProperties: true))
+                if (mode == RelayMode.Agent && !Validator.TryValidateObject(Controller, new ValidationContext(Controller), modeResults, validateAllProperties: true))
                 {
                     results.Add(new CompositeValidationResult("Controller", modeResults));
                 }

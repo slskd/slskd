@@ -60,7 +60,7 @@ namespace slskd.Messaging.API
         private IStateMonitor<State> ApplicationStateMonitor { get; }
         private IConversationTracker Tracker { get; }
         private IOptionsSnapshot<Options> OptionsSnapshot { get; }
-        private bool IsAgent => OptionsSnapshot.Value.Relay.Mode.ToEnum<OperationMode>() == OperationMode.Agent;
+        private bool IsAgent => OptionsSnapshot.Value.Relay.Mode.ToEnum<RelayMode>() == RelayMode.Agent;
 
         /// <summary>
         ///     Acknowledges the given message id for the given username.
