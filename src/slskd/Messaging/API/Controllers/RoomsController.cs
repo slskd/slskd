@@ -58,7 +58,7 @@ namespace slskd.Messaging.API
         private IStateMonitor<State> ApplicationStateMonitor { get; }
         private IRoomTracker Tracker { get; }
         private IOptionsSnapshot<Options> OptionsSnapshot { get; }
-        private bool IsAgent => OptionsSnapshot.Value.Relay.Mode.ToEnum<OperationMode>() == OperationMode.Agent;
+        private bool IsAgent => OptionsSnapshot.Value.Relay.Mode.ToEnum<RelayMode>() == RelayMode.Agent;
 
         /// <summary>
         ///     Gets all rooms.

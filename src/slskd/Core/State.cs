@@ -67,7 +67,7 @@ namespace slskd
 
     public record RelayState
     {
-        public OperationMode Mode { get; init; }
+        public RelayMode Mode { get; init; }
         public RelayControllerState Controller { get; init; } = new RelayControllerState();
         public IReadOnlyCollection<Agent> Agents { get; init; } = Enumerable.Empty<Agent>().ToList().AsReadOnly();
     }

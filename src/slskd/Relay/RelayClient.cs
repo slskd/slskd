@@ -123,11 +123,11 @@ namespace slskd.Relay
 
             try
             {
-                var mode = OptionsMonitor.CurrentValue.Relay.Mode.ToEnum<OperationMode>();
+                var mode = OptionsMonitor.CurrentValue.Relay.Mode.ToEnum<RelayMode>();
 
-                if (mode != OperationMode.Agent && mode != OperationMode.Debug)
+                if (mode != RelayMode.Agent && mode != RelayMode.Debug)
                 {
-                    throw new InvalidOperationException($"Relay client can only be started when operation mode is {OperationMode.Agent}");
+                    throw new InvalidOperationException($"Relay client can only be started when operation mode is {RelayMode.Agent}");
                 }
 
                 StartCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -432,9 +432,9 @@ namespace slskd.Relay
 
         private void Configure(Options options)
         {
-            var mode = options.Relay.Mode.ToEnum<OperationMode>();
+            var mode = options.Relay.Mode.ToEnum<RelayMode>();
 
-            if (mode != OperationMode.Agent && mode != OperationMode.Debug)
+            if (mode != RelayMode.Agent && mode != RelayMode.Debug)
             {
                 return;
             }

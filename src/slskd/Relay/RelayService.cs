@@ -718,9 +718,9 @@ namespace slskd.Relay
 
                 if (options.Relay.Enabled)
                 {
-                    var mode = options.Relay.Mode.ToEnum<OperationMode>();
+                    var mode = options.Relay.Mode.ToEnum<RelayMode>();
 
-                    if (mode == OperationMode.Controller)
+                    if (mode == RelayMode.Controller)
                     {
                         State.SetValue(state => state with
                         {

@@ -1,4 +1,4 @@
-﻿// <copyright file="OperationMode.cs" company="slskd Team">
+﻿// <copyright file="RelayMode.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -18,17 +18,17 @@
 namespace slskd.Relay
 {
     /// <summary>
-    ///     The relay operation mode.
+    ///     The relay mode.
     /// </summary>
-    public enum OperationMode
+    public enum RelayMode
     {
         /// <summary>
-        ///     Controller operation mode.
+        ///     Controller mode.
         /// </summary>
         Controller = 0,
 
         /// <summary>
-        ///     Agent operation mode.
+        ///     Agent mode.
         /// </summary>
         Agent = 1,
 

@@ -77,7 +77,7 @@ namespace slskd.Relay
         private ILogger Log { get; } = Serilog.Log.ForContext<RelayService>();
         private IRelayService Relay { get; }
         private OptionsAtStartup OptionsAtStartup { get; }
-        private OperationMode OperationMode => OptionsAtStartup.Relay.Mode.ToEnum<OperationMode>();
+        private RelayMode OperationMode => OptionsAtStartup.Relay.Mode.ToEnum<RelayMode>();
         private IPAddress RemoteIpAddress => Context.Features.Get<IHttpConnectionFeature>().RemoteIpAddress;
 
         /// <summary>
@@ -86,7 +86,7 @@ namespace slskd.Relay
         /// <returns></returns>
         public override async Task OnConnectedAsync()
         {
-            if (!OptionsAtStartup.Relay.Enabled || !new[] { OperationMode.Controller, OperationMode.Debug }.Contains(OperationMode))
+            if (!OptionsAtStartup.Relay.Enabled || !new[] { RelayMode.Controller, RelayMode.Debug }.Contains(OperationMode))
             {
                 Log.Debug("Agent connection {Id} from {IP} aborted; Relay is not enabled, or is not in Controller mode", Context.ConnectionId, RemoteIpAddress);
                 Context.Abort();

@@ -184,6 +184,65 @@ shares:
     storage_mode: memory
 ```
 
+# Relay
+
+Two (or more) instances of the application can be connected, allowing files shared by one instance to be "relayed" to another while only one of the instances is connected to the Soulseek network.  This allows users to share files from several different systems as the same Soulseek user, or to run an instance in the cloud and avoid needing to expose their home network to internet traffic.
+
+The Relay consists of two operation modes: 'Controller', which is the copy that connects to the Soulseek network, and 'Agent', which relays files to the controller.  Only one controller can be configured, while any number of agents can be connected.
+
+## Controller
+
+Controllers must have at least one API key configured.  For increased security it is a good idea to use a different API key for each agent, and to specify a CIDR for each key that limits access to the known IP address range the agent will be connecting from.
+
+The relay mode for the controller must be set to `controller`, and the relay must be enabled.
+
+For each agent, the agent's name (corresponding to the configured instance name of the agent) must be specified in the agent map, and a different secret value between 16-255 characters should be specified for each agent.
+
+It is strongly suggested that controllers be configured to force HTTPS.  This makes the traffic between the controller and agents completely private, and prevents API keys and agent secrets from being exposed.
+
+```yaml
+relay:
+  enabled: true
+  mode: controller
+  agents:
+    some_instance:
+      secret: <a secret value between 16 and 255 characters>
+    a_different_instance:
+      secret: <a different secret value between 16 and 255 characters>
+```
+
+| Command-Line       | Environment Variable | Description                               |
+| ------------------ | ---------------------| ------------------------------------------|
+| `-r\|--relay`      | `SLSKD_RELAY`        | Enable the Relay feature                  |
+| `-m\|--relay-mode` | `SLSKD_RELAY_MODE`   | The Relay mode (Controller, Agent, Debug) |
+
+## Agents
+
+The relay mode for agents must be set to `agent`, the relay must be enabled, and each agent must have a unique instance name that corresponds to an agent configured in the controller.
+
+Agents need to specify the HTTP or HTTPS address of their controller, the API key for the controller, and the secret that corresponds to the value configured in the controller for the agent.
+
+If using HTTPS; most users won't have a valid certificate (the self-signed certificates that slskd generates at startup are not 'valid' because they are self-signed), and in those cases the `ignore_certificate_errors` option should be set to `true`.
+
+| Command-Line                             | Environment Variable                         | Description                      |
+| ---------------------------------------- | -------------------------------------------- | ---------------------------------|
+| `--controller-address`                   | `SLSKD_CONTROLLER_ADDRESS`                   | Enable the Relay feature         |
+| `--controller-ignore-certificate-errors` | `SLSKD_CONTROLLER_IGNORE_CERTIFICATE_ERRORS` | Ignore certificate errors        |
+| `--controller-api-key`                   | `SLSKD_CONTROLLER_API_KEY`                   | An API key for the controller    |
+| `--controller-secret`                    | `SLSKD_CONTROLLER_SECRET`                    | The shared secret for this agent |
+
+```yaml
+instance_name: some_instance
+relay:
+  enabled: true
+  mode: agent
+  controller:
+    address: https://my_cloud_server.example.com:5001
+    ignore_certificate_errors: true
+    api_key: <a valid API key for the controller instance>
+    secret: <a secret value that matches the controller for this instance>
+```
+
 # Limits and User Groups
 
 ## Global
