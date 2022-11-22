@@ -878,10 +878,10 @@ flags:
 
 The application can be run in "command mode", causing it to execute a command and quit immediately. Available commands are:
 
-| Command                  | Description                                         |
-| ------------------------ | --------------------------------------------------- |
-| `-v\|--version`          | Display the current application version             |
-| `-h\|--help`             | Display available command-line arguments            |
-| `-e\|--envars`           | Display available environment variables             |
-| `-g\|--generate-cert`    | Generate an X509 certificate and password for HTTPS |
-| `-k\|--generate-api-key` | Generate a random 32 bit API key                    |
+| Command                          | Description                                         |
+| -------------------------------- | --------------------------------------------------- |
+| `-v\|--version`                  | Display the current application version             |
+| `-h\|--help`                     | Display available command-line arguments            |
+| `-e\|--envars`                   | Display available environment variables             |
+| `-g\|--generate-cert`            | Generate an X509 certificate and password for HTTPS |
+| `-k\|--generate-secret <length>` | Generate a random secret of the specified length    |
