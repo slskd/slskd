@@ -207,7 +207,7 @@ namespace slskd.Relay
         /// <returns>The operation context.</returns>
         public Task SynchronizeAsync(CancellationToken cancellationToken = default)
         {
-            return UploadSharesAsync();
+            return UploadSharesAsync(cancellationToken);
         }
 
         private RelayClientState TranslateState(HubConnectionState hub) => hub switch
