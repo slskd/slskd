@@ -228,7 +228,7 @@ If using HTTPS; most users won't have a valid certificate (the self-signed certi
 | ---------------------------------------- | -------------------------------------------- | ------------------------------------------|
 | `-r\|--relay`                            | `SLSKD_RELAY`                                | Enable the Relay feature                  |
 | `-m\|--relay-mode`                       | `SLSKD_RELAY_MODE`                           | The Relay mode (Controller, Agent, Debug) |
-| `--controller-address`                   | `SLSKD_CONTROLLER_ADDRESS`                   | Enable the Relay feature                  |
+| `--controller-address`                   | `SLSKD_CONTROLLER_ADDRESS`                   | The address of the controller             |
 | `--controller-ignore-certificate-errors` | `SLSKD_CONTROLLER_IGNORE_CERTIFICATE_ERRORS` | Ignore certificate errors                 |
 | `--controller-api-key`                   | `SLSKD_CONTROLLER_API_KEY`                   | An API key for the controller             |
 | `--controller-secret`                    | `SLSKD_CONTROLLER_SECRET`                    | The shared secret for this agent          |
@@ -878,10 +878,10 @@ flags:
 
 The application can be run in "command mode", causing it to execute a command and quit immediately. Available commands are:
 
-| Command                  | Description                                         |
-| ------------------------ | --------------------------------------------------- |
-| `-v\|--version`          | Display the current application version             |
-| `-h\|--help`             | Display available command-line arguments            |
-| `-e\|--envars`           | Display available environment variables             |
-| `-g\|--generate-cert`    | Generate an X509 certificate and password for HTTPS |
-| `-k\|--generate-api-key` | Generate a random 32 bit API key                    |
+| Command                          | Description                                         |
+| -------------------------------- | --------------------------------------------------- |
+| `-v\|--version`                  | Display the current application version             |
+| `-h\|--help`                     | Display available command-line arguments            |
+| `-e\|--envars`                   | Display available environment variables             |
+| `-g\|--generate-cert`            | Generate an X509 certificate and password for HTTPS |
+| `-k\|--generate-secret <length>` | Generate a random secret of the specified length    |
