@@ -20,6 +20,7 @@ using Microsoft.Extensions.Options;
 namespace slskd.Relay
 {
     using System;
+    using System.Diagnostics;
     using System.IO;
     using System.Net.Http;
     using System.Threading;
@@ -254,7 +255,12 @@ namespace slskd.Relay
                 request.Headers.Add("X-API-Key", OptionsMonitor.CurrentValue.Relay.Controller.ApiKey);
                 request.Content = content;
 
-                Log.Information("Beginning upload of shares");
+                var size = ((double)stream.Length).SizeSuffix();
+                var sw = new Stopwatch();
+                sw.Start();
+
+                Log.Information("Beginning upload of shares ({Size})", size);
+                Log.Debug("Shares: {Shares}", Shares.LocalHost.Shares.ToJson());
                 var response = await CreateHttpClient().SendAsync(request, cancellationToken);
 
                 if (!response.IsSuccessStatusCode)
@@ -262,7 +268,8 @@ namespace slskd.Relay
                     throw new RelayException($"Failed to upload shares to relay controller: {response.StatusCode}");
                 }
 
-                Log.Information("Upload shares succeeded");
+                sw.Stop();
+                Log.Information("Upload of shares succeeded ({Size} in {Duration}ms)", size, sw.ElapsedMilliseconds);
             }
             finally
             {
