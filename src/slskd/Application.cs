@@ -1052,7 +1052,6 @@ namespace slskd
                     // ...but if it completed successfully, immediately update again to lower the pending flag
                     State.SetValue(state => state with { Shares = state.Shares with { ScanPending = false } });
                     Log.Information("Shares scanned successfully. Found {Directories} directories and {Files} files in {Duration}ms", current.Directories, current.Files, (DateTime.UtcNow - SharesRefreshStarted).TotalMilliseconds);
-                    rebuildBrowseCache = true;
 
                     SharesRefreshStarted = default;
 
