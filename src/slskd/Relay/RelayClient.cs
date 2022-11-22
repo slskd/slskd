@@ -20,6 +20,7 @@ using Microsoft.Extensions.Options;
 namespace slskd.Relay
 {
     using System;
+    using System.Diagnostics;
     using System.IO;
     using System.Net.Http;
     using System.Threading;
@@ -207,7 +208,7 @@ namespace slskd.Relay
         /// <returns>The operation context.</returns>
         public Task SynchronizeAsync(CancellationToken cancellationToken = default)
         {
-            return UploadSharesAsync();
+            return UploadSharesAsync(cancellationToken);
         }
 
         private RelayClientState TranslateState(HubConnectionState hub) => hub switch
@@ -254,7 +255,12 @@ namespace slskd.Relay
                 request.Headers.Add("X-API-Key", OptionsMonitor.CurrentValue.Relay.Controller.ApiKey);
                 request.Content = content;
 
-                Log.Information("Beginning upload of shares");
+                var size = ((double)stream.Length).SizeSuffix();
+                var sw = new Stopwatch();
+                sw.Start();
+
+                Log.Information("Beginning upload of shares ({Size})", size);
+                Log.Debug("Shares: {Shares}", Shares.LocalHost.Shares.ToJson());
                 var response = await CreateHttpClient().SendAsync(request, cancellationToken);
 
                 if (!response.IsSuccessStatusCode)
@@ -262,7 +268,8 @@ namespace slskd.Relay
                     throw new RelayException($"Failed to upload shares to relay controller: {response.StatusCode}");
                 }
 
-                Log.Information("Upload shares succeeded");
+                sw.Stop();
+                Log.Information("Upload of shares succeeded ({Size} in {Duration}ms)", size, sw.ElapsedMilliseconds);
             }
             finally
             {
@@ -317,11 +324,11 @@ namespace slskd.Relay
 
                     if (!response.IsSuccessStatusCode)
                     {
-                        Log.Error("Upload of file {Filename} with ID {Id} failed: {StatusCode}", response.StatusCode);
+                        Log.Error("Upload of file {Filename} with ID {Id} failed: {StatusCode}", filename, token, response.StatusCode);
                     }
                     else
                     {
-                        Log.Information("Upload of file {Filename} with ID {Id} succeeded.", filename);
+                        Log.Information("Upload of file {Filename} with ID {Id} succeeded.", filename, token);
                     }
                 }
                 catch (Exception ex)

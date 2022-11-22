@@ -169,7 +169,7 @@ namespace slskd.Relay
                 throw new UnauthorizedAccessException();
             }
 
-            Log.Warning("Agent {Agent} (connection {ConnectionId}) from {IP} reported upload failure for {Id}: {Message}", id, exception.Message, RemoteIpAddress);
+            Log.Warning("Agent {Agent} (connection {ConnectionId}) from {IP} reported upload failure for {Id}: {Message}", record.Agent, Context.ConnectionId, RemoteIpAddress, id, exception.Message);
 
             Relay.NotifyFileStreamException(id, exception);
         }

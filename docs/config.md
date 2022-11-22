@@ -224,12 +224,14 @@ Agents need to specify the HTTP or HTTPS address of their controller, the API ke
 
 If using HTTPS; most users won't have a valid certificate (the self-signed certificates that slskd generates at startup are not 'valid' because they are self-signed), and in those cases the `ignore_certificate_errors` option should be set to `true`.
 
-| Command-Line                             | Environment Variable                         | Description                      |
-| ---------------------------------------- | -------------------------------------------- | ---------------------------------|
-| `--controller-address`                   | `SLSKD_CONTROLLER_ADDRESS`                   | Enable the Relay feature         |
-| `--controller-ignore-certificate-errors` | `SLSKD_CONTROLLER_IGNORE_CERTIFICATE_ERRORS` | Ignore certificate errors        |
-| `--controller-api-key`                   | `SLSKD_CONTROLLER_API_KEY`                   | An API key for the controller    |
-| `--controller-secret`                    | `SLSKD_CONTROLLER_SECRET`                    | The shared secret for this agent |
+| Command-Line                             | Environment Variable                         | Description                               |
+| ---------------------------------------- | -------------------------------------------- | ------------------------------------------|
+| `-r\|--relay`                            | `SLSKD_RELAY`                                | Enable the Relay feature                  |
+| `-m\|--relay-mode`                       | `SLSKD_RELAY_MODE`                           | The Relay mode (Controller, Agent, Debug) |
+| `--controller-address`                   | `SLSKD_CONTROLLER_ADDRESS`                   | Enable the Relay feature                  |
+| `--controller-ignore-certificate-errors` | `SLSKD_CONTROLLER_IGNORE_CERTIFICATE_ERRORS` | Ignore certificate errors                 |
+| `--controller-api-key`                   | `SLSKD_CONTROLLER_API_KEY`                   | An API key for the controller             |
+| `--controller-secret`                    | `SLSKD_CONTROLLER_SECRET`                    | The shared secret for this agent          |
 
 ```yaml
 instance_name: some_instance

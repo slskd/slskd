@@ -70,7 +70,6 @@ namespace slskd.Shares
                     Scanning = current.Filling,
                     Faulted = current.Faulted,
                     Cancelled = current.Cancelled,
-                    Ready = current.Filled,
                     ScanProgress = current.FillProgress,
                     Directories = current.Directories,
                     Files = current.Files,
@@ -319,6 +318,8 @@ namespace slskd.Shares
         /// <exception cref="ShareScanInProgressException">Thrown when a scan is already in progress.</exception>
         public async Task ScanAsync()
         {
+            State.SetValue(state => state with { Ready = false });
+
             await Scanner.ScanAsync(Local.Host.Shares, OptionsMonitor.CurrentValue.Shares, Local.Repository);
 
             Log.Debug("Backing up shared file cache database...");
@@ -327,12 +328,13 @@ namespace slskd.Shares
 
             Log.Debug("Recomputing share statistics...");
             ComputeShareStatistics();
-            Log.Debug("Share statistics updated");
+            Log.Debug("Share statistics updated: {Shares}", Local.Host.Shares.ToJson());
 
             State.SetValue(state => state with
             {
                 Directories = Hosts.SelectMany(host => host.Shares).Sum(share => share.Directories),
                 Files = Hosts.SelectMany(host => host.Shares).Sum(share => share.Files),
+                Ready = true,
             });
         }
 
@@ -353,6 +355,9 @@ namespace slskd.Shares
         public async Task InitializeAsync(bool forceRescan = false)
         {
             Log.Information("Initializing shares");
+
+            // _probably_ redundant, but to be safe
+            State.SetValue(state => state with { Ready = false });
 
             try
             {
