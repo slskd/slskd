@@ -50,9 +50,10 @@ namespace slskd.Relay
         ///     Requests the specified <paramref name="filename"/> from the agent.
         /// </summary>
         /// <param name="filename">The name of the file.</param>
+        /// <param name="startOffset">The starting offset for the transfer.</param>
         /// <param name="id">The unique identifier for the request.</param>
         /// <returns>The operation context.</returns>
-        Task RequestFileUpload(string filename, Guid id);
+        Task RequestFileUpload(string filename, long startOffset, Guid id);
     }
 
     /// <summary>
