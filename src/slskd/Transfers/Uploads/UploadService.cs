@@ -245,6 +245,7 @@ namespace slskd.Transfers.Uploads
                             // todo: broadcast
                             SynchronizedUpdate(transfer);
                         }),
+                        seekInputStreamAutomatically: false,
                         disposeInputStreamOnCompletion: true,
                         governor: (tx, req, ct) => Governor.GetBytesAsync(tx.Username, req, ct),
                         reporter: (tx, att, grant, act) => Governor.ReturnBytes(tx.Username, att, grant, act),
@@ -257,7 +258,12 @@ namespace slskd.Transfers.Uploads
                             username,
                             filename,
                             size: localFileLength,
-                            inputStreamFactory: () => Task.FromResult((Stream)new FileStream(localFilename, FileMode.Open, FileAccess.Read)),
+                            inputStreamFactory: (startOffset) =>
+                            {
+                                var stream = new FileStream(localFilename, FileMode.Open, FileAccess.Read);
+                                stream.Seek(startOffset, SeekOrigin.Begin);
+                                return Task.FromResult((Stream)stream);
+                            },
                             options: topts,
                             cancellationToken: cts.Token);
 
@@ -269,7 +275,7 @@ namespace slskd.Transfers.Uploads
                             username,
                             filename,
                             size: localFileLength,
-                            inputStreamFactory: () => Relay.GetFileStreamAsync(agentName: host, filename, id),
+                            inputStreamFactory: (startOffset) => Relay.GetFileStreamAsync(agentName: host, filename, startOffset, id),
                             options: topts,
                             cancellationToken: cts.Token);
 
