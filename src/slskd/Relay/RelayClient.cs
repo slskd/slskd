@@ -289,7 +289,7 @@ namespace slskd.Relay
 
         private string ComputeCredential(Guid token) => ComputeCredential(token.ToString());
 
-        private Task HandleFileUploadRequest(string filename, Guid token)
+        private Task HandleFileUploadRequest(string filename, long startOffset, Guid token)
         {
             _ = Task.Run(async () =>
             {
@@ -308,6 +308,9 @@ namespace slskd.Relay
                     }
 
                     using var stream = new FileStream(localFileInfo.FullName, FileMode.Open, FileAccess.Read);
+
+                    stream.Seek(startOffset, SeekOrigin.Begin);
+
                     using var request = new HttpRequestMessage(HttpMethod.Post, $"api/v0/relay/files/{token}");
                     using var content = new MultipartFormDataContent
                     {
@@ -485,7 +488,7 @@ namespace slskd.Relay
                 HubConnection.Reconnecting += HubConnection_Reconnecting;
                 HubConnection.Closed += HubConnection_Closed;
 
-                HubConnection.On<string, Guid>(nameof(IRelayHub.RequestFileUpload), HandleFileUploadRequest);
+                HubConnection.On<string, long, Guid>(nameof(IRelayHub.RequestFileUpload), HandleFileUploadRequest);
                 HubConnection.On<string, Guid>(nameof(IRelayHub.RequestFileInfo), HandleFileInfoRequest);
                 HubConnection.On<string>(nameof(IRelayHub.Challenge), HandleAuthenticationChallenge);
 
