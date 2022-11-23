@@ -134,6 +134,8 @@ namespace slskd.Relay
                 catch (Exception ex)
                 {
                     Log.Warning("Failed to handle file upload for token {Token} from a caller claiming to be agent {Agent}: {Message}", token, agentName, ex.Message);
+                    Log.Debug(ex, "Failed to handle file upload");
+
                     return BadRequest();
                 }
 

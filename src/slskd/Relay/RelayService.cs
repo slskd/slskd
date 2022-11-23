@@ -143,11 +143,12 @@ namespace slskd.Relay
         /// </remarks>
         /// <param name="agentName">The agent from which to retrieve the file.</param>
         /// <param name="filename">The file to retrieve.</param>
+        /// <param name="startOffset">The starting offset for the transfer.</param>
         /// <param name="id">A unique ID for the stream.</param>
         /// <param name="timeout">An optional timeout value.</param>
         /// <param name="cancellationToken">An optional token to monitor for cancellation requests.</param>
         /// <returns>The operation context, including a stream containing the requested file.</returns>
-        Task<Stream> GetFileStreamAsync(string agentName, string filename, Guid id, int timeout = 3000, CancellationToken cancellationToken = default);
+        Task<Stream> GetFileStreamAsync(string agentName, string filename, long startOffset, Guid id, int timeout = 3000, CancellationToken cancellationToken = default);
 
         /// <summary>
         ///     Handles the client response for a <see cref="GetFileInfoAsync"/> request.
@@ -444,11 +445,12 @@ namespace slskd.Relay
         /// </remarks>
         /// <param name="agentName">The agent from which to retrieve the file.</param>
         /// <param name="filename">The file to retrieve.</param>
+        /// <param name="startOffset">The starting offset for the transfer.</param>
         /// <param name="id">A unique ID for the stream.</param>
         /// <param name="timeout">An optional timeout value.</param>
         /// <param name="cancellationToken">An optional token to monitor for cancellation requests.</param>
         /// <returns>The operation context, including a stream containing the requested file.</returns>
-        public async Task<Stream> GetFileStreamAsync(string agentName, string filename, Guid id, int timeout = 3000, CancellationToken cancellationToken = default)
+        public async Task<Stream> GetFileStreamAsync(string agentName, string filename, long startOffset, Guid id, int timeout = 3000, CancellationToken cancellationToken = default)
         {
             if (!RegisteredAgentDictionary.TryGetValue(agentName, out var record))
             {
@@ -468,7 +470,7 @@ namespace slskd.Relay
 
             Log.Information("Created wait {Key}", key);
 
-            await RelayHub.Clients.Client(record.ConnectionId).RequestFileUpload(filename, id);
+            await RelayHub.Clients.Client(record.ConnectionId).RequestFileUpload(filename, startOffset, id);
             Log.Information("Requested file {Filename} from Agent {Agent} with ID {Id}. Waiting for incoming connection.", filename, agentName, id);
 
             var task = await Task.WhenAny(wait, Task.Delay(timeout, cancellationToken));
