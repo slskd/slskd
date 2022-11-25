@@ -35,8 +35,8 @@ const ShareTable = ({ shares, onClick }) => {
               <Icon name='folder'/>  
               <Link to='#'>{share.localPath}</Link>
             </Table.Cell>
-            <Table.Cell>{share.directories}</Table.Cell>
-            <Table.Cell>{share.files}</Table.Cell>
+            <Table.Cell>{share.directories ?? '?'}</Table.Cell>
+            <Table.Cell>{share.files ?? '?'}</Table.Cell>
             <Table.Cell>{share.alias}</Table.Cell>
             <Table.Cell>{share.remotePath}</Table.Cell>
           </Table.Row>))}
