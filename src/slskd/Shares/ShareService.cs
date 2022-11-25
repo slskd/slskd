@@ -131,8 +131,8 @@ namespace slskd.Shares
             State.SetValue(state => state with
             {
                 Hosts = Hosts.Select(host => host.Name).ToArray(),
-                Directories = Hosts.SelectMany(host => host.Shares).Sum(share => share.Directories),
-                Files = Hosts.SelectMany(host => host.Shares).Sum(share => share.Files),
+                Directories = Hosts.SelectMany(host => host.Shares).Sum(share => share.Directories ?? 0),
+                Files = Hosts.SelectMany(host => host.Shares).Sum(share => share.Files ?? 0),
             });
         }
 
@@ -237,8 +237,8 @@ namespace slskd.Shares
             State.SetValue(state => state with
             {
                 Hosts = Hosts.Select(host => host.Name).ToArray(),
-                Directories = Hosts.SelectMany(host => host.Shares).Sum(share => share.Directories),
-                Files = Hosts.SelectMany(host => host.Shares).Sum(share => share.Files),
+                Directories = Hosts.SelectMany(host => host.Shares).Sum(share => share.Directories ?? 0),
+                Files = Hosts.SelectMany(host => host.Shares).Sum(share => share.Files ?? 0),
             });
 
             return removed;
@@ -332,8 +332,8 @@ namespace slskd.Shares
 
             State.SetValue(state => state with
             {
-                Directories = Hosts.SelectMany(host => host.Shares).Sum(share => share.Directories),
-                Files = Hosts.SelectMany(host => host.Shares).Sum(share => share.Files),
+                Directories = Hosts.SelectMany(host => host.Shares).Sum(share => share.Directories ?? 0 ),
+                Files = Hosts.SelectMany(host => host.Shares).Sum(share => share.Files ?? 0),
                 Ready = true,
             });
         }
@@ -460,8 +460,8 @@ namespace slskd.Shares
                     Ready = true,
                     ScanProgress = 1,
                     Hosts = Hosts.Select(host => host.Name).ToList().AsReadOnly(),
-                    Directories = Hosts.SelectMany(host => host.Shares).Sum(share => share.Directories),
-                    Files = Hosts.SelectMany(host => host.Shares).Sum(share => share.Files),
+                    Directories = Hosts.SelectMany(host => host.Shares).Sum(share => share.Directories ?? 0),
+                    Files = Hosts.SelectMany(host => host.Shares).Sum(share => share.Files ?? 0),
                 });
             }
             catch (Exception ex)
