@@ -44,7 +44,6 @@ namespace slskd.Messaging.API
 
         private ISoulseekClient Client { get; }
         private IOptionsSnapshot<Options> OptionsSnapshot { get; }
-        private bool IsAgent => OptionsSnapshot.Value.Relay.Mode.ToEnum<RelayMode>() == RelayMode.Agent;
 
         /// <summary>
         ///     Starts public chat.
@@ -54,7 +53,7 @@ namespace slskd.Messaging.API
         [Authorize(Policy = AuthPolicy.Any)]
         public async Task<IActionResult> Start()
         {
-            if (IsAgent)
+            if (Program.IsRelayAgent)
             {
                 return Forbid();
             }
@@ -71,7 +70,7 @@ namespace slskd.Messaging.API
         [Authorize(Policy = AuthPolicy.Any)]
         public async Task<IActionResult> Stop()
         {
-            if (IsAgent)
+            if (Program.IsRelayAgent)
             {
                 return Forbid();
             }

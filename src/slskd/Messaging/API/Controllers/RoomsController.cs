@@ -58,7 +58,6 @@ namespace slskd.Messaging.API
         private IStateMonitor<State> ApplicationStateMonitor { get; }
         private IRoomTracker Tracker { get; }
         private IOptionsSnapshot<Options> OptionsSnapshot { get; }
-        private bool IsAgent => OptionsSnapshot.Value.Relay.Mode.ToEnum<RelayMode>() == RelayMode.Agent;
 
         /// <summary>
         ///     Gets all rooms.
@@ -70,7 +69,7 @@ namespace slskd.Messaging.API
         [ProducesResponseType(typeof(Dictionary<string, Dictionary<string, Room>>), 200)]
         public IActionResult GetAll()
         {
-            if (IsAgent)
+            if (Program.IsRelayAgent)
             {
                 return Forbid();
             }
@@ -91,7 +90,7 @@ namespace slskd.Messaging.API
         [ProducesResponseType(404)]
         public IActionResult GetByRoomName([FromRoute]string roomName)
         {
-            if (IsAgent)
+            if (Program.IsRelayAgent)
             {
                 return Forbid();
             }
@@ -118,7 +117,7 @@ namespace slskd.Messaging.API
         [ProducesResponseType(404)]
         public async Task<IActionResult> SendMessage([FromRoute]string roomName, [FromBody]string message)
         {
-            if (IsAgent)
+            if (Program.IsRelayAgent)
             {
                 return Forbid();
             }
@@ -146,7 +145,7 @@ namespace slskd.Messaging.API
         [ProducesResponseType(404)]
         public async Task<IActionResult> SetTicker([FromRoute] string roomName, [FromBody] string message)
         {
-            if (IsAgent)
+            if (Program.IsRelayAgent)
             {
                 return Forbid();
             }
@@ -174,7 +173,7 @@ namespace slskd.Messaging.API
         [ProducesResponseType(404)]
         public async Task<IActionResult> AddRoomMember([FromRoute]string roomName, [FromBody]string username)
         {
-            if (IsAgent)
+            if (Program.IsRelayAgent)
             {
                 return Forbid();
             }
@@ -201,7 +200,7 @@ namespace slskd.Messaging.API
         [ProducesResponseType(404)]
         public IActionResult GetUsersByRoomName([FromRoute]string roomName)
         {
-            if (IsAgent)
+            if (Program.IsRelayAgent)
             {
                 return Forbid();
             }
@@ -230,7 +229,7 @@ namespace slskd.Messaging.API
         [ProducesResponseType(404)]
         public IActionResult GetMessagesByRoomName([FromRoute]string roomName)
         {
-            if (IsAgent)
+            if (Program.IsRelayAgent)
             {
                 return Forbid();
             }
@@ -255,7 +254,7 @@ namespace slskd.Messaging.API
         [ProducesResponseType(typeof(List<RoomInfo>), 200)]
         public async Task<IActionResult> GetRooms()
         {
-            if (IsAgent)
+            if (Program.IsRelayAgent)
             {
                 return Forbid();
             }
@@ -289,7 +288,7 @@ namespace slskd.Messaging.API
         [ProducesResponseType(304)]
         public async Task<IActionResult> JoinRoom([FromBody]string roomName)
         {
-            if (IsAgent)
+            if (Program.IsRelayAgent)
             {
                 return Forbid();
             }
@@ -330,7 +329,7 @@ namespace slskd.Messaging.API
         [ProducesResponseType(404)]
         public async Task<IActionResult> LeaveRoom([FromRoute]string roomName)
         {
-            if (IsAgent)
+            if (Program.IsRelayAgent)
             {
                 return Forbid();
             }

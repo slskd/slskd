@@ -56,7 +56,6 @@ namespace slskd.Users.API
         private ISoulseekClient Client { get; }
         private IUserService Users { get; }
         private IOptionsSnapshot<Options> OptionsSnapshot { get; }
-        private bool IsAgent => OptionsSnapshot.Value.Relay.Mode.ToEnum<RelayMode>() == RelayMode.Agent;
 
         /// <summary>
         ///     Retrieves the address of the specified <paramref name="username"/>.
@@ -70,7 +69,7 @@ namespace slskd.Users.API
         [ProducesResponseType(404)]
         public async Task<IActionResult> Endpoint([FromRoute, Required] string username)
         {
-            if (IsAgent)
+            if (Program.IsRelayAgent)
             {
                 return Forbid();
             }
@@ -97,7 +96,7 @@ namespace slskd.Users.API
         [ProducesResponseType(404)]
         public async Task<IActionResult> Browse([FromRoute, Required] string username)
         {
-            if (IsAgent)
+            if (Program.IsRelayAgent)
             {
                 return Forbid();
             }
@@ -131,7 +130,7 @@ namespace slskd.Users.API
         [ProducesResponseType(404)]
         public IActionResult BrowseStatus([FromRoute, Required] string username)
         {
-            if (IsAgent)
+            if (Program.IsRelayAgent)
             {
                 return Forbid();
             }
@@ -156,7 +155,7 @@ namespace slskd.Users.API
         [ProducesResponseType(404)]
         public async Task<IActionResult> Directory([FromRoute, Required] string username, [FromRoute, Required] string directory)
         {
-            if (IsAgent)
+            if (Program.IsRelayAgent)
             {
                 return Forbid();
             }
@@ -183,7 +182,7 @@ namespace slskd.Users.API
         [ProducesResponseType(404)]
         public async Task<IActionResult> Info([FromRoute, Required] string username)
         {
-            if (IsAgent)
+            if (Program.IsRelayAgent)
             {
                 return Forbid();
             }
@@ -210,7 +209,7 @@ namespace slskd.Users.API
         [ProducesResponseType(404)]
         public async Task<IActionResult> Status([FromRoute, Required] string username)
         {
-            if (IsAgent)
+            if (Program.IsRelayAgent)
             {
                 return Forbid();
             }

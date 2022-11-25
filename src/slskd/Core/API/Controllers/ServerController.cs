@@ -48,7 +48,6 @@ namespace slskd.Core.API
         private ISoulseekClient Client { get; }
         private IOptionsSnapshot<Options> OptionsSnapshot { get; }
         private IStateSnapshot<State> StateSnapshot { get; }
-        private bool IsAgent => OptionsSnapshot.Value.Relay.Mode.ToEnum<RelayMode>() == RelayMode.Agent;
 
         /// <summary>
         ///     Connects the client.
@@ -61,7 +60,7 @@ namespace slskd.Core.API
         [ProducesResponseType(403)]
         public async Task<IActionResult> Connect()
         {
-            if (IsAgent)
+            if (Program.IsRelayAgent)
             {
                 return Forbid();
             }
@@ -86,7 +85,7 @@ namespace slskd.Core.API
         [ProducesResponseType(403)]
         public IActionResult Disconnect([FromBody] string message)
         {
-            if (IsAgent)
+            if (Program.IsRelayAgent)
             {
                 return Forbid();
             }
