@@ -30,16 +30,19 @@ const Index = ({ state = {} } = {}) => {
   }, []);
 
   useEffect(() => {
-    getAll();
+    getAll({ quiet: true });
 
     if (!scanning) {
-      setTimeout(() => getAll(), 1000);
+      // the state change out of scanning can fire before 
+      // shares are updated, which leaves them stale. wait a second
+      // and fetch again.
+      setTimeout(() => getAll({ quiet: true }), 1000);
     }
   }, [scanning, scanPending]);
 
-  const getAll = async () => {
+  const getAll = async ({ quiet } = { quiet: false }) => {
     try {
-      setLoading(true);
+      if (!quiet) setLoading(true);
 
       const sharesByHost = await sharesLib.getAll();
       const flattened = Object.entries(sharesByHost).reduce((acc, [host, shares]) => {
