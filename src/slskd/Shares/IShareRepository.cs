@@ -181,5 +181,10 @@ namespace slskd.Shares
         /// <param name="timestamp">The timestamp associated with the scan.</param>
         /// <param name="end">The timestamp at the conclusion of the scan.</param>
         void UpdateScan(long timestamp, long end);
+
+        /// <summary>
+        ///     Reclaims unused space.
+        /// </summary>
+        void Vacuum();
     }
 }
