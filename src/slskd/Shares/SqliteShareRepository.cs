@@ -72,6 +72,11 @@ namespace slskd.Shares
             using var sourceConn = GetConnection(ConnectionString);
             using var backupConn = GetConnection(repository.ConnectionString);
             sourceConn.BackupDatabase(backupConn);
+
+            Log.Debug("Vacuuming backup");
+            using var cmd = new SqliteCommand("VACUUM", backupConn);
+            cmd.ExecuteNonQuery();
+            Log.Debug("Backup vacuumed successfully");
         }
 
         /// <summary>
@@ -619,6 +624,15 @@ namespace slskd.Shares
                 cmd.Parameters.AddWithValue("end", end);
                 cmd.Parameters.AddWithValue("timestamp", timestamp);
             });
+        }
+
+        /// <summary>
+        ///     Reclaims unused space.
+        /// </summary>
+        public void Vacuum()
+        {
+            using var conn = GetConnection();
+            conn.ExecuteNonQuery("VACUUM;");
         }
 
         /// <summary>
