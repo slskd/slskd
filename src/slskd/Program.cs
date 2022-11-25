@@ -153,6 +153,11 @@ namespace slskd
         public static bool IsDevelopment { get; } = new Version(0, 0, 0, 0) == AssemblyVersion;
 
         /// <summary>
+        ///     Gets a value indicating whether the application is being run in Relay Agent mode.
+        /// </summary>
+        public static bool IsRelayAgent { get; private set; }
+
+        /// <summary>
         ///     Gets the path where application data is saved.
         /// </summary>
         [Argument('a', "app-dir", "path where application data is saved")]
@@ -357,6 +362,8 @@ namespace slskd
                 Log.Information($"Invalid configuration: {(!OptionsAtStartup.Debug ? ex : ex.Message)}");
                 return;
             }
+
+            IsRelayAgent = OptionsAtStartup.Relay.Enabled && OptionsAtStartup.Relay.Mode.ToEnum<RelayMode>() == RelayMode.Agent;
 
             ConfigureGlobalLogger();
             Log = Serilog.Log.ForContext(typeof(Program));

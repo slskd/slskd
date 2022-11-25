@@ -52,7 +52,6 @@ namespace slskd.Transfers.API
 
         private ITransferService Transfers { get; }
         private IOptionsSnapshot<Options> OptionsSnapshot { get; }
-        private bool IsAgent => OptionsSnapshot.Value.Relay.Mode.ToEnum<RelayMode>() == RelayMode.Agent;
 
         /// <summary>
         ///     Cancels the specified download.
@@ -69,7 +68,7 @@ namespace slskd.Transfers.API
         [ProducesResponseType(404)]
         public IActionResult CancelDownloadAsync([FromRoute, Required] string username, [FromRoute, Required]string id, [FromQuery]bool remove = false)
         {
-            if (IsAgent)
+            if (Program.IsRelayAgent)
             {
                 return Forbid();
             }
@@ -106,7 +105,7 @@ namespace slskd.Transfers.API
         [ProducesResponseType(204)]
         public IActionResult ClearCompletedDownloads()
         {
-            if (IsAgent)
+            if (Program.IsRelayAgent)
             {
                 return Forbid();
             }
@@ -138,7 +137,7 @@ namespace slskd.Transfers.API
         [ProducesResponseType(404)]
         public IActionResult CancelUpload([FromRoute, Required] string username, [FromRoute, Required]string id, [FromQuery]bool remove = false)
         {
-            if (IsAgent)
+            if (Program.IsRelayAgent)
             {
                 return Forbid();
             }
@@ -175,7 +174,7 @@ namespace slskd.Transfers.API
         [ProducesResponseType(204)]
         public IActionResult ClearCompletedUploads()
         {
-            if (IsAgent)
+            if (Program.IsRelayAgent)
             {
                 return Forbid();
             }
@@ -208,7 +207,7 @@ namespace slskd.Transfers.API
         [ProducesResponseType(typeof(string), 500)]
         public async Task<IActionResult> EnqueueAsync([FromRoute, Required]string username, [FromBody]IEnumerable<QueueDownloadRequest> requests)
         {
-            if (IsAgent)
+            if (Program.IsRelayAgent)
             {
                 return Forbid();
             }
@@ -234,7 +233,7 @@ namespace slskd.Transfers.API
         [ProducesResponseType(200)]
         public IActionResult GetDownloadsAsync([FromQuery]bool includeRemoved = false)
         {
-            if (IsAgent)
+            if (Program.IsRelayAgent)
             {
                 return Forbid();
             }
@@ -266,7 +265,7 @@ namespace slskd.Transfers.API
         [ProducesResponseType(200)]
         public IActionResult GetDownloadsAsync([FromRoute, Required] string username)
         {
-            if (IsAgent)
+            if (Program.IsRelayAgent)
             {
                 return Forbid();
             }
@@ -298,7 +297,7 @@ namespace slskd.Transfers.API
         [ProducesResponseType(404)]
         public IActionResult GetDownload([FromRoute, Required] string username, [FromRoute, Required] string id)
         {
-            if (IsAgent)
+            if (Program.IsRelayAgent)
             {
                 return Forbid();
             }
@@ -333,7 +332,7 @@ namespace slskd.Transfers.API
         [ProducesResponseType(404)]
         public async Task<IActionResult> GetPlaceInQueueAsync([FromRoute, Required] string username, [FromRoute, Required] string id)
         {
-            if (IsAgent)
+            if (Program.IsRelayAgent)
             {
                 return Forbid();
             }
@@ -368,7 +367,7 @@ namespace slskd.Transfers.API
         [ProducesResponseType(200)]
         public IActionResult GetUploads([FromQuery] bool includeRemoved = false)
         {
-            if (IsAgent)
+            if (Program.IsRelayAgent)
             {
                 return Forbid();
             }
@@ -400,7 +399,7 @@ namespace slskd.Transfers.API
         [ProducesResponseType(200)]
         public IActionResult GetUploads([FromRoute, Required] string username)
         {
-            if (IsAgent)
+            if (Program.IsRelayAgent)
             {
                 return Forbid();
             }
@@ -438,7 +437,7 @@ namespace slskd.Transfers.API
         [ProducesResponseType(200)]
         public IActionResult GetUploads([FromRoute, Required] string username, [FromRoute, Required] string id)
         {
-            if (IsAgent)
+            if (Program.IsRelayAgent)
             {
                 return Forbid();
             }

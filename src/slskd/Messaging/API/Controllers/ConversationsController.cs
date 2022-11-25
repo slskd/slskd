@@ -60,7 +60,6 @@ namespace slskd.Messaging.API
         private IStateMonitor<State> ApplicationStateMonitor { get; }
         private IConversationTracker Tracker { get; }
         private IOptionsSnapshot<Options> OptionsSnapshot { get; }
-        private bool IsAgent => OptionsSnapshot.Value.Relay.Mode.ToEnum<RelayMode>() == RelayMode.Agent;
 
         /// <summary>
         ///     Acknowledges the given message id for the given username.
@@ -78,7 +77,7 @@ namespace slskd.Messaging.API
         [ProducesResponseType(404)]
         public async Task<IActionResult> Acknowledge([FromRoute]string username, [FromRoute]int id)
         {
-            if (IsAgent)
+            if (Program.IsRelayAgent)
             {
                 return Forbid();
             }
@@ -107,7 +106,7 @@ namespace slskd.Messaging.API
         [ProducesResponseType(404)]
         public async Task<IActionResult> AcknowledgeAll([FromRoute]string username)
         {
-            if (IsAgent)
+            if (Program.IsRelayAgent)
             {
                 return Forbid();
             }
@@ -146,7 +145,7 @@ namespace slskd.Messaging.API
         [ProducesResponseType(204)]
         public IActionResult Delete([FromRoute]string username)
         {
-            if (IsAgent)
+            if (Program.IsRelayAgent)
             {
                 return Forbid();
             }
@@ -171,7 +170,7 @@ namespace slskd.Messaging.API
         [ProducesResponseType(typeof(Dictionary<string, List<PrivateMessageResponse>>), 200)]
         public IActionResult GetAll()
         {
-            if (IsAgent)
+            if (Program.IsRelayAgent)
             {
                 return Forbid();
             }
@@ -198,7 +197,7 @@ namespace slskd.Messaging.API
         [ProducesResponseType(404)]
         public IActionResult GetByUsername([FromRoute]string username)
         {
-            if (IsAgent)
+            if (Program.IsRelayAgent)
             {
                 return Forbid();
             }
@@ -229,7 +228,7 @@ namespace slskd.Messaging.API
         [ProducesResponseType(400)]
         public async Task<IActionResult> Send([FromRoute]string username, [FromBody]string message)
         {
-            if (IsAgent)
+            if (Program.IsRelayAgent)
             {
                 return Forbid();
             }

@@ -50,7 +50,6 @@ namespace slskd.Search.API
 
         private ISearchService Searches { get; }
         private IOptionsSnapshot<Options> OptionsSnapshot { get; }
-        private bool IsAgent => OptionsSnapshot.Value.Relay.Mode.ToEnum<RelayMode>() == RelayMode.Agent;
 
         /// <summary>
         ///     Performs a search for the specified <paramref name="request"/>.
@@ -64,7 +63,7 @@ namespace slskd.Search.API
         [Authorize(Policy = AuthPolicy.Any)]
         public async Task<IActionResult> Post([FromBody] SearchRequest request)
         {
-            if (IsAgent)
+            if (Program.IsRelayAgent)
             {
                 return Forbid();
             }
@@ -106,7 +105,7 @@ namespace slskd.Search.API
         [Authorize(Policy = AuthPolicy.Any)]
         public async Task<IActionResult> GetById([FromRoute] Guid id, [FromQuery] bool includeResponses = false)
         {
-            if (IsAgent)
+            if (Program.IsRelayAgent)
             {
                 return Forbid();
             }
@@ -132,7 +131,7 @@ namespace slskd.Search.API
         [Authorize(Policy = AuthPolicy.Any)]
         public async Task<IActionResult> GetResponsesById([FromRoute] Guid id)
         {
-            if (IsAgent)
+            if (Program.IsRelayAgent)
             {
                 return Forbid();
             }
@@ -155,7 +154,7 @@ namespace slskd.Search.API
         [Authorize(Policy = AuthPolicy.Any)]
         public async Task<IActionResult> GetAll()
         {
-            if (IsAgent)
+            if (Program.IsRelayAgent)
             {
                 return Forbid();
             }
@@ -177,7 +176,7 @@ namespace slskd.Search.API
         [ProducesResponseType(304)]
         public async Task<IActionResult> Cancel([FromRoute] Guid id)
         {
-            if (IsAgent)
+            if (Program.IsRelayAgent)
             {
                 return Forbid();
             }
@@ -210,7 +209,7 @@ namespace slskd.Search.API
         [ProducesResponseType(404)]
         public async Task<IActionResult> Delete([FromRoute] Guid id)
         {
-            if (IsAgent)
+            if (Program.IsRelayAgent)
             {
                 return Forbid();
             }
