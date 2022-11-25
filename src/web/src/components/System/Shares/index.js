@@ -24,17 +24,18 @@ const Index = ({ state = {} } = {}) => {
   const [modal, setModal] = useState(false);
 
   const { scanning, scanProgress, scanPending, directories, files } = state;
-  const scanned = !scanning;
 
   useEffect(() => {
     getAll();
   }, []);
 
   useEffect(() => {
-    if (scanned) {
-      getAll();
+    getAll();
+
+    if (!scanning) {
+      setTimeout(() => getAll(), 1000);
     }
-  }, [scanned]);
+  }, [scanning, scanPending]);
 
   const getAll = async () => {
     try {
