@@ -319,6 +319,10 @@ namespace slskd.Shares
                     Log.Information("Rebuilding filename index...");
                     repository.RebuildFilenameIndex();
                     Log.Information("Filename index rebuild complete");
+
+                    Log.Debug("Vacuuming...");
+                    repository.Vacuum();
+                    Log.Debug("Vacuumed successfully");
                 }
                 catch (OperationCanceledException)
                 {
