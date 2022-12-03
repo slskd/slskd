@@ -10,6 +10,14 @@ Users concerned about optimal performance should consider something faster.
 
 # Known Issues
 
+## Any device with an ARMv6 or earlier processor
+
+Not supported by the .NET runtime.  This may change in future versions.
+
+## Raspberry Pi Zero (any variant)
+
+At the moment all Pi Zeros are ARMv6.
+
 ## Devices using a copy-on-write filesystem such as BTRFS or ZFS
 
 slskd uses SQLite to store transactional data associated with things like transfers and searches, and these reads and writes experience too much I/O latency for the application to work properly with these filesystems.
