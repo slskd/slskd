@@ -58,6 +58,7 @@ jobs:
           - "linux-arm"
           - "linux-arm64"
           - "linux-musl-x64"
+          - "linux-musl-armv6"
           - "linux-musl-arm"
           - "linux-musl-arm64"
           - "osx-x64"
