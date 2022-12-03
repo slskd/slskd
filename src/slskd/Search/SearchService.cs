@@ -199,7 +199,7 @@ namespace slskd.Search
 
             var soulseekSearchTask = Client.SearchAsync(
                 query,
-                responseReceived: (response) => responses.Add(response),
+                responseHandler: (response) => responses.Add(response),
                 scope,
                 token,
                 options,
