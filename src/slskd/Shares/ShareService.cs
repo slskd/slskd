@@ -267,12 +267,11 @@ namespace slskd.Shares
         /// </exception>
         public Task<(string Host, string Filename)> ResolveFileAsync(string remoteFilename)
         {
-            string resolvedHost = "local";
             string resolvedFilename = Local.Repository.FindFilename(remoteFilename);
 
             if (!string.IsNullOrEmpty(resolvedFilename))
             {
-                return Task.FromResult((resolvedHost, resolvedFilename));
+                return Task.FromResult((Program.LocalHostName, resolvedFilename));
             }
 
             // file not found locally.  begin searching other hosts one by one.

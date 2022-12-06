@@ -288,9 +288,9 @@ namespace slskd
         {
             var results = new List<ValidationResult>();
 
-            if (InstanceName == "local" && Relay.Mode.ToEnum<RelayMode>() == RelayMode.Agent)
+            if (InstanceName == Program.LocalHostName && Relay.Mode.ToEnum<RelayMode>() == RelayMode.Agent)
             {
-                results.Add(new ValidationResult("Instance name must be something other than 'local' when operating in Relay Agent mode"));
+                results.Add(new ValidationResult($"Instance name must be something other than '{Program.LocalHostName}' when operating in Relay Agent mode"));
             }
 
             return results;
