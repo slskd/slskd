@@ -121,7 +121,7 @@ namespace slskd.Transfers.Uploads
             {
                 (host, localFilename) = await Shares.ResolveFileAsync(filename);
 
-                if (host == "local")
+                if (host == Program.LocalHostName)
                 {
                     // if it's local, do a quick check to see if it exists to spare the caller from
                     // queueing up if the transfer is doomed to fail. for remote files, take a leap of faith.
