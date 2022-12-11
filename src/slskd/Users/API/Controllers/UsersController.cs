@@ -144,25 +144,30 @@ namespace slskd.Users.API
         }
 
         /// <summary>
-        ///     Retrieves the files from the specified <paramref name="directory"/> from the specified <paramref name="username"/>.
+        ///     Retrieves the files from the specified directory from the specified <paramref name="username"/>.
         /// </summary>
         /// <param name="username">The username of the user.</param>
-        /// <param name="directory">The desired directory.</param>
+        /// <param name="request">The directory contents request.</param>
         /// <returns></returns>
         [HttpPost("{username}/directory")]
         [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(typeof(Directory), 200)]
         [ProducesResponseType(404)]
-        public async Task<IActionResult> Directory([FromRoute, Required] string username, [FromBody, Required] string directory)
+        public async Task<IActionResult> Directory([FromRoute, Required] string username, [FromBody, Required] DirectoryContentsRequest request)
         {
             if (Program.IsRelayAgent)
             {
                 return Forbid();
             }
 
+            if (request == null || string.IsNullOrEmpty(request.Directory))
+            {
+                return BadRequest();
+            }
+
             try
             {
-                var result = await Client.GetDirectoryContentsAsync(username, directory);
+                var result = await Client.GetDirectoryContentsAsync(username, request.Directory);
                 return Ok(result);
             }
             catch (UserOfflineException ex)
