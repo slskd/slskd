@@ -87,7 +87,7 @@ namespace slskd.Search
             {
                 using var context = ContextFactory.CreateDbContext();
                 context.Searches.Remove(search);
-                await context.SaveChangesAsync();
+                context.SaveChanges();
 
                 await SearchHub.BroadcastDeleteAsync(search);
             }
@@ -173,7 +173,7 @@ namespace slskd.Search
             {
                 using var context = ContextFactory.CreateDbContext();
                 context.Update(search);
-                await context.SaveChangesAsync();
+                context.SaveChanges();
             }
 
             options ??= new SearchOptions();
