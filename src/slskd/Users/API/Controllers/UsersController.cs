@@ -146,14 +146,14 @@ namespace slskd.Users.API
         /// <summary>
         ///     Retrieves the files from the specified <paramref name="directory"/> from the specified <paramref name="username"/>.
         /// </summary>
-        /// <param name="directory">The desired directory.</param>
         /// <param name="username">The username of the user.</param>
+        /// <param name="directory">The desired directory.</param>
         /// <returns></returns>
-        [HttpGet("{username}/directory/{directory}")]
+        [HttpPost("{username}/directory")]
         [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(typeof(Directory), 200)]
         [ProducesResponseType(404)]
-        public async Task<IActionResult> Directory([FromRoute, Required] string username, [FromRoute, Required] string directory)
+        public async Task<IActionResult> Directory([FromRoute, Required] string username, [FromBody, Required] string directory)
         {
             if (Program.IsRelayAgent)
             {
