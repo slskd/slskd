@@ -170,7 +170,7 @@ namespace slskd.Search
 
             List<SearchResponse> responses = new();
 
-            async Task UpdateAndSaveChangesAsync(Search search)
+            void UpdateAndSaveChanges(Search search)
             {
                 using var context = ContextFactory.CreateDbContext();
                 context.Update(search);
@@ -183,7 +183,7 @@ namespace slskd.Search
                 {
                     search = search.WithSoulseekSearch(args.Search);
                     SearchHub.BroadcastUpdateAsync(search);
-                    _ = UpdateAndSaveChangesAsync(search);
+                    UpdateAndSaveChanges(search);
                 },
                 responseReceived: (args) => rateLimiter.Invoke(() =>
                 {
@@ -195,7 +195,7 @@ namespace slskd.Search
                     search.LockedFileCount = args.Search.LockedFileCount;
 
                     SearchHub.BroadcastUpdateAsync(search);
-                    _ = UpdateAndSaveChangesAsync(search);
+                    UpdateAndSaveChanges(search);
                 }));
 
             var soulseekSearchTask = Client.SearchAsync(
@@ -223,7 +223,7 @@ namespace slskd.Search
                         search.EndedAt = DateTime.UtcNow;
                         search.Responses = responses.Select(r => Response.FromSoulseekSearchResponse(r));
 
-                        await UpdateAndSaveChangesAsync(search);
+                        UpdateAndSaveChanges(search);
 
                         // zero responses before broadcasting
                         search.Responses = Enumerable.Empty<Response>();
