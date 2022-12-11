@@ -166,6 +166,7 @@ namespace slskd.Search
 
             using var context = ContextFactory.CreateDbContext();
             context.Add(search);
+            context.SaveChanges();
 
             List<SearchResponse> responses = new();
 
