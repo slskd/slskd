@@ -236,7 +236,6 @@ namespace slskd.Search
                 }
             });
 
-            await context.SaveChangesAsync();
             await SearchHub.BroadcastCreateAsync(search);
 
             return search;
