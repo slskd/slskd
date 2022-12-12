@@ -21,5 +21,5 @@ export const getBrowseStatus = ({ username }) => {
 };
 
 export const getDirectoryContents = async ({ username, directory }) => {
-  return (await api.get(`/users/${encodeURIComponent(username)}/directory/${encodeURIComponent(directory)}`)).data;
+  return (await api.post(`/users/${encodeURIComponent(username)}/directory`, { directory })).data;
 };
