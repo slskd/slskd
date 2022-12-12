@@ -87,7 +87,7 @@ namespace slskd.Search
             {
                 using var context = ContextFactory.CreateDbContext();
                 context.Searches.Remove(search);
-                await context.SaveChangesAsync();
+                context.SaveChanges();
 
                 await SearchHub.BroadcastDeleteAsync(search);
             }
@@ -166,14 +166,15 @@ namespace slskd.Search
 
             using var context = ContextFactory.CreateDbContext();
             context.Add(search);
+            context.SaveChanges();
 
             List<SearchResponse> responses = new();
 
-            async Task UpdateAndSaveChangesAsync(Search search)
+            void UpdateAndSaveChanges(Search search)
             {
                 using var context = ContextFactory.CreateDbContext();
                 context.Update(search);
-                await context.SaveChangesAsync();
+                context.SaveChanges();
             }
 
             options ??= new SearchOptions();
@@ -182,7 +183,7 @@ namespace slskd.Search
                 {
                     search = search.WithSoulseekSearch(args.Search);
                     SearchHub.BroadcastUpdateAsync(search);
-                    _ = UpdateAndSaveChangesAsync(search);
+                    UpdateAndSaveChanges(search);
                 },
                 responseReceived: (args) => rateLimiter.Invoke(() =>
                 {
@@ -194,7 +195,7 @@ namespace slskd.Search
                     search.LockedFileCount = args.Search.LockedFileCount;
 
                     SearchHub.BroadcastUpdateAsync(search);
-                    _ = UpdateAndSaveChangesAsync(search);
+                    UpdateAndSaveChanges(search);
                 }));
 
             var soulseekSearchTask = Client.SearchAsync(
@@ -222,7 +223,7 @@ namespace slskd.Search
                         search.EndedAt = DateTime.UtcNow;
                         search.Responses = responses.Select(r => Response.FromSoulseekSearchResponse(r));
 
-                        await UpdateAndSaveChangesAsync(search);
+                        UpdateAndSaveChanges(search);
 
                         // zero responses before broadcasting
                         search.Responses = Enumerable.Empty<Response>();
@@ -235,7 +236,6 @@ namespace slskd.Search
                 }
             });
 
-            await context.SaveChangesAsync();
             await SearchHub.BroadcastCreateAsync(search);
 
             return search;
