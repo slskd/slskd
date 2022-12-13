@@ -295,7 +295,7 @@ namespace slskd.Messaging.API
 
             if (Tracker.Rooms.ContainsKey(roomName))
             {
-                return StatusCode(StatusCodes.Status304NotModified);
+                return Ok();
             }
 
             try

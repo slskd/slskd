@@ -188,12 +188,8 @@ namespace slskd.Search.API
                 return NotFound();
             }
 
-            if (Searches.TryCancel(id))
-            {
-                return Ok();
-            }
-
-            return StatusCode(304);
+            Searches.TryCancel(id);
+            return Ok();
         }
 
         /// <summary>
