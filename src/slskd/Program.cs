@@ -158,6 +158,11 @@ namespace slskd
         public static bool IsRelayAgent { get; private set; }
 
         /// <summary>
+        ///     Gets the application flags.
+        /// </summary>
+        public static Options.FlagsOptions Flags { get; private set; }
+
+        /// <summary>
         ///     Gets the path where application data is saved.
         /// </summary>
         [Argument('a', "app-dir", "path where application data is saved")]
@@ -364,6 +369,7 @@ namespace slskd
             }
 
             IsRelayAgent = OptionsAtStartup.Relay.Enabled && OptionsAtStartup.Relay.Mode.ToEnum<RelayMode>() == RelayMode.Agent;
+            Flags = OptionsAtStartup.Flags;
 
             ConfigureGlobalLogger();
             Log = Serilog.Log.ForContext(typeof(Program));
