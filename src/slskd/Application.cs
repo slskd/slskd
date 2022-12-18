@@ -118,7 +118,16 @@ namespace slskd
 
             PreviousOptions = OptionsMonitor.CurrentValue;
 
-            CompiledSearchResponseFilters = OptionsAtStartup.Filters.Search.Request.Select(f => new Regex(f, RegexOptions.Compiled));
+            Flags = Program.Flags;
+
+            var regexOptions = RegexOptions.Compiled;
+
+            if (!Flags.CaseSensitiveRegEx)
+            {
+                regexOptions |= RegexOptions.IgnoreCase;
+            }
+
+            CompiledSearchResponseFilters = OptionsAtStartup.Filters.Search.Request.Select(f => new Regex(f, regexOptions));
 
             State = state;
             State.OnChange(state => State_OnChange(state));
@@ -203,6 +212,7 @@ namespace slskd
         private IMemoryCache Cache { get; set; } = new MemoryCache(new MemoryCacheOptions());
         private IEnumerable<Regex> CompiledSearchResponseFilters { get; set; }
         private IEnumerable<Guid> ActiveDownloadIdsAtPreviousShutdown { get; set; } = Enumerable.Empty<Guid>();
+        private Options.FlagsOptions Flags { get; set; }
 
         public void CollectGarbage()
         {

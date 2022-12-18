@@ -72,6 +72,8 @@ namespace slskd.Shares
         {
             WorkerCount = workerCount;
             SoulseekFileFactory = soulseekFileFactory ?? new SoulseekFileFactory();
+
+            Flags = Program.Flags;
         }
 
         /// <summary>
@@ -86,6 +88,7 @@ namespace slskd.Shares
         private IManagedState<SharedFileCacheState> State { get; } = new ManagedState<SharedFileCacheState>();
         private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1);
         private CancellationTokenSource CancellationTokenSource { get; set; }
+        private Options.FlagsOptions Flags { get; set; }
 
         /// <summary>
         ///     Scans the configured shares and fills the cache.
@@ -132,8 +135,15 @@ namespace slskd.Shares
                     Log.Information("Shared file cache re-created and ready for scan.");
                 }
 
+                var regexOptions = RegexOptions.Compiled;
+
+                if (!Flags.CaseSensitiveRegEx)
+                {
+                    regexOptions |= RegexOptions.IgnoreCase;
+                }
+
                 var filters = options.Filters
-                    .Select(filter => new Regex(filter, RegexOptions.Compiled))
+                    .Select(filter => new Regex(filter, regexOptions))
                     .ToList();
 
                 Log.Information("Starting shared file scan");
