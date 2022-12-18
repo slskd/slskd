@@ -143,6 +143,8 @@ Aliases:
 
 Share filters can be used to prevent certain types of files from being shared.  This option is an array that can take any number of filters.  Filters must be a valid regular expression; a few examples are included below and in the example configuration included with the application, but the list is empty by default.
 
+Filter expressions are case insensitive by default.
+
 | Command Line              | Environment Variable          | Description                                                           |
 | ------------------------- | ----------------------------- | --------------------------------------------------------------------- |
 | `--share-filter`          | `SLSKD_SHARE_FILTER`          | A list of regular expressions used to filter files from shares        |
@@ -682,6 +684,8 @@ web:
 A number of filters can be configured to control various aspects of how the application interacts with the Soulseek network.
 
 Share filters can be used to prevent certain types of files from being shared.  This option is an array that can take any number of filters.  Filters must be a valid regular expression; a few examples are included below and in the example configuration included with the application, but the list is empty by default.
+
+Filter expressions are case insensitive by default.
 
 | Command Line              | Environment Variable    | Description                                                           |
 | ------------------------- | ----------------------- | --------------------------------------------------------------------- |
