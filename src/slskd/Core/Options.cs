@@ -381,6 +381,15 @@ namespace slskd
             [Description("use volatile data storage (all data will be lost at shutdown)")]
             [RequiresRestart]
             public bool Volatile { get; init; } = false;
+
+            /// <summary>
+            ///     Gets a value indicating whether user-defined regular expressions are case sensitive.
+            /// </summary>
+            [Argument(default, "case-sensitive-regex")]
+            [EnvironmentVariable("CASE_SENSITIVE_REGEX")]
+            [Description("user-defined regular expressions are case sensitive")]
+            [RequiresRestart]
+            public bool CaseSensitiveRegEx { get; init; } = false;
         }
 
         /// <summary>
