@@ -19,7 +19,6 @@ using Microsoft.Extensions.Options;
 
 namespace slskd.Integrations.FTP
 {
-    using System;
     using FluentFTP;
     using static slskd.Options.IntegrationOptions;
 
@@ -44,11 +43,15 @@ namespace slskd.Integrations.FTP
         ///     Creates an instance of <see cref="FtpClient"/>.
         /// </summary>
         /// <returns>The created instance.</returns>
-        public FtpClient CreateFtpClient()
+        public AsyncFtpClient CreateFtpClient()
         {
-            var client = new FtpClient(FtpOptions.Address, FtpOptions.Port, FtpOptions.Username, FtpOptions.Password);
-            client.EncryptionMode = FtpOptions.EncryptionMode.ToEnum<FtpEncryptionMode>();
-            client.ValidateAnyCertificate = FtpOptions.IgnoreCertificateErrors;
+            var config = new FtpConfig
+            {
+                EncryptionMode = FtpOptions.EncryptionMode.ToEnum<FtpEncryptionMode>(),
+                ValidateAnyCertificate = FtpOptions.IgnoreCertificateErrors,
+            };
+
+            var client = new AsyncFtpClient(FtpOptions.Address, FtpOptions.Username, FtpOptions.Password, FtpOptions.Port, config);
 
             return client;
         }

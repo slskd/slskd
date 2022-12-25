@@ -25,9 +25,9 @@ namespace slskd.Integrations.FTP
     public interface IFTPClientFactory
     {
         /// <summary>
-        ///     Creates an instance of <see cref="FtpClient"/>.
+        ///     Creates an instance of <see cref="AsyncFtpClient"/>.
         /// </summary>
         /// <returns>The created instance.</returns>
-        public FtpClient CreateFtpClient();
+        public AsyncFtpClient CreateFtpClient();
     }
 }
