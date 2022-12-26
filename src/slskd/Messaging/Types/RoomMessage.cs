@@ -45,6 +45,11 @@ namespace slskd.Messaging
         /// </summary>
         public string RoomName { get; set; }
 
+        /// <summary>
+        ///     Gets or sets the message direction.
+        /// </summary>
+        public MessageDirection Direction { get; set; }
+
         public static RoomMessage FromEventArgs(RoomMessageReceivedEventArgs eventArgs, DateTime? timestamp = null)
         {
             return new RoomMessage()
