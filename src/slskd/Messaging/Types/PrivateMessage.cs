@@ -31,6 +31,11 @@ namespace slskd.Messaging
         public bool Acknowledged { get; set; } = false;
 
         /// <summary>
+        ///     Gets or sets the message direction.
+        /// </summary>
+        public MessageDirection Direction { get; set; }
+
+        /// <summary>
         ///     The unique message id, used to acknowledge receipt.
         /// </summary>
         public int Id { get; set; }
@@ -43,7 +48,7 @@ namespace slskd.Messaging
         /// <summary>
         ///     A value indicating whether the message was replayed.
         /// </summary>
-        public bool Replayed { get; set; }
+        public bool Replayed { get; set; } = false;
 
         /// <summary>
         ///     The UTC timestamp of the message.
@@ -51,7 +56,7 @@ namespace slskd.Messaging
         public DateTime Timestamp { get; set; } = DateTime.UtcNow;
 
         /// <summary>
-        ///     The username of the user who sent the message.
+        ///     The username of the remote user.
         /// </summary>
         public string Username { get; set; }
 
@@ -65,6 +70,7 @@ namespace slskd.Messaging
                 Message = eventArgs.Message,
                 Acknowledged = false,
                 Replayed = eventArgs.Replayed,
+                Direction = MessageDirection.In,
             };
         }
     }
