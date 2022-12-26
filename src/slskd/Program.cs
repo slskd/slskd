@@ -547,6 +547,9 @@ namespace slskd
             services.AddSingleton<IConversationTracker, ConversationTracker>();
             services.AddSingleton<IRoomTracker, RoomTracker>(_ => new RoomTracker(messageLimit: 250));
 
+            services.AddSingleton<IMessagingService, MessagingService>();
+            services.AddSingleton<IConversationService, ConversationService>();
+
             services.AddSingleton<IShareService, ShareService>();
             services.AddTransient<IShareRepositoryFactory, SqliteShareRepositoryFactory>();
 
