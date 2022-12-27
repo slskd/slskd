@@ -54,11 +54,21 @@ namespace slskd.Messaging
         Task CreateAsync(string username);
 
         /// <summary>
-        ///     Returns the <see cref="Conversation"/> matching the specified <paramref name="expression"/>.
+        ///     Returns the <see cref="Conversation"/> record associated with the specified <paramref name="username"/>.
         /// </summary>
-        /// <param name="expression">An expression used to locate the conversation.</param>
+        /// <param name="username">The username associated with the conversation.</param>
+        /// <param name="includeInactive">A value indicating whether to include conversations marked as inactive.</param>
+        /// <param name="includeMessages">A value indicating whether <see cref="PrivateMessage"/> records should be included in the return value.</param>
         /// <returns>The operation context, including the located conversation, if one was found.</returns>
-        Task<Conversation> FindAsync(Expression<Func<Conversation, bool>> expression);
+        Task<Conversation> FindAsync(string username, bool includeInactive = true, bool includeMessages = false);
+
+        /// <summary>
+        ///     Returns the <see cref="PrivateMessage"/> record associated with the specified <paramref name="username"/> and <paramref name="id"/>.
+        /// </summary>
+        /// <param name="username">The username associated with the conversation.</param>
+        /// <param name="id">The ID of the message.</param>
+        /// <returns>The operation context, including the located message, if one was found.</returns>
+        Task<PrivateMessage> FindMessageAsync(string username, int id);
 
         /// <summary>
         ///     Returns the list of all <see cref="Conversation"/> records matching the specified <paramref name="expression"/>.
@@ -66,6 +76,13 @@ namespace slskd.Messaging
         /// <param name="expression">An optional expression used to locate conversations.</param>
         /// <returns>The operation context, including the list of found conversations.</returns>
         Task<IEnumerable<Conversation>> ListAsync(Expression<Func<Conversation, bool>> expression = null);
+
+        /// <summary>
+        ///     Returns the list of all <see cref="PrivateMessage"/> records matching the specified <paramref name="expression"/>.
+        /// </summary>
+        /// <param name="expression">An optional expression used to locate private messages.</param>
+        /// <returns>The operation context, including the list of found private messages.</returns>
+        Task<IEnumerable<PrivateMessage>> ListMessagesAsync(Expression<Func<PrivateMessage, bool>> expression = null);
 
         /// <summary>
         ///     Handles the receipt of an inbound <see cref="PrivateMessage"/>.
@@ -115,10 +132,15 @@ namespace slskd.Messaging
             using var context = ContextFactory.CreateDbContext();
 
             var unacked = context.PrivateMessages
-                .Where(m => m.Username == username && !m.Acknowledged)
-                .Select(m => AcknowledgeMessageAsync(username, m.Id));
+                .Where(m => m.Username == username && !m.IsAcknowledged);
 
-            await Task.WhenAll(unacked);
+            foreach (var message in unacked)
+            {
+                await SoulseekClient.AcknowledgePrivateMessageAsync(message.Id);
+                message.IsAcknowledged = true;
+            }
+
+            context.SaveChanges();
         }
 
         /// <summary>
@@ -130,12 +152,12 @@ namespace slskd.Messaging
         public async Task AcknowledgeMessageAsync(string username, int id)
         {
             using var context = ContextFactory.CreateDbContext();
-            var message = context.PrivateMessages.FirstOrDefault(m => m.Username == username && m.Id == id);
+            var message = context.PrivateMessages.SingleOrDefault(m => m.Username == username && m.Id == id);
 
             if (message != default)
             {
-                await SoulseekClient.AcknowledgePrivateMessageAsync(id);
-                message.Acknowledged = true;
+                await SoulseekClient.AcknowledgePrivateMessageAsync(message.Id);
+                message.IsAcknowledged = true;
                 context.SaveChanges();
             }
             else
@@ -156,26 +178,55 @@ namespace slskd.Messaging
         }
 
         /// <summary>
-        ///     Returns the <see cref="Conversation"/> matching the specified <paramref name="expression"/>.
+        ///     Returns the <see cref="Conversation"/> record associated with the specified <paramref name="username"/>.
         /// </summary>
-        /// <param name="expression">An expression used to locate the conversation.</param>
+        /// <param name="username">The username associated with the conversation.</param>
+        /// <param name="includeInactive">A value indicating whether to include conversations marked as inactive.</param>
+        /// <param name="includeMessages">A value indicating whether <see cref="PrivateMessage"/> records should be included in the return value.</param>
         /// <returns>The operation context, including the located conversation, if one was found.</returns>
-        public Task<Conversation> FindAsync(Expression<Func<Conversation, bool>> expression)
+        public async Task<Conversation> FindAsync(string username, bool includeInactive = true, bool includeMessages = false)
         {
             using var context = ContextFactory.CreateDbContext();
 
             var conversation = context.Conversations
                 .AsNoTracking()
-                .Where(expression)
-                .FirstOrDefault();
+                .Where(c => c.Username == username && (includeInactive || c.IsActive))
+                .SingleOrDefault();
 
             if (conversation != default)
             {
-                // add an option to limit this, or figure out pagination.
-                conversation.Messages = context.PrivateMessages.Where(m => m.Username == conversation.Username);
+                if (includeMessages)
+                {
+                    // TODO: add an option to limit this, or figure out pagination.
+                    conversation.Messages = await ListMessagesAsync(m => m.Username == conversation.Username);
+                    conversation.HasUnAcknowledgedMessages = conversation.Messages.Any(m => !m.IsAcknowledged);
+                }
+                else
+                {
+                    var unacked = await ListMessagesAsync(m => m.Username == conversation.Username && !m.IsAcknowledged);
+                    conversation.HasUnAcknowledgedMessages = unacked.Any();
+                }
             }
 
-            return Task.FromResult(conversation);
+            return conversation;
+        }
+
+        /// <summary>
+        ///     Returns the <see cref="PrivateMessage"/> record associated with the specified <paramref name="username"/> and <paramref name="id"/>.
+        /// </summary>
+        /// <param name="username">The username associated with the conversation.</param>
+        /// <param name="id">The ID of the message.</param>
+        /// <returns>The operation context, including the located message, if one was found.</returns>
+        public Task<PrivateMessage> FindMessageAsync(string username, int id)
+        {
+            using var context = ContextFactory.CreateDbContext();
+
+            var message = context.PrivateMessages
+                .AsNoTracking()
+                .Where(m => m.Username == username && m.Id == id)
+                .SingleOrDefault();
+
+            return Task.FromResult(message);
         }
 
         /// <summary>
@@ -187,7 +238,46 @@ namespace slskd.Messaging
         {
             using var context = ContextFactory.CreateDbContext();
 
-            return Task.FromResult(context.Conversations.Where(expression).AsEnumerable());
+            var unAckedConversations = context.PrivateMessages
+                .AsNoTracking()
+                .Where(m => !m.IsAcknowledged)
+                .Select(m => m.Username)
+                .Distinct()
+                .ToList();
+
+            var response = context.Conversations
+                .AsNoTracking()
+                .Select(c => new Conversation
+                {
+                    Username = c.Username,
+                    IsActive = c.IsActive,
+                    HasUnAcknowledgedMessages = unAckedConversations.Contains(c.Username),
+                })
+                .Where(expression)
+                .OrderBy(c => c.Username)
+                .ToList()
+                .AsEnumerable();
+
+            return Task.FromResult(response);
+        }
+
+        /// <summary>
+        ///     Returns the list of all <see cref="PrivateMessage"/> records matching the specified <paramref name="expression"/>.
+        /// </summary>
+        /// <param name="expression">An optional expression used to locate private messages.</param>
+        /// <returns>The operation context, including the list of found private messages.</returns>
+        public Task<IEnumerable<PrivateMessage>> ListMessagesAsync(Expression<Func<PrivateMessage, bool>> expression = null)
+        {
+            using var context = ContextFactory.CreateDbContext();
+
+            var response = context.PrivateMessages
+                .AsNoTracking()
+                .Where(expression)
+                .OrderBy(m => m.Timestamp)
+                .ToList()
+                .AsEnumerable();
+
+            return Task.FromResult(response);
         }
 
         /// <summary>
@@ -203,17 +293,16 @@ namespace slskd.Messaging
             using var context = ContextFactory.CreateDbContext();
 
             // the server replays unacked messages when we log in. figure out if we've seen this message before, and if so sync it.
+            // note that the table for PMs uses a composite key; this expression should match whatever is in the DbContext.
             var existing = context.PrivateMessages.FirstOrDefault(m =>
                 m.Username == message.Username &&
-                m.Message == message.Message &&
-                m.Id == message.Id);
+                m.Id == message.Id &&
+                m.Timestamp == message.Timestamp);
 
             if (existing != null)
             {
-                // the message was replayed. i'm not sure what is updated, so just update anything that might have updated
-                existing.Timestamp = message.Timestamp;
-                existing.Replayed = message.Replayed;
-                existing.Acknowledged = message.Acknowledged;
+                // the message was replayed. ensure the local ack bit is in sync with the server
+                existing.IsAcknowledged = message.IsAcknowledged;
             }
             else
             {
@@ -241,7 +330,7 @@ namespace slskd.Messaging
 
             if (conversation != default)
             {
-                conversation.Active = false;
+                conversation.IsActive = false;
                 context.SaveChanges();
             }
             else
@@ -268,13 +357,12 @@ namespace slskd.Messaging
 
             context.PrivateMessages.Add(new PrivateMessage
             {
-                Acknowledged = true,
-                Id = 0,
-                Message = message,
-                Replayed = false,
                 Timestamp = DateTime.UtcNow,
+                Id = 0, // the server assigns IDs. this message will get one but it'll only be known to the recipient
                 Username = username,
                 Direction = MessageDirection.Out,
+                Message = message,
+                IsAcknowledged = true,
             });
 
             context.SaveChanges();
@@ -288,11 +376,11 @@ namespace slskd.Messaging
 
             if (conversation != default)
             {
-                conversation.Active = true;
+                conversation.IsActive = true;
             }
             else
             {
-                context.Conversations.Add(new Conversation { Username = username, Active = true });
+                context.Conversations.Add(new Conversation { Username = username, IsActive = true });
             }
 
             context.SaveChanges();
