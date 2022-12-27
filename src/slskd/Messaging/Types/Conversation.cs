@@ -18,13 +18,12 @@
 namespace slskd.Messaging
 {
     using System.Collections.Generic;
-    using System.Linq;
 
     public class Conversation
     {
         public string Username { get; set; }
-        public bool Active { get; set; } = true;
-        public bool HasUnacknowledgedMessages => Messages.Any(m => !m.Acknowledged);
+        public bool IsActive { get; set; } = true;
+        public bool? HasUnAcknowledgedMessages { get; set; }
         public IEnumerable<PrivateMessage> Messages { get; set; } = new List<PrivateMessage>();
     }
 }

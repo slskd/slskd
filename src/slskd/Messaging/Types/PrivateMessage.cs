@@ -26,14 +26,9 @@ namespace slskd.Messaging
     public class PrivateMessage
     {
         /// <summary>
-        ///     A value indicating whether the message has been acknowledged.
+        ///     The UTC timestamp of the message.
         /// </summary>
-        public bool Acknowledged { get; set; } = false;
-
-        /// <summary>
-        ///     Gets or sets the message direction.
-        /// </summary>
-        public MessageDirection Direction { get; set; }
+        public DateTime Timestamp { get; set; } = DateTime.UtcNow;
 
         /// <summary>
         ///     The unique message id, used to acknowledge receipt.
@@ -41,24 +36,24 @@ namespace slskd.Messaging
         public int Id { get; set; }
 
         /// <summary>
+        ///     The username of the remote user.
+        /// </summary>
+        public string Username { get; set; }
+
+        /// <summary>
+        ///     Gets or sets the message direction.
+        /// </summary>
+        public MessageDirection Direction { get; set; }
+
+        /// <summary>
         ///     The message.
         /// </summary>
         public string Message { get; set; }
 
         /// <summary>
-        ///     A value indicating whether the message was replayed.
+        ///     A value indicating whether the message has been acknowledged.
         /// </summary>
-        public bool Replayed { get; set; } = false;
-
-        /// <summary>
-        ///     The UTC timestamp of the message.
-        /// </summary>
-        public DateTime Timestamp { get; set; } = DateTime.UtcNow;
-
-        /// <summary>
-        ///     The username of the remote user.
-        /// </summary>
-        public string Username { get; set; }
+        public bool IsAcknowledged { get; set; } = false;
 
         public static PrivateMessage FromEventArgs(PrivateMessageReceivedEventArgs eventArgs)
         {
@@ -68,8 +63,7 @@ namespace slskd.Messaging
                 Timestamp = eventArgs.Timestamp,
                 Username = eventArgs.Username,
                 Message = eventArgs.Message,
-                Acknowledged = false,
-                Replayed = eventArgs.Replayed,
+                IsAcknowledged = false,
                 Direction = MessageDirection.In,
             };
         }
