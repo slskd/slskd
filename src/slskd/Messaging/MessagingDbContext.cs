@@ -36,14 +36,14 @@ namespace slskd.Messaging
         {
             modelBuilder.Entity<Conversation>().HasKey(e => e.Username);
             modelBuilder.Entity<Conversation>().Ignore(e => e.Messages);
-            modelBuilder.Entity<Conversation>().Ignore(e => e.HasUnacknowledgedMessages);
+            modelBuilder.Entity<Conversation>().Ignore(e => e.HasUnAcknowledgedMessages);
 
             modelBuilder
                 .Entity<PrivateMessage>()
                 .Property(e => e.Timestamp)
                 .HasConversion(v => v, v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
 
-            modelBuilder.Entity<PrivateMessage>().HasNoKey();
+            modelBuilder.Entity<PrivateMessage>().HasKey(e => new { e.Username, e.Id, e.Timestamp });
             modelBuilder.Entity<PrivateMessage>().HasIndex(e => e.Username);
 
             modelBuilder
