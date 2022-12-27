@@ -544,7 +544,6 @@ namespace slskd
             }
 
             services.AddSingleton<IBrowseTracker, BrowseTracker>();
-            services.AddSingleton<IConversationTracker, ConversationTracker>();
             services.AddSingleton<IRoomTracker, RoomTracker>(_ => new RoomTracker(messageLimit: 250));
 
             services.AddSingleton<IMessagingService, MessagingService>();
