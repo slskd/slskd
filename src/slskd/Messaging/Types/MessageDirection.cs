@@ -19,7 +19,7 @@ namespace slskd.Messaging
 {
     public enum MessageDirection
     {
-        In = 0,
-        Out = 1,
+        Out = 0,
+        In = 1,
     }
 }
