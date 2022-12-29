@@ -186,7 +186,7 @@ namespace slskd.Messaging.API
                 return Forbid();
             }
 
-            var conversation = await Messages.Conversations.FindAsync(username, includeMessages);
+            var conversation = await Messages.Conversations.FindAsync(username, includeMessages: includeMessages);
 
             if (conversation == default)
             {
