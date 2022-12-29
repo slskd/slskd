@@ -238,26 +238,23 @@ namespace slskd.Messaging
             using var context = ContextFactory.CreateDbContext();
 
             // todo: replace this garbage with Dapper and a real SQL query
-            var unAckedConversations = context.PrivateMessages
+            var unAckedMessages = context.PrivateMessages
                 .AsNoTracking()
                 .Where(m => !m.IsAcknowledged)
-                .GroupBy(
-                    keySelector: p => p.Username,
-                    resultSelector: (key, group) => new { Username = key, Count = group.Count() })
-                .ToDictionary(k => k.Username, v => v.Count);
+                .ToList();
 
-            var response = context.Conversations
+            var conversations = context.Conversations
                 .AsNoTracking()
-                .Select(c => new Conversation
-                {
-                    Username = c.Username,
-                    IsActive = c.IsActive,
-                    UnAcknowledgedMessageCount = unAckedConversations.GetValueOrDefault(c.Username),
-                })
                 .Where(expression)
                 .OrderBy(c => c.Username)
-                .ToList()
-                .AsEnumerable();
+                .ToList();
+
+            var response = conversations.Select(c => new Conversation
+            {
+                Username = c.Username,
+                IsActive = c.IsActive,
+                UnAcknowledgedMessageCount = unAckedMessages.Count(m => m.Username == c.Username),
+            });
 
             return Task.FromResult(response);
         }
