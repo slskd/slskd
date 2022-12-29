@@ -23,7 +23,8 @@ namespace slskd.Messaging
     {
         public string Username { get; set; }
         public bool IsActive { get; set; } = true;
-        public bool HasUnAcknowledgedMessages { get; set; }
+        public int UnAcknowledgedMessageCount { get; set; }
+        public bool HasUnAcknowledgedMessages => UnAcknowledgedMessageCount > 0;
         public IEnumerable<PrivateMessage> Messages { get; set; } = new List<PrivateMessage>();
     }
 }
