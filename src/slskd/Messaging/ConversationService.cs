@@ -199,12 +199,12 @@ namespace slskd.Messaging
                 {
                     // TODO: add an option to limit this, or figure out pagination.
                     conversation.Messages = await ListMessagesAsync(m => m.Username == conversation.Username);
-                    conversation.HasUnAcknowledgedMessages = conversation.Messages.Any(m => !m.IsAcknowledged);
+                    conversation.UnAcknowledgedMessageCount = conversation.Messages.Count(m => !m.IsAcknowledged);
                 }
                 else
                 {
                     var unacked = await ListMessagesAsync(m => m.Username == conversation.Username && !m.IsAcknowledged);
-                    conversation.HasUnAcknowledgedMessages = unacked.Any();
+                    conversation.UnAcknowledgedMessageCount = unacked.Count();
                 }
             }
 
@@ -238,12 +238,14 @@ namespace slskd.Messaging
         {
             using var context = ContextFactory.CreateDbContext();
 
+            // todo: replace this garbage with Dapper and a real SQL query
             var unAckedConversations = context.PrivateMessages
                 .AsNoTracking()
                 .Where(m => !m.IsAcknowledged)
-                .Select(m => m.Username)
-                .Distinct()
-                .ToList();
+                .GroupBy(
+                    keySelector: p => p.Username,
+                    resultSelector: (key, group) => new { Username = key, Count = group.Count() })
+                .ToDictionary(k => k.Username, v => v.Count);
 
             var response = context.Conversations
                 .AsNoTracking()
@@ -251,7 +253,7 @@ namespace slskd.Messaging
                 {
                     Username = c.Username,
                     IsActive = c.IsActive,
-                    HasUnAcknowledgedMessages = unAckedConversations.Contains(c.Username),
+                    UnAcknowledgedMessageCount = unAckedConversations.GetValueOrDefault(c.Username),
                 })
                 .Where(expression)
                 .OrderBy(c => c.Username)
