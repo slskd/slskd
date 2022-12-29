@@ -197,7 +197,6 @@ namespace slskd.Messaging
             {
                 if (includeMessages)
                 {
-                    // TODO: add an option to limit this, or figure out pagination.
                     conversation.Messages = await ListMessagesAsync(m => m.Username == conversation.Username);
                     conversation.UnAcknowledgedMessageCount = conversation.Messages.Count(m => !m.IsAcknowledged);
                 }
@@ -275,6 +274,8 @@ namespace slskd.Messaging
             var response = context.PrivateMessages
                 .AsNoTracking()
                 .Where(expression)
+                .OrderByDescending(m => m.Timestamp)
+                .Take(100) // stupid.  TakeLast doesn't work
                 .OrderBy(m => m.Timestamp)
                 .ToList()
                 .AsEnumerable();
