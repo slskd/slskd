@@ -155,14 +155,19 @@ namespace slskd.Messaging.API
         [HttpGet("")]
         [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(typeof(List<Conversation>), 200)]
-        public async Task<IActionResult> GetAll([FromQuery]bool unAcknowledgedOnly = false)
+        public async Task<IActionResult> GetAll([FromQuery] bool includeInactive = false, [FromQuery]bool unAcknowledgedOnly = false)
         {
             if (Program.IsRelayAgent)
             {
                 return Forbid();
             }
 
-            var conversations = await Messages.Conversations.ListAsync(c => c.IsActive && (!unAcknowledgedOnly || c.HasUnAcknowledgedMessages));
+            var conversations = await Messages.Conversations.ListAsync(c => includeInactive || c.IsActive);
+
+            if (unAcknowledgedOnly)
+            {
+                conversations = conversations.Where(c => c.HasUnAcknowledgedMessages);
+            }
 
             return Ok(conversations);
         }
@@ -200,18 +205,25 @@ namespace slskd.Messaging.API
         [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(typeof(List<PrivateMessage>), 200)]
         [ProducesResponseType(404)]
-        public async Task<IActionResult> GetMessagesByUsername([FromRoute]string username)
+        public async Task<IActionResult> GetMessagesByUsername([FromRoute]string username, [FromQuery]bool unAcknowledgedOnly = false)
         {
             if (Program.IsRelayAgent)
             {
                 return Forbid();
             }
 
-            var messages = await Messages.Conversations.ListMessagesAsync(m => m.Username == username);
+            var conversation = await Messages.Conversations.FindAsync(username, includeMessages: true);
 
-            if (!messages.Any())
+            if (conversation == default)
             {
                 return NotFound();
+            }
+
+            var messages = conversation.Messages;
+
+            if (unAcknowledgedOnly)
+            {
+                messages = messages.Where(m => !m.IsAcknowledged);
             }
 
             return Ok(messages);
