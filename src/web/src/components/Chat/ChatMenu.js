@@ -8,12 +8,6 @@ import SendMessageModal from './SendMessageModal';
 
 const ChatMenu = ({ conversations, active, onConversationChange, ...rest }) => {
   const names = Object.keys(conversations);
-
-  const unread = Object.entries(conversations).reduce((acc, [name, messages]) => {
-    acc[name] = messages.filter(message => !message.acknowledged);
-    return acc;
-  }, {});
-
   const isActive = (name) => active === name;
 
   return (
@@ -28,8 +22,8 @@ const ChatMenu = ({ conversations, active, onConversationChange, ...rest }) => {
         >
           <Icon name='circle' size='tiny' color='green'/>
           {name}
-          {(unread[name] || []).length === 0 ? '' :
-            <Label size='tiny' color='red'>{(unread[name] || []).length}</Label>
+          {conversations[name].hasUnAcknowledgedMessages && 
+            <Label size='tiny' color='red'>{conversations[name].unAcknowledgedMessageCount}</Label>
           }
         </Menu.Item>
       )}
