@@ -83,10 +83,10 @@ namespace slskd
             IConnectionWatchdog connectionWatchdog,
             ITransferService transferService,
             IBrowseTracker browseTracker,
-            IConversationTracker conversationTracker,
             IRoomTracker roomTracker,
             IRoomService roomService,
             IUserService userService,
+            IMessagingService messagingService,
             IShareService shareService,
             IPushbulletService pushbulletService,
             IRelayService relayService,
@@ -137,11 +137,11 @@ namespace slskd
 
             Transfers = transferService;
             BrowseTracker = browseTracker;
-            ConversationTracker = conversationTracker;
             Pushbullet = pushbulletService;
 
             RoomService = roomService;
             Users = userService;
+            Messaging = messagingService;
             ApplicationHub = applicationHub;
 
             Relay = relayService;
@@ -192,7 +192,7 @@ namespace slskd
         private IRoomService RoomService { get; set; }
         private IBrowseTracker BrowseTracker { get; set; }
         private IConnectionWatchdog ConnectionWatchdog { get; }
-        private IConversationTracker ConversationTracker { get; set; }
+        private IMessagingService Messaging { get; set; }
         private ILogger Log { get; set; } = Serilog.Log.ForContext<Application>();
         private ConcurrentDictionary<string, ILogger> Loggers { get; } = new ConcurrentDictionary<string, ILogger>();
         private Options Options => OptionsMonitor.CurrentValue;
@@ -642,7 +642,7 @@ namespace slskd
 
         private void Client_PrivateMessageRecieved(object sender, PrivateMessageReceivedEventArgs args)
         {
-            ConversationTracker.AddOrUpdate(args.Username, PrivateMessage.FromEventArgs(args));
+            Messaging.Conversations.HandleMessageAsync(args.Username, PrivateMessage.FromEventArgs(args));
 
             if (Options.Integration.Pushbullet.Enabled && !args.Replayed)
             {

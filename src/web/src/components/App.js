@@ -334,8 +334,12 @@ class App extends Component {
                       </div>)}
                     />
                     <Route path={`${urlBase}/browse`} render={(props) => this.withTokenCheck(<Browse {...props}/>)}/>
-                    <Route path={`${urlBase}/users`} render={(props) => this.withTokenCheck(<Users {...props}/>)}/>
-                    <Route path={`${urlBase}/chat`} render={(props) => this.withTokenCheck(<Chat {...props}/>)}/>
+                    <Route path={`${urlBase}/users`} render={(props) => 
+                      this.withTokenCheck(<Users {...props}/>)}
+                    />
+                    <Route path={`${urlBase}/chat`} render={(props) => 
+                      this.withTokenCheck(<Chat {...props} state={applicationState}/>)}
+                    />
                     <Route path={`${urlBase}/rooms`} render={(props) => this.withTokenCheck(<Rooms {...props}/>)}/>
                     <Route path={`${urlBase}/uploads`} render={
                       (props) => 

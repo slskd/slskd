@@ -534,16 +534,20 @@ namespace slskd
             {
                 services.AddDbContext<SearchDbContext>($"Data Source=file:search?mode=memory;Cache=shared;Pooling=True;");
                 services.AddDbContext<TransfersDbContext>($"Data Source=file:transfers?mode=memory;Cache=shared;Pooling=True;");
+                services.AddDbContext<MessagingDbContext>($"Data Source=file:messaging?mode=memory;Cache=shared;Pooling=True;");
             }
             else
             {
                 services.AddDbContext<SearchDbContext>($"Data Source={Path.Combine(DataDirectory, "search.db")};Cache=shared;Pooling=True;");
                 services.AddDbContext<TransfersDbContext>($"Data Source={Path.Combine(DataDirectory, "transfers.db")};Cache=shared;Pooling=True;");
+                services.AddDbContext<MessagingDbContext>($"Data Source={Path.Combine(DataDirectory, "messaging.db")};Cache=shared;Pooling=True;");
             }
 
             services.AddSingleton<IBrowseTracker, BrowseTracker>();
-            services.AddSingleton<IConversationTracker, ConversationTracker>();
             services.AddSingleton<IRoomTracker, RoomTracker>(_ => new RoomTracker(messageLimit: 250));
+
+            services.AddSingleton<IMessagingService, MessagingService>();
+            services.AddSingleton<IConversationService, ConversationService>();
 
             services.AddSingleton<IShareService, ShareService>();
             services.AddTransient<IShareRepositoryFactory, SqliteShareRepositoryFactory>();
