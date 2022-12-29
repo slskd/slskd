@@ -155,14 +155,14 @@ namespace slskd.Messaging.API
         [HttpGet("")]
         [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(typeof(List<Conversation>), 200)]
-        public async Task<IActionResult> GetAll([FromQuery]bool unAckedOnly = false)
+        public async Task<IActionResult> GetAll([FromQuery]bool unAcknowledgedOnly = false)
         {
             if (Program.IsRelayAgent)
             {
                 return Forbid();
             }
 
-            var conversations = await Messages.Conversations.ListAsync(c => c.IsActive && (!unAckedOnly || c.HasUnAcknowledgedMessages));
+            var conversations = await Messages.Conversations.ListAsync(c => c.IsActive && (!unAcknowledgedOnly || c.HasUnAcknowledgedMessages));
 
             return Ok(conversations);
         }
