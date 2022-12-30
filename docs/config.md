@@ -226,14 +226,17 @@ Agents need to specify the HTTP or HTTPS address of their controller, the API ke
 
 If using HTTPS; most users won't have a valid certificate (the self-signed certificates that slskd generates at startup are not 'valid' because they are self-signed), and in those cases the `ignore_certificate_errors` option should be set to `true`.
 
-| Command-Line                             | Environment Variable                         | Description                               |
-| ---------------------------------------- | -------------------------------------------- | ------------------------------------------|
-| `-r\|--relay`                            | `SLSKD_RELAY`                                | Enable the Relay feature                  |
-| `-m\|--relay-mode`                       | `SLSKD_RELAY_MODE`                           | The Relay mode (Controller, Agent, Debug) |
-| `--controller-address`                   | `SLSKD_CONTROLLER_ADDRESS`                   | The address of the controller             |
-| `--controller-ignore-certificate-errors` | `SLSKD_CONTROLLER_IGNORE_CERTIFICATE_ERRORS` | Ignore certificate errors                 |
-| `--controller-api-key`                   | `SLSKD_CONTROLLER_API_KEY`                   | An API key for the controller             |
-| `--controller-secret`                    | `SLSKD_CONTROLLER_SECRET`                    | The shared secret for this agent          |
+Agents can optionally receive completed downloads from the controller by enabling the `downloads` option.  With this option enabled, agents will automatically download new files from the controller and save them to the configured local downloads directory.
+
+| Command-Line                             | Environment Variable                         | Description                                     |
+| ---------------------------------------- | -------------------------------------------- | ------------------------------------------------|
+| `-r\|--relay`                            | `SLSKD_RELAY`                                | Enable the Relay feature                        |
+| `-m\|--relay-mode`                       | `SLSKD_RELAY_MODE`                           | The Relay mode (Controller, Agent, Debug)       |
+| `--controller-address`                   | `SLSKD_CONTROLLER_ADDRESS`                   | The address of the controller                   |
+| `--controller-ignore-certificate-errors` | `SLSKD_CONTROLLER_IGNORE_CERTIFICATE_ERRORS` | Ignore certificate errors                       |
+| `--controller-api-key`                   | `SLSKD_CONTROLLER_API_KEY`                   | An API key for the controller                   |
+| `--controller-secret`                    | `SLSKD_CONTROLLER_SECRET`                    | The shared secret for this agent                |
+| `--controller-downloads`                 | `SLSKD_CONTROLLER_DOWNLOADS`                 | Receive completed downloads from the controller |
 
 ```yaml
 instance_name: some_instance
@@ -245,6 +248,7 @@ relay:
     ignore_certificate_errors: true
     api_key: <a valid API key for the controller instance>
     secret: <a secret value that matches the controller for this instance>
+    downloads: false
 ```
 
 # Limits and User Groups

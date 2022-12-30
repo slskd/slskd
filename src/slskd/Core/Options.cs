@@ -500,6 +500,14 @@ namespace slskd
                 [NotNullOrWhiteSpace]
                 [Secret]
                 public string Secret { get; init; }
+
+                /// <summary>
+                ///     Gets a value indicating whether to receive completed downloads from the controller.
+                /// </summary>
+                [Argument(default, "controller-downloads")]
+                [EnvironmentVariable("CONTROLLER_DOWNLOADS")]
+                [Description("receive completed downloads from the controller")]
+                public bool Downloads { get; init; } = false;
             }
 
             /// <summary>
