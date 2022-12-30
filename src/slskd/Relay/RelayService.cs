@@ -55,6 +55,12 @@ namespace slskd.Relay
         IStateMonitor<RelayState> StateMonitor { get; }
 
         /// <summary>
+        ///     Notifies connected agents that a file download has completed.
+        /// </summary>
+        /// <param name="filename">The filename of the completed file, relative to the downloads directory.</param>
+        void BroadcastFileDownloadCompletedNotification(string filename);
+
+        /// <summary>
         ///     Generates a random authentication challenge token for the specified <paramref name="connectionId"/>.
         /// </summary>
         /// <remarks>The token is cached internally, and is only valid while it remains in the cache.</remarks>
@@ -226,6 +232,16 @@ namespace slskd.Relay
         bool TryValidateAuthenticationCredential(string connectionId, string agentName, string credential);
 
         /// <summary>
+        ///     Attempts to validate the file download response credential associated with the specified <paramref name="token"/>.
+        /// </summary>
+        /// <param name="token">The token.</param>
+        /// <param name="agentName">The name of the responding agent.</param>
+        /// <param name="filename">The name of the file being downloaded.</param>
+        /// <param name="credential">The response credential.</param>
+        /// <returns>A value indicating whether the credential is valid.</returns>
+        bool TryValidateFileDownloadCredential(Guid token, string agentName, string filename, string credential);
+
+        /// <summary>
         ///     Attempts to validate the file stream response credential associated with the specified <paramref name="token"/>.
         /// </summary>
         /// <param name="token">The token.</param>
@@ -306,6 +322,39 @@ namespace slskd.Relay
         private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1, 1);
         private string LastOptionsHash { get; set; }
         private string LastControllerOptionsHash { get; set; }
+
+        /// <summary>
+        ///     Notifies connected agents that a file download has completed.
+        /// </summary>
+        /// <param name="filename">The filename of the completed file, relative to the downloads directory.</param>
+        public void BroadcastFileDownloadCompletedNotification(string filename)
+        {
+            // ensure filename is relative to the local download directory
+            // and make sure it doesn't start with a slash
+            filename = filename
+                .ReplaceFirst(OptionsMonitor.CurrentValue.Directories.Downloads, string.Empty)
+                .TrimStart(new[] { '/', '\\' });
+
+            async Task Notify((string ConnectionId, Agent Agent) record)
+            {
+                try
+                {
+                    var id = Guid.NewGuid();
+
+                    MemoryCache.Set(GetDownloadTokenCacheKey(filename, id), record.Agent.Name, TimeSpan.FromMinutes(10));
+                    Log.Debug("Cached file download token {Token} for agent {Agent}", id, record.Agent.Name);
+
+                    await RelayHub.Clients.Client(record.ConnectionId).NotifyFileDownloadCompleted(filename, id);
+                }
+                catch
+                {
+                    Log.Warning("Failed to notify agent {Agent} of download completion for {Filename}", record.Agent.Name, filename);
+                }
+            }
+
+            // fire and forget, no waiting
+            _ = RegisteredAgentDictionary.Values.Select(Notify);
+        }
 
         /// <summary>
         ///     Generates a random authentication challenge token for the specified <paramref name="connectionId"/>.
@@ -680,6 +729,19 @@ namespace slskd.Relay
         }
 
         /// <summary>
+        ///     Attempts to validate the file download response credential associated with the specified <paramref name="token"/>.
+        /// </summary>
+        /// <param name="token">The token.</param>
+        /// <param name="agentName">The name of the responding agent.</param>
+        /// <param name="filename">The name of the file being downloaded.</param>
+        /// <param name="credential">The response credential.</param>
+        /// <returns>A value indicating whether the credential is valid.</returns>
+        public bool TryValidateFileDownloadCredential(Guid token, string agentName, string filename, string credential)
+        {
+            return TryValidateCredential(token.ToString(), agentName, credential, GetDownloadTokenCacheKey(filename, token));
+        }
+
+        /// <summary>
         ///     Attempts to validate the file stream response credential associated with the specified <paramref name="token"/>.
         /// </summary>
         /// <param name="token">The token.</param>
@@ -759,6 +821,8 @@ namespace slskd.Relay
         }
 
         private string GetAuthTokenCacheKey(string connectionId) => $"{connectionId}.auth";
+
+        private string GetDownloadTokenCacheKey(string filename, Guid token) => $"{filename}.{token}.download";
 
         private string GetFileTokenCacheKey(string filename, Guid token) => $"{filename}.{token}.file";
 
