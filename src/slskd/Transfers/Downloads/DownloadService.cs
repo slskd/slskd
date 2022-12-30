@@ -31,6 +31,7 @@ namespace slskd.Transfers.Downloads
     using Microsoft.EntityFrameworkCore;
     using Serilog;
     using slskd.Integrations.FTP;
+    using slskd.Relay;
 
     /// <summary>
     ///     Manages downloads.
@@ -41,18 +42,21 @@ namespace slskd.Transfers.Downloads
             IOptionsMonitor<Options> optionsMonitor,
             ISoulseekClient soulseekClient,
             IDbContextFactory<TransfersDbContext> contextFactory,
+            IRelayService relayService,
             IFTPService ftpClient)
         {
             Client = soulseekClient;
             OptionsMonitor = optionsMonitor;
             ContextFactory = contextFactory;
             FTP = ftpClient;
+            Relay = relayService;
         }
 
         private ConcurrentDictionary<Guid, CancellationTokenSource> CancellationTokens { get; } = new ConcurrentDictionary<Guid, CancellationTokenSource>();
         private ISoulseekClient Client { get; }
         private IDbContextFactory<TransfersDbContext> ContextFactory { get; }
         private IFTPService FTP { get; }
+        private IRelayService Relay { get; }
         private ILogger Log { get; } = Serilog.Log.ForContext<DownloadService>();
         private IOptionsMonitor<Options> OptionsMonitor { get; }
 
@@ -223,6 +227,8 @@ namespace slskd.Transfers.Downloads
                                 // just carry out hard coded behavior. these carry the risk of failing the transfer, and i could
                                 // argue both ways for that being the correct behavior. revisit this later.
                                 MoveFile(file.Filename, OptionsMonitor.CurrentValue.Directories.Incomplete, OptionsMonitor.CurrentValue.Directories.Downloads);
+
+                                Relay.BroadcastFileDownloadCompletedNotification(file.Filename);
 
                                 if (OptionsMonitor.CurrentValue.Integration.Ftp.Enabled)
                                 {
