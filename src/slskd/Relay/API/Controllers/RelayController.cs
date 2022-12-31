@@ -15,6 +15,8 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
+using Microsoft.Extensions.Options;
+
 namespace slskd.Relay
 {
     using System;
@@ -40,9 +42,11 @@ namespace slskd.Relay
     {
         public RelayController(
             IRelayService relayService,
+            IOptionsMonitor<Options> optionsMonitor,
             OptionsAtStartup optionsAtStartup)
         {
             Relay = relayService;
+            OptionsMonitor = optionsMonitor;
             OptionsAtStartup = optionsAtStartup;
         }
 
@@ -50,6 +54,7 @@ namespace slskd.Relay
         private IRelayService Relay { get; }
         private OptionsAtStartup OptionsAtStartup { get; }
         private RelayMode OperationMode => OptionsAtStartup.Relay.Mode.ToEnum<RelayMode>();
+        private IOptionsMonitor<Options> OptionsMonitor { get; }
 
         [HttpPut("")]
         [Authorize(Policy = AuthPolicy.Any)]
@@ -75,6 +80,47 @@ namespace slskd.Relay
 
             await Relay.Client.StopAsync();
             return NoContent();
+        }
+
+        [HttpGet("downloads/{token}")]
+        [Authorize(Policy = AuthPolicy.Any)]
+        public IActionResult DownloadFile([FromRoute]string token)
+        {
+            if (!OptionsAtStartup.Relay.Enabled || !new[] { RelayMode.Controller, RelayMode.Debug }.Contains(OperationMode))
+            {
+                return Forbid();
+            }
+
+            if (!Guid.TryParse(token, out var guid))
+            {
+                return BadRequest("Token is not in a valid format");
+            }
+
+            var agentName = Request.Headers["X-Relay-Agent"].FirstOrDefault();
+            var credential = Request.Headers["X-Relay-Credential"].FirstOrDefault();
+            var filename = Request.Headers["X-Relay-Filename"].FirstOrDefault();
+
+            if (!Relay.RegisteredAgents.Any(a => a.Name == agentName))
+            {
+                return Unauthorized();
+            }
+
+            Log.Information("Handling file download for token {Token} from a caller claiming to be agent {Agent}", token, agentName);
+
+            // note: the token remains valid after the validation attempt, unlike most other endpoints.
+            // this is done to support retries
+            if (!Relay.TryValidateFileDownloadCredential(token: guid, agentName, filename, credential))
+            {
+                Log.Warning("Failed to authenticate file upload token {Token} from a caller claiming to be agent {Agent}", guid, agentName);
+                return Unauthorized();
+            }
+
+            var sourceFile = Path.Combine(OptionsMonitor.CurrentValue.Directories.Downloads, filename);
+
+            Log.Information("Agent {Agent} authenticated. Sending file {File}", agentName, filename);
+
+            var stream = new FileStream(Path.Combine(OptionsMonitor.CurrentValue.Directories.Downloads, filename), FileMode.Open);
+            return File(stream, "application/octet-stream");
         }
 
         /// <summary>
