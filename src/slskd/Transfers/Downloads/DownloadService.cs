@@ -226,13 +226,18 @@ namespace slskd.Transfers.Downloads
                                 // this would be the ideal place to hook in a generic post-download task processor for now, we'll
                                 // just carry out hard coded behavior. these carry the risk of failing the transfer, and i could
                                 // argue both ways for that being the correct behavior. revisit this later.
-                                MoveFile(file.Filename, OptionsMonitor.CurrentValue.Directories.Incomplete, OptionsMonitor.CurrentValue.Directories.Downloads);
+                                var finalFilename = MoveFile(file.Filename, OptionsMonitor.CurrentValue.Directories.Incomplete, OptionsMonitor.CurrentValue.Directories.Downloads);
 
-                                Relay.BroadcastFileDownloadCompletedNotification(file.Filename);
+                                Log.Debug("Moved file to {Destination}", finalFilename);
+
+                                if (OptionsMonitor.CurrentValue.Relay.Enabled)
+                                {
+                                    _ = Relay.BroadcastFileDownloadCompletedNotificationAsync(finalFilename);
+                                }
 
                                 if (OptionsMonitor.CurrentValue.Integration.Ftp.Enabled)
                                 {
-                                    _ = FTP.UploadAsync(file.Filename.ToLocalFilename(OptionsMonitor.CurrentValue.Directories.Downloads));
+                                    _ = FTP.UploadAsync(finalFilename);
                                 }
                             }
                             catch (OperationCanceledException ex)
