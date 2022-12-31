@@ -400,6 +400,11 @@ namespace slskd.Relay
 
         private Task HandleNotifyFileDownloadCompleted(string filename, Guid token)
         {
+            if (!OptionsMonitor.CurrentValue.Relay.Controller.Downloads)
+            {
+                return Task.CompletedTask;
+            }
+
             Log.Information("Relay controller sent a download notification for {Filename} ({Token})", filename, token);
 
             _ = Task.Run(async () =>
