@@ -244,15 +244,17 @@ namespace slskd.Relay
                 var stream = new FileStream(temp, FileMode.Open, FileAccess.Read);
 
                 using var request = new HttpRequestMessage(HttpMethod.Post, $"api/v0/relay/shares/{token}");
+
+                request.Headers.Add("X-API-Key", OptionsMonitor.CurrentValue.Relay.Controller.ApiKey);
+                request.Headers.Add("X-Relay-Agent", OptionsMonitor.CurrentValue.InstanceName);
+                request.Headers.Add("X-Relay-Credential", ComputeCredential(token));
+
                 using var content = new MultipartFormDataContent
                 {
-                    { new StringContent(OptionsMonitor.CurrentValue.InstanceName), "name" },
-                    { new StringContent(ComputeCredential(token)), "credential" },
                     { new StringContent(Shares.LocalHost.Shares.ToJson()), "shares" },
                     { new StreamContent(stream), "database", "shares" },
                 };
 
-                request.Headers.Add("X-API-Key", OptionsMonitor.CurrentValue.Relay.Controller.ApiKey);
                 request.Content = content;
 
                 var size = ((double)stream.Length).SizeSuffix();
@@ -312,6 +314,11 @@ namespace slskd.Relay
                     stream.Seek(startOffset, SeekOrigin.Begin);
 
                     using var request = new HttpRequestMessage(HttpMethod.Post, $"api/v0/relay/files/{token}");
+
+                    request.Headers.Add("X-API-Key", OptionsMonitor.CurrentValue.Relay.Controller.ApiKey);
+                    request.Headers.Add("X-Relay-Agent", OptionsMonitor.CurrentValue.InstanceName);
+                    request.Headers.Add("X-Relay-Credential", ComputeCredential(token));
+
                     using var content = new MultipartFormDataContent
                     {
                         { new StringContent(OptionsMonitor.CurrentValue.InstanceName), "name" },
@@ -319,7 +326,6 @@ namespace slskd.Relay
                         { new StreamContent(stream), "file", filename },
                     };
 
-                    request.Headers.Add("X-API-Key", OptionsMonitor.CurrentValue.Relay.Controller.ApiKey);
                     request.Content = content;
 
                     Log.Information("Beginning upload of file {Filename} with ID {Id}", filename, token);
@@ -390,6 +396,57 @@ namespace slskd.Relay
             {
                 Log.Error(ex, "Failed to handle authentication challenge: {Message}", ex.Message);
             }
+        }
+
+        private Task HandleNotifyFileDownloadCompleted(string filename, Guid token)
+        {
+            if (!OptionsMonitor.CurrentValue.Relay.Controller.Downloads)
+            {
+                return Task.CompletedTask;
+            }
+
+            Log.Information("Relay controller sent a download notification for {Filename} ({Token})", filename, token);
+
+            _ = Task.Run(async () =>
+            {
+                var destinationFile = Path.Combine(OptionsMonitor.CurrentValue.Directories.Downloads, filename);
+
+                if (OptionsMonitor.CurrentValue.Relay.Mode.ToEnum<RelayMode>() == RelayMode.Debug)
+                {
+                    // if we're debugging, we're referencing the same file for both the controller and agent
+                    // which will lead to an access violation. prefix the destination file to avoid this.
+                    destinationFile = Path.Combine(OptionsMonitor.CurrentValue.Directories.Downloads, $"{filename}.relayed");
+                }
+
+                await Retry.Do(task: async () =>
+                {
+                    using var request = new HttpRequestMessage(HttpMethod.Get, $"api/v0/relay/downloads/{token}");
+
+                    request.Headers.Add("X-API-Key", OptionsMonitor.CurrentValue.Relay.Controller.ApiKey);
+                    request.Headers.Add("X-Relay-Agent", OptionsMonitor.CurrentValue.InstanceName);
+                    request.Headers.Add("X-Relay-Credential", ComputeCredential(token));
+                    request.Headers.Add("X-Relay-Filename", filename);
+
+                    using var client = CreateHttpClient();
+                    using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+
+                    response.EnsureSuccessStatusCode();
+
+                    using var remoteStream = await response.Content.ReadAsStreamAsync();
+
+                    Directory.CreateDirectory(Path.GetDirectoryName(destinationFile));
+                    using var localStream = new FileStream(destinationFile, FileMode.Create);
+                    await remoteStream.CopyToAsync(localStream);
+                },
+                isRetryable: (_, _) => true,
+                onFailure: (_, ex) => Log.Error(ex, "Failed to handle file download notification for {Filename} ({Token})", filename, token),
+                maxAttempts: 3,
+                maxDelayInMilliseconds: 60000);
+
+                Log.Information("File {Filename} successfully downloaded to {Destination}", filename, destinationFile);
+            });
+
+            return Task.CompletedTask;
         }
 
         private Task HubConnection_Closed(Exception arg)
@@ -491,6 +548,7 @@ namespace slskd.Relay
                 HubConnection.On<string, long, Guid>(nameof(IRelayHub.RequestFileUpload), HandleFileUploadRequest);
                 HubConnection.On<string, Guid>(nameof(IRelayHub.RequestFileInfo), HandleFileInfoRequest);
                 HubConnection.On<string>(nameof(IRelayHub.Challenge), HandleAuthenticationChallenge);
+                HubConnection.On<string, Guid>(nameof(IRelayHub.NotifyFileDownloadCompleted), HandleNotifyFileDownloadCompleted);
 
                 LastOptionsHash = optionsHash;
 

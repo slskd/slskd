@@ -31,6 +31,7 @@ namespace slskd.Transfers.Downloads
     using Microsoft.EntityFrameworkCore;
     using Serilog;
     using slskd.Integrations.FTP;
+    using slskd.Relay;
 
     /// <summary>
     ///     Manages downloads.
@@ -41,18 +42,21 @@ namespace slskd.Transfers.Downloads
             IOptionsMonitor<Options> optionsMonitor,
             ISoulseekClient soulseekClient,
             IDbContextFactory<TransfersDbContext> contextFactory,
+            IRelayService relayService,
             IFTPService ftpClient)
         {
             Client = soulseekClient;
             OptionsMonitor = optionsMonitor;
             ContextFactory = contextFactory;
             FTP = ftpClient;
+            Relay = relayService;
         }
 
         private ConcurrentDictionary<Guid, CancellationTokenSource> CancellationTokens { get; } = new ConcurrentDictionary<Guid, CancellationTokenSource>();
         private ISoulseekClient Client { get; }
         private IDbContextFactory<TransfersDbContext> ContextFactory { get; }
         private IFTPService FTP { get; }
+        private IRelayService Relay { get; }
         private ILogger Log { get; } = Serilog.Log.ForContext<DownloadService>();
         private IOptionsMonitor<Options> OptionsMonitor { get; }
 
@@ -222,11 +226,18 @@ namespace slskd.Transfers.Downloads
                                 // this would be the ideal place to hook in a generic post-download task processor for now, we'll
                                 // just carry out hard coded behavior. these carry the risk of failing the transfer, and i could
                                 // argue both ways for that being the correct behavior. revisit this later.
-                                MoveFile(file.Filename, OptionsMonitor.CurrentValue.Directories.Incomplete, OptionsMonitor.CurrentValue.Directories.Downloads);
+                                var finalFilename = MoveFile(file.Filename, OptionsMonitor.CurrentValue.Directories.Incomplete, OptionsMonitor.CurrentValue.Directories.Downloads);
+
+                                Log.Debug("Moved file to {Destination}", finalFilename);
+
+                                if (OptionsMonitor.CurrentValue.Relay.Enabled)
+                                {
+                                    _ = Relay.BroadcastFileDownloadCompletedNotificationAsync(finalFilename);
+                                }
 
                                 if (OptionsMonitor.CurrentValue.Integration.Ftp.Enabled)
                                 {
-                                    _ = FTP.UploadAsync(file.Filename.ToLocalFilename(OptionsMonitor.CurrentValue.Directories.Downloads));
+                                    _ = FTP.UploadAsync(finalFilename);
                                 }
                             }
                             catch (OperationCanceledException ex)
@@ -484,7 +495,7 @@ namespace slskd.Transfers.Downloads
             return new FileStream(localFilename, FileMode.Create);
         }
 
-        private static void MoveFile(string filename, string sourceDirectory, string destinationDirectory)
+        private static string MoveFile(string filename, string sourceDirectory, string destinationDirectory)
         {
             var sourceFilename = filename.ToLocalFilename(sourceDirectory);
             var destinationFilename = filename.ToLocalFilename(destinationDirectory);
@@ -498,12 +509,12 @@ namespace slskd.Transfers.Downloads
 
             if (File.Exists(destinationFilename))
             {
-                string extensionlessFilename = Path.GetFileNameWithoutExtension(filename);
+                string extensionlessFilename = Path.Combine(Path.GetDirectoryName(filename), Path.GetFileNameWithoutExtension(filename));
                 string extension = Path.GetExtension(filename);
 
                 while (File.Exists(destinationFilename))
                 {
-                    string filenameUTC = $"{extensionlessFilename}_{DateTime.UtcNow.Ticks}.{extension}";
+                    string filenameUTC = $"{extensionlessFilename}_{DateTime.UtcNow.Ticks}{extension}";
                     destinationFilename = filenameUTC.ToLocalFilename(destinationDirectory);
                 }
             }
@@ -514,6 +525,8 @@ namespace slskd.Transfers.Downloads
             {
                 Directory.Delete(Path.GetDirectoryName(sourceFilename));
             }
+
+            return destinationFilename;
         }
     }
 }

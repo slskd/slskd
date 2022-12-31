@@ -54,6 +54,14 @@ namespace slskd.Relay
         /// <param name="id">The unique identifier for the request.</param>
         /// <returns>The operation context.</returns>
         Task RequestFileUpload(string filename, long startOffset, Guid id);
+
+        /// <summary>
+        ///     Notifies the agent that the download of the specified <paramref name="filename"/> is complete and that the file is ready for downloading.
+        /// </summary>
+        /// <param name="filename">The name of the newly downloaded file.</param>
+        /// <param name="id">The unique identifier for the request.</param>
+        /// <returns>The operation context.</returns>
+        Task NotifyFileDownloadCompleted(string filename, Guid id);
     }
 
     /// <summary>

@@ -15,6 +15,8 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
+using Microsoft.Extensions.Options;
+
 namespace slskd.Relay
 {
     using System;
@@ -40,9 +42,11 @@ namespace slskd.Relay
     {
         public RelayController(
             IRelayService relayService,
+            IOptionsMonitor<Options> optionsMonitor,
             OptionsAtStartup optionsAtStartup)
         {
             Relay = relayService;
+            OptionsMonitor = optionsMonitor;
             OptionsAtStartup = optionsAtStartup;
         }
 
@@ -50,6 +54,7 @@ namespace slskd.Relay
         private IRelayService Relay { get; }
         private OptionsAtStartup OptionsAtStartup { get; }
         private RelayMode OperationMode => OptionsAtStartup.Relay.Mode.ToEnum<RelayMode>();
+        private IOptionsMonitor<Options> OptionsMonitor { get; }
 
         [HttpPut("")]
         [Authorize(Policy = AuthPolicy.Any)]
@@ -75,6 +80,47 @@ namespace slskd.Relay
 
             await Relay.Client.StopAsync();
             return NoContent();
+        }
+
+        [HttpGet("downloads/{token}")]
+        [Authorize(Policy = AuthPolicy.Any)]
+        public IActionResult DownloadFile([FromRoute]string token)
+        {
+            if (!OptionsAtStartup.Relay.Enabled || !new[] { RelayMode.Controller, RelayMode.Debug }.Contains(OperationMode))
+            {
+                return Forbid();
+            }
+
+            if (!Guid.TryParse(token, out var guid))
+            {
+                return BadRequest("Token is not in a valid format");
+            }
+
+            var agentName = Request.Headers["X-Relay-Agent"].FirstOrDefault();
+            var credential = Request.Headers["X-Relay-Credential"].FirstOrDefault();
+            var filename = Request.Headers["X-Relay-Filename"].FirstOrDefault();
+
+            if (!Relay.RegisteredAgents.Any(a => a.Name == agentName))
+            {
+                return Unauthorized();
+            }
+
+            Log.Information("Handling file download for token {Token} from a caller claiming to be agent {Agent}", token, agentName);
+
+            // note: the token remains valid after the validation attempt, unlike most other endpoints.
+            // this is done to support retries
+            if (!Relay.TryValidateFileDownloadCredential(token: guid, agentName, filename, credential))
+            {
+                Log.Warning("Failed to authenticate file upload token {Token} from a caller claiming to be agent {Agent}", guid, agentName);
+                return Unauthorized();
+            }
+
+            var sourceFile = Path.Combine(OptionsMonitor.CurrentValue.Directories.Downloads, filename);
+
+            Log.Information("Agent {Agent} authenticated. Sending file {File}", agentName, filename);
+
+            var stream = new FileStream(Path.Combine(OptionsMonitor.CurrentValue.Directories.Downloads, filename), FileMode.Open);
+            return File(stream, "application/octet-stream");
         }
 
         /// <summary>
@@ -106,8 +152,9 @@ namespace slskd.Relay
                 return new UnsupportedMediaTypeResult();
             }
 
-            string agentName = default;
-            string credential = default;
+            var agentName = Request.Headers["X-Relay-Agent"].FirstOrDefault();
+            var credential = Request.Headers["X-Relay-Credential"].FirstOrDefault();
+
             Stream stream = default;
             string filename = default;
 
@@ -115,17 +162,10 @@ namespace slskd.Relay
             {
                 try
                 {
+                    // note: while the actual HTTP request is the same as the one we use for uploading shares, we handle it
+                    // differently so that we can capture the stream 'in flight' and avoid any buffering. resist the urge to
+                    // refactor one or the other to make them match!
                     var reader = new MultipartReader(HeaderUtilities.RemoveQuotes(mediaTypeHeader.Boundary).Value, Request.Body);
-
-                    // the multipart response contains two sections; the name of the agent, the upload credential, and the file
-                    var agentNameSection = await reader.ReadNextSectionAsync();
-                    using var sra = new StreamReader(agentNameSection.Body);
-                    agentName = sra.ReadToEnd();
-
-                    var credentialSection = await reader.ReadNextSectionAsync();
-                    using var src = new StreamReader(credentialSection.Body);
-                    credential = src.ReadToEnd();
-
                     var fileSection = await reader.ReadNextSectionAsync();
                     var contentDisposition = ContentDispositionHeaderValue.Parse(fileSection.ContentDisposition);
                     filename = contentDisposition.FileName.Value;
@@ -197,15 +237,14 @@ namespace slskd.Relay
                 return new UnsupportedMediaTypeResult();
             }
 
-            string agentName = default;
-            string credential = default;
+            var agentName = Request.Headers["X-Relay-Agent"].FirstOrDefault();
+            var credential = Request.Headers["X-Relay-Credential"].FirstOrDefault();
+
             IEnumerable<Share> shares;
             IFormFile database;
 
             try
             {
-                agentName = Request.Form["name"].ToString();
-                credential = Request.Form["credential"].ToString();
                 shares = Request.Form["shares"].ToString().FromJson<IEnumerable<Share>>();
                 database = Request.Form.Files[0];
             }
