@@ -244,15 +244,17 @@ namespace slskd.Relay
                 var stream = new FileStream(temp, FileMode.Open, FileAccess.Read);
 
                 using var request = new HttpRequestMessage(HttpMethod.Post, $"api/v0/relay/shares/{token}");
+
+                request.Headers.Add("X-API-Key", OptionsMonitor.CurrentValue.Relay.Controller.ApiKey);
+                request.Headers.Add("X-Relay-Agent", OptionsMonitor.CurrentValue.InstanceName);
+                request.Headers.Add("X-Relay-Credential", ComputeCredential(token));
+
                 using var content = new MultipartFormDataContent
                 {
-                    { new StringContent(OptionsMonitor.CurrentValue.InstanceName), "name" },
-                    { new StringContent(ComputeCredential(token)), "credential" },
                     { new StringContent(Shares.LocalHost.Shares.ToJson()), "shares" },
                     { new StreamContent(stream), "database", "shares" },
                 };
 
-                request.Headers.Add("X-API-Key", OptionsMonitor.CurrentValue.Relay.Controller.ApiKey);
                 request.Content = content;
 
                 var size = ((double)stream.Length).SizeSuffix();
@@ -312,6 +314,11 @@ namespace slskd.Relay
                     stream.Seek(startOffset, SeekOrigin.Begin);
 
                     using var request = new HttpRequestMessage(HttpMethod.Post, $"api/v0/relay/files/{token}");
+
+                    request.Headers.Add("X-API-Key", OptionsMonitor.CurrentValue.Relay.Controller.ApiKey);
+                    request.Headers.Add("X-Relay-Agent", OptionsMonitor.CurrentValue.InstanceName);
+                    request.Headers.Add("X-Relay-Credential", ComputeCredential(token));
+
                     using var content = new MultipartFormDataContent
                     {
                         { new StringContent(OptionsMonitor.CurrentValue.InstanceName), "name" },
@@ -319,7 +326,6 @@ namespace slskd.Relay
                         { new StreamContent(stream), "file", filename },
                     };
 
-                    request.Headers.Add("X-API-Key", OptionsMonitor.CurrentValue.Relay.Controller.ApiKey);
                     request.Content = content;
 
                     Log.Information("Beginning upload of file {Filename} with ID {Id}", filename, token);

@@ -152,8 +152,9 @@ namespace slskd.Relay
                 return new UnsupportedMediaTypeResult();
             }
 
-            string agentName = default;
-            string credential = default;
+            var agentName = Request.Headers["X-Relay-Agent"].FirstOrDefault();
+            var credential = Request.Headers["X-Relay-Credential"].FirstOrDefault();
+
             Stream stream = default;
             string filename = default;
 
@@ -161,17 +162,10 @@ namespace slskd.Relay
             {
                 try
                 {
+                    // note: while the actual HTTP request is the same as the one we use for uploading shares, we handle it
+                    // differently so that we can capture the stream 'in flight' and avoid any buffering. resist the urge to
+                    // refactor one or the other to make them match!
                     var reader = new MultipartReader(HeaderUtilities.RemoveQuotes(mediaTypeHeader.Boundary).Value, Request.Body);
-
-                    // the multipart response contains two sections; the name of the agent, the upload credential, and the file
-                    var agentNameSection = await reader.ReadNextSectionAsync();
-                    using var sra = new StreamReader(agentNameSection.Body);
-                    agentName = sra.ReadToEnd();
-
-                    var credentialSection = await reader.ReadNextSectionAsync();
-                    using var src = new StreamReader(credentialSection.Body);
-                    credential = src.ReadToEnd();
-
                     var fileSection = await reader.ReadNextSectionAsync();
                     var contentDisposition = ContentDispositionHeaderValue.Parse(fileSection.ContentDisposition);
                     filename = contentDisposition.FileName.Value;
@@ -243,15 +237,14 @@ namespace slskd.Relay
                 return new UnsupportedMediaTypeResult();
             }
 
-            string agentName = default;
-            string credential = default;
+            var agentName = Request.Headers["X-Relay-Agent"].FirstOrDefault();
+            var credential = Request.Headers["X-Relay-Credential"].FirstOrDefault();
+
             IEnumerable<Share> shares;
             IFormFile database;
 
             try
             {
-                agentName = Request.Form["name"].ToString();
-                credential = Request.Form["credential"].ToString();
                 shares = Request.Form["shares"].ToString().FromJson<IEnumerable<Share>>();
                 database = Request.Form.Files[0];
             }
