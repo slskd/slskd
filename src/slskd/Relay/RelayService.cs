@@ -58,7 +58,8 @@ namespace slskd.Relay
         ///     Notifies connected agents that a file download has completed.
         /// </summary>
         /// <param name="filename">The filename of the completed file, relative to the downloads directory.</param>
-        void BroadcastFileDownloadCompletedNotification(string filename);
+        /// <returns>The operation context.</returns>
+        Task BroadcastFileDownloadCompletedNotificationAsync(string filename);
 
         /// <summary>
         ///     Generates a random authentication challenge token for the specified <paramref name="connectionId"/>.
@@ -327,8 +328,22 @@ namespace slskd.Relay
         ///     Notifies connected agents that a file download has completed.
         /// </summary>
         /// <param name="filename">The filename of the completed file, relative to the downloads directory.</param>
-        public void BroadcastFileDownloadCompletedNotification(string filename)
+        /// <returns>The operation context.</returns>
+        public Task BroadcastFileDownloadCompletedNotificationAsync(string filename)
         {
+            if (!OptionsMonitor.CurrentValue.Relay.Enabled ||
+                !new[] { RelayMode.Controller, RelayMode.Debug }.Contains(OptionsMonitor.CurrentValue.Relay.Mode.ToEnum<RelayMode>()))
+            {
+                return Task.CompletedTask;
+            }
+
+            var agents = RegisteredAgentDictionary.Values;
+
+            if (!agents.Any())
+            {
+                return Task.CompletedTask;
+            }
+
             // ensure filename is relative to the local download directory
             // and make sure it doesn't start with a slash
             filename = filename
@@ -352,8 +367,9 @@ namespace slskd.Relay
                 }
             }
 
-            // fire and forget, no waiting
-            _ = RegisteredAgentDictionary.Values.Select(Notify);
+            Log.Information("Notifying agents of download completion for {Filename}", filename);
+
+            return Task.WhenAll(RegisteredAgentDictionary.Values.Select(Notify));
         }
 
         /// <summary>
@@ -738,7 +754,7 @@ namespace slskd.Relay
         /// <returns>A value indicating whether the credential is valid.</returns>
         public bool TryValidateFileDownloadCredential(Guid token, string agentName, string filename, string credential)
         {
-            return TryValidateCredential(token.ToString(), agentName, credential, GetDownloadTokenCacheKey(filename, token));
+            return TryValidateCredential(token.ToString(), agentName, credential, GetDownloadTokenCacheKey(filename, token), suppressRemoval: true);
         }
 
         /// <summary>
@@ -828,7 +844,7 @@ namespace slskd.Relay
 
         private string GetShareTokenCacheKey(Guid token) => $"{token}.share";
 
-        private bool TryValidateCredential(string token, string agentName, string credential, string cacheKey)
+        private bool TryValidateCredential(string token, string agentName, string credential, string cacheKey, bool suppressRemoval = false)
         {
             try
             {
@@ -871,7 +887,10 @@ namespace slskd.Relay
             finally
             {
                 // tokens can be used exactly once, pass or fail
-                MemoryCache.Remove(cacheKey);
+                if (!suppressRemoval)
+                {
+                    MemoryCache.Remove(cacheKey);
+                }
             }
         }
     }
