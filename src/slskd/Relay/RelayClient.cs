@@ -428,6 +428,8 @@ namespace slskd.Relay
                     response.EnsureSuccessStatusCode();
 
                     using var remoteStream = await response.Content.ReadAsStreamAsync();
+
+                    Directory.CreateDirectory(Path.GetDirectoryName(destinationFile));
                     using var localStream = new FileStream(destinationFile, FileMode.Create);
                     await remoteStream.CopyToAsync(localStream);
                 },
