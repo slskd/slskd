@@ -490,7 +490,7 @@ namespace slskd.Transfers.Downloads
             return new FileStream(localFilename, FileMode.Create);
         }
 
-        private static void MoveFile(string filename, string sourceDirectory, string destinationDirectory)
+        private static string MoveFile(string filename, string sourceDirectory, string destinationDirectory)
         {
             var sourceFilename = filename.ToLocalFilename(sourceDirectory);
             var destinationFilename = filename.ToLocalFilename(destinationDirectory);
@@ -520,6 +520,8 @@ namespace slskd.Transfers.Downloads
             {
                 Directory.Delete(Path.GetDirectoryName(sourceFilename));
             }
+
+            return destinationFilename;
         }
     }
 }
