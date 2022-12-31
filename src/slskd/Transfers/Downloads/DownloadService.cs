@@ -504,12 +504,12 @@ namespace slskd.Transfers.Downloads
 
             if (File.Exists(destinationFilename))
             {
-                string extensionlessFilename = Path.GetFileNameWithoutExtension(filename);
+                string extensionlessFilename = Path.Combine(Path.GetDirectoryName(filename), Path.GetFileNameWithoutExtension(filename));
                 string extension = Path.GetExtension(filename);
 
                 while (File.Exists(destinationFilename))
                 {
-                    string filenameUTC = $"{extensionlessFilename}_{DateTime.UtcNow.Ticks}.{extension}";
+                    string filenameUTC = $"{extensionlessFilename}_{DateTime.UtcNow.Ticks}{extension}";
                     destinationFilename = filenameUTC.ToLocalFilename(destinationDirectory);
                 }
             }
