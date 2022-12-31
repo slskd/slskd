@@ -415,7 +415,7 @@ namespace slskd.Relay
                 {
                     // if we're debugging, we're referencing the same file for both the controller and agent
                     // which will lead to an access violation. prefix the destination file to avoid this.
-                    destinationFile = Path.Combine(OptionsMonitor.CurrentValue.Directories.Downloads, $"_{filename}");
+                    destinationFile = Path.Combine(OptionsMonitor.CurrentValue.Directories.Downloads, $"{filename}.relayed");
                 }
 
                 await Retry.Do(task: async () =>
