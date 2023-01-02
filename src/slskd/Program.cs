@@ -214,6 +214,7 @@ namespace slskd
         private static IConfigurationRoot Configuration { get; set; }
         private static OptionsAtStartup OptionsAtStartup { get; } = new OptionsAtStartup();
         private static ILogger Log { get; set; } = new ConsoleWriteLineLogger();
+        private static Mutex Mutex { get; } = new Mutex(initiallyOwned: true, Compute.Sha256Hash(AppName));
 
         [Argument('g', "generate-cert", "generate X509 certificate and password for HTTPs")]
         private static bool GenerateCertificate { get; set; }
@@ -271,39 +272,12 @@ namespace slskd
                 return;
             }
 
-            var reqInitialOwnership = false;
-
-            using (var mutex = new Mutex(reqInitialOwnership, AppName))
-            {
-                var hasHandle = false;
-
-                try
-                {
-                    try
-                    {
-                        if (!mutex.WaitOne(0, false))
-                        {
-                            Console.WriteLine("Another instance of this program is running");
-                            Environment.Exit(0);
-                        }
-                    }
-                    catch (AbandonedMutexException)
-                    {
-                        hasHandle = true;
-                    }
-                }
-                finally
-                {
-                    if (hasHandle)
-                    {
-                        mutex.ReleaseMutex();
-                    }
-                }
-            }
-
             if (GenerateCertificate)
             {
-                GenerateX509Certificate(password: Cryptography.Random.GetBytes(16).ToBase62(), filename: $"{AppName}.pfx");
+                var (filename, password) = GenerateX509Certificate(password: Cryptography.Random.GetBytes(16).ToBase62(), filename: $"{AppName}.pfx");
+
+                Log.Information($"Certificate exported to {filename}");
+                Log.Information($"Password: {password}");
                 return;
             }
 
@@ -313,8 +287,15 @@ namespace slskd
                 return;
             }
 
-            // the application isn't being run in command mode. derive the application directory value
-            // and defaults that are dependent upon it
+            // the application isn't being run in command mode. check the mutex to ensure
+            // only one long-running instance.
+            if (!Mutex.WaitOne(millisecondsTimeout: 0, exitContext: false))
+            {
+                Log.Fatal($"An instance of {AppName} is already running");
+                return;
+            }
+
+            // derive the application directory value and defaults that are dependent upon it
             AppDirectory ??= DefaultAppDirectory;
             DataDirectory = Path.Combine(AppDirectory, "data");
 
@@ -1062,15 +1043,14 @@ namespace slskd
             }
         }
 
-        private static void GenerateX509Certificate(string password, string filename)
+        private static (string Filename, string Password) GenerateX509Certificate(string password, string filename)
         {
             filename = Path.Combine(AppContext.BaseDirectory, filename);
 
             var cert = X509.Generate(subject: AppName, password, X509KeyStorageFlags.Exportable);
             IOFile.WriteAllBytes(filename, cert.Export(X509ContentType.Pkcs12, password));
 
-            Log.Information($"Certificate exported to {filename}");
-            Log.Information($"Password: {password}");
+            return (filename, password);
         }
 
         private static void PrintCommandLineArguments(Type targetType)
