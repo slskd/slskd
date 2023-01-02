@@ -19,7 +19,7 @@
 #   controller:
 #     address: https://some.site.com:5000
 #     ignore_certificate_errors: false
-#     api_key: <a 16-255 character string corresponding to one of the controller's API keys>
+#     api_key: <a 16-255 character string corresponding to one of the controller's 'readwrite' or 'administrator' API keys>
 #     secret: <a 16-255 character shared secret matching the controller's config for this agent>
 #     downloads: false
 #   # agent config is optional when running in 'controller' mode

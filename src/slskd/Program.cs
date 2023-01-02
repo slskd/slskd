@@ -626,6 +626,13 @@ namespace slskd
                         policy.RequireAuthenticatedUser();
                     });
 
+                    options.AddPolicy(AuthPolicy.ApiKeyOnly, policy =>
+                    {
+                        policy.RequireRole(Role.ReadWrite.ToString(), Role.Administrator.ToString());
+                        policy.AuthenticationSchemes.Add(ApiKeyAuthentication.AuthenticationScheme);
+                        policy.RequireAuthenticatedUser();
+                    });
+
                     options.AddPolicy(AuthPolicy.Any, policy =>
                     {
                         policy.AuthenticationSchemes.Add(ApiKeyAuthentication.AuthenticationScheme);
