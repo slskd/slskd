@@ -20,7 +20,6 @@ namespace slskd
     using System;
     using System.Security.Cryptography;
     using System.Text;
-    using System.Text.RegularExpressions;
 
     /// <summary>
     ///     Computational functions.
@@ -43,6 +42,12 @@ namespace slskd
         {
             using var sha1 = SHA1.Create();
             return BitConverter.ToString(sha1.ComputeHash(Encoding.UTF8.GetBytes(str))).Replace("-", string.Empty);
+        }
+
+        public static string Sha256Hash(string str)
+        {
+            using var sha256 = SHA256.Create();
+            return BitConverter.ToString(sha256.ComputeHash(Encoding.UTF8.GetBytes(str))).Replace("-", string.Empty);
         }
     }
 }
