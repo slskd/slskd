@@ -26,7 +26,7 @@ const Index = ({ options }) => {
   const { remoteConfiguration, debug } = options;
 
   const DebugButton = ({ ...props }) => {
-    if (!debug) return <></>;
+    if (!remoteConfiguration || !debug) return <></>;
     
     return <ShrinkableButton
       icon='bug'

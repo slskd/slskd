@@ -86,6 +86,11 @@ namespace slskd.Core.API
         [ProducesResponseType(typeof(string), 200)]
         public IActionResult Debug()
         {
+            if (!OptionsAtStartup.Debug || !OptionsSnapshot.Value.RemoteConfiguration)
+            {
+                return Forbid();
+            }
+
             // retrieve the IConfigurationRoot instance with reflection to avoid
             // exposing it as a public member of Program.
             var property = typeof(Program).GetProperty("Configuration", BindingFlags.NonPublic | BindingFlags.Static);
@@ -99,6 +104,11 @@ namespace slskd.Core.API
         [Route("yaml/location")]
         public IActionResult GetYamlFileLocation()
         {
+            if (!OptionsSnapshot.Value.RemoteConfiguration)
+            {
+                return Forbid();
+            }
+
             return Ok(Program.ConfigurationFile);
         }
 
@@ -148,6 +158,11 @@ namespace slskd.Core.API
         [Route("yaml/validate")]
         public IActionResult ValidateYamlFile([FromBody] string yaml)
         {
+            if (!OptionsSnapshot.Value.RemoteConfiguration)
+            {
+                return Forbid();
+            }
+
             if (!TryValidateYaml(yaml, out var error))
             {
                 return Ok(error);
