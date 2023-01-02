@@ -57,7 +57,7 @@ namespace slskd.Relay
         private IOptionsMonitor<Options> OptionsMonitor { get; }
 
         [HttpPut("")]
-        [Authorize(Policy = AuthPolicy.Any)]
+        [Authorize(Policy = AuthPolicy.JwtOnly)]
         public async Task<IActionResult> Connect()
         {
             if (!OptionsAtStartup.Relay.Enabled || !new[] { RelayMode.Agent, RelayMode.Debug }.Contains(OperationMode))
@@ -70,7 +70,7 @@ namespace slskd.Relay
         }
 
         [HttpDelete("")]
-        [Authorize(Policy = AuthPolicy.Any)]
+        [Authorize(Policy = AuthPolicy.JwtOnly)]
         public async Task<IActionResult> Disconnect()
         {
             if (!OptionsAtStartup.Relay.Enabled || !new[] { RelayMode.Agent, RelayMode.Debug }.Contains(OperationMode))
@@ -83,7 +83,7 @@ namespace slskd.Relay
         }
 
         [HttpGet("downloads/{token}")]
-        [Authorize(Policy = AuthPolicy.Any)]
+        [Authorize(Policy = AuthPolicy.ApiKeyOnly)]
         public IActionResult DownloadFile([FromRoute]string token)
         {
             if (!OptionsAtStartup.Relay.Enabled || !new[] { RelayMode.Controller, RelayMode.Debug }.Contains(OperationMode))
@@ -132,7 +132,7 @@ namespace slskd.Relay
         [RequestSizeLimit(10L * 1024L * 1024L * 1024L)]
         [RequestFormLimits(MultipartBodyLengthLimit = 10L * 1024L * 1024L * 1024L)]
         [DisableFormValueModelBinding]
-        [Authorize(Policy = AuthPolicy.Any)]
+        [Authorize(Policy = AuthPolicy.ApiKeyOnly)]
         public async Task<IActionResult> UploadFile(string token)
         {
             if (!OptionsAtStartup.Relay.Enabled || !new[] { RelayMode.Controller, RelayMode.Debug }.Contains(OperationMode))
@@ -217,7 +217,7 @@ namespace slskd.Relay
         /// <param name="token">The unique identifier for the request.</param>
         /// <returns></returns>
         [HttpPost("shares/{token}")]
-        [Authorize(Policy = AuthPolicy.Any)]
+        [Authorize(Policy = AuthPolicy.ApiKeyOnly)]
         public async Task<IActionResult> UploadShares(string token)
         {
             if (!OptionsAtStartup.Relay.Enabled || !new[] { RelayMode.Controller, RelayMode.Debug }.Contains(OperationMode))
