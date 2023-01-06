@@ -58,9 +58,70 @@ All incoming requests to the controller must be secured with an API key, and eac
 
 ## Quick Start
 
-<how to config the controller>
-<how to config the agent>
+To start, you'll need two instances of slskd running on two different machines. Determine which is the controller (the instance that will connect to the Soulseek network) and which is the agent (the instance that will connect to the controller).
 
-## How it Works
+Next, generate two secrets with length between 16 and 255 characters; one to use as an API key, and another to use as the shared Relay secret. Use your favorite secret/password generator, or use slskd by running:
 
-<technical details>
+```bash
+./slskd --generate-secret 32
+```
+
+For this example we'll use `9tWy5c3NrmekKVWLQXBztz0hY7rNGlj1tGMfvHKmU1q` for the API key, and `BgI04SuVtsAYipxPHDpdxJsnVoPEeq4tKJeorWxr3Pj` for the shared secret.
+
+> Note: DO NOT copy/paste these values into your configuration! Use your own values, or you're opening yourself up to an attack!
+
+### Controller
+
+Next, we'll configure the controller.  We'll enable the Relay, set this instance's mode to `controller`, and configure a single agent named `example_agent`.  We'll accept connections from within our home network, which uses IP addresses in the 192.168.1.x range.
+
+We'll also need to create an API key, which we'll allow to be used from anywhere.  We'll give the key the role `readwrite`, which is required for agents.
+
+```yaml
+instance_name: controller
+relay:
+  enabled: true
+  mode: controller
+  agents:
+    example_agent:
+      secret: BgI04SuVtsAYipxPHDpdxJsnVoPEeq4tKJeorWxr3Pj
+      cidr: 192.168.1.0/24
+web:
+  authentication:
+    api_keys:
+      example_api_key:
+        key: 9tWy5c3NrmekKVWLQXBztz0hY7rNGlj1tGMfvHKmU1q
+        role: readwrite
+        cidr: 192.168.1.0/24
+```
+
+We'll start the agent, which is running on a machine with IP address 192.168.1.25.  We should see the following logs (among many others):
+
+```bash
+<todo: paste here>
+```
+
+### Agent
+
+Finally, we'll configure the agent.  We'll enable the Relay, set this instance's mode to `agent`, and fill in the details of or controller.
+
+The controller is running on a machine with IP address 192.168.1.53, and we want to use HTTPS, so we'll use the URL `https://192.168.1.53:5001`.  We're using the default self-signed certificate, so we'll need to `ignore_certificate_errors`.
+
+We'll copy the API key and secret from the controller config, and lastly, we want the agent to receive the files downloaded by the controller, so we'll set `downloads` to `true`.
+
+```yaml
+relay:
+  enabled: true
+  mode: agent
+  controller:
+    address: https://192.168.1.53:5001
+    ignore_certificate_errors: true
+    api_key: 9tWy5c3NrmekKVWLQXBztz0hY7rNGlj1tGMfvHKmU1q
+    secret: BgI04SuVtsAYipxPHDpdxJsnVoPEeq4tKJeorWxr3Pj
+    downloads: true
+```
+
+We'll start the agent and confirm that it connects to the controller and uploads its shares:
+
+```bash
+<todo: paste here>
+```
