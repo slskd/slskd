@@ -400,32 +400,38 @@ namespace slskd
                 }
             }
 
-            if (OptionsAtStartup.Flags.NoConnect)
-            {
-                Log.Warning("Not connecting to the Soulseek server; 'no-connect' option is enabled");
-            }
-            else if (string.IsNullOrEmpty(OptionsAtStartup.Soulseek.Username) || string.IsNullOrEmpty(OptionsAtStartup.Soulseek.Password))
-            {
-                Log.Warning($"Not connecting to the Soulseek server; username and/or password invalid.  Specify valid credentials and manually connect, or update config and restart.");
-            }
-            else if (OptionsAtStartup.Relay.Enabled && OptionsAtStartup.Relay.Mode.ToEnum<RelayMode>() == RelayMode.Agent)
+            if (OptionsAtStartup.Relay.Enabled && OptionsAtStartup.Relay.Mode.ToEnum<RelayMode>() == RelayMode.Agent)
             {
                 Log.Information("Running in Agent relay mode; not connecting to the Soulseek server.");
                 await Relay.Client.StartAsync(cancellationToken);
             }
             else
             {
-                if (OptionsAtStartup.Relay.Enabled && OptionsAtStartup.Relay.Mode.ToEnum<RelayMode>() == RelayMode.Debug)
+                if (OptionsAtStartup.Relay.Enabled)
                 {
-                    Log.Warning("Running in Debug relay mode; connecting to controller");
-                    _ = Relay.Client.StartAsync(cancellationToken);
+                    if (OptionsAtStartup.Relay.Mode.ToEnum<RelayMode>() == RelayMode.Debug)
+                    {
+                        Log.Warning("Running in Debug relay mode; connecting to controller");
+                        _ = Relay.Client.StartAsync(cancellationToken);
+                    }
+                    else
+                    {
+                        Log.Information("Running in Controller relay mode.  Listening for incoming Agent connections.");
+                    }
+                }
+
+                if (OptionsAtStartup.Flags.NoConnect)
+                {
+                    Log.Warning("Not connecting to the Soulseek server; 'no-connect' option is enabled");
+                }
+                else if (string.IsNullOrEmpty(OptionsAtStartup.Soulseek.Username) || string.IsNullOrEmpty(OptionsAtStartup.Soulseek.Password))
+                {
+                    Log.Warning($"Not connecting to the Soulseek server; username and/or password invalid.  Specify valid credentials and manually connect, or update config and restart.");
                 }
                 else
                 {
-                    Log.Information("Running in Controller relay mode.  Listening for incoming Agent connections.");
+                    await Client.ConnectAsync(OptionsAtStartup.Soulseek.Username, OptionsAtStartup.Soulseek.Password).ConfigureAwait(false);
                 }
-
-                await Client.ConnectAsync(OptionsAtStartup.Soulseek.Username, OptionsAtStartup.Soulseek.Password).ConfigureAwait(false);
             }
         }
 
