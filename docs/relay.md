@@ -96,8 +96,8 @@ web:
 
 We'll start the agent, which is running on a machine with IP address 192.168.1.25.  We should see the following logs (among many others):
 
-```bash
-<todo: paste here>
+```
+[16:15:48 INF] Running in Controller relay mode.  Listening for incoming Agent connections.
 ```
 
 ### Agent
@@ -109,11 +109,12 @@ The controller is running on a machine with IP address 192.168.1.53, and we want
 We'll copy the API key and secret from the controller config, and lastly, we want the agent to receive the files downloaded by the controller, so we'll set `downloads` to `true`.
 
 ```yaml
+instance_name: example_agent
 relay:
   enabled: true
   mode: agent
   controller:
-    address: https://192.168.1.53:5001
+    address: https://192.168.1.25:5001
     ignore_certificate_errors: true
     api_key: 9tWy5c3NrmekKVWLQXBztz0hY7rNGlj1tGMfvHKmU1q
     secret: BgI04SuVtsAYipxPHDpdxJsnVoPEeq4tKJeorWxr3Pj
