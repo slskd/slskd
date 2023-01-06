@@ -409,14 +409,12 @@ namespace slskd
             {
                 if (OptionsAtStartup.Relay.Enabled)
                 {
+                    Log.Information("Running in Controller relay mode.  Listening for incoming Agent connections.");
+
                     if (OptionsAtStartup.Relay.Mode.ToEnum<RelayMode>() == RelayMode.Debug)
                     {
                         Log.Warning("Running in Debug relay mode; connecting to controller");
                         _ = Relay.Client.StartAsync(cancellationToken);
-                    }
-                    else
-                    {
-                        Log.Information("Running in Controller relay mode.  Listening for incoming Agent connections.");
                     }
                 }
 
