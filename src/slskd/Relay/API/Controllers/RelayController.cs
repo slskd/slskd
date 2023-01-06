@@ -82,6 +82,11 @@ namespace slskd.Relay
             return NoContent();
         }
 
+        /// <summary>
+        ///     Downloads a file.
+        /// </summary>
+        /// <param name="token">The unique identifier for the request.</param>
+        /// <returns></returns>
         [HttpGet("downloads/{token}")]
         [Authorize(Policy = AuthPolicy.ApiKeyOnly)]
         public IActionResult DownloadFile([FromRoute]string token)
@@ -100,9 +105,14 @@ namespace slskd.Relay
             var credential = Request.Headers["X-Relay-Credential"].FirstOrDefault();
             var filename = Request.Headers["X-Relay-Filename"].FirstOrDefault();
 
-            if (!Relay.RegisteredAgents.Any(a => a.Name == agentName))
+            if (!Relay.RegisteredAgents.Any(a => a.Name == agentName) || string.IsNullOrEmpty(credential))
             {
                 return Unauthorized();
+            }
+
+            if (string.IsNullOrEmpty(filename))
+            {
+                return BadRequest();
             }
 
             Log.Information("Handling file download for token {Token} from a caller claiming to be agent {Agent}", token, agentName);
@@ -155,6 +165,11 @@ namespace slskd.Relay
             var agentName = Request.Headers["X-Relay-Agent"].FirstOrDefault();
             var credential = Request.Headers["X-Relay-Credential"].FirstOrDefault();
 
+            if (!Relay.RegisteredAgents.Any(a => a.Name == agentName) || string.IsNullOrEmpty(credential))
+            {
+                return Unauthorized();
+            }
+
             Stream stream = default;
             string filename = default;
 
@@ -177,11 +192,6 @@ namespace slskd.Relay
                     Log.Debug(ex, "Failed to handle file upload");
 
                     return BadRequest();
-                }
-
-                if (!Relay.RegisteredAgents.Any(a => a.Name == agentName))
-                {
-                    return Unauthorized();
                 }
 
                 Log.Information("Handling file upload for token {Token} from a caller claiming to be agent {Agent}", token, agentName);
@@ -240,6 +250,11 @@ namespace slskd.Relay
             var agentName = Request.Headers["X-Relay-Agent"].FirstOrDefault();
             var credential = Request.Headers["X-Relay-Credential"].FirstOrDefault();
 
+            if (!Relay.RegisteredAgents.Any(a => a.Name == agentName) || string.IsNullOrEmpty(credential))
+            {
+                return Unauthorized();
+            }
+
             IEnumerable<Share> shares;
             IFormFile database;
 
@@ -252,11 +267,6 @@ namespace slskd.Relay
             {
                 Log.Warning("Failed to handle share upload from agent {Agent}: {Message}", agentName, ex.Message);
                 return BadRequest();
-            }
-
-            if (!Relay.RegisteredAgents.Any(a => a.Name == agentName))
-            {
-                return Unauthorized();
             }
 
             if (!Relay.TryValidateShareUploadCredential(token: guid, agentName, credential))

@@ -15,6 +15,8 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
+using Microsoft.Extensions.Options;
+
 namespace slskd.Relay
 {
     using System;
@@ -24,6 +26,7 @@ namespace slskd.Relay
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Http.Features;
     using Microsoft.AspNetCore.SignalR;
+    using NetTools;
     using Serilog;
 
     /// <summary>
@@ -74,17 +77,21 @@ namespace slskd.Relay
         ///     Initializes a new instance of the <see cref="RelayHub"/> class.
         /// </summary>
         /// <param name="relayService"></param>
+        /// <param name="optionsMonitor"></param>
         /// <param name="optionsAtStartup"></param>
         public RelayHub(
             IRelayService relayService,
+            IOptionsMonitor<Options> optionsMonitor,
             OptionsAtStartup optionsAtStartup)
         {
             Relay = relayService;
+            OptionsMonitor = optionsMonitor;
             OptionsAtStartup = optionsAtStartup;
         }
 
         private ILogger Log { get; } = Serilog.Log.ForContext<RelayService>();
         private IRelayService Relay { get; }
+        private IOptionsMonitor<Options> OptionsMonitor { get; }
         private OptionsAtStartup OptionsAtStartup { get; }
         private RelayMode OperationMode => OptionsAtStartup.Relay.Mode.ToEnum<RelayMode>();
         private IPAddress RemoteIpAddress => Context.Features.Get<IHttpConnectionFeature>().RemoteIpAddress;
@@ -131,9 +138,25 @@ namespace slskd.Relay
         /// <exception cref="UnauthorizedAccessException">Thrown when the challenge response is invalid.</exception>
         public void Login(string agent, string challengeResponse)
         {
+            OptionsMonitor.CurrentValue.Relay.Agents.TryGetValue(agent, out var agentOptions);
+
+            if (agentOptions == default)
+            {
+                Log.Warning("Unauthorized login attempt from unknown Agent {Agent} (connection {Id}) from {IP}", agent, Context.ConnectionId, RemoteIpAddress);
+                throw new UnauthorizedAccessException();
+            }
+
+            if (!agentOptions.Cidr.Split(',')
+                .Select(cidr => IPAddressRange.Parse(cidr))
+                .Any(range => range.Contains(RemoteIpAddress)))
+            {
+                Log.Warning("Unauthorized login attempt by Agent {Agent} (connection {Id}); remote IP address {IP} is not within the configured range {CIDR}", agent, Context.ConnectionId, RemoteIpAddress, agentOptions.Cidr);
+                throw new UnauthorizedAccessException();
+            }
+
             if (!Relay.TryValidateAuthenticationCredential(Context.ConnectionId, agent, challengeResponse))
             {
-                Log.Information("Agent connection {Id} from {IP} authentication failed", Context.ConnectionId, RemoteIpAddress);
+                Log.Warning("Unauthorized login attempt by Agent {Agent} (connection {Id}) from {IP}; authentication failed", agent, Context.ConnectionId, RemoteIpAddress);
                 Relay.TryDeregisterAgent(Context.ConnectionId, out var _); // just in case!
                 throw new UnauthorizedAccessException();
             }

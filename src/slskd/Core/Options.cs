@@ -513,15 +513,46 @@ namespace slskd
             /// <summary>
             ///     Relay agent configuration options.
             /// </summary>
-            public class RelayAgentConfigurationOptions
+            public class RelayAgentConfigurationOptions : IValidatableObject
             {
                 /// <summary>
                 ///     Gets the agent secret.
                 /// </summary>
+                [Description("shared secret for this agent")]
                 [StringLength(255, MinimumLength = 16)]
                 [NotNullOrWhiteSpace]
                 [Secret]
                 public string Secret { get; init; }
+
+                /// <summary>
+                ///     Gets the comma separated list of CIDRs that are authorized to connect as this agent.
+                /// </summary>
+                [Description("optional; comma separated list of CIDRs that are authorized to connect as this agent")]
+                public string Cidr { get; init; } = "0.0.0.0/0,::/0";
+
+                /// <summary>
+                ///     Extended validation.
+                /// </summary>
+                /// <param name="validationContext"></param>
+                /// <returns></returns>
+                public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+                {
+                    var results = new List<ValidationResult>();
+
+                    foreach (var cidr in Cidr.Split(','))
+                    {
+                        try
+                        {
+                            _ = IPAddressRange.Parse(cidr);
+                        }
+                        catch (Exception ex)
+                        {
+                            results.Add(new ValidationResult($"CIDR {cidr} is invalid: {ex.Message}"));
+                        }
+                    }
+
+                    return results;
+                }
             }
         }
 
@@ -1476,7 +1507,7 @@ namespace slskd
                     /// <summary>
                     ///     Gets the comma separated list of CIDRs that are authorized to use the key.
                     /// </summary>
-                    [Description("An optional comma separated list of CIDRs that are authorized to use the key")]
+                    [Description("optional; comma separated list of CIDRs that are authorized to use the key")]
                     public string Cidr { get; init; } = "0.0.0.0/0,::/0";
 
                     /// <summary>
