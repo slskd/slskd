@@ -200,7 +200,7 @@ namespace slskd.Relay
                 // provide the encrypted value as the credential with the request. the validation below verifies a bunch of
                 // things, including that the encrypted value matches the expected value. the goal here is to ensure that the
                 // caller is the same caller that received the request, and that the caller knows the shared secret.
-                if (!Relay.TryValidateFileStreamResponseCredential(token: guid, agentName, filename, credential))
+                if (!Relay.TryValidateFileStreamResponseCredential(token: guid, agentName: agentName, filename: filename, credential: credential))
                 {
                     Log.Warning("Failed to authenticate file upload token {Token} from a caller claiming to be agent {Agent}", guid, agentName);
                     return Unauthorized();
