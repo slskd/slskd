@@ -34,7 +34,7 @@ namespace slskd.Authentication
         /// <summary>
         ///     Gets the API key authentication scheme name.
         /// </summary>
-        public static string AuthenticationScheme { get; } = "API Key";
+        public static string AuthenticationScheme { get; } = "ApiKey";
     }
 
     /// <summary>
