@@ -321,8 +321,6 @@ namespace slskd.Relay
 
                     using var content = new MultipartFormDataContent
                     {
-                        { new StringContent(OptionsMonitor.CurrentValue.InstanceName), "name" },
-                        { new StringContent(ComputeCredential(token)), "credential" },
                         { new StreamContent(stream), "file", filename },
                     };
 
