@@ -416,6 +416,10 @@ namespace slskd.Relay
                     destinationFile = Path.Combine(OptionsMonitor.CurrentValue.Directories.Downloads, $"{filename}.relayed");
                 }
 
+                // if the controller is Windows and the agent is Linux or vice versa, we need to translate
+                // the filename to the local OS or we're going to get funny results when we go to write the file
+                destinationFile = destinationFile.LocalizePath();
+
                 await Retry.Do(task: async () =>
                 {
                     using var request = new HttpRequestMessage(HttpMethod.Get, $"api/v0/relay/downloads/{token}");
