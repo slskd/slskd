@@ -185,6 +185,16 @@ namespace slskd.Relay
                     var contentDisposition = ContentDispositionHeaderValue.Parse(fileSection.ContentDisposition);
                     filename = contentDisposition.FileName.Value;
                     stream = fileSection.Body;
+
+                    if (string.IsNullOrEmpty(filename))
+                    {
+                        throw new ArgumentException("Upload filename is null or empty");
+                    }
+
+                    if (stream == null || !stream.CanRead)
+                    {
+                        throw new ArgumentException("Unable to obtain stream from request");
+                    }
                 }
                 catch (Exception ex)
                 {
