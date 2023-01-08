@@ -293,6 +293,12 @@ namespace slskd
 
             if (GenerateSecret > 0)
             {
+                if (GenerateSecret < 16 || GenerateSecret > 255)
+                {
+                    Log.Error("Invalid command line input: secret length must be between 16 and 255, inclusive");
+                    return;
+                }
+
                 Log.Information(Cryptography.Random.GetBytes(GenerateSecret).ToBase62());
                 return;
             }
