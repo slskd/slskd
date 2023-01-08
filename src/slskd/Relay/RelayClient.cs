@@ -94,20 +94,29 @@ namespace slskd.Relay
         /// </summary>
         public IStateMonitor<RelayClientState> StateMonitor { get; }
 
-        private ManagedState<RelayClientState> State { get; } = new();
-        private IShareService Shares { get; }
         private SemaphoreSlim ConfigurationSyncRoot { get; } = new SemaphoreSlim(1, 1);
-        private SemaphoreSlim StateSyncRoot { get; } = new SemaphoreSlim(1, 1);
-        private string LastOptionsHash { get; set; }
-        private IOptionsMonitor<Options> OptionsMonitor { get; }
+        private bool Disposed { get; set; }
         private IHttpClientFactory HttpClientFactory { get; }
         private HubConnection HubConnection { get; set; }
-        private bool StartRequested { get; set; }
-        private CancellationTokenSource StartCancellationTokenSource { get; set; }
+        private string LastOptionsHash { get; set; }
         private ILogger Log { get; } = Serilog.Log.ForContext<RelayClient>();
         private bool LoggedIn { get; set; }
         private TaskCompletionSource LoggedInTaskCompletionSource { get; set; }
-        private bool Disposed { get; set; }
+        private IOptionsMonitor<Options> OptionsMonitor { get; }
+        private IShareService Shares { get; }
+        private CancellationTokenSource StartCancellationTokenSource { get; set; }
+        private bool StartRequested { get; set; }
+        private ManagedState<RelayClientState> State { get; } = new();
+        private SemaphoreSlim StateSyncRoot { get; } = new SemaphoreSlim(1, 1);
+
+        /// <summary>
+        ///     Disposes this instance.
+        /// </summary>
+        public void Dispose()
+        {
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
+        }
 
         /// <summary>
         ///     Starts the client and connects to the controller.
@@ -211,6 +220,313 @@ namespace slskd.Relay
             return UploadSharesAsync(cancellationToken);
         }
 
+        /// <summary>
+        ///     Disposes this instance.
+        /// </summary>
+        /// <param name="disposing"></param>
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!Disposed)
+            {
+                if (disposing)
+                {
+                    _ = HubConnection?.DisposeAsync();
+                }
+
+                Disposed = true;
+            }
+        }
+
+        private string ComputeCredential(string token)
+        {
+            var options = OptionsMonitor.CurrentValue;
+
+            var key = Pbkdf2.GetKey(options.Relay.Controller.Secret, options.InstanceName, 48);
+            var tokenBytes = System.Text.Encoding.UTF8.GetBytes(token);
+
+            return Aes.Encrypt(tokenBytes, key).ToBase62();
+        }
+
+        private string ComputeCredential(Guid token) => ComputeCredential(token.ToString());
+
+        private void Configure(Options options)
+        {
+            var mode = options.Relay.Mode.ToEnum<RelayMode>();
+
+            if (mode != RelayMode.Agent && mode != RelayMode.Debug)
+            {
+                return;
+            }
+
+            ConfigurationSyncRoot.Wait();
+
+            try
+            {
+                var optionsHash = Compute.Sha1Hash(options.Relay.Controller.ToJson());
+
+                if (optionsHash == LastOptionsHash)
+                {
+                    return;
+                }
+
+                Log.Debug("Relay options changed. Reconfiguring...");
+
+                // if the client is attempting a connection, cancel it it's going to be dropped when we create a new instance, but
+                // we need the retry loop around connection to stop.
+                StartCancellationTokenSource?.Cancel();
+
+                HubConnection = new HubConnectionBuilder()
+                    .WithUrl($"{options.Relay.Controller.Address}/hub/relay", builder =>
+                    {
+                        builder.AccessTokenProvider = () => Task.FromResult(options.Relay.Controller.ApiKey);
+                        builder.HttpMessageHandlerFactory = (message) =>
+                        {
+                            if (message is HttpClientHandler clientHandler && options.Relay.Controller.IgnoreCertificateErrors)
+                            {
+                                clientHandler.ServerCertificateCustomValidationCallback += (_, _, _, _) => true;
+                            }
+
+                            return message;
+                        };
+                    })
+                    .WithAutomaticReconnect(new ControllerRetryPolicy(0, 1, 3, 10, 30, 60))
+                    .Build();
+
+                HubConnection.Reconnected += HubConnection_Reconnected;
+                HubConnection.Reconnecting += HubConnection_Reconnecting;
+                HubConnection.Closed += HubConnection_Closed;
+
+                HubConnection.On<string, long, Guid>(nameof(IRelayHub.RequestFileUpload), HandleFileUploadRequest);
+                HubConnection.On<string, Guid>(nameof(IRelayHub.RequestFileInfo), HandleFileInfoRequest);
+                HubConnection.On<string>(nameof(IRelayHub.Challenge), HandleAuthenticationChallenge);
+                HubConnection.On<string, Guid>(nameof(IRelayHub.NotifyFileDownloadCompleted), HandleNotifyFileDownloadCompleted);
+
+                LastOptionsHash = optionsHash;
+
+                Log.Debug("Relay options reconfigured");
+
+                // if start was requested (if StartAsync() was called externally), restart after re-configuration
+                if (StartRequested)
+                {
+                    Log.Information("Reconnecting the relay controller connection...");
+                    _ = StartAsync();
+                }
+            }
+            finally
+            {
+                ConfigurationSyncRoot.Release();
+            }
+        }
+
+        private HttpClient CreateHttpClient()
+        {
+            var options = OptionsMonitor.CurrentValue.Relay.Controller;
+            HttpClient client;
+
+            if (options.IgnoreCertificateErrors)
+            {
+                client = new HttpClient(new HttpClientHandler()
+                {
+                    ClientCertificateOptions = ClientCertificateOption.Manual,
+                    ServerCertificateCustomValidationCallback = (_, _, _, _) => true,
+                });
+            }
+            else
+            {
+                client = new HttpClient();
+            }
+
+            client.Timeout = TimeSpan.FromMilliseconds(int.MaxValue);
+            client.BaseAddress = new(options.Address);
+            return client;
+        }
+
+        private async Task HandleAuthenticationChallenge(string challengeToken)
+        {
+            try
+            {
+                Log.Debug("Relay controller sent an authentication challenge");
+
+                var options = OptionsMonitor.CurrentValue;
+
+                var agent = options.InstanceName;
+                var response = ComputeCredential(challengeToken);
+
+                Log.Debug("Logging in...");
+                await HubConnection.InvokeAsync(nameof(RelayHub.Login), agent, response);
+                Log.Debug("Login succeeded.");
+                LoggedInTaskCompletionSource?.TrySetResult();
+            }
+            catch (UnauthorizedAccessException)
+            {
+                await HubConnection.StopAsync();
+                Log.Error("Relay controller authentication failed. Check configuration.");
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to handle authentication challenge: {Message}", ex.Message);
+            }
+        }
+
+        private async Task HandleFileInfoRequest(string filename, Guid id)
+        {
+            Log.Information("Relay controller requested file info for {Filename} with ID {Id}", filename, id);
+
+            try
+            {
+                var (_, localFilename) = await Shares.ResolveFileAsync(filename);
+
+                var localFileInfo = new FileInfo(localFilename);
+
+                await HubConnection.InvokeAsync(nameof(RelayHub.ReturnFileInfo), id, localFileInfo.Exists, localFileInfo.Length);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to handle file info request: {Message}", ex.Message);
+                await HubConnection.InvokeAsync(nameof(RelayHub.ReturnFileInfo), id, false, 0);
+            }
+        }
+
+        private Task HandleFileUploadRequest(string filename, long startOffset, Guid token)
+        {
+            _ = Task.Run(async () =>
+            {
+                Log.Information("Relay controller requested file {Filename} with ID {Id}", filename, token);
+
+                try
+                {
+                    var (_, localFilename) = await Shares.ResolveFileAsync(filename);
+
+                    var localFileInfo = new FileInfo(localFilename);
+
+                    if (!localFileInfo.Exists)
+                    {
+                        Shares.RequestScan();
+                        throw new NotFoundException($"The file '{localFilename}' could not be located on disk. A share scan should be performed.");
+                    }
+
+                    using var stream = new FileStream(localFileInfo.FullName, FileMode.Open, FileAccess.Read);
+
+                    stream.Seek(startOffset, SeekOrigin.Begin);
+
+                    using var request = new HttpRequestMessage(HttpMethod.Post, $"api/v0/relay/files/{token}");
+
+                    request.Headers.Add("X-API-Key", OptionsMonitor.CurrentValue.Relay.Controller.ApiKey);
+                    request.Headers.Add("X-Relay-Agent", OptionsMonitor.CurrentValue.InstanceName);
+                    request.Headers.Add("X-Relay-Credential", ComputeCredential(token));
+
+                    using var content = new MultipartFormDataContent
+                    {
+                        { new StreamContent(stream), "file", filename },
+                    };
+
+                    request.Content = content;
+
+                    Log.Information("Beginning upload of file {Filename} with ID {Id}", filename, token);
+                    var response = await CreateHttpClient().SendAsync(request);
+
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        Log.Error("Upload of file {Filename} with ID {Id} failed: {StatusCode}", filename, token, response.StatusCode);
+                    }
+                    else
+                    {
+                        Log.Information("Upload of file {Filename} with ID {Id} succeeded.", filename, token);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, "Failed to handle file request: {Message}", ex.Message);
+
+                    // report the failure to the controller. this avoids a failure due to timeout.
+                    await HubConnection.InvokeAsync(nameof(RelayHub.NotifyFileUploadFailed), token);
+                }
+            });
+
+            return Task.CompletedTask;
+        }
+
+        private Task HandleNotifyFileDownloadCompleted(string filename, Guid token)
+        {
+            if (!OptionsMonitor.CurrentValue.Relay.Controller.Downloads)
+            {
+                return Task.CompletedTask;
+            }
+
+            Log.Information("Relay controller sent a download notification for {Filename} ({Token})", filename, token);
+
+            _ = Task.Run(async () =>
+            {
+                var destinationFile = Path.Combine(OptionsMonitor.CurrentValue.Directories.Downloads, filename);
+
+                if (OptionsMonitor.CurrentValue.Relay.Mode.ToEnum<RelayMode>() == RelayMode.Debug)
+                {
+                    // if we're debugging, we're referencing the same file for both the controller and agent which will lead to an
+                    // access violation. prefix the destination file to avoid this.
+                    destinationFile = Path.Combine(OptionsMonitor.CurrentValue.Directories.Downloads, $"{filename}.relayed");
+                }
+
+                // if the controller is Windows and the agent is Linux or vice versa, we need to translate the filename to the
+                // local OS or we're going to get funny results when we go to write the file
+                destinationFile = destinationFile.LocalizePath();
+
+                await Retry.Do(task: async () =>
+                {
+                    using var request = new HttpRequestMessage(HttpMethod.Get, $"api/v0/relay/downloads/{token}");
+
+                    request.Headers.Add("X-API-Key", OptionsMonitor.CurrentValue.Relay.Controller.ApiKey);
+                    request.Headers.Add("X-Relay-Agent", OptionsMonitor.CurrentValue.InstanceName);
+                    request.Headers.Add("X-Relay-Credential", ComputeCredential(token));
+                    request.Headers.Add("X-Relay-Filename", filename);
+
+                    using var client = CreateHttpClient();
+                    using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+
+                    response.EnsureSuccessStatusCode();
+
+                    using var remoteStream = await response.Content.ReadAsStreamAsync();
+
+                    Directory.CreateDirectory(Path.GetDirectoryName(destinationFile));
+                    using var localStream = new FileStream(destinationFile, FileMode.Create);
+                    await remoteStream.CopyToAsync(localStream);
+                },
+                isRetryable: (_, _) => true,
+                onFailure: (_, ex) => Log.Error(ex, "Failed to handle file download notification for {Filename} ({Token})", filename, token),
+                maxAttempts: 3,
+                maxDelayInMilliseconds: 60000);
+
+                Log.Information("File {Filename} successfully downloaded to {Destination}", filename, destinationFile);
+            });
+
+            return Task.CompletedTask;
+        }
+
+        private Task HubConnection_Closed(Exception arg)
+        {
+            Log.Warning("Relay controller connection closed: {Message}", arg.Message);
+            LoggedIn = false;
+            State.SetValue(_ => TranslateState(HubConnection.State));
+            return Task.CompletedTask;
+        }
+
+        private async Task HubConnection_Reconnected(string arg)
+        {
+            Log.Warning("Relay controller connection reconnected");
+
+            // todo: does this need to log in again? does it retain the same connection id?
+            LoggedIn = true;
+            State.SetValue(_ => TranslateState(HubConnection.State));
+            await UploadSharesAsync();
+        }
+
+        private Task HubConnection_Reconnecting(Exception arg)
+        {
+            Log.Warning("Relay controller connection reconnecting: {Message}", arg.Message);
+            LoggedIn = false;
+            State.SetValue(_ => TranslateState(HubConnection.State));
+            return Task.CompletedTask;
+        }
+
         private RelayClientState TranslateState(HubConnectionState hub) => hub switch
         {
             HubConnectionState.Disconnected => RelayClientState.Disconnected,
@@ -279,298 +595,7 @@ namespace slskd.Relay
             }
         }
 
-        private string ComputeCredential(string token)
-        {
-            var options = OptionsMonitor.CurrentValue;
-
-            var key = Pbkdf2.GetKey(options.Relay.Controller.Secret, options.InstanceName, 48);
-            var tokenBytes = System.Text.Encoding.UTF8.GetBytes(token);
-
-            return Aes.Encrypt(tokenBytes, key).ToBase62();
-        }
-
-        private string ComputeCredential(Guid token) => ComputeCredential(token.ToString());
-
-        private Task HandleFileUploadRequest(string filename, long startOffset, Guid token)
-        {
-            _ = Task.Run(async () =>
-            {
-                Log.Information("Relay controller requested file {Filename} with ID {Id}", filename, token);
-
-                try
-                {
-                    var (_, localFilename) = await Shares.ResolveFileAsync(filename);
-
-                    var localFileInfo = new FileInfo(localFilename);
-
-                    if (!localFileInfo.Exists)
-                    {
-                        Shares.RequestScan();
-                        throw new NotFoundException($"The file '{localFilename}' could not be located on disk. A share scan should be performed.");
-                    }
-
-                    using var stream = new FileStream(localFileInfo.FullName, FileMode.Open, FileAccess.Read);
-
-                    stream.Seek(startOffset, SeekOrigin.Begin);
-
-                    using var request = new HttpRequestMessage(HttpMethod.Post, $"api/v0/relay/files/{token}");
-
-                    request.Headers.Add("X-API-Key", OptionsMonitor.CurrentValue.Relay.Controller.ApiKey);
-                    request.Headers.Add("X-Relay-Agent", OptionsMonitor.CurrentValue.InstanceName);
-                    request.Headers.Add("X-Relay-Credential", ComputeCredential(token));
-
-                    using var content = new MultipartFormDataContent
-                    {
-                        { new StreamContent(stream), "file", filename },
-                    };
-
-                    request.Content = content;
-
-                    Log.Information("Beginning upload of file {Filename} with ID {Id}", filename, token);
-                    var response = await CreateHttpClient().SendAsync(request);
-
-                    if (!response.IsSuccessStatusCode)
-                    {
-                        Log.Error("Upload of file {Filename} with ID {Id} failed: {StatusCode}", filename, token, response.StatusCode);
-                    }
-                    else
-                    {
-                        Log.Information("Upload of file {Filename} with ID {Id} succeeded.", filename, token);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Log.Error(ex, "Failed to handle file request: {Message}", ex.Message);
-
-                    // report the failure to the controller. this avoids a failure due to timeout.
-                    await HubConnection.InvokeAsync(nameof(RelayHub.NotifyFileUploadFailed), token);
-                }
-            });
-
-            return Task.CompletedTask;
-        }
-
-        private async Task HandleFileInfoRequest(string filename, Guid id)
-        {
-            Log.Information("Relay controller requested file info for {Filename} with ID {Id}", filename, id);
-
-            try
-            {
-                var (_, localFilename) = await Shares.ResolveFileAsync(filename);
-
-                var localFileInfo = new FileInfo(localFilename);
-
-                await HubConnection.InvokeAsync(nameof(RelayHub.ReturnFileInfo), id, localFileInfo.Exists, localFileInfo.Length);
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "Failed to handle file info request: {Message}", ex.Message);
-                await HubConnection.InvokeAsync(nameof(RelayHub.ReturnFileInfo), id, false, 0);
-            }
-        }
-
-        private async Task HandleAuthenticationChallenge(string challengeToken)
-        {
-            try
-            {
-                Log.Debug("Relay controller sent an authentication challenge");
-
-                var options = OptionsMonitor.CurrentValue;
-
-                var agent = options.InstanceName;
-                var response = ComputeCredential(challengeToken);
-
-                Log.Debug("Logging in...");
-                await HubConnection.InvokeAsync(nameof(RelayHub.Login), agent, response);
-                Log.Debug("Login succeeded.");
-                LoggedInTaskCompletionSource?.TrySetResult();
-            }
-            catch (UnauthorizedAccessException)
-            {
-                await HubConnection.StopAsync();
-                Log.Error("Relay controller authentication failed. Check configuration.");
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "Failed to handle authentication challenge: {Message}", ex.Message);
-            }
-        }
-
-        private Task HandleNotifyFileDownloadCompleted(string filename, Guid token)
-        {
-            if (!OptionsMonitor.CurrentValue.Relay.Controller.Downloads)
-            {
-                return Task.CompletedTask;
-            }
-
-            Log.Information("Relay controller sent a download notification for {Filename} ({Token})", filename, token);
-
-            _ = Task.Run(async () =>
-            {
-                var destinationFile = Path.Combine(OptionsMonitor.CurrentValue.Directories.Downloads, filename);
-
-                if (OptionsMonitor.CurrentValue.Relay.Mode.ToEnum<RelayMode>() == RelayMode.Debug)
-                {
-                    // if we're debugging, we're referencing the same file for both the controller and agent
-                    // which will lead to an access violation. prefix the destination file to avoid this.
-                    destinationFile = Path.Combine(OptionsMonitor.CurrentValue.Directories.Downloads, $"{filename}.relayed");
-                }
-
-                // if the controller is Windows and the agent is Linux or vice versa, we need to translate
-                // the filename to the local OS or we're going to get funny results when we go to write the file
-                destinationFile = destinationFile.LocalizePath();
-
-                await Retry.Do(task: async () =>
-                {
-                    using var request = new HttpRequestMessage(HttpMethod.Get, $"api/v0/relay/downloads/{token}");
-
-                    request.Headers.Add("X-API-Key", OptionsMonitor.CurrentValue.Relay.Controller.ApiKey);
-                    request.Headers.Add("X-Relay-Agent", OptionsMonitor.CurrentValue.InstanceName);
-                    request.Headers.Add("X-Relay-Credential", ComputeCredential(token));
-                    request.Headers.Add("X-Relay-Filename", filename);
-
-                    using var client = CreateHttpClient();
-                    using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
-
-                    response.EnsureSuccessStatusCode();
-
-                    using var remoteStream = await response.Content.ReadAsStreamAsync();
-
-                    Directory.CreateDirectory(Path.GetDirectoryName(destinationFile));
-                    using var localStream = new FileStream(destinationFile, FileMode.Create);
-                    await remoteStream.CopyToAsync(localStream);
-                },
-                isRetryable: (_, _) => true,
-                onFailure: (_, ex) => Log.Error(ex, "Failed to handle file download notification for {Filename} ({Token})", filename, token),
-                maxAttempts: 3,
-                maxDelayInMilliseconds: 60000);
-
-                Log.Information("File {Filename} successfully downloaded to {Destination}", filename, destinationFile);
-            });
-
-            return Task.CompletedTask;
-        }
-
-        private Task HubConnection_Closed(Exception arg)
-        {
-            Log.Warning("Relay controller connection closed: {Message}", arg.Message);
-            LoggedIn = false;
-            State.SetValue(_ => TranslateState(HubConnection.State));
-            return Task.CompletedTask;
-        }
-
-        private Task HubConnection_Reconnecting(Exception arg)
-        {
-            Log.Warning("Relay controller connection reconnecting: {Message}", arg.Message);
-            LoggedIn = false;
-            State.SetValue(_ => TranslateState(HubConnection.State));
-            return Task.CompletedTask;
-        }
-
-        private async Task HubConnection_Reconnected(string arg)
-        {
-            Log.Warning("Relay controller connection reconnected");
-            // todo: does this need to log in again? does it retain the same connection id?
-            LoggedIn = true;
-            State.SetValue(_ => TranslateState(HubConnection.State));
-            await UploadSharesAsync();
-        }
-
-        private HttpClient CreateHttpClient()
-        {
-            var options = OptionsMonitor.CurrentValue.Relay.Controller;
-            HttpClient client;
-
-            if (options.IgnoreCertificateErrors)
-            {
-                client = new HttpClient(new HttpClientHandler()
-                {
-                    ClientCertificateOptions = ClientCertificateOption.Manual,
-                    ServerCertificateCustomValidationCallback = (_, _, _, _) => true,
-                });
-            }
-            else
-            {
-                client = new HttpClient();
-            }
-
-            client.Timeout = TimeSpan.FromMilliseconds(int.MaxValue);
-            client.BaseAddress = new(options.Address);
-            return client;
-        }
-
-        private void Configure(Options options)
-        {
-            var mode = options.Relay.Mode.ToEnum<RelayMode>();
-
-            if (mode != RelayMode.Agent && mode != RelayMode.Debug)
-            {
-                return;
-            }
-
-            ConfigurationSyncRoot.Wait();
-
-            try
-            {
-                var optionsHash = Compute.Sha1Hash(options.Relay.Controller.ToJson());
-
-                if (optionsHash == LastOptionsHash)
-                {
-                    return;
-                }
-
-                Log.Debug("Relay options changed. Reconfiguring...");
-
-                // if the client is attempting a connection, cancel it
-                // it's going to be dropped when we create a new instance, but we need
-                // the retry loop around connection to stop.
-                StartCancellationTokenSource?.Cancel();
-
-                HubConnection = new HubConnectionBuilder()
-                    .WithUrl($"{options.Relay.Controller.Address}/hub/relay", builder =>
-                    {
-                        builder.AccessTokenProvider = () => Task.FromResult(options.Relay.Controller.ApiKey);
-                        builder.HttpMessageHandlerFactory = (message) =>
-                        {
-                            if (message is HttpClientHandler clientHandler && options.Relay.Controller.IgnoreCertificateErrors)
-                            {
-                                clientHandler.ServerCertificateCustomValidationCallback += (_, _, _, _) => true;
-                            }
-
-                            return message;
-                        };
-                    })
-                    .WithAutomaticReconnect(new ControllerRetryPolicy(0, 1, 3, 10, 30, 60))
-                    .Build();
-
-                HubConnection.Reconnected += HubConnection_Reconnected;
-                HubConnection.Reconnecting += HubConnection_Reconnecting;
-                HubConnection.Closed += HubConnection_Closed;
-
-                HubConnection.On<string, long, Guid>(nameof(IRelayHub.RequestFileUpload), HandleFileUploadRequest);
-                HubConnection.On<string, Guid>(nameof(IRelayHub.RequestFileInfo), HandleFileInfoRequest);
-                HubConnection.On<string>(nameof(IRelayHub.Challenge), HandleAuthenticationChallenge);
-                HubConnection.On<string, Guid>(nameof(IRelayHub.NotifyFileDownloadCompleted), HandleNotifyFileDownloadCompleted);
-
-                LastOptionsHash = optionsHash;
-
-                Log.Debug("Relay options reconfigured");
-
-                // if start was requested (if StartAsync() was called externally), restart
-                // after re-configuration
-                if (StartRequested)
-                {
-                    Log.Information("Reconnecting the relay controller connection...");
-                    _ = StartAsync();
-                }
-            }
-            finally
-            {
-                ConfigurationSyncRoot.Release();
-            }
-        }
-
-        private class ControllerRetryPolicy : IRetryPolicy
+        private sealed class ControllerRetryPolicy : IRetryPolicy
         {
             public ControllerRetryPolicy(params int[] intervals)
             {
@@ -583,25 +608,6 @@ namespace slskd.Relay
             {
                 return TimeSpan.FromSeconds(Intervals[Math.Min(retryContext.PreviousRetryCount, Intervals.Length - 1)]);
             }
-        }
-
-        protected virtual void Dispose(bool disposing)
-        {
-            if (!Disposed)
-            {
-                if (disposing)
-                {
-                    _ = HubConnection?.DisposeAsync();
-                }
-
-                Disposed = true;
-            }
-        }
-
-        public void Dispose()
-        {
-            Dispose(disposing: true);
-            GC.SuppressFinalize(this);
         }
     }
 }
