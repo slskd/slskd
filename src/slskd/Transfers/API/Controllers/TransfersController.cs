@@ -41,6 +41,7 @@ namespace slskd.Transfers.API
         /// <summary>
         ///     Initializes a new instance of the <see cref="TransfersController"/> class.
         /// </summary>
+        /// <param name="optionsSnapshot"></param>
         /// <param name="transferService"></param>
         public TransfersController(
             ITransferService transferService,
