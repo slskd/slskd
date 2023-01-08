@@ -527,9 +527,18 @@ namespace slskd.Relay
         private Task HubConnection_Reconnecting(Exception arg)
         {
             Log.Warning("Relay controller connection reconnecting: {Message}", arg.Message);
+        private void ResetLoggedInState()
+        {
             LoggedIn = false;
             State.SetValue(_ => TranslateState(HubConnection.State));
-            return Task.CompletedTask;
+
+            var old = LoggedInTaskCompletionSource;
+
+            LoggedInTaskCompletionSource = new TaskCompletionSource();
+
+            // in case someone was waiting on this, cancel it
+            // _very important_ to avoid deadlocks
+            old.TrySetCanceled();
         }
 
         private RelayClientState TranslateState(HubConnectionState hub) => hub switch
