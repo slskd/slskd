@@ -26,6 +26,7 @@ namespace slskd.Shares
     using System.Threading;
     using System.Threading.Tasks;
     using Serilog;
+    using slskd.Relay;
     using Soulseek;
 
     /// <summary>
@@ -269,9 +270,21 @@ namespace slskd.Shares
         {
             string resolvedFilename = Local.Repository.FindFilename(remoteFilename);
 
-            if (!string.IsNullOrEmpty(resolvedFilename))
+            // when we're debugging the relay (running as both controller and agent on the same instance)
+            // always resolve files from remote hosts, ignoring local. this is a crappy hack, but it is the
+            // least crappy way to maintain sanity while trying to debug this feature.
+            if (OptionsMonitor.CurrentValue.Relay.Mode.ToEnum<RelayMode>() == RelayMode.Debug)
             {
+                Log.Warning("Ignoring resolved local file to facilitate Relay debugging.");
+            }
+            else if (!string.IsNullOrEmpty(resolvedFilename))
+            {
+                Log.Debug("Resolved remote file to {ResolvedFilename} on local host", resolvedFilename);
                 return Task.FromResult((Program.LocalHostName, resolvedFilename));
+            }
+            else
+            {
+                Log.Debug("Failed to resolve remote file on local host; searching remote hosts: {Hosts}", HostDictionary.Values.Select(h => h.Host.Name));
             }
 
             // file not found locally.  begin searching other hosts one by one.
@@ -282,8 +295,11 @@ namespace slskd.Shares
 
                 if (!string.IsNullOrEmpty(resolvedFilename))
                 {
+                    Log.Debug("Resolved remote file to {ResolvedFilename} on host {Host}", remoteFilename, host.Host.Name);
                     return Task.FromResult((host.Host.Name, resolvedFilename));
                 }
+
+                Log.Debug("Failed to resolve remote file on host {Host}", host.Host.Name);
             }
 
             throw new NotFoundException($"The requested filename '{remoteFilename}' could not be resolved to a physical file");

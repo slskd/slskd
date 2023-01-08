@@ -456,7 +456,7 @@ namespace slskd.Relay
             var key = new WaitKey(nameof(GetFileInfoAsync), agentName, id);
             var wait = Waiter.Wait<(bool Exists, long Length)>(key, timeout);
 
-            Log.Information("Created wait {Key}", key);
+            Log.Debug("Created wait {Key}", key);
 
             try
             {
@@ -624,6 +624,8 @@ namespace slskd.Relay
         /// <returns>The operation context.</returns>
         public Task HandleShareUpload(string agentName, Guid id, IEnumerable<Share> shares, string filename)
         {
+            Log.Information("Loading shares from agent {Agent}", agentName);
+
             using var repository = ShareRepositoryFactory.CreateFromFile(filename);
 
             if (!repository.TryValidate(out var problems))
@@ -636,6 +638,8 @@ namespace slskd.Relay
             destinationRepository.RestoreFrom(repository);
 
             Shares.AddOrUpdateHost(new Host(agentName, shares));
+
+            Log.Information("Shares from agent {Agent} ready.", agentName);
 
             return Task.CompletedTask;
         }
@@ -694,8 +698,12 @@ namespace slskd.Relay
 
             if (TryGetAgentRegistration(connectionId, out var found))
             {
+                Log.Information("Unloading shares for agent {Agent}", found.Agent.Name);
+
                 Shares.TryRemoveHost(found.Agent.Name);
                 removed = RegisteredAgentDictionary.TryRemove(found.Agent.Name, out record);
+
+                Log.Information("Shares for agent {Agent} unloaded", found.Agent.Name);
             }
 
             State.SetValue(state => state with { Agents = RegisteredAgents });

@@ -321,8 +321,6 @@ namespace slskd.Relay
 
                     using var content = new MultipartFormDataContent
                     {
-                        { new StringContent(OptionsMonitor.CurrentValue.InstanceName), "name" },
-                        { new StringContent(ComputeCredential(token)), "credential" },
                         { new StreamContent(stream), "file", filename },
                     };
 
@@ -417,6 +415,10 @@ namespace slskd.Relay
                     // which will lead to an access violation. prefix the destination file to avoid this.
                     destinationFile = Path.Combine(OptionsMonitor.CurrentValue.Directories.Downloads, $"{filename}.relayed");
                 }
+
+                // if the controller is Windows and the agent is Linux or vice versa, we need to translate
+                // the filename to the local OS or we're going to get funny results when we go to write the file
+                destinationFile = destinationFile.LocalizePath();
 
                 await Retry.Do(task: async () =>
                 {

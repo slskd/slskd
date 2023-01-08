@@ -23,7 +23,7 @@ namespace slskd
     public static class AuthPolicy
     {
         public const string JwtOnly = "Jwt";
-        public const string ApiKeyOnly = "ApiKeyOnly";
+        public const string ApiKeyOnly = "ApiKey";
         public const string Any = "Any";
     }
 }

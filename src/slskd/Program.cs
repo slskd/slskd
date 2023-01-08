@@ -696,6 +696,12 @@ namespace slskd
                         policy.RequireAuthenticatedUser();
                     });
 
+                    options.AddPolicy(AuthPolicy.ApiKeyOnly, policy =>
+                    {
+                        policy.AuthenticationSchemes.Add(PassthroughAuthentication.AuthenticationScheme);
+                        policy.RequireAuthenticatedUser();
+                    });
+
                     options.AddPolicy(AuthPolicy.JwtOnly, policy =>
                     {
                         policy.AuthenticationSchemes.Add(PassthroughAuthentication.AuthenticationScheme);
