@@ -65,9 +65,9 @@ namespace slskd
         /// <summary>
         ///     Times this Task out after the specified TimeSpan.
         /// </summary>
-        /// <typeparam name="T">The result type.</typeparam>
         /// <param name="task">The task.</param>
         /// <param name="timeout">The timeout.</param>
+        /// <returns>The operation context.</returns>
         /// <exception cref="TimeoutException">Thrown when the task times out.</exception>
         public static async Task TimeoutAfter(this Task task, TimeSpan timeout)
         {
