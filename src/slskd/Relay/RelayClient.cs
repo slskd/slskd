@@ -550,16 +550,32 @@ namespace slskd.Relay
 
             var temp = Path.Combine(Path.GetTempPath(), Program.AppName, $"share_backup_{Path.GetRandomFileName()}.db");
 
-            Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), Program.AppName));
-
             try
             {
                 Log.Debug("Backing up shares to {Filename}", temp);
-                await Shares.DumpAsync(temp);
-                Log.Debug("Share backup successful");
 
+                Directory.CreateDirectory(Path.GetDirectoryName(temp));
+
+                await Shares.DumpAsync(temp);
+
+                Log.Debug("Share backup successful");
                 Log.Debug("Requesting share upload token...");
-                var token = await HubConnection.InvokeAsync<Guid>(nameof(RelayHub.BeginShareUpload));
+
+                Guid token = Guid.Empty;
+
+                // retry this a few times. it can throw if a race condition materializes
+                // between this logic and the authentication flow, and it'll almost certainly be
+                // worked out properly if we just wait a second and try again
+                await Retry.Do(task: async () =>
+                    {
+                        token = await HubConnection.InvokeAsync<Guid>(nameof(RelayHub.BeginShareUpload));
+                    },
+                    isRetryable: (_, _) => true,
+                    onFailure: (count, ex) => Log.Warning("Failed attempt #{Attempts} to obtain share upload token: {Message}", count, ex.Message),
+                    maxAttempts: 3,
+                    maxDelayInMilliseconds: 5000,
+                    cancellationToken);
+
                 Log.Debug("Share upload token {Token}", token);
 
                 var stream = new FileStream(temp, FileMode.Open, FileAccess.Read);
