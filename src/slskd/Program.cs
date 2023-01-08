@@ -687,7 +687,7 @@ namespace slskd
                                         }
                                         catch
                                         {
-                                            // the token either isn't a valid API key. use the provided value and let the 
+                                            // the token either isn't a valid API key. use the provided value and let the
                                             // rest of the auth middleware figure out whether it is valid
                                             context.Token = token;
                                         }
