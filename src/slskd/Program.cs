@@ -243,7 +243,17 @@ namespace slskd
             // populate the properties above so that we can override the default config file if needed, and to
             // check if the application is being run in command mode (run task and quit).
             EnvironmentVariables.Populate(prefix: EnvironmentVariablePrefix);
+
+            try
+            {
             Arguments.Populate(clearExistingValues: false);
+            }
+            catch (Exception ex)
+            {
+                // this is pretty hacky, but i don't have a good way of trapping errors that bubble up here.
+                Log.Error($"Invalid command line input: {ex.Message.Replace(".  See inner exception for details.", string.Empty)}");
+                return;
+            }
 
             // if a user has used one of the arguments above, perform the requested task, then quit
             if (ShowVersion)
@@ -283,6 +293,12 @@ namespace slskd
 
             if (GenerateSecret > 0)
             {
+                if (GenerateSecret < 16 || GenerateSecret > 255)
+                {
+                    Log.Error("Invalid command line input: secret length must be between 16 and 255, inclusive");
+                    return;
+                }
+
                 Log.Information(Cryptography.Random.GetBytes(GenerateSecret).ToBase62());
                 return;
             }
