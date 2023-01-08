@@ -356,9 +356,13 @@ namespace slskd.Relay
                 var response = ComputeCredential(challengeToken);
 
                 Log.Information("Logging in...");
+
                 await HubConnection.InvokeAsync(nameof(RelayHub.Login), agent, response);
+
+                LoggedIn = true;
+                LoggedInTaskCompletionSource.TrySetResult();
+
                 Log.Information("Login succeeded.");
-                LoggedInTaskCompletionSource?.TrySetResult();
             }
             catch (UnauthorizedAccessException)
             {
