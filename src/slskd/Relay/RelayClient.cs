@@ -184,7 +184,7 @@ namespace slskd.Relay
                     isRetryable: (attempts, ex) => true,
                     onFailure: (attempts, ex) =>
                     {
-                        Console.Log(ex);
+                        Console.WriteLine(ex);
                         Log.Debug(ex, "Relay hub connection failure");
                         Log.Warning("Failed attempt #{Attempts} to connect to relay controller: {Message}", attempts, ex.Message);
                     },
