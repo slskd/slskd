@@ -672,7 +672,7 @@ namespace slskd.Shares
                 var msg = "The internal share database has been corrupted or lost, and the application cannot continue to run. Please report this in a GitHub issue here: https://github.com/slskd/slskd/issues";
                 Log.Fatal(msg);
                 Environment.Exit(1);
-                throw new ApplicationException(msg);
+                throw new DataMisalignedException(msg);
             }
         }
     }
