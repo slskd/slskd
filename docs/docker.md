@@ -1,4 +1,4 @@
-# Running slskd in Docker
+# Running in Docker
 
 For most users, a quick start will be all that is needed:
 

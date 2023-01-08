@@ -27,6 +27,7 @@
 #   agents:
 #     my_agent:
 #       secret: <a 16-255 character string unique to this agent>
+#       cidr: 0.0.0.0/0,::/0
 # directories:
 #   incomplete: ~
 #   downloads: ~

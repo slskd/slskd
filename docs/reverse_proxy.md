@@ -1,4 +1,4 @@
-# Running slskd Behind a Reverse Proxy
+# Running Behind a Reverse Proxy
 
 ## NGINX
 
