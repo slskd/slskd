@@ -302,7 +302,7 @@ namespace slskd
         }
 
         /// <summary>
-        ///     <see cref="Path.GetDirectoryName"/>, but for paths normalized to use backslashes.
+        ///     <see cref="Path.GetDirectoryName(string)"/>, but for paths normalized to use backslashes.
         /// </summary>
         /// <param name="path"></param>
         /// <returns></returns>
@@ -312,7 +312,7 @@ namespace slskd
         }
 
         /// <summary>
-        ///     <see cref="Path.GetFileName"/>, but for paths normalized to use backslashes.
+        ///     <see cref="Path.GetFileName(string)"/>, but for paths normalized to use backslashes.
         /// </summary>
         /// <param name="path"></param>
         /// <returns></returns>
