@@ -352,16 +352,16 @@ namespace slskd.Relay
         {
             try
             {
-                Log.Debug("Relay controller sent an authentication challenge");
+                Log.Information("Relay controller sent an authentication challenge");
 
                 var options = OptionsMonitor.CurrentValue;
 
                 var agent = options.InstanceName;
                 var response = ComputeCredential(challengeToken);
 
-                Log.Debug("Logging in...");
+                Log.Information("Logging in...");
                 await HubConnection.InvokeAsync(nameof(RelayHub.Login), agent, response);
-                Log.Debug("Login succeeded.");
+                Log.Information("Login succeeded.");
                 LoggedInTaskCompletionSource?.TrySetResult();
             }
             catch (UnauthorizedAccessException)

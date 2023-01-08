@@ -533,8 +533,6 @@ namespace slskd.Relay
             var key = new WaitKey(nameof(GetFileStreamAsync), agentName, id);
             var wait = Waiter.Wait<Stream>(key, timeout, cancellationToken);
 
-            Log.Information("Created wait {Key}", key);
-
             await RelayHub.Clients.Client(record.ConnectionId).RequestFileUpload(filename, startOffset, id);
             Log.Information("Requested file {Filename} from Agent {Agent} with ID {Id}. Waiting for incoming connection.", filename, agentName, id);
 
@@ -563,8 +561,6 @@ namespace slskd.Relay
         {
             var key = new WaitKey(nameof(GetFileInfoAsync), agentName, id);
 
-            Log.Information("Handling wait {Key}", key);
-
             if (!Waiter.IsWaitingFor(key))
             {
                 var msg = $"A file info response from Agent {agentName} matching Id {id} was not expected";
@@ -589,8 +585,6 @@ namespace slskd.Relay
         public async Task HandleFileStreamResponse(string agentName, Guid id, Stream response)
         {
             var streamKey = new WaitKey(nameof(GetFileStreamAsync), agentName, id);
-
-            Log.Information("Handling wait {Key}", streamKey);
 
             if (!Waiter.IsWaitingFor(streamKey))
             {
