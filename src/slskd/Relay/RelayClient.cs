@@ -150,7 +150,36 @@ namespace slskd.Relay
 
                 // retry indefinitely
                 await Retry.Do(
-                    task: () => HubConnection.StartAsync(StartCancellationTokenSource.Token),
+                    task: async () => {
+                        await HubConnection.StartAsync(StartCancellationTokenSource.Token);
+
+                        State.SetValue(_ => TranslateState(HubConnection.State));
+                        Log.Information("Relay controller connection established. Awaiting authentication...");
+
+                        await LoggedInTaskCompletionSource.Task;
+
+                        LoggedIn = true;
+
+                        Log.Information("Authenticated. Uploading shares...");
+
+                        try
+                        {
+                            // give the controller time to register the login; there's a race condition here
+                            // that should be extremely unlikely, but i've seen it when debugging.
+                            await Task.Delay(500);
+
+                            await UploadSharesAsync();
+                        }
+                        catch (Exception ex)
+                        {
+                            Log.Error(ex, ex.Message);
+                            Log.Error("Disconnecting from the relay controller");
+                            await StopAsync();
+                            throw;
+                        }
+
+                        Log.Information("Shares uploaded. Ready to upload files.");
+                    },
                     isRetryable: (attempts, ex) => true,
                     onFailure: (attempts, ex) =>
                     {
@@ -160,29 +189,6 @@ namespace slskd.Relay
                     maxAttempts: int.MaxValue,
                     maxDelayInMilliseconds: 30000,
                     StartCancellationTokenSource.Token);
-
-                State.SetValue(_ => TranslateState(HubConnection.State));
-                Log.Information("Relay controller connection established. Awaiting authentication...");
-
-                await LoggedInTaskCompletionSource.Task;
-
-                LoggedIn = true;
-
-                Log.Information("Authenticated. Uploading shares...");
-
-                try
-                {
-                    await UploadSharesAsync();
-                }
-                catch (Exception ex)
-                {
-                    Log.Error(ex, ex.Message);
-                    Log.Error("Disconnecting from the relay controller");
-                    await StopAsync();
-                    throw;
-                }
-
-                Log.Information("Shares uploaded. Ready to upload files.");
             }
             finally
             {
