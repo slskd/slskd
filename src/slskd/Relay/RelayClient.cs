@@ -141,27 +141,27 @@ namespace slskd.Relay
                 }
 
                 StartCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                LoggedInTaskCompletionSource = new TaskCompletionSource();
                 StartRequested = true;
-
-                Log.Information("Attempting to connect to the relay controller {Address}", OptionsMonitor.CurrentValue.Relay.Controller.Address);
-
-                State.SetValue(_ => TranslateState(HubConnectionState.Connecting));
 
                 // retry indefinitely
                 await Retry.Do(
                     task: async () =>
                     {
+                        Log.Information("Attempting to connect to the relay controller {Address}", OptionsMonitor.CurrentValue.Relay.Controller.Address);
+
+                        ResetLoggedInState();
+                        State.SetValue(_ => TranslateState(HubConnectionState.Connecting));
+
                         await HubConnection.StartAsync(StartCancellationTokenSource.Token);
 
                         State.SetValue(_ => TranslateState(HubConnection.State));
                         Log.Information("Relay controller connection established. Awaiting authentication...");
 
+                        // the controller will send an authentication challenge immediately after connection
+                        // wait for the auth handler to log in before proceeding with the initial share upload
                         await LoggedInTaskCompletionSource.Task;
 
-                        LoggedIn = true;
-
-                        Log.Information("Authenticated. Uploading shares...");
+                        Log.Information("Uploading shares...");
 
                         try
                         {
@@ -171,15 +171,20 @@ namespace slskd.Relay
                         {
                             Log.Error(ex, ex.Message);
                             Log.Error("Disconnecting from the relay controller");
+
+                            // stop, so we can start again when the retry loop comes back around
                             await StopAsync();
+
+                            // throw, to trigger a retry
                             throw;
                         }
 
-                        Log.Information("Shares uploaded. Ready to upload files.");
+                        Log.Information("Shares uploaded. Ready to relay files.");
                     },
                     isRetryable: (attempts, ex) => true,
                     onFailure: (attempts, ex) =>
                     {
+                        Console.Log(ex);
                         Log.Debug(ex, "Relay hub connection failure");
                         Log.Warning("Failed attempt #{Attempts} to connect to relay controller: {Message}", attempts, ex.Message);
                     },
