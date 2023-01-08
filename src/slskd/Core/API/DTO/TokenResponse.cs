@@ -49,7 +49,7 @@ namespace slskd.Core.API
         /// <summary>
         ///     Gets the value of the Not Before claim from the Access Token.
         /// </summary>
-        public long NotBefore => long.Parse(JwtSecurityToken.Claims.SingleOrDefault(c => c.Type == "nbf").Value);
+        public long NotBefore => long.Parse(JwtSecurityToken.Claims.SingleOrDefault(c => c.Type == "nbf")?.Value ?? long.MaxValue.ToString());
 
         /// <summary>
         ///     Gets the Access Token string.

@@ -25,7 +25,6 @@ namespace slskd.Users.API
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
-    using slskd.Relay;
     using Soulseek;
 
     /// <summary>
@@ -44,6 +43,7 @@ namespace slskd.Users.API
         /// <param name="soulseekClient"></param>
         /// <param name="browseTracker"></param>
         /// <param name="userService"></param>
+        /// <param name="optionsSnapshot"></param>
         public UsersController(ISoulseekClient soulseekClient, IBrowseTracker browseTracker, IUserService userService, IOptionsSnapshot<Options> optionsSnapshot)
         {
             Client = soulseekClient;

@@ -74,7 +74,7 @@ namespace slskd.Shares.API
         [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(typeof(Share), 200)]
         [ProducesResponseType(404)]
-        public async Task<IActionResult> Get(string id)
+        public IActionResult Get(string id)
         {
             var share = Shares.Hosts.SelectMany(host => host.Shares).FirstOrDefault(share => share.Id == id);
 

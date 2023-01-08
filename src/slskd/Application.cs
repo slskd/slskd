@@ -753,6 +753,7 @@ namespace slskd
 
         private void Client_UserStatusChanged(object sender, UserStatus args)
         {
+            // todo: react to watched user status changes
         }
 
         private Task<int?> PlaceInQueueResolver(string username, IPEndPoint endpoint, string filename)
