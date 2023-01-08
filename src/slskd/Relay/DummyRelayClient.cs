@@ -24,12 +24,26 @@ namespace slskd.Relay
     {
         public IStateMonitor<RelayClientState> StateMonitor => new ManagedState<RelayClientState>();
 
-        public void Dispose() { }
+        private bool Disposed { get; set; }
+
+        public void Dispose()
+        {
+            Dispose(disposing: true);
+            System.GC.SuppressFinalize(this);
+        }
 
         public Task StartAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
 
         public Task StopAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
 
         public Task SynchronizeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!Disposed)
+            {
+                Disposed = true;
+            }
+        }
     }
 }
