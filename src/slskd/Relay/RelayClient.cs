@@ -518,10 +518,6 @@ namespace slskd.Relay
             // there's nothing that needs to be done upon reconnection, only log.
             Log.Warning("Relay controller connection reconnected");
             return Task.CompletedTask;
-            // todo: does this need to log in again? does it retain the same connection id?
-            LoggedIn = true;
-            State.SetValue(_ => TranslateState(HubConnection.State));
-            await UploadSharesAsync();
         }
 
         private Task HubConnection_Reconnecting(Exception arg)
