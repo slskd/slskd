@@ -165,10 +165,6 @@ namespace slskd.Relay
 
                         try
                         {
-                            // give the controller time to register the login; there's a race condition here
-                            // that should be extremely unlikely, but i've seen it when debugging.
-                            await Task.Delay(500);
-
                             await UploadSharesAsync();
                         }
                         catch (Exception ex)
