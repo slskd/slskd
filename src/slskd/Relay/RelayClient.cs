@@ -150,7 +150,8 @@ namespace slskd.Relay
 
                 // retry indefinitely
                 await Retry.Do(
-                    task: async () => {
+                    task: async () =>
+                    {
                         await HubConnection.StartAsync(StartCancellationTokenSource.Token);
 
                         State.SetValue(_ => TranslateState(HubConnection.State));
