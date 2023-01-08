@@ -516,10 +516,12 @@ namespace slskd.Relay
             return Task.CompletedTask;
         }
 
-        private async Task HubConnection_Reconnected(string arg)
+        private Task HubConnection_Reconnected(string arg)
         {
+            // upon reconnection, the authentication flow is started again.
+            // there's nothing that needs to be done upon reconnection, only log.
             Log.Warning("Relay controller connection reconnected");
-
+            return Task.CompletedTask;
             // todo: does this need to log in again? does it retain the same connection id?
             LoggedIn = true;
             State.SetValue(_ => TranslateState(HubConnection.State));
