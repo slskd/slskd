@@ -515,7 +515,7 @@ namespace slskd.Relay
             return Task.CompletedTask;
         }
 
-        private Task HubConnection_Reconnected(string arg)
+        private async Task HubConnection_Reconnected(string arg)
         {
             // upon reconnection, the authentication flow is started again. this may happen before the client
             // realizes the connection has been closed, so reset everything as though we're just learning that
@@ -523,7 +523,28 @@ namespace slskd.Relay
             ResetLoggedInState();
 
             Log.Warning("Relay controller connection reconnected");
-            return Task.CompletedTask;
+
+            try
+            {
+                // wait for the authentication flow to complete
+                // time out after 5 seconds in case we get stuck waiting on a dead Task
+                await LoggedInTaskCompletionSource.Task;
+
+                Log.Information("Uploading shares...");
+
+                await UploadSharesAsync();
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, ex.Message);
+                Log.Error("Disconnecting from the relay controller");
+
+                // stop, then fire and forget StartAsync() to re-enter the connection retry loop
+                await StopAsync();
+                _ = StartAsync();
+            }
+
+            Log.Information("Shares uploaded. Ready to relay files.");
         }
 
         private Task HubConnection_Reconnecting(Exception arg)
