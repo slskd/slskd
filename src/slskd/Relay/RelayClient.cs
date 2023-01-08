@@ -184,7 +184,6 @@ namespace slskd.Relay
                     isRetryable: (attempts, ex) => true,
                     onFailure: (attempts, ex) =>
                     {
-                        Console.WriteLine(ex);
                         Log.Debug(ex, "Relay hub connection failure");
                         Log.Warning("Failed attempt #{Attempts} to connect to relay controller: {Message}", attempts, ex.Message);
                     },
@@ -571,7 +570,7 @@ namespace slskd.Relay
 
             // in case someone was waiting on this, cancel it
             // _very important_ to avoid deadlocks
-            old.TrySetCanceled();
+            old?.TrySetCanceled();
         }
 
         private RelayClientState TranslateState(HubConnectionState hub) => hub switch
