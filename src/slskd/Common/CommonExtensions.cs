@@ -23,12 +23,12 @@ namespace slskd
     using System.IdentityModel.Tokens.Jwt;
     using System.IO;
     using System.Linq;
-    using System.Numerics;
     using System.Reflection;
-    using System.Text;
     using System.Text.Json;
     using System.Text.Json.Serialization;
     using System.Text.RegularExpressions;
+    using System.Threading;
+    using System.Threading.Tasks;
     using YamlDotNet.Serialization;
     using YamlDotNet.Serialization.NamingConventions;
 
@@ -37,6 +37,55 @@ namespace slskd
     /// </summary>
     public static class CommonExtensions
     {
+        /// <summary>
+        ///     Times this Task out after the specified TimeSpan.
+        /// </summary>
+        /// <typeparam name="T">The result type.</typeparam>
+        /// <param name="task">The task.</param>
+        /// <param name="timeout">The timeout.</param>
+        /// <returns>The operation context.</returns>
+        /// <exception cref="TimeoutException">Thrown when the task times out.</exception>
+        public static async Task<T> TimeoutAfter<T>(this Task<T> task, TimeSpan timeout)
+        {
+            using var timeoutCancellationTokenSource = new CancellationTokenSource();
+
+            var completedTask = await Task.WhenAny(task, Task.Delay(timeout, timeoutCancellationTokenSource.Token));
+
+            if (completedTask == task)
+            {
+                timeoutCancellationTokenSource.Cancel();
+                return await task;
+            }
+            else
+            {
+                throw new TimeoutException("The operation has timed out.");
+            }
+        }
+
+        /// <summary>
+        ///     Times this Task out after the specified TimeSpan.
+        /// </summary>
+        /// <param name="task">The task.</param>
+        /// <param name="timeout">The timeout.</param>
+        /// <returns>The operation context.</returns>
+        /// <exception cref="TimeoutException">Thrown when the task times out.</exception>
+        public static async Task TimeoutAfter(this Task task, TimeSpan timeout)
+        {
+            using var timeoutCancellationTokenSource = new CancellationTokenSource();
+
+            var completedTask = await Task.WhenAny(task, Task.Delay(timeout, timeoutCancellationTokenSource.Token));
+
+            if (completedTask == task)
+            {
+                timeoutCancellationTokenSource.Cancel();
+                await task;
+            }
+            else
+            {
+                throw new TimeoutException("The operation has timed out.");
+            }
+        }
+
         /// <summary>
         ///     Deeply compares this object with the specified object and returns a list of properties that are different.
         /// </summary>

@@ -141,45 +141,45 @@ namespace slskd.Relay
                 }
 
                 StartCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                LoggedInTaskCompletionSource = new TaskCompletionSource();
                 StartRequested = true;
-
-                Log.Information("Attempting to connect to the relay controller {Address}", OptionsMonitor.CurrentValue.Relay.Controller.Address);
-
-                State.SetValue(_ => TranslateState(HubConnectionState.Connecting));
 
                 // retry indefinitely
                 await Retry.Do(
                     task: async () =>
                     {
+                        Log.Information("Attempting to connect to the relay controller {Address}", OptionsMonitor.CurrentValue.Relay.Controller.Address);
+
+                        ResetLoggedInState();
+                        State.SetValue(_ => TranslateState(HubConnectionState.Connecting));
+
                         await HubConnection.StartAsync(StartCancellationTokenSource.Token);
 
                         State.SetValue(_ => TranslateState(HubConnection.State));
                         Log.Information("Relay controller connection established. Awaiting authentication...");
 
+                        // the controller will send an authentication challenge immediately after connection
+                        // wait for the auth handler to log in before proceeding with the initial share upload
                         await LoggedInTaskCompletionSource.Task;
 
-                        LoggedIn = true;
-
-                        Log.Information("Authenticated. Uploading shares...");
+                        Log.Information("Uploading shares...");
 
                         try
                         {
-                            // give the controller time to register the login; there's a race condition here
-                            // that should be extremely unlikely, but i've seen it when debugging.
-                            await Task.Delay(500);
-
                             await UploadSharesAsync();
                         }
                         catch (Exception ex)
                         {
                             Log.Error(ex, ex.Message);
                             Log.Error("Disconnecting from the relay controller");
+
+                            // stop, so we can start again when the retry loop comes back around
                             await StopAsync();
+
+                            // throw, to trigger a retry
                             throw;
                         }
 
-                        Log.Information("Shares uploaded. Ready to upload files.");
+                        Log.Information("Shares uploaded. Ready to relay files.");
                     },
                     isRetryable: (attempts, ex) => true,
                     onFailure: (attempts, ex) =>
@@ -210,8 +210,7 @@ namespace slskd.Relay
             {
                 await HubConnection.StopAsync(cancellationToken);
 
-                LoggedIn = false;
-
+                ResetLoggedInState();
                 State.SetValue(_ => TranslateState(HubConnectionState.Disconnected));
 
                 Log.Information("Relay controller connection disconnected");
@@ -360,9 +359,13 @@ namespace slskd.Relay
                 var response = ComputeCredential(challengeToken);
 
                 Log.Information("Logging in...");
+
                 await HubConnection.InvokeAsync(nameof(RelayHub.Login), agent, response);
+
+                LoggedIn = true;
                 Log.Information("Login succeeded.");
-                LoggedInTaskCompletionSource?.TrySetResult();
+
+                LoggedInTaskCompletionSource.TrySetResult();
             }
             catch (UnauthorizedAccessException)
             {
@@ -511,27 +514,63 @@ namespace slskd.Relay
         private Task HubConnection_Closed(Exception arg)
         {
             Log.Warning("Relay controller connection closed: {Message}", arg.Message);
-            LoggedIn = false;
-            State.SetValue(_ => TranslateState(HubConnection.State));
+            ResetLoggedInState();
+
             return Task.CompletedTask;
         }
 
         private async Task HubConnection_Reconnected(string arg)
         {
+            // upon reconnection, the authentication flow is started again. this may happen before the client
+            // realizes the connection has been closed, so reset everything as though we're just learning that
+            // there has been a disconnect
+            ResetLoggedInState();
+
             Log.Warning("Relay controller connection reconnected");
 
-            // todo: does this need to log in again? does it retain the same connection id?
-            LoggedIn = true;
-            State.SetValue(_ => TranslateState(HubConnection.State));
-            await UploadSharesAsync();
+            try
+            {
+                // wait for the authentication flow to complete
+                // time out after 5 seconds in case we get stuck waiting on a dead Task
+                await LoggedInTaskCompletionSource.Task;
+
+                Log.Information("Uploading shares...");
+
+                await UploadSharesAsync();
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, ex.Message);
+                Log.Error("Disconnecting from the relay controller");
+
+                // stop, then fire and forget StartAsync() to re-enter the connection retry loop
+                await StopAsync();
+                _ = StartAsync();
+            }
+
+            Log.Information("Shares uploaded. Ready to relay files.");
         }
 
         private Task HubConnection_Reconnecting(Exception arg)
         {
             Log.Warning("Relay controller connection reconnecting: {Message}", arg.Message);
+            ResetLoggedInState();
+
+            return Task.CompletedTask;
+        }
+
+        private void ResetLoggedInState()
+        {
             LoggedIn = false;
             State.SetValue(_ => TranslateState(HubConnection.State));
-            return Task.CompletedTask;
+
+            var old = LoggedInTaskCompletionSource;
+
+            LoggedInTaskCompletionSource = new TaskCompletionSource();
+
+            // in case someone was waiting on this, cancel it
+            // _very important_ to avoid deadlocks
+            old?.TrySetCanceled();
         }
 
         private RelayClientState TranslateState(HubConnectionState hub) => hub switch
@@ -552,16 +591,32 @@ namespace slskd.Relay
 
             var temp = Path.Combine(Path.GetTempPath(), Program.AppName, $"share_backup_{Path.GetRandomFileName()}.db");
 
-            Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), Program.AppName));
-
             try
             {
                 Log.Debug("Backing up shares to {Filename}", temp);
-                await Shares.DumpAsync(temp);
-                Log.Debug("Share backup successful");
 
+                Directory.CreateDirectory(Path.GetDirectoryName(temp));
+
+                await Shares.DumpAsync(temp);
+
+                Log.Debug("Share backup successful");
                 Log.Debug("Requesting share upload token...");
-                var token = await HubConnection.InvokeAsync<Guid>(nameof(RelayHub.BeginShareUpload));
+
+                Guid token = Guid.Empty;
+
+                // retry this a few times. it can throw if a race condition materializes
+                // between this logic and the authentication flow, and it'll almost certainly be
+                // worked out properly if we just wait a second and try again
+                await Retry.Do(task: async () =>
+                    {
+                        token = await HubConnection.InvokeAsync<Guid>(nameof(RelayHub.BeginShareUpload));
+                    },
+                    isRetryable: (_, _) => true,
+                    onFailure: (count, ex) => Log.Warning("Failed attempt #{Attempts} to obtain share upload token: {Message}", count, ex.Message),
+                    maxAttempts: 3,
+                    maxDelayInMilliseconds: 5000,
+                    cancellationToken);
+
                 Log.Debug("Share upload token {Token}", token);
 
                 var stream = new FileStream(temp, FileMode.Open, FileAccess.Read);
