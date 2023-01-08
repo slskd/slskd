@@ -206,8 +206,7 @@ namespace slskd.Relay
             {
                 await HubConnection.StopAsync(cancellationToken);
 
-                LoggedIn = false;
-
+                ResetLoggedInState();
                 State.SetValue(_ => TranslateState(HubConnectionState.Disconnected));
 
                 Log.Information("Relay controller connection disconnected");
@@ -511,15 +510,18 @@ namespace slskd.Relay
         private Task HubConnection_Closed(Exception arg)
         {
             Log.Warning("Relay controller connection closed: {Message}", arg.Message);
-            LoggedIn = false;
-            State.SetValue(_ => TranslateState(HubConnection.State));
+            ResetLoggedInState();
+
             return Task.CompletedTask;
         }
 
         private Task HubConnection_Reconnected(string arg)
         {
-            // upon reconnection, the authentication flow is started again.
-            // there's nothing that needs to be done upon reconnection, only log.
+            // upon reconnection, the authentication flow is started again. this may happen before the client
+            // realizes the connection has been closed, so reset everything as though we're just learning that
+            // there has been a disconnect
+            ResetLoggedInState();
+
             Log.Warning("Relay controller connection reconnected");
             return Task.CompletedTask;
         }
@@ -527,6 +529,11 @@ namespace slskd.Relay
         private Task HubConnection_Reconnecting(Exception arg)
         {
             Log.Warning("Relay controller connection reconnecting: {Message}", arg.Message);
+            ResetLoggedInState();
+
+            return Task.CompletedTask;
+        }
+
         private void ResetLoggedInState()
         {
             LoggedIn = false;
