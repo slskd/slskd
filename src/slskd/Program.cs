@@ -135,7 +135,7 @@ namespace slskd
         /// <summary>
         ///     Gets the semantic application version.
         /// </summary>
-        public static string SemanticVersion { get; } = InformationalVersion.Split('+').First();
+        public static string SemanticVersion { get; } = InformationalVersion.Split('-').First();
 
         /// <summary>
         ///     Gets the full application version, including both assembly and informational versions.
