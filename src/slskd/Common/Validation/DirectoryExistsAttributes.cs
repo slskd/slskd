@@ -27,50 +27,71 @@ namespace slskd.Validation
     /// </summary>
     public class DirectoryExistsAttribute : ValidationAttribute
     {
-        public DirectoryExistsAttribute(bool ensureWriteable = false)
+        /// <summary>
+        ///     Initializes a new instance of the <see cref="DirectoryExistsAttribute"/> class.
+        /// </summary>
+        /// <param name="relativeToApplicationDirectory">A value indicating that the provided path must be relative (not rooted) to the application directory.</param>
+        /// <param name="ensureWriteable">A value indicating that the provided path, if it exists, should be probed to ensure it is writeable.</param>
+        public DirectoryExistsAttribute(bool relativeToApplicationDirectory = false, bool ensureWriteable = false)
         {
             EnsureWriteable = ensureWriteable;
+            RelativeToApplicationDirectory = relativeToApplicationDirectory;
         }
 
         private bool EnsureWriteable { get; set; }
+        private bool RelativeToApplicationDirectory { get; set; }
 
         protected override ValidationResult IsValid(object value, ValidationContext validationContext)
         {
-            if (value != null)
+            if (value is not string || string.IsNullOrEmpty((string)value))
             {
-                var dir = Path.GetFullPath(value?.ToString());
+                return new ValidationResult($"The {validationContext.DisplayName} field must be specified");
+            }
 
-                // default directories are exempt from validation, as there's an additional check (and creation)
-                // at startup for these directories.
-                if (new[] { Program.DefaultDownloadsDirectory, Program.DefaultIncompleteDirectory }.Contains(dir))
+            var stringValue = (string)value;
+
+            if (RelativeToApplicationDirectory)
+            {
+                if (Path.IsPathRooted(stringValue))
                 {
-                    return ValidationResult.Success;
+                    return new ValidationResult($"The {validationContext.DisplayName} field specifies a non-relative directory path: '{value}'.");
                 }
 
-                // empty values are valid, because they will fall back to defaults
-                if (string.IsNullOrEmpty(dir))
-                {
-                    return ValidationResult.Success;
-                }
+                stringValue = Path.Combine(AppContext.BaseDirectory, stringValue);
+            }
 
-                if (!Directory.Exists(dir))
-                {
-                    return new ValidationResult($"The {validationContext.DisplayName} field specifies a non-existent directory '{dir}'.");
-                }
+            var dir = Path.GetFullPath(stringValue);
 
-                if (EnsureWriteable)
+            // default directories are exempt from validation, as there's an additional check (and creation)
+            // at startup for these directories.
+            if (new[] { Program.DefaultDownloadsDirectory, Program.DefaultIncompleteDirectory }.Contains(dir))
+            {
+                return ValidationResult.Success;
+            }
+
+            // empty values are valid, because they will fall back to defaults
+            if (string.IsNullOrEmpty(dir))
+            {
+                return ValidationResult.Success;
+            }
+
+            if (!Directory.Exists(dir))
+            {
+                return new ValidationResult($"The {validationContext.DisplayName} field specifies a non-existent directory '{dir}'.");
+            }
+
+            if (EnsureWriteable)
+            {
+                try
                 {
-                    try
-                    {
-                        var file = Guid.NewGuid().ToString();
-                        var probe = Path.Combine(dir, file);
-                        File.WriteAllText(probe, string.Empty);
-                        File.Delete(probe);
-                    }
-                    catch (Exception)
-                    {
-                        return new ValidationResult($"The {validationContext.DisplayName} field specifies a directory '{dir}' that exists, but is not writeable.");
-                    }
+                    var file = Guid.NewGuid().ToString();
+                    var probe = Path.Combine(dir, file);
+                    File.WriteAllText(probe, string.Empty);
+                    File.Delete(probe);
+                }
+                catch (Exception)
+                {
+                    return new ValidationResult($"The {validationContext.DisplayName} field specifies a directory '{dir}' that exists, but is not writeable.");
                 }
             }
 

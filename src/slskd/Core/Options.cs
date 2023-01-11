@@ -1391,8 +1391,7 @@ namespace slskd
             [EnvironmentVariable("CONTENT_PATH")]
             [Description("path to static web content")]
             [StringLength(255, MinimumLength = 1)]
-            [DirectoryExists]
-            [DirectoryIsRelative]
+            [DirectoryExists(relativeToApplicationDirectory: true)]
             [RequiresRestart]
             public string ContentPath { get; init; } = "wwwroot";
 
