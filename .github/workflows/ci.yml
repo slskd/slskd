@@ -63,7 +63,7 @@ jobs:
           - "osx-arm64"
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
 
@@ -77,7 +77,7 @@ jobs:
           echo "VERSION=$(git describe --tags --abbrev=0).$([[ $GITHUB_REF = refs/tags/* ]] && echo 0 || echo 65534)+$(git rev-parse --short HEAD)" >> $GITHUB_ENV
 
       - name: Download Static Web Content
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: web-${{ env.VERSION }}
           path: src/slskd/wwwroot
@@ -98,7 +98,7 @@ jobs:
     if: github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/')
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
 
@@ -198,7 +198,7 @@ jobs:
           echo "TAG=$(git describe --tags --abbrev=0)" >> $GITHUB_ENV
           echo "VERSION=$(git describe --tags --abbrev=0).$([[ $GITHUB_REF = refs/tags/* ]] && echo 0 || echo 65534)+$(git rev-parse --short HEAD)" >> $GITHUB_ENV
       - name: Download ${{ matrix.runtime }} Binaries
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: slskd-${{ env.VERSION }}-${{ matrix.runtime }}
           path: dist/${{ matrix.runtime }}
