@@ -16,12 +16,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
 
       - name: Set up .NET
-        uses: actions/setup-dotnet@v1
+        uses: actions/setup-dotnet@v3
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
@@ -37,7 +37,7 @@ jobs:
 
       - name: Upload Static Web Content
         if: github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/')
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: web-${{ env.VERSION }}
           path: src/web/build
@@ -68,7 +68,7 @@ jobs:
           fetch-depth: 0
 
       - name: Set up .NET
-        uses: actions/setup-dotnet@v1
+        uses: actions/setup-dotnet@v3
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
@@ -86,7 +86,7 @@ jobs:
         run: bin/publish --no-prebuild --runtime ${{ matrix.runtime }} --version ${{ env.VERSION }}
 
       - name: Upload Binaries
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: slskd-${{ env.VERSION }}-${{ matrix.runtime }}
           path: dist/${{ matrix.runtime }}
