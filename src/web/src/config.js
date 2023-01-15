@@ -1,5 +1,5 @@
 const urlBase = (window.urlBase === '/' ? '' : window.urlBase) || '';
-const rootUrl = process.env.NODE_ENV === 'production' ? urlBase : `http://localhost:5000${urlBase}`;
+const rootUrl = process.env.NODE_ENV === 'production' ? urlBase : `http://localhost:5030${urlBase}`;
 const apiBaseUrl = `${rootUrl}/api/v0`;
 const hubBaseUrl = `${rootUrl}/hub`;
 const tokenKey = 'slskd-token';
