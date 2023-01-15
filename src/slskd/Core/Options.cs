@@ -1366,7 +1366,7 @@ namespace slskd
             [Description("HTTP listen port for web UI")]
             [Range(1, 65535)]
             [RequiresRestart]
-            public int Port { get; init; } = 5000;
+            public int Port { get; init; } = 5030;
 
             /// <summary>
             ///     Gets HTTPS options.
@@ -1557,7 +1557,7 @@ namespace slskd
                 [Description("HTTPS listen port for web UI")]
                 [Range(1, 65535)]
                 [RequiresRestart]
-                public int Port { get; init; } = 5001;
+                public int Port { get; init; } = 5031;
 
                 /// <summary>
                 ///     Gets a value indicating whether HTTP requests should be redirected to HTTPS.
