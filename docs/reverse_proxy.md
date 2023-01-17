@@ -15,7 +15,7 @@ server {
         listen 8080;
 
         location /slskd {
-                proxy_pass http://localhost:5000;
+                proxy_pass http://localhost:5030;
                 proxy_set_header Upgrade $http_upgrade;
                 proxy_set_header Connection "Upgrade";
                 proxy_set_header Host $host;
@@ -32,7 +32,7 @@ server {
         listen 8080;
 
         location / {
-                proxy_pass http://localhost:5000;
+                proxy_pass http://localhost:5030;
                 proxy_set_header Upgrade $http_upgrade;
                 proxy_set_header Connection "Upgrade";
                 proxy_set_header Host $host;

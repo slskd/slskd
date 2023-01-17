@@ -244,7 +244,7 @@ relay:
   enabled: true
   mode: agent
   controller:
-    address: https://my_cloud_server.example.com:5001
+    address: https://my_cloud_server.example.com:5031
     ignore_certificate_errors: true
     api_key: <a valid API key for the controller instance>
     secret: <a secret value that matches the controller for this instance>
@@ -477,7 +477,7 @@ Symptoms of a misconfigured listen port include poor search results and the inab
 #### **YAML**
 ```yaml
 soulseek:
-  listen_port: 50000
+  listen_port: 50300
 ```
 
 ## Other
@@ -588,7 +588,7 @@ soulseek:
 
 ## Basic
 
-The default HTTP listen port is 5000, typical for a .NET application, but can be anything between 1 and 65535.
+The default HTTP listen port is 5030, but can be anything between 1 and 65535.
 
 The URL base option allows the application to operate behind a reverse proxy. Setting a base of "slskd" would make the web UI accessible at `http://<host>:<port>/slskd`.
 
@@ -606,7 +606,7 @@ Logging of HTTP requests is disabled by default.
 #### **YAML**
 ```yaml
 web:
-  port: 5000
+  port: 5030
   url_base: /
   content_path: wwwroot
   logging: false
@@ -614,7 +614,7 @@ web:
 
 ## HTTPS
 
-The default HTTPS port is 5001, typical for a .NET application but can be anything between 1 and 65535.
+The default HTTPS port is 5031, but can be anything between 1 and 65535.
 
 By default, the application generates a new, self-signed X509 certificate at each startup. If, for whatever reason, a self-signed certificate isn't sufficient, or if the certificate needs to be shared among systems or applications, a certificate `.pfx` and password can be defined.
 
@@ -632,7 +632,7 @@ The application can produce a self-signed `.pfx` file and random password using 
 ```yaml
 web:
   https:
-    port: 5001
+    port: 5031
     force: false
     certificate:
       pfx: ~

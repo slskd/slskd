@@ -4,9 +4,9 @@ For most users, a quick start will be all that is needed:
 
 ```shell
 docker run -d \
-  -p 5000:5000 \
-  -p 5001:5001 \
-  -p 50000:50000 \
+  -p 5030:5030 \
+  -p 5031:5031 \
+  -p 50300:50300 \
   -v <path/to/application/data>:/app \
   --name slskd \
   slskd/slskd:latest
@@ -22,9 +22,9 @@ For this scenario, the `docker run` command would be:
 
 ```shell
 docker run -d \
-  -p 5000:5000 \
-  -p 5001:5001 \
-  -p 50000:50000 \
+  -p 5030:5030 \
+  -p 5031:5031 \
+  -p 50300:50300 \
   -v /var/slskd:/app \
   -v /home/JohnDoe/Music:/music \
   -v /home/JohnDoe/eBooks:/ebooks \
@@ -45,9 +45,9 @@ You can achieve the same configuration by setting the `SLSKD_SHARED_DIR` environ
 
 ```shell
 docker run -d \
-  -p 5000:5000 \
-  -p 5001:5001 \
-  -p 50000:50000 \
+  -p 5030:5030 \
+  -p 5031:5031 \
+  -p 50300:50300 \
   -v /var/slskd:/app \
   -v /home/JohnDoe/Music:/music \
   -v /home/JohnDoe/eBooks:/ebooks \
