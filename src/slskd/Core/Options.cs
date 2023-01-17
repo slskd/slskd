@@ -1127,7 +1127,7 @@ namespace slskd
             [EnvironmentVariable("SLSK_LISTEN_PORT")]
             [Description("port on which to listen for incoming connections")]
             [Range(1024, 65535)]
-            public int ListenPort { get; init; } = 50000;
+            public int ListenPort { get; init; } = 50300;
 
             /// <summary>
             ///     Gets the minimum diagnostic level.
