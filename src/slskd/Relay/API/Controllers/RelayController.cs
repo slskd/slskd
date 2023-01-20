@@ -41,6 +41,12 @@ namespace slskd.Relay
     [ApiController]
     public class RelayController : ControllerBase
     {
+        /// <summary>
+        ///     Initializes a new instance of the <see cref="RelayController"/> class.
+        /// </summary>
+        /// <param name="relayService"></param>
+        /// <param name="optionsMonitor"></param>
+        /// <param name="optionsAtStartup"></param>
         public RelayController(
             IRelayService relayService,
             IOptionsMonitor<Options> optionsMonitor,
@@ -57,7 +63,11 @@ namespace slskd.Relay
         private RelayMode OperationMode => OptionsAtStartup.Relay.Mode.ToEnum<RelayMode>();
         private IOptionsMonitor<Options> OptionsMonitor { get; }
 
-        [HttpPut("")]
+        /// <summary>
+        ///     Connects to the configured controller.
+        /// </summary>
+        /// <returns></returns>
+        [HttpPut("controller")]
         [Authorize(Policy = AuthPolicy.JwtOnly)]
         public async Task<IActionResult> Connect()
         {
@@ -70,7 +80,11 @@ namespace slskd.Relay
             return Ok();
         }
 
-        [HttpDelete("")]
+        /// <summary>
+        ///     Disconnects from the connected controller.
+        /// </summary>
+        /// <returns></returns>
+        [HttpDelete("controller")]
         [Authorize(Policy = AuthPolicy.JwtOnly)]
         public async Task<IActionResult> Disconnect()
         {
