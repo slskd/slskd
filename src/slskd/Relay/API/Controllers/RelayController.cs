@@ -67,7 +67,7 @@ namespace slskd.Relay
         ///     Connects to the configured controller.
         /// </summary>
         /// <returns></returns>
-        [HttpPut("controller")]
+        [HttpPut("agent")]
         [Authorize(Policy = AuthPolicy.JwtOnly)]
         public async Task<IActionResult> Connect()
         {
@@ -84,7 +84,7 @@ namespace slskd.Relay
         ///     Disconnects from the connected controller.
         /// </summary>
         /// <returns></returns>
-        [HttpDelete("controller")]
+        [HttpDelete("agent")]
         [Authorize(Policy = AuthPolicy.JwtOnly)]
         public async Task<IActionResult> Disconnect()
         {
@@ -102,7 +102,7 @@ namespace slskd.Relay
         /// </summary>
         /// <param name="token">The unique identifier for the request.</param>
         /// <returns></returns>
-        [HttpGet("downloads/{token}")]
+        [HttpGet("controller/downloads/{token}")]
         [Authorize(Policy = AuthPolicy.ApiKeyOnly)]
         public IActionResult DownloadFile([FromRoute]string token)
         {
@@ -153,7 +153,7 @@ namespace slskd.Relay
         /// </summary>
         /// <param name="token">The unique identifier for the request.</param>
         /// <returns></returns>
-        [HttpPost("files/{token}")]
+        [HttpPost("controller/files/{token}")]
         [RequestSizeLimit(10L * 1024L * 1024L * 1024L)]
         [RequestFormLimits(MultipartBodyLengthLimit = 10L * 1024L * 1024L * 1024L)]
         [DisableFormValueModelBinding]
@@ -251,7 +251,7 @@ namespace slskd.Relay
         /// </summary>
         /// <param name="token">The unique identifier for the request.</param>
         /// <returns></returns>
-        [HttpPost("shares/{token}")]
+        [HttpPost("controller/shares/{token}")]
         [Authorize(Policy = AuthPolicy.ApiKeyOnly)]
         public async Task<IActionResult> UploadShares(string token)
         {
