@@ -284,7 +284,7 @@ namespace slskd.Relay
             HttpClientFactory = httpClientFactory;
 
             // wire up a dummy client so callers don't need to handle nulls
-            Client = relayClient ?? new DummyRelayClient();
+            Client = relayClient ?? new NullRelayClient();
 
             StateMonitor = State;
 
