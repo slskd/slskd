@@ -98,7 +98,7 @@ namespace slskd.Relay
         }
 
         /// <summary>
-        ///     Downloads a file.
+        ///     Downloads a file from the connected controller.
         /// </summary>
         /// <param name="token">The unique identifier for the request.</param>
         /// <returns></returns>
@@ -149,7 +149,7 @@ namespace slskd.Relay
         }
 
         /// <summary>
-        ///     Uploads a file.
+        ///     Uploads a file to the connected controller.
         /// </summary>
         /// <param name="token">The unique identifier for the request.</param>
         /// <returns></returns>
@@ -247,7 +247,7 @@ namespace slskd.Relay
         }
 
         /// <summary>
-        ///     Uploads share information.
+        ///     Uploads share information to the connected controller.
         /// </summary>
         /// <param name="token">The unique identifier for the request.</param>
         /// <returns></returns>
