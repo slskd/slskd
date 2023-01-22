@@ -1,0 +1,12 @@
+/*******************************
+         Site Overrides
+*******************************/
+
+.ui.toggle.checkbox .box:before,
+.ui.toggle.checkbox label:before,
+.ui.toggle.checkbox .box:hover::before,
+.ui.toggle.checkbox label:hover::before,
+.ui.toggle.checkbox input:focus ~ .box:before,
+.ui.toggle.checkbox input:focus ~ label:before {
+    border: var(--smui-button-border, none);;
+}

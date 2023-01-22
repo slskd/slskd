@@ -1,0 +1,7 @@
+/*******************************
+    User Variable Overrides
+*******************************/
+
+@metaColor: var(--smui-item-meta-color, rgba(0, 0, 0, 0.6));
+
+@descriptionColor: var(--smui-item-description-color, @textColor);

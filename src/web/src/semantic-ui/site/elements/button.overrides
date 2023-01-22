@@ -1,0 +1,8 @@
+/*******************************
+         Site Overrides
+*******************************/
+
+.ui.button {
+    color: @buttonTextColor;
+    border: var(--smui-button-border, none);
+}

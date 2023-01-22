@@ -1,0 +1,16 @@
+/*******************************
+    User Variable Overrides
+*******************************/
+
+@background: var(--smui-table-background, @white);
+@color: var(--smui-table-color, @textColor);
+@borderColor:var(--smui-table-border-color, rgba(34, 36, 38, 0.15));
+
+@headerBackground: var(--smui-table-header-background,@offWhite);
+@headerColor: var(--smui-table-header-color,@textColor);
+
+@footerBackground: var(--smui-table-footer-background,@offWhite);
+@footerColor: var(--smui-table-footer-color,@textColor);
+
+@selectableTextColor: var(--smui-table-color, @textColor);
+@selectableBackgroundColor: var(--smui-table-selectable-background-color, @textColor);

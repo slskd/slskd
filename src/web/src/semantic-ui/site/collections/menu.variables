@@ -1,0 +1,18 @@
+/*******************************
+    User Variable Overrides
+*******************************/
+
+@background: var(--smui-menu-background, #FFFFFF);
+
+@invertedBackground: var(--smui-menu-inverted-background, @black);
+
+@activeItemTextColor: var(--smui-menu-active-item-text-color, @selectedTextColor);
+
+@tabularTextColor: var(--smui-site-body-text-color, @itemTextColor);
+
+@tabularActiveBackground: var(--smui-menu-inverted-background, none @white);
+@tabularActiveColor: var(--smui-menu-active-item-text-color, @selectedTextColor);
+@tabularHoveredTextColor: var(--smui-menu-active-item-text-color, @hoveredTextColor);
+
+@solidBorderColor: var(--slskd-tertiary-border-color, #D4D4D5);
+@attachedBorder: @borderWidth solid var(--slskd-tertiary-border-color, #D4D4D5);

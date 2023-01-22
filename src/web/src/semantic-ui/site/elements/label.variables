@@ -1,0 +1,5 @@
+/*******************************
+    User Variable Overrides
+*******************************/
+
+@backgroundColor: var(--smui-label-background-color, #E8E8E8);

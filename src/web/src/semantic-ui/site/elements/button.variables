@@ -1,0 +1,45 @@
+/*******************************
+    User Variable Overrides
+*******************************/
+
+@backgroundColor: var(--smui-button-background-color, #E0E1E2);
+@buttonTextColor: var(--smui-button-text-color, rgba(0, 0, 0, 0.6));
+@boxShadow:  var(0px 0px 0px @invertedBorderSize @white inset !important, 0px 0px 0px @borderBoxShadowWidth @borderBoxShadowColor inset);
+@borderColor: var(--smui-button-border-color, none);
+
+@hoverBackgroundColor: var(--smui-button-hover-background-color, #CACBCD);
+@hoverColor:var(--smui-button-text-color, @hoveredTextColor);
+
+@activeBackgroundColor: var(--smui-button-hover-background-color, #C0C1C2);
+@activeColor:var(--smui-button-text-color, @selectedTextColor);
+
+/* Basic */
+@basicTextColor: @textColor;
+@basicBorder: 1px solid @borderColor;
+@basicBoxShadow: 0px 0px 0px @basicBorderSize @borderColor inset;
+@basicLoadingColor: @offWhite;
+
+/* Basic Hover */
+@basicHoverBackground: #FFFFFF;
+@basicHoverTextColor: @hoveredTextColor;
+@basicHoverBoxShadow:
+  0px 0px 0px @basicBorderSize @selectedBorderColor inset,
+  0px 0px 0px 0px @borderColor inset
+;
+
+/* Basic Focus */
+@basicFocusBackground: @basicHoverBackground;
+@basicFocusTextColor: @basicHoverTextColor;
+@basicFocusBoxShadow: @basicHoverBoxShadow;
+
+/* Basic Down */
+@basicDownBackground: #F8F8F8;
+@basicDownTextColor: @pressedTextColor;
+@basicDownBoxShadow:
+  0px 0px 0px @basicBorderSize rgba(0, 0, 0, 0.15) inset,
+  0px 1px 4px 0px @borderColor inset
+;
+/* Basic Active */
+@basicActiveBackground: @transparentBlack;
+@basicActiveBoxShadow: '';
+@basicActiveTextColor: @selectedTextColor;

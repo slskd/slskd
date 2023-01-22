@@ -1,0 +1,7 @@
+/*******************************
+         Site Overrides
+*******************************/
+
+.ui.table tfoot th button {
+    color: var(--smui-site-body-text-color);
+}

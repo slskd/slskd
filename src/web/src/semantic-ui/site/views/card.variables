@@ -1,0 +1,15 @@
+/*******************************
+    User Variable Overrides
+*******************************/
+@background: var(--smui-card-background, @white);
+
+@metaColor: var(--smui-card-meta-color, @lightTextColor);
+@headerColor: var(--smui-card-text-color, @darkTextColor);
+
+@borderShadow: var(--smui-card-border-shadow, 0px 0px 0px 1px #d4d4d5);
+@floatingShadow:var(--smui-card-floating-shadow, 0px 2px 4px 0px rgb(34 36 38 / 12%), 0px 2px 10px 0px rgb(34 36 38 / 15%))
+
+@raisedShadow: var(--smui-card-border-shadow), var(--smui-card-floating-shadow),
+  @borderShadow,
+  @floatingShadow
+;

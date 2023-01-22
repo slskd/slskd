@@ -1,0 +1,7 @@
+/*******************************
+         Site Overrides
+*******************************/
+
+.ui.sidebar a:hover {
+    text-decoration: none;
+}
