@@ -75,7 +75,7 @@ namespace slskd.Relay
         ///         </item>
         ///         <item>
         ///             The remote agent makes an HTTP POST request containing a multipart upload including a backup of its shared
-        ///             database and a serialized list of locally configured shares, and the controller invokes <see cref="HandleShareUpload"/>.
+        ///             database and a serialized list of locally configured shares, and the controller invokes <see cref="HandleShareUploadAsync"/>.
         ///         </item>
         ///     </list>
         /// </remarks>
@@ -122,7 +122,7 @@ namespace slskd.Relay
         ///         <item>
         ///             <para>
         ///                 The remote agent makes an HTTP POST request containing a multipart upload including the file, and the
-        ///                 API controller invokes and awaits <see cref="HandleFileStreamResponse"/>. The stream is passed from
+        ///                 API controller invokes and awaits <see cref="HandleFileStreamResponseAsync"/>. The stream is passed from
         ///                 this method back to the awaited <see cref="GetFileStreamAsync"/>, and the Upload service passes the
         ///                 stream to Soulseek.NET, streaming the data from the still-open HTTP request through to the remote
         ///                 Soulseek user.
@@ -137,7 +137,7 @@ namespace slskd.Relay
         ///         <item>
         ///             When the Upload is complete (successfully or otherwise), the Upload service invokes
         ///             <see cref="TryCloseFileStream"/>, passing an optional <see cref="Exception"/> if the transfer was not
-        ///             successful. This call signals the waiting <see cref="HandleFileStreamResponse"/> to complete, passing
+        ///             successful. This call signals the waiting <see cref="HandleFileStreamResponseAsync"/> to complete, passing
         ///             control back to the API controller and completing the HTTP POST request from the agent.
         ///         </item>
         ///     </list>
@@ -451,7 +451,7 @@ namespace slskd.Relay
         ///         <item>
         ///             <para>
         ///                 The remote agent makes an HTTP POST request containing a multipart upload including the file, and the
-        ///                 API controller invokes and awaits <see cref="HandleFileStreamResponse"/>. The stream is passed from
+        ///                 API controller invokes and awaits <see cref="HandleFileStreamResponseAsync"/>. The stream is passed from
         ///                 this method back to the awaited <see cref="GetFileStreamAsync"/>, and the Upload service passes the
         ///                 stream to Soulseek.NET, streaming the data from the still-open HTTP request through to the remote
         ///                 Soulseek user.
@@ -466,7 +466,7 @@ namespace slskd.Relay
         ///         <item>
         ///             When the Upload is complete (successfully or otherwise), the Upload service invokes
         ///             <see cref="TryCloseFileStream"/>, passing an optional <see cref="Exception"/> if the transfer was not
-        ///             successful. This call signals the waiting <see cref="HandleFileStreamResponse"/> to complete, passing
+        ///             successful. This call signals the waiting <see cref="HandleFileStreamResponseAsync"/> to complete, passing
         ///             control back to the API controller and completing the HTTP POST request from the agent.
         ///         </item>
         ///     </list>

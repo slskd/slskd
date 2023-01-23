@@ -501,7 +501,6 @@ namespace slskd.Relay
             try
             {
                 // wait for the authentication flow to complete
-                // time out after 5 seconds in case we get stuck waiting on a dead Task
                 await LoggedInTaskCompletionSource.Task;
 
                 Log.Information("Uploading shares...");
@@ -510,7 +509,7 @@ namespace slskd.Relay
             }
             catch (Exception ex)
             {
-                Log.Error(ex, ex.Message);
+                Log.Error(ex, "Failed to log in and/or upload shares: {Message}", ex.Message);
                 Log.Error("Disconnecting from the relay controller");
 
                 // stop, then fire and forget StartAsync() to re-enter the connection retry loop
