@@ -235,7 +235,7 @@ namespace slskd.Relay
 
                 // pass the stream back to the relay service, which will in turn pass it to the upload service, and use it to
                 // feed data into the remote upload. await this call, it will complete when the upload is complete, one way or the other.
-                await Relay.HandleFileStreamResponse(agentName, id: guid, stream);
+                await Relay.HandleFileStreamResponseAsync(agentName, id: guid, stream);
 
                 Log.Information("File upload of {Filename} ({Token}) from agent {Agent} complete", filename, token, agentName);
                 return Ok();
@@ -321,7 +321,7 @@ namespace slskd.Relay
 
                 Log.Information("Download of shares from {Agent} ({Token}) complete ({Size} in {Duration}ms)", agentName, guid, ((double)inputStream.Length).SizeSuffix(), sw.ElapsedMilliseconds);
 
-                await Relay.HandleShareUpload(agentName, id: guid, shares, temp);
+                await Relay.HandleShareUploadAsync(agentName, id: guid, shares, temp);
 
                 return Ok();
             }

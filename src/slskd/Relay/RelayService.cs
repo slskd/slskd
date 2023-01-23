@@ -55,13 +55,6 @@ namespace slskd.Relay
         IStateMonitor<RelayState> StateMonitor { get; }
 
         /// <summary>
-        ///     Notifies connected agents that a file download has completed.
-        /// </summary>
-        /// <param name="filename">The filename of the completed file, relative to the downloads directory.</param>
-        /// <returns>The operation context.</returns>
-        Task BroadcastFileDownloadCompletedNotificationAsync(string filename);
-
-        /// <summary>
         ///     Generates a random authentication challenge token for the specified <paramref name="connectionId"/>.
         /// </summary>
         /// <remarks>The token is cached internally, and is only valid while it remains in the cache.</remarks>
@@ -76,12 +69,13 @@ namespace slskd.Relay
         ///     <para>This is the first step in a multi-step workflow. The entire sequence is:</para>
         ///     <list type="number">
         ///         <item>
-        ///             A remote agent makes a request to the SignalR hub to retrieve a share upload token, which in turn
-        ///             calls <see cref="GenerateShareUploadToken"/>. The token is generated and cached, and is only valid while it is in the cache.
+        ///             A remote agent makes a request to the SignalR hub to retrieve a share upload token, which in turn calls
+        ///             <see cref="GenerateShareUploadToken"/>. The token is generated and cached, and is only valid while it is
+        ///             in the cache.
         ///         </item>
         ///         <item>
-        ///             The remote agent makes an HTTP POST request containing a multipart upload including a backup of its
-        ///             shared database and a serialized list of locally configured shares, and the controller invokes <see cref="HandleShareUpload"/>.
+        ///             The remote agent makes an HTTP POST request containing a multipart upload including a backup of its shared
+        ///             database and a serialized list of locally configured shares, and the controller invokes <see cref="HandleShareUpload"/>.
         ///         </item>
         ///     </list>
         /// </remarks>
@@ -173,7 +167,7 @@ namespace slskd.Relay
         /// <param name="id">The ID of the request.</param>
         /// <param name="response">The client response to the request.</param>
         /// <returns>The operation context.</returns>
-        Task HandleFileStreamResponse(string agentName, Guid id, Stream response);
+        Task HandleFileStreamResponseAsync(string agentName, Guid id, Stream response);
 
         /// <summary>
         ///     Handles incoming share uploads.
@@ -183,7 +177,14 @@ namespace slskd.Relay
         /// <param name="shares">The list of shares provided.</param>
         /// <param name="filename">The filename of the temporary file containing the upload.</param>
         /// <returns>The operation context.</returns>
-        Task HandleShareUpload(string agentName, Guid id, IEnumerable<Share> shares, string filename);
+        Task HandleShareUploadAsync(string agentName, Guid id, IEnumerable<Share> shares, string filename);
+
+        /// <summary>
+        ///     Notifies connected agents that a file download has completed.
+        /// </summary>
+        /// <param name="filename">The filename of the completed file, relative to the downloads directory.</param>
+        /// <returns>The operation context.</returns>
+        Task NotifyFileDownloadCompleteAsync(string filename);
 
         /// <summary>
         ///     Notifies the caller of <see cref="GetFileStreamAsync"/> of a failure to obtain a file stream from the requested agent.
@@ -267,6 +268,16 @@ namespace slskd.Relay
     /// </summary>
     public class RelayService : IRelayService
     {
+        /// <summary>
+        ///     Initializes a new instance of the <see cref="RelayService"/> class.
+        /// </summary>
+        /// <param name="waiter"></param>
+        /// <param name="shareService"></param>
+        /// <param name="shareRepositoryFactory"></param>
+        /// <param name="optionsMonitor"></param>
+        /// <param name="relayHub"></param>
+        /// <param name="httpClientFactory"></param>
+        /// <param name="relayClient"></param>
         public RelayService(
             IWaiter waiter,
             IShareService shareService,
@@ -309,68 +320,20 @@ namespace slskd.Relay
         public IStateMonitor<RelayState> StateMonitor { get; }
 
         private IHttpClientFactory HttpClientFactory { get; }
+        private string LastControllerOptionsHash { get; set; }
+        private string LastOptionsHash { get; set; }
         private ILogger Log { get; } = Serilog.Log.ForContext<RelayService>();
         private MemoryCache MemoryCache { get; } = new MemoryCache(new MemoryCacheOptions());
-        private IHubContext<RelayHub, IRelayHub> RelayHub { get; set; }
         private IOptionsMonitor<Options> OptionsMonitor { get; }
         private ConcurrentDictionary<Guid, TaskCompletionSource<(bool Exists, long Length)>> PendingFileInquiryDictionary { get; } = new();
         private ConcurrentDictionary<string, (string ConnectionId, Agent Agent)> RegisteredAgentDictionary { get; } = new();
+        private IHubContext<RelayHub, IRelayHub> RelayHub { get; set; }
         private IShareRepositoryFactory ShareRepositoryFactory { get; }
         private IShareService Shares { get; }
-        private IWaiter Waiter { get; }
         private IManagedState<RelayState> State { get; } = new ManagedState<RelayState>();
-        private ConcurrentDictionary<WaitKey, Guid> WaitIdDictionary { get; } = new();
         private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1, 1);
-        private string LastOptionsHash { get; set; }
-        private string LastControllerOptionsHash { get; set; }
-
-        /// <summary>
-        ///     Notifies connected agents that a file download has completed.
-        /// </summary>
-        /// <param name="filename">The filename of the completed file, relative to the downloads directory.</param>
-        /// <returns>The operation context.</returns>
-        public Task BroadcastFileDownloadCompletedNotificationAsync(string filename)
-        {
-            if (!OptionsMonitor.CurrentValue.Relay.Enabled ||
-                !new[] { RelayMode.Controller, RelayMode.Debug }.Contains(OptionsMonitor.CurrentValue.Relay.Mode.ToEnum<RelayMode>()))
-            {
-                return Task.CompletedTask;
-            }
-
-            var agents = RegisteredAgentDictionary.Values;
-
-            if (!agents.Any())
-            {
-                return Task.CompletedTask;
-            }
-
-            // ensure filename is relative to the local download directory
-            // and make sure it doesn't start with a slash
-            filename = filename
-                .ReplaceFirst(OptionsMonitor.CurrentValue.Directories.Downloads, string.Empty)
-                .TrimStart(new[] { '/', '\\' });
-
-            async Task Notify((string ConnectionId, Agent Agent) record)
-            {
-                try
-                {
-                    var id = Guid.NewGuid();
-
-                    MemoryCache.Set(GetDownloadTokenCacheKey(filename, id), record.Agent.Name, TimeSpan.FromMinutes(10));
-                    Log.Debug("Cached file download token {Token} for agent {Agent}", id, record.Agent.Name);
-
-                    await RelayHub.Clients.Client(record.ConnectionId).NotifyFileDownloadCompleted(filename, id);
-                }
-                catch
-                {
-                    Log.Warning("Failed to notify agent {Agent} of download completion for {Filename}", record.Agent.Name, filename);
-                }
-            }
-
-            Log.Information("Notifying agents of download completion for {Filename}", filename);
-
-            return Task.WhenAll(RegisteredAgentDictionary.Values.Select(Notify));
-        }
+        private IWaiter Waiter { get; }
+        private ConcurrentDictionary<WaitKey, Guid> WaitIdDictionary { get; } = new();
 
         /// <summary>
         ///     Generates a random authentication challenge token for the specified <paramref name="connectionId"/>.
@@ -396,16 +359,16 @@ namespace slskd.Relay
         ///     <para>This is the first step in a multi-step workflow. The entire sequence is:</para>
         ///     <list type="number">
         ///         <item>
-        ///             A remote agent makes a request to the SignalR hub to retrieve a share upload token, which in turn
-        ///             calls <see cref="GenerateShareUploadToken"/>. The token is generated and cached.
+        ///             A remote agent makes a request to the SignalR hub to retrieve a share upload token, which in turn calls
+        ///             <see cref="GenerateShareUploadToken"/>. The token is generated and cached.
         ///         </item>
         ///         <item>
-        ///             The remote agent makes an HTTP POST request containing a multipart upload including a backup of its
-        ///             shared database and a serialized list of locally configured shares.
+        ///             The remote agent makes an HTTP POST request containing a multipart upload including a backup of its shared
+        ///             database and a serialized list of locally configured shares.
         ///         </item>
         ///         <item>
-        ///             The HTTP controller saves the database backup to a temporary file, validates it, and then adds (or updates)
-        ///             a share host for the agent.
+        ///             The HTTP controller saves the database backup to a temporary file, validates it, and then adds (or
+        ///             updates) a share host for the agent.
         ///         </item>
         ///     </list>
         /// </remarks>
@@ -582,7 +545,7 @@ namespace slskd.Relay
         /// <param name="id">The ID of the request.</param>
         /// <param name="response">The client response to the request.</param>
         /// <returns>The operation context.</returns>
-        public async Task HandleFileStreamResponse(string agentName, Guid id, Stream response)
+        public async Task HandleFileStreamResponseAsync(string agentName, Guid id, Stream response)
         {
             var streamKey = new WaitKey(nameof(GetFileStreamAsync), agentName, id);
 
@@ -596,7 +559,7 @@ namespace slskd.Relay
             // create a wait (but do not await it) for the completion of the upload to the remote client. we need to await this to
             // keep execution in the body of the API controller that provided the stream, in order to keep the stream open for the
             // duration of the remote transfer. omit the id from the key, the caller doesn't know it.
-            var completionKey = new WaitKey(nameof(HandleFileStreamResponse), agentName, id);
+            var completionKey = new WaitKey(nameof(HandleFileStreamResponseAsync), agentName, id);
             var completion = Waiter.WaitIndefinitely(completionKey);
 
             // complete the wait that's waiting for the stream, so we can send the stream back to the caller of GetFileStream this
@@ -616,7 +579,7 @@ namespace slskd.Relay
         /// <param name="shares">The list of shares provided.</param>
         /// <param name="filename">The filename of the temporary file containing the upload.</param>
         /// <returns>The operation context.</returns>
-        public Task HandleShareUpload(string agentName, Guid id, IEnumerable<Share> shares, string filename)
+        public Task HandleShareUploadAsync(string agentName, Guid id, IEnumerable<Share> shares, string filename)
         {
             Log.Information("Loading shares from agent {Agent}", agentName);
 
@@ -636,6 +599,53 @@ namespace slskd.Relay
             Log.Information("Shares from agent {Agent} ready.", agentName);
 
             return Task.CompletedTask;
+        }
+
+        /// <summary>
+        ///     Notifies connected agents that a file download has completed.
+        /// </summary>
+        /// <param name="filename">The filename of the completed file, relative to the downloads directory.</param>
+        /// <returns>The operation context.</returns>
+        public Task NotifyFileDownloadCompleteAsync(string filename)
+        {
+            if (!OptionsMonitor.CurrentValue.Relay.Enabled ||
+                !new[] { RelayMode.Controller, RelayMode.Debug }.Contains(OptionsMonitor.CurrentValue.Relay.Mode.ToEnum<RelayMode>()))
+            {
+                return Task.CompletedTask;
+            }
+
+            var agents = RegisteredAgentDictionary.Values;
+
+            if (!agents.Any())
+            {
+                return Task.CompletedTask;
+            }
+
+            // ensure filename is relative to the local download directory and make sure it doesn't start with a slash
+            filename = filename
+                .ReplaceFirst(OptionsMonitor.CurrentValue.Directories.Downloads, string.Empty)
+                .TrimStart(new[] { '/', '\\' });
+
+            async Task Notify((string ConnectionId, Agent Agent) record)
+            {
+                try
+                {
+                    var id = Guid.NewGuid();
+
+                    MemoryCache.Set(GetDownloadTokenCacheKey(filename, id), record.Agent.Name, TimeSpan.FromMinutes(10));
+                    Log.Debug("Cached file download token {Token} for agent {Agent}", id, record.Agent.Name);
+
+                    await RelayHub.Clients.Client(record.ConnectionId).NotifyFileDownloadCompleted(filename, id);
+                }
+                catch
+                {
+                    Log.Warning("Failed to notify agent {Agent} of download completion for {Filename}", record.Agent.Name, filename);
+                }
+            }
+
+            Log.Information("Notifying agents of download completion for {Filename}", filename);
+
+            return Task.WhenAll(RegisteredAgentDictionary.Values.Select(Notify));
         }
 
         /// <summary>
@@ -668,7 +678,7 @@ namespace slskd.Relay
         /// <param name="exception">If the transfer associated with the stream failed, the exception that caused the failure.</param>
         public void TryCloseFileStream(string agentName, Guid id, Exception exception = default)
         {
-            var key = new WaitKey(nameof(HandleFileStreamResponse), agentName, id);
+            var key = new WaitKey(nameof(HandleFileStreamResponseAsync), agentName, id);
 
             if (exception != default)
             {
