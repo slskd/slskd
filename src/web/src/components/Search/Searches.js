@@ -42,8 +42,8 @@ const Searches = ({ server }) => {
   const onConnectionError = (error) => { setConnecting(false); setError(error); };
 
   const onUpdate = (update) => {
-    onConnected();
     setSearches(update);
+    onConnected();
   };
 
   useEffect(() => {

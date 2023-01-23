@@ -356,7 +356,10 @@ class App extends Component {
                         <System {...props} state={applicationState} options={applicationOptions} />
                       )
                     }/>
-                    <Redirect from='*' to={`${urlBase}/searches`}/>
+                    <Route render={(props) => 
+                      /\/(searches\/?|browse|users|chat|rooms|uploads|downloads|system\/)/
+                        .test(props.location.pathname) ?
+                        <></> : <Redirect to={`${urlBase}/searches`}/>} />
                   </>}
               </Switch>
             </AppContext.Provider>
