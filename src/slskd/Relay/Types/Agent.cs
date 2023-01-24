@@ -17,9 +17,19 @@
 
 namespace slskd.Relay
 {
+    /// <summary>
+    ///     Tracking information for a Relay agent.
+    /// </summary>
     public record Agent
     {
+        /// <summary>
+        ///     The name of the agent.
+        /// </summary>
         public string Name { get; init; }
+
+        /// <summary>
+        ///     The IP address associated with the active connection.
+        /// </summary>
         public string IPAddress { get; init; }
     }
 }

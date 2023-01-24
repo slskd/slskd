@@ -169,7 +169,7 @@ namespace slskd.Relay
         }
 
         /// <summary>
-        ///     Initiates the share upload workflow by generating and retrieving a request token.
+        ///     Executed by the agent to initiate the share upload workflow by generating and retrieving a request token.
         /// </summary>
         /// <returns>The generated token.</returns>
         /// <exception cref="UnauthorizedAccessException">Thrown when the agent is not fully authenticated.</exception>
@@ -188,7 +188,7 @@ namespace slskd.Relay
         }
 
         /// <summary>
-        ///     Notifies the controller that the agent was unable to upload the file requested by a call to <see cref="IRelayHub.RequestFileUpload"/>.
+        ///     Executed by the agent to notify the controller that the agent was unable to upload the file requested by a call to <see cref="IRelayHub.RequestFileUpload"/>.
         /// </summary>
         /// <param name="id">The unique identifier of the request.</param>
         /// <param name="exception">The Exception that caused the failure.</param>
@@ -207,7 +207,7 @@ namespace slskd.Relay
         }
 
         /// <summary>
-        ///     Returns the response to a call to <see cref="IRelayHub.RequestFileInfo"/>.
+        ///     Executed by the agent to return the response to a call to <see cref="IRelayHub.RequestFileInfo"/>.
         /// </summary>
         /// <param name="id">The unique identifier for the request.</param>
         /// <param name="exists">A value indicating whether the requested file exists on the agent's filesystem.</param>
