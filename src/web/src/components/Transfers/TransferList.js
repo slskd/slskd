@@ -143,9 +143,7 @@ class TransferList extends Component {
                           </Button>}
                       </Table.Cell>
                       <Table.Cell className='transferlist-size'>
-                        {f.bytesTransferred > 0
-                          ? formatBytesTransferred({ transferred: f.bytesTransferred, size: f.size })
-                          : ''}
+                        {formatBytesTransferred({ transferred: f.bytesTransferred, size: f.size })}
                       </Table.Cell>
                     </Table.Row>
                   )}
