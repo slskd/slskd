@@ -232,7 +232,7 @@ namespace slskd.Transfers.Downloads
 
                                 if (OptionsMonitor.CurrentValue.Relay.Enabled)
                                 {
-                                    _ = Relay.BroadcastFileDownloadCompletedNotificationAsync(finalFilename);
+                                    _ = Relay.NotifyFileDownloadCompleteAsync(finalFilename);
                                 }
 
                                 if (OptionsMonitor.CurrentValue.Integration.Ftp.Enabled)
