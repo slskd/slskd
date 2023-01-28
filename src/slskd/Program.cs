@@ -841,6 +841,11 @@ namespace slskd
             app.UseAuthentication();
             app.UseRouting();
             app.UseAuthorization();
+
+            // starting with .NET 7 the framework *really* wants you to use top level endpoint mapping
+            // for whatever reason this breaks everything, and i just can't bring myself to care unless
+            // UseEndpoints is going to be deprecated or if there's some material benefit
+#pragma warning disable ASP0014 // Suggest using top level route registrations
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapHub<ApplicationHub>("/hub/application");
@@ -885,6 +890,7 @@ namespace slskd
                     });
                 }
             });
+#pragma warning restore ASP0014 // Suggest using top level route registrations
 
             // if this is an /api route and no API controller was matched, give up and return a 404.
             app.Use(async (context, next) =>
