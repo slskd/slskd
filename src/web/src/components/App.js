@@ -315,50 +315,49 @@ class App extends Component {
           </Sidebar>
           <Sidebar.Pusher className='app-content'>
             <AppContext.Provider value={{ state: applicationState, options: applicationOptions }}>
-              <Switch>
-                {isAgent ? <>
+              {isAgent ? <Switch>
+                <Route path={`${urlBase}/system/:tab?`} render={
+                  (props) => this.withTokenCheck(
+                    <System {...props} state={applicationState} options={applicationOptions} />
+                  )
+                }/>
+                <Redirect from='*' to={`${urlBase}/system`}/>
+              </Switch> : 
+                <Switch>
+                  <Route path={`${urlBase}/searches/:id?`} render={(props) =>
+                    this.withTokenCheck(<div className='view'>
+                      <Searches
+                        server={applicationState.server}
+                        {...props}
+                      />
+                    </div>)}
+                  />
+                  <Route path={`${urlBase}/browse`} render={(props) => this.withTokenCheck(<Browse {...props}/>)}/>
+                  <Route path={`${urlBase}/users`} render={(props) =>
+                    this.withTokenCheck(<Users {...props}/>)}
+                  />
+                  <Route path={`${urlBase}/chat`} render={(props) =>
+                    this.withTokenCheck(<Chat {...props} state={applicationState}/>)}
+                  />
+                  <Route path={`${urlBase}/rooms`} render={(props) => this.withTokenCheck(<Rooms {...props}/>)}/>
+                  <Route path={`${urlBase}/uploads`} render={
+                    (props) =>
+                      this.withTokenCheck(<div className='view'><Transfers {...props} direction='upload'/></div>)
+                  }/>
+                  <Route path={`${urlBase}/downloads`} render={
+                    (props) =>
+                      this.withTokenCheck(<div className='view'>
+                        <Transfers {...props} direction='download' server={applicationState.server}/>
+                      </div>)
+                  }/>
                   <Route path={`${urlBase}/system/:tab?`} render={
                     (props) => this.withTokenCheck(
                       <System {...props} state={applicationState} options={applicationOptions} />
                     )
                   }/>
-                  <Redirect from='*' to={`${urlBase}/system`}/>
-                </> : 
-                  <>
-                    <Route path={`${urlBase}/searches/:id?`} render={(props) => 
-                      this.withTokenCheck(<div className='view'>
-                        <Searches
-                          server={applicationState.server}
-                          {...props}
-                        />
-                      </div>)}
-                    />
-                    <Route path={`${urlBase}/browse`} render={(props) => this.withTokenCheck(<Browse {...props}/>)}/>
-                    <Route path={`${urlBase}/users`} render={(props) => 
-                      this.withTokenCheck(<Users {...props}/>)}
-                    />
-                    <Route path={`${urlBase}/chat`} render={(props) => 
-                      this.withTokenCheck(<Chat {...props} state={applicationState}/>)}
-                    />
-                    <Route path={`${urlBase}/rooms`} render={(props) => this.withTokenCheck(<Rooms {...props}/>)}/>
-                    <Route path={`${urlBase}/uploads`} render={
-                      (props) => 
-                        this.withTokenCheck(<div className='view'><Transfers {...props} direction='upload'/></div>)
-                    }/>
-                    <Route path={`${urlBase}/downloads`} render={
-                      (props) => 
-                        this.withTokenCheck(<div className='view'>
-                          <Transfers {...props} direction='download' server={applicationState.server}/>
-                        </div>)
-                    }/>
-                    <Route path={`${urlBase}/system/:tab?`} render={
-                      (props) => this.withTokenCheck(
-                        <System {...props} state={applicationState} options={applicationOptions} />
-                      )
-                    }/>
-                    <Redirect from='*' to={`${urlBase}/searches`}/>
-                  </>}
-              </Switch>
+                  <Redirect from='*' to={`${urlBase}/searches`}/>
+                </Switch>
+              }
             </AppContext.Provider>
           </Sidebar.Pusher>
         </Sidebar.Pushable>
