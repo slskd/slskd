@@ -357,7 +357,8 @@ class App extends Component {
                       )
                     }/>
                     <Route render={(props) => 
-                      /\/(searches\/?|browse|users|chat|rooms|uploads|downloads|system\/)/
+                      // eslint-disable-next-line max-len
+                      /\/(searches\/?|browse|users|chat|rooms|uploads|downloads|system|system\/(info|options|shares|data|logs))$/
                         .test(props.location.pathname) ?
                         <></> : <Redirect to={`${urlBase}/searches`}/>} />
                   </>}
