@@ -356,11 +356,7 @@ class App extends Component {
                         <System {...props} state={applicationState} options={applicationOptions} />
                       )
                     }/>
-                    <Route render={(props) => 
-                      // eslint-disable-next-line max-len
-                      /\/(searches\/?|browse|users|chat|rooms|uploads|downloads|system|system\/(info|options|shares|data|logs))$/
-                        .test(props.location.pathname) ?
-                        <></> : <Redirect to={`${urlBase}/searches`}/>} />
+                    <Redirect from='*' to={`${urlBase}/searches`}/>
                   </>}
               </Switch>
             </AppContext.Provider>
