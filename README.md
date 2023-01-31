@@ -47,9 +47,9 @@ New features are added all the time!
 
 ```shell
 docker run -d \
-  -p 5000:5000 \
-  -p 5001:5001 \
-  -p 50000:50000 \
+  -p 5030:5030 \
+  -p 5031:5031 \
+  -p 50300:50300 \
   -v <path/to/application/data>:/app \
   --name slskd \
   slskd/slskd:latest
@@ -65,15 +65,15 @@ services:
     image: slskd/slskd
     container_name: slskd
     ports:
-      - "5000:5000"
-      - "5001:5001"
-      - "50000:50000"
+      - "5030:5030"
+      - "5031:5031"
+      - "50300:50300"
     volumes:
       - <path/to/application/data>:/app
     restart: always
 ```
 
-This command or docker-compose file (depending on your choice) starts a container instance of slskd on ports 5000 (HTTP) and 5001 (HTTPS using a self-signed certificate). slskd begins listening for incoming connections on port 50000 and maps the application directory to the provided path.
+This command or docker-compose file (depending on your choice) starts a container instance of slskd on ports 5030 (HTTP) and 5031 (HTTPS using a self-signed certificate). slskd begins listening for incoming connections on port 50300 and maps the application directory to the provided path.
 
 You can find a more in-depth guide to running slskd in Docker [here](https://github.com/slskd/slskd/blob/master/docs/docker.md).
 
