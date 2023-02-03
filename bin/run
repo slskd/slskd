@@ -4,7 +4,7 @@ if [ -z "$1" ]; then
 fi
 
 docker run -i \
-    -p 5030:5030 \
+    -p 5000:5000 \
     -p $SLSK_LISTEN_PORT:$SLSK_LISTEN_PORT \
     -v $SLSK_OUTPUT_DIR:/var/slsk/download \
     -v $SLSK_SHARED_DIR:/var/slsk/shared \
