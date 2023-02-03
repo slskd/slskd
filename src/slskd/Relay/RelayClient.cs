@@ -33,37 +33,6 @@ namespace slskd.Relay
     /// <summary>
     ///     Relay client (agent).
     /// </summary>
-    public interface IRelayClient : IDisposable
-    {
-        /// <summary>
-        ///     Gets the client state.
-        /// </summary>
-        IStateMonitor<RelayClientState> StateMonitor { get; }
-
-        /// <summary>
-        ///     Starts the client and connects to the controller.
-        /// </summary>
-        /// <param name="cancellationToken"></param>
-        /// <returns></returns>
-        Task StartAsync(CancellationToken cancellationToken = default);
-
-        /// <summary>
-        ///     Stops the client and disconnects from the controller.
-        /// </summary>
-        /// <param name="cancellationToken"></param>
-        /// <returns></returns>
-        Task StopAsync(CancellationToken cancellationToken = default);
-
-        /// <summary>
-        ///     Synchronizes state with the controller.
-        /// </summary>
-        /// <returns>The operation context.</returns>
-        Task SynchronizeAsync(CancellationToken cancellationToken = default);
-    }
-
-    /// <summary>
-    ///     Relay client (agent).
-    /// </summary>
     public class RelayClient : IRelayClient
     {
         /// <summary>
@@ -121,8 +90,8 @@ namespace slskd.Relay
         /// <summary>
         ///     Starts the client and connects to the controller.
         /// </summary>
-        /// <param name="cancellationToken"></param>
-        /// <returns></returns>
+        /// <param name="cancellationToken">The token to monitor for cancellation requests.</param>
+        /// <returns>The operation context.</returns>
         public async Task StartAsync(CancellationToken cancellationToken = default)
         {
             if (!StateSyncRoot.Wait(0, cancellationToken))
@@ -200,8 +169,8 @@ namespace slskd.Relay
         /// <summary>
         ///     Stops the client and disconnects from the controller.
         /// </summary>
-        /// <param name="cancellationToken"></param>
-        /// <returns></returns>
+        /// <param name="cancellationToken">The token to monitor for cancellation requests.</param>
+        /// <returns>The operation context.</returns>
         public async Task StopAsync(CancellationToken cancellationToken = default)
         {
             StartRequested = false;
@@ -220,6 +189,7 @@ namespace slskd.Relay
         /// <summary>
         ///     Synchronizes state with the controller.
         /// </summary>
+        /// <param name="cancellationToken">The token to monitor for cancellation requests.</param>
         /// <returns>The operation context.</returns>
         public Task SynchronizeAsync(CancellationToken cancellationToken = default)
         {
@@ -229,7 +199,7 @@ namespace slskd.Relay
         /// <summary>
         ///     Disposes this instance.
         /// </summary>
-        /// <param name="disposing"></param>
+        /// <param name="disposing">Disposing.</param>
         protected virtual void Dispose(bool disposing)
         {
             if (!Disposed)
@@ -419,7 +389,7 @@ namespace slskd.Relay
 
                     stream.Seek(startOffset, SeekOrigin.Begin);
 
-                    using var request = new HttpRequestMessage(HttpMethod.Post, $"api/v0/relay/files/{token}");
+                    using var request = new HttpRequestMessage(HttpMethod.Post, $"api/v0/relay/controller/files/{token}");
 
                     request.Headers.Add("X-API-Key", OptionsMonitor.CurrentValue.Relay.Controller.ApiKey);
                     request.Headers.Add("X-Relay-Agent", OptionsMonitor.CurrentValue.InstanceName);
@@ -482,7 +452,7 @@ namespace slskd.Relay
 
                 await Retry.Do(task: async () =>
                 {
-                    using var request = new HttpRequestMessage(HttpMethod.Get, $"api/v0/relay/downloads/{token}");
+                    using var request = new HttpRequestMessage(HttpMethod.Get, $"api/v0/relay/controller/downloads/{token}");
 
                     request.Headers.Add("X-API-Key", OptionsMonitor.CurrentValue.Relay.Controller.ApiKey);
                     request.Headers.Add("X-Relay-Agent", OptionsMonitor.CurrentValue.InstanceName);
@@ -531,7 +501,6 @@ namespace slskd.Relay
             try
             {
                 // wait for the authentication flow to complete
-                // time out after 5 seconds in case we get stuck waiting on a dead Task
                 await LoggedInTaskCompletionSource.Task;
 
                 Log.Information("Uploading shares...");
@@ -540,7 +509,7 @@ namespace slskd.Relay
             }
             catch (Exception ex)
             {
-                Log.Error(ex, ex.Message);
+                Log.Error(ex, "Failed to log in and/or upload shares: {Message}", ex.Message);
                 Log.Error("Disconnecting from the relay controller");
 
                 // stop, then fire and forget StartAsync() to re-enter the connection retry loop
@@ -621,7 +590,7 @@ namespace slskd.Relay
 
                 var stream = new FileStream(temp, FileMode.Open, FileAccess.Read);
 
-                using var request = new HttpRequestMessage(HttpMethod.Post, $"api/v0/relay/shares/{token}");
+                using var request = new HttpRequestMessage(HttpMethod.Post, $"api/v0/relay/controller/shares/{token}");
 
                 request.Headers.Add("X-API-Key", OptionsMonitor.CurrentValue.Relay.Controller.ApiKey);
                 request.Headers.Add("X-Relay-Agent", OptionsMonitor.CurrentValue.InstanceName);

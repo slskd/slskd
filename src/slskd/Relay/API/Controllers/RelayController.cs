@@ -41,6 +41,12 @@ namespace slskd.Relay
     [ApiController]
     public class RelayController : ControllerBase
     {
+        /// <summary>
+        ///     Initializes a new instance of the <see cref="RelayController"/> class.
+        /// </summary>
+        /// <param name="relayService"></param>
+        /// <param name="optionsMonitor"></param>
+        /// <param name="optionsAtStartup"></param>
         public RelayController(
             IRelayService relayService,
             IOptionsMonitor<Options> optionsMonitor,
@@ -57,7 +63,11 @@ namespace slskd.Relay
         private RelayMode OperationMode => OptionsAtStartup.Relay.Mode.ToEnum<RelayMode>();
         private IOptionsMonitor<Options> OptionsMonitor { get; }
 
-        [HttpPut("")]
+        /// <summary>
+        ///     Connects to the configured controller.
+        /// </summary>
+        /// <returns></returns>
+        [HttpPut("agent")]
         [Authorize(Policy = AuthPolicy.JwtOnly)]
         public async Task<IActionResult> Connect()
         {
@@ -70,7 +80,11 @@ namespace slskd.Relay
             return Ok();
         }
 
-        [HttpDelete("")]
+        /// <summary>
+        ///     Disconnects from the connected controller.
+        /// </summary>
+        /// <returns></returns>
+        [HttpDelete("agent")]
         [Authorize(Policy = AuthPolicy.JwtOnly)]
         public async Task<IActionResult> Disconnect()
         {
@@ -84,11 +98,11 @@ namespace slskd.Relay
         }
 
         /// <summary>
-        ///     Downloads a file.
+        ///     Downloads a file from the connected controller.
         /// </summary>
         /// <param name="token">The unique identifier for the request.</param>
         /// <returns></returns>
-        [HttpGet("downloads/{token}")]
+        [HttpGet("controller/downloads/{token}")]
         [Authorize(Policy = AuthPolicy.ApiKeyOnly)]
         public IActionResult DownloadFile([FromRoute]string token)
         {
@@ -135,11 +149,11 @@ namespace slskd.Relay
         }
 
         /// <summary>
-        ///     Uploads a file.
+        ///     Uploads a file to the connected controller.
         /// </summary>
         /// <param name="token">The unique identifier for the request.</param>
         /// <returns></returns>
-        [HttpPost("files/{token}")]
+        [HttpPost("controller/files/{token}")]
         [RequestSizeLimit(10L * 1024L * 1024L * 1024L)]
         [RequestFormLimits(MultipartBodyLengthLimit = 10L * 1024L * 1024L * 1024L)]
         [DisableFormValueModelBinding]
@@ -221,7 +235,7 @@ namespace slskd.Relay
 
                 // pass the stream back to the relay service, which will in turn pass it to the upload service, and use it to
                 // feed data into the remote upload. await this call, it will complete when the upload is complete, one way or the other.
-                await Relay.HandleFileStreamResponse(agentName, id: guid, stream);
+                await Relay.HandleFileStreamResponseAsync(agentName, id: guid, stream);
 
                 Log.Information("File upload of {Filename} ({Token}) from agent {Agent} complete", filename, token, agentName);
                 return Ok();
@@ -233,11 +247,11 @@ namespace slskd.Relay
         }
 
         /// <summary>
-        ///     Uploads share information.
+        ///     Uploads share information to the connected controller.
         /// </summary>
         /// <param name="token">The unique identifier for the request.</param>
         /// <returns></returns>
-        [HttpPost("shares/{token}")]
+        [HttpPost("controller/shares/{token}")]
         [Authorize(Policy = AuthPolicy.ApiKeyOnly)]
         public async Task<IActionResult> UploadShares(string token)
         {
@@ -307,7 +321,7 @@ namespace slskd.Relay
 
                 Log.Information("Download of shares from {Agent} ({Token}) complete ({Size} in {Duration}ms)", agentName, guid, ((double)inputStream.Length).SizeSuffix(), sw.ElapsedMilliseconds);
 
-                await Relay.HandleShareUpload(agentName, id: guid, shares, temp);
+                await Relay.HandleShareUploadAsync(agentName, id: guid, shares, temp);
 
                 return Ok();
             }
