@@ -109,7 +109,7 @@ We'll start the controller instance, which, in my case, is running on a machine 
 
 Finally, we'll configure the agent.  We'll enable the Relay, set this instance's mode to `agent`, and fill in the details of or controller.
 
-The controller is running on a machine with IP address 192.168.1.53, and we want to use HTTPS, so we'll use the URL `https://192.168.1.53:5031`.  We're using the default self-signed certificate, so we'll need to `ignore_certificate_errors`.
+The controller is running on a machine with IP address 192.168.1.53, and we want to use HTTPS, so we'll use the URL `https://192.168.1.53:5001`.  We're using the default self-signed certificate, so we'll need to `ignore_certificate_errors`.
 
 We'll copy the API key and secret from the controller config, and lastly, we want the agent to receive the files downloaded by the controller, so we'll set `downloads` to `true`.
 
@@ -125,7 +125,7 @@ relay:
   enabled: true
   mode: agent
   controller:
-    address: https://192.168.1.241:5031
+    address: https://192.168.1.241:5001
     ignore_certificate_errors: true
     api_key: 9tWy5c3NrmekKVWLQXBztz0hY7rNGlj1tGMfvHKmU1q
     secret: BgI04SuVtsAYipxPHDpdxJsnVoPEeq4tKJeorWxr3Pj
@@ -139,7 +139,7 @@ We'll start the agent and confirm that it connects to the controller and uploads
 
 ```
 [18:50:08 INF] Running in Agent relay mode; not connecting to the Soulseek server.
-[18:50:08 INF] Attempting to connect to the relay controller https://192.168.1.241:5031
+[18:50:08 INF] Attempting to connect to the relay controller https://192.168.1.241:5001
 [18:50:09 INF] Relay controller connection established. Awaiting authentication...
 [18:50:09 INF] Authenticated. Uploading shares...
 [18:50:09 INF] Beginning upload of shares (48.0 KB)

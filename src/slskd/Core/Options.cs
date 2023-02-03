@@ -1127,7 +1127,7 @@ namespace slskd
             [EnvironmentVariable("SLSK_LISTEN_PORT")]
             [Description("port on which to listen for incoming connections")]
             [Range(1024, 65535)]
-            public int ListenPort { get; init; } = 50300;
+            public int ListenPort { get; init; } = 50000;
 
             /// <summary>
             ///     Gets the minimum diagnostic level.
@@ -1366,7 +1366,7 @@ namespace slskd
             [Description("HTTP listen port for web UI")]
             [Range(1, 65535)]
             [RequiresRestart]
-            public int Port { get; init; } = 5030;
+            public int Port { get; init; } = 5000;
 
             /// <summary>
             ///     Gets HTTPS options.
@@ -1557,7 +1557,7 @@ namespace slskd
                 [Description("HTTPS listen port for web UI")]
                 [Range(1, 65535)]
                 [RequiresRestart]
-                public int Port { get; init; } = 5031;
+                public int Port { get; init; } = 5001;
 
                 /// <summary>
                 ///     Gets a value indicating whether HTTP requests should be redirected to HTTPS.
