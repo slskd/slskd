@@ -51,6 +51,10 @@ class App extends Component {
   state = initialState;
 
   componentDidMount = () => {
+    window.matchMedia('(prefers-color-scheme: dark)')
+      .addEventListener('change', (e) => e.matches && this.setState({theme: 'dark'}));
+    window.matchMedia('(prefers-color-scheme: light)')
+      .addEventListener('change', (e) => e.matches && this.setState({theme:'light'}));
     this.init();
   };
 
@@ -116,7 +120,15 @@ class App extends Component {
   };
 
   render = () => {
-    const { login, applicationState = {}, applicationOptions = {}, error, initialized, retriesExhausted } = this.state;
+    const { 
+      login, 
+      applicationState = {}, 
+      applicationOptions = {}, 
+      error, 
+      initialized, 
+      retriesExhausted, 
+      theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light',
+    } = this.state;
     const { 
       version = {},
       relay = {},
@@ -204,6 +216,12 @@ class App extends Component {
 
     const isAgent = mode === 'Agent';
 
+    if (theme === 'dark') {
+      document.documentElement.classList.add(theme);
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+
     return (
       <>
         <Sidebar.Pushable as={Segment} className='app'>
@@ -261,6 +279,9 @@ class App extends Component {
                 </Link>
               </>}
             <Menu className='right' inverted>
+              <Menu.Item onClick={() => this.setState({'theme': theme === 'dark' ? 'light' : 'dark'})}>
+                <Icon name='theme'/>Theme
+              </Menu.Item>
               <ModeSpecificConnectButton mode={mode} server={server} controller={controller} />
               {(pendingReconnect || pendingRestart || pendingShareRescan) && <Menu.Item position='right'>
                 <Icon.Group className='menu-icon-group'>
@@ -319,7 +340,7 @@ class App extends Component {
                 {isAgent ? <>
                   <Route path={`${urlBase}/system/:tab?`} render={
                     (props) => this.withTokenCheck(
-                      <System {...props} state={applicationState} options={applicationOptions} />
+                      <System {...props} theme={theme} state={applicationState} options={applicationOptions} />
                     )
                   }/>
                   <Redirect from='*' to={`${urlBase}/system`}/>
@@ -353,7 +374,7 @@ class App extends Component {
                     }/>
                     <Route path={`${urlBase}/system/:tab?`} render={
                       (props) => this.withTokenCheck(
-                        <System {...props} state={applicationState} options={applicationOptions} />
+                        <System {...props} theme={theme} state={applicationState} options={applicationOptions} />
                       )
                     }/>
                     <Redirect from='*' to={`${urlBase}/searches`}/>

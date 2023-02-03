@@ -77,3 +77,27 @@
 .browse-meta {
   margin-top: 5px;
 }
+
+.browse-folderlist-header {
+  color: var(--slskd-browse-folderlist-header-color) !important;
+  font-weight: 400 !important;
+  opacity: 1 !important;
+}
+
+.browse-folderlist-header.selected {
+  color: var(--slskd-browse-folderlist-header-selected-color) !important;
+  font-weight: 700 !important;
+}
+
+.browse-folderlist-header.locked,
+.browse-folderlist-icon.locked {
+  opacity: 0.5 !important;
+}
+
+.browse-folderlist-icon {
+  color: var(--slskd-browse-folderlist-header-color) !important;
+}
+
+.browse-folderlist-icon.selected {
+  color: var(--slskd-browse-folderlist-header-selected-color) !important;
+}

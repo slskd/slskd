@@ -1,9 +1,10 @@
 :root {
-    --background-color: #c8c8c8 !important
+    --background-color: #c8c8c8 !important;
+    --slskd-browse-folderlist-header-color:  black;
+    --slskd-browse-folderlist-header-selected-color: #0E6EB8;
 }
 
-@media (prefers-color-scheme: dark) {
-:root {
+:root.dark {
     --slskd-primary-background: #0d1116;
     --slskd-secondary-background: #161b21;
     --slskd-overlay-background: #161b22;
@@ -23,6 +24,9 @@
     --smui-site-input-color: var(--smui-site-body-text-color);
     --smui-site-link-color: #58a6ff;
     --smui-site-link-hover-underline: underline;
+
+    --slskd-browse-folderlist-header-color: var(--slskd-color);
+    --slskd-browse-folderlist-header-selected-color: var(--smui-site-link-color);
 
     /* element/button */
     --smui-button-background-color: var(--slskd-tertiary-background);
@@ -66,6 +70,15 @@
     --smui-table-footer-background: var(--slskd-secondary-background);
     --smui-table-footer-color: var(--smui-site-body-text-color);
     --smui-table-selectable-background-color: var(--slskd-subtle-background);
+    --smui-table-row-disabled-color: var(--slskd-color-subtle);
+    --smui-table-row-negative-color: var(--smui-site-body-text-color);
+    --smui-table-row-negative-background-color: rgba(248,81,73,0.15);
+    --smui-table-row-negative-border-color:rgba(248,81,73,0.4);
+    --smui-table-row-negative-background-hover-color:#da3633;
+    --smui-table-row-warning-color: var(--smui-site-body-text-color);
+    --smui-table-row-warning-background-color:rgba(187,128,9,0.15);
+    --smui-table-row-warning-border-color: rgba(187,128,9,0.4);
+    --smui-table-row-warning-background-hover-color: #9e6a03;
 
     /* modules/modal */
     --smui-modal-background: var(--slskd-overlay-background);
@@ -82,7 +95,6 @@
     --smui-menu-hovered-item-background: var(--slskd-emphasis-background);
     --smui-menu-hovered-item-color: var(--slskd-color);
 
-}
 }
 
 body {
