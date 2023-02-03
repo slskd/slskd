@@ -82,10 +82,10 @@
 #     request:
 #       - ^.{1,2}$
 # web:
-#   port: 5000
+#   port: 5030
 #   https:
 #     disabled: false
-#     port: 5001
+#     port: 5031
 #     force: false
 #     certificate:
 #       pfx: ~
@@ -121,7 +121,7 @@
 #   password: ~
 #   description: |
 #     A slskd user. https://github.com/slskd/slskd
-#   listen_port: 50000
+#   listen_port: 50300
 #   diagnostic_level: Info
 #   distributed_network:
 #     disabled: false

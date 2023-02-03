@@ -135,7 +135,7 @@ namespace slskd
         /// <summary>
         ///     Gets the semantic application version.
         /// </summary>
-        public static string SemanticVersion { get; } = InformationalVersion.Split('-').First();
+        public static string SemanticVersion { get; } = InformationalVersion.Split('+').First();
 
         /// <summary>
         ///     Gets the full application version, including both assembly and informational versions.
@@ -246,7 +246,7 @@ namespace slskd
 
             try
             {
-            Arguments.Populate(clearExistingValues: false);
+                Arguments.Populate(clearExistingValues: false);
             }
             catch (Exception ex)
             {
@@ -815,7 +815,7 @@ namespace slskd
             // prepend the url base.
             app.UsePathBase(urlBase);
             app.UseHTMLRewrite("((\\.)?\\/static)", $"{(urlBase == "/" ? string.Empty : urlBase)}/static");
-            app.UseHTMLInjection($"<script>window.urlBase=\"{urlBase}\"</script>", excludedRoutes: new[] { "/api", "/swagger" });
+            app.UseHTMLInjection($"<script>window.urlBase=\"{urlBase};window.port={OptionsAtStartup.Web.Port}=\"</script>", excludedRoutes: new[] { "/api", "/swagger" });
             Log.Information("Using base url {UrlBase}", urlBase);
 
             // serve static content from the configured path
@@ -841,6 +841,11 @@ namespace slskd
             app.UseAuthentication();
             app.UseRouting();
             app.UseAuthorization();
+
+            // starting with .NET 7 the framework *really* wants you to use top level endpoint mapping
+            // for whatever reason this breaks everything, and i just can't bring myself to care unless
+            // UseEndpoints is going to be deprecated or if there's some material benefit
+#pragma warning disable ASP0014 // Suggest using top level route registrations
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapHub<ApplicationHub>("/hub/application");
@@ -885,6 +890,7 @@ namespace slskd
                     });
                 }
             });
+#pragma warning restore ASP0014 // Suggest using top level route registrations
 
             // if this is an /api route and no API controller was matched, give up and return a 404.
             app.Use(async (context, next) =>

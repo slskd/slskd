@@ -17,11 +17,29 @@
 
 namespace slskd.Relay
 {
+    /// <summary>
+    ///     The state of a Relay client.
+    /// </summary>
     public enum RelayClientState
     {
+        /// <summary>
+        ///     Disconnected.
+        /// </summary>
         Disconnected,
+
+        /// <summary>
+        ///     Connected.
+        /// </summary>
         Connected,
+
+        /// <summary>
+        ///     Connecting.
+        /// </summary>
         Connecting,
+
+        /// <summary>
+        ///     Reconnecting.
+        /// </summary>
         Reconnecting,
     }
 }

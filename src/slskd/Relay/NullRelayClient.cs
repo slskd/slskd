@@ -1,4 +1,4 @@
-﻿// <copyright file="DummyRelayClient.cs" company="slskd Team">
+﻿// <copyright file="NullRelayClient.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -20,24 +20,52 @@ namespace slskd.Relay
     using System.Threading;
     using System.Threading.Tasks;
 
-    public class DummyRelayClient : IRelayClient
+    /// <summary>
+    ///     A non-operarable Relay client.
+    /// </summary>
+    public class NullRelayClient : IRelayClient
     {
-        public IStateMonitor<RelayClientState> StateMonitor => new ManagedState<RelayClientState>();
+        /// <summary>
+        ///     Gets the client state.
+        /// </summary>
+        public IStateMonitor<RelayClientState> StateMonitor { get; set; } = new ManagedState<RelayClientState>();
 
         private bool Disposed { get; set; }
 
+        /// <summary>
+        ///     Disposes this instance.
+        /// </summary>
         public void Dispose()
         {
             Dispose(disposing: true);
             System.GC.SuppressFinalize(this);
         }
 
+        /// <summary>
+        ///     Starts the client and connects to the controller.
+        /// </summary>
+        /// <param name="cancellationToken">The token to monitor for cancellation requests.</param>
+        /// <returns>The operation context.</returns>
         public Task StartAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
 
+        /// <summary>
+        ///     Stops the client and disconnects from the controller.
+        /// </summary>
+        /// <param name="cancellationToken">The token to monitor for cancellation requests.</param>
+        /// <returns>The operation context.</returns>
         public Task StopAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
 
+        /// <summary>
+        ///     Synchronizes state with the controller.
+        /// </summary>
+        /// <param name="cancellationToken">The token to monitor for cancellation requests.</param>
+        /// <returns>The operation context.</returns>
         public Task SynchronizeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
 
+        /// <summary>
+        ///     Disposes this instance.
+        /// </summary>
+        /// <param name="disposing">Disposing.</param>
         protected virtual void Dispose(bool disposing)
         {
             if (!Disposed)
