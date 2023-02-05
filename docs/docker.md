@@ -1,12 +1,20 @@
 # Running in Docker
 
+You'll need to [install Docker](https://docs.docker.com/get-docker/) first.
+
+Next, you'll need to make a few choices:
+
+* The HTTP and/or HTTPS ports for the slskd web UI (defaults 5030 and 5031)
+* The port for incoming connections from the Soulseek network (default 50300)
+* The directory for the slskd application data
+
 For most users, a quick start will be all that is needed:
 
 ```shell
 docker run -d \
-  -p 5030:5030 \
-  -p 5031:5031 \
-  -p 50300:50300 \
+  -p <HTTP port>:5030 \
+  -p <HTTPS port>:5031 \
+  -p <listen port>:50300 \
   -v <path/to/application/data>:/app \
   --name slskd \
   slskd/slskd:latest
@@ -25,6 +33,7 @@ docker run -d \
   -p 5030:5030 \
   -p 5031:5031 \
   -p 50300:50300 \
+  -e SLSKD_REMOTE_CONFIGURATION=true \
   -v /var/slskd:/app \
   -v /home/JohnDoe/Music:/music \
   -v /home/JohnDoe/eBooks:/ebooks \
@@ -48,6 +57,7 @@ docker run -d \
   -p 5030:5030 \
   -p 5031:5031 \
   -p 50300:50300 \
+  -e SLSKD_REMOTE_CONFIGURATION=true \
   -v /var/slskd:/app \
   -v /home/JohnDoe/Music:/music \
   -v /home/JohnDoe/eBooks:/ebooks \

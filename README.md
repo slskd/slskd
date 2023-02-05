@@ -50,6 +50,7 @@ docker run -d \
   -p 5030:5030 \
   -p 5031:5031 \
   -p 50300:50300 \
+  -e SLSKD_REMOTE_CONFIGURATION=true \
   -v <path/to/application/data>:/app \
   --name slskd \
   slskd/slskd:latest
@@ -68,12 +69,18 @@ services:
       - "5030:5030"
       - "5031:5031"
       - "50300:50300"
+    environment:
+      - SLSKD_REMOTE_CONFIGURATION=true
     volumes:
       - <path/to/application/data>:/app
     restart: always
 ```
 
 This command or docker-compose file (depending on your choice) starts a container instance of slskd on ports 5030 (HTTP) and 5031 (HTTPS using a self-signed certificate). slskd begins listening for incoming connections on port 50300 and maps the application directory to the provided path.
+
+Once the container is running you can access the web UI over HTTP on port 5030, or HTTPS on port 5031.  The default username and password are `slskd` and `slskd`, respectively.  You'll want to change these if the application will be internet facing.
+
+The `SLSKD_REMOTE_CONFIGURATION` environment variable allows you to modify application configuration settings from the web UI.  You might not want to enable this for an internet-facing installation.
 
 You can find a more in-depth guide to running slskd in Docker [here](https://github.com/slskd/slskd/blob/master/docs/docker.md).
 
@@ -83,7 +90,7 @@ The latest stable binaries can be downloaded from the [releases](https://github.
 
 Binaries are shipped as zip files; extract the zip to your chosen directory and run.
 
-An application directory will be created in either `~/.local/share/slskd` (on Linux and macOS) or `%localappdata%/slskd` (on Windows).
+An application directory will be created in either `~/.local/share/slskd` (on Linux and macOS) or `%localappdata%/slskd` (on Windows).  In the root of this directory the file `slskd.yml` will be created the first time the application runs.  Edit this file to enter your credentials for the Soulseek network, and tweak any additional settings using the [configuration guide](https://github.com/slskd/slskd/blob/master/docs/config.md).
 
 ## Configuration
 
