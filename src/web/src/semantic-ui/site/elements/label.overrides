@@ -1,0 +1,7 @@
+/*******************************
+         Site Overrides
+*******************************/
+
+.ui.label {
+    color: var(--smui-label-color, @textColor);
+}

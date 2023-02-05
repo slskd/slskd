@@ -1,0 +1,8 @@
+/*******************************
+     User Global Variables
+*******************************/
+@bodyTextColor: var(--smui-site-body-text-color, @textColor);
+
+@linkHoverUnderline: var(--smui-site-link-hover-underline, none);
+
+@inputBackground: var(--smui-input-background, @white);

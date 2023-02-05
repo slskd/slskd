@@ -12,7 +12,7 @@ import Shares from './Shares';
 import { Switch } from '../Shared';
 import Data from './Data';
 
-const System = ({ state = {}, options = {} }) => {
+const System = ({ state = {}, theme, options = {} }) => {
   const { params: { tab }, ...route } = useRouteMatch();
   const history = useHistory();
 
@@ -28,7 +28,7 @@ const System = ({ state = {}, options = {} }) => {
         </Switch>
         Info
       </Menu.Item>), 
-      render: () => <Tab.Pane><Info state={state}/></Tab.Pane>, 
+      render: () => <Tab.Pane><Info state={state} theme={theme}/></Tab.Pane>, 
     },
     {
       route: 'options', 
@@ -37,7 +37,7 @@ const System = ({ state = {}, options = {} }) => {
         icon: 'options', 
         content: 'Options', 
       }, 
-      render: () => <Tab.Pane className='full-height'><Options options={options} /></Tab.Pane>,
+      render: () => <Tab.Pane className='full-height'><Options options={options} theme={theme}/></Tab.Pane>,
     },
     {
       route: 'shares', 
@@ -49,7 +49,7 @@ const System = ({ state = {}, options = {} }) => {
         </Switch>
         Shares
       </Menu.Item>),
-      render: () => <Tab.Pane><Shares state={state.shares}/></Tab.Pane>,
+      render: () => <Tab.Pane><Shares state={state.shares} theme={theme}/></Tab.Pane>,
     },
     {
       route: 'data',
@@ -58,7 +58,7 @@ const System = ({ state = {}, options = {} }) => {
         icon: 'database',
         content: 'Data',
       },
-      render: () => <Tab.Pane className='full-height'><Data/></Tab.Pane>,
+      render: () => <Tab.Pane className='full-height'><Data theme={theme}/></Tab.Pane>,
     },
     { 
       route: 'logs', 

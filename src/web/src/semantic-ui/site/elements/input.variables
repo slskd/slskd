@@ -1,0 +1,5 @@
+/*******************************
+    User Variable Overrides
+*******************************/
+
+@focusColor: var(--smui-input-focus-color, @hoveredTextColor);

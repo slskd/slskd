@@ -1,0 +1,10 @@
+/*******************************
+    User Variable Overrides
+*******************************/
+
+@menuBackground: var(--smui-menu-background,  #FFFFFF);
+@itemColor: var(--smui-menu-item-color, @textColor);
+
+@hoveredItemBackground: var(--smui-menu-hovered-item-background, @transparentBlack);
+@hoveredItemColor: var(--smui-menu-hovered-item-color,@selectedTextColor);
+@selectedColor: var(--smui-menu-item-color, @selectedTextColor);

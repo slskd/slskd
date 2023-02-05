@@ -1,0 +1,7 @@
+/*******************************
+         Site Overrides
+*******************************/
+
+.ui.header {
+    color: var(--smui-header-text-color, @textColor);
+}

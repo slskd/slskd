@@ -1,5 +1,104 @@
+:root {
+    --background-color: #c8c8c8 !important;
+    --slskd-browse-folderlist-header-color:  black;
+    --slskd-browse-folderlist-header-selected-color: #0E6EB8;
+}
+
+:root.dark {
+    --slskd-primary-background: #0d1116;
+    --slskd-secondary-background: #161b21;
+    --slskd-overlay-background: #161b22;
+    --slskd-tertiary-background: #21262d;
+    --slskd-tertiary-border-color: rgba(240,246,252,0.1);
+    --slskd-subtle-background: rgba(110,118,129,0.1);
+    --slskd-color: #c9d1d9;
+    --slskd-color-subtle: #6e7681;
+    --slskd-hover-background: #30363d;
+    --slskd-color-inset: #010409;
+    --slskd-emphasis-background: #1f6feb;
+
+    --background-color: var(--slskd-primary-background) !important;
+
+    /* globals/site */
+    --smui-site-body-text-color: var(--slskd-color);
+    --smui-site-input-color: var(--smui-site-body-text-color);
+    --smui-site-link-color: #58a6ff;
+    --smui-site-link-hover-underline: underline;
+
+    --slskd-browse-folderlist-header-color: var(--slskd-color);
+    --slskd-browse-folderlist-header-selected-color: var(--smui-site-link-color);
+
+    /* element/button */
+    --smui-button-background-color: var(--slskd-tertiary-background);
+    --smui-button-text-color: var(--smui-site-body-text-color);
+    --smui-button-border: 1px solid var(--slskd-tertiary-border-color);
+    --smui-button-hover-background-color: var(--slskd-hover-background);
+
+    /* element/input */
+    --smui-input-background: var(--slskd-color-inset);
+    --smui-input-focus-color: var(--smui-site-body-text-color);
+
+    /* element/label */
+    --smui-label-background-color: var(--slskd-tertiary-background);
+    --smui-label-color: var(--smui-site-body-text-color);
+
+    /* collections/menu */
+    --smui-menu-inverted-background: var(--slskd-secondary-background);
+    --smui-menu-active-item-text-color: var(--smui-site-body-text-color);
+
+    /* element/segment */
+    --smui-segment-background: var(--slskd-primary-background);
+    --smui-segment-ui-header-color: var(--smui-site-body-text-color);
+    --smui-segment-border: 1px solid var(--slskd-tertiary-border-color);
+
+    /* elements/header */
+    --smui-header-text-color: var(--smui-site-body-text-color);
+
+    /* view/card */
+    --smui-card-background: var(--slskd-primary-background);
+    --smui-card-border-shadow: 0px 0px 0px 1px #2b2b2a;
+    --smui-card-floating-shadow: 0px 2px 4px 0px rgb(221, 219, 217 / 12%), 0px 2px 10px 0px rgb(221, 219, 217 / 15%);
+    --smui-card-text-color: var(--smui-site-body-text-color);
+    --smui-card-meta-color: var(--slskd-color-subtle);
+
+    /* collections/table */
+    --smui-table-background: var(--slskd-primary-background);
+    --smui-table-color: var(--smui-site-body-text-color);
+    --smui-table-border-color: var(--slskd-tertiary-background);
+    --smui-table-header-background: var(--slskd-secondary-background);
+    --smui-table-header-color: var(--smui-site-body-text-color);
+    --smui-table-footer-background: var(--slskd-secondary-background);
+    --smui-table-footer-color: var(--smui-site-body-text-color);
+    --smui-table-selectable-background-color: var(--slskd-subtle-background);
+    --smui-table-row-disabled-color: var(--slskd-color-subtle);
+    --smui-table-row-negative-color: var(--smui-site-body-text-color);
+    --smui-table-row-negative-background-color: rgba(248,81,73,0.15);
+    --smui-table-row-negative-border-color:rgba(248,81,73,0.4);
+    --smui-table-row-negative-background-hover-color:#da3633;
+    --smui-table-row-warning-color: var(--smui-site-body-text-color);
+    --smui-table-row-warning-background-color:rgba(187,128,9,0.15);
+    --smui-table-row-warning-border-color: rgba(187,128,9,0.4);
+    --smui-table-row-warning-background-hover-color: #9e6a03;
+
+    /* modules/modal */
+    --smui-modal-background: var(--slskd-overlay-background);
+    --smui-modal-color: var(--smui-site-body-text-color);
+    --smui-modal-border: 1px solid var(--slskd-tertiary-border-color);
+
+    /* views/item */
+    --smui-item-meta-color: var(--slskd-color-subtle);
+    --smui-item-description-color: var(--slskd-color);
+
+    /* modules/dropdown */
+    --smui-menu-background: var(--slskd-hover-background);
+    --smui-menu-item-color: var(--slskd-color);
+    --smui-menu-hovered-item-background: var(--slskd-emphasis-background);
+    --smui-menu-hovered-item-color: var(--slskd-color);
+
+}
+
 body {
-    background: #c8c8c8 !important;
+    background-color: var(--background-color);
 }
 
 .ui.table td, th {
@@ -18,9 +117,9 @@ body {
     box-shadow: none !important;
 }
 
-.app-content {
+.pushable > .pusher.app-content {
     margin-top: 70px;
-    background: #c8c8c8 !important;
+    background: var(--background-color);
 }
 
 .navigation {

@@ -10,7 +10,7 @@ import {
 import { getCurrentDebugView } from '../../../lib/options';
 import { CodeEditor, PlaceholderSegment, Switch } from '../../Shared';
 
-const DebugModal = ({ open, onClose }) => {
+const DebugModal = ({ open, theme, onClose }) => {
   const [loading, setLoading] = useState(true);
   const [debugView, setDebugView] = useState();
 
@@ -52,6 +52,7 @@ const DebugModal = ({ open, onClose }) => {
             value={debugView}
             basicSetup={false}
             editable={false}
+            theme={theme}
           />
         </Switch>
       </Modal.Content>
