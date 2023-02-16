@@ -102,12 +102,15 @@ jobs:
         with:
           fetch-depth: 0
 
-      # docker tags aren't compatible with semver, therefore + can't be used to delimit the version and sha
+      # docker tags aren't compatible with semver, therefore + can't be used to delimit the version and SHA
       # https://github.com/opencontainers/distribution-spec/issues/154
+      # CONTAINER_VERSION is used in Docker tags and must use a hyphen (-) delimiter between the tag and SHA
+      # APP_VERSION is passed as a Docker build arg and used to publish the app and must use a plus (+) delimiter between the tag and SHA
       - name: Set Environment Variables
         run: |
           echo "TAG=$(git describe --tags --abbrev=0)" >> $GITHUB_ENV
-          echo "VERSION=$(git describe --tags --abbrev=0).$([[ $GITHUB_REF = refs/tags/* ]] && echo 0 || echo 65534)-$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+          echo "CONTAINER_VERSION=$(git describe --tags --abbrev=0).$([[ $GITHUB_REF = refs/tags/* ]] && echo 0 || echo 65534)-$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+          echo "APP_VERSION=$(git describe --tags --abbrev=0).$([[ $GITHUB_REF = refs/tags/* ]] && echo 0 || echo 65534)+$(git rev-parse --short HEAD)" >> $GITHUB_ENV
           echo "REVISION=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
           echo "BUILD_DATE=$(date --iso-8601=s)" >> $GITHUB_ENV
 
@@ -138,13 +141,13 @@ jobs:
           push: true
           build-args: |
             TAG=${{ env.TAG }}
-            VERSION=${{ env.VERSION }}
+            VERSION=${{ env.APP_VERSION }}
             REVISION=${{ env.REVISION }}
             BUILD_DATE=${{ env.BUILD_DATE }}
           tags: |
-            slskd/slskd:${{ env.VERSION }}
+            slskd/slskd:${{ env.CONTAINER_VERSION }}
             slskd/slskd:canary
-            ghcr.io/slskd/slskd:${{ env.VERSION }}
+            ghcr.io/slskd/slskd:${{ env.CONTAINER_VERSION }}
             ghcr.io/slskd/slskd:canary
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -156,13 +159,13 @@ jobs:
           platforms: linux/amd64,linux/arm64,linux/arm/v7
           push: true
           build-args: |
-            VERSION=${{ env.VERSION }}
+            VERSION=${{ env.APP_VERSION }}
           tags: |
-            slskd/slskd:${{ env.VERSION }}
+            slskd/slskd:${{ env.CONTAINER_VERSION }}
             slskd/slskd:${{ env.TAG }}
             slskd/slskd:canary
             slskd/slskd:latest
-            ghcr.io/slskd/slskd:${{ env.VERSION }}
+            ghcr.io/slskd/slskd:${{ env.CONTAINER_VERSION }}
             ghcr.io/slskd/slskd:${{ env.TAG }}
             ghcr.io/slskd/slskd:canary
             ghcr.io/slskd/slskd:latest
