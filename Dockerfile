@@ -44,13 +44,15 @@ RUN apt-get update && apt-get install -y \
   && rm -rf /var/lib/apt/lists/*
 
 RUN bash -c 'mkdir -p /app/{incomplete,downloads} \ 
-  && chmod -R 777 /app'
+  && chmod -R 777 /app \
+  && mkdir -p /.net \
+  && chmod 777 /.net'
 
 VOLUME /app
 
 HEALTHCHECK --interval=60s --timeout=3s --start-period=5s --retries=3 CMD wget -q -O - http://localhost:${SLSKD_HTTP_PORT}/health
 
-ENV DOTNET_BUNDLE_EXTRACT_BASE_DIR=/slskd/.net \
+ENV DOTNET_BUNDLE_EXTRACT_BASE_DIR=/.net \
   DOTNET_gcServer=0 \
   DOTNET_gcConcurrent=1 \
   DOTNET_GCHeapHardLimit=1F400000	\
