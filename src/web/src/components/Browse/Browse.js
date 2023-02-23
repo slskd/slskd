@@ -100,10 +100,19 @@ class Browse extends Component {
     this.inputtext.inputRef.current.value = this.state.username;
     this.inputtext.inputRef.current.disabled = this.state.browseState !== 'idle';
 
-    try {
-      localStorage.setItem('soulseek-example-browse-state', lzString.compress(JSON.stringify(this.state)));
-    } catch (error) {
-      console.error(error);
+    const storeToLocalStorage = () => {
+      try {
+        localStorage.setItem('soulseek-example-browse-state', lzString.compress(JSON.stringify(this.state)));
+      } catch (error) {
+        console.error(error);
+      }
+    };
+    // Shifting the compression and safe out of the current render loop to speed up responsiveness
+    // requestIdleCallback is not supported in Safari hence we push to next tick using Promise.resolve
+    if (window.requestIdleCallback) {
+      window.requestIdleCallback(storeToLocalStorage);
+    } else {
+      Promise.resolve().then(storeToLocalStorage);
     }
   };
 
@@ -138,27 +147,36 @@ class Browse extends Component {
     }
   };
 
-  getDirectoryTree = ({ directories, separator }) => {
+  getDirectoryTree = ({directories, separator}) => {
     if (directories.length === 0 || directories[0].name === undefined) {
       return [];
     }
 
-    const depth = Math.min.apply(null, directories.map(d => d.name.split(separator).length));
+    // Optimise this process so we only:
+    // - loop through all directories once
+    // - do the split once
+    // - future look ups are done from the Map
+    const depthMap = new Map();
+    directories.forEach(d => {
+      const depth = d.name.split(separator).length;
+      if (!depthMap.has(depth)) {
+        depthMap.set(depth, []);
+      }
+      depthMap.get(depth).push(d);
+    });
 
-    const topLevelDirs = directories
-      .filter(d => d.name.split(separator).length === depth);
+    const depth = Math.min.apply(Math, Array.from(depthMap.keys()));
 
-    const tree = topLevelDirs.map(directory => this.getChildDirectories(directories, directory, separator, depth));
-    return tree;
+    return depthMap.get(depth).map(directory => this.getChildDirectories(depthMap, directory, separator, depth + 1));
   };
 
-  getChildDirectories = (directories, root, separator, depth) => {
-    const children = directories
-      .filter(d => d.name !== root.name)
-      .filter(d => d.name.split(separator).length === depth + 1)
-      .filter(d => d.name.startsWith(root.name));
+  getChildDirectories = (depthMap, root, separator, depth) => {
+    if (!depthMap.has(depth)) {
+      return { ...root, children: []};
+    }
+    const children = depthMap.get(depth).filter(d => d.name.startsWith(root.name));
 
-    return { ...root, children: children.map(c => this.getChildDirectories(directories, c, separator, depth + 1)) };
+    return { ...root, children: children.map(c => this.getChildDirectories(depthMap, c, separator, depth + 1)) };
   };
 
   selectDirectory = (directory) => {
