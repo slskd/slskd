@@ -138,9 +138,24 @@ namespace slskd.Relay
         /// <exception cref="UnauthorizedAccessException">Thrown when the challenge response is invalid.</exception>
         public void Login(string agent, string challengeResponse)
         {
-            OptionsMonitor.CurrentValue.Relay.Agents.TryGetValue(agent, out var agentOptions);
+            bool TryGetAgentConfig(string agent, out Options.RelayOptions.RelayAgentConfigurationOptions options)
+            {
+                var agentOptions = OptionsMonitor.CurrentValue.Relay.Agents;
+                var found = agentOptions.Values.SingleOrDefault(a => a.InstanceName == agent);
 
-            if (agentOptions == default)
+                if (found != default)
+                {
+                    options = found;
+                    return true;
+                }
+
+                Log.Warning("Unable to locate Agent config for '{Agent}' (configured Agents: {Agents})", agent, string.Join(", ", agentOptions.Values.Select(a => a.InstanceName)));
+
+                options = null;
+                return false;
+            }
+
+            if (!TryGetAgentConfig(agent, out var agentOptions))
             {
                 Log.Warning("Unauthorized login attempt from unknown Agent {Agent} (connection {Id}) from {IP}", agent, Context.ConnectionId, RemoteIpAddress);
                 throw new UnauthorizedAccessException();
