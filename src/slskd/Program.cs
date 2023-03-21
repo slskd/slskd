@@ -618,7 +618,6 @@ namespace slskd
                 {
                     options.AddPolicy(AuthPolicy.JwtOnly, policy =>
                     {
-                        policy.RequireRole(Role.Administrator.ToString());
                         policy.AuthenticationSchemes.Add(JwtBearerDefaults.AuthenticationScheme);
                         policy.RequireAuthenticatedUser();
                     });

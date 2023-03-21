@@ -68,7 +68,7 @@ namespace slskd.Relay
         /// </summary>
         /// <returns></returns>
         [HttpPut("agent")]
-        [Authorize(Policy = AuthPolicy.JwtOnly)]
+        [Authorize(Policy = AuthPolicy.JwtOnly, Roles = AuthRole.AdministratorOnly)]
         public async Task<IActionResult> Connect()
         {
             if (!OptionsAtStartup.Relay.Enabled || !new[] { RelayMode.Agent, RelayMode.Debug }.Contains(OperationMode))
@@ -85,7 +85,7 @@ namespace slskd.Relay
         /// </summary>
         /// <returns></returns>
         [HttpDelete("agent")]
-        [Authorize(Policy = AuthPolicy.JwtOnly)]
+        [Authorize(Policy = AuthPolicy.JwtOnly, Roles = AuthRole.AdministratorOnly)]
         public async Task<IActionResult> Disconnect()
         {
             if (!OptionsAtStartup.Relay.Enabled || !new[] { RelayMode.Agent, RelayMode.Debug }.Contains(OperationMode))
@@ -103,7 +103,7 @@ namespace slskd.Relay
         /// <param name="token">The unique identifier for the request.</param>
         /// <returns></returns>
         [HttpGet("controller/downloads/{token}")]
-        [Authorize(Policy = AuthPolicy.ApiKeyOnly)]
+        [Authorize(Policy = AuthPolicy.ApiKeyOnly, Roles = AuthRole.Any)]
         public IActionResult DownloadFile([FromRoute]string token)
         {
             if (!OptionsAtStartup.Relay.Enabled || !new[] { RelayMode.Controller, RelayMode.Debug }.Contains(OperationMode))
@@ -157,7 +157,7 @@ namespace slskd.Relay
         [RequestSizeLimit(10L * 1024L * 1024L * 1024L)]
         [RequestFormLimits(MultipartBodyLengthLimit = 10L * 1024L * 1024L * 1024L)]
         [DisableFormValueModelBinding]
-        [Authorize(Policy = AuthPolicy.ApiKeyOnly)]
+        [Authorize(Policy = AuthPolicy.ApiKeyOnly, Roles = AuthRole.ReadWriteOrAdministrator)]
         public async Task<IActionResult> UploadFile(string token)
         {
             if (!OptionsAtStartup.Relay.Enabled || !new[] { RelayMode.Controller, RelayMode.Debug }.Contains(OperationMode))
@@ -252,7 +252,7 @@ namespace slskd.Relay
         /// <param name="token">The unique identifier for the request.</param>
         /// <returns></returns>
         [HttpPost("controller/shares/{token}")]
-        [Authorize(Policy = AuthPolicy.ApiKeyOnly)]
+        [Authorize(Policy = AuthPolicy.ApiKeyOnly, Roles = AuthRole.ReadWriteOrAdministrator)]
         public async Task<IActionResult> UploadShares(string token)
         {
             if (!OptionsAtStartup.Relay.Enabled || !new[] { RelayMode.Controller, RelayMode.Debug }.Contains(OperationMode))

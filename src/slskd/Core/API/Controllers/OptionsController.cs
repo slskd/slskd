@@ -82,7 +82,7 @@ namespace slskd.Core.API
         /// <returns></returns>
         [HttpGet]
         [Route("debug")]
-        [Authorize(Policy = AuthPolicy.JwtOnly)]
+        [Authorize(Policy = AuthPolicy.JwtOnly, Roles = AuthRole.AdministratorOnly)]
         [ProducesResponseType(typeof(string), 200)]
         public IActionResult Debug()
         {
@@ -100,7 +100,7 @@ namespace slskd.Core.API
         }
 
         [HttpGet]
-        [Authorize(Policy = AuthPolicy.JwtOnly)]
+        [Authorize(Policy = AuthPolicy.JwtOnly, Roles = AuthRole.AdministratorOnly)]
         [Route("yaml/location")]
         public IActionResult GetYamlFileLocation()
         {
@@ -113,7 +113,7 @@ namespace slskd.Core.API
         }
 
         [HttpGet]
-        [Authorize(Policy = AuthPolicy.JwtOnly)]
+        [Authorize(Policy = AuthPolicy.JwtOnly, Roles = AuthRole.AdministratorOnly)]
         [Route("yaml")]
         public IActionResult GetYamlFile()
         {
@@ -127,7 +127,7 @@ namespace slskd.Core.API
         }
 
         [HttpPost]
-        [Authorize(Policy = AuthPolicy.JwtOnly)]
+        [Authorize(Policy = AuthPolicy.JwtOnly, Roles = AuthRole.AdministratorOnly)]
         [Route("yaml")]
         public IActionResult UpdateYamlFile([FromBody] string yaml)
         {
