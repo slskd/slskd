@@ -743,7 +743,9 @@ namespace slskd.Relay
                 return false;
             }
 
-            if (!OptionsMonitor.CurrentValue.Relay.Agents.TryGetValue(agentName, out var agentOptions))
+            var agentOptions = OptionsMonitor.CurrentValue.Relay.Agents.Values.SingleOrDefault(a => a.InstanceName == agentName);
+
+            if (agentOptions == default)
             {
                 Log.Debug("Auth challenge for {Id} failed: no configuration for agent '{Agent}'", connectionId, agentName);
                 return false;
@@ -751,9 +753,15 @@ namespace slskd.Relay
 
             var key = Pbkdf2.GetKey(password: agentOptions.Secret, salt: agentName, length: 48);
             var tokenBytes = System.Text.Encoding.UTF8.GetBytes((string)challengeToken);
-            var expectedResponse = Aes.Encrypt(tokenBytes, key).ToBase62();
+            var expectedCredential = Aes.Encrypt(tokenBytes, key).ToBase62();
 
-            return expectedResponse == credential;
+            if (expectedCredential != credential)
+            {
+                Log.Debug("Validation failed: Supplied credential {Credential} does not match expected credential {Expected}", credential, expectedCredential);
+                return false;
+            }
+
+            return true;
         }
 
         /// <summary>
@@ -860,7 +868,9 @@ namespace slskd.Relay
         {
             try
             {
-                if (!OptionsMonitor.CurrentValue.Relay.Agents.TryGetValue(agentName, out var agentOptions))
+                var agentOptions = OptionsMonitor.CurrentValue.Relay.Agents.Values.SingleOrDefault(a => a.InstanceName == agentName);
+
+                if (agentOptions == default)
                 {
                     Log.Debug("Validation failed: Agent {Agent} not configured", agentName);
                     return false;

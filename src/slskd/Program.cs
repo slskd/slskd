@@ -618,14 +618,12 @@ namespace slskd
                 {
                     options.AddPolicy(AuthPolicy.JwtOnly, policy =>
                     {
-                        policy.RequireRole(Role.Administrator.ToString());
                         policy.AuthenticationSchemes.Add(JwtBearerDefaults.AuthenticationScheme);
                         policy.RequireAuthenticatedUser();
                     });
 
                     options.AddPolicy(AuthPolicy.ApiKeyOnly, policy =>
                     {
-                        policy.RequireRole(Role.ReadWrite.ToString(), Role.Administrator.ToString());
                         policy.AuthenticationSchemes.Add(ApiKeyAuthentication.AuthenticationScheme);
                         policy.RequireAuthenticatedUser();
                     });

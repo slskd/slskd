@@ -72,7 +72,7 @@ For this example we'll use `9tWy5c3NrmekKVWLQXBztz0hY7rNGlj1tGMfvHKmU1q` for the
 
 ### Controller
 
-Next, we'll configure the controller.  We'll enable the Relay, set this instance's mode to `controller`, and configure a single agent named `example`.  We'll accept connections from within our home network, which uses IP addresses in the 192.168.1.x range.
+Next, we'll configure the controller.  We'll enable the Relay, set this instance's mode to `controller`, and configure a single agent named `example_agent`.  We'll accept connections from within our home network, which uses IP addresses in the 192.168.1.x range.
 
 We'll also need to create an API key, which we'll allow to be used from anywhere.  We'll give the key the role `readwrite`, which is required for agents.
 
@@ -85,6 +85,7 @@ relay:
   mode: controller
   agents:
     example:
+      instance_name: example_agent
       secret: BgI04SuVtsAYipxPHDpdxJsnVoPEeq4tKJeorWxr3Pj
       cidr: 192.168.1.0/24
 web:
@@ -120,7 +121,7 @@ To demonstrate how file relays work, I've created a file `foo.txt` in `~/Music/t
 The entire `slskd.yml` file is below if you'd like to copy/paste it. Be sure to update the controller's address to the IP address of the machine the controller is working on.
 
 ```yaml
-instance_name: example
+instance_name: example_agent
 relay:
   enabled: true
   mode: agent
@@ -151,14 +152,14 @@ The controller should show logs similar to the following:
 
 ```
 [19:09:30 INF] Agent connection GyBMnXHfdomNzR2FEzT68Q from 192.168.1.250 established. Sending authentication challenge GU7pSFTG60skUtqM24FfB2WiUnWsC1LxYagBsz7edcp...
-[19:09:30 INF] Agent connection GyBMnXHfdomNzR2FEzT68Q from 192.168.1.250 authenticated as agent example
-[19:09:31 INF] Agent example (connection GyBMnXHfdomNzR2FEzT68Q) from 192.168.1.250 requested share upload token f81eb299-1a86-4f72-a77c-922d3f73106f
-[19:09:31 INF] Handling share upload (f81eb299-1a86-4f72-a77c-922d3f73106f) from a caller claiming to be agent example
-[19:09:31 INF] Agent example authenticated for token f81eb299-1a86-4f72-a77c-922d3f73106f. Beginning download of shares to /tmp/slskd/share_example_h0ycner1.svm.db
-[19:09:31 INF] Download of shares from example (f81eb299-1a86-4f72-a77c-922d3f73106f) complete (48.0 KB in 2ms)
-[19:09:31 INF] Loading shares from agent example
+[19:09:30 INF] Agent connection GyBMnXHfdomNzR2FEzT68Q from 192.168.1.250 authenticated as agent example_agent
+[19:09:31 INF] Agent example_agent (connection GyBMnXHfdomNzR2FEzT68Q) from 192.168.1.250 requested share upload token f81eb299-1a86-4f72-a77c-922d3f73106f
+[19:09:31 INF] Handling share upload (f81eb299-1a86-4f72-a77c-922d3f73106f) from a caller claiming to be agent example_agent
+[19:09:31 INF] Agent example_agent authenticated for token f81eb299-1a86-4f72-a77c-922d3f73106f. Beginning download of shares to /tmp/slskd/share_example_h0ycner1.svm.db
+[19:09:31 INF] Download of shares from example_agent (f81eb299-1a86-4f72-a77c-922d3f73106f) complete (48.0 KB in 2ms)
+[19:09:31 INF] Loading shares from agent example_agent
 [19:09:31 INF] Warming browse response cache...
-[19:09:31 INF] Shares from agent example ready.
+[19:09:31 INF] Shares from agent example_agent ready.
 [19:09:31 INF] Browse response cached successfully in 25ms
 ```
 
@@ -169,12 +170,12 @@ We're now ready to relay files!
 From another machine running a different Soulseek client, download the `foo.txt` file we shared as a test.  The controller should show logs similar to the following:
 
 ```
-[19:19:34 INF] Resolved Music\test\foo.txt to physical file /home/kubuntu/Music/test/foo.txt on host 'example'
-[19:19:35 INF] Requested file Music\test\foo.txt from Agent example with ID 09e76dde-c4fa-4c50-8c25-d92a26b52102. Waiting for incoming connection.
-[19:19:35 INF] Handling file upload of Music\test\foo.txt (09e76dde-c4fa-4c50-8c25-d92a26b52102) from a caller claiming to be agent example
-[19:19:35 INF] Agent example authenticated for token 09e76dde-c4fa-4c50-8c25-d92a26b52102. Forwarding file stream for Music\test\foo.txt
-[19:19:35 INF] Agent example provided file stream for file Music\test\foo.txt with ID 09e76dde-c4fa-4c50-8c25-d92a26b52102
-[19:19:35 INF] File upload of Music\test\foo.txt (09e76dde-c4fa-4c50-8c25-d92a26b52102) from agent example complete
+[19:19:34 INF] Resolved Music\test\foo.txt to physical file /home/kubuntu/Music/test/foo.txt on host 'example_agent'
+[19:19:35 INF] Requested file Music\test\foo.txt from Agent example_agent with ID 09e76dde-c4fa-4c50-8c25-d92a26b52102. Waiting for incoming connection.
+[19:19:35 INF] Handling file upload of Music\test\foo.txt (09e76dde-c4fa-4c50-8c25-d92a26b52102) from a caller claiming to be agent example_agent
+[19:19:35 INF] Agent example_agent authenticated for token 09e76dde-c4fa-4c50-8c25-d92a26b52102. Forwarding file stream for Music\test\foo.txt
+[19:19:35 INF] Agent example_agent provided file stream for file Music\test\foo.txt with ID 09e76dde-c4fa-4c50-8c25-d92a26b52102
+[19:19:35 INF] File upload of Music\test\foo.txt (09e76dde-c4fa-4c50-8c25-d92a26b52102) from agent example_agent complete
 ```
 
 And the agent should show:

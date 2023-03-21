@@ -89,7 +89,7 @@ namespace slskd.Relay
             OptionsAtStartup = optionsAtStartup;
         }
 
-        private ILogger Log { get; } = Serilog.Log.ForContext<RelayService>();
+        private ILogger Log { get; } = Serilog.Log.ForContext<RelayHub>();
         private IRelayService Relay { get; }
         private IOptionsMonitor<Options> OptionsMonitor { get; }
         private OptionsAtStartup OptionsAtStartup { get; }
@@ -138,9 +138,24 @@ namespace slskd.Relay
         /// <exception cref="UnauthorizedAccessException">Thrown when the challenge response is invalid.</exception>
         public void Login(string agent, string challengeResponse)
         {
-            OptionsMonitor.CurrentValue.Relay.Agents.TryGetValue(agent, out var agentOptions);
+            bool TryGetAgentConfig(string agent, out Options.RelayOptions.RelayAgentConfigurationOptions options)
+            {
+                var allAgents = OptionsMonitor.CurrentValue.Relay.Agents;
+                var found = allAgents.Values.SingleOrDefault(a => a.InstanceName == agent);
 
-            if (agentOptions == default)
+                if (found != default)
+                {
+                    options = found;
+                    return true;
+                }
+
+                Log.Warning("Unable to locate Agent config for '{Agent}' (configured Agents: {Agents})", agent, string.Join(", ", allAgents.Values.Select(a => a.InstanceName)));
+
+                options = null;
+                return false;
+            }
+
+            if (!TryGetAgentConfig(agent, out var agentOptions))
             {
                 Log.Warning("Unauthorized login attempt from unknown Agent {Agent} (connection {Id}) from {IP}", agent, Context.ConnectionId, RemoteIpAddress);
                 throw new UnauthorizedAccessException();

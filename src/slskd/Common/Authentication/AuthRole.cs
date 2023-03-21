@@ -1,4 +1,4 @@
-﻿// <copyright file="Role.cs" company="slskd Team">
+﻿// <copyright file="AuthRole.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -15,13 +15,19 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-namespace slskd.Authentication
+namespace slskd
 {
-    public enum Role
+    /// <summary>
+    ///     Authentication roles.
+    /// </summary>
+    /// <remarks>
+    ///     For use in the <see cref="Microsoft.AspNetCore.Authorization.AuthorizeAttribute"/> attribute, specifically.
+    /// </remarks>
+    public static class AuthRole
     {
-        ReadOnly = 0,
-        ReadWrite = 1,
-        Guest = 2,
-        Administrator = 3,
+        public const string AdministratorOnly = "Administrator";
+        public const string ReadWriteOrAdministrator = "ReadWrite,Administrator";
+        public const string GuestOrAdministrator = "Guest,Administrator";
+        public const string Any = "ReadOnly,ReadWrite,Guest,Administrator";
     }
 }

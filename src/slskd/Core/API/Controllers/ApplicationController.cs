@@ -69,7 +69,7 @@ namespace slskd.Core.API
         /// </summary>
         /// <returns></returns>
         [HttpDelete]
-        [Authorize(Policy = AuthPolicy.JwtOnly)]
+        [Authorize(Policy = AuthPolicy.JwtOnly, Roles = AuthRole.AdministratorOnly)]
         public IActionResult Shutdown()
         {
             Program.MasterCancellationTokenSource.Cancel();
@@ -89,7 +89,7 @@ namespace slskd.Core.API
         /// </summary>
         /// <returns></returns>
         [HttpPut]
-        [Authorize(Policy = AuthPolicy.JwtOnly)]
+        [Authorize(Policy = AuthPolicy.JwtOnly, Roles = AuthRole.AdministratorOnly)]
         public IActionResult Restart()
         {
             Program.MasterCancellationTokenSource.Cancel();

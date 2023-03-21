@@ -198,7 +198,7 @@ Controllers must have at least one API key configured.  For increased security i
 
 The relay mode for the controller must be set to `controller`, and the relay must be enabled.
 
-For each agent, the agent's name (corresponding to the configured instance name of the agent) must be specified in the agent map, and a different secret value between 16-255 characters should be specified for each agent.
+For each agent, the agent must be specified in the `agents` map, including an `instance_name` that corresponds to the top-level `instance_name` configured for the agent, and a different secret value between 16-255 characters should be specified for each agent.
 
 It is strongly suggested that controllers be configured to force HTTPS.  This makes the traffic between the controller and agents completely private, and prevents API keys and agent secrets from being exposed.
 
@@ -208,8 +208,10 @@ relay:
   mode: controller
   agents:
     some_instance:
+      instance_name: some_instance
       secret: <a secret value between 16 and 255 characters>
     a_different_instance:
+      instance_name: different_instance
       secret: <a different secret value between 16 and 255 characters>
 ```
 
@@ -220,7 +222,7 @@ relay:
 
 ## Agents
 
-The relay mode for agents must be set to `agent`, the relay must be enabled, and each agent must have a unique instance name that corresponds to an agent configured in the controller.
+The relay mode for agents must be set to `agent`, the relay must be enabled, and each agent must have a unique instance name that corresponds to the `instance_name` of an agent configured in the controller.
 
 Agents need to specify the HTTP or HTTPS address of their controller, the API key for the controller, and the secret that corresponds to the value configured in the controller for the agent.
 

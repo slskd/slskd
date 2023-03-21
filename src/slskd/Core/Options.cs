@@ -438,6 +438,14 @@ namespace slskd
                 }
                 else
                 {
+                    // determine whether any InstanceName is used more than once
+                    var instanceNames = Agents.Values.Select(a => a.InstanceName);
+
+                    if (instanceNames.Count() != instanceNames.Distinct().Count())
+                    {
+                        modeResults.Add(new ValidationResult("One or more Agent instance names are duplicated.  Ensure instance names are unique."));
+                    }
+
                     foreach (var (name, agent) in Agents)
                     {
                         var res = new List<ValidationResult>();
@@ -515,6 +523,15 @@ namespace slskd
             /// </summary>
             public class RelayAgentConfigurationOptions : IValidatableObject
             {
+                /// <summary>
+                ///     Gets the agent instance name.
+                /// </summary>
+                [Description("the name for this agent")]
+                [StringLength(255, MinimumLength = 1)]
+                [NotNullOrWhiteSpace]
+                [Secret]
+                public string InstanceName { get; init; }
+
                 /// <summary>
                 ///     Gets the agent secret.
                 /// </summary>
