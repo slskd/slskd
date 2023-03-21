@@ -89,7 +89,7 @@ namespace slskd.Relay
             OptionsAtStartup = optionsAtStartup;
         }
 
-        private ILogger Log { get; } = Serilog.Log.ForContext<RelayService>();
+        private ILogger Log { get; } = Serilog.Log.ForContext<RelayHub>();
         private IRelayService Relay { get; }
         private IOptionsMonitor<Options> OptionsMonitor { get; }
         private OptionsAtStartup OptionsAtStartup { get; }
