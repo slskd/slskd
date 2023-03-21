@@ -140,8 +140,8 @@ namespace slskd.Relay
         {
             bool TryGetAgentConfig(string agent, out Options.RelayOptions.RelayAgentConfigurationOptions options)
             {
-                var agentOptions = OptionsMonitor.CurrentValue.Relay.Agents;
-                var found = agentOptions.Values.SingleOrDefault(a => a.InstanceName == agent);
+                var allAgents = OptionsMonitor.CurrentValue.Relay.Agents;
+                var found = allAgents.Values.SingleOrDefault(a => a.InstanceName == agent);
 
                 if (found != default)
                 {
@@ -149,7 +149,7 @@ namespace slskd.Relay
                     return true;
                 }
 
-                Log.Warning("Unable to locate Agent config for '{Agent}' (configured Agents: {Agents})", agent, string.Join(", ", agentOptions.Values.Select(a => a.InstanceName)));
+                Log.Warning("Unable to locate Agent config for '{Agent}' (configured Agents: {Agents})", agent, string.Join(", ", allAgents.Values.Select(a => a.InstanceName)));
 
                 options = null;
                 return false;
