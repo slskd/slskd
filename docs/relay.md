@@ -85,6 +85,7 @@ relay:
   mode: controller
   agents:
     example:
+      instance_name: example_agent
       secret: BgI04SuVtsAYipxPHDpdxJsnVoPEeq4tKJeorWxr3Pj
       cidr: 192.168.1.0/24
 web:
@@ -120,7 +121,7 @@ To demonstrate how file relays work, I've created a file `foo.txt` in `~/Music/t
 The entire `slskd.yml` file is below if you'd like to copy/paste it. Be sure to update the controller's address to the IP address of the machine the controller is working on.
 
 ```yaml
-instance_name: example
+instance_name: example_agent
 relay:
   enabled: true
   mode: agent
