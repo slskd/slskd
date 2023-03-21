@@ -625,7 +625,6 @@ namespace slskd
 
                     options.AddPolicy(AuthPolicy.ApiKeyOnly, policy =>
                     {
-                        policy.RequireRole(Role.ReadWrite.ToString(), Role.Administrator.ToString());
                         policy.AuthenticationSchemes.Add(ApiKeyAuthentication.AuthenticationScheme);
                         policy.RequireAuthenticatedUser();
                     });
