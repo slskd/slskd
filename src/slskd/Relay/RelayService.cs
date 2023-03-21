@@ -753,9 +753,15 @@ namespace slskd.Relay
 
             var key = Pbkdf2.GetKey(password: agentOptions.Secret, salt: agentName, length: 48);
             var tokenBytes = System.Text.Encoding.UTF8.GetBytes((string)challengeToken);
-            var expectedResponse = Aes.Encrypt(tokenBytes, key).ToBase62();
+            var expectedCredential = Aes.Encrypt(tokenBytes, key).ToBase62();
 
-            return expectedResponse == credential;
+            if (expectedCredential != credential)
+            {
+                Log.Debug("Validation failed: Supplied credential {Credential} does not match expected credential {Expected}", credential, expectedCredential);
+                return false;
+            }
+
+            return true;
         }
 
         /// <summary>
