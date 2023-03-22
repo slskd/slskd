@@ -31,6 +31,7 @@ namespace slskd.Relay
     using Microsoft.AspNetCore.WebUtilities;
     using Microsoft.Net.Http.Headers;
     using Serilog;
+    using slskd.Cryptography;
     using slskd.Shares;
 
     /// <summary>
@@ -118,7 +119,7 @@ namespace slskd.Relay
 
             var agentName = Request.Headers["X-Relay-Agent"].FirstOrDefault();
             var credential = Request.Headers["X-Relay-Credential"].FirstOrDefault();
-            var filename = Request.Headers["X-Relay-Filename"].FirstOrDefault();
+            var filename = Request.Headers["X-Relay-Filename-Base64"].FirstOrDefault()?.FromBase64();
 
             if (!Relay.RegisteredAgents.Any(a => a.Name == agentName) || string.IsNullOrEmpty(credential))
             {
