@@ -457,7 +457,7 @@ namespace slskd.Relay
                     request.Headers.Add("X-API-Key", OptionsMonitor.CurrentValue.Relay.Controller.ApiKey);
                     request.Headers.Add("X-Relay-Agent", OptionsMonitor.CurrentValue.InstanceName);
                     request.Headers.Add("X-Relay-Credential", ComputeCredential(token));
-                    request.Headers.Add("X-Relay-Filename", filename);
+                    request.Headers.Add("X-Relay-Filename-Base64", filename.ToBase64());
 
                     using var client = CreateHttpClient();
                     using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
