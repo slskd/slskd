@@ -75,7 +75,7 @@ else
     echo $'\n\t🛠️  cp -r build/* ../slskd/wwwroot/\n'
     cp -r build/* ../slskd/wwwroot/
   fi
-
+  
   cd ../..
 fi
 

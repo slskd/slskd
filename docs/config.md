@@ -107,7 +107,7 @@ directories:
 
 Any number of shared directories can be configured.
 
-Paths must be absolute, meaning they must begin with `/`, `X:\`, or `\\`, depending on the system. Relative paths, such as `~/directory` or `../directory`, and root paths (e.g. an entire drive, mount or network share) are not supported.
+Paths must be absolute, meaning they must begin with `/`, `X:\`, or `\\`, depending on the system. Relative paths, such as `~/directory` or `../directory`, are not supported. Sharing a root mount on a unix-like OS (`/`) is also not supported.
 
 Shares can be excluded by prefixing them with `-` or `!`.  This is useful in situations where sharing a subdirectory of a share isn't desired, for example, if a user wanted to share their entire music library, but not their personal recordings:
 
@@ -126,7 +126,7 @@ directories:
     - '[Music]\users\John Doe\Music'
 ```
 
-To a remote user, any files within the aliased path will appear as though they are shared from a directory named as the alias.
+If no alias is specified, the name of the shared folder is used (e.g. `D:\Music` is aliased to `Music`). To a remote user, any files within the aliased path will appear as though they are shared from a directory named as the alias.
 
 Aliases:
 * Must be unique
@@ -322,6 +322,7 @@ Changing these values may require the server connection to be reset, depending o
 | `--slsk-no-dnet`          | `SLSK_NO_DNET`          | Determines whether the distributed network is disabled.  If disabled, the client will not obtain a parent or any child connections, and will not receive distributed search requests. |
 | `--slsk-dnet-no-children` | `SLSK_DNET_NO_CHILDREN` | Determines whether to disallow distributed children                                                                                                                                   |
 | `--slsk-dnet-children`    | `SLSK_DNET_CHILDREN`    | The maximum number of distributed children to accept                                                                                                                                  |
+| `--slsk-dnet-logging`     | `SLSK_DNET_LOGGING`     | Determines whether to enable distributed network logging
 
 #### **YAML**
 ```yaml
@@ -496,6 +497,7 @@ The application can produce a self-signed `.pfx` file and random password using 
 | `-f\|--force-https`     | `HTTPS_FORCE`         | Determines whether HTTP requests are to be redirected to HTTPS |
 | `--https-cert-pfx`      | `HTTPS_CERT_PFX`      | The path to the X509 certificate .pfx file                     |
 | `--https-cert-password` | `HTTPS_CERT_PASSWORD` | The password for the X509 certificate                          |
+| `--no-https`            | `NO_HTTPS`            | Determines whether HTTPS is to be disabled                     |
 
 #### **YAML**
 ```yaml
@@ -540,11 +542,14 @@ web:
 
 A number of filters can be configured to control various aspects of how the application interacts with the Soulseek network.
 
-The share filters can be used to prevent certain types of files from being shared.  This option is an array that can take any number of filters.  Filters must be a valid regular expression; a few examples are included below and in the example configuration included with the application, but the list is empty by default.
+Share filters can be used to prevent certain types of files from being shared.  This option is an array that can take any number of filters.  Filters must be a valid regular expression; a few examples are included below and in the example configuration included with the application, but the list is empty by default.
 
-| Command Line     | Environment Variable | Description                                                    |
-| ---------------- | -------------------- | -------------------------------------------------------------- |
-| `--share-filter` | `SHARE_FILTER`       | A list of regular expressions used to filter files from shares |
+Search request filters can be used to discard incoming search requests that match one or more filters.  Like share filters, this option is an array of regular expressions, and it defaults to an empty array (no request filtering is applied).
+
+| Command Line              | Environment Variable    | Description                                                           |
+| ------------------------- | ----------------------- | --------------------------------------------------------------------- |
+| `--share-filter`          | `SHARE_FILTER`          | A list of regular expressions used to filter files from shares        |
+| `--search-request-filter` | `SEARCH_REQUEST_FILTER` | A list of regular expressions used to filter incoming search requests |
 
 #### **YAML**
 ```yaml
@@ -553,6 +558,9 @@ filters:
     - \.ini$
     - Thumbs.db$
     - \.DS_Store$
+  search:
+    request:
+      - ^.{1,2}$
 ```
 
 # Integrations
@@ -658,23 +666,48 @@ logger:
   loki: ~
 ```
 
+## Metrics
+
+The application captures metrics internally and can optionally expose these metrics to be consumed by an instance of Prometheus.  This is a good option for those wanting to tune performance characterisics of the application.
+
+Metrics are disabled by default, and enabling them will make them available at `/metrics`.  Authentication is enabled by default, and the credentials are the same defaults as the web UI (`slskd`:`slskd`).
+
+If the application will be exposed to the internet, it's a good idea to leave this disabled or to set credentials other than the defaults.  Elements of the system configuration, like operating system, architecture, and drive configuration are included and can this can make it easier for an attacker to exploit a vulnerability in your system.
+
+
+| Command Line         | Environment Variable | Description                                               |
+| -------------------- | -------------------- | --------------------------------------------------------- |
+| `--metrics`          | `METRICS`            | Determines whether the metrics endpoint should be enabled |
+| `--metrics-url`      | `METRICS_URL`        | The URL of the metrics endpoint                           |
+| `--metrics-no-auth`  | `METRICS_NO_AUTH`    | Disables authentication for the metrics endpoint          |
+| `--metrics-username` | `METRICS_USERNAME`   | The username for the metrics endpoint                     |
+| `--metrics-password` | `METRICS_PASSWORD`   | The password for the metrics endpoint                     |
+
+#### **YAML**
+
+```yaml
+metrics:
+  enabled: false
+  url: /metrics
+  authentication:
+    disabled: false
+    username: slskd
+    password: slskd
+```
+
 ## Features
 
 Several features have been added that aid in the development, debugging and operation of the application, but are generally not of much use to most users.
-
-The application can publish Prometheus metrics to `/metrics` using [prometheus-net](https://github.com/prometheus-net/prometheus-net).  This is especially useful for anyone attempting to tune performance characteristics.
 
 The application can publish a Swagger (OpenAPI) definition and host SwaggerUI at `/swagger` using [Swashbuckle](https://github.com/domaindrivendev/Swashbuckle.AspNetCore).  This is useful for anyone developing against the application API and/or creating a new web interface.
 
 | Command Line   | Environment Variable | Description                                                                               |
 | -------------- | -------------------- | ----------------------------------------------------------------------------------------- |
-| `--prometheus` | `PROMETHEUS`         | Determines whether Prometheus metrics are published to `/metrics`                         |
 | `--swagger`    | `SWAGGER`            | Determines whether Swagger (OpenAPI) definitions and UI should be available at `/swagger` |
 
 #### **YAML**
 ```yaml
 feature:
-  prometheus: false
   swagger: false
 ```
 
@@ -685,11 +718,25 @@ A number of additional feature flags are provided to change the runtime behavior
 | Flag                 | Environment Variable | Description                                                      |
 | -------------------- | -------------------- | ---------------------------------------------------------------- |
 | `-d\|--debug`        | `DEBUG`              | Run the application in debug mode.  Produces verbose log output. |
+| `--experimental`     | `EXPERIMENTAL`       | Run the application in experimental mode.  YMMV. |
 | `-n\|--no-logo`      | `NO_LOGO`            | Don't show the application logo on startup                       |
 | `-x\|--no-start`     | `NO_START`           | Bootstrap the application, but don't start                       |
 | `--no-connect`       | `NO_CONNECT`         | Start the application, but don't connect to the server           |
 | `--no-share-scan`    | `NO_SHARE_SCAN`      | Don't perform a scan of shared directories on startup            |
 | `--no-version-check` | `NO_VERSION_CHECK`   | Don't perform a version check on startup                         |
+| `--log-sql`          | `LOG_SQL`            | Log SQL queries generated by Entity Framework                    |
+
+#### **YAML**
+```yaml
+debug: false
+flags:
+  no_logo: false
+  no_start: false
+  no_connect: false
+  no_share_scan: false
+  no_version_check: false
+  log_sql: false
+```
 
 # Commands
 

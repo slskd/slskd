@@ -13,10 +13,22 @@
 .search-segment {
   margin-top: 15px !important;
   height: 78px !important;
+  display: flex;
 }
 
-@media only screen and (min-width: 851px) {
-  .search-options-hide-no-slots, .search-options-hide-locked {
+.search-segment-icon {
+  padding-top: 10px;
+  padding-right: .5em;
+}
+
+.search-card {
+  width: 1200px !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+@media only screen and (min-width: 991px) {
+  .search-options-hide-no-slots, .search-options-hide-locked, .search-options-fold-results {
       margin-left: 1rem;
   }
 
@@ -25,28 +37,28 @@
   }
 }
 
-@media only screen and (max-width: 850px) {
+@media only screen and (max-width: 684px) {
   .search-options-sort {
       width: 100%;
   }
 }
 
-@media only screen and (max-width: 850px) {
+@media only screen and (max-width: 990px) {
   .search-option-toggles {
     margin-top: 1rem;
   }
 
-  .search-options-hide-no-slots {
+  .search-options-hide-no-slots, .search-options-fold-results {
     margin-left: 1rem;
   }
 }
 
-@media only screen and (max-width: 537px) {
+@media only screen and (max-width: 684px) {
   .search-option-toggles {
     display: grid;
   }
 
-  .search-options-hide-no-slots {
+  .search-options-hide-no-slots, .search-options-fold-results {
     margin-top: 1rem;
     margin-left: 0px;
   }
@@ -63,4 +75,49 @@
 .search-filter {
   width: 100%;
   margin-top: 1rem;
+}
+
+.search-list-icon {
+  width: 40px !important;
+}
+
+.search-list-phrase {
+  word-wrap: break-word !important;
+}
+
+.search-list-responses {
+  width: 30px !important;
+}
+
+.search-list-files {
+  width: 80px !important;
+}
+
+.search-list-locked {
+  width: 100px !important;
+}
+
+.search-list-started {
+  width: 120px !important;
+}
+
+.search-list-action {
+  width: 5px !important;
+}
+
+.search-detail-header-segment {
+  margin-top: 15px !important;
+  height: 78px !important;
+  padding-top: 20px !important;
+  display: flex;
+}
+
+.search-detail-header-segment > .header {
+  font-weight: normal !important;
+  margin-top: 8px !important;
+}
+
+.search-detail-header-buttons {
+  display: inline;
+  margin-left: auto;
 }

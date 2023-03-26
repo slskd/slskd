@@ -38,6 +38,31 @@ ARG VERSION=0.0.1.65534-local
 ARG REVISION=0
 ARG BUILD_DATE
 
+RUN apt-get update && apt-get install -y \
+  wget \
+  && rm -rf /var/lib/apt/lists/*
+
+RUN bash -c 'mkdir -p /app/{incomplete,downloads} \ 
+  && chmod -R 777 /app'
+
+VOLUME /app
+
+HEALTHCHECK --interval=60s --timeout=3s --start-period=5s --retries=3 CMD wget -q -O - http://localhost:${SLSKD_HTTP_PORT}/health
+
+ENV DOTNET_BUNDLE_EXTRACT_BASE_DIR=/var/tmp/.net \
+  DOTNET_gcServer=0 \
+  DOTNET_gcConcurrent=1 \
+  DOTNET_GCHeapHardLimit=1F400000	\
+  DOTNET_GCConserveMemory=9 \
+  SLSKD_HTTP_PORT=5000 \
+  SLSKD_HTTPS_PORT=5001 \
+  SLSKD_SLSK_LISTEN_PORT=50000 \
+  SLSKD_APP_DIR=/app \
+  SLSKD_DOCKER_TAG=$TAG \
+  SLSKD_DOCKER_VERSION=$VERSION \
+  SLSKD_DOCKER_REVISON=$REVISION \
+  SLSKD_DOCKER_BUILD_DATE=$BUILD_DATE
+
 LABEL org.opencontainers.image.title=slskd \
   org.opencontainers.image.description="A modern client-server application for the Soulseek file sharing network" \
   org.opencontainers.image.authors="slskd Team" \
@@ -50,28 +75,7 @@ LABEL org.opencontainers.image.title=slskd \
   org.opencontainers.image.revision=$REVISION \
   org.opencontainers.image.created=$BUILD_DATE
 
-RUN apt-get update && apt-get install -y \
-  wget \
-  && rm -rf /var/lib/apt/lists/*
-
 WORKDIR /slskd
 COPY --from=publish /slskd/dist/${TARGETPLATFORM} .
-
-RUN bash -c 'mkdir -p /app/{incomplete,downloads} \ 
-  && chmod -R 777 /app'
-
-ENV DOTNET_BUNDLE_EXTRACT_BASE_DIR=/var/tmp/.net \
-  SLSKD_HTTP_PORT=5000 \
-  SLSKD_HTTPS_PORT=5001 \
-  SLSKD_SLSK_LISTEN_PORT=50000 \
-  SLSKD_APP_DIR=/app \
-  SLSKD_DOCKER_TAG=$TAG \
-  SLSKD_DOCKER_VERSION=$VERSION \
-  SLSKD_DOCKER_REVISON=$REVISION \
-  SLSKD_DOCKER_BUILD_DATE=$BUILD_DATE
-
-VOLUME /app
-
-HEALTHCHECK --interval=60s --timeout=3s --start-period=5s --retries=3 CMD wget -q -O - http://localhost:${SLSKD_HTTP_PORT}/health
 
 ENTRYPOINT ["./slskd"]

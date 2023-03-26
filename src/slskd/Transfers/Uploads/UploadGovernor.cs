@@ -24,7 +24,6 @@ namespace slskd.Transfers
     using System.Threading;
     using System.Threading.Tasks;
     using slskd.Users;
-    using Soulseek;
 
     /// <summary>
     ///     Governs upload transfer speed.
@@ -32,26 +31,26 @@ namespace slskd.Transfers
     public interface IUploadGovernor
     {
         /// <summary>
-        ///     Asynchronously obtains a grant of <paramref name="requestedBytes"/> for the specified <paramref name="transfer"/>.
+        ///     Asynchronously obtains a grant of <paramref name="requestedBytes"/> for the requesting <paramref name="username"/>.
         /// </summary>
         /// <remarks>
         ///     This operation completes when any number of bytes can be granted. The amount returned may be smaller than the
         ///     requested amount.
         /// </remarks>
-        /// <param name="transfer">The transfer for which the grant is requested.</param>
+        /// <param name="username">The username of the requesting user.</param>
         /// <param name="requestedBytes">The number of requested bytes.</param>
         /// <param name="cancellationToken">The token to monitor for cancellation.</param>
         /// <returns>The operation context, including the number of bytes granted.</returns>
-        Task<int> GetBytesAsync(Transfer transfer, int requestedBytes, CancellationToken cancellationToken);
+        Task<int> GetBytesAsync(string username, int requestedBytes, CancellationToken cancellationToken);
 
         /// <summary>
         ///     Returns wasted bytes for redistribution.
         /// </summary>
-        /// <param name="transfer">The transfer which generated the waste.</param>
+        /// <param name="username">The username of the user that generated the waste.</param>
         /// <param name="attemptedBytes">The number of bytes that were attempted to be transferred.</param>
         /// <param name="grantedBytes">The number of bytes granted by all governors in the system.</param>
         /// <param name="actualBytes">The actual number of bytes transferred.</param>
-        public void ReturnBytes(Transfer transfer, int attemptedBytes, int grantedBytes, int actualBytes);
+        public void ReturnBytes(string username, int attemptedBytes, int grantedBytes, int actualBytes);
     }
 
     /// <summary>
@@ -83,19 +82,19 @@ namespace slskd.Transfers
         private IUserService Users { get; }
 
         /// <summary>
-        ///     Asynchronously obtains a grant of <paramref name="requestedBytes"/> for the specified <paramref name="transfer"/>.
+        ///     Asynchronously obtains a grant of <paramref name="requestedBytes"/> for the requesting <paramref name="username"/>.
         /// </summary>
         /// <remarks>
         ///     This operation completes when any number of bytes can be granted. The amount returned may be smaller than the
         ///     requested amount.
         /// </remarks>
-        /// <param name="transfer">The transfer for which the grant is requested.</param>
+        /// <param name="username">The username of the requesting user.</param>
         /// <param name="requestedBytes">The number of requested bytes.</param>
         /// <param name="cancellationToken">The token to monitor for cancellation.</param>
         /// <returns>The operation context, including the number of bytes granted.</returns>
-        public Task<int> GetBytesAsync(Transfer transfer, int requestedBytes, CancellationToken cancellationToken)
+        public Task<int> GetBytesAsync(string username, int requestedBytes, CancellationToken cancellationToken)
         {
-            var group = Users.GetGroup(transfer.Username);
+            var group = Users.GetGroup(username);
             var bucket = TokenBuckets.GetValueOrDefault(group ?? string.Empty, TokenBuckets[Application.DefaultGroup]);
 
             return bucket.GetAsync(requestedBytes, cancellationToken);
@@ -104,11 +103,11 @@ namespace slskd.Transfers
         /// <summary>
         ///     Returns wasted bytes for redistribution.
         /// </summary>
-        /// <param name="transfer">The transfer which generated the waste.</param>
+        /// <param name="username">The username of the user that generated the waste.</param>
         /// <param name="attemptedBytes">The number of bytes that were attempted to be transferred.</param>
         /// <param name="grantedBytes">The number of bytes granted by all governors in the system.</param>
         /// <param name="actualBytes">The actual number of bytes transferred.</param>
-        public void ReturnBytes(Transfer transfer, int attemptedBytes, int grantedBytes, int actualBytes)
+        public void ReturnBytes(string username, int attemptedBytes, int grantedBytes, int actualBytes)
         {
             var waste = Math.Max(0, grantedBytes - actualBytes);
 
@@ -117,7 +116,7 @@ namespace slskd.Transfers
                 return;
             }
 
-            var group = Users.GetGroup(transfer.Username);
+            var group = Users.GetGroup(username);
             var bucket = TokenBuckets.GetValueOrDefault(group ?? string.Empty, TokenBuckets[Application.DefaultGroup]);
 
             // we don't have enough information to tell whether grantedBytes was reduced by the global limiter within

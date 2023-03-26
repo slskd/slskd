@@ -172,7 +172,7 @@ namespace slskd.Messaging.API
             if (Tracker.TryGet(roomName, out var room))
             {
                 var response = room.Users
-                    .Select(user => UserDataResponse.FromUserData(user, self: user.Username == ApplicationStateMonitor.CurrentValue.Server.Username));
+                    .Select(user => UserDataResponse.FromUserData(user, self: user.Username == ApplicationStateMonitor.CurrentValue.User.Username));
 
                 return Ok(response);
             }
@@ -196,7 +196,7 @@ namespace slskd.Messaging.API
             if (Tracker.TryGet(roomName, out var room))
             {
                 var response = room.Messages
-                    .Select(message => RoomMessageResponse.FromRoomMessage(message, self: message.Username == ApplicationStateMonitor.CurrentValue.Server.Username));
+                    .Select(message => RoomMessageResponse.FromRoomMessage(message, self: message.Username == ApplicationStateMonitor.CurrentValue.User.Username));
 
                 return Ok(response);
             }
@@ -236,11 +236,11 @@ namespace slskd.Messaging.API
         /// <returns></returns>
         /// <response code="201">The request completed successfully.</response>
         /// <response code="304">The room has already been joined.</response>
-        [HttpPost("joined/{roomName}")]
+        [HttpPost("joined")]
         [Authorize]
         [ProducesResponseType(typeof(Room), 201)]
         [ProducesResponseType(304)]
-        public async Task<IActionResult> JoinRoom([FromRoute]string roomName)
+        public async Task<IActionResult> JoinRoom([FromBody]string roomName)
         {
             if (Tracker.Rooms.ContainsKey(roomName))
             {
@@ -251,7 +251,6 @@ namespace slskd.Messaging.API
             {
                 var roomData = await RoomService.JoinAsync(roomName);
                 var room = Room.FromRoomData(roomData);
-                Tracker.TryAdd(roomName, room);
 
                 return StatusCode(StatusCodes.Status201Created, MapRoomToRoomResponse(room));
             }
@@ -294,7 +293,7 @@ namespace slskd.Messaging.API
         {
             bool IsSelf(string username)
             {
-                return username == ApplicationStateMonitor.CurrentValue.Server.Username;
+                return username == ApplicationStateMonitor.CurrentValue.User.Username;
             }
 
             var response = RoomResponse.FromRoom(room);

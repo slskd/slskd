@@ -15,6 +15,8 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
+using Microsoft.Extensions.Logging;
+
 namespace slskd
 {
     using System;
@@ -26,19 +28,45 @@ namespace slskd
     using System.Net;
     using System.Reflection;
     using System.Security.Cryptography.X509Certificates;
-    using Microsoft.AspNetCore;
+    using System.Text;
+    using System.Text.Json.Serialization;
+    using System.Threading.Tasks;
+    using Microsoft.AspNetCore.Authentication.JwtBearer;
+    using Microsoft.AspNetCore.Builder;
+    using Microsoft.AspNetCore.DataProtection;
+    using Microsoft.AspNetCore.Diagnostics;
     using Microsoft.AspNetCore.Hosting;
+    using Microsoft.AspNetCore.Http;
+    using Microsoft.AspNetCore.Mvc.ApiExplorer;
+    using Microsoft.EntityFrameworkCore;
     using Microsoft.Extensions.Configuration;
     using Microsoft.Extensions.DependencyInjection;
     using Microsoft.Extensions.FileProviders;
     using Microsoft.Extensions.FileProviders.Physical;
+    using Microsoft.IdentityModel.Tokens;
+    using Microsoft.OpenApi.Models;
+    using Prometheus;
     using Prometheus.DotNetRuntime;
+    using Prometheus.SystemMetrics;
     using Serilog;
     using Serilog.Events;
     using Serilog.Sinks.Grafana.Loki;
+    using slskd.Authentication;
     using slskd.Configuration;
+    using slskd.Core.API;
     using slskd.Cryptography;
+    using slskd.Integrations.FTP;
+    using slskd.Integrations.Pushbullet;
+    using slskd.Messaging;
+    using slskd.Search;
+    using slskd.Search.API;
+    using slskd.Shares;
+    using slskd.Transfers;
+    using slskd.Transfers.Downloads;
+    using slskd.Transfers.Uploads;
+    using slskd.Users;
     using slskd.Validation;
+    using Soulseek;
     using Utility.CommandLine;
     using Utility.EnvironmentVariables;
     using IOFile = System.IO.File;
@@ -154,6 +182,7 @@ namespace slskd
 
         private static IConfigurationRoot Configuration { get; set; }
         private static OptionsAtStartup OptionsAtStartup { get; } = new OptionsAtStartup();
+        private static ILogger Log { get; set; } = new ConsoleWriteLineLogger();
 
         [Argument('g', "generate-cert", "generate X509 certificate and password for HTTPs")]
         private static bool GenerateCertificate { get; set; }
@@ -181,9 +210,10 @@ namespace slskd
             EnvironmentVariables.Populate(prefix: EnvironmentVariablePrefix);
             Arguments.Populate(clearExistingValues: false);
 
+            // if a user has used one of the arguments above, perform the requested task, then quit
             if (ShowVersion)
             {
-                Console.WriteLine(FullVersion);
+                Log.Information(FullVersion);
                 return;
             }
 
@@ -225,9 +255,8 @@ namespace slskd
             // if not, set it to the default.
             ConfigurationFile ??= DefaultConfigurationFile;
 
-            // verify(create if needed) default application
-            // directories. if the downloads or complete directories are overridden in config, those will be
-            // validated after the config is loaded.
+            // verify(create if needed) default application directories. if the downloads or complete
+            // directories are overridden in config, those will be validated after the config is loaded.
             try
             {
                 VerifyDirectory(AppDirectory, createIfMissing: true, verifyWriteable: true);
@@ -237,7 +266,7 @@ namespace slskd
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Filesystem exception: {ex.Message}");
+                Log.Information($"Filesystem exception: {ex.Message}");
                 return;
             }
 
@@ -253,23 +282,479 @@ namespace slskd
 
                 if (OptionsAtStartup.Debug)
                 {
-                    Console.WriteLine($"Configuration:\n{Configuration.GetDebugView()}");
+                    Log.Information($"Configuration:\n{Configuration.GetDebugView()}");
                 }
 
                 if (!OptionsAtStartup.TryValidate(out var result))
                 {
-                    Console.WriteLine(result.GetResultView());
+                    Log.Information(result.GetResultView());
                     return;
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Invalid configuration: {(!OptionsAtStartup.Debug ? ex : ex.Message)}");
+                Log.Information($"Invalid configuration: {(!OptionsAtStartup.Debug ? ex : ex.Message)}");
                 return;
             }
 
-            Log.Logger = (OptionsAtStartup.Debug ? new LoggerConfiguration().MinimumLevel.Debug() : new LoggerConfiguration().MinimumLevel.Information())
-                .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+            ConfigureGlobalLogger();
+            Log = Serilog.Log.ForContext(typeof(Program));
+
+            if (!OptionsAtStartup.Flags.NoLogo)
+            {
+                PrintLogo(FullVersion);
+            }
+
+            Log.Information("Version: {Version}", FullVersion);
+
+            if (IsDevelopment)
+            {
+                Log.Warning("This is a Development build; YMMV");
+            }
+
+            if (IsCanary)
+            {
+                Log.Warning("This is a canary build");
+                Log.Warning("Canary builds are considered UNSTABLE and may be completely BROKEN");
+                Log.Warning($"Please report any issues here: {IssuesUrl}");
+            }
+
+            Log.Information("Invocation ID: {InvocationId}", InvocationId);
+            Log.Information("Process ID: {ProcessId}", ProcessId);
+            Log.Information("Instance Name: {InstanceName}", OptionsAtStartup.InstanceName);
+
+            Log.Information("Using application directory {AppDirectory}", AppDirectory);
+            Log.Information("Using configuration file {ConfigurationFile}", ConfigurationFile);
+
+            RecreateConfigurationFileIfMissing(ConfigurationFile);
+
+            if (!string.IsNullOrEmpty(OptionsAtStartup.Logger.Loki))
+            {
+                Log.Information("Forwarding logs to Grafana Loki instance at {LoggerLokiUrl}", OptionsAtStartup.Logger.Loki);
+            }
+
+            // bootstrap the ASP.NET application
+            try
+            {
+                var builder = WebApplication.CreateBuilder(args);
+
+                builder.Configuration
+                    .AddConfigurationProviders(EnvironmentVariablePrefix, ConfigurationFile);
+
+                builder.Host
+                    .UseSerilog();
+
+                builder.WebHost
+                    .UseUrls()
+                    .UseKestrel(options =>
+                    {
+                        Log.Information($"Listening for HTTP requests at http://{IPAddress.Any}:{OptionsAtStartup.Web.Port}/");
+                        options.Listen(IPAddress.Any, OptionsAtStartup.Web.Port);
+
+                        if (!OptionsAtStartup.Web.Https.Disabled)
+                        {
+                            Log.Information($"Listening for HTTPS requests at https://{IPAddress.Any}:{OptionsAtStartup.Web.Https.Port}/");
+                            options.Listen(IPAddress.Any, OptionsAtStartup.Web.Https.Port, listenOptions =>
+                            {
+                                var cert = OptionsAtStartup.Web.Https.Certificate;
+
+                                if (!string.IsNullOrEmpty(cert.Pfx))
+                                {
+                                    Log.Information($"Using certificate from {cert.Pfx}");
+                                    listenOptions.UseHttps(cert.Pfx, cert.Password);
+                                }
+                                else
+                                {
+                                    Log.Information($"Using randomly generated self-signed certificate");
+                                    listenOptions.UseHttps(X509.Generate(subject: AppName));
+                                }
+                            });
+                        }
+                    });
+
+                builder.Services
+                    .ConfigureAspDotNetServices()
+                    .ConfigureDependencyInjectionContainer();
+
+                var app = builder.Build();
+
+                app.ConfigureAspDotNetPipeline();
+
+                if (OptionsAtStartup.Flags.NoStart)
+                {
+                    Log.Information("Qutting because 'no-start' option is enabled");
+                    return;
+                }
+
+                app.Run();
+            }
+            catch (Exception ex)
+            {
+                Log.Fatal(ex, "Application terminated unexpectedly");
+            }
+            finally
+            {
+                Serilog.Log.CloseAndFlush();
+            }
+        }
+
+        private static IServiceCollection ConfigureDependencyInjectionContainer(this IServiceCollection services)
+        {
+            // add the instance of OptionsAtStartup to DI as they were at startup. use when Options might change, but
+            // the values at startup are to be used (generally anything marked RequiresRestart).
+            services.AddSingleton(OptionsAtStartup);
+
+            // add IOptionsMonitor and IOptionsSnapshot to DI.
+            // use when the current Options are to be used (generally anything not marked RequiresRestart)
+            // the monitor should be used for services with Singleton lifetime, snapshots for everything else
+            services.AddOptions<Options>()
+                .Bind(Configuration.GetSection(AppName), o => { o.BindNonPublicProperties = true; })
+                .Validate(options =>
+                {
+                    if (!options.TryValidate(out var result))
+                    {
+                        Log.Warning("Options (re)configuration rejected.");
+                        Log.Warning(result.GetResultView());
+                        return false;
+                    }
+
+                    return true;
+                });
+
+            // add IManagedState, IStateMutator, IStateMonitor, and IStateSnapshot state to DI.
+            // the mutator should be used any time application state needs to be mutated (as the name implies)
+            // as with options, the monitor should be used for services with Singleton lifetime, snapshots for everything else
+            // IManagedState should be used where state is being mutated and accessed in the same context
+            services.AddManagedState<State>();
+
+            // add IHttpClientFactory
+            // use through 'using var http = HttpClientFactory.CreateClient()' wherever HTTP calls will be made
+            // this is important to prevent memory leaks
+            services.AddHttpClient();
+
+            // add a partially configured instance of SoulseekClient. the Application instance will
+            // complete configuration at startup.
+            services.AddSingleton<ISoulseekClient, SoulseekClient>(_ =>
+                new SoulseekClient(options: new SoulseekClientOptions(
+                    maximumConcurrentUploads: OptionsAtStartup.Global.Upload.Slots,
+                    maximumConcurrentDownloads: OptionsAtStartup.Global.Download.Slots,
+                    minimumDiagnosticLevel: OptionsAtStartup.Soulseek.DiagnosticLevel)));
+
+            // add the core application service to DI as well as a hosted service so that other services can
+            // access instance methods
+            services.AddSingleton<IApplication, Application>();
+            services.AddHostedService(p => p.GetRequiredService<IApplication>());
+
+            services.AddSingleton<IConnectionWatchdog, ConnectionWatchdog>();
+
+            ConfigureSQLite();
+
+            services.AddDbContext<SearchDbContext>("search.db");
+            services.AddDbContext<TransfersDbContext>("transfers.db");
+
+            services.AddSingleton<IBrowseTracker, BrowseTracker>();
+            services.AddSingleton<IConversationTracker, ConversationTracker>();
+            services.AddSingleton<IRoomTracker, RoomTracker>(_ => new RoomTracker(messageLimit: 250));
+
+            services.AddSingleton<IShareService, ShareService>();
+
+            services.AddSingleton<ISearchService, SearchService>();
+            services.AddSingleton<IUserService, UserService>();
+            services.AddSingleton<IRoomService, RoomService>();
+
+            services.AddSingleton<ITransferService, TransferService>();
+            services.AddSingleton<IDownloadService, DownloadService>();
+            services.AddSingleton<IUploadService, UploadService>();
+
+            services.AddSingleton<IFTPClientFactory, FTPClientFactory>();
+            services.AddSingleton<IFTPService, FTPService>();
+
+            services.AddSingleton<IPushbulletService, PushbulletService>();
+
+            return services;
+        }
+
+        private static void ConfigureSQLite()
+        {
+            // initialize
+            // avoids: System.Exception: You need to call SQLitePCL.raw.SetProvider().  If you are using a bundle package, this is done by calling SQLitePCL.Batteries.Init().
+            SQLitePCL.Batteries.Init();
+
+            // check the threading mode set at compile time. if it is 0 it is unsafe to use in a multithreaded application, which slskd is.
+            // https://www.sqlite.org/compile.html#threadsafe
+            var threadSafe = SQLitePCL.raw.sqlite3_threadsafe();
+
+            if (threadSafe == 0)
+            {
+                throw new InvalidOperationException($"SQLite binary was not compiled with THREADSAFE={threadSafe}, which is not compatible with this application. Please create a GitHub issue to report this and include details about your environment.");
+            }
+
+            Log.Debug("SQLite was compiled with THREADSAFE={Mode}", threadSafe);
+
+            if (SQLitePCL.raw.sqlite3_config(SQLitePCL.raw.SQLITE_CONFIG_SERIALIZED) != SQLitePCL.raw.SQLITE_OK)
+            {
+                throw new InvalidOperationException($"SQLite threading mode could not be set to . Please create a GitHub issue to report this and include details about your environment.");
+            }
+
+            Log.Debug("SQLite threading mode set to {Mode} ({Number})", "SERIALIZED", SQLitePCL.raw.SQLITE_CONFIG_SERIALIZED);
+        }
+
+        private static IServiceCollection ConfigureAspDotNetServices(this IServiceCollection services)
+        {
+            services.AddCors(options => options.AddPolicy("AllowAll", builder => builder
+                .SetIsOriginAllowed((host) => true)
+                .AllowAnyHeader()
+                .AllowAnyMethod()
+                .AllowCredentials()
+                .WithExposedHeaders("X-URL-Base")));
+
+            services.AddSystemMetrics();
+            using var runtimeMetrics = DotNetRuntimeStatsBuilder.Default().StartCollecting();
+
+            services.AddDataProtection()
+                .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(AppDirectory, "data", ".DataProtection-Keys")));
+
+            var jwtSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(OptionsAtStartup.Web.Authentication.Jwt.Key));
+
+            services.AddSingleton(jwtSigningKey);
+
+            if (!OptionsAtStartup.Web.Authentication.Disabled)
+            {
+                services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+                    .AddJwtBearer(options =>
+                    {
+                        options.TokenValidationParameters = new TokenValidationParameters
+                        {
+                            ClockSkew = TimeSpan.FromMinutes(5),
+                            RequireSignedTokens = true,
+                            RequireExpirationTime = true,
+                            ValidateLifetime = true,
+                            ValidIssuer = AppName,
+                            ValidateIssuer = true,
+                            ValidateAudience = false,
+                            IssuerSigningKey = jwtSigningKey,
+                            ValidateIssuerSigningKey = true,
+                        };
+
+                        options.Events = new JwtBearerEvents
+                        {
+                            OnMessageReceived = context =>
+                            {
+                                // assign the request token from the access_token query parameter
+                                // but only if the destination is a SignalR hub
+                                // https://docs.microsoft.com/en-us/aspnet/core/signalr/authn-and-authz?view=aspnetcore-5.0
+                                if (context.HttpContext.Request.Path.StartsWithSegments("/hub"))
+                                {
+                                    context.Token = context.Request.Query["access_token"];
+                                }
+
+                                return Task.CompletedTask;
+                            },
+                        };
+                    });
+            }
+            else
+            {
+                Log.Warning("Authentication of web requests is DISABLED");
+
+                services.AddAuthentication(PassthroughAuthentication.AuthenticationScheme)
+                    .AddScheme<PassthroughAuthenticationOptions, PassthroughAuthenticationHandler>(PassthroughAuthentication.AuthenticationScheme, options =>
+                    {
+                        options.Username = "Anonymous";
+                        options.Role = Role.Administrator;
+                    });
+            }
+
+            services.AddRouting(options => options.LowercaseUrls = true);
+            services.AddControllers().AddJsonOptions(options =>
+            {
+                options.JsonSerializerOptions.Converters.Add(new IPAddressConverter());
+                options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+                options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
+            });
+
+            services.AddSignalR().AddJsonProtocol(options =>
+            {
+                options.PayloadSerializerOptions.Converters.Add(new IPAddressConverter());
+                options.PayloadSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+            });
+
+            services.AddHealthChecks();
+
+            services.AddApiVersioning(options => options.ReportApiVersions = true);
+            services.AddVersionedApiExplorer(options =>
+            {
+                options.GroupNameFormat = "'v'VVV";
+                options.SubstituteApiVersionInUrl = true;
+            });
+
+            if (OptionsAtStartup.Feature.Swagger)
+            {
+                services.AddSwaggerGen(options =>
+                {
+                    options.DescribeAllParametersInCamelCase();
+                    options.SwaggerDoc(
+                        "v0",
+                        new OpenApiInfo
+                        {
+                            Title = AppName,
+                            Version = "v0",
+                        });
+
+                    if (System.IO.File.Exists(XmlDocumentationFile))
+                    {
+                        options.IncludeXmlComments(XmlDocumentationFile);
+                    }
+                    else
+                    {
+                        Log.Warning($"Unable to find XML documentation in {XmlDocumentationFile}, Swagger will not include metadata");
+                    }
+                });
+            }
+
+            return services;
+        }
+
+        private static WebApplication ConfigureAspDotNetPipeline(this WebApplication app)
+        {
+            app.UseExceptionHandler(a => a.Run(async context =>
+            {
+                await context.Response.WriteAsJsonAsync(context.Features.Get<IExceptionHandlerPathFeature>().Error.Message);
+            }));
+
+            app.UseCors("AllowAll");
+
+            if (OptionsAtStartup.Web.Https.Force)
+            {
+                app.UseHttpsRedirection();
+                app.UseHsts();
+
+                Log.Information($"Forcing HTTP requests to HTTPS");
+            }
+
+            // allow users to specify a custom path base, for use behind a reverse proxy
+            var urlBase = OptionsAtStartup.Web.UrlBase;
+            urlBase = urlBase.StartsWith("/") ? urlBase : "/" + urlBase;
+
+            // use urlBase. this effectively just removes urlBase from the path.
+            // inject urlBase into any html files we serve, and rewrite links to ./static or /static to
+            // prepend the url base.
+            app.UsePathBase(urlBase);
+            app.UseHTMLRewrite("((\\.)?\\/static)", $"{(urlBase == "/" ? string.Empty : urlBase)}/static");
+            app.UseHTMLInjection($"<script>window.urlBase=\"{urlBase}\"</script>", excludedRoutes: new[] { "/api", "/swagger" });
+            Log.Information("Using base url {UrlBase}", urlBase);
+
+            // serve static content from the configured path
+            FileServerOptions fileServerOptions = default;
+            var contentPath = Path.GetFullPath(OptionsAtStartup.Web.ContentPath);
+
+            fileServerOptions = new FileServerOptions
+            {
+                FileProvider = new PhysicalFileProvider(contentPath),
+                RequestPath = string.Empty,
+                EnableDirectoryBrowsing = false,
+                EnableDefaultFiles = true,
+            };
+
+            app.UseFileServer(fileServerOptions);
+            Log.Information("Serving static content from {ContentPath}", contentPath);
+
+            if (OptionsAtStartup.Web.Logging)
+            {
+                app.UseSerilogRequestLogging();
+            }
+
+            app.UseAuthentication();
+            app.UseRouting();
+            app.UseAuthorization();
+            app.UseEndpoints(endpoints =>
+            {
+                endpoints.MapHub<ApplicationHub>("/hub/application");
+                endpoints.MapHub<LogsHub>("/hub/logs");
+                endpoints.MapHub<SearchHub>("/hub/search");
+
+                endpoints.MapControllers();
+                endpoints.MapHealthChecks("/health");
+
+                if (OptionsAtStartup.Metrics.Enabled)
+                {
+                    var options = OptionsAtStartup.Metrics;
+                    var url = options.Url.StartsWith('/') ? options.Url : "/" + options.Url;
+
+                    Log.Information("Publishing Prometheus metrics to {URL}", url);
+
+                    if (options.Authentication.Disabled)
+                    {
+                        Log.Warning("Authentication for the metrics endpoint is DISABLED");
+                    }
+
+                    endpoints.MapGet(url, async context =>
+                    {
+                        if (!options.Authentication.Disabled)
+                        {
+                            var auth = context.Request.Headers["Authorization"].FirstOrDefault();
+                            var providedCreds = auth?.Split(' ').Last();
+                            var validCreds = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{options.Authentication.Username}:{options.Authentication.Password}"));
+
+                            if (string.IsNullOrEmpty(auth) ||
+                                !auth.StartsWith("Basic", StringComparison.InvariantCultureIgnoreCase) ||
+                                !string.Equals(providedCreds, validCreds, StringComparison.InvariantCultureIgnoreCase))
+                            {
+                                context.Response.StatusCode = (int)HttpStatusCode.Unauthorized;
+                                return;
+                            }
+                        }
+
+                        var response = await Metrics.BuildAsync();
+                        await context.Response.WriteAsync(response);
+                    });
+                }
+            });
+
+            // if this is an /api route and no API controller was matched, give up and return a 404.
+            app.Use(async (context, next) =>
+            {
+                if (context.Request.Path.StartsWithSegments("/api"))
+                {
+                    context.Response.StatusCode = 404;
+                    return;
+                }
+
+                await next();
+            });
+
+            if (OptionsAtStartup.Feature.Swagger)
+            {
+                app.UseSwagger();
+                app.UseSwaggerUI(options => app.Services.GetRequiredService<IApiVersionDescriptionProvider>().ApiVersionDescriptions.ToList()
+                    .ForEach(description => options.SwaggerEndpoint($"{(urlBase == "/" ? string.Empty : urlBase)}/swagger/{description.GroupName}/swagger.json", description.GroupName)));
+
+                Log.Information("Publishing Swagger documentation to {URL}", "/swagger");
+            }
+
+            // if we made it this far, the caller is either looking for a route that was synthesized with a SPA router, or is genuinely confused.
+            // if the request is for a directory, modify the request to redirect it to the index, otherwise leave it alone and let it 404 in the next
+            // middleware
+            app.Use(async (context, next) =>
+            {
+                if (Path.GetExtension(context.Request.Path.ToString()) == string.Empty)
+                {
+                    context.Request.Path = "/";
+                }
+
+                await next();
+            });
+
+            // either serve the index, or 404
+            app.UseFileServer(fileServerOptions);
+
+            return app;
+        }
+
+        private static void ConfigureGlobalLogger()
+        {
+            Serilog.Log.Logger = (OptionsAtStartup.Debug ? new LoggerConfiguration().MinimumLevel.Debug() : new LoggerConfiguration().MinimumLevel.Information())
+                .MinimumLevel.Override("Microsoft", LogEventLevel.Error)
                 .MinimumLevel.Override("System.Net.Http.HttpClient", OptionsAtStartup.Debug ? LogEventLevel.Warning : LogEventLevel.Fatal)
                 .MinimumLevel.Override("slskd.Authentication.PassthroughAuthenticationHandler", LogEventLevel.Warning)
                 .Enrich.WithProperty("InstanceName", OptionsAtStartup.InstanceName)
@@ -292,13 +777,20 @@ namespace slskd
                 {
                     try
                     {
+                        var message = logEvent.RenderMessage();
+
+                        if (logEvent.Exception != null)
+                        {
+                            message = $"{message}: {logEvent.Exception}";
+                        }
+
                         var record = new LogRecord()
                         {
                             Timestamp = logEvent.Timestamp.LocalDateTime,
                             Context = logEvent.Properties["SourceContext"].ToString().TrimStart('"').TrimEnd('"'),
                             SubContext = logEvent.Properties.ContainsKey("SubContext") ? logEvent.Properties["SubContext"].ToString().TrimStart('"').TrimEnd('"') : null,
                             Level = logEvent.Level.ToString(),
-                            Message = logEvent.RenderMessage().TrimStart('"').TrimEnd('"'),
+                            Message = message.TrimStart('"').TrimEnd('"'),
                         };
 
                         LogBuffer.Enqueue(record);
@@ -306,118 +798,10 @@ namespace slskd
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"Misconfigured delegating logger: {ex.Message}");
+                        Log.Information($"Misconfigured delegating logger: {ex.Message}");
                     }
                 }))
                 .CreateLogger();
-
-            var logger = Log.ForContext(typeof(Program));
-
-            if (!OptionsAtStartup.NoLogo)
-            {
-                PrintLogo(FullVersion);
-            }
-
-            logger.Information("Version: {Version}", FullVersion);
-
-            if (IsDevelopment)
-            {
-                logger.Warning("This is a Development build; YMMV");
-            }
-
-            if (IsCanary)
-            {
-                logger.Warning("This is a canary build");
-                logger.Warning("Canary builds are considered UNSTABLE and may be completely BROKEN");
-                logger.Warning($"Please report any issues here: {IssuesUrl}");
-            }
-
-            logger.Information("Invocation ID: {InvocationId}", InvocationId);
-            logger.Information("Process ID: {ProcessId}", ProcessId);
-            logger.Information("Instance Name: {InstanceName}", OptionsAtStartup.InstanceName);
-
-            logger.Information("Using application directory {AppDirectory}", AppDirectory);
-            logger.Information("Using configuration file {ConfigurationFile}", ConfigurationFile);
-
-            // for convenience, try to copy the example configuration file to the application directory if no configuration
-            // file exists. if any part fails, just move on silently.
-            if (!IOFile.Exists(ConfigurationFile))
-            {
-                try
-                {
-                    logger.Warning("Configuration file {ConfigurationFile} does not exist; creating from example", ConfigurationFile);
-                    var source = Path.Combine(AppContext.BaseDirectory, "config", $"{AppName}.example.yml");
-                    var destination = ConfigurationFile;
-                    IOFile.Copy(source, destination);
-                }
-                catch (Exception ex)
-                {
-                    logger.Error("Failed to create configuration file {ConfigurationFile}: {Message}", ConfigurationFile, ex.Message);
-                }
-            }
-
-            if (!string.IsNullOrEmpty(OptionsAtStartup.Logger.Loki))
-            {
-                logger.Information("Forwarding logs to Grafana Loki instance at {LoggerLokiUrl}", OptionsAtStartup.Logger.Loki);
-            }
-
-            try
-            {
-                if (OptionsAtStartup.Feature.Prometheus)
-                {
-                    using var runtimeMetrics = DotNetRuntimeStatsBuilder.Default().StartCollecting();
-                }
-
-                var webHost = WebHost.CreateDefaultBuilder(args)
-                    .SuppressStatusMessages(true)
-                    .ConfigureAppConfiguration((hostingContext, builder) =>
-                    {
-                        builder.Sources.Clear();
-                        builder.AddConfigurationProviders(EnvironmentVariablePrefix, ConfigurationFile);
-                    })
-                    .UseSerilog()
-                    .UseUrls()
-                    .UseKestrel(options =>
-                    {
-                        logger.Information($"Listening for HTTP requests at http://{IPAddress.Any}:{OptionsAtStartup.Web.Port}/");
-                        options.Listen(IPAddress.Any, OptionsAtStartup.Web.Port);
-
-                        logger.Information($"Listening for HTTPS requests at https://{IPAddress.Any}:{OptionsAtStartup.Web.Https.Port}/");
-                        options.Listen(IPAddress.Any, OptionsAtStartup.Web.Https.Port, listenOptions =>
-                        {
-                            var cert = OptionsAtStartup.Web.Https.Certificate;
-
-                            if (!string.IsNullOrEmpty(cert.Pfx))
-                            {
-                                logger.Information($"Using certificate from {cert.Pfx}");
-                                listenOptions.UseHttps(cert.Pfx, cert.Password);
-                            }
-                            else
-                            {
-                                logger.Information($"Using randomly generated self-signed certificate");
-                                listenOptions.UseHttps(X509.Generate(subject: AppName));
-                            }
-                        });
-                    })
-                    .UseStartup<Startup>()
-                    .Build();
-
-                if (OptionsAtStartup.NoStart)
-                {
-                    logger.Information("Qutting because 'no-start' option is enabled");
-                    return;
-                }
-
-                webHost.Run();
-            }
-            catch (Exception ex)
-            {
-                logger.Fatal(ex, "Application terminated unexpectedly");
-            }
-            finally
-            {
-                Log.CloseAndFlush();
-            }
         }
 
         private static IConfigurationBuilder AddConfigurationProviders(this IConfigurationBuilder builder, string environmentVariablePrefix, string configurationFile)
@@ -454,16 +838,65 @@ namespace slskd
                     commandLine: Environment.CommandLine);
         }
 
+        private static IServiceCollection AddDbContext<T>(this IServiceCollection services, string filename)
+            where T : DbContext
+        {
+            Log.Debug("Initializing database context {Name}", typeof(T).Name);
+
+            try
+            {
+                services.AddDbContextFactory<T>(options =>
+                {
+                    options.UseSqlite($"Data Source={Path.Combine(AppDirectory, "data", filename)};Cache=shared;Pooling=True;");
+
+                    if (OptionsAtStartup.Debug && OptionsAtStartup.Flags.LogSQL)
+                    {
+                        options.LogTo(Log.Debug, LogLevel.Information);
+                    }
+                });
+
+                using var ctx = services
+                    .BuildServiceProvider()
+                    .GetRequiredService<IDbContextFactory<T>>()
+                    .CreateDbContext();
+
+                return services;
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, $"Failed to initialize database context {typeof(T).Name}: ${ex.Message}");
+                throw;
+            }
+        }
+
+        private static void RecreateConfigurationFileIfMissing(string configurationFile)
+        {
+            if (!IOFile.Exists(configurationFile))
+            {
+                try
+                {
+                    Log.Warning("Configuration file {ConfigurationFile} does not exist; creating from example", configurationFile);
+                    var source = Path.Combine(AppContext.BaseDirectory, "config", $"{AppName}.example.yml");
+                    var destination = configurationFile;
+                    IOFile.Copy(source, destination);
+                }
+                catch (Exception ex)
+                {
+                    Log.Error("Failed to create configuration file {ConfigurationFile}: {Message}", configurationFile, ex.Message);
+                }
+            }
+        }
+
         private static void GenerateX509Certificate(string password, string filename)
         {
-            Console.WriteLine("Generating X509 certificate...");
+            Log.Information("Generating X509 certificate...");
             filename = Path.Combine(AppContext.BaseDirectory, filename);
 
             var cert = X509.Generate(subject: AppName, password, X509KeyStorageFlags.Exportable);
             IOFile.WriteAllBytes(filename, cert.Export(X509ContentType.Pkcs12, password));
 
-            Console.WriteLine($"Password: {password}");
-            Console.WriteLine($"Certificate exported to {filename}");
+            Log.Information($"Password: {password}");
+            Log.Information($"Certificate exported to {filename}");
         }
 
         private static void PrintCommandLineArguments(Type targetType)
@@ -513,12 +946,12 @@ namespace slskd
 
             var longestItem = lines.Max(l => l.Item.Length);
 
-            Console.WriteLine("\nusage: slskd [arguments]\n");
-            Console.WriteLine("arguments:\n");
+            Log.Information("\nusage: slskd [arguments]\n");
+            Log.Information("arguments:\n");
 
             foreach (var line in lines)
             {
-                Console.WriteLine($"  {line.Item.PadRight(longestItem)}   {line.Description}");
+                Log.Information($"  {line.Item.PadRight(longestItem)}   {line.Description}");
             }
         }
 
@@ -567,11 +1000,11 @@ namespace slskd
 
             var longestItem = lines.Max(l => l.Item.Length);
 
-            Console.WriteLine("\nenvironment variables (arguments and config file have precedence):\n");
+            Log.Information("\nenvironment variables (arguments and config file have precedence):\n");
 
             foreach (var line in lines)
             {
-                Console.WriteLine($"  {line.Item.PadRight(longestItem)}   {line.Description}");
+                Log.Information($"  {line.Item.PadRight(longestItem)}   {line.Description}");
             }
         }
 
@@ -619,18 +1052,25 @@ namespace slskd
 
             banner += "\n└────────────────────────────────────────────────────────┘";
 
-            Console.WriteLine(banner);
+            try
+            {
+                Console.WriteLine(banner);
+            }
+            catch
+            {
+                // noop. console may not be available in all cases.
+            }
         }
 
         private static void VerifyDirectory(string directory, bool createIfMissing = true, bool verifyWriteable = true)
         {
-            if (!Directory.Exists(directory))
+            if (!System.IO.Directory.Exists(directory))
             {
                 if (createIfMissing)
                 {
                     try
                     {
-                        Directory.CreateDirectory(directory);
+                        System.IO.Directory.CreateDirectory(directory);
                     }
                     catch (Exception ex)
                     {

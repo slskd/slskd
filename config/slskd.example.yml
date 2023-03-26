@@ -1,16 +1,21 @@
 # debug: false
-# no_logo: false
-# no_start: false
-# no_connect: false
-# no_share_scan: false
-# no_version_check: false
+# experimental: false
 # remote_configuration: false
 # instance_name: default
+# flags:
+#   no_logo: false
+#   no_start: false
+#   no_connect: false
+#   no_share_scan: false
+#   no_version_check: false
+#   log_sql: false
 # directories:
 #   incomplete: ~
 #   downloads: ~
 #   shared:
 #     - ~
+# rooms:
+#   - ~
 # global:
 #   upload:
 #     slots: 20
@@ -47,9 +52,13 @@
 #     - \.ini$
 #     - Thumbs.db$
 #     - \.DS_Store$
+#   search:
+#     request:
+#       - ^.{1,2}$
 # web:
 #   port: 5000
 #   https:
+#     disabled: false
 #     port: 5001
 #     force: false
 #     certificate:
@@ -67,8 +76,14 @@
 #       ttl: 604800000
 # logger:
 #   loki: ~
+# metrics:
+#   enabled: false
+#   url: /metrics
+#   authentication:
+#     disabled: false
+#     username: slskd
+#     password: slskd
 # feature:
-#   prometheus: false
 #   swagger: false
 # soulseek:
 #   username: ~
@@ -81,6 +96,7 @@
 #     disabled: false
 #     disable_children: false
 #     child_limit: 25
+#     logging: false
 #   connection:
 #     timeout:
 #       connect: 10000

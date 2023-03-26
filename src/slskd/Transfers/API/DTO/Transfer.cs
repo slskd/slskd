@@ -121,6 +121,11 @@ namespace slskd.Transfers.API
         /// </summary>
         public string Username { get; set; }
 
+        /// <summary>
+        ///     Gets the Exception that caused the failure of the transfer, if applicable.
+        /// </summary>
+        public string Exception { get; set; }
+
         public static Transfer FromSoulseekTransfer(Soulseek.Transfer transfer)
         {
             return new Transfer()
@@ -142,6 +147,7 @@ namespace slskd.Transfers.API
                 State = transfer.State,
                 Token = transfer.Token,
                 Username = transfer.Username,
+                Exception = transfer.Exception?.Message,
             };
         }
     }

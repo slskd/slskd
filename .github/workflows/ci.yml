@@ -49,7 +49,18 @@ jobs:
     if: github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/')
     strategy:
       matrix:
-        runtime: ["win-x64", "linux-x64", "linux-arm", "linux-arm64", "osx-x64"]
+        runtime:
+          - "win-x64"
+          - "win-arm"
+          - "win-arm64"
+          - "linux-x64"
+          - "linux-arm"
+          - "linux-arm64"
+          - "linux-musl-x64"
+          - "linux-musl-arm"
+          - "linux-musl-arm64"
+          - "osx-x64"
+          - "osx-arm64"
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -142,7 +153,7 @@ jobs:
             ghcr.io/slskd/slskd:${{ env.VERSION }}
             ghcr.io/slskd/slskd:canary
           cache-from: type=local,src=/tmp/.buildx-cache
-          cache-to: type=local,dest=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
 
       - name: Build and push Release
         if: startsWith(github.ref, 'refs/tags/')
@@ -162,13 +173,36 @@ jobs:
             ghcr.io/slskd/slskd:canary
             ghcr.io/slskd/slskd:latest
           cache-from: type=local,src=/tmp/.buildx-cache
-          cache-to: type=local,dest=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
+
+      # Temp fix
+      # https://github.com/docker/build-push-action/issues/252
+      # https://github.com/moby/buildkit/issues/1896
+      - name: Move cache
+        if: 
+        run: |
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
 
   release:
     name: Create Release
     runs-on: ubuntu-latest
     needs: [publish, docker]
     if: startsWith(github.ref, 'refs/tags/')
+    strategy:
+      matrix:
+        runtime:
+          - "win-x64"
+          - "win-arm"
+          - "win-arm64"
+          - "linux-x64"
+          - "linux-arm"
+          - "linux-arm64"
+          - "linux-musl-x64"
+          - "linux-musl-arm"
+          - "linux-musl-arm64"
+          - "osx-x64"
+          - "osx-arm64"
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -178,70 +212,23 @@ jobs:
         run: |
           echo "TAG=$(git describe --tags --abbrev=0)" >> $GITHUB_ENV
           echo "VERSION=$(git describe --tags --abbrev=0).$([[ $GITHUB_REF = refs/tags/* ]] && echo 0 || echo 65534)-$(git rev-parse --short HEAD)" >> $GITHUB_ENV
-
-      - name: Download win-x64 Binaries
+      - name: Download ${{ matrix.runtime }} Binaries
         uses: actions/download-artifact@v2
         with:
-          name: slskd-${{ env.VERSION }}-win-x64
-          path: dist/win-x64
-      - name: Zip win-x64 Binaries
+          name: slskd-${{ env.VERSION }}-${{ matrix.runtime }}
+          path: dist/${{ matrix.runtime }}
+      - name: Zip ${{ matrix.runtime }} Binaries
         run: |
-          cd dist/win-x64
-          zip -r ../../slskd-${{ env.TAG }}-win-x64.zip .
-
-      - name: Download linux-x64 Binaries
-        uses: actions/download-artifact@v2
-        with:
-          name: slskd-${{ env.VERSION }}-linux-x64
-          path: dist/linux-x64
-      - name: Zip linux-x64 Binaries
-        run: |
-          cd dist/linux-x64
-          chmod +x slskd
-          zip -r ../../slskd-${{ env.TAG }}-linux-x64.zip .
-
-      - name: Download linux-arm Binaries
-        uses: actions/download-artifact@v2
-        with:
-          name: slskd-${{ env.VERSION }}-linux-arm
-          path: dist/linux-arm
-      - name: Zip linux-arm Binaries
-        run: |
-          cd dist/linux-arm
-          chmod +x slskd
-          zip -r ../../slskd-${{ env.TAG }}-linux-arm.zip .
-
-      - name: Download linux-arm64 Binaries
-        uses: actions/download-artifact@v2
-        with:
-          name: slskd-${{ env.VERSION }}-linux-arm64
-          path: dist/linux-arm64
-      - name: Zip linux-arm64 Binaries
-        run: |
-          cd dist/linux-arm64
-          chmod +x slskd
-          zip -r ../../slskd-${{ env.TAG }}-linux-arm64.zip .
-
-      - name: Download osx-x64 Binaries
-        uses: actions/download-artifact@v2
-        with:
-          name: slskd-${{ env.VERSION }}-osx-x64
-          path: dist/osx-x64
-      - name: Zip osx-x64 Binaries
-        run: |
-          cd dist/osx-x64
-          chmod +x slskd
-          zip -r ../../slskd-${{ env.TAG }}-osx-x64.zip .
-
+          cd dist/${{ matrix.runtime }}
+          if [ -f "slskd" ]; then
+            chmod +x slskd
+          fi
+          zip -r ../../slskd-${{ env.TAG }}-${{ matrix.runtime }}.zip .
       - name: Create Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
-            slskd-${{ env.TAG }}-win-x64.zip
-            slskd-${{ env.TAG }}-linux-x64.zip
-            slskd-${{ env.TAG }}-linux-arm.zip
-            slskd-${{ env.TAG }}-linux-arm64.zip
-            slskd-${{ env.TAG }}-osx-x64.zip
+            slskd-${{ env.TAG }}-${{ matrix.runtime }}.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

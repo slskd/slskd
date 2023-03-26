@@ -16,7 +16,6 @@
 // </copyright>
 
 using System.IO;
-using Microsoft.Extensions.Options;
 
 namespace slskd.Shares
 {
@@ -51,8 +50,11 @@ namespace slskd.Shares
         /// <summary>
         ///     Scans the configured shares and fills the cache.
         /// </summary>
+        /// <remarks>Initiates the scan, then yields execution back to the caller; does not wait for the operation to complete.</remarks>
+        /// <param name="shares">The list of shares from which to fill the cache.</param>
+        /// <param name="filters">The list of regular expressions used to exclude files or paths from scanning.</param>
         /// <returns>The operation context.</returns>
-        Task FillAsync();
+        Task FillAsync(IEnumerable<Share> shares, IEnumerable<Regex> filters);
 
         /// <summary>
         ///     Returns the contents of the specified <paramref name="directory"/>.
@@ -85,13 +87,9 @@ namespace slskd.Shares
         /// <summary>
         ///     Initializes a new instance of the <see cref="SharedFileCache"/> class.
         /// </summary>
-        /// <param name="optionsMonitor"></param>
         /// <param name="soulseekFileFactory"></param>
-        public SharedFileCache(
-            IOptionsMonitor<Options> optionsMonitor,
-            ISoulseekFileFactory soulseekFileFactory = null)
+        public SharedFileCache(ISoulseekFileFactory soulseekFileFactory = null)
         {
-            OptionsMonitor = optionsMonitor;
             SoulseekFileFactory = soulseekFileFactory ?? new SoulseekFileFactory();
         }
 
@@ -100,15 +98,14 @@ namespace slskd.Shares
         /// </summary>
         public IStateMonitor<SharedFileCacheState> StateMonitor => State;
 
-        private IManagedState<SharedFileCacheState> State { get; } = new ManagedState<SharedFileCacheState>();
         private ILogger Log { get; } = Serilog.Log.ForContext<SharedFileCache>();
         private HashSet<string> MaskedDirectories { get; set; }
         private Dictionary<string, File> MaskedFiles { get; set; }
-        private IOptionsMonitor<Options> OptionsMonitor { get; set; }
         private List<Share> Shares { get; set; }
-        private SqliteConnection SQLite { get; set; }
-        private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1);
         private ISoulseekFileFactory SoulseekFileFactory { get; }
+        private SqliteConnection SQLite { get; set; }
+        private IManagedState<SharedFileCacheState> State { get; } = new ManagedState<SharedFileCacheState>();
+        private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1);
 
         /// <summary>
         ///     Returns the contents of the cache.
@@ -164,8 +161,10 @@ namespace slskd.Shares
         /// <summary>
         ///     Scans the configured shares and fills the cache.
         /// </summary>
+        /// <param name="shares">The list of shares from which to fill the cache.</param>
+        /// <param name="filters">The list of regular expressions used to exclude files or paths from scanning.</param>
         /// <returns>The operation context.</returns>
-        public async Task FillAsync()
+        public async Task FillAsync(IEnumerable<Share> shares, IEnumerable<Regex> filters)
         {
             // obtain the semaphore, or fail if it can't be obtained immediately, indicating that a scan is running.
             if (!await SyncRoot.WaitAsync(millisecondsTimeout: 0))
@@ -176,7 +175,13 @@ namespace slskd.Shares
 
             try
             {
-                State.SetValue(state => state with { Filling = true, Filled = false, FillProgress = 0 });
+                State.SetValue(state => state with
+                {
+                    Filling = true,
+                    Filled = false,
+                    FillProgress = 0,
+                });
+
                 Log.Debug("Starting shared file scan");
 
                 await Task.Yield();
@@ -187,33 +192,38 @@ namespace slskd.Shares
                 var swSnapshot = 0L;
                 sw.Start();
 
-                Shares = OptionsMonitor.CurrentValue.Directories.Shared
-                    .Select(share => share.TrimEnd('/', '\\'))
-                    .ToHashSet() // remove duplicates
-                    .Select(share => new Share(share)) // convert to Shares
-                    .OrderByDescending(share => share.LocalPath.Length) // process subdirectories first.  this allows them to be aliased separately from their parent
-                    .ToList();
+                Shares = shares.ToList();
 
                 if (!Shares.Any())
                 {
                     Log.Warning("Aborting shared file scan; no shares configured.");
                 }
 
-                foreach (var share in Shares)
-                {
-                    Log.Information($"Sharing {share.LocalPath} as {share.RemotePath}");
-                    Log.Debug($"Raw: {share.Raw}, Alias: {share.Alias}, Mask: {share.Mask}, Remote: {share.RemotePath})");
-                }
+                Shares.ForEach(s => Log.Debug(s.ToJson()));
+
+                Shares.Where(s => !s.IsExcluded).ToList()
+                    .ForEach(s => Log.Information("Sharing {Local} as {Remote}", s.LocalPath, s.RemotePath));
+
+                Shares.Where(s => s.IsExcluded).ToList()
+                    .ForEach(s => Log.Information("Excluding {Local}", s.LocalPath));
 
                 Log.Debug("Enumerating shared directories");
                 swSnapshot = sw.ElapsedMilliseconds;
 
+                // derive a list of all directories from all shares
+                // skip hidden and system directories, as well as anything that can't be accessed due to security restrictions.
+                // it's necessary to enumerate these directories up front so we can deduplicate directories and apply exclusions
                 var unmaskedDirectories = Shares
                     .SelectMany(share =>
                     {
                         try
                         {
-                            return System.IO.Directory.GetDirectories(share.LocalPath, "*", SearchOption.AllDirectories);
+                            return System.IO.Directory.GetDirectories(share.LocalPath, "*", new EnumerationOptions()
+                            {
+                                AttributesToSkip = FileAttributes.Hidden | FileAttributes.System,
+                                IgnoreInaccessible = true,
+                                RecurseSubdirectories = true,
+                            });
                         }
                         catch (Exception ex)
                         {
@@ -234,16 +244,18 @@ namespace slskd.Shares
                 Log.Debug("Found {Directories} shared directories (and {Excluded} were excluded) in {Elapsed}ms.  Starting file scan.", unmaskedDirectories.Count, excludedDirectories.Count(), sw.ElapsedMilliseconds - swSnapshot);
                 swSnapshot = sw.ElapsedMilliseconds;
 
-                var filters = OptionsMonitor.CurrentValue.Filters.Share
-                    .Select(filter => new Regex(filter, RegexOptions.Compiled));
-
                 var files = new Dictionary<string, File>();
                 var maskedDirectories = new HashSet<string>();
-                var current = 0;
-                var filtered = 0;
+                var current = 0L;
+                var filtered = 0L;
 
                 foreach (var directory in unmaskedDirectories)
                 {
+                    Log.Debug("Starting scan of {Directory} ({Current}/{Total})", directory, current + 1, unmaskedDirectories.Count);
+
+                    var addedFiles = 0L;
+                    var filteredFiles = 0L;
+
                     var share = Shares.First(share => directory.StartsWith(share.LocalPath));
 
                     maskedDirectories.Add(directory.ReplaceFirst(share.LocalPath, share.RemotePath));
@@ -252,9 +264,18 @@ namespace slskd.Shares
                     // filename and with a value of a Soulseek.File object
                     try
                     {
-                        var newFiles = System.IO.Directory.GetFiles(directory, "*", SearchOption.TopDirectoryOnly)
+                        // enumerate files in this directory only (no subdirectories)
+                        // exclude hidden and system files and anything that can't be accessed due to security restrictions
+                        var newFiles = System.IO.Directory.GetFiles(directory, "*", new EnumerationOptions()
+                        {
+                            AttributesToSkip = FileAttributes.Hidden | FileAttributes.System,
+                            IgnoreInaccessible = true,
+                            RecurseSubdirectories = false,
+                        })
                             .Select(filename => SoulseekFileFactory.Create(filename, maskedFilename: filename.ReplaceFirst(share.LocalPath, share.RemotePath)))
                             .ToDictionary(file => file.Filename, file => file);
+
+                        addedFiles = newFiles.Count;
 
                         // merge the new dictionary with the rest this will overwrite any duplicate keys, but keys are the fully
                         // qualified name the only time this *should* cause problems is if one of the shares is a subdirectory of another.
@@ -262,7 +283,7 @@ namespace slskd.Shares
                         {
                             if (filters.Any(filter => filter.IsMatch(file.Key)))
                             {
-                                filtered++;
+                                filteredFiles++;
                                 continue;
                             }
 
@@ -281,7 +302,19 @@ namespace slskd.Shares
                     }
 
                     current++;
-                    State.SetValue(state => state with { FillProgress = current / (double)unmaskedDirectories.Count, Files = files.Count });
+                    filtered += filteredFiles;
+
+                    Log.Debug("Finished scanning {Directory}: {Added} files added and {Filtered} filtered", directory, addedFiles, filteredFiles);
+
+                    try
+                    {
+                        State.SetValue(state => state with { FillProgress = current / (double)unmaskedDirectories.Count, Files = files.Count });
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Error(ex, "Failed to set cache state following scan of {Directory}: {Message}", directory, ex.Message);
+                        throw;
+                    }
                 }
 
                 Log.Debug("Directory scan found {Files} files (and {Filtered} were filtered) in {Elapsed}ms.  Populating filename database", files.Count, filtered, sw.ElapsedMilliseconds - swSnapshot);
@@ -298,7 +331,16 @@ namespace slskd.Shares
                 MaskedDirectories = maskedDirectories;
                 MaskedFiles = files;
 
-                State.SetValue(state => state with { Filling = false, Faulted = false, Filled = true, FillProgress = 1, Directories = MaskedDirectories.Count, Files = MaskedFiles.Count });
+                State.SetValue(state => state with
+                {
+                    Filling = false,
+                    Faulted = false,
+                    Filled = true,
+                    FillProgress = 1,
+                    Directories = MaskedDirectories.Count,
+                    Files = MaskedFiles.Count,
+                });
+
                 Log.Debug($"Shared file cache recreated in {sw.ElapsedMilliseconds}ms.  Directories: {unmaskedDirectories.Count}, Files: {files.Count}");
             }
             catch (Exception ex)
@@ -353,6 +395,13 @@ namespace slskd.Shares
         public string Resolve(string filename)
         {
             filename = filename.ToLocalOSPath();
+
+            // ensure this is a tracked file
+            if (!MaskedFiles.TryGetValue(filename, out _))
+            {
+                return null;
+            }
+
             var resolved = filename;
 
             // a well-formed path will consist of a mask, either an alias or a local directory, and a fully qualified path to a
@@ -362,24 +411,19 @@ namespace slskd.Shares
             if (parts.Length < 2)
             {
                 Log.Warning($"Failed to resolve shared file {filename}; filename is badly formed");
-                return resolved;
+                return null;
             }
 
             // find the share with a matching mask and alias/local directory
-            var share = Shares.FirstOrDefault(share => share.Mask == parts[0] && share.Alias == parts[1]);
+            var share = Shares.FirstOrDefault(share => share.Alias == parts[0]);
 
             if (share == default)
             {
-                Log.Warning("Failed to resolve shared file {Filename}; unable to resolve share from mask '{Mask}' and alias '{Alias}'", filename, parts[0], parts[1]);
-                return resolved;
+                Log.Warning("Failed to resolve shared file {Filename}; unable to resolve share from alias '{Alias}'", filename, parts[0]);
+                return null;
             }
 
             resolved = resolved.ReplaceFirst(share.RemotePath, share.LocalPath);
-
-            if (resolved == filename)
-            {
-                Log.Warning($"Failed to resolve shared file {filename}");
-            }
 
             Log.Debug($"Resolved requested shared file {filename} to {resolved}");
             return resolved;
@@ -411,7 +455,7 @@ namespace slskd.Shares
 
             try
             {
-                using var conn = new SqliteConnection("Data Source=file:shares?mode=memory&cache=shared");
+                using var conn = new SqliteConnection($"Data Source={Path.Combine(Program.AppDirectory, "data", "shares.db")};cache=shared");
                 using var cmd = new SqliteCommand(sql, conn);
                 await conn.OpenAsync();
 
@@ -446,10 +490,10 @@ namespace slskd.Shares
                 SQLite.Dispose();
             }
 
-            SQLite = new SqliteConnection("Data Source=file:shares?mode=memory&cache=shared");
+            SQLite = new SqliteConnection($"Data Source={Path.Combine(Program.AppDirectory, "data", "shares.db")};cache=shared");
             SQLite.Open();
 
-            using var cmd = new SqliteCommand("CREATE VIRTUAL TABLE cache USING fts5(filename)", SQLite);
+            using var cmd = new SqliteCommand("DROP TABLE IF EXISTS cache; CREATE VIRTUAL TABLE cache USING fts5(filename);", SQLite);
             cmd.ExecuteNonQuery();
         }
 

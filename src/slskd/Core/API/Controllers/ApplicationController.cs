@@ -15,6 +15,8 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
+using Microsoft.Extensions.Options;
+
 namespace slskd.Core.API
 {
     using System;
@@ -37,15 +39,18 @@ namespace slskd.Core.API
         public ApplicationController(
             IHostApplicationLifetime lifetime,
             IApplication application,
+            IOptionsMonitor<Options> optionsMonitor,
             IStateMonitor<State> applicationStateMonitor)
         {
             Lifetime = lifetime;
             Application = application;
+            OptionsMonitor = optionsMonitor;
             ApplicationStateMonitor = applicationStateMonitor;
         }
 
         private IApplication Application { get; }
         private IStateMonitor<State> ApplicationStateMonitor { get; }
+        private IOptionsMonitor<Options> OptionsMonitor { get; }
         private IHostApplicationLifetime Lifetime { get; }
 
         /// <summary>
@@ -109,7 +114,7 @@ namespace slskd.Core.API
         /// <returns></returns>
         [HttpGet("version/latest")]
         [Authorize]
-        public async Task<IActionResult> CheckVersion([FromQuery]bool forceCheck = false)
+        public async Task<IActionResult> CheckVersion([FromQuery] bool forceCheck = false)
         {
             if (forceCheck)
             {
@@ -132,19 +137,14 @@ namespace slskd.Core.API
             return Ok();
         }
 
-        [HttpPut]
-        [Route("shares")]
+        [HttpGet("dump")]
         [Authorize]
-        public IActionResult RescanSharesAsync()
+        public async Task<IActionResult> DumpMemory()
         {
-            if (ApplicationStateMonitor.CurrentValue.SharedFileCache.Filling)
-            {
-                return Conflict("A share scan is already in progress.");
-            }
+            using var dumper = new Dumper();
+            var file = await dumper.DumpAsync();
 
-            _ = Application.RescanSharesAsync();
-
-            return Ok();
+            return PhysicalFile(file, "application/octet-stream", "slskd.dmp");
         }
     }
 }

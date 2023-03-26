@@ -18,7 +18,6 @@
 namespace slskd.Search.API
 {
     using System;
-    using System.Linq;
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
@@ -56,26 +55,31 @@ namespace slskd.Search.API
         /// <response code="500">The search terminated abnormally.</response>
         [HttpPost("")]
         [Authorize]
-        public async Task<IActionResult> Post([FromBody]SearchRequest request)
+        public async Task<IActionResult> Post([FromBody] SearchRequest request)
         {
-            var id = request.Id ?? Guid.NewGuid();
-            var searchText = string.Join(' ', request.SearchText.Split(' ').Where(term => term.Length > 1));
+            if (string.IsNullOrWhiteSpace(request.SearchText))
+            {
+                return BadRequest("SearchText may not be null or empty");
+            }
 
-            Search search = null;
+            var id = request.Id ?? Guid.NewGuid();
+
+            Search search;
 
             try
             {
-                search = await Searches.CreateAsync(id, SearchQuery.FromText(searchText), SearchScope.Network);
-                return Ok(search.Responses);
+                search = await Searches.StartAsync(id, SearchQuery.FromText(request.SearchText), SearchScope.Network, request.ToSearchOptions());
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is ArgumentException || ex is Soulseek.DuplicateTokenException)
             {
-                return StatusCode(500, $"Search terminated abnormally: {ex.Message}");
+                return BadRequest(ex.Message);
             }
-            finally
+            catch (InvalidOperationException ex)
             {
-                search = null;
+                return Conflict(ex.Message);
             }
+
+            return Ok(search);
         }
 
         /// <summary>
@@ -88,7 +92,7 @@ namespace slskd.Search.API
         /// <response code="404">A matching search was not found.</response>
         [HttpGet("{id}")]
         [Authorize]
-        public async Task<IActionResult> GetById([FromRoute]Guid id, [FromQuery]bool includeResponses = false)
+        public async Task<IActionResult> GetById([FromRoute] Guid id, [FromQuery] bool includeResponses = false)
         {
             var search = await Searches.FindAsync(search => search.Id == id, includeResponses);
 
@@ -129,7 +133,60 @@ namespace slskd.Search.API
         [Authorize]
         public async Task<IActionResult> GetAll()
         {
-            return Ok(await Searches.ListAsync());
+            var searches = await Searches.ListAsync();
+            return Ok(searches);
+        }
+
+        /// <summary>
+        ///     Stops the search corresponding to the specified <paramref name="id"/>.
+        /// </summary>
+        /// <param name="id">The unique id of the search.</param>
+        /// <response code="200">The search was stopped.</response>
+        /// <response code="304">The search was not in progress.</response>
+        /// <returns></returns>
+        [HttpPut("{id}")]
+        [Authorize]
+        [ProducesResponseType(200)]
+        [ProducesResponseType(304)]
+        public async Task<IActionResult> Cancel([FromRoute] Guid id)
+        {
+            var search = await Searches.FindAsync(search => search.Id == id);
+
+            if (search == default)
+            {
+                return NotFound();
+            }
+
+            if (Searches.TryCancel(id))
+            {
+                return Ok();
+            }
+
+            return StatusCode(304);
+        }
+
+        /// <summary>
+        ///     Deletes the search corresponding to the specified <paramref name="id"/>.
+        /// </summary>
+        /// <param name="id">The unique id of the search.</param>
+        /// <response code="204">The search was deleted.</response>
+        /// <response code="404">A search with the specified id could not be found.</response>
+        /// <returns></returns>
+        [HttpDelete("{id}")]
+        [Authorize]
+        [ProducesResponseType(204)]
+        [ProducesResponseType(404)]
+        public async Task<IActionResult> Delete([FromRoute] Guid id)
+        {
+            var search = await Searches.FindAsync(search => search.Id == id, includeResponses: true);
+
+            if (search == default)
+            {
+                return NotFound();
+            }
+
+            await Searches.DeleteAsync(search);
+            return NoContent();
         }
     }
 }

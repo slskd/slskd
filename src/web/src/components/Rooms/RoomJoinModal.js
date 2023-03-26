@@ -3,7 +3,7 @@ import * as rooms from '../../lib/rooms';
 import './Rooms.css';
 
 import {
-  Icon, Button, Modal, Table, Header, Input, Loader, Dimmer
+  Icon, Button, Modal, Table, Header, Input, Loader, Dimmer,
 } from 'semantic-ui-react';
 
 const RoomJoinModal = ({ joinRoom: parentJoinRoom, ...modalOptions }) => {
@@ -21,7 +21,7 @@ const RoomJoinModal = ({ joinRoom: parentJoinRoom, ...modalOptions }) => {
       const available = await rooms.getAvailable();
       setAvailable(available);
       setLoading(false);
-    }
+    };
 
     if (open) getAvailableRooms();
   }, [open]);
@@ -42,7 +42,7 @@ const RoomJoinModal = ({ joinRoom: parentJoinRoom, ...modalOptions }) => {
         return a[sortBy].localeCompare(b[sortBy]);
       }
 
-      return b[sortBy] - a[sortBy]
+      return b[sortBy] - a[sortBy];
     });
     
     return sorted;
@@ -51,7 +51,7 @@ const RoomJoinModal = ({ joinRoom: parentJoinRoom, ...modalOptions }) => {
   const joinRoom = async () => {
     await parentJoinRoom(selected);
     close();
-  }
+  };
 
   const isSelected = (room) => selected === room.name;
 
@@ -62,7 +62,7 @@ const RoomJoinModal = ({ joinRoom: parentJoinRoom, ...modalOptions }) => {
     setSortOrder('desc');
     setFilter('');
     setOpen(false);
-  }
+  };
 
   return (
     <Modal
@@ -78,54 +78,54 @@ const RoomJoinModal = ({ joinRoom: parentJoinRoom, ...modalOptions }) => {
       </Header>
       <Modal.Content scrolling>
         {loading ? <Dimmer active inverted><Loader inverted content='Loading Room List' /></Dimmer> : 
-        <>
-          <Input 
-            fluid 
-            onChange={(_, e) => setFilter(e.value)}
-            placeholder='Room Filter'
-            icon='filter'
-          />
-          <Table celled selectable>
-            <Table.Header>
-              <Table.Row>
-                <Table.HeaderCell onClick={() => setSortBy('name')}>
+          <>
+            <Input 
+              fluid 
+              onChange={(_, e) => setFilter(e.value)}
+              placeholder='Room Filter'
+              icon='filter'
+            />
+            <Table celled selectable>
+              <Table.Header>
+                <Table.Row>
+                  <Table.HeaderCell onClick={() => setSortBy('name')}>
                   Name
-                  <Icon 
-                    link={sortBy === 'name'}
-                    name={sortBy === 'name' && (sortOrder === 'asc' ? 'chevron up' : 'chevron down')}
-                    onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-                  />
-                </Table.HeaderCell>
-                <Table.HeaderCell onClick={() => setSortBy('userCount')}>
+                    <Icon 
+                      link={sortBy === 'name'}
+                      name={sortBy === 'name' && (sortOrder === 'asc' ? 'chevron up' : 'chevron down')}
+                      onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                    />
+                  </Table.HeaderCell>
+                  <Table.HeaderCell onClick={() => setSortBy('userCount')}>
                   Users
-                  <Icon 
-                    link={sortBy === 'userCount'}
-                    name={sortBy === 'userCount' && (sortOrder === 'asc' ? 'chevron up' : 'chevron down')}
-                    onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-                  />
-                </Table.HeaderCell>
-              </Table.Row>
-            </Table.Header>
-            <Table.Body>
-              {sortedAvailable.map((room, index) => 
-                <Table.Row
-                  key={index}
-                  style={isSelected(room) ? {fontWeight: 'bold'} : {}}
-                  onClick={() => setSelected(room.name)}
-                >
-                  <Table.Cell>
-                    {isSelected(room) && <Icon name='check' color='green'/>}
-                    {room.isPrivate && <Icon name='lock'/>}
-                    {room.isOwned && <Icon name='chess queen'/>}
-                    {room.isModerated && <Icon name='gavel'/>}
-                    {room.name}
-                  </Table.Cell>
-                  <Table.Cell>{room.userCount}</Table.Cell>
+                    <Icon 
+                      link={sortBy === 'userCount'}
+                      name={sortBy === 'userCount' && (sortOrder === 'asc' ? 'chevron up' : 'chevron down')}
+                      onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                    />
+                  </Table.HeaderCell>
                 </Table.Row>
-              )}
-            </Table.Body>
-          </Table>
-        </>}
+              </Table.Header>
+              <Table.Body>
+                {sortedAvailable.map((room, index) => 
+                  <Table.Row
+                    key={index}
+                    style={isSelected(room) ? {fontWeight: 'bold'} : {}}
+                    onClick={() => setSelected(room.name)}
+                  >
+                    <Table.Cell>
+                      {isSelected(room) && <Icon name='check' color='green'/>}
+                      {room.isPrivate && <Icon name='lock'/>}
+                      {room.isOwned && <Icon name='chess queen'/>}
+                      {room.isModerated && <Icon name='gavel'/>}
+                      {room.name}
+                    </Table.Cell>
+                    <Table.Cell>{room.userCount}</Table.Cell>
+                  </Table.Row>
+                )}
+              </Table.Body>
+            </Table>
+          </>}
       </Modal.Content>
       <Modal.Actions>
         <Button onClick={() => setOpen(false)}>Cancel</Button>
@@ -136,7 +136,7 @@ const RoomJoinModal = ({ joinRoom: parentJoinRoom, ...modalOptions }) => {
         >Join</Button>
       </Modal.Actions>
     </Modal>
-  )
-}
+  );
+};
 
 export default RoomJoinModal;

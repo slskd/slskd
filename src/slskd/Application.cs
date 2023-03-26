@@ -21,6 +21,7 @@ namespace slskd
 {
     using System;
     using System.Collections.Concurrent;
+    using System.Collections.Generic;
     using System.Diagnostics;
     using System.IO;
     using System.Linq;
@@ -28,9 +29,12 @@ namespace slskd
     using System.Net.Sockets;
     using System.Reflection;
     using System.Runtime;
+    using System.Text.RegularExpressions;
+    using System.Runtime.InteropServices;
     using System.Threading;
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.SignalR;
+    using Microsoft.Extensions.Caching.Memory;
     using Microsoft.Extensions.Hosting;
     using Serilog;
     using Serilog.Events;
@@ -44,11 +48,10 @@ namespace slskd
     using slskd.Users;
     using Soulseek;
     using Soulseek.Diagnostics;
-    
+
     public interface IApplication : IHostedService
     {
         public Task CheckVersionAsync();
-        public Task RescanSharesAsync();
         public void CollectGarbage();
     }
 
@@ -69,25 +72,40 @@ namespace slskd
         /// </summary>
         public static readonly string LeecherGroup = "leechers";
 
-        private static readonly int ReconnectMaxDelayMilliseconds = 300000; // 5 minutes
+        private static readonly string ApplicationShutdownTransferExceptionMessage = "Application shut down";
 
         public Application(
             OptionsAtStartup optionsAtStartup,
             IOptionsMonitor<Options> optionsMonitor,
             IManagedState<State> state,
             ISoulseekClient soulseekClient,
-            ITransferTracker transferTracker,
+            IConnectionWatchdog connectionWatchdog,
             ITransferService transferService,
             IBrowseTracker browseTracker,
             IConversationTracker conversationTracker,
             IRoomTracker roomTracker,
             IRoomService roomService,
             IUserService userService,
-            ISharedFileCache sharedFileCache,
+            IShareService shareService,
             IPushbulletService pushbulletService,
             IHubContext<ApplicationHub> applicationHub,
             IHubContext<LogsHub> logHub)
         {
+            Console.CancelKeyPress += (_, args) =>
+            {
+                ShuttingDown = true;
+                Log.Warning("Received SIGINT");
+            };
+
+            foreach (var signal in new[] { PosixSignal.SIGINT, PosixSignal.SIGQUIT, PosixSignal.SIGTERM })
+            {
+                PosixSignalRegistration.Create(signal, context =>
+                {
+                    ShuttingDown = true;
+                    Log.Fatal("Received {Signal}", signal);
+                });
+            }
+
             OptionsAtStartup = optionsAtStartup;
 
             OptionsMonitor = optionsMonitor;
@@ -95,13 +113,14 @@ namespace slskd
 
             PreviousOptions = OptionsMonitor.CurrentValue;
 
+            CompiledSearchResponseFilters = OptionsAtStartup.Filters.Search.Request.Select(f => new Regex(f, RegexOptions.Compiled));
+
             State = state;
             State.OnChange(state => State_OnChange(state));
 
-            SharedFileCache = sharedFileCache;
-            SharedFileCache.StateMonitor.OnChange(state => SharedFileCacheState_OnChange(state));
+            Shares = shareService;
+            Shares.StateMonitor.OnChange(state => ShareState_OnChange(state));
 
-            TransferTracker = transferTracker;
             Transfers = transferService;
             BrowseTracker = browseTracker;
             ConversationTracker = conversationTracker;
@@ -125,10 +144,10 @@ namespace slskd
             Client.UserStatusChanged += Client_UserStatusChanged;
             Client.PrivateMessageReceived += Client_PrivateMessageRecieved;
 
-            Client.PrivateRoomMembershipAdded += (e, room) => Console.WriteLine($"Added to private room {room}");
-            Client.PrivateRoomMembershipRemoved += (e, room) => Console.WriteLine($"Removed from private room {room}");
-            Client.PrivateRoomModerationAdded += (e, room) => Console.WriteLine($"Promoted to moderator in private room {room}");
-            Client.PrivateRoomModerationRemoved += (e, room) => Console.WriteLine($"Demoted from moderator in private room {room}");
+            Client.PrivateRoomMembershipAdded += (e, room) => Log.Information("Added to private room {Room}", room);
+            Client.PrivateRoomMembershipRemoved += (e, room) => Log.Information("Removed from private room {Room}", room);
+            Client.PrivateRoomModerationAdded += (e, room) => Log.Information("Promoted to moderator in private room {Room}", room);
+            Client.PrivateRoomModerationRemoved += (e, room) => Log.Information("Demoted from moderator in private room {Room}", room);
 
             Client.PublicChatMessageReceived += Client_PublicChatMessageReceived;
             Client.RoomMessageReceived += Client_RoomMessageReceived;
@@ -139,11 +158,23 @@ namespace slskd
             Client.DistributedNetworkStateChanged += Client_DistributedNetworkStateChanged;
             Client.DownloadDenied += (e, args) => Log.Information("Download of {Filename} from {Username} was denied: {Message}", args.Filename, args.Username, args.Message);
             Client.DownloadFailed += (e, args) => Log.Information("Download of {Filename} from {Username} failed", args.Filename, args.Username);
+
+            ConnectionWatchdog = connectionWatchdog;
+
+            Clock.EveryMinute += Clock_EveryMinute;
         }
+
+        /// <summary>
+        ///     Gets a value indicating whether the application is in the process of shutting down.
+        /// </summary>
+        public static bool IsShuttingDown => Environment.HasShutdownStarted || ShuttingDown;
+
+        private static bool ShuttingDown { get; set; } = false;
 
         private ISoulseekClient Client { get; set; }
         private IRoomService RoomService { get; set; }
         private IBrowseTracker BrowseTracker { get; set; }
+        private IConnectionWatchdog ConnectionWatchdog { get; }
         private IConversationTracker ConversationTracker { get; set; }
         private ILogger Log { get; set; } = Serilog.Log.ForContext<Application>();
         private ConcurrentDictionary<string, ILogger> Loggers { get; } = new ConcurrentDictionary<string, ILogger>();
@@ -153,14 +184,16 @@ namespace slskd
         private SemaphoreSlim OptionsSyncRoot { get; } = new SemaphoreSlim(1, 1);
         private Options PreviousOptions { get; set; }
         private IPushbulletService Pushbullet { get; }
-        private ISharedFileCache SharedFileCache { get; set; }
         private DateTime SharesRefreshStarted { get; set; }
         private IManagedState<State> State { get; }
-        private ITransferTracker TransferTracker { get; set; }
         private ITransferService Transfers { get; init; }
         private IHubContext<ApplicationHub> ApplicationHub { get; set; }
         private IHubContext<LogsHub> LogHub { get; set; }
         private IUserService Users { get; set; }
+        private IShareService Shares { get; set; }
+        private IMemoryCache Cache { get; set; } = new MemoryCache(new MemoryCacheOptions());
+        private IEnumerable<Regex> CompiledSearchResponseFilters { get; set; }
+        private IEnumerable<Guid> ActiveDownloadIdsAtPreviousShutdown { get; set; } = Enumerable.Empty<Guid>();
 
         public void CollectGarbage()
         {
@@ -172,7 +205,7 @@ namespace slskd
 
             GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
 #pragma warning disable S1215 // "GC.Collect" should not be called
-            GC.Collect(2, GCCollectionMode.Forced, blocking: false, compacting: true);
+            GC.Collect(2, GCCollectionMode.Forced, blocking: true, compacting: true);
 #pragma warning restore S1215 // "GC.Collect" should not be called
 
             sw.Stop();
@@ -226,15 +259,43 @@ namespace slskd
             }
         }
 
-        /// <summary>
-        ///     Re-scans shared directories.
-        /// </summary>
-        /// <returns>The operation context.</returns>
-        public Task RescanSharesAsync() => SharedFileCache.FillAsync();
-
         async Task IHostedService.StartAsync(CancellationToken cancellationToken)
         {
-            Log.Information("Configuring client");
+            // if the application shut down "uncleanly", transfers may need to be cleaned up. we deliberately don't allow these
+            // records to be updated if the application has started to shut down so that we can do this cleanup and properly
+            // disposition them as having failed due to an application shutdown, instead of some random exception thrown while
+            // things are being disposed.
+            var activeUploads = Transfers.Uploads.List(t => !t.State.HasFlag(TransferStates.Completed) && !t.Removed)
+                .Where(t => !t.State.HasFlag(TransferStates.Completed)) // https://github.com/dotnet/efcore/issues/10434
+                .ToList();
+
+            foreach (var upload in activeUploads)
+            {
+                Log.Debug("Cleaning up dangling upload {Filename} to {Username}", upload.Filename, upload.Username);
+                upload.State = TransferStates.Completed | TransferStates.Errored;
+                upload.Exception = ApplicationShutdownTransferExceptionMessage;
+                Transfers.Uploads.Update(upload);
+            }
+
+            var activeDownloads = Transfers.Downloads.List(t => !t.State.HasFlag(TransferStates.Completed) && !t.Removed)
+                .Where(t => !t.State.HasFlag(TransferStates.Completed)) // https://github.com/dotnet/efcore/issues/10434
+                .ToList();
+
+            foreach (var download in activeDownloads)
+            {
+                Log.Debug("Cleaning up dangling download {Filename} from {Username}", download.Filename, download.Username);
+                download.State = TransferStates.Completed | TransferStates.Errored;
+                download.Exception = ApplicationShutdownTransferExceptionMessage;
+                Transfers.Downloads.Update(download);
+            }
+
+            // save the ids of any downloads that were active, so we can re-enqueue them after we've connected and logged in.
+            // we need to check the database before we re-request to make sure the user didn't remove them from the UI while
+            // the application was running, but before it was logged in. so just save the ids.
+            ActiveDownloadIdsAtPreviousShutdown = activeDownloads.Select(d => d.Id);
+            Log.Debug("Downloads to resume upon connection: {Ids}", ActiveDownloadIdsAtPreviousShutdown.ToJson());
+
+            Log.Debug("Configuring client");
 
             ProxyOptions proxyOptions = default;
 
@@ -288,35 +349,36 @@ namespace slskd
                 userInfoResolver: UserInfoResolver,
                 browseResponseResolver: BrowseResponseResolver,
                 directoryContentsResolver: DirectoryContentsResponseResolver,
-                enqueueDownload: (username, endpoint, filename) => EnqueueDownloadAction(username, endpoint, filename, TransferTracker),
+                enqueueDownload: (username, endpoint, filename) => Transfers.Uploads.EnqueueAsync(username, filename),
                 searchResponseCache: new SearchResponseCache(),
-                searchResponseResolver: SearchResponseResolver);
+                searchResponseResolver: SearchResponseResolver,
+                placeInQueueResolver: PlaceInQueueResolver);
 
             await Client.ReconfigureOptionsAsync(patch);
 
-            Log.Information("Client configured");
-            Log.Information("Listening on port {Port}", OptionsAtStartup.Soulseek.ListenPort);
+            Log.Debug("Client configured");
+            Log.Information("Listening for incoming connections on port {Port}", OptionsAtStartup.Soulseek.ListenPort);
 
             if (OptionsAtStartup.Soulseek.Connection.Proxy.Enabled)
             {
                 Log.Information($"Using Proxy {OptionsAtStartup.Soulseek.Connection.Proxy.Address}:{OptionsAtStartup.Soulseek.Connection.Proxy.Port}");
             }
 
-            if (!OptionsAtStartup.NoVersionCheck)
+            if (!OptionsAtStartup.Flags.NoVersionCheck)
             {
                 _ = CheckVersionAsync();
             }
 
-            if (OptionsAtStartup.NoShareScan)
+            if (OptionsAtStartup.Flags.NoShareScan)
             {
                 Log.Warning("Not scanning shares; 'no-share-scan' option is enabled.  Search and browse results will remain disabled until a manual scan is completed.");
             }
             else
             {
-                _ = SharedFileCache.FillAsync();
+                _ = Shares.StartScanAsync();
             }
 
-            if (OptionsAtStartup.NoConnect)
+            if (OptionsAtStartup.Flags.NoConnect)
             {
                 Log.Warning("Not connecting to the Soulseek server; 'no-connect' option is enabled");
             }
@@ -332,6 +394,8 @@ namespace slskd
 
         Task IHostedService.StopAsync(CancellationToken cancellationToken)
         {
+            ShuttingDown = true;
+            Log.Warning("Application is shutting down");
             Client.Disconnect("Shutting down", new ApplicationShutdownException("Shutting down"));
             Client.Dispose();
             Log.Information("Client stopped");
@@ -344,12 +408,31 @@ namespace slskd
         /// <param name="username">The username of the requesting user.</param>
         /// <param name="endpoint">The IP endpoint of the requesting user.</param>
         /// <returns>A Task resolving an IEnumerable of Soulseek.Directory.</returns>
-        private Task<BrowseResponse> BrowseResponseResolver(string username, IPEndPoint endpoint)
+        private async Task<BrowseResponse> BrowseResponseResolver(string username, IPEndPoint endpoint)
         {
-            var directories = SharedFileCache.Browse()
-                .Select(d => new Soulseek.Directory(d.Name.Replace('/', '\\'), d.Files)); // Soulseek NS requires backslashes
+            Metrics.Browse.RequestsReceived.Inc(1);
+            
+            try
+            {
+                var sw = new Stopwatch();
+                sw.Start();
 
-            return Task.FromResult(new BrowseResponse(directories));
+                var directories = (await Shares.BrowseAsync())
+                    .Select(d => new Soulseek.Directory(d.Name.Replace('/', '\\'), d.Files)); // Soulseek NS requires backslashes
+
+                sw.Stop();
+
+                Metrics.Browse.ResponseLatency.Observe(sw.ElapsedMilliseconds);
+                Metrics.Browse.CurrentResponseLatency.Update(sw.ElapsedMilliseconds);
+                Metrics.Browse.ResponsesSent.Inc(1);
+
+                return new BrowseResponse(directories);
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "Failed to resolve browse response: {Message}", ex.Message);
+                throw;
+            }
         }
 
         private void Client_BrowseProgressUpdated(object sender, BrowseProgressUpdatedEventArgs args)
@@ -359,6 +442,7 @@ namespace slskd
 
         private void Client_Connected(object sender, EventArgs e)
         {
+            ConnectionWatchdog.Stop();
             Log.Information("Connected to the Soulseek server");
         }
 
@@ -373,12 +457,19 @@ namespace slskd
                 _ => default,
             };
 
-            var logger = Loggers.GetOrAdd(sender.GetType().FullName, Log.ForContext("Context", "Soulseek").ForContext("SubContext", sender.GetType().FullName));
+            var source = sender.GetType().FullName;
+
+            if (source.EndsWith("DistributedConnectionManager") && !Options.Soulseek.DistributedNetwork.Logging)
+            {
+                return;
+            }
+
+            var logger = Loggers.GetOrAdd(source, Log.ForContext("Context", "Soulseek").ForContext("SubContext", source));
 
             logger.Write(TranslateLogLevel(args.Level), "{@Message}", args.Message);
         }
 
-        private async void Client_Disconnected(object sender, SoulseekClientDisconnectedEventArgs args)
+        private void Client_Disconnected(object sender, SoulseekClientDisconnectedEventArgs args)
         {
             if (State.CurrentValue.PendingReconnect)
             {
@@ -399,56 +490,87 @@ namespace slskd
             }
             else if (args.Exception is KickedFromServerException)
             {
-                Log.Error("Disconnected from the Soulseek server: another client logged in using the username {Username}", Client.Username);
+                Log.Error("Disconnected from the Soulseek server: another client logged in using the same username");
             }
             else
             {
                 Log.Error("Disconnected from the Soulseek server: {Message}", args.Exception?.Message ?? args.Message);
-
-                if (string.IsNullOrEmpty(Options.Soulseek.Username) || string.IsNullOrEmpty(Options.Soulseek.Password))
-                {
-                    Log.Warning($"Not reconnecting to the Soulseek server; username and/or password invalid.  Specify valid credentials and manually connect, or update config and restart.");
-                    return;
-                }
-
-                var attempts = 1;
-
-                while (true)
-                {
-                    var (delay, jitter) = Compute.ExponentialBackoffDelay(
-                        iteration: attempts,
-                        maxDelayInMilliseconds: ReconnectMaxDelayMilliseconds);
-
-                    var approximateDelay = (int)Math.Ceiling((double)(delay + jitter) / 1000);
-                    Log.Information($"Waiting about {(approximateDelay == 1 ? "a second" : $"{approximateDelay} seconds")} before reconnecting");
-                    await Task.Delay(delay + jitter);
-
-                    Log.Information($"Attempting to reconnect (#{attempts})...", attempts);
-
-                    try
-                    {
-                        // reconnect with the latest configuration values we have for username and password, instead of the
-                        // options that were captured at startup. if a user has updated these values prior to the disconnect, the
-                        // changes will take effect now.
-                        await Client.ConnectAsync(Options.Soulseek.Username, Options.Soulseek.Password);
-                        break;
-                    }
-                    catch (Exception ex)
-                    {
-                        attempts++;
-                        Log.Error("Failed to reconnect: {Message}", ex.Message);
-                    }
-                }
+                ConnectionWatchdog.Start();
             }
         }
 
-        private void Client_LoggedIn(object sender, EventArgs e)
+        private async Task RefreshUserStatistics(bool force = false)
+        {
+            if (force || !Cache.TryGetValue(CacheKeys.UserStatisticsToken, out _))
+            {
+                var stats = await Client.GetUserStatisticsAsync(OptionsAtStartup.Soulseek.Username);
+                var privileges = await Client.GetPrivilegesAsync();
+
+                State.SetValue(state => state with
+                {
+                    User = state.User with
+                    {
+                        Statistics = stats.ToUserStatisticsState(),
+                        Privileges = new UserPrivilegeState()
+                        {
+                            IsPrivileged = privileges > 0,
+                            PrivilegesRemaining = privileges,
+                        },
+                    },
+                });
+
+                Cache.Set(CacheKeys.UserStatisticsToken, true, TimeSpan.FromHours(4));
+            }
+        }
+
+        private async void Client_LoggedIn(object sender, EventArgs e)
         {
             Log.Information("Logged in to the Soulseek server as {Username}", Client.Username);
 
-            // send whatever counts we have currently. we'll probably connect before the cache is primed, so these will be zero
-            // initially, but we'll update them when the cache is filled.
-            _ = Client.SetSharedCountsAsync(State.CurrentValue.SharedFileCache.Directories, State.CurrentValue.SharedFileCache.Files);
+            try
+            {
+                // send whatever counts we have currently. we'll probably connect before the cache is primed, so these will be zero
+                // initially, but we'll update them when the cache is filled.
+                await Client.SetSharedCountsAsync(State.CurrentValue.Shares.Directories, State.CurrentValue.Shares.Files);
+
+                // fetch our average upload speed from the server, so we can provide it along with search results
+                await RefreshUserStatistics(force: true);
+
+                // we previously saved a list of all of the download ids that were active at the previous shutdown; fetch the latest
+                // record for those transfers from the db and ensure they haven't been removed from the UI while the application was offline
+                // the user doesn't want those transfers anymore and we don't want to add them back.
+                var resumeableDownloads = Transfers.Downloads.List(t => !t.Removed && ActiveDownloadIdsAtPreviousShutdown.Contains(t.Id));
+
+                if (resumeableDownloads.Any())
+                {
+                    Log.Information("Attempting to re-enqueue previously active downloads...");
+
+                    var groups = resumeableDownloads.GroupBy(d => d.Username);
+
+                    // re-request downloads. we use a try/catch here because there's a very good chance that the other user is offline.
+                    foreach (var group in groups)
+                    {
+                        var username = group.Key;
+                        var files = group.Select(f => (f.Filename, f.Size));
+
+                        try
+                        {
+                            await Transfers.Downloads.EnqueueAsync(username, files);
+                        }
+                        catch (Exception ex)
+                        {
+                            Log.Warning("Failed to re-enqueue {Count} file(s) from {Username}: {Message}", files.Count(), username, ex.Message);
+                        }
+                    }
+                }
+
+                // clear the ids we saved at startup; we don't want to re-request these again if the connection is cycled
+                ActiveDownloadIdsAtPreviousShutdown = Enumerable.Empty<Guid>();
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to execute post-login actions");
+            }
         }
 
         private void Client_PrivateMessageRecieved(object sender, PrivateMessageReceivedEventArgs args)
@@ -457,14 +579,13 @@ namespace slskd
 
             if (Options.Integration.Pushbullet.Enabled && !args.Replayed)
             {
-                Console.WriteLine("Pushing...");
                 _ = Pushbullet.PushAsync($"Private Message from {args.Username}", args.Username, args.Message);
             }
         }
 
         private void Client_PublicChatMessageReceived(object sender, PublicChatMessageReceivedEventArgs args)
         {
-            Console.WriteLine($"[PUBLIC CHAT] [{args.RoomName}] [{args.Username}]: {args.Message}");
+            Log.Information("[Public Chat/{Room}] [{Username}]: {Message}", args.RoomName, args.Username, args.Message);
 
             if (Options.Integration.Pushbullet.Enabled && args.Message.Contains(Client.Username))
             {
@@ -491,6 +612,9 @@ namespace slskd
                     Address = Client.Address,
                     IPEndPoint = Client.IPEndPoint,
                     State = Client.State,
+                },
+                User = state.User with
+                {
                     Username = Client.Username,
                 },
             });
@@ -512,13 +636,22 @@ namespace slskd
                     Parent = e.Parent.Username,
                 },
             });
+
+            Metrics.DistributedNetwork.HasParent.Set(e.HasParent ? 1 : 0);
+            Metrics.DistributedNetwork.BranchLevel.Set(e.BranchLevel);
+            Metrics.DistributedNetwork.ChildLimit.Set(e.ChildLimit);
+            Metrics.DistributedNetwork.Children.Set(e.Children.Count);
+        }
+
+        private void Clock_EveryMinute(object sender, EventArgs e)
+        {
+            Metrics.DistributedNetwork.BroadcastLatency.Observe(Client.DistributedNetwork.AverageBroadcastLatency ?? 0);
+            Metrics.DistributedNetwork.CurrentBroadcastLatency.Set(Client.DistributedNetwork.AverageBroadcastLatency ?? 0);
         }
 
         private void Client_TransferProgressUpdated(object sender, TransferProgressUpdatedEventArgs args)
         {
-            // this is really verbose. Console.WriteLine($"[{args.Transfer.Direction.ToString().ToUpper()}]
-            // [{args.Transfer.Username}/{Path.GetFileName(args.Transfer.Filename)}]
-            // {args.Transfer.BytesTransferred}/{args.Transfer.Size} {args.Transfer.PercentComplete}% {args.Transfer.AverageSpeed}kb/s");
+            // no-op. this is really verbose, use for troubleshooting.
         }
 
         private void Client_TransferStateChanged(object sender, TransferStateChangedEventArgs args)
@@ -532,7 +665,7 @@ namespace slskd
 
             var completed = xfer.State.HasFlag(TransferStates.Completed);
 
-            Console.WriteLine($"[{direction}] [{user}/{file}] {oldState} => {state}{(completed ? $" ({xfer.BytesTransferred}/{xfer.Size} = {xfer.PercentComplete}%) @ {xfer.AverageSpeed.SizeSuffix()}/s" : string.Empty)}");
+            Log.Information($"[{direction}] [{user}/{file}] {oldState} => {state}{(completed ? $" ({xfer.BytesTransferred}/{xfer.Size} = {xfer.PercentComplete}%) @ {xfer.AverageSpeed.SizeSuffix()}/s" : string.Empty)}");
 
             if (xfer.Direction == TransferDirection.Upload && xfer.State.HasFlag(TransferStates.Completed | TransferStates.Succeeded))
             {
@@ -549,7 +682,24 @@ namespace slskd
 
         private void Client_UserStatusChanged(object sender, UserStatus args)
         {
-            Console.WriteLine($"[USER] {args.Username}: {args.Presence}");
+        }
+
+        private Task<int?> PlaceInQueueResolver(string username, IPEndPoint endpoint, string filename)
+        {
+            try
+            {
+                var place = Transfers.Uploads.Queue.EstimatePosition(username, filename);
+                return Task.FromResult((int?)place);
+            }
+            catch (FileNotFoundException)
+            {
+                return Task.FromResult<int?>(null);
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "Failed to estimate place in queue for {Filename} requested by {Username}", filename, username);
+                throw;
+            }
         }
 
         /// <summary>
@@ -560,88 +710,18 @@ namespace slskd
         /// <param name="token">The unique token for the request, supplied by the requesting user.</param>
         /// <param name="directory">The requested directory.</param>
         /// <returns>A Task resolving an instance of Soulseek.Directory containing the contents of the requested directory.</returns>
-        private Task<Soulseek.Directory> DirectoryContentsResponseResolver(string username, IPEndPoint endpoint, int token, string directory)
+        private async Task<Soulseek.Directory> DirectoryContentsResponseResolver(string username, IPEndPoint endpoint, int token, string directory)
         {
-            var dir = SharedFileCache.List(directory);
-            return Task.FromResult(dir);
-        }
-
-        /// <summary>
-        ///     Invoked upon a remote request to download a file.
-        /// </summary>
-        /// <param name="username">The username of the requesting user.</param>
-        /// <param name="endpoint">The IP endpoint of the requesting user.</param>
-        /// <param name="filename">The filename of the requested file.</param>
-        /// <param name="tracker">(for example purposes) the ITransferTracker used to track progress.</param>
-        /// <returns>A Task representing the asynchronous operation.</returns>
-        /// <exception cref="DownloadEnqueueException">
-        ///     Thrown when the download is rejected. The Exception message will be passed to the remote user.
-        /// </exception>
-        /// <exception cref="Exception">
-        ///     Thrown on any other Exception other than a rejection. A generic message will be passed to the remote user for
-        ///     security reasons.
-        /// </exception>
-        private Task EnqueueDownloadAction(string username, IPEndPoint endpoint, string filename, ITransferTracker tracker)
-        {
-            _ = endpoint;
-            var localFilename = SharedFileCache.Resolve(filename).ToLocalOSPath();
-
-            var fileInfo = new FileInfo(localFilename);
-
-            Console.WriteLine($"[UPLOAD REQUESTED] [{username}/{filename}]");
-
-            if (!fileInfo.Exists)
+            try
             {
-                Console.WriteLine($"[UPLOAD REJECTED] File {localFilename} not found.");
-                throw new DownloadEnqueueException($"File not shared.");
+                var dir = await Shares.ListDirectoryAsync(directory);
+                return dir;
             }
-
-            if (tracker.TryGet(TransferDirection.Upload, username, filename, out _))
+            catch (Exception ex)
             {
-                // in this case, a re-requested file is a no-op. normally we'd want to respond with a PlaceInQueueResponse
-                Console.WriteLine($"[UPLOAD RE-REQUESTED] [{username}/{filename}]");
-                return Task.CompletedTask;
+                Log.Warning(ex, "Failed to resolve directory contents: {Message}", ex.Message);
+                throw;
             }
-
-            // create a new cancellation token source so that we can cancel the upload from the UI.
-            var cts = new CancellationTokenSource();
-            var topts = new TransferOptions(
-                stateChanged: (e) =>
-                {
-                    tracker.AddOrUpdate(e, cts);
-
-                    if (e.Transfer.State.HasFlag(TransferStates.Queued))
-                    {
-                        Transfers.Uploads.Queue.Enqueue(e.Transfer);
-                    }
-                },
-                progressUpdated: (e) => tracker.AddOrUpdate(e, cts),
-                governor: (tx, req, ct) => Transfers.Uploads.Governor.GetBytesAsync(tx, req, ct),
-                reporter: (tx, att, grant, act) => Transfers.Uploads.Governor.ReturnBytes(tx, att, grant, act),
-                slotAwaiter: (tx, ct) => Transfers.Uploads.Queue.AwaitStartAsync(tx),
-                slotReleased: (tx) => Transfers.Uploads.Queue.Complete(tx));
-
-            // accept all download requests, and begin the upload immediately. normally there would be an internal queue, and
-            // uploads would be handled separately.
-            Task.Run(async () =>
-            {
-                // users with uploads must be watched so that we can keep informed of their
-                // online status, privileges, and statistics.  this is so that we can accurately
-                // determine their effective group.
-                if (!Users.IsWatched(username))
-                {
-                    await Users.WatchAsync(username);
-                }
-
-                using var stream = new FileStream(fileInfo.FullName, FileMode.Open, FileAccess.Read);
-                await Client.UploadAsync(username, filename, fileInfo.FullName, options: topts, cancellationToken: cts.Token);
-            }).ContinueWith(t =>
-            {
-                Console.WriteLine($"[UPLOAD FAILED] {t.Exception}");
-            }, TaskContinuationOptions.NotOnRanToCompletion); // fire and forget
-
-            // return a completed task so that the invoking code can respond to the remote client.
-            return Task.CompletedTask;
         }
 
         private async Task OptionsMonitor_OnChange(Options newOptions)
@@ -681,15 +761,22 @@ namespace slskd
                 if (PreviousOptions.Directories.Shared.Except(newOptions.Directories.Shared).Any()
                     || newOptions.Directories.Shared.Except(PreviousOptions.Directories.Shared).Any())
                 {
-                    State.SetValue(state => state with { PendingShareRescan = true });
+                    State.SetValue(state => state with { Shares = state.Shares with { ScanPending = true } });
                     Log.Information("Shared directory configuration changed.  Shares must be re-scanned for changes to take effect.");
                 }
 
                 if (PreviousOptions.Filters.Share.Except(newOptions.Filters.Share).Any()
                     || newOptions.Filters.Share.Except(PreviousOptions.Filters.Share).Any())
                 {
-                    State.SetValue(state => state with { PendingShareRescan = true });
+                    State.SetValue(state => state with { Shares = state.Shares with { ScanPending = true } });
                     Log.Information("File filter configuration changed.  Shares must be re-scanned for changes to take effect.");
+                }
+
+                if (PreviousOptions.Filters.Search.Request.Except(newOptions.Filters.Search.Request).Any()
+                    || newOptions.Filters.Search.Request.Except(PreviousOptions.Filters.Search.Request).Any())
+                {
+                    CompiledSearchResponseFilters = newOptions.Filters.Search.Request.Select(f => new Regex(f, RegexOptions.Compiled));
+                    Log.Information("Updated and re-compiled search response filters");
                 }
 
                 if (PreviousOptions.Rooms.Except(newOptions.Rooms).Any()
@@ -813,63 +900,79 @@ namespace slskd
         /// <returns>A Task resolving a SearchResponse, or null.</returns>
         private async Task<SearchResponse> SearchResponseResolver(string username, int token, SearchQuery query)
         {
-            // some bots continually query for very common strings. blacklist known names here.
-            var blacklist = new[] { "Lola45", "Lolo51", "rajah" };
-            if (blacklist.Contains(username))
+            Metrics.Search.RequestsReceived.Inc(1);
+
+            if (CompiledSearchResponseFilters.Any(filter => filter.IsMatch(query.SearchText)))
             {
                 return null;
             }
 
-            // some bots and perhaps users search for very short terms. only respond to queries >= 3 characters. sorry, U2 fans.
-            if (query.Query.Length < 3)
+            // sometimes clients send search queries consisting only of exclusions; drop them.
+            // no other clients send search results for these, even though it is technically possible.
+            if (!query.Terms.Any())
             {
                 return null;
             }
 
-            var results = await SharedFileCache.SearchAsync(query);
-
-            if (results.Any())
+            try
             {
-                Console.WriteLine($"[SENDING SEARCH RESULTS]: {results.Count()} records to {username} for query {query.SearchText}");
+                var sw = new Stopwatch();
+                sw.Start();
 
-                return new SearchResponse(
-                    Client.Username,
-                    token,
-                    freeUploadSlots: 1,
-                    uploadSpeed: 0,
-                    queueLength: 0,
-                    fileList: results);
+                var results = await Shares.SearchAsync(query);
+
+                sw.Stop();
+
+                Metrics.Search.ResponseLatency.Observe(sw.ElapsedMilliseconds);
+                Metrics.Search.CurrentResponseLatency.Update(sw.ElapsedMilliseconds);
+
+                if (results.Any())
+                {
+                    // make sure our average speed (as reported by the server) is reasonably up to date
+                    await RefreshUserStatistics();
+
+                    var forecastedPosition = Transfers.Uploads.Queue.ForecastPosition(username);
+
+                    Log.Information("[{Context}]: Sending {Count} records to {Username} for query '{Query}'", "SEARCH RESULT SENT", results.Count(), username, query.SearchText);
+
+                    Metrics.Search.ResponsesSent.Inc(1);
+
+                    return new SearchResponse(
+                        Client.Username,
+                        token,
+                        uploadSpeed: State.CurrentValue.User.Statistics.AverageSpeed,
+                        freeUploadSlots: forecastedPosition == 0 ? 1 : 0,
+                        queueLength: forecastedPosition,
+                        fileList: results);
+                }
+
+                // if no results, either return null or an instance of SearchResponse with a fileList of length 0 in either case, no
+                // response will be sent to the requestor.
+                return null;
             }
-
-            // if no results, either return null or an instance of SearchResponse with a fileList of length 0 in either case, no
-            // response will be sent to the requestor.
-            return null;
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "Failed to resolve search response: {Message}", ex.Message);
+                throw;
+            }
         }
 
-        private void SharedFileCacheState_OnChange((SharedFileCacheState Previous, SharedFileCacheState Current) state)
+        private void ShareState_OnChange((ShareState Previous, ShareState Current) state)
         {
             var (previous, current) = state;
 
-            if (!previous.Filling && current.Filling)
+            if (!previous.Scanning && current.Scanning)
             {
+                // the scan is starting
                 SharesRefreshStarted = DateTime.UtcNow;
 
-                State.SetValue(s => s with { SharedFileCache = current });
+                State.SetValue(s => s with { Shares = current });
                 Log.Information("Scanning shares");
             }
-
-            var lastProgress = Math.Round(previous.FillProgress * 100);
-            var currentProgress = Math.Round(current.FillProgress * 100);
-
-            if (lastProgress != currentProgress && Math.Round(currentProgress, 0) % 10 == 0)
+            else if (previous.Scanning && !current.Scanning)
             {
-                State.SetValue(s => s with { SharedFileCache = current });
-                Log.Information("Scanned {Percent}% of shared directories.  Found {Files} files so far.", currentProgress, current.Files);
-            }
-
-            if (previous.Filling && !current.Filling)
-            {
-                State.SetValue(s => s with { SharedFileCache = current });
+                // the scan is finishing
+                State.SetValue(s => s with { Shares = current });
 
                 if (current.Faulted)
                 {
@@ -877,22 +980,37 @@ namespace slskd
                 }
                 else
                 {
-                    State.SetValue(s => s with { PendingShareRescan = false });
+                    State.SetValue(state => state with { Shares = state.Shares with { ScanPending = false } });
                     Log.Information("Shares scanned successfully. Found {Directories} directories and {Files} files in {Duration}ms", current.Directories, current.Files, (DateTime.UtcNow - SharesRefreshStarted).TotalMilliseconds);
 
                     SharesRefreshStarted = default;
 
                     if (Client.State.HasFlag(SoulseekClientStates.Connected | SoulseekClientStates.LoggedIn))
                     {
-                        _ = Client.SetSharedCountsAsync(State.CurrentValue.SharedFileCache.Directories, State.CurrentValue.SharedFileCache.Files);
+                        _ = Task.Run(async () =>
+                        {
+                            await Client.SetSharedCountsAsync(State.CurrentValue.Shares.Directories, State.CurrentValue.Shares.Files);
+                            await RefreshUserStatistics(force: true);
+                        });
                     }
+                }
+            }
+            else
+            {
+                // the scan is neither starting nor finishing; progress update
+                var lastProgress = Math.Round(previous.ScanProgress * 100);
+                var currentProgress = Math.Round(current.ScanProgress * 100);
+
+                if (lastProgress != currentProgress && Math.Round(currentProgress, 0) % 5d == 0)
+                {
+                    State.SetValue(s => s with { Shares = current });
+                    Log.Information("Scanned {Percent}% of shared directories. Found {Files} files so far.", currentProgress, current.Files);
                 }
             }
         }
 
         private void State_OnChange((State Previous, State Current) state)
         {
-            //Log.Debug("State changed from {Previous} to {Current}", state.Previous.ToJson(), state.Current.ToJson());
             _ = ApplicationHub.BroadcastStateAsync(state.Current);
         }
 
@@ -904,13 +1022,33 @@ namespace slskd
         /// <returns>A Task resolving the UserInfo instance.</returns>
         private Task<UserInfo> UserInfoResolver(string username, IPEndPoint endpoint)
         {
-            var info = new UserInfo(
-                description: Options.Soulseek.Description,
-                uploadSlots: 1,
-                queueLength: 0,
-                hasFreeUploadSlot: false);
+            try
+            {
+                var groupName = Users.GetGroup(username);
+                var group = Transfers.Uploads.Queue.GetGroupInfo(groupName);
 
-            return Task.FromResult(info);
+                // forecast the position at which this user would enter the queue if they were to request
+                // a file at this moment. this will be zero if a slot is available and the transfer would
+                // begin immediately
+                var forecastedPosition = Transfers.Uploads.Queue.ForecastPosition(username);
+
+                // if i get a user's info to determine whether i want to download files from them,
+                // i want to know how many slots they have, which gives me an idea of how fast their
+                // queue moves, and the length of the queue *ahead of me*, meaning how long i'd have to
+                // wait until my first download starts.
+                var info = new UserInfo(
+                    description: Options.Soulseek.Description,
+                    uploadSlots: group.Slots,
+                    queueLength: forecastedPosition,
+                    hasFreeUploadSlot: forecastedPosition == 0);
+
+                return Task.FromResult(info);
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "Failed to resolve user info: {Message}", ex.Message);
+                throw;
+            }
         }
     }
 }

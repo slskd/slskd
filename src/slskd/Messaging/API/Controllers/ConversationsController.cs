@@ -152,7 +152,7 @@ namespace slskd.Messaging.API
             var response = Tracker.Conversations.ToDictionary(
                 entry => entry.Key,
                 entry => entry.Value
-                    .Select(pm => PrivateMessageResponse.FromPrivateMessage(pm, self: pm.Username == ApplicationStateMonitor.CurrentValue.Server.Username))
+                    .Select(pm => PrivateMessageResponse.FromPrivateMessage(pm, self: pm.Username == ApplicationStateMonitor.CurrentValue.User.Username))
                     .OrderBy(m => m.Timestamp));
 
             return Ok(response);
@@ -174,7 +174,7 @@ namespace slskd.Messaging.API
             if (Tracker.TryGet(username, out var conversation))
             {
                 var response = conversation
-                    .Select(pm => PrivateMessageResponse.FromPrivateMessage(pm, self: pm.Username == ApplicationStateMonitor.CurrentValue.Server.Username))
+                    .Select(pm => PrivateMessageResponse.FromPrivateMessage(pm, self: pm.Username == ApplicationStateMonitor.CurrentValue.User.Username))
                     .OrderBy(m => m.Timestamp);
 
                 return Ok(response);
@@ -207,7 +207,7 @@ namespace slskd.Messaging.API
             // append the outgoing message to the tracker
             Tracker.AddOrUpdate(username, new PrivateMessage()
             {
-                Username = ApplicationStateMonitor.CurrentValue.Server.Username,
+                Username = ApplicationStateMonitor.CurrentValue.User.Username,
                 Timestamp = DateTime.UtcNow,
                 Message = message,
                 Acknowledged = true,
