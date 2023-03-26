@@ -56,10 +56,10 @@
 #     request:
 #       - ^.{1,2}$
 # web:
-#   port: 5000
+#   port: 5030
 #   https:
 #     disabled: false
-#     port: 5001
+#     port: 5031
 #     force: false
 #     certificate:
 #       pfx: ~
