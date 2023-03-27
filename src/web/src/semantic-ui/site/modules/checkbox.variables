@@ -1,0 +1,11 @@
+/*******************************
+    User Variable Overrides
+*******************************/
+
+@checkboxColor: var(--smui-input-focus-color, @textColor);
+@labelColor: var(--smui-label-color, @textColor);
+@checkboxBackground: var(--slskd-color-subtle, @white);
+@checkboxBorder: var(--smui-button-border, 1px solid @solidBorderColor);
+
+@toggleOffLabelColor: var(--slskd-color-subtle, @checkboxColor);
+@toggleOnLabelColor: var(--smui-input-focus-color, @selectedTextColor);

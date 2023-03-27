@@ -15,15 +15,15 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
+using Microsoft.Extensions.Options;
+
 namespace slskd.Messaging.API
 {
-    using System;
     using System.Collections.Generic;
     using System.Linq;
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
-    using Soulseek;
 
     /// <summary>
     ///     Conversations.
@@ -38,22 +38,22 @@ namespace slskd.Messaging.API
         /// <summary>
         ///     Initializes a new instance of the <see cref="ConversationsController"/> class.
         /// </summary>
-        /// <param name="soulseekClient"></param>
         /// <param name="applicationStateMonotor"></param>
-        /// <param name="tracker"></param>
+        /// <param name="messagingService"></param>
+        /// <param name="optionsSnapshot"></param>
         public ConversationsController(
-            ISoulseekClient soulseekClient,
             IStateMonitor<State> applicationStateMonotor,
-            IConversationTracker tracker)
+            IMessagingService messagingService,
+            IOptionsSnapshot<Options> optionsSnapshot)
         {
-            Client = soulseekClient;
             ApplicationStateMonitor = applicationStateMonotor;
-            Tracker = tracker;
+            Messages = messagingService;
+            OptionsSnapshot = optionsSnapshot;
         }
 
-        private ISoulseekClient Client { get; }
         private IStateMonitor<State> ApplicationStateMonitor { get; }
-        private IConversationTracker Tracker { get; }
+        private IMessagingService Messages { get; }
+        private IOptionsSnapshot<Options> OptionsSnapshot { get; }
 
         /// <summary>
         ///     Acknowledges the given message id for the given username.
@@ -66,121 +66,167 @@ namespace slskd.Messaging.API
         ///     A conversation with the specified username, or a message matching the specified id could not be found.
         /// </response>
         [HttpPut("{username}/{id}")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(200)]
         [ProducesResponseType(404)]
         public async Task<IActionResult> Acknowledge([FromRoute]string username, [FromRoute]int id)
         {
-            Tracker.Conversations.TryGetValue(username, out var conversation);
+            if (Program.IsRelayAgent)
+            {
+                return Forbid();
+            }
 
-            if (conversation == default || !conversation.Any(p => p.Id == id))
+            var message = Messages.Conversations.FindMessageAsync(username, id);
+
+            if (message == default)
             {
                 return NotFound();
             }
 
-            await Client.AcknowledgePrivateMessageAsync(id);
-            return StatusCode(200);
+            await Messages.Conversations.AcknowledgeMessageAsync(username, id);
+
+            return Ok();
         }
 
         /// <summary>
-        ///     Acknowledges all messages for the given username.
+        ///     Acknowledges all messages from the given username.
         /// </summary>
         /// <param name="username"></param>
         /// <returns></returns>
         /// <response code="200">The request completed successfully.</response>
         /// <response code="404">A conversation with the specified username could not be found.</response>
         [HttpPut("{username}")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(200)]
         [ProducesResponseType(404)]
         public async Task<IActionResult> AcknowledgeAll([FromRoute]string username)
         {
-            Tracker.Conversations.TryGetValue(username, out var conversation);
+            if (Program.IsRelayAgent)
+            {
+                return Forbid();
+            }
+
+            var conversation = Messages.Conversations.FindAsync(username);
 
             if (conversation == default)
             {
                 return NotFound();
             }
 
-            var tasks = new List<Task>();
+            await Messages.Conversations.AcknowledgeAsync(username);
 
-            foreach (var message in conversation.Where(p => !p.Acknowledged))
-            {
-                tasks.Add(Task.Run(async () =>
-                {
-                    await Client.AcknowledgePrivateMessageAsync(message.Id);
-                    message.Acknowledged = true;
-                }));
-            }
-
-            await Task.WhenAll(tasks);
-            return StatusCode(200);
+            return Ok();
         }
 
         /// <summary>
-        ///     Deletes the conversation associated with the given username.
+        ///     Closes the conversation associated with the given username.
         /// </summary>
         /// <returns></returns>
         /// <response code="204">The request completed successfully.</response>
         /// <response code="404">A conversation with the specified username could not be found.</response>
         [HttpDelete("{username}")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(404)]
         [ProducesResponseType(204)]
-        public IActionResult Delete([FromRoute]string username)
+        public async Task<IActionResult> Close([FromRoute]string username)
         {
-            var deleted = Tracker.Conversations.TryRemove(username, out _);
-
-            if (deleted)
+            if (Program.IsRelayAgent)
             {
-                return StatusCode(204);
+                return Forbid();
             }
 
-            return StatusCode(404);
+            var conversation = Messages.Conversations.FindAsync(username, includeInactive: false);
+
+            if (conversation == default)
+            {
+                return NotFound();
+            }
+
+            await Messages.Conversations.RemoveAsync(username);
+
+            return StatusCode(204);
         }
 
         /// <summary>
-        ///     Gets all tracked conversations.
+        ///     Gets all active conversations.
         /// </summary>
         /// <returns></returns>
         /// <response code="200">The request completed successfully.</response>
         [HttpGet("")]
-        [Authorize]
-        [ProducesResponseType(typeof(Dictionary<string, List<PrivateMessageResponse>>), 200)]
-        public IActionResult GetAll()
+        [Authorize(Policy = AuthPolicy.Any)]
+        [ProducesResponseType(typeof(List<Conversation>), 200)]
+        public async Task<IActionResult> GetAll([FromQuery] bool includeInactive = false, [FromQuery]bool unAcknowledgedOnly = false)
         {
-            var response = Tracker.Conversations.ToDictionary(
-                entry => entry.Key,
-                entry => entry.Value
-                    .Select(pm => PrivateMessageResponse.FromPrivateMessage(pm, self: pm.Username == ApplicationStateMonitor.CurrentValue.User.Username))
-                    .OrderBy(m => m.Timestamp));
+            if (Program.IsRelayAgent)
+            {
+                return Forbid();
+            }
 
-            return Ok(response);
+            var conversations = await Messages.Conversations.ListAsync(c => includeInactive || c.IsActive);
+
+            if (unAcknowledgedOnly)
+            {
+                conversations = conversations.Where(c => c.HasUnAcknowledgedMessages);
+            }
+
+            return Ok(conversations);
         }
 
         /// <summary>
         ///     Gets the conversation associated with the specified username.
         /// </summary>
         /// <param name="username">The username associated with the desired conversation.</param>
+        /// <param name="includeMessages"></param>
         /// <returns></returns>
         /// <response code="200">The request completed successfully.</response>
         /// <response code="404">A matching search was not found.</response>
         [HttpGet("{username}")]
-        [Authorize]
-        [ProducesResponseType(typeof(List<PrivateMessageResponse>), 200)]
+        [Authorize(Policy = AuthPolicy.Any)]
+        [ProducesResponseType(typeof(Conversation), 200)]
         [ProducesResponseType(404)]
-        public IActionResult GetByUsername([FromRoute]string username)
+        public async Task<IActionResult> GetByUsername([FromRoute]string username, [FromQuery]bool includeMessages = true)
         {
-            if (Tracker.TryGet(username, out var conversation))
+            if (Program.IsRelayAgent)
             {
-                var response = conversation
-                    .Select(pm => PrivateMessageResponse.FromPrivateMessage(pm, self: pm.Username == ApplicationStateMonitor.CurrentValue.User.Username))
-                    .OrderBy(m => m.Timestamp);
-
-                return Ok(response);
+                return Forbid();
             }
 
-            return NotFound();
+            var conversation = await Messages.Conversations.FindAsync(username, includeMessages: includeMessages);
+
+            if (conversation == default)
+            {
+                return NotFound();
+            }
+
+            return Ok(conversation);
+        }
+
+        [HttpGet("{username}/messages")]
+        [Authorize(Policy = AuthPolicy.Any)]
+        [ProducesResponseType(typeof(List<PrivateMessage>), 200)]
+        [ProducesResponseType(404)]
+        public async Task<IActionResult> GetMessagesByUsername([FromRoute]string username, [FromQuery]bool unAcknowledgedOnly = false)
+        {
+            if (Program.IsRelayAgent)
+            {
+                return Forbid();
+            }
+
+            var conversation = await Messages.Conversations.FindAsync(username, includeMessages: true);
+
+            if (conversation == default)
+            {
+                return NotFound();
+            }
+
+            var messages = conversation.Messages;
+
+            if (unAcknowledgedOnly)
+            {
+                messages = messages.Where(m => !m.IsAcknowledged);
+            }
+
+            return Ok(messages);
         }
 
         /// <summary>
@@ -192,26 +238,22 @@ namespace slskd.Messaging.API
         /// <response code="201">The request completed successfully.</response>
         /// <response code="400">The specified message is null or empty.</response>
         [HttpPost("{username}")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(201)]
         [ProducesResponseType(400)]
         public async Task<IActionResult> Send([FromRoute]string username, [FromBody]string message)
         {
+            if (Program.IsRelayAgent)
+            {
+                return Forbid();
+            }
+
             if (string.IsNullOrEmpty(message))
             {
                 return BadRequest();
             }
 
-            await Client.SendPrivateMessageAsync(username, message);
-
-            // append the outgoing message to the tracker
-            Tracker.AddOrUpdate(username, new PrivateMessage()
-            {
-                Username = ApplicationStateMonitor.CurrentValue.User.Username,
-                Timestamp = DateTime.UtcNow,
-                Message = message,
-                Acknowledged = true,
-            });
+            await Messages.Conversations.SendMessageAsync(username, message);
 
             return StatusCode(201);
         }

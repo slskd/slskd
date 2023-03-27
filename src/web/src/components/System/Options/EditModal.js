@@ -10,7 +10,7 @@ import {
   Div,
 } from '../../Shared';
 
-const EditModal = ({ open, onClose }) => {
+const EditModal = ({ open, theme, onClose }) => {
   const [{ loading, error }, setLoading] = useState({ loading: true, error: false });
   const [{ location, yaml, isDirty }, setYaml] = useState({ location: undefined, yaml: undefined, isDirty: false });
   const [yamlError, setYamlError] = useState();
@@ -86,6 +86,7 @@ const EditModal = ({ open, onClose }) => {
               style={{minHeight: 500}}
               value={yaml}
               onChange={(value) => update(value)}
+              theme={theme}
             />
           </div>
         </Switch>

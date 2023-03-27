@@ -35,7 +35,7 @@ namespace slskd.Core.API
         /// </summary>
         /// <returns></returns>
         [HttpGet]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         public IActionResult Logs()
         {
             return Ok(Program.LogBuffer);

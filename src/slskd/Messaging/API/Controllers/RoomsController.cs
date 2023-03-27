@@ -15,6 +15,8 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
+using Microsoft.Extensions.Options;
+
 namespace slskd.Messaging.API
 {
     using System;
@@ -24,6 +26,7 @@ namespace slskd.Messaging.API
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Http;
     using Microsoft.AspNetCore.Mvc;
+    using slskd.Relay;
     using Soulseek;
 
     /// <summary>
@@ -40,10 +43,12 @@ namespace slskd.Messaging.API
             ISoulseekClient soulseekClient,
             IRoomService roomService,
             IStateMonitor<State> applicationStateMonitor,
+            IOptionsSnapshot<Options> optionsSnapshot,
             IRoomTracker tracker)
         {
             Client = soulseekClient;
             ApplicationStateMonitor = applicationStateMonitor;
+            OptionsSnapshot = optionsSnapshot;
             Tracker = tracker;
             RoomService = roomService;
         }
@@ -52,6 +57,7 @@ namespace slskd.Messaging.API
         private ISoulseekClient Client { get; }
         private IStateMonitor<State> ApplicationStateMonitor { get; }
         private IRoomTracker Tracker { get; }
+        private IOptionsSnapshot<Options> OptionsSnapshot { get; }
 
         /// <summary>
         ///     Gets all rooms.
@@ -59,10 +65,15 @@ namespace slskd.Messaging.API
         /// <returns></returns>
         /// <response code="200">The request completed successfully.</response>
         [HttpGet("joined")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(typeof(Dictionary<string, Dictionary<string, Room>>), 200)]
         public IActionResult GetAll()
         {
+            if (Program.IsRelayAgent)
+            {
+                return Forbid();
+            }
+
             return Ok(Tracker.Rooms.Keys);
         }
 
@@ -74,11 +85,16 @@ namespace slskd.Messaging.API
         /// <response code="200">The request completed successfully.</response>
         /// <response code="404">The specified roomName could not be found.</response>
         [HttpGet("joined/{roomName}")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(typeof(Room), 200)]
         [ProducesResponseType(404)]
         public IActionResult GetByRoomName([FromRoute]string roomName)
         {
+            if (Program.IsRelayAgent)
+            {
+                return Forbid();
+            }
+
             if (Tracker.TryGet(roomName, out var room))
             {
                 return Ok(MapRoomToRoomResponse(room));
@@ -96,11 +112,16 @@ namespace slskd.Messaging.API
         /// <response code="201">The request completed successfully.</response>
         /// <response code="404">The specified roomName could not be found.</response>
         [HttpPost("joined/{roomName}/messages")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(201)]
         [ProducesResponseType(404)]
         public async Task<IActionResult> SendMessage([FromRoute]string roomName, [FromBody]string message)
         {
+            if (Program.IsRelayAgent)
+            {
+                return Forbid();
+            }
+
             if (Tracker.TryGet(roomName, out var _))
             {
                 await Client.SendRoomMessageAsync(roomName, message);
@@ -119,11 +140,16 @@ namespace slskd.Messaging.API
         /// <response code="201">The request completed successfully.</response>
         /// <response code="404">The specified roomName could not be found.</response>
         [HttpPost("joined/{roomName}/ticker")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(201)]
         [ProducesResponseType(404)]
         public async Task<IActionResult> SetTicker([FromRoute] string roomName, [FromBody] string message)
         {
+            if (Program.IsRelayAgent)
+            {
+                return Forbid();
+            }
+
             if (Tracker.TryGet(roomName, out var _))
             {
                 await Client.SetRoomTickerAsync(roomName, message);
@@ -142,11 +168,16 @@ namespace slskd.Messaging.API
         /// <response code="201">The request completed successfully.</response>
         /// <response code="404">The specified roomName could not be found.</response>
         [HttpPost("joined/{roomName}/members")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(201)]
         [ProducesResponseType(404)]
         public async Task<IActionResult> AddRoomMember([FromRoute]string roomName, [FromBody]string username)
         {
+            if (Program.IsRelayAgent)
+            {
+                return Forbid();
+            }
+
             if (Tracker.TryGet(roomName, out var _))
             {
                 await Client.AddPrivateRoomMemberAsync(roomName, username);
@@ -164,11 +195,16 @@ namespace slskd.Messaging.API
         /// <response code="200">The request completed successfully.</response>
         /// <response code="404">The specified roomName could not be found.</response>
         [HttpGet("joined/{roomName}/users")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(typeof(IList<UserData>), 200)]
         [ProducesResponseType(404)]
         public IActionResult GetUsersByRoomName([FromRoute]string roomName)
         {
+            if (Program.IsRelayAgent)
+            {
+                return Forbid();
+            }
+
             if (Tracker.TryGet(roomName, out var room))
             {
                 var response = room.Users
@@ -188,11 +224,16 @@ namespace slskd.Messaging.API
         /// <response code="200">The request completed successfully.</response>
         /// <response code="404">The specified roomName could not be found.</response>
         [HttpGet("joined/{roomName}/messages")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(typeof(IList<RoomMessage>), 200)]
         [ProducesResponseType(404)]
         public IActionResult GetMessagesByRoomName([FromRoute]string roomName)
         {
+            if (Program.IsRelayAgent)
+            {
+                return Forbid();
+            }
+
             if (Tracker.TryGet(roomName, out var room))
             {
                 var response = room.Messages
@@ -209,10 +250,15 @@ namespace slskd.Messaging.API
         /// </summary>
         /// <returns></returns>
         [HttpGet("available")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(typeof(List<RoomInfo>), 200)]
         public async Task<IActionResult> GetRooms()
         {
+            if (Program.IsRelayAgent)
+            {
+                return Forbid();
+            }
+
             var list = await Client.GetRoomListAsync();
 
             var response = new List<RoomInfoResponse>();
@@ -237,14 +283,19 @@ namespace slskd.Messaging.API
         /// <response code="201">The request completed successfully.</response>
         /// <response code="304">The room has already been joined.</response>
         [HttpPost("joined")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(typeof(Room), 201)]
         [ProducesResponseType(304)]
         public async Task<IActionResult> JoinRoom([FromBody]string roomName)
         {
+            if (Program.IsRelayAgent)
+            {
+                return Forbid();
+            }
+
             if (Tracker.Rooms.ContainsKey(roomName))
             {
-                return StatusCode(StatusCodes.Status304NotModified);
+                return Ok();
             }
 
             try
@@ -273,11 +324,16 @@ namespace slskd.Messaging.API
         /// <response code="204">The request completed successfully.</response>
         /// <response code="404">The room has not been joined.</response>
         [HttpDelete("joined/{roomName}")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(204)]
         [ProducesResponseType(404)]
         public async Task<IActionResult> LeaveRoom([FromRoute]string roomName)
         {
+            if (Program.IsRelayAgent)
+            {
+                return Forbid();
+            }
+
             if (!Tracker.Rooms.ContainsKey(roomName))
             {
                 return StatusCode(StatusCodes.Status404NotFound);

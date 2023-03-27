@@ -58,7 +58,7 @@ namespace slskd.Core.API
         /// </summary>
         /// <returns></returns>
         [HttpGet]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         public IActionResult State()
         {
             return Ok(ApplicationStateMonitor.CurrentValue);
@@ -69,9 +69,10 @@ namespace slskd.Core.API
         /// </summary>
         /// <returns></returns>
         [HttpDelete]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.JwtOnly, Roles = AuthRole.AdministratorOnly)]
         public IActionResult Shutdown()
         {
+            Program.MasterCancellationTokenSource.Cancel();
             Lifetime.StopApplication();
 
             Task.Run(async () =>
@@ -88,9 +89,10 @@ namespace slskd.Core.API
         /// </summary>
         /// <returns></returns>
         [HttpPut]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.JwtOnly, Roles = AuthRole.AdministratorOnly)]
         public IActionResult Restart()
         {
+            Program.MasterCancellationTokenSource.Cancel();
             Process.Start(Process.GetCurrentProcess().MainModule.FileName, Environment.CommandLine);
             Lifetime.StopApplication();
 
@@ -102,7 +104,7 @@ namespace slskd.Core.API
         /// </summary>
         /// <returns></returns>
         [HttpGet("version")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         public IActionResult GetVersion()
         {
             return Ok(Program.SemanticVersion);
@@ -113,7 +115,7 @@ namespace slskd.Core.API
         /// </summary>
         /// <returns></returns>
         [HttpGet("version/latest")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         public async Task<IActionResult> CheckVersion([FromQuery] bool forceCheck = false)
         {
             if (forceCheck)
@@ -129,7 +131,7 @@ namespace slskd.Core.API
         /// </summary>
         /// <returns></returns>
         [HttpPost("gc")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         public IActionResult CollectGarbage()
         {
             Application.CollectGarbage();
@@ -138,7 +140,7 @@ namespace slskd.Core.API
         }
 
         [HttpGet("dump")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         public async Task<IActionResult> DumpMemory()
         {
             using var dumper = new Dumper();

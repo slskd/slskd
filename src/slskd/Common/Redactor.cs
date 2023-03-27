@@ -59,7 +59,14 @@ namespace slskd
                 }
                 else
                 {
-                    if (value.GetType().IsAssignableTo(typeof(IEnumerable)))
+                    if (value.IsDictionary())
+                    {
+                        foreach (string key in ((IDictionary)value).Keys)
+                        {
+                            Redact(((IDictionary)value)[key]);
+                        }
+                    }
+                    else if (value.GetType().IsAssignableTo(typeof(IEnumerable)))
                     {
                         foreach (var element in (IEnumerable)value)
                         {

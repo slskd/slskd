@@ -19,7 +19,6 @@ using Microsoft.Extensions.Options;
 
 namespace slskd.Integrations.FTP
 {
-    using System;
     using FluentFTP;
     using static slskd.Options.IntegrationOptions;
 
@@ -44,27 +43,17 @@ namespace slskd.Integrations.FTP
         ///     Creates an instance of <see cref="FtpClient"/>.
         /// </summary>
         /// <returns>The created instance.</returns>
-        public FtpClient CreateFtpClient()
+        public AsyncFtpClient CreateFtpClient()
         {
-            var client = new FtpClient(FtpOptions.Address, FtpOptions.Port, FtpOptions.Username, FtpOptions.Password);
-            client.EncryptionMode = ParseFtpEncryptionMode(FtpOptions.EncryptionMode);
-            client.ValidateAnyCertificate = FtpOptions.IgnoreCertificateErrors;
+            var config = new FtpConfig
+            {
+                EncryptionMode = FtpOptions.EncryptionMode.ToEnum<FtpEncryptionMode>(),
+                ValidateAnyCertificate = FtpOptions.IgnoreCertificateErrors,
+            };
+
+            var client = new AsyncFtpClient(FtpOptions.Address, FtpOptions.Username, FtpOptions.Password, FtpOptions.Port, config);
 
             return client;
-        }
-
-        private FtpEncryptionMode ParseFtpEncryptionMode(string encryptionMode)
-        {
-            try
-            {
-                return (FtpEncryptionMode)Enum.Parse(typeof(FtpEncryptionMode), encryptionMode, ignoreCase: true);
-            }
-            catch (Exception ex)
-            {
-                // Options should validate that the given string is parsable to FtpEncryptionMode through EnumAttribute; if this
-                // throws there's a bug somewhere.
-                throw new ArgumentException($"Failed to parse {typeof(FtpEncryptionMode).Name} from application Options. This is most likely a programming error; please file a GitHub issue and include your FTP configuration.", ex);
-            }
         }
     }
 }

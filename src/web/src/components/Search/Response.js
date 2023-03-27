@@ -1,5 +1,6 @@
 import React, { Component } from 'react';
 import * as transfers from '../../lib/transfers';
+import { toast } from 'react-toastify';
 
 import { formatBytes, getDirectoryName } from '../../lib/util';
 
@@ -11,6 +12,7 @@ import {
   Icon,
   Label,
 } from 'semantic-ui-react';
+import { getDirectoryContents } from '../../lib/users';
 
 const buildTree = (response) => {
   let { files = [], lockedFiles = [] } = response;
@@ -29,6 +31,7 @@ class Response extends Component {
     tree: buildTree(this.props.response), 
     downloadRequest: undefined, 
     downloadError: '',
+    fetchingDirectoryContents: false,
     isFolded: this.props.isInitiallyFolded,
   };
 
@@ -59,15 +62,36 @@ class Response extends Component {
     });
   };
 
+  getFullDirectory = async (username, directory) => {
+    this.setState({ fetchingDirectoryContents: true });
+
+    try {
+      const { name, files } = await getDirectoryContents({ username, directory });
+      files.forEach((file, index) => {
+        const newFilename = `${directory}\\${file.filename}`;
+        files[index] = { ...files[index], filename: newFilename };
+      });
+  
+      const newTree = this.state.tree;
+      newTree[name] = files;
+      this.setState({ tree: { ...newTree } });
+    } catch (error) {
+      console.error(error);
+      toast.error(error?.response?.data ?? error?.message ?? error);
+    } finally {
+      this.setState({ fetchingDirectoryContents: false });
+    }
+  };
+
   toggleFolded = () => {
     this.setState({ isFolded: !this.state.isFolded });
   };
 
   render = () => {
     let {response} = this.props;
-    let free = response.freeUploadSlots > 0;
+    let free = response.hasFreeUploadSlot;
 
-    let { tree, downloadRequest, downloadError, isFolded } = this.state;
+    let { tree, downloadRequest, downloadError, isFolded, fetchingDirectoryContents } = this.state;
 
     let selectedFiles = Object.keys(tree)
       .reduce((list, dict) => list.concat(tree[dict]), [])
@@ -107,6 +131,14 @@ class Response extends Component {
               files={tree[dir]}
               disabled={downloadRequest === 'inProgress'}
               onSelectionChange={this.onFileSelectionChange}
+              footer={<button
+                disabled={fetchingDirectoryContents}
+                onClick={() => this.getFullDirectory(response.username, dir)} 
+                style={{ cursor: 'pointer', width: '100%', backgroundColor: 'transparent', border: 'none' }}>
+                <Icon
+                  name={fetchingDirectoryContents ? 'circle notch' : 'folder'}
+                  loading={fetchingDirectoryContents}/>Get Full Directory Contents
+              </button>}
             />
           )}
         </Card.Content>

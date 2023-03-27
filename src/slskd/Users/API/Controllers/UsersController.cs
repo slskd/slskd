@@ -15,6 +15,8 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
+using Microsoft.Extensions.Options;
+
 namespace slskd.Users.API
 {
     using System.Collections.Generic;
@@ -41,16 +43,19 @@ namespace slskd.Users.API
         /// <param name="soulseekClient"></param>
         /// <param name="browseTracker"></param>
         /// <param name="userService"></param>
-        public UsersController(ISoulseekClient soulseekClient, IBrowseTracker browseTracker, IUserService userService)
+        /// <param name="optionsSnapshot"></param>
+        public UsersController(ISoulseekClient soulseekClient, IBrowseTracker browseTracker, IUserService userService, IOptionsSnapshot<Options> optionsSnapshot)
         {
             Client = soulseekClient;
             BrowseTracker = browseTracker;
             Users = userService;
+            OptionsSnapshot = optionsSnapshot;
         }
 
         private IBrowseTracker BrowseTracker { get; }
         private ISoulseekClient Client { get; }
         private IUserService Users { get; }
+        private IOptionsSnapshot<Options> OptionsSnapshot { get; }
 
         /// <summary>
         ///     Retrieves the address of the specified <paramref name="username"/>.
@@ -59,11 +64,16 @@ namespace slskd.Users.API
         /// <returns></returns>
         /// <response code="200">The request completed successfully.</response>
         [HttpGet("{username}/endpoint")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(typeof(IPEndPoint), 200)]
         [ProducesResponseType(404)]
         public async Task<IActionResult> Endpoint([FromRoute, Required] string username)
         {
+            if (Program.IsRelayAgent)
+            {
+                return Forbid();
+            }
+
             try
             {
                 var endpoint = await Users.GetIPEndPointAsync(username);
@@ -81,11 +91,16 @@ namespace slskd.Users.API
         /// <param name="username">The username of the user.</param>
         /// <returns></returns>
         [HttpGet("{username}/browse")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(typeof(IEnumerable<Directory>), 200)]
         [ProducesResponseType(404)]
         public async Task<IActionResult> Browse([FromRoute, Required] string username)
         {
+            if (Program.IsRelayAgent)
+            {
+                return Forbid();
+            }
+
             try
             {
                 var result = await Client.BrowseAsync(username);
@@ -110,11 +125,16 @@ namespace slskd.Users.API
         /// <param name="username">The username of the user.</param>
         /// <returns></returns>
         [HttpGet("{username}/browse/status")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(typeof(decimal), 200)]
         [ProducesResponseType(404)]
         public IActionResult BrowseStatus([FromRoute, Required] string username)
         {
+            if (Program.IsRelayAgent)
+            {
+                return Forbid();
+            }
+
             if (BrowseTracker.TryGet(username, out var progress))
             {
                 return Ok(progress);
@@ -124,16 +144,54 @@ namespace slskd.Users.API
         }
 
         /// <summary>
+        ///     Retrieves the files from the specified directory from the specified <paramref name="username"/>.
+        /// </summary>
+        /// <param name="username">The username of the user.</param>
+        /// <param name="request">The directory contents request.</param>
+        /// <returns></returns>
+        [HttpPost("{username}/directory")]
+        [Authorize(Policy = AuthPolicy.Any)]
+        [ProducesResponseType(typeof(Directory), 200)]
+        [ProducesResponseType(404)]
+        public async Task<IActionResult> Directory([FromRoute, Required] string username, [FromBody, Required] DirectoryContentsRequest request)
+        {
+            if (Program.IsRelayAgent)
+            {
+                return Forbid();
+            }
+
+            if (request == null || string.IsNullOrEmpty(request.Directory))
+            {
+                return BadRequest();
+            }
+
+            try
+            {
+                var result = await Client.GetDirectoryContentsAsync(username, request.Directory);
+                return Ok(result);
+            }
+            catch (UserOfflineException ex)
+            {
+                return NotFound(ex.Message);
+            }
+        }
+
+        /// <summary>
         ///     Retrieves information about the specified <paramref name="username"/>.
         /// </summary>
         /// <param name="username">The username of the user.</param>
         /// <returns></returns>
         [HttpGet("{username}/info")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(typeof(Info), 200)]
         [ProducesResponseType(404)]
         public async Task<IActionResult> Info([FromRoute, Required] string username)
         {
+            if (Program.IsRelayAgent)
+            {
+                return Forbid();
+            }
+
             try
             {
                 var response = await Users.GetInfoAsync(username);
@@ -151,11 +209,16 @@ namespace slskd.Users.API
         /// <param name="username">The username of the user.</param>
         /// <returns></returns>
         [HttpGet("{username}/status")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(typeof(Status), 200)]
         [ProducesResponseType(404)]
         public async Task<IActionResult> Status([FromRoute, Required] string username)
         {
+            if (Program.IsRelayAgent)
+            {
+                return Forbid();
+            }
+
             try
             {
                 var response = await Users.GetStatusAsync(username);

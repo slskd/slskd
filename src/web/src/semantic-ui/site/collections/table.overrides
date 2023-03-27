@@ -1,0 +1,29 @@
+/*******************************
+         Site Overrides
+*******************************/
+
+.ui.table tfoot th button {
+    color: var(--smui-site-body-text-color);
+}
+
+/*--------------
+     Negative
+---------------*/
+
+.ui.table tr.negative,
+.ui.table td.negative {
+  background: var(--smui-table-row-negative-background-color, @negativeBackgroundColor) !important;
+  color: var(--smui-table-row-negative-color, @negativeColor) !important;
+}
+
+
+/*--------------
+     Warning
+---------------*/
+
+.ui.table tr.warning,
+.ui.table td.warning {
+  background: var(--smui-table-row-warning-background-color, @warningBackgroundColor) !important;
+  color: var(--smui-table-row-warning-color, @warningColor) !important;
+
+}

@@ -15,12 +15,15 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
+using Microsoft.Extensions.Options;
+
 namespace slskd.Search.API
 {
     using System;
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
+    using slskd.Relay;
     using SearchQuery = Soulseek.SearchQuery;
     using SearchScope = Soulseek.SearchScope;
 
@@ -38,12 +41,15 @@ namespace slskd.Search.API
         ///     Initializes a new instance of the <see cref="SearchesController"/> class.
         /// </summary>
         /// <param name="searchService"></param>
-        public SearchesController(ISearchService searchService)
+        /// <param name="optionsSnapshot"></param>
+        public SearchesController(ISearchService searchService, IOptionsSnapshot<Options> optionsSnapshot)
         {
             Searches = searchService;
+            OptionsSnapshot = optionsSnapshot;
         }
 
         private ISearchService Searches { get; }
+        private IOptionsSnapshot<Options> OptionsSnapshot { get; }
 
         /// <summary>
         ///     Performs a search for the specified <paramref name="request"/>.
@@ -54,9 +60,14 @@ namespace slskd.Search.API
         /// <response code="400">The specified <paramref name="request"/> was malformed.</response>
         /// <response code="500">The search terminated abnormally.</response>
         [HttpPost("")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         public async Task<IActionResult> Post([FromBody] SearchRequest request)
         {
+            if (Program.IsRelayAgent)
+            {
+                return Forbid();
+            }
+
             if (string.IsNullOrWhiteSpace(request.SearchText))
             {
                 return BadRequest("SearchText may not be null or empty");
@@ -91,9 +102,14 @@ namespace slskd.Search.API
         /// <response code="200">The request completed successfully.</response>
         /// <response code="404">A matching search was not found.</response>
         [HttpGet("{id}")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         public async Task<IActionResult> GetById([FromRoute] Guid id, [FromQuery] bool includeResponses = false)
         {
+            if (Program.IsRelayAgent)
+            {
+                return Forbid();
+            }
+
             var search = await Searches.FindAsync(search => search.Id == id, includeResponses);
 
             if (search == default)
@@ -112,9 +128,14 @@ namespace slskd.Search.API
         /// <response code="200">The request completed successfully.</response>
         /// <response code="404">A matching search was not found.</response>
         [HttpGet("{id}/responses")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         public async Task<IActionResult> GetResponsesById([FromRoute] Guid id)
         {
+            if (Program.IsRelayAgent)
+            {
+                return Forbid();
+            }
+
             var search = await Searches.FindAsync(search => search.Id == id, includeResponses: true);
 
             if (search == default)
@@ -130,9 +151,14 @@ namespace slskd.Search.API
         /// </summary>
         /// <returns></returns>
         [HttpGet("")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         public async Task<IActionResult> GetAll()
         {
+            if (Program.IsRelayAgent)
+            {
+                return Forbid();
+            }
+
             var searches = await Searches.ListAsync();
             return Ok(searches);
         }
@@ -145,11 +171,16 @@ namespace slskd.Search.API
         /// <response code="304">The search was not in progress.</response>
         /// <returns></returns>
         [HttpPut("{id}")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(200)]
         [ProducesResponseType(304)]
         public async Task<IActionResult> Cancel([FromRoute] Guid id)
         {
+            if (Program.IsRelayAgent)
+            {
+                return Forbid();
+            }
+
             var search = await Searches.FindAsync(search => search.Id == id);
 
             if (search == default)
@@ -157,12 +188,8 @@ namespace slskd.Search.API
                 return NotFound();
             }
 
-            if (Searches.TryCancel(id))
-            {
-                return Ok();
-            }
-
-            return StatusCode(304);
+            Searches.TryCancel(id);
+            return Ok();
         }
 
         /// <summary>
@@ -173,11 +200,16 @@ namespace slskd.Search.API
         /// <response code="404">A search with the specified id could not be found.</response>
         /// <returns></returns>
         [HttpDelete("{id}")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(204)]
         [ProducesResponseType(404)]
         public async Task<IActionResult> Delete([FromRoute] Guid id)
         {
+            if (Program.IsRelayAgent)
+            {
+                return Forbid();
+            }
+
             var search = await Searches.FindAsync(search => search.Id == id, includeResponses: true);
 
             if (search == default)

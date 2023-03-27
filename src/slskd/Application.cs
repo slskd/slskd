@@ -29,8 +29,8 @@ namespace slskd
     using System.Net.Sockets;
     using System.Reflection;
     using System.Runtime;
-    using System.Text.RegularExpressions;
     using System.Runtime.InteropServices;
+    using System.Text.RegularExpressions;
     using System.Threading;
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.SignalR;
@@ -42,6 +42,7 @@ namespace slskd
     using slskd.Core.API;
     using slskd.Integrations.Pushbullet;
     using slskd.Messaging;
+    using slskd.Relay;
     using slskd.Search;
     using slskd.Shares;
     using slskd.Transfers;
@@ -82,18 +83,20 @@ namespace slskd
             IConnectionWatchdog connectionWatchdog,
             ITransferService transferService,
             IBrowseTracker browseTracker,
-            IConversationTracker conversationTracker,
             IRoomTracker roomTracker,
             IRoomService roomService,
             IUserService userService,
+            IMessagingService messagingService,
             IShareService shareService,
             IPushbulletService pushbulletService,
+            IRelayService relayService,
             IHubContext<ApplicationHub> applicationHub,
             IHubContext<LogsHub> logHub)
         {
             Console.CancelKeyPress += (_, args) =>
             {
                 ShuttingDown = true;
+                Program.MasterCancellationTokenSource.Cancel();
                 Log.Warning("Received SIGINT");
             };
 
@@ -102,7 +105,9 @@ namespace slskd
                 PosixSignalRegistration.Create(signal, context =>
                 {
                     ShuttingDown = true;
+                    Program.MasterCancellationTokenSource.Cancel();
                     Log.Fatal("Received {Signal}", signal);
+                    Environment.Exit(1);
                 });
             }
 
@@ -113,7 +118,16 @@ namespace slskd
 
             PreviousOptions = OptionsMonitor.CurrentValue;
 
-            CompiledSearchResponseFilters = OptionsAtStartup.Filters.Search.Request.Select(f => new Regex(f, RegexOptions.Compiled));
+            Flags = Program.Flags;
+
+            var regexOptions = RegexOptions.Compiled;
+
+            if (!Flags.CaseSensitiveRegEx)
+            {
+                regexOptions |= RegexOptions.IgnoreCase;
+            }
+
+            CompiledSearchResponseFilters = OptionsAtStartup.Filters.Search.Request.Select(f => new Regex(f, regexOptions));
 
             State = state;
             State.OnChange(state => State_OnChange(state));
@@ -123,12 +137,15 @@ namespace slskd
 
             Transfers = transferService;
             BrowseTracker = browseTracker;
-            ConversationTracker = conversationTracker;
             Pushbullet = pushbulletService;
 
             RoomService = roomService;
             Users = userService;
+            Messaging = messagingService;
             ApplicationHub = applicationHub;
+
+            Relay = relayService;
+            Relay.StateMonitor.OnChange(relayState => State.SetValue(state => state with { Relay = relayState.Current }));
 
             LogHub = logHub;
             Program.LogEmitted += (_, log) => LogHub.EmitLogAsync(log);
@@ -175,7 +192,7 @@ namespace slskd
         private IRoomService RoomService { get; set; }
         private IBrowseTracker BrowseTracker { get; set; }
         private IConnectionWatchdog ConnectionWatchdog { get; }
-        private IConversationTracker ConversationTracker { get; set; }
+        private IMessagingService Messaging { get; set; }
         private ILogger Log { get; set; } = Serilog.Log.ForContext<Application>();
         private ConcurrentDictionary<string, ILogger> Loggers { get; } = new ConcurrentDictionary<string, ILogger>();
         private Options Options => OptionsMonitor.CurrentValue;
@@ -191,9 +208,11 @@ namespace slskd
         private IHubContext<LogsHub> LogHub { get; set; }
         private IUserService Users { get; set; }
         private IShareService Shares { get; set; }
+        private IRelayService Relay { get; set; }
         private IMemoryCache Cache { get; set; } = new MemoryCache(new MemoryCacheOptions());
         private IEnumerable<Regex> CompiledSearchResponseFilters { get; set; }
         private IEnumerable<Guid> ActiveDownloadIdsAtPreviousShutdown { get; set; } = Enumerable.Empty<Guid>();
+        private Options.FlagsOptions Flags { get; set; }
 
         public void CollectGarbage()
         {
@@ -349,7 +368,7 @@ namespace slskd
                 userInfoResolver: UserInfoResolver,
                 browseResponseResolver: BrowseResponseResolver,
                 directoryContentsResolver: DirectoryContentsResponseResolver,
-                enqueueDownload: (username, endpoint, filename) => Transfers.Uploads.EnqueueAsync(username, filename),
+                enqueueDownload: EnqueueDownload,
                 searchResponseCache: new SearchResponseCache(),
                 searchResponseResolver: SearchResponseResolver,
                 placeInQueueResolver: PlaceInQueueResolver);
@@ -369,26 +388,48 @@ namespace slskd
                 _ = CheckVersionAsync();
             }
 
-            if (OptionsAtStartup.Flags.NoShareScan)
+            if (!OptionsAtStartup.Flags.NoShareScan)
             {
-                Log.Warning("Not scanning shares; 'no-share-scan' option is enabled.  Search and browse results will remain disabled until a manual scan is completed.");
-            }
-            else
-            {
-                _ = Shares.StartScanAsync();
+                try
+                {
+                    await Shares.InitializeAsync(forceRescan: OptionsAtStartup.Flags.ForceShareScan);
+                }
+                catch (Exception)
+                {
+                    Log.Error("Failed to initialize shares. Sharing is disabled");
+                }
             }
 
-            if (OptionsAtStartup.Flags.NoConnect)
+            if (OptionsAtStartup.Relay.Enabled && OptionsAtStartup.Relay.Mode.ToEnum<RelayMode>() == RelayMode.Agent)
             {
-                Log.Warning("Not connecting to the Soulseek server; 'no-connect' option is enabled");
-            }
-            else if (string.IsNullOrEmpty(OptionsAtStartup.Soulseek.Username) || string.IsNullOrEmpty(OptionsAtStartup.Soulseek.Password))
-            {
-                Log.Warning($"Not connecting to the Soulseek server; username and/or password invalid.  Specify valid credentials and manually connect, or update config and restart.");
+                Log.Information("Running in Agent relay mode; not connecting to the Soulseek server.");
+                await Relay.Client.StartAsync(cancellationToken);
             }
             else
             {
-                await Client.ConnectAsync(OptionsAtStartup.Soulseek.Username, OptionsAtStartup.Soulseek.Password).ConfigureAwait(false);
+                if (OptionsAtStartup.Relay.Enabled)
+                {
+                    Log.Information("Running in Controller relay mode.  Listening for incoming Agent connections.");
+
+                    if (OptionsAtStartup.Relay.Mode.ToEnum<RelayMode>() == RelayMode.Debug)
+                    {
+                        Log.Warning("Running in Debug relay mode; connecting to controller");
+                        _ = Relay.Client.StartAsync(cancellationToken);
+                    }
+                }
+
+                if (OptionsAtStartup.Flags.NoConnect)
+                {
+                    Log.Warning("Not connecting to the Soulseek server; 'no-connect' option is enabled");
+                }
+                else if (string.IsNullOrEmpty(OptionsAtStartup.Soulseek.Username) || string.IsNullOrEmpty(OptionsAtStartup.Soulseek.Password))
+                {
+                    Log.Warning($"Not connecting to the Soulseek server; username and/or password invalid.  Specify valid credentials and manually connect, or update config and restart.");
+                }
+                else
+                {
+                    await Client.ConnectAsync(OptionsAtStartup.Soulseek.Username, OptionsAtStartup.Soulseek.Password).ConfigureAwait(false);
+                }
             }
         }
 
@@ -402,6 +443,16 @@ namespace slskd
             return Task.CompletedTask;
         }
 
+        private Task EnqueueDownload(string username, IPEndPoint endpoint, string filename)
+        {
+            if (Options.Groups.Blacklisted.Members.Contains(username))
+            {
+                return Task.FromException(new DownloadEnqueueException($"File not shared."));
+            }
+
+            return Transfers.Uploads.EnqueueAsync(username, filename);
+        }
+
         /// <summary>
         ///     Creates and returns an instances of <see cref="BrowseResponse"/> in response to a remote request.
         /// </summary>
@@ -411,14 +462,34 @@ namespace slskd
         private async Task<BrowseResponse> BrowseResponseResolver(string username, IPEndPoint endpoint)
         {
             Metrics.Browse.RequestsReceived.Inc(1);
-            
+
+            if (Options.Groups.Blacklisted.Members.Contains(username))
+            {
+                return new BrowseResponse();
+            }
+
             try
             {
                 var sw = new Stopwatch();
                 sw.Start();
 
-                var directories = (await Shares.BrowseAsync())
-                    .Select(d => new Soulseek.Directory(d.Name.Replace('/', '\\'), d.Files)); // Soulseek NS requires backslashes
+                BrowseResponse response = default;
+
+                var cacheFilename = Path.Combine(Program.DataDirectory, "browse.cache");
+                var cacheFileInfo = new FileInfo(cacheFilename);
+
+                if (!cacheFileInfo.Exists)
+                {
+                    Log.Warning("Browse response not cached. Rebuilding...");
+                    response = await CacheBrowseResponse();
+                }
+                else
+                {
+                    var stream = new FileStream(cacheFilename, FileMode.Open, FileAccess.Read);
+                    response = new RawBrowseResponse(cacheFileInfo.Length, stream);
+                }
+
+                Log.Information("Sent browse response to {User}", username);
 
                 sw.Stop();
 
@@ -426,7 +497,7 @@ namespace slskd
                 Metrics.Browse.CurrentResponseLatency.Update(sw.ElapsedMilliseconds);
                 Metrics.Browse.ResponsesSent.Inc(1);
 
-                return new BrowseResponse(directories);
+                return response;
             }
             catch (Exception ex)
             {
@@ -575,7 +646,7 @@ namespace slskd
 
         private void Client_PrivateMessageRecieved(object sender, PrivateMessageReceivedEventArgs args)
         {
-            ConversationTracker.AddOrUpdate(args.Username, PrivateMessage.FromEventArgs(args));
+            Messaging.Conversations.HandleMessageAsync(args.Username, PrivateMessage.FromEventArgs(args));
 
             if (Options.Integration.Pushbullet.Enabled && !args.Replayed)
             {
@@ -667,11 +738,11 @@ namespace slskd
 
             Log.Information($"[{direction}] [{user}/{file}] {oldState} => {state}{(completed ? $" ({xfer.BytesTransferred}/{xfer.Size} = {xfer.PercentComplete}%) @ {xfer.AverageSpeed.SizeSuffix()}/s" : string.Empty)}");
 
-            if (xfer.Direction == TransferDirection.Upload && xfer.State.HasFlag(TransferStates.Completed | TransferStates.Succeeded))
+            if (xfer.Direction == TransferDirection.Upload && xfer.State.HasFlag(TransferStates.Completed | TransferStates.Succeeded) && args.Transfer.AverageSpeed > 0)
             {
                 try
                 {
-                    _ = Client.SendUploadSpeedAsync((int)args.Transfer.AverageSpeed);
+                    _ = Client.SendUploadSpeedAsync(Convert.ToInt32(Math.Ceiling(args.Transfer.AverageSpeed)));
                 }
                 catch (Exception ex)
                 {
@@ -682,6 +753,7 @@ namespace slskd
 
         private void Client_UserStatusChanged(object sender, UserStatus args)
         {
+            // todo: react to watched user status changes
         }
 
         private Task<int?> PlaceInQueueResolver(string username, IPEndPoint endpoint, string filename)
@@ -691,7 +763,7 @@ namespace slskd
                 var place = Transfers.Uploads.Queue.EstimatePosition(username, filename);
                 return Task.FromResult((int?)place);
             }
-            catch (FileNotFoundException)
+            catch (NotFoundException)
             {
                 return Task.FromResult<int?>(null);
             }
@@ -712,6 +784,11 @@ namespace slskd
         /// <returns>A Task resolving an instance of Soulseek.Directory containing the contents of the requested directory.</returns>
         private async Task<Soulseek.Directory> DirectoryContentsResponseResolver(string username, IPEndPoint endpoint, int token, string directory)
         {
+            if (Options.Groups.Blacklisted.Members.Contains(username))
+            {
+                return new Soulseek.Directory(directory);
+            }
+
             try
             {
                 var dir = await Shares.ListDirectoryAsync(directory);
@@ -758,15 +835,15 @@ namespace slskd
                     pendingReconnect |= requiresReconnect;
                 }
 
-                if (PreviousOptions.Directories.Shared.Except(newOptions.Directories.Shared).Any()
-                    || newOptions.Directories.Shared.Except(PreviousOptions.Directories.Shared).Any())
+                if (PreviousOptions.Shares.Directories.Except(newOptions.Shares.Directories).Any()
+                    || newOptions.Shares.Directories.Except(PreviousOptions.Shares.Directories).Any())
                 {
                     State.SetValue(state => state with { Shares = state.Shares with { ScanPending = true } });
                     Log.Information("Shared directory configuration changed.  Shares must be re-scanned for changes to take effect.");
                 }
 
-                if (PreviousOptions.Filters.Share.Except(newOptions.Filters.Share).Any()
-                    || newOptions.Filters.Share.Except(PreviousOptions.Filters.Share).Any())
+                if (PreviousOptions.Shares.Filters.Except(newOptions.Shares.Filters).Any()
+                    || newOptions.Shares.Filters.Except(PreviousOptions.Shares.Filters).Any())
                 {
                     State.SetValue(state => state with { Shares = state.Shares with { ScanPending = true } });
                     Log.Information("File filter configuration changed.  Shares must be re-scanned for changes to take effect.");
@@ -902,6 +979,11 @@ namespace slskd
         {
             Metrics.Search.RequestsReceived.Inc(1);
 
+            if (Options.Groups.Blacklisted.Members.Contains(username))
+            {
+                return new SearchResponse(username, token, hasFreeUploadSlot: false, uploadSpeed: 0, queueLength: int.MaxValue, fileList: Enumerable.Empty<Soulseek.File>());
+            }
+
             if (CompiledSearchResponseFilters.Any(filter => filter.IsMatch(query.SearchText)))
             {
                 return null;
@@ -941,7 +1023,7 @@ namespace slskd
                         Client.Username,
                         token,
                         uploadSpeed: State.CurrentValue.User.Statistics.AverageSpeed,
-                        freeUploadSlots: forecastedPosition == 0 ? 1 : 0,
+                        hasFreeUploadSlot: forecastedPosition == 0,
                         queueLength: forecastedPosition,
                         fileList: results);
                 }
@@ -960,18 +1042,20 @@ namespace slskd
         private void ShareState_OnChange((ShareState Previous, ShareState Current) state)
         {
             var (previous, current) = state;
+            bool rebuildBrowseCache = false;
 
             if (!previous.Scanning && current.Scanning)
             {
-                // the scan is starting
+                // the scan is starting. update the application state without manipulation
                 SharesRefreshStarted = DateTime.UtcNow;
 
                 State.SetValue(s => s with { Shares = current });
-                Log.Information("Scanning shares");
+
+                Log.Information("Share scan started");
             }
             else if (previous.Scanning && !current.Scanning)
             {
-                // the scan is finishing
+                // the scan is finishing. update the application state without manipulation...
                 State.SetValue(s => s with { Shares = current });
 
                 if (current.Faulted)
@@ -980,6 +1064,7 @@ namespace slskd
                 }
                 else
                 {
+                    // ...but if it completed successfully, immediately update again to lower the pending flag
                     State.SetValue(state => state with { Shares = state.Shares with { ScanPending = false } });
                     Log.Information("Shares scanned successfully. Found {Directories} directories and {Files} files in {Duration}ms", current.Directories, current.Files, (DateTime.UtcNow - SharesRefreshStarted).TotalMilliseconds);
 
@@ -995,17 +1080,83 @@ namespace slskd
                     }
                 }
             }
+            else if (!previous.Ready && current.Ready)
+            {
+                // the share transitioned into ready without completing a scan; it was loaded from disk
+                // this will (or should) also be true when the scan completes, which is why the code is using an else if here,
+                // but only if it happens without a corresponding lowering of the scanning flag do we want to execute this.
+                State.SetValue(state => state with { Shares = current with { ScanPending = false } });
+                Log.Information("Share cache loaded from disk successfully. Sharing {Directories} directories and {Files} files", current.Directories, current.Files);
+                rebuildBrowseCache = true;
+            }
             else
             {
-                // the scan is neither starting nor finishing; progress update
+                // the scan is neither starting nor finishing; this is a status update of some sort,
+                // not a state change. we want to clamp the frequency of these during a scan to avoid overwhelming clients,
+                // only update if the progress has changed by at least 1%.
                 var lastProgress = Math.Round(previous.ScanProgress * 100);
                 var currentProgress = Math.Round(current.ScanProgress * 100);
 
-                if (lastProgress != currentProgress && Math.Round(currentProgress, 0) % 5d == 0)
+                if (lastProgress != currentProgress && Math.Round(currentProgress, 0) % 1d == 0)
                 {
                     State.SetValue(s => s with { Shares = current });
                     Log.Information("Scanned {Percent}% of shared directories. Found {Files} files so far.", currentProgress, current.Files);
                 }
+            }
+
+            // if the host configuration changed, update *just* the hosts to avoid stepping on anything that might
+            // have also happened above. a change in hosts will invalidate the cache, so do that too.
+            if (previous.Hosts.ToJson() != current.Hosts.ToJson())
+            {
+                State.SetValue(state => state with
+                {
+                    Shares = state.Shares with
+                    {
+                        Hosts = current.Hosts,
+                        Directories = current.Directories,
+                        Files = current.Files,
+                    },
+                });
+
+                rebuildBrowseCache = true;
+            }
+
+            // if a scan just completed successfully (but not failed!), shares were loaded from disk, or
+            // host configuration changed, rebuild caches and upload shares to the network controller (if connected)
+            if (rebuildBrowseCache)
+            {
+                _ = CacheBrowseResponse();
+                _ = Relay.Client.SynchronizeAsync();
+            }
+        }
+
+        private async Task<BrowseResponse> CacheBrowseResponse()
+        {
+            try
+            {
+                var sw = new Stopwatch();
+                sw.Start();
+
+                var directories = await Shares.BrowseAsync();
+                var response = new BrowseResponse(directories);
+                var temp = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+                var destination = Path.Combine(Program.DataDirectory, "browse.cache");
+
+                Log.Information("Warming browse response cache...");
+                await System.IO.File.WriteAllBytesAsync(temp, response.ToByteArray());
+
+                Log.Debug("Saved cache to temp file {File}", temp);
+
+                System.IO.File.Move(temp, destination, overwrite: true);
+
+                sw.Stop();
+                Log.Information("Browse response cached successfully in {Duration}ms", sw.ElapsedMilliseconds);
+                return response;
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Error caching browse response: {Message}", ex.Message);
+                throw;
             }
         }
 

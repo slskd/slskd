@@ -18,6 +18,7 @@
 namespace slskd.Cryptography
 {
     using System.Security.Cryptography;
+    using System.Text;
     using Microsoft.AspNetCore.Cryptography.KeyDerivation;
 
     /// <summary>
@@ -38,6 +39,20 @@ namespace slskd.Cryptography
             using var rng = RandomNumberGenerator.Create();
             rng.GetBytes(salt);
             return KeyDerivation.Pbkdf2(password, salt, KeyDerivationPrf.HMACSHA256, iterations, 32);
+        }
+
+        /// <summary>
+        ///     Gets a variable <paramref name="length"/> key derived from the specified <paramref name="password"/> and <paramref name="salt"/> using PBKDF2/RFC 2898.
+        /// </summary>
+        /// <param name="password">The password from which to derive the key.</param>
+        /// <param name="salt">The value with which to salt the key.</param>
+        /// <param name="length">The desired length of the key, in bytes.</param>
+        /// <returns>The derived key.</returns>
+        public static byte[] GetKey(string password, string salt, int length)
+        {
+            int iterations = 1000;
+
+            return KeyDerivation.Pbkdf2(password, Encoding.UTF8.GetBytes(salt), KeyDerivationPrf.HMACSHA256, iterations, length);
         }
     }
 }

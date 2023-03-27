@@ -13,7 +13,7 @@ import {
   CodeEditor, LoaderSegment, Switch,
 } from '../../Shared';
 
-const ContentsModal = ({ share, onClose }) => {
+const ContentsModal = ({ share, onClose, theme }) => {
   const [loading, setLoading] = useState(true);
   const [contents, setContents] = useState();
 
@@ -65,6 +65,7 @@ const ContentsModal = ({ share, onClose }) => {
             value={contents || ''}
             basicSetup={false}
             editable={false}
+            theme={theme}
           />
         </Switch>
       </Modal.Content>

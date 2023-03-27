@@ -1,0 +1,15 @@
+/*******************************
+         Site Overrides
+*******************************/
+@media (prefers-color-scheme: dark) {
+.ui.segment > .ui.header {
+  color: var(--smui-segment-ui-header-color);
+}
+.ui.segments {
+  overflow: hidden;
+}
+
+.ui.attached.segment {
+  border: var(--smui-segment-border, @borderWidth solid @borderColor);
+}
+}

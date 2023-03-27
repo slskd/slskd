@@ -31,6 +31,7 @@ namespace slskd.Transfers.Downloads
     using Microsoft.EntityFrameworkCore;
     using Serilog;
     using slskd.Integrations.FTP;
+    using slskd.Relay;
 
     /// <summary>
     ///     Manages downloads.
@@ -41,25 +42,28 @@ namespace slskd.Transfers.Downloads
             IOptionsMonitor<Options> optionsMonitor,
             ISoulseekClient soulseekClient,
             IDbContextFactory<TransfersDbContext> contextFactory,
+            IRelayService relayService,
             IFTPService ftpClient)
         {
             Client = soulseekClient;
             OptionsMonitor = optionsMonitor;
             ContextFactory = contextFactory;
             FTP = ftpClient;
+            Relay = relayService;
         }
 
         private ConcurrentDictionary<Guid, CancellationTokenSource> CancellationTokens { get; } = new ConcurrentDictionary<Guid, CancellationTokenSource>();
         private ISoulseekClient Client { get; }
         private IDbContextFactory<TransfersDbContext> ContextFactory { get; }
         private IFTPService FTP { get; }
+        private IRelayService Relay { get; }
         private ILogger Log { get; } = Serilog.Log.ForContext<DownloadService>();
         private IOptionsMonitor<Options> OptionsMonitor { get; }
 
         /// <summary>
         ///     Adds the specified <paramref name="transfer"/>. Supersedes any existing record for the same file and username.
         /// </summary>
-        /// <remarks>This should generally not be called; use <see cref="EnqueueAsync(string, IEnumerable(string Filename, long Size)})"/> instead.</remarks>
+        /// <remarks>This should generally not be called; use EnqueueAsync() instead.</remarks>
         /// <param name="transfer"></param>
         public void AddOrSupersede(Transfer transfer)
         {
@@ -154,9 +158,9 @@ namespace slskd.Transfers.Downloads
                             using var rateLimiter = new RateLimiter(250, flushOnDispose: true);
                             var syncRoot = new SemaphoreSlim(1, 1);
 
-                            void SynchronizedUpdate(Transfer transfer)
+                            void SynchronizedUpdate(Transfer transfer, bool cancellable = true)
                             {
-                                syncRoot.Wait(cts.Token);
+                                syncRoot.Wait(cancellable ? cts.Token : CancellationToken.None);
 
                                 try
                                 {
@@ -195,6 +199,7 @@ namespace slskd.Transfers.Downloads
                                     progressUpdated: (args) => rateLimiter.Invoke(() =>
                                     {
                                         transfer = transfer.WithSoulseekTransfer(args.Transfer);
+
                                         // todo: broadcast
                                         SynchronizedUpdate(transfer);
                                     }));
@@ -202,7 +207,7 @@ namespace slskd.Transfers.Downloads
                                 var completedTransfer = await Client.DownloadAsync(
                                     username: username,
                                     remoteFilename: file.Filename,
-                                    outputStreamFactory: () => GetLocalFileStream(file.Filename, OptionsMonitor.CurrentValue.Directories.Incomplete),
+                                    outputStreamFactory: () => Task.FromResult(GetLocalFileStream(file.Filename, OptionsMonitor.CurrentValue.Directories.Incomplete)),
                                     size: file.Size,
                                     startOffset: 0,
                                     token: null,
@@ -214,27 +219,35 @@ namespace slskd.Transfers.Downloads
                                 rateLimiter.Dispose();
 
                                 transfer = transfer.WithSoulseekTransfer(completedTransfer);
+
                                 // todo: broadcast
-                                SynchronizedUpdate(transfer);
+                                SynchronizedUpdate(transfer, cancellable: false);
 
                                 // this would be the ideal place to hook in a generic post-download task processor for now, we'll
                                 // just carry out hard coded behavior. these carry the risk of failing the transfer, and i could
                                 // argue both ways for that being the correct behavior. revisit this later.
-                                MoveFile(file.Filename, OptionsMonitor.CurrentValue.Directories.Incomplete, OptionsMonitor.CurrentValue.Directories.Downloads);
+                                var finalFilename = MoveFile(file.Filename, OptionsMonitor.CurrentValue.Directories.Incomplete, OptionsMonitor.CurrentValue.Directories.Downloads);
+
+                                Log.Debug("Moved file to {Destination}", finalFilename);
+
+                                if (OptionsMonitor.CurrentValue.Relay.Enabled)
+                                {
+                                    _ = Relay.NotifyFileDownloadCompleteAsync(finalFilename);
+                                }
 
                                 if (OptionsMonitor.CurrentValue.Integration.Ftp.Enabled)
                                 {
-                                    _ = FTP.UploadAsync(file.Filename.ToLocalFilename(OptionsMonitor.CurrentValue.Directories.Downloads));
+                                    _ = FTP.UploadAsync(finalFilename);
                                 }
                             }
-                            catch (TaskCanceledException ex)
+                            catch (OperationCanceledException ex)
                             {
                                 transfer.EndedAt = DateTime.UtcNow;
                                 transfer.Exception = ex.Message;
                                 transfer.State = TransferStates.Completed | TransferStates.Cancelled;
 
                                 // todo: broadcast
-                                SynchronizedUpdate(transfer);
+                                SynchronizedUpdate(transfer, cancellable: false);
 
                                 throw;
                             }
@@ -247,7 +260,7 @@ namespace slskd.Transfers.Downloads
                                 transfer.State = TransferStates.Completed | TransferStates.Errored;
 
                                 // todo: broadcast
-                                SynchronizedUpdate(transfer);
+                                SynchronizedUpdate(transfer, cancellable: false);
 
                                 throw;
                             }
@@ -444,11 +457,12 @@ namespace slskd.Transfers.Downloads
         /// <param name="transfer">The transfer to update.</param>
         public void Update(Transfer transfer)
         {
-            var experimental = OptionsMonitor.CurrentValue.Experimental;
+            var experimental = OptionsMonitor.CurrentValue.Flags.Experimental;
             var id = Guid.NewGuid();
 
             System.Diagnostics.Stopwatch sw = default;
 
+            // todo: remove this.  or check that Path.GetFileName works as expected if it is to be kept
             if (experimental)
             {
                 sw = new System.Diagnostics.Stopwatch();
@@ -468,7 +482,7 @@ namespace slskd.Transfers.Downloads
             }
         }
 
-        private static FileStream GetLocalFileStream(string remoteFilename, string saveDirectory)
+        private static Stream GetLocalFileStream(string remoteFilename, string saveDirectory)
         {
             var localFilename = remoteFilename.ToLocalFilename(baseDirectory: saveDirectory);
             var path = Path.GetDirectoryName(localFilename);
@@ -481,7 +495,7 @@ namespace slskd.Transfers.Downloads
             return new FileStream(localFilename, FileMode.Create);
         }
 
-        private static void MoveFile(string filename, string sourceDirectory, string destinationDirectory)
+        private static string MoveFile(string filename, string sourceDirectory, string destinationDirectory)
         {
             var sourceFilename = filename.ToLocalFilename(sourceDirectory);
             var destinationFilename = filename.ToLocalFilename(destinationDirectory);
@@ -493,12 +507,26 @@ namespace slskd.Transfers.Downloads
                 Directory.CreateDirectory(destinationPath);
             }
 
+            if (File.Exists(destinationFilename))
+            {
+                string extensionlessFilename = Path.Combine(Path.GetDirectoryName(filename), Path.GetFileNameWithoutExtension(filename));
+                string extension = Path.GetExtension(filename);
+
+                while (File.Exists(destinationFilename))
+                {
+                    string filenameUTC = $"{extensionlessFilename}_{DateTime.UtcNow.Ticks}{extension}";
+                    destinationFilename = filenameUTC.ToLocalFilename(destinationDirectory);
+                }
+            }
+
             File.Move(sourceFilename, destinationFilename, overwrite: true);
 
             if (!Directory.EnumerateFileSystemEntries(Path.GetDirectoryName(sourceFilename)).Any())
             {
                 Directory.Delete(Path.GetDirectoryName(sourceFilename));
             }
+
+            return destinationFilename;
         }
     }
 }

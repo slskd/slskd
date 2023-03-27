@@ -12,7 +12,7 @@ import {
   Switch,
 } from '../../Shared';
 
-const Info = ({ state }) => {
+const Info = ({ state, theme }) => {
   const [contents, setContents] = useState();
 
   useEffect(() => {
@@ -91,6 +91,7 @@ const Info = ({ state }) => {
           value={contents}
           basicSetup={false}
           editable={false}
+          theme={theme}
         />
       </Switch>
     </>

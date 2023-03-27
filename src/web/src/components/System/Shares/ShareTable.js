@@ -13,6 +13,7 @@ const ShareTable = ({ shares, onClick }) => {
     <Table>
       <Table.Header>
         <Table.Row>
+          <Table.HeaderCell>Host</Table.HeaderCell>
           <Table.HeaderCell>Local Path</Table.HeaderCell>
           <Table.HeaderCell className='share-count-column'>Directories</Table.HeaderCell>
           <Table.HeaderCell className='share-count-column'>Files</Table.HeaderCell>
@@ -29,12 +30,13 @@ const ShareTable = ({ shares, onClick }) => {
           </Table.Row>}
         >
           {shares.map((share, index) => (<Table.Row key={index}>
+            <Table.Cell>{share.host}</Table.Cell>
             <Table.Cell onClick={() => onClick(share)}>
               <Icon name='folder'/>  
               <Link to='#'>{share.localPath}</Link>
             </Table.Cell>
-            <Table.Cell>{share.directories}</Table.Cell>
-            <Table.Cell>{share.files}</Table.Cell>
+            <Table.Cell>{share.directories ?? '?'}</Table.Cell>
+            <Table.Cell>{share.files ?? '?'}</Table.Cell>
             <Table.Cell>{share.alias}</Table.Cell>
             <Table.Cell>{share.remotePath}</Table.Cell>
           </Table.Row>))}

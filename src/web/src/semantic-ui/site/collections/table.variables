@@ -1,0 +1,29 @@
+/*******************************
+    User Variable Overrides
+*******************************/
+
+@background: var(--smui-table-background, @white);
+@color: var(--smui-table-color, @textColor);
+@borderColor:var(--smui-table-border-color, rgba(34, 36, 38, 0.15));
+
+@headerBackground: var(--smui-table-header-background,@offWhite);
+@headerColor: var(--smui-table-header-color,@textColor);
+
+@footerBackground: var(--smui-table-footer-background,@offWhite);
+@footerColor: var(--smui-table-footer-color,@textColor);
+
+@selectableTextColor: var(--smui-table-color, @textColor);
+@selectableBackgroundColor: var(--smui-table-selectable-background-color, @textColor);
+
+/* Disabled */
+@disabledTextColor: var(--smui-table-row-disabled-color, rgba(0, 0, 0, 0.2));
+
+/* Negative */
+@negativeBoxShadow: @stateMarkerWidth 0px 0px var(--smui-table-row-negative-border-color, @negativeBorderColor) inset;
+@negativeBackgroundHover: var(--smui-table-row-negative-background-hover-color, darken(@negativeBackgroundColor, 3));
+@negativeColorHover: var(--smui-table-row-negative-hover-color, darken(@negativeTextColor, 3));
+
+/* Warning */
+@warningBoxShadow: @stateMarkerWidth 0px 0px var(--smui-table-row-warning-border-color, @warningBorderColor) inset;
+@warningBackgroundHover: var(--smui-table-row-warning-background-hover-color, darken(@warningBackgroundColor, 3));
+@warningColorHover: var(--smui-table-row-warning-hover-color, darken(@warningColor, 3));

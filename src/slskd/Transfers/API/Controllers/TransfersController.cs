@@ -15,6 +15,8 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
+using Microsoft.Extensions.Options;
+
 namespace slskd.Transfers.API
 {
     using System;
@@ -24,6 +26,7 @@ namespace slskd.Transfers.API
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
+    using slskd.Relay;
 
     /// <summary>
     ///     Transfers.
@@ -38,14 +41,18 @@ namespace slskd.Transfers.API
         /// <summary>
         ///     Initializes a new instance of the <see cref="TransfersController"/> class.
         /// </summary>
+        /// <param name="optionsSnapshot"></param>
         /// <param name="transferService"></param>
         public TransfersController(
-            ITransferService transferService)
+            ITransferService transferService,
+            IOptionsSnapshot<Options> optionsSnapshot)
         {
             Transfers = transferService;
+            OptionsSnapshot = optionsSnapshot;
         }
 
         private ITransferService Transfers { get; }
+        private IOptionsSnapshot<Options> OptionsSnapshot { get; }
 
         /// <summary>
         ///     Cancels the specified download.
@@ -57,11 +64,16 @@ namespace slskd.Transfers.API
         /// <response code="204">The download was cancelled successfully.</response>
         /// <response code="404">The specified download was not found.</response>
         [HttpDelete("downloads/{username}/{id}")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(204)]
         [ProducesResponseType(404)]
-        public async Task<IActionResult> CancelDownloadAsync([FromRoute, Required] string username, [FromRoute, Required]string id, [FromQuery]bool remove = false)
+        public IActionResult CancelDownloadAsync([FromRoute, Required] string username, [FromRoute, Required]string id, [FromQuery]bool remove = false)
         {
+            if (Program.IsRelayAgent)
+            {
+                return Forbid();
+            }
+
             if (!Guid.TryParse(id, out var guid))
             {
                 return BadRequest();
@@ -85,6 +97,33 @@ namespace slskd.Transfers.API
         }
 
         /// <summary>
+        ///     Removes all completed downloads, regardless of whether they failed or succeeded.
+        /// </summary>
+        /// <returns></returns>
+        /// <response code="204">The downloads were removed successfully.</response>
+        [HttpDelete("downloads/all/completed")]
+        [Authorize(Policy = AuthPolicy.Any)]
+        [ProducesResponseType(204)]
+        public IActionResult ClearCompletedDownloads()
+        {
+            if (Program.IsRelayAgent)
+            {
+                return Forbid();
+            }
+
+            var transfers = Transfers.Downloads
+                .List() // https://github.com/dotnet/efcore/issues/10434
+                .Where(t => t.State.HasFlag(Soulseek.TransferStates.Completed));
+
+            foreach (var id in transfers.Select(t => t.Id))
+            {
+                Transfers.Downloads.Remove(id);
+            }
+
+            return NoContent();
+        }
+
+        /// <summary>
         ///     Cancels the specified upload.
         /// </summary>
         /// <param name="username">The username of the upload destination.</param>
@@ -94,11 +133,16 @@ namespace slskd.Transfers.API
         /// <response code="204">The upload was cancelled successfully.</response>
         /// <response code="404">The specified upload was not found.</response>
         [HttpDelete("uploads/{username}/{id}")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(204)]
         [ProducesResponseType(404)]
-        public async Task<IActionResult> CancelUpload([FromRoute, Required] string username, [FromRoute, Required]string id, [FromQuery]bool remove = false)
+        public IActionResult CancelUpload([FromRoute, Required] string username, [FromRoute, Required]string id, [FromQuery]bool remove = false)
         {
+            if (Program.IsRelayAgent)
+            {
+                return Forbid();
+            }
+
             if (!Guid.TryParse(id, out var guid))
             {
                 return BadRequest();
@@ -122,6 +166,33 @@ namespace slskd.Transfers.API
         }
 
         /// <summary>
+        ///     Removes all completed uploads, regardless of whether they failed or succeeded.
+        /// </summary>
+        /// <returns></returns>
+        /// <response code="204">The uploads were removed successfully.</response>
+        [HttpDelete("uploads/all/completed")]
+        [Authorize(Policy = AuthPolicy.Any)]
+        [ProducesResponseType(204)]
+        public IActionResult ClearCompletedUploads()
+        {
+            if (Program.IsRelayAgent)
+            {
+                return Forbid();
+            }
+
+            var transfers = Transfers.Uploads
+                .List() // https://github.com/dotnet/efcore/issues/10434
+                .Where(t => t.State.HasFlag(Soulseek.TransferStates.Completed));
+
+            foreach (var id in transfers.Select(t => t.Id))
+            {
+                Transfers.Uploads.Remove(id);
+            }
+
+            return NoContent();
+        }
+
+        /// <summary>
         ///     Enqueues the specified download.
         /// </summary>
         /// <param name="username">The username of the download source.</param>
@@ -131,12 +202,17 @@ namespace slskd.Transfers.API
         /// <response code="403">The download was rejected.</response>
         /// <response code="500">An unexpected error was encountered.</response>
         [HttpPost("downloads/{username}")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(201)]
         [ProducesResponseType(typeof(string), 403)]
         [ProducesResponseType(typeof(string), 500)]
         public async Task<IActionResult> EnqueueAsync([FromRoute, Required]string username, [FromBody]IEnumerable<QueueDownloadRequest> requests)
         {
+            if (Program.IsRelayAgent)
+            {
+                return Forbid();
+            }
+
             try
             {
                 await Transfers.Downloads.EnqueueAsync(username, requests.Select(r => (r.Filename, r.Size)));
@@ -154,10 +230,15 @@ namespace slskd.Transfers.API
         /// <returns></returns>
         /// <response code="200">The request completed successfully.</response>
         [HttpGet("downloads")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(200)]
-        public async Task<IActionResult> GetDownloadsAsync([FromQuery]bool includeRemoved = false)
+        public IActionResult GetDownloadsAsync([FromQuery]bool includeRemoved = false)
         {
+            if (Program.IsRelayAgent)
+            {
+                return Forbid();
+            }
+
             var downloads = Transfers.Downloads.List(includeRemoved: includeRemoved);
 
             var response = downloads.GroupBy(t => t.Username).Select(grouping => new UserResponse()
@@ -181,10 +262,15 @@ namespace slskd.Transfers.API
         /// <returns></returns>
         /// <response code="200">The request completed successfully.</response>
         [HttpGet("downloads/{username}")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(200)]
-        public async Task<IActionResult> GetDownloadsAsync([FromRoute, Required] string username)
+        public IActionResult GetDownloadsAsync([FromRoute, Required] string username)
         {
+            if (Program.IsRelayAgent)
+            {
+                return Forbid();
+            }
+
             var downloads = Transfers.Downloads.List(d => d.Username == username);
 
             if (!downloads.Any())
@@ -207,11 +293,16 @@ namespace slskd.Transfers.API
         }
 
         [HttpGet("downloads/{username}/{id}")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(typeof(API.Transfer), 200)]
         [ProducesResponseType(404)]
-        public async Task<IActionResult> GetDownload([FromRoute, Required] string username, [FromRoute, Required] string id)
+        public IActionResult GetDownload([FromRoute, Required] string username, [FromRoute, Required] string id)
         {
+            if (Program.IsRelayAgent)
+            {
+                return Forbid();
+            }
+
             if (!Guid.TryParse(id, out var guid))
             {
                 return BadRequest();
@@ -237,11 +328,16 @@ namespace slskd.Transfers.API
         /// <response code="200">The request completed successfully.</response>
         /// <response code="404">The specified download was not found.</response>
         [HttpGet("downloads/{username}/{id}/position")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(typeof(API.Transfer), 200)]
         [ProducesResponseType(404)]
         public async Task<IActionResult> GetPlaceInQueueAsync([FromRoute, Required] string username, [FromRoute, Required] string id)
         {
+            if (Program.IsRelayAgent)
+            {
+                return Forbid();
+            }
+
             if (!Guid.TryParse(id, out var guid))
             {
                 return BadRequest();
@@ -268,10 +364,15 @@ namespace slskd.Transfers.API
         /// <returns></returns>
         /// <response code="200">The request completed successfully.</response>
         [HttpGet("uploads")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(200)]
-        public async Task<IActionResult> GetUploads([FromQuery] bool includeRemoved = false)
+        public IActionResult GetUploads([FromQuery] bool includeRemoved = false)
         {
+            if (Program.IsRelayAgent)
+            {
+                return Forbid();
+            }
+
             var uploads = Transfers.Uploads.List(includeRemoved: includeRemoved);
 
             var response = uploads.GroupBy(t => t.Username).Select(grouping => new UserResponse()
@@ -295,10 +396,15 @@ namespace slskd.Transfers.API
         /// <returns></returns>
         /// <response code="200">The request completed successfully.</response>
         [HttpGet("uploads/{username}")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(200)]
-        public async Task<IActionResult> GetUploads([FromRoute, Required] string username)
+        public IActionResult GetUploads([FromRoute, Required] string username)
         {
+            if (Program.IsRelayAgent)
+            {
+                return Forbid();
+            }
+
             var uploads = Transfers.Uploads.List(d => d.Username == username);
 
             if (!uploads.Any())
@@ -328,10 +434,15 @@ namespace slskd.Transfers.API
         /// <returns></returns>
         /// <response code="200">The request completed successfully.</response>
         [HttpGet("uploads/{username}/{id}")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(200)]
-        public async Task<IActionResult> GetUploads([FromRoute, Required] string username, [FromRoute, Required] string id)
+        public IActionResult GetUploads([FromRoute, Required] string username, [FromRoute, Required] string id)
         {
+            if (Program.IsRelayAgent)
+            {
+                return Forbid();
+            }
+
             if (!Guid.TryParse(id, out var guid))
             {
                 return BadRequest();

@@ -56,7 +56,7 @@ namespace slskd.Core.API
         /// </summary>
         /// <returns></returns>
         [HttpGet]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(typeof(Options), 200)]
         public IActionResult Current()
         {
@@ -69,7 +69,7 @@ namespace slskd.Core.API
         /// <returns></returns>
         [HttpGet]
         [Route("startup")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(typeof(Options), 200)]
         public IActionResult Startup()
         {
@@ -82,10 +82,15 @@ namespace slskd.Core.API
         /// <returns></returns>
         [HttpGet]
         [Route("debug")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.JwtOnly, Roles = AuthRole.AdministratorOnly)]
         [ProducesResponseType(typeof(string), 200)]
         public IActionResult Debug()
         {
+            if (!OptionsAtStartup.Debug || !OptionsSnapshot.Value.RemoteConfiguration)
+            {
+                return Forbid();
+            }
+
             // retrieve the IConfigurationRoot instance with reflection to avoid
             // exposing it as a public member of Program.
             var property = typeof(Program).GetProperty("Configuration", BindingFlags.NonPublic | BindingFlags.Static);
@@ -95,15 +100,20 @@ namespace slskd.Core.API
         }
 
         [HttpGet]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.JwtOnly, Roles = AuthRole.AdministratorOnly)]
         [Route("yaml/location")]
         public IActionResult GetYamlFileLocation()
         {
+            if (!OptionsSnapshot.Value.RemoteConfiguration)
+            {
+                return Forbid();
+            }
+
             return Ok(Program.ConfigurationFile);
         }
 
         [HttpGet]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.JwtOnly, Roles = AuthRole.AdministratorOnly)]
         [Route("yaml")]
         public IActionResult GetYamlFile()
         {
@@ -117,7 +127,7 @@ namespace slskd.Core.API
         }
 
         [HttpPost]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.JwtOnly, Roles = AuthRole.AdministratorOnly)]
         [Route("yaml")]
         public IActionResult UpdateYamlFile([FromBody] string yaml)
         {
@@ -144,10 +154,15 @@ namespace slskd.Core.API
         }
 
         [HttpPost]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [Route("yaml/validate")]
         public IActionResult ValidateYamlFile([FromBody] string yaml)
         {
+            if (!OptionsSnapshot.Value.RemoteConfiguration)
+            {
+                return Forbid();
+            }
+
             if (!TryValidateYaml(yaml, out var error))
             {
                 return Ok(error);

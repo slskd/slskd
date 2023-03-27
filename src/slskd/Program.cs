@@ -30,6 +30,7 @@ namespace slskd
     using System.Security.Cryptography.X509Certificates;
     using System.Text;
     using System.Text.Json.Serialization;
+    using System.Threading;
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.Authentication.JwtBearer;
     using Microsoft.AspNetCore.Builder;
@@ -45,7 +46,6 @@ namespace slskd
     using Microsoft.Extensions.FileProviders.Physical;
     using Microsoft.IdentityModel.Tokens;
     using Microsoft.OpenApi.Models;
-    using Prometheus;
     using Prometheus.DotNetRuntime;
     using Prometheus.SystemMetrics;
     using Serilog;
@@ -58,6 +58,7 @@ namespace slskd
     using slskd.Integrations.FTP;
     using slskd.Integrations.Pushbullet;
     using slskd.Messaging;
+    using slskd.Relay;
     using slskd.Search;
     using slskd.Search.API;
     using slskd.Shares;
@@ -80,6 +81,11 @@ namespace slskd
         ///     The name of the application.
         /// </summary>
         public static readonly string AppName = "slskd";
+
+        /// <summary>
+        ///     The name of the local share host.
+        /// </summary>
+        public static readonly string LocalHostName = "local";
 
         /// <summary>
         ///     The url to the issues/support site.
@@ -129,7 +135,7 @@ namespace slskd
         /// <summary>
         ///     Gets the semantic application version.
         /// </summary>
-        public static string SemanticVersion { get; } = InformationalVersion.Split('-').First();
+        public static string SemanticVersion { get; } = InformationalVersion.Split('+').First();
 
         /// <summary>
         ///     Gets the full application version, including both assembly and informational versions.
@@ -147,6 +153,16 @@ namespace slskd
         public static bool IsDevelopment { get; } = new Version(0, 0, 0, 0) == AssemblyVersion;
 
         /// <summary>
+        ///     Gets a value indicating whether the application is being run in Relay Agent mode.
+        /// </summary>
+        public static bool IsRelayAgent { get; private set; }
+
+        /// <summary>
+        ///     Gets the application flags.
+        /// </summary>
+        public static Options.FlagsOptions Flags { get; private set; }
+
+        /// <summary>
         ///     Gets the path where application data is saved.
         /// </summary>
         [Argument('a', "app-dir", "path where application data is saved")]
@@ -159,6 +175,11 @@ namespace slskd
         [Argument('c', "config", "path to configuration file")]
         [EnvironmentVariable("CONFIG")]
         public static string ConfigurationFile { get; private set; } = null;
+
+        /// <summary>
+        ///     Gets the path where persistent data is saved.
+        /// </summary>
+        public static string DataDirectory { get; private set; } = null;
 
         /// <summary>
         ///     Gets the default fully qualified path to the configuration file.
@@ -180,12 +201,26 @@ namespace slskd
         /// </summary>
         public static ConcurrentFixedSizeQueue<LogRecord> LogBuffer { get; } = new ConcurrentFixedSizeQueue<LogRecord>(size: 100);
 
+        /// <summary>
+        ///     Gets the master cancellation token source for the program.
+        /// </summary>
+        /// <remarks>
+        ///     The token from this source should be used (or linked) to any long-running asynchronous task, so that when the application
+        ///     begins to shut down these tasks also shut down in a timely manner. Actions that control the lifecycle of the program
+        ///     (POSIX signals, a restart from the API, etc) should cancel this source.
+        /// </remarks>
+        public static CancellationTokenSource MasterCancellationTokenSource { get; } = new CancellationTokenSource();
+
         private static IConfigurationRoot Configuration { get; set; }
         private static OptionsAtStartup OptionsAtStartup { get; } = new OptionsAtStartup();
         private static ILogger Log { get; set; } = new ConsoleWriteLineLogger();
+        private static Mutex Mutex { get; } = new Mutex(initiallyOwned: true, Compute.Sha256Hash(AppName));
 
         [Argument('g', "generate-cert", "generate X509 certificate and password for HTTPs")]
         private static bool GenerateCertificate { get; set; }
+
+        [Argument('k', "generate-secret", "generate random secret of the specified length")]
+        private static int GenerateSecret { get; set; }
 
         [Argument('n', "no-logo", "suppress logo on startup")]
         private static bool NoLogo { get; set; }
@@ -208,7 +243,17 @@ namespace slskd
             // populate the properties above so that we can override the default config file if needed, and to
             // check if the application is being run in command mode (run task and quit).
             EnvironmentVariables.Populate(prefix: EnvironmentVariablePrefix);
-            Arguments.Populate(clearExistingValues: false);
+
+            try
+            {
+                Arguments.Populate(clearExistingValues: false);
+            }
+            catch (Exception ex)
+            {
+                // this is pretty hacky, but i don't have a good way of trapping errors that bubble up here.
+                Log.Error($"Invalid command line input: {ex.Message.Replace(".  See inner exception for details.", string.Empty)}");
+                return;
+            }
 
             // if a user has used one of the arguments above, perform the requested task, then quit
             if (ShowVersion)
@@ -239,13 +284,36 @@ namespace slskd
 
             if (GenerateCertificate)
             {
-                GenerateX509Certificate(password: Cryptography.Random.GetBytes(16).ToBase62String(), filename: $"{AppName}.pfx");
+                var (filename, password) = GenerateX509Certificate(password: Cryptography.Random.GetBytes(16).ToBase62(), filename: $"{AppName}.pfx");
+
+                Log.Information($"Certificate exported to {filename}");
+                Log.Information($"Password: {password}");
                 return;
             }
 
-            // the application isn't being run in command mode. derive the application directory value
-            // and defaults that are dependent upon it
+            if (GenerateSecret > 0)
+            {
+                if (GenerateSecret < 16 || GenerateSecret > 255)
+                {
+                    Log.Error("Invalid command line input: secret length must be between 16 and 255, inclusive");
+                    return;
+                }
+
+                Log.Information(Cryptography.Random.GetBytes(GenerateSecret).ToBase62());
+                return;
+            }
+
+            // the application isn't being run in command mode. check the mutex to ensure
+            // only one long-running instance.
+            if (!Mutex.WaitOne(millisecondsTimeout: 0, exitContext: false))
+            {
+                Log.Fatal($"An instance of {AppName} is already running");
+                return;
+            }
+
+            // derive the application directory value and defaults that are dependent upon it
             AppDirectory ??= DefaultAppDirectory;
+            DataDirectory = Path.Combine(AppDirectory, "data");
 
             DefaultConfigurationFile = Path.Combine(AppDirectory, $"{AppName}.yml");
             DefaultDownloadsDirectory = Path.Combine(AppDirectory, "downloads");
@@ -260,7 +328,7 @@ namespace slskd
             try
             {
                 VerifyDirectory(AppDirectory, createIfMissing: true, verifyWriteable: true);
-                VerifyDirectory(Path.Combine(AppDirectory, "data"), createIfMissing: true, verifyWriteable: true);
+                VerifyDirectory(DataDirectory, createIfMissing: true, verifyWriteable: true);
                 VerifyDirectory(DefaultDownloadsDirectory, createIfMissing: true, verifyWriteable: true);
                 VerifyDirectory(DefaultIncompleteDirectory, createIfMissing: true, verifyWriteable: true);
             }
@@ -297,6 +365,9 @@ namespace slskd
                 return;
             }
 
+            IsRelayAgent = OptionsAtStartup.Relay.Enabled && OptionsAtStartup.Relay.Mode.ToEnum<RelayMode>() == RelayMode.Agent;
+            Flags = OptionsAtStartup.Flags;
+
             ConfigureGlobalLogger();
             Log = Serilog.Log.ForContext(typeof(Program));
 
@@ -319,12 +390,19 @@ namespace slskd
                 Log.Warning($"Please report any issues here: {IssuesUrl}");
             }
 
+            Log.Information("System: .NET {DotNet}, {OS}, {BitNess} bit, {ProcessorCount} processors", Environment.Version, Environment.OSVersion, Environment.Is64BitOperatingSystem ? 64 : 32, Environment.ProcessorCount);
+            Log.Information("Process ID: {ProcessId} ({BitNess} bit)", ProcessId, Environment.Is64BitProcess ? 64 : 32);
+
             Log.Information("Invocation ID: {InvocationId}", InvocationId);
-            Log.Information("Process ID: {ProcessId}", ProcessId);
             Log.Information("Instance Name: {InstanceName}", OptionsAtStartup.InstanceName);
+
+            // SQLite must have specific capabilities to function properly. this shouldn't be a concern for shrinkwrapped
+            // binaries or in Docker, but if someone builds from source weird things can happen.
+            InitSQLiteOrFailFast();
 
             Log.Information("Using application directory {AppDirectory}", AppDirectory);
             Log.Information("Using configuration file {ConfigurationFile}", ConfigurationFile);
+            Log.Information("Storing application data in {DataDirectory}", DataDirectory);
 
             RecreateConfigurationFileIfMissing(ConfigurationFile);
 
@@ -445,18 +523,31 @@ namespace slskd
             services.AddSingleton<IApplication, Application>();
             services.AddHostedService(p => p.GetRequiredService<IApplication>());
 
+            services.AddSingleton<IWaiter, Waiter>();
+
             services.AddSingleton<IConnectionWatchdog, ConnectionWatchdog>();
 
-            ConfigureSQLite();
-
-            services.AddDbContext<SearchDbContext>("search.db");
-            services.AddDbContext<TransfersDbContext>("transfers.db");
+            if (OptionsAtStartup.Flags.Volatile)
+            {
+                services.AddDbContext<SearchDbContext>($"Data Source=file:search?mode=memory;Cache=shared;Pooling=True;");
+                services.AddDbContext<TransfersDbContext>($"Data Source=file:transfers?mode=memory;Cache=shared;Pooling=True;");
+                services.AddDbContext<MessagingDbContext>($"Data Source=file:messaging?mode=memory;Cache=shared;Pooling=True;");
+            }
+            else
+            {
+                services.AddDbContext<SearchDbContext>($"Data Source={Path.Combine(DataDirectory, "search.db")};Cache=shared;Pooling=True;");
+                services.AddDbContext<TransfersDbContext>($"Data Source={Path.Combine(DataDirectory, "transfers.db")};Cache=shared;Pooling=True;");
+                services.AddDbContext<MessagingDbContext>($"Data Source={Path.Combine(DataDirectory, "messaging.db")};Cache=shared;Pooling=True;");
+            }
 
             services.AddSingleton<IBrowseTracker, BrowseTracker>();
-            services.AddSingleton<IConversationTracker, ConversationTracker>();
             services.AddSingleton<IRoomTracker, RoomTracker>(_ => new RoomTracker(messageLimit: 250));
 
+            services.AddSingleton<IMessagingService, MessagingService>();
+            services.AddSingleton<IConversationService, ConversationService>();
+
             services.AddSingleton<IShareService, ShareService>();
+            services.AddTransient<IShareRepositoryFactory, SqliteShareRepositoryFactory>();
 
             services.AddSingleton<ISearchService, SearchService>();
             services.AddSingleton<IUserService, UserService>();
@@ -466,6 +557,8 @@ namespace slskd
             services.AddSingleton<IDownloadService, DownloadService>();
             services.AddSingleton<IUploadService, UploadService>();
 
+            services.AddSingleton<IRelayService, RelayService>();
+
             services.AddSingleton<IFTPClientFactory, FTPClientFactory>();
             services.AddSingleton<IFTPService, FTPService>();
 
@@ -474,7 +567,7 @@ namespace slskd
             return services;
         }
 
-        private static void ConfigureSQLite()
+        private static void InitSQLiteOrFailFast()
         {
             // initialize
             // avoids: System.Exception: You need to call SQLitePCL.raw.SetProvider().  If you are using a bundle package, this is done by calling SQLitePCL.Batteries.Init().
@@ -512,14 +605,37 @@ namespace slskd
             using var runtimeMetrics = DotNetRuntimeStatsBuilder.Default().StartCollecting();
 
             services.AddDataProtection()
-                .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(AppDirectory, "data", ".DataProtection-Keys")));
+                .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(DataDirectory, "misc", ".DataProtection-Keys")));
 
             var jwtSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(OptionsAtStartup.Web.Authentication.Jwt.Key));
 
             services.AddSingleton(jwtSigningKey);
+            services.AddSingleton<ISecurityService, SecurityService>();
 
             if (!OptionsAtStartup.Web.Authentication.Disabled)
             {
+                services.AddAuthorization(options =>
+                {
+                    options.AddPolicy(AuthPolicy.JwtOnly, policy =>
+                    {
+                        policy.AuthenticationSchemes.Add(JwtBearerDefaults.AuthenticationScheme);
+                        policy.RequireAuthenticatedUser();
+                    });
+
+                    options.AddPolicy(AuthPolicy.ApiKeyOnly, policy =>
+                    {
+                        policy.AuthenticationSchemes.Add(ApiKeyAuthentication.AuthenticationScheme);
+                        policy.RequireAuthenticatedUser();
+                    });
+
+                    options.AddPolicy(AuthPolicy.Any, policy =>
+                    {
+                        policy.AuthenticationSchemes.Add(ApiKeyAuthentication.AuthenticationScheme);
+                        policy.AuthenticationSchemes.Add(JwtBearerDefaults.AuthenticationScheme);
+                        policy.RequireAuthenticatedUser();
+                    });
+                });
+
                 services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                     .AddJwtBearer(options =>
                     {
@@ -540,22 +656,72 @@ namespace slskd
                         {
                             OnMessageReceived = context =>
                             {
-                                // assign the request token from the access_token query parameter
-                                // but only if the destination is a SignalR hub
-                                // https://docs.microsoft.com/en-us/aspnet/core/signalr/authn-and-authz?view=aspnetcore-5.0
-                                if (context.HttpContext.Request.Path.StartsWithSegments("/hub"))
+                                // signalr authentication is stupid
+                                if (context.Request.Path.StartsWithSegments("/hub"))
                                 {
-                                    context.Token = context.Request.Query["access_token"];
+                                    // assign the request token from the access_token query parameter if one is present
+                                    // this typically means that the calling signalr client is running in a browser. this takes
+                                    // precedent over the Authorization header value (if one is present)
+                                    // https://docs.microsoft.com/en-us/aspnet/core/signalr/authn-and-authz?view=aspnetcore-5.0
+                                    if (context.Request.Query.TryGetValue("access_token", out var accessToken))
+                                    {
+                                        context.Token = accessToken;
+                                    }
+                                    else if (context.Request.Headers.ContainsKey("Authorization")
+                                        && context.Request.Headers.TryGetValue("Authorization", out var authorization)
+                                        && authorization.ToString().StartsWith("Bearer ", StringComparison.InvariantCultureIgnoreCase))
+                                    {
+                                        // extract the bearer token. this value might be an API key, a JWT, or some garbage value
+                                        var token = authorization.ToString().Split(' ').LastOrDefault();
+
+                                        try
+                                        {
+                                            // check to see if the provided value is a valid API key
+                                            var service = services.BuildServiceProvider().GetRequiredService<ISecurityService>();
+                                            var (name, role) = service.AuthenticateWithApiKey(token, callerIpAddress: context.HttpContext.Connection.RemoteIpAddress);
+
+                                            // the API key is valid. create a new, short lived jwt for the key name and role
+                                            context.Token = service.GenerateJwt(name, role, ttl: 1000).Serialize();
+                                        }
+                                        catch
+                                        {
+                                            // the token either isn't a valid API key. use the provided value and let the
+                                            // rest of the auth middleware figure out whether it is valid
+                                            context.Token = token;
+                                        }
+                                    }
                                 }
 
                                 return Task.CompletedTask;
                             },
                         };
-                    });
+                    })
+                    .AddScheme<ApiKeyAuthenticationOptions, ApiKeyAuthenticationHandler>(ApiKeyAuthentication.AuthenticationScheme, (_) => { });
             }
             else
             {
                 Log.Warning("Authentication of web requests is DISABLED");
+
+                services.AddAuthorization(options =>
+                {
+                    options.AddPolicy(AuthPolicy.Any, policy =>
+                    {
+                        policy.AuthenticationSchemes.Add(PassthroughAuthentication.AuthenticationScheme);
+                        policy.RequireAuthenticatedUser();
+                    });
+
+                    options.AddPolicy(AuthPolicy.ApiKeyOnly, policy =>
+                    {
+                        policy.AuthenticationSchemes.Add(PassthroughAuthentication.AuthenticationScheme);
+                        policy.RequireAuthenticatedUser();
+                    });
+
+                    options.AddPolicy(AuthPolicy.JwtOnly, policy =>
+                    {
+                        policy.AuthenticationSchemes.Add(PassthroughAuthentication.AuthenticationScheme);
+                        policy.RequireAuthenticatedUser();
+                    });
+                });
 
                 services.AddAuthentication(PassthroughAuthentication.AuthenticationScheme)
                     .AddScheme<PassthroughAuthenticationOptions, PassthroughAuthenticationHandler>(PassthroughAuthentication.AuthenticationScheme, options =>
@@ -573,11 +739,17 @@ namespace slskd
                 options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
             });
 
-            services.AddSignalR().AddJsonProtocol(options =>
-            {
-                options.PayloadSerializerOptions.Converters.Add(new IPAddressConverter());
-                options.PayloadSerializerOptions.Converters.Add(new JsonStringEnumConverter());
-            });
+            services
+                .AddSignalR(options =>
+                {
+                    // https://github.com/SignalR/SignalR/issues/1149#issuecomment-973887222
+                    options.MaximumParallelInvocationsPerClient = 2;
+                })
+                .AddJsonProtocol(options =>
+                {
+                    options.PayloadSerializerOptions.Converters.Add(new IPAddressConverter());
+                    options.PayloadSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+                });
 
             services.AddHealthChecks();
 
@@ -641,12 +813,12 @@ namespace slskd
             // prepend the url base.
             app.UsePathBase(urlBase);
             app.UseHTMLRewrite("((\\.)?\\/static)", $"{(urlBase == "/" ? string.Empty : urlBase)}/static");
-            app.UseHTMLInjection($"<script>window.urlBase=\"{urlBase}\"</script>", excludedRoutes: new[] { "/api", "/swagger" });
+            app.UseHTMLInjection($"<script>window.urlBase=\"{urlBase}\";window.port={OptionsAtStartup.Web.Port}</script>", excludedRoutes: new[] { "/api", "/swagger" });
             Log.Information("Using base url {UrlBase}", urlBase);
 
             // serve static content from the configured path
             FileServerOptions fileServerOptions = default;
-            var contentPath = Path.GetFullPath(OptionsAtStartup.Web.ContentPath);
+            var contentPath = Path.Combine(AppContext.BaseDirectory, OptionsAtStartup.Web.ContentPath);
 
             fileServerOptions = new FileServerOptions
             {
@@ -667,11 +839,17 @@ namespace slskd
             app.UseAuthentication();
             app.UseRouting();
             app.UseAuthorization();
+
+            // starting with .NET 7 the framework *really* wants you to use top level endpoint mapping
+            // for whatever reason this breaks everything, and i just can't bring myself to care unless
+            // UseEndpoints is going to be deprecated or if there's some material benefit
+#pragma warning disable ASP0014 // Suggest using top level route registrations
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapHub<ApplicationHub>("/hub/application");
                 endpoints.MapHub<LogsHub>("/hub/logs");
                 endpoints.MapHub<SearchHub>("/hub/search");
+                endpoints.MapHub<RelayHub>("/hub/relay");
 
                 endpoints.MapControllers();
                 endpoints.MapHealthChecks("/health");
@@ -710,6 +888,7 @@ namespace slskd
                     });
                 }
             });
+#pragma warning restore ASP0014 // Suggest using top level route registrations
 
             // if this is an /api route and no API controller was matched, give up and return a 404.
             app.Use(async (context, next) =>
@@ -757,16 +936,17 @@ namespace slskd
                 .MinimumLevel.Override("Microsoft", LogEventLevel.Error)
                 .MinimumLevel.Override("System.Net.Http.HttpClient", OptionsAtStartup.Debug ? LogEventLevel.Warning : LogEventLevel.Fatal)
                 .MinimumLevel.Override("slskd.Authentication.PassthroughAuthenticationHandler", LogEventLevel.Warning)
+                .MinimumLevel.Override("slskd.Authentication.ApiKeyAuthenticationHandler", LogEventLevel.Warning)
                 .Enrich.WithProperty("InstanceName", OptionsAtStartup.InstanceName)
                 .Enrich.WithProperty("InvocationId", InvocationId)
                 .Enrich.WithProperty("ProcessId", ProcessId)
                 .Enrich.FromLogContext()
                 .WriteTo.Console(
-                    outputTemplate: (OptionsAtStartup.Debug ? "[{SubContext}] " : string.Empty) + "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
+                    outputTemplate: (OptionsAtStartup.Debug ? "[{SourceContext}] " : string.Empty) + "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
                 .WriteTo.Async(config =>
                     config.File(
                         Path.Combine(AppDirectory, "logs", $"{AppName}-.log"),
-                        outputTemplate: (OptionsAtStartup.Debug ? "[{SubContext}] " : string.Empty) + "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}",
+                        outputTemplate: (OptionsAtStartup.Debug ? "[{SourceContext}] " : string.Empty) + "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}",
                         rollingInterval: RollingInterval.Day))
                 .WriteTo.Conditional(
                     e => !string.IsNullOrEmpty(OptionsAtStartup.Logger.Loki),
@@ -775,9 +955,11 @@ namespace slskd
                         outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}"))
                 .WriteTo.Sink(new DelegatingSink(logEvent =>
                 {
+                    string message = default;
+
                     try
                     {
-                        var message = logEvent.RenderMessage();
+                        message = logEvent.RenderMessage();
 
                         if (logEvent.Exception != null)
                         {
@@ -798,7 +980,7 @@ namespace slskd
                     }
                     catch (Exception ex)
                     {
-                        Log.Information($"Misconfigured delegating logger: {ex.Message}");
+                        Log.Error("Misconfigured delegating logger: {Exception}.  Message: {Message}", ex.Message, message);
                     }
                 }))
                 .CreateLogger();
@@ -838,7 +1020,7 @@ namespace slskd
                     commandLine: Environment.CommandLine);
         }
 
-        private static IServiceCollection AddDbContext<T>(this IServiceCollection services, string filename)
+        private static IServiceCollection AddDbContext<T>(this IServiceCollection services, string connectionString)
             where T : DbContext
         {
             Log.Debug("Initializing database context {Name}", typeof(T).Name);
@@ -847,7 +1029,7 @@ namespace slskd
             {
                 services.AddDbContextFactory<T>(options =>
                 {
-                    options.UseSqlite($"Data Source={Path.Combine(AppDirectory, "data", filename)};Cache=shared;Pooling=True;");
+                    options.UseSqlite(connectionString);
 
                     if (OptionsAtStartup.Debug && OptionsAtStartup.Flags.LogSQL)
                     {
@@ -887,16 +1069,14 @@ namespace slskd
             }
         }
 
-        private static void GenerateX509Certificate(string password, string filename)
+        private static (string Filename, string Password) GenerateX509Certificate(string password, string filename)
         {
-            Log.Information("Generating X509 certificate...");
             filename = Path.Combine(AppContext.BaseDirectory, filename);
 
             var cert = X509.Generate(subject: AppName, password, X509KeyStorageFlags.Exportable);
             IOFile.WriteAllBytes(filename, cert.Export(X509ContentType.Pkcs12, password));
 
-            Log.Information($"Password: {password}");
-            Log.Information($"Certificate exported to {filename}");
+            return (filename, password);
         }
 
         private static void PrintCommandLineArguments(Type targetType)

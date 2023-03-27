@@ -63,3 +63,12 @@
 .share-count-column {
   width: 110px;
 }
+
+.share-scan-detail {
+  margin-top: 10px;
+  font-size: 14px;
+}
+
+.transfer-header {
+  margin-bottom: -15px !important;
+}

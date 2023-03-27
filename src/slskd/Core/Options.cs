@@ -28,7 +28,12 @@ namespace slskd
     using System.Text.Json.Serialization;
     using System.Text.RegularExpressions;
     using FluentFTP;
+    using NetTools;
+    using slskd.Authentication;
     using slskd.Configuration;
+    using slskd.Cryptography;
+    using slskd.Relay;
+    using slskd.Shares;
     using slskd.Validation;
     using Soulseek.Diagnostics;
     using Utility.CommandLine;
@@ -84,7 +89,7 @@ namespace slskd
     ///         nature of the command line string after the application is started.
     ///     </para>
     /// </remarks>
-    public class Options
+    public class Options : IValidatableObject
     {
         /// <summary>
         ///     Gets a value indicating whether to display the application version.
@@ -127,6 +132,16 @@ namespace slskd
         public bool GenerateCertificate { get; init; } = false;
 
         /// <summary>
+        ///     Gets a value indicating whether to generate a random secret.
+        /// </summary>
+        [Argument('k', "generate-secret")]
+        [Description("generate random secret of the specified length")]
+        [Obsolete("Used only for documentation; see Program for actual implementation")]
+        [JsonIgnore]
+        [YamlIgnore]
+        public bool GenerateSecret { get; init; } = false;
+
+        /// <summary>
         ///     Gets a value indicating whether the application should run in debug mode.
         /// </summary>
         [Argument('d', "debug")]
@@ -134,15 +149,6 @@ namespace slskd
         [Description("run in debug mode")]
         [RequiresRestart]
         public bool Debug { get; init; } = Debugger.IsAttached;
-
-        /// <summary>
-        ///     Gets a value indicating whether the application should run in experimental mode.
-        /// </summary>
-        [Argument(default, "experimental")]
-        [EnvironmentVariable("EXPERIMENTAL")]
-        [Description("run in experimental mode")]
-        [RequiresRestart]
-        public bool Experimental { get; init; } = false;
 
         /// <summary>
         ///     Gets a value indicating whether remote configuration of options is allowed.
@@ -170,7 +176,7 @@ namespace slskd
         /// <summary>
         ///     Gets the path where application data is saved.
         /// </summary>
-        [Argument(default, "app")]
+        [Argument('a', "app-dir")]
         [EnvironmentVariable("APP_DIR")]
         [Description("path where application data is saved")]
         [Obsolete("Used only for documentation; see Program for actual implementation")]
@@ -190,11 +196,23 @@ namespace slskd
         public string ConfigurationFile { get; init; } = Program.DefaultConfigurationFile;
 
         /// <summary>
+        ///     Gets relay options.
+        /// </summary>
+        [Validate]
+        public RelayOptions Relay { get; init; } = new RelayOptions();
+
+        /// <summary>
         ///     Gets directory options.
         /// </summary>
         [Validate]
         [RequiresRestart]
         public DirectoriesOptions Directories { get; init; } = new DirectoriesOptions();
+
+        /// <summary>
+        ///     Gets share options.
+        /// </summary>
+        [Validate]
+        public SharesOptions Shares { get; init; } = new SharesOptions();
 
         /// <summary>
         ///     Gets global options.
@@ -262,6 +280,23 @@ namespace slskd
         public IntegrationOptions Integration { get; init; } = new IntegrationOptions();
 
         /// <summary>
+        ///     Handles top-level validation that doesn't fit anywhere else.
+        /// </summary>
+        /// <param name="validationContext"></param>
+        /// <returns></returns>
+        public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+        {
+            var results = new List<ValidationResult>();
+
+            if (InstanceName == Program.LocalHostName && Relay.Mode.ToEnum<RelayMode>() == RelayMode.Agent)
+            {
+                results.Add(new ValidationResult($"Instance name must be something other than '{Program.LocalHostName}' when operating in Relay Agent mode"));
+            }
+
+            return results;
+        }
+
+        /// <summary>
         ///     Optional flags.
         /// </summary>
         public class FlagsOptions
@@ -303,6 +338,15 @@ namespace slskd
             public bool NoShareScan { get; init; } = false;
 
             /// <summary>
+            ///     Gets a value indicating whether shares should be forcibly re-scanned on startup.
+            /// </summary>
+            [Argument(default, "force-share-scan")]
+            [EnvironmentVariable("FORCE_SHARE_SCAN")]
+            [Description("force a share scan on startup")]
+            [RequiresRestart]
+            public bool ForceShareScan { get; init; } = false;
+
+            /// <summary>
             ///     Gets a value indicating whether the application should check for a newer version on startup.
             /// </summary>
             [Argument(default, "no-version-check")]
@@ -319,12 +363,220 @@ namespace slskd
             [Description("log SQL queries generated by Entity Framework")]
             [RequiresRestart]
             public bool LogSQL { get; init; } = false;
+
+            /// <summary>
+            ///     Gets a value indicating whether the application should run in experimental mode.
+            /// </summary>
+            [Argument(default, "experimental")]
+            [EnvironmentVariable("EXPERIMENTAL")]
+            [Description("run in experimental mode")]
+            [RequiresRestart]
+            public bool Experimental { get; init; } = false;
+
+            /// <summary>
+            ///     Gets a value indicating whether the application should run in volatile mode.
+            /// </summary>
+            [Argument(default, "volatile")]
+            [EnvironmentVariable("VOLATILE")]
+            [Description("use volatile data storage (all data will be lost at shutdown)")]
+            [RequiresRestart]
+            public bool Volatile { get; init; } = false;
+
+            /// <summary>
+            ///     Gets a value indicating whether user-defined regular expressions are case sensitive.
+            /// </summary>
+            [Argument(default, "case-sensitive-regex")]
+            [EnvironmentVariable("CASE_SENSITIVE_REGEX")]
+            [Description("user-defined regular expressions are case sensitive")]
+            [RequiresRestart]
+            public bool CaseSensitiveRegEx { get; init; } = false;
+        }
+
+        /// <summary>
+        ///     Relay options.
+        /// </summary>
+        public class RelayOptions : IValidatableObject
+        {
+            /// <summary>
+            ///     Gets a value indicating whether the relay is enabled.
+            /// </summary>
+            [Argument('r', "relay")]
+            [EnvironmentVariable("RELAY")]
+            [Description("enable relay")]
+            [RequiresRestart]
+            public bool Enabled { get; init; } = false;
+
+            /// <summary>
+            ///     Gets the relay mode.
+            /// </summary>
+            [Argument('m', "relay-mode")]
+            [EnvironmentVariable("RELAY_MODE")]
+            [Description("relay mode; controller, agent")]
+            [RequiresRestart]
+            [Enum(typeof(RelayMode))]
+            public string Mode { get; init; } = RelayMode.Controller.ToString().ToLowerInvariant();
+
+            /// <summary>
+            ///     Gets the controller configuration.
+            /// </summary>
+            public RelayControllerConfigurationOptions Controller { get; init; } = new RelayControllerConfigurationOptions();
+
+            /// <summary>
+            ///     Gets the agent configuration.
+            /// </summary>
+            public Dictionary<string, RelayAgentConfigurationOptions> Agents { get; init; } = new();
+
+            public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+            {
+                var mode = Mode.ToEnum<RelayMode>();
+                var results = new List<ValidationResult>();
+                var modeResults = new List<ValidationResult>();
+
+                if (mode == RelayMode.Agent && !Validator.TryValidateObject(Controller, new ValidationContext(Controller), modeResults, validateAllProperties: true))
+                {
+                    results.Add(new CompositeValidationResult("Controller", modeResults));
+                }
+                else
+                {
+                    // determine whether any InstanceName is used more than once
+                    var instanceNames = Agents.Values.Select(a => a.InstanceName);
+
+                    if (instanceNames.Count() != instanceNames.Distinct().Count())
+                    {
+                        modeResults.Add(new ValidationResult("One or more Agent instance names are duplicated.  Ensure instance names are unique."));
+                    }
+
+                    foreach (var (name, agent) in Agents)
+                    {
+                        var res = new List<ValidationResult>();
+                        if (!Validator.TryValidateObject(agent, new ValidationContext(agent), res, validateAllProperties: true))
+                        {
+                            modeResults.Add(new CompositeValidationResult(name, res));
+                        }
+                    }
+
+                    if (modeResults.Any())
+                    {
+                        results.Add(new CompositeValidationResult("Agents", modeResults));
+                    }
+                }
+
+                return results;
+            }
+
+            /// <summary>
+            ///     Relay controller configuration options.
+            /// </summary>
+            public class RelayControllerConfigurationOptions
+            {
+                /// <summary>
+                ///     Gets the controller address.
+                /// </summary>
+                [Argument(default, "controller-address")]
+                [EnvironmentVariable("CONTROLLER_ADDRESS")]
+                [Description("controller address url")]
+                [Url]
+                [NotNullOrWhiteSpace]
+                public string Address { get; init; }
+
+                /// <summary>
+                ///     Gets a value indicating whether controller certificate errors should be ignored.
+                /// </summary>
+                [Argument(default, "controller-ignore-certificate-errors")]
+                [EnvironmentVariable("CONTROLLER_IGNORE_CERTIFICATE_ERRORS")]
+                [Description("ignore controller certificate errors")]
+                public bool IgnoreCertificateErrors { get; init; } = false;
+
+                /// <summary>
+                ///     Gets the controller API key.
+                /// </summary>
+                [Argument(default, "controller-api-key")]
+                [EnvironmentVariable("CONTROLLER_API_KEY")]
+                [Description("controller api key")]
+                [StringLength(255, MinimumLength = 16)]
+                [NotNullOrWhiteSpace]
+                [Secret]
+                public string ApiKey { get; init; }
+
+                /// <summary>
+                ///     Gets the controller secret.
+                /// </summary>
+                [Argument(default, "controller-secret")]
+                [EnvironmentVariable("CONTROLLER_SECRET")]
+                [Description("shared secret")]
+                [StringLength(255, MinimumLength = 16)]
+                [NotNullOrWhiteSpace]
+                [Secret]
+                public string Secret { get; init; }
+
+                /// <summary>
+                ///     Gets a value indicating whether to receive completed downloads from the controller.
+                /// </summary>
+                [Argument(default, "controller-downloads")]
+                [EnvironmentVariable("CONTROLLER_DOWNLOADS")]
+                [Description("receive completed downloads from the controller")]
+                public bool Downloads { get; init; } = false;
+            }
+
+            /// <summary>
+            ///     Relay agent configuration options.
+            /// </summary>
+            public class RelayAgentConfigurationOptions : IValidatableObject
+            {
+                /// <summary>
+                ///     Gets the agent instance name.
+                /// </summary>
+                [Description("the name for this agent")]
+                [StringLength(255, MinimumLength = 1)]
+                [NotNullOrWhiteSpace]
+                [Secret]
+                public string InstanceName { get; init; }
+
+                /// <summary>
+                ///     Gets the agent secret.
+                /// </summary>
+                [Description("shared secret for this agent")]
+                [StringLength(255, MinimumLength = 16)]
+                [NotNullOrWhiteSpace]
+                [Secret]
+                public string Secret { get; init; }
+
+                /// <summary>
+                ///     Gets the comma separated list of CIDRs that are authorized to connect as this agent.
+                /// </summary>
+                [Description("optional; comma separated list of CIDRs that are authorized to connect as this agent")]
+                public string Cidr { get; init; } = "0.0.0.0/0,::/0";
+
+                /// <summary>
+                ///     Extended validation.
+                /// </summary>
+                /// <param name="validationContext"></param>
+                /// <returns></returns>
+                public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+                {
+                    var results = new List<ValidationResult>();
+
+                    foreach (var cidr in Cidr.Split(','))
+                    {
+                        try
+                        {
+                            _ = IPAddressRange.Parse(cidr);
+                        }
+                        catch (Exception ex)
+                        {
+                            results.Add(new ValidationResult($"CIDR {cidr} is invalid: {ex.Message}"));
+                        }
+                    }
+
+                    return results;
+                }
+            }
         }
 
         /// <summary>
         ///     Directory options.
         /// </summary>
-        public class DirectoriesOptions : IValidatableObject
+        public class DirectoriesOptions
         {
             /// <summary>
             ///     Gets the path where incomplete downloads are saved.
@@ -345,14 +597,34 @@ namespace slskd
             [DirectoryExists(ensureWriteable: true)]
             [RequiresRestart]
             public string Downloads { get; init; } = Program.DefaultDownloadsDirectory;
+        }
 
+        /// <summary>
+        ///     Share options.
+        /// </summary>
+        public class SharesOptions : IValidatableObject
+        {
             /// <summary>
             ///     Gets the list of paths to shared files.
             /// </summary>
             [Argument('s', "shared")]
             [EnvironmentVariable("SHARED_DIR")]
-            [Description("path to shared files")]
-            public string[] Shared { get; init; } = Array.Empty<string>();
+            [Description("paths to shared files")]
+            public string[] Directories { get; init; } = Array.Empty<string>();
+
+            /// <summary>
+            ///     Gets the list of shared file filters.
+            /// </summary>
+            [Argument(default, "share-filter")]
+            [EnvironmentVariable("SHARE_FILTER")]
+            [Description("regular expressions to filter files from shares")]
+            public string[] Filters { get; init; } = Array.Empty<string>();
+
+            /// <summary>
+            ///     Share caching options.
+            /// </summary>
+            [Validate]
+            public ShareCacheOptions Cache { get; init; } = new ShareCacheOptions();
 
             /// <summary>
             ///     Extended validation.
@@ -363,17 +635,27 @@ namespace slskd
             {
                 var results = new List<ValidationResult>();
 
-                bool IsBlankPath(string share) => Regex.IsMatch(share.ToLocalOSPath(), @"^(!|-){0,1}(\[.*\])$");
-                Shared.Where(share => IsBlankPath(share)).ToList()
+                results.AddRange(ValidateShares());
+                results.AddRange(ValidateFilters());
+
+                return results;
+            }
+
+            private IEnumerable<ValidationResult> ValidateShares()
+            {
+                var results = new List<ValidationResult>();
+
+                bool IsBlankPath(string share) => Regex.IsMatch(share.LocalizePath(), @"^(!|-){0,1}(\[.*\])$");
+                Directories.Where(share => IsBlankPath(share)).ToList()
                     .ForEach(blank => results.Add(new ValidationResult($"Share {blank} doees not specify a path")));
 
-                bool IsRootMount(string share) => Regex.IsMatch(share.ToLocalOSPath(), @"^(!|-){0,1}(\[.*\])/$");
-                Shared.Where(share => IsRootMount(share)).ToList()
+                bool IsRootMount(string share) => Regex.IsMatch(share.LocalizePath(), @"^(!|-){0,1}(\[.*\])/$");
+                Directories.Where(share => IsRootMount(share)).ToList()
                     .ForEach(blank => results.Add(new ValidationResult($"Share {blank} specifies a root mount, which is not supported.")));
 
                 // starts with '/', 'X:', or '\\'
-                bool IsAbsolutePath(string share) => Regex.IsMatch(share.ToLocalOSPath(), @"^(!|-){0,1}(\[.*\])?(\/|[a-zA-Z]:|\\\\).*$");
-                Shared.Where(share => !IsAbsolutePath(share)).ToList()
+                bool IsAbsolutePath(string share) => Regex.IsMatch(share.LocalizePath(), @"^(!|-){0,1}(\[.*\])?(\/|[a-zA-Z]:|\\\\).*$");
+                Directories.Where(share => !IsAbsolutePath(share)).ToList()
                     .ForEach(relativePath => results.Add(new ValidationResult($"Share {relativePath} contains a relative path; only absolute paths are supported.")));
 
                 (string Raw, string Alias, string Path) Digest(string share)
@@ -388,7 +670,7 @@ namespace slskd
                     return (share, share.Split(new[] { '/', '\\' }).Last(), share);
                 }
 
-                var digestedShared = Shared
+                var digestedShared = Directories
                     .Select(share => Digest(share.TrimEnd('/', '\\')))
                     .ToHashSet();
 
@@ -414,6 +696,47 @@ namespace slskd
                 }
 
                 return results;
+            }
+
+            private IEnumerable<ValidationResult> ValidateFilters()
+            {
+                var results = new List<ValidationResult>();
+
+                foreach (var filter in Filters)
+                {
+                    if (!filter.IsValidRegex())
+                    {
+                        results.Add(new ValidationResult($"Share filter '{filter}' is not a valid regular expression"));
+                    }
+                }
+
+                return results;
+            }
+
+            /// <summary>
+            ///     Share caching options.
+            /// </summary>
+            public class ShareCacheOptions
+            {
+                /// <summary>
+                ///     Gets the type of storage to use for the share cache.
+                /// </summary>
+                [Argument(default, "share-cache-storage-mode")]
+                [EnvironmentVariable("SHARE_CACHE_STORAGE_MODE")]
+                [Description("the type of storage to use for the cache")]
+                [Enum(typeof(StorageMode))]
+                [RequiresRestart]
+                public string StorageMode { get; init; } = slskd.Shares.StorageMode.Memory.ToString().ToLowerInvariant();
+
+                /// <summary>
+                ///     Gets the number of workers to use while scanning shares.
+                /// </summary>
+                [Argument(default, "share-cache-workers")]
+                [EnvironmentVariable("SHARE_CACHE_WORKERS")]
+                [Description("the number of workers to use while scanning shares")]
+                [Range(1, 128)]
+                [RequiresRestart]
+                public int Workers { get; init; } = Environment.ProcessorCount;
             }
         }
 
@@ -510,6 +833,11 @@ namespace slskd
             public LeecherOptions Leechers { get; init; } = new LeecherOptions();
 
             /// <summary>
+            ///     Gets options for the blacklisted user group.
+            /// </summary>
+            public BlacklistedOptions Blacklisted { get; init; } = new BlacklistedOptions();
+
+            /// <summary>
             ///     Gets user defined groups and options.
             /// </summary>
             [Validate]
@@ -538,6 +866,17 @@ namespace slskd
                 /// </summary>
                 [Validate]
                 public UploadOptions Upload { get; init; } = new UploadOptions();
+            }
+
+            /// <summary>
+            ///     Built in blacklisted group options.
+            /// </summary>
+            public class BlacklistedOptions
+            {
+                /// <summary>
+                ///     Gets the list of group member usernames.
+                /// </summary>
+                public string[] Members { get; init; } = Array.Empty<string>();
             }
 
             /// <summary>
@@ -607,8 +946,8 @@ namespace slskd
                 /// <summary>
                 ///     Gets the queue strategy for the group.
                 /// </summary>
-                [Enum(typeof(QueueStrategy))]
-                public string Strategy { get; init; } = QueueStrategy.RoundRobin.ToString().ToLowerInvariant();
+                [Enum(typeof(Transfers.QueueStrategy))]
+                public string Strategy { get; init; } = Transfers.QueueStrategy.RoundRobin.ToString().ToLowerInvariant();
 
                 /// <summary>
                 ///     Gets the limit for the total number of upload slots for the group.
@@ -642,41 +981,13 @@ namespace slskd
         /// <summary>
         ///     Filter options.
         /// </summary>
-        public class FiltersOptions : IValidatableObject
+        public class FiltersOptions
         {
-            /// <summary>
-            ///     Gets the list of shared file filters.
-            /// </summary>
-            [Argument(default, "share-filter")]
-            [EnvironmentVariable("SHARE_FILTER")]
-            [Description("regular expressions to filter files from shares")]
-            public string[] Share { get; init; } = Array.Empty<string>();
-
             /// <summary>
             ///     Gets search filter options.
             /// </summary>
             [Validate]
             public SearchOptions Search { get; init; } = new SearchOptions();
-
-            /// <summary>
-            ///     Extended validation.
-            /// </summary>
-            /// <param name="validationContext"></param>
-            /// <returns></returns>
-            public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
-            {
-                var results = new List<ValidationResult>();
-
-                foreach (var filter in Share)
-                {
-                    if (!filter.IsValidRegex())
-                    {
-                        results.Add(new ValidationResult($"Share filter '{filter}' is not a valid regular expression"));
-                    }
-                }
-
-                return results;
-            }
 
             /// <summary>
             ///     Search filter options.
@@ -755,12 +1066,12 @@ namespace slskd
             ///     Gets metrics endpoint authentication options.
             /// </summary>
             [Validate]
-            public AuthenticationOptions Authentication { get; init; } = new AuthenticationOptions();
+            public MetricsAuthenticationOptions Authentication { get; init; } = new MetricsAuthenticationOptions();
 
             /// <summary>
             ///     Metrics endpoint authentication options.
             /// </summary>
-            public class AuthenticationOptions
+            public class MetricsAuthenticationOptions
             {
                 /// <summary>
                 ///     Gets a value indicating whether authentication should be disabled.
@@ -833,7 +1144,7 @@ namespace slskd
             [EnvironmentVariable("SLSK_LISTEN_PORT")]
             [Description("port on which to listen for incoming connections")]
             [Range(1024, 65535)]
-            public int ListenPort { get; init; } = 50000;
+            public int ListenPort { get; init; } = 50300;
 
             /// <summary>
             ///     Gets the minimum diagnostic level.
@@ -1072,7 +1383,7 @@ namespace slskd
             [Description("HTTP listen port for web UI")]
             [Range(1, 65535)]
             [RequiresRestart]
-            public int Port { get; init; } = 5000;
+            public int Port { get; init; } = 5030;
 
             /// <summary>
             ///     Gets HTTPS options.
@@ -1097,7 +1408,7 @@ namespace slskd
             [EnvironmentVariable("CONTENT_PATH")]
             [Description("path to static web content")]
             [StringLength(255, MinimumLength = 1)]
-            [DirectoryExists]
+            [DirectoryExists(relativeToApplicationDirectory: true)]
             [RequiresRestart]
             public string ContentPath { get; init; } = "wwwroot";
 
@@ -1114,12 +1425,12 @@ namespace slskd
             ///     Gets authentication options.
             /// </summary>
             [Validate]
-            public AuthenticationOptions Authentication { get; init; } = new AuthenticationOptions();
+            public WebAuthenticationOptions Authentication { get; init; } = new WebAuthenticationOptions();
 
             /// <summary>
             ///     Authentication options.
             /// </summary>
-            public class AuthenticationOptions
+            public class WebAuthenticationOptions
             {
                 /// <summary>
                 ///     Gets a value indicating whether authentication should be disabled.
@@ -1157,6 +1468,12 @@ namespace slskd
                 public JwtOptions Jwt { get; init; } = new JwtOptions();
 
                 /// <summary>
+                ///     Gets API keys.
+                /// </summary>
+                [Validate]
+                public Dictionary<string, ApiKeyOptions> ApiKeys { get; init; } = new Dictionary<string, ApiKeyOptions>();
+
+                /// <summary>
                 ///     JWT options.
                 /// </summary>
                 public class JwtOptions
@@ -1170,7 +1487,7 @@ namespace slskd
                     [StringLength(255, MinimumLength = 16)]
                     [Secret]
                     [RequiresRestart]
-                    public string Key { get; init; } = Cryptography.Random.GetBytes(16).ToBase62String();
+                    public string Key { get; init; } = Cryptography.Random.GetBytes(16).ToBase62();
 
                     /// <summary>
                     ///     Gets the TTL for JWTs, in milliseconds.
@@ -1181,6 +1498,57 @@ namespace slskd
                     [Range(3600, int.MaxValue)]
                     [RequiresRestart]
                     public int Ttl { get; init; } = 604800000;
+                }
+
+                /// <summary>
+                ///     API key options.
+                /// </summary>
+                public class ApiKeyOptions : IValidatableObject
+                {
+                    /// <summary>
+                    ///     Gets the API key value.
+                    /// </summary>
+                    [Description("API key value")]
+                    [StringLength(255, MinimumLength = 16)]
+                    [Secret]
+                    public string Key { get; init; }
+
+                    /// <summary>
+                    ///     Gets the role for the key.
+                    /// </summary>
+                    [Description("user role for the key; readonly, readwrite, administrator")]
+                    [Enum(typeof(Role))]
+                    public string Role { get; init; } = slskd.Authentication.Role.ReadOnly.ToString();
+
+                    /// <summary>
+                    ///     Gets the comma separated list of CIDRs that are authorized to use the key.
+                    /// </summary>
+                    [Description("optional; comma separated list of CIDRs that are authorized to use the key")]
+                    public string Cidr { get; init; } = "0.0.0.0/0,::/0";
+
+                    /// <summary>
+                    ///     Extended validation.
+                    /// </summary>
+                    /// <param name="validationContext"></param>
+                    /// <returns></returns>
+                    public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+                    {
+                        var results = new List<ValidationResult>();
+
+                        foreach (var cidr in Cidr.Split(','))
+                        {
+                            try
+                            {
+                                _ = IPAddressRange.Parse(cidr);
+                            }
+                            catch (Exception ex)
+                            {
+                                results.Add(new ValidationResult($"CIDR {cidr} is invalid: {ex.Message}"));
+                            }
+                        }
+
+                        return results;
+                    }
                 }
             }
 
@@ -1206,7 +1574,7 @@ namespace slskd
                 [Description("HTTPS listen port for web UI")]
                 [Range(1, 65535)]
                 [RequiresRestart]
-                public int Port { get; init; } = 5001;
+                public int Port { get; init; } = 5031;
 
                 /// <summary>
                 ///     Gets a value indicating whether HTTP requests should be redirected to HTTPS.

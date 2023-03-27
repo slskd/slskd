@@ -43,41 +43,55 @@ class Chat extends Component {
   };
 
   fetchConversations = async () => {
-    const { active } = this.state;
+    // fetch all of the active conversations (but no messages)
     let conversations = await chat.getAll();
+    
+    // turn into a map, keyed by username
+    // if there are no active conversations, set to an empty map
+    if (conversations.length === 0) {
+      conversations = {};
+    } else {
+      conversations = conversations.reduce((map, current) => {
+        map[current.username] = current;
+        return map;
+      }, {});
+    }
+    
+    const { active } = this.state;
+    const activeConversation = conversations[active];
 
-    const unAckedActiveMessages = (conversations[active] || [])
-      .filter(message => !message.acknowledged);
-
-    if (unAckedActiveMessages.length > 0) {
-      await this.acknowledgeMessages(active, { force: true });
+    // check to see if the active chat is still active
+    // this will happen whenever a chat is closed/removed
+    if (activeConversation) {
+      console.log('active?', activeConversation);
+      // *before* fetching messages, ack any unacked messages
+      // for the active chat    
+      if (activeConversation.hasUnAcknowledgedMessages === true) {
+        await this.acknowledgeMessages(active);
+      }
+  
       conversations = {
-        ...conversations, 
-        [active]: conversations[active].map(message => ({...message, acknowledged: true })),
+        ...conversations,
+        [active]: await chat.get({ username: active }),
       };
     }
 
     this.setState({ conversations }, () => {
+      // if a chat isn't active or the active chat is closed,
+      // select the first conversation, if there is one
       if (!this.state.conversations[this.state.active]) {
         this.selectConversation(this.getFirstConversation());
-      } else {
-        this.acknowledgeMessages(this.state.active);
       }
     });
   };
 
-  acknowledgeMessages = async (username, { force = false } = {}) => {
-    if (!username) return;
-
-    const unAckedMessages = (this.state.conversations[username] || [])
-      .filter(message => !message.acknowledged);
-
-    if (!force && unAckedMessages.length === 0) return;
-
+  acknowledgeMessages = async (username) => {
+    if (!username || username === '') return;
     await chat.acknowledge({ username });
   };
 
   sendMessage = async (username, message) => {
+    if (!username || !message || username === '') return;
     await chat.send({ username, message });
   };
 
@@ -91,6 +105,10 @@ class Chat extends Component {
 
     await this.sendMessage(active, message);
     this.messageRef.current.value = '';
+
+    // force a refresh to append the message
+    // we could probably do this in the browser but we can be lazy
+    this.fetchConversations();
   };
 
   validInput = () =>
@@ -118,11 +136,17 @@ class Chat extends Component {
       active: username,
       loading: true,
     }, async () => {
-      const { active } = this.state;
+      const { active, conversations } = this.state;
 
       sessionStorage.setItem(activeChatKey, active);
 
-      this.setState({ loading: false }, () => {
+      this.setState({
+        loading: false,
+        conversations: active === '' ? conversations : {
+          ...conversations,
+          [active]: await chat.get({ username: active }),
+        },
+      }, () => {
         try {
           this.listRef.current.lastChild.scrollIntoView();
         } catch {
@@ -146,7 +170,8 @@ class Chat extends Component {
 
   render = () => {
     const { conversations = [], active, loading } = this.state;
-    const messages = conversations[active] || [];
+    const messages = conversations[active]?.messages || [];
+    const { user } = this.props.state;
 
     return (
       <div className='chats'>
@@ -183,10 +208,11 @@ class Chat extends Component {
                           {messages.map((message, index) => 
                             <List.Content 
                               key={index}
-                              className={`chat-message ${message.username !== active ? 'chat-message-self' : ''}`}
+                              className={`chat-message ${message.direction === 'Out' ? 'chat-message-self' : ''}`}
                             >
                               <span className='chat-message-time'>{this.formatTimestamp(message.timestamp)}</span>
-                              <span className='chat-message-name'>{message.username}: </span>
+                              <span className='chat-message-name'>
+                                {message.direction === 'Out' ? user.username : message.username}: </span>
                               <span className='chat-message-message'>{message.message}</span>
                             </List.Content>
                           )}

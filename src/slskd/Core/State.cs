@@ -19,8 +19,10 @@ namespace slskd
 {
     using System;
     using System.Collections.Generic;
+    using System.Linq;
     using System.Net;
     using System.Text.Json.Serialization;
+    using slskd.Relay;
     using slskd.Users;
     using Soulseek;
 
@@ -33,6 +35,7 @@ namespace slskd
         public bool PendingReconnect { get; init; }
         public bool PendingRestart { get; init; }
         public ServerState Server { get; init; } = new ServerState();
+        public RelayState Relay { get; init; } = new RelayState();
         public UserState User { get; init; } = new UserState();
         public DistributedNetworkState DistributedNetwork { get; init; } = new DistributedNetworkState();
         public ShareState Shares { get; init; } = new ShareState();
@@ -60,6 +63,19 @@ namespace slskd
         public bool IsConnected => State.HasFlag(SoulseekClientStates.Connected);
         public bool IsLoggedIn => State.HasFlag(SoulseekClientStates.LoggedIn);
         public bool IsTransitioning => State.HasFlag(SoulseekClientStates.Connecting) || State.HasFlag(SoulseekClientStates.Disconnecting) || State.HasFlag(SoulseekClientStates.LoggingIn);
+    }
+
+    public record RelayState
+    {
+        public RelayMode Mode { get; init; }
+        public RelayControllerState Controller { get; init; } = new RelayControllerState();
+        public IReadOnlyCollection<Agent> Agents { get; init; } = Enumerable.Empty<Agent>().ToList().AsReadOnly();
+    }
+
+    public record RelayControllerState
+    {
+        public string Address { get; init; }
+        public RelayClientState State { get; init; } = RelayClientState.Disconnected;
     }
 
     public record UserState
@@ -102,8 +118,11 @@ namespace slskd
     {
         public bool ScanPending { get; init; }
         public bool Scanning { get; init; }
+        public bool Ready { get; init; }
         public bool Faulted { get; init; }
+        public bool Cancelled { get; init; }
         public double ScanProgress { get; init; }
+        public IReadOnlyCollection<string> Hosts { get; init; }
         public int Directories { get; init; }
         public int Files { get; init; }
     }
@@ -124,6 +143,8 @@ namespace slskd
         ///     Gets a value indicating whether the cache is faulted.
         /// </summary>
         public bool Faulted { get; init; } = false;
+
+        public bool Cancelled { get; init; } = false;
 
         /// <summary>
         ///     Gets the current fill progress.

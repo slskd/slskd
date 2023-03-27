@@ -1,0 +1,10 @@
+/*******************************
+         Site Overrides
+*******************************/
+
+.ui.input {
+    color: var(--smui-site-input-color, @inputColor);
+}
+.ui.input > input {
+    color: var(--smui-site-input-color, @inputColor);
+}

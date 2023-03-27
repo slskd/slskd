@@ -32,7 +32,6 @@ namespace slskd.Shares.API
     [Produces("application/json")]
     [Consumes("application/json")]
     [Route("api/v{version:apiVersion}/[controller]")]
-    [Authorize]
     public class SharesController : ControllerBase
     {
         /// <summary>
@@ -53,35 +52,15 @@ namespace slskd.Shares.API
         /// <response code="200">The request completed successfully.</response>
         /// <returns></returns>
         [HttpGet("")]
-        [Authorize]
-        [ProducesResponseType(typeof(IEnumerable<SummarizedShare>), 200)]
-        public async Task<IActionResult> List()
+        [Authorize(Policy = AuthPolicy.Any)]
+        [ProducesResponseType(typeof(Dictionary<string, IEnumerable<Share>>), 200)]
+        public IActionResult List()
         {
-            var browse = await Shares.BrowseAsync();
+            var response = Shares.Hosts.ToDictionary(
+                keySelector: host => host.Name,
+                elementSelector: host => host.Shares);
 
-            var summary = Shares.Shares.Select(share =>
-            {
-                var directories = browse.Where(directory => directory.Name.StartsWith(share.RemotePath));
-                var fileCount = directories.Aggregate(seed: 0, (sum, directory) =>
-                {
-                    sum += directory.FileCount;
-                    return sum;
-                });
-
-                return new SummarizedShare()
-                {
-                    Id = share.Id,
-                    Alias = share.Alias,
-                    IsExcluded = share.IsExcluded,
-                    LocalPath = share.LocalPath,
-                    Raw = share.Raw,
-                    RemotePath = share.RemotePath,
-                    Directories = directories.Count(),
-                    Files = fileCount,
-                };
-            });
-
-            return Ok(summary);
+            return Ok(response);
         }
 
         /// <summary>
@@ -92,39 +71,19 @@ namespace slskd.Shares.API
         /// <response code="404">The requested share could not be found.</response>
         /// <returns></returns>
         [HttpGet("{id}")]
-        [Authorize]
-        [ProducesResponseType(typeof(SummarizedShare), 200)]
+        [Authorize(Policy = AuthPolicy.Any)]
+        [ProducesResponseType(typeof(Share), 200)]
         [ProducesResponseType(404)]
-        public async Task<IActionResult> Get(string id)
+        public IActionResult Get(string id)
         {
-            var share = Shares.Shares.FirstOrDefault(share => share.Id == id);
+            var share = Shares.Hosts.SelectMany(host => host.Shares).FirstOrDefault(share => share.Id == id);
 
             if (share == default)
             {
                 return NotFound();
             }
 
-            var browse = await Shares.BrowseAsync();
-            var directories = browse.Where(directory => directory.Name.StartsWith(share.RemotePath));
-            var fileCount = directories.Aggregate(seed: 0, (sum, directory) =>
-            {
-                sum += directory.FileCount;
-                return sum;
-            });
-
-            var summary = new SummarizedShare()
-            {
-                Id = share.Id,
-                Alias = share.Alias,
-                IsExcluded = share.IsExcluded,
-                LocalPath = share.LocalPath,
-                Raw = share.Raw,
-                RemotePath = share.RemotePath,
-                Directories = directories.Count(),
-                Files = fileCount,
-            };
-
-            return Ok(summary);
+            return Ok(share);
         }
 
         /// <summary>
@@ -133,7 +92,7 @@ namespace slskd.Shares.API
         /// <returns></returns>
         /// <response code="200">The request completed successfully.</response>
         [HttpGet("contents")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(typeof(IEnumerable<Directory>), 200)]
         public async Task<IActionResult> BrowseAll()
         {
@@ -148,19 +107,19 @@ namespace slskd.Shares.API
         /// <response code="200">The request completed successfully.</response>
         /// <response code="404">The requested share could not be found.</response>
         [HttpGet("{id}/contents")]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(typeof(IEnumerable<Directory>), 200)]
         [ProducesResponseType(404)]
         public async Task<IActionResult> BrowseShare(string id)
         {
-            var share = Shares.Shares.FirstOrDefault(share => share.Id == id);
+            var share = Shares.Hosts.SelectMany(host => host.Shares).FirstOrDefault(share => share.Id == id);
 
             if (share == default)
             {
                 return NotFound();
             }
 
-            var contents = (await Shares.BrowseAsync())
-                .Where(directory => directory.Name.StartsWith(share.RemotePath));
+            var contents = await Shares.BrowseAsync(share);
 
             return Ok(contents);
         }
@@ -173,14 +132,14 @@ namespace slskd.Shares.API
         /// <response code="409">A share scan is already in progress.</response>
         [HttpPut]
         [Route("")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(204)]
         [ProducesResponseType(409)]
-        public async Task<IActionResult> RescanSharesAsync()
+        public IActionResult RescanSharesAsync()
         {
             try
             {
-                await Shares.StartScanAsync();
+                _ = Shares.ScanAsync();
             }
             catch (ShareScanInProgressException)
             {
@@ -188,6 +147,27 @@ namespace slskd.Shares.API
             }
 
             return Ok();
+        }
+
+        /// <summary>
+        ///     Cancels a share scan, if one is running.
+        /// </summary>
+        /// <returns></returns>
+        /// <response code="204">The request completed successfully.</response>
+        /// <response code="409">A share scan was not in progress.</response>
+        [HttpDelete]
+        [Route("")]
+        [Authorize(Policy = AuthPolicy.Any)]
+        [ProducesResponseType(204)]
+        [ProducesResponseType(404)]
+        public IActionResult CancelShareScan()
+        {
+            if (Shares.TryCancelScan())
+            {
+                return StatusCode(204);
+            }
+
+            return NotFound();
         }
     }
 }

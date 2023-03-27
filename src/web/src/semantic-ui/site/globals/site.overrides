@@ -1,0 +1,10 @@
+/*******************************
+         Site Overrides
+*******************************/
+body {
+    color: @bodyTextColor;
+}
+
+a {
+  color: var(--smui-site-link-color, @linkColor);
+}

@@ -20,14 +20,15 @@ namespace slskd
     using System;
     using System.Collections;
     using System.Collections.Generic;
+    using System.IdentityModel.Tokens.Jwt;
     using System.IO;
     using System.Linq;
-    using System.Numerics;
     using System.Reflection;
-    using System.Text;
     using System.Text.Json;
     using System.Text.Json.Serialization;
     using System.Text.RegularExpressions;
+    using System.Threading;
+    using System.Threading.Tasks;
     using YamlDotNet.Serialization;
     using YamlDotNet.Serialization.NamingConventions;
 
@@ -36,6 +37,55 @@ namespace slskd
     /// </summary>
     public static class CommonExtensions
     {
+        /// <summary>
+        ///     Times this Task out after the specified TimeSpan.
+        /// </summary>
+        /// <typeparam name="T">The result type.</typeparam>
+        /// <param name="task">The task.</param>
+        /// <param name="timeout">The timeout.</param>
+        /// <returns>The operation context.</returns>
+        /// <exception cref="TimeoutException">Thrown when the task times out.</exception>
+        public static async Task<T> TimeoutAfter<T>(this Task<T> task, TimeSpan timeout)
+        {
+            using var timeoutCancellationTokenSource = new CancellationTokenSource();
+
+            var completedTask = await Task.WhenAny(task, Task.Delay(timeout, timeoutCancellationTokenSource.Token));
+
+            if (completedTask == task)
+            {
+                timeoutCancellationTokenSource.Cancel();
+                return await task;
+            }
+            else
+            {
+                throw new TimeoutException("The operation has timed out.");
+            }
+        }
+
+        /// <summary>
+        ///     Times this Task out after the specified TimeSpan.
+        /// </summary>
+        /// <param name="task">The task.</param>
+        /// <param name="timeout">The timeout.</param>
+        /// <returns>The operation context.</returns>
+        /// <exception cref="TimeoutException">Thrown when the task times out.</exception>
+        public static async Task TimeoutAfter(this Task task, TimeSpan timeout)
+        {
+            using var timeoutCancellationTokenSource = new CancellationTokenSource();
+
+            var completedTask = await Task.WhenAny(task, Task.Delay(timeout, timeoutCancellationTokenSource.Token));
+
+            if (completedTask == task)
+            {
+                timeoutCancellationTokenSource.Cancel();
+                await task;
+            }
+            else
+            {
+                throw new TimeoutException("The operation has timed out.");
+            }
+        }
+
         /// <summary>
         ///     Deeply compares this object with the specified object and returns a list of properties that are different.
         /// </summary>
@@ -92,6 +142,22 @@ namespace slskd
             var separator = path.Contains('\\') ? '\\' : '/';
             var parts = path.Split(separator);
             return string.Join(separator, parts.Take(parts.Length - 1));
+        }
+
+        /// <summary>
+        ///     Safely disposes this object without throwing if it is already exposed.
+        /// </summary>
+        /// <param name="obj">The object.</param>
+        public static void TryDispose(this IDisposable obj)
+        {
+            try
+            {
+                obj?.Dispose();
+            }
+            catch (ObjectDisposedException)
+            {
+                // no-op; something else beat us to it
+            }
         }
 
         /// <summary>
@@ -160,6 +226,14 @@ namespace slskd
 
             return str.Substring(0, pos) + replacement + str.Substring(pos + phrase.Length);
         }
+
+        /// <summary>
+        ///     Serializes the JWT.
+        /// </summary>
+        /// <param name="jwt">The JWT.</param>
+        /// <returns>The serialized string.</returns>
+        public static string Serialize(this JwtSecurityToken jwt)
+            => new JwtSecurityTokenHandler().WriteToken(jwt);
 
         /// <summary>
         ///     Formats byte to nearest size (KB, MB, etc.)
@@ -254,13 +328,46 @@ namespace slskd
         }
 
         /// <summary>
-        ///     Converts the given path to the local format (normalizes path separators).
+        ///     Converts the given path to the normalized format (normalizes path separators to backslashes).
+        /// </summary>
+        /// <remarks>
+        ///     Various Soulseek clients (including this one) assume paths to use backslashes, regardless of the host system.
+        /// </remarks>
+        /// <param name="path">The path to convert.</param>
+        /// <returns>The converted path.</returns>
+        public static string NormalizePathForSoulseek(this string path)
+        {
+            return path.Replace('/', '\\');
+        }
+
+        /// <summary>
+        ///     Converts the given path to the local format (normalizes path separators to Path.DirectorySeparatorChar).
         /// </summary>
         /// <param name="path">The path to convert.</param>
         /// <returns>The converted path.</returns>
-        public static string ToLocalOSPath(this string path)
+        public static string LocalizePath(this string path)
         {
             return path.Replace('\\', Path.DirectorySeparatorChar).Replace('/', Path.DirectorySeparatorChar);
+        }
+
+        /// <summary>
+        ///     <see cref="Path.GetDirectoryName(string)"/>, but for paths normalized to use backslashes.
+        /// </summary>
+        /// <param name="path"></param>
+        /// <returns></returns>
+        public static string GetNormalizedDirectoryName(this string path)
+        {
+            return string.Join('\\', path.Split('\\').SkipLast(1));
+        }
+
+        /// <summary>
+        ///     <see cref="Path.GetFileName(string)"/>, but for paths normalized to use backslashes.
+        /// </summary>
+        /// <param name="path"></param>
+        /// <returns></returns>
+        public static string GetNormalizedFileName(this string path)
+        {
+            return path.Split('\\').TakeLast(1).First();
         }
 
         /// <summary>
@@ -278,7 +385,7 @@ namespace slskd
             }
 
             // normalize path separators
-            var localizedRemoteFilename = remoteFilename.ToLocalOSPath();
+            var localizedRemoteFilename = remoteFilename.LocalizePath();
 
             var parts = localizedRemoteFilename.Split(Path.DirectorySeparatorChar);
 
@@ -312,27 +419,6 @@ namespace slskd
         }
 
         /// <summary>
-        ///     Converts the byte array into a base 62 encoded string.
-        /// </summary>
-        /// <param name="bytes">The bytes to convert.</param>
-        /// <returns>The converted bytes as a base 62 string.</returns>
-        public static string ToBase62String(this byte[] bytes)
-        {
-            const string alphabet = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
-
-            BigInteger dividend = new BigInteger(bytes);
-            var builder = new StringBuilder();
-
-            while (dividend != 0)
-            {
-                dividend = BigInteger.DivRem(dividend, alphabet.Length, out BigInteger remainder);
-                builder.Insert(0, alphabet[Math.Abs((int)remainder)]);
-            }
-
-            return builder.ToString();
-        }
-
-        /// <summary>
         ///     Determines whether the given object is a <see cref="Dictionary{TKey, TValue}"/>.
         /// </summary>
         /// <param name="obj">The object to check.</param>
@@ -347,6 +433,17 @@ namespace slskd
             return obj is IDictionary &&
                    obj.GetType().IsGenericType &&
                    obj.GetType().GetGenericTypeDefinition().IsAssignableFrom(typeof(Dictionary<,>));
+        }
+
+        /// <summary>
+        ///     Casts the string to <typeparamref name="T"/>.
+        /// </summary>
+        /// <typeparam name="T">The Enum type to which to cast.</typeparam>
+        /// <param name="str">The string to cast.</param>
+        /// <returns>The cast enum.</returns>
+        public static T ToEnum<T>(this string str)
+        {
+            return (T)Enum.Parse(typeof(T), str, ignoreCase: true);
         }
 
         /// <summary>

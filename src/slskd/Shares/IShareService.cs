@@ -27,20 +27,46 @@ namespace slskd.Shares
     public interface IShareService
     {
         /// <summary>
-        ///     Gets the list of configured shares.
+        ///     Gets the list of share hosts.
         /// </summary>
-        IReadOnlyList<Share> Shares { get; }
+        IReadOnlyList<Host> Hosts { get; }
+
+        /// <summary>
+        ///     Gets the local share host.
+        /// </summary>
+        Host LocalHost { get; }
 
         /// <summary>
         ///     Gets the state monitor for the service.
         /// </summary>
-        public IStateMonitor<ShareState> StateMonitor { get; }
+        IStateMonitor<ShareState> StateMonitor { get; }
+
+        /// <summary>
+        ///     Adds a new, or updates an existing, share host.
+        /// </summary>
+        /// <param name="host">The host to add or update.</param>
+        void AddOrUpdateHost(Host host);
 
         /// <summary>
         ///     Returns the entire contents of the share.
         /// </summary>
         /// <returns>The entire contents of the share.</returns>
-        Task<IEnumerable<Directory>> BrowseAsync();
+        Task<IEnumerable<Directory>> BrowseAsync(Share share = null);
+
+        /// <summary>
+        ///     Dumps the local share cache to a file.
+        /// </summary>
+        /// <param name="filename">The destination file.</param>
+        /// <returns>The operation context.</returns>
+        Task DumpAsync(string filename);
+
+        /// <summary>
+        ///     Returns the share host with the specified <paramref name="name"/>.
+        /// </summary>
+        /// <param name="name">The name of the host.</param>
+        /// <param name="host">The host, if found.</param>
+        /// <returns>A value indicating whether the host was found.</returns>
+        bool TryGetHost(string name, out Host host);
 
         /// <summary>
         ///     Returns the contents of the specified <paramref name="directory"/>.
@@ -50,15 +76,27 @@ namespace slskd.Shares
         Task<Directory> ListDirectoryAsync(string directory);
 
         /// <summary>
+        ///     Removes the share host with the specified <paramref name="name"/>.
+        /// </summary>
+        /// <param name="name">The name of the host.</param>
+        /// <returns>A value indicating whether the host was removed.</returns>
+        bool TryRemoveHost(string name);
+
+        /// <summary>
         ///     Resolves the local filename of the specified <paramref name="remoteFilename"/>, if the mask is associated with a
         ///     configured share.
         /// </summary>
         /// <param name="remoteFilename">The fully qualified filename to resolve.</param>
-        /// <returns>The resolved local filename.</returns>
+        /// <returns>The resolved host and filename.</returns>
         /// <exception cref="NotFoundException">
         ///     Thrown when the specified remote filename can not be associated with a configured share.
         /// </exception>
-        Task<string> ResolveFilenameAsync(string remoteFilename);
+        Task<(string Host, string Filename)> ResolveFileAsync(string remoteFilename);
+
+        /// <summary>
+        ///     Requests that a share scan is performed.
+        /// </summary>
+        void RequestScan();
 
         /// <summary>
         ///     Searches the cache for the specified <paramref name="query"/> and returns the matching files.
@@ -68,10 +106,23 @@ namespace slskd.Shares
         Task<IEnumerable<File>> SearchAsync(SearchQuery query);
 
         /// <summary>
-        ///     Starts a scan of the configured shares.
+        ///     Scans the configured shares on the local host.
         /// </summary>
         /// <returns>The operation context.</returns>
         /// <exception cref="ShareScanInProgressException">Thrown when a scan is already in progress.</exception>
-        Task StartScanAsync();
+        Task ScanAsync();
+
+        /// <summary>
+        ///     Cancels the currently running scan on the local host, if one is running.
+        /// </summary>
+        /// <returns>A value indicating whether a scan was cancelled.</returns>
+        bool TryCancelScan();
+
+        /// <summary>
+        ///     Initializes the service and shares.
+        /// </summary>
+        /// <param name="forceRescan">A value indicating whether a full re-scan of shares should be performed.</param>
+        /// <returns>The operation context.</returns>
+        Task InitializeAsync(bool forceRescan = false);
     }
 }

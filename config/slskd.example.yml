@@ -1,5 +1,4 @@
 # debug: false
-# experimental: false
 # remote_configuration: false
 # instance_name: default
 # flags:
@@ -7,13 +6,42 @@
 #   no_start: false
 #   no_connect: false
 #   no_share_scan: false
+#   force_share_scan: false
 #   no_version_check: false
 #   log_sql: false
+#   experimental: false
+#   volatile: false
+# relay:
+#   enabled: false
+#   mode: controller # controller (default), agent, or debug (for local development)
+#   # controller config is required when running in 'agent' mode
+#   # this specifies the relay controller that will be controlling this agent
+#   controller:
+#     address: https://some.site.com:5000
+#     ignore_certificate_errors: false
+#     api_key: <a 16-255 character string corresponding to one of the controller's 'readwrite' or 'administrator' API keys>
+#     secret: <a 16-255 character shared secret matching the controller's config for this agent>
+#     downloads: false
+#   # agent config is optional when running in 'controller' mode
+#   # this specifies all of the agents capable of connecting
+#   agents:
+#     my_agent:
+#       instance_name: my_agent # make sure the top-level instance_name of the agent matches!
+#       secret: <a 16-255 character string unique to this agent>
+#       cidr: 0.0.0.0/0,::/0
 # directories:
 #   incomplete: ~
 #   downloads: ~
-#   shared:
+# shares:
+#   directories:
 #     - ~
+#   filters:
+#     - \.ini$
+#     - Thumbs.db$
+#     - \.DS_Store$
+#   cache:
+#     storage_mode: memory
+#     workers: 16
 # rooms:
 #   - ~
 # global:
@@ -38,6 +66,9 @@
 #       strategy: roundrobin
 #       slots: 1
 #       speed_limit: 100
+#   blacklisted:
+#     members:
+#       - <username to blacklist>
 #   user_defined:
 #     my_buddies:
 #       upload:
@@ -48,10 +79,6 @@
 #         - alice
 #         - bob
 # filters:
-#   share:
-#     - \.ini$
-#     - Thumbs.db$
-#     - \.DS_Store$
 #   search:
 #     request:
 #       - ^.{1,2}$
@@ -74,6 +101,11 @@
 #     jwt:
 #       key: ~
 #       ttl: 604800000
+#     api_keys:
+#       my_api_key:
+#         key: <some example string between 16 and 255 characters>
+#         role: readonly # readonly, readwrite, administrator
+#         cidr: 0.0.0.0/0,::/0
 # logger:
 #   loki: ~
 # metrics:
@@ -90,7 +122,7 @@
 #   password: ~
 #   description: |
 #     A slskd user. https://github.com/slskd/slskd
-#   listen_port: 50000
+#   listen_port: 50300
 #   diagnostic_level: Info
 #   distributed_network:
 #     disabled: false

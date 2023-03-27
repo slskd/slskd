@@ -73,7 +73,7 @@ namespace slskd.Integrations.FTP
                 await Retry.Do(
                     task: () => AttemptUploadAsync(filename),
                     isRetryable: (attempts, ex) => true,
-                    onFailure: (attempts, ex) => Log.LogInformation("Failed attempt {Attempts} to upload {Filename} to FTP: {Message}", attempts, fileAndParentDirectory, ex.Message),
+                    onFailure: (attempts, ex) => Log.LogInformation("Failed attempt #{Attempts} to upload {Filename} to FTP: {Message}", attempts, fileAndParentDirectory, ex.Message),
                     maxAttempts: FtpOptions.RetryAttempts,
                     maxDelayInMilliseconds: 30000);
             }
@@ -104,9 +104,9 @@ namespace slskd.Integrations.FTP
             using var timeoutCancellationTokenRegistration =
                 timeoutCancellationTokenSource.Token.Register(() => timeoutTaskCompletionSource.TrySetResult(true));
 
-            Log.LogDebug("Connecting to FTP at {Address}:{Port} using encryption mode {EncryptionMode}", client.Host, client.Port, client.EncryptionMode);
+            Log.LogDebug("Connecting to FTP at {Address}:{Port} using encryption mode {EncryptionMode}", client.Host, client.Port, client.Config.EncryptionMode);
 
-            var connectTask = client.ConnectAsync();
+            var connectTask = client.Connect();
             var completedTask = await Task.WhenAny(connectTask, timeoutTaskCompletionSource.Task);
 
             if (completedTask == timeoutTaskCompletionSource.Task)
@@ -120,7 +120,7 @@ namespace slskd.Integrations.FTP
             }
 
             Log.LogInformation("Uploading {Filename} to FTP {Address}:{Port} as {RemoteFilename}", fileAndParentDirectory, FtpOptions.Address, FtpOptions.Port, remoteFilename);
-            var status = await client.UploadFileAsync(filename, remoteFilename, existsMode, createRemoteDir: true);
+            var status = await client.UploadFile(filename, remoteFilename, existsMode, createRemoteDir: true);
 
             if (status == FtpStatus.Failed)
             {

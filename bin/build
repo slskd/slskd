@@ -13,7 +13,7 @@ while test $# -gt 0; do
       echo '--web-only          skip dotnet build'
       echo '--dotnet-only       skip web build'
       echo '--skip-tests        skip execution of npm and dotnet tests'
-      echo '--version           version for the binary. defaults to current git tag-SHA'
+      echo '--version           version for the binary. defaults to current git tag+SHA'
       exit 0
       ;;
     --web-only)
@@ -42,7 +42,7 @@ done
 if [ -z "$version" ]; then 
   tag=$(git describe --tags --abbrev=0)
   sha=$(git rev-parse --short HEAD)
-  version=$tag-$sha
+  version=$tag+$sha
 fi
 
 if [ "$dotnet_only" == true ]; then

@@ -1,0 +1,13 @@
+/*******************************
+         Site Overrides
+*******************************/
+
+@background: var(--smui-modal-background, @white);
+@border: var(--smui-modal-border, none);
+
+@headerBackground: var(--smui-modal-background, @white);
+@headerColor: var(--smui-modal-color, @darkTextColor);
+
+@actionBackground: var(--smui-modal-background, @white);
+
+@contentBackground: var(--smui-modal-background, @white);

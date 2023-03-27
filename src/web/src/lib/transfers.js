@@ -20,6 +20,10 @@ export const cancel = ({ direction, username, id, remove = false }) => {
     `/transfers/${direction}s/${encodeURIComponent(username)}/${encodeURIComponent(id)}?remove=${remove}`);
 };
 
+export const clearCompleted = ({ direction }) => {
+  return api.delete(`/transfers/${direction}s/all/completed`);
+};
+
 // 'Requested'
 // 'Queued, Remotely'
 // 'Queued, Locally'

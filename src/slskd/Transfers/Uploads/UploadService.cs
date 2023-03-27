@@ -30,6 +30,7 @@ namespace slskd.Transfers.Uploads
     using System.Threading.Tasks;
     using Microsoft.EntityFrameworkCore;
     using Serilog;
+    using slskd.Relay;
     using slskd.Shares;
     using slskd.Users;
 
@@ -43,11 +44,13 @@ namespace slskd.Transfers.Uploads
             ISoulseekClient soulseekClient,
             IOptionsMonitor<Options> optionsMonitor,
             IShareService shareService,
+            IRelayService relayService,
             IDbContextFactory<TransfersDbContext> contextFactory)
         {
             Users = userService;
             Client = soulseekClient;
             Shares = shareService;
+            Relay = relayService;
             ContextFactory = contextFactory;
             OptionsMonitor = optionsMonitor;
 
@@ -72,6 +75,7 @@ namespace slskd.Transfers.Uploads
         private IShareService Shares { get; set; }
         private IUserService Users { get; set; }
         private IOptionsMonitor<Options> OptionsMonitor { get; }
+        private IRelayService Relay { get; }
 
         /// <summary>
         ///     Adds the specified <paramref name="transfer"/>. Supersedes any existing record for the same file and username.
@@ -107,20 +111,43 @@ namespace slskd.Transfers.Uploads
         /// <returns>The operation context.</returns>
         public async Task EnqueueAsync(string username, string filename)
         {
-            string localFilename;
-            FileInfo fileInfo = default;
+            string host = default;
+            string localFilename = default;
+            long localFileLength = default;
 
             Log.Information("[{Context}] {Username} requested {Filename}", "UPLOAD REQUESTED", username, filename);
 
             try
             {
-                localFilename = (await Shares.ResolveFilenameAsync(filename)).ToLocalOSPath();
+                (host, localFilename) = await Shares.ResolveFileAsync(filename);
 
-                fileInfo = new FileInfo(localFilename);
+                Log.Debug("Resolved file {RemoteFilename} to host {Host} and file {LocalFilename}", filename, host, localFilename);
 
-                if (!fileInfo.Exists)
+                if (host == Program.LocalHostName)
                 {
-                    throw new NotFoundException();
+                    // if it's local, do a quick check to see if it exists to spare the caller from
+                    // queueing up if the transfer is doomed to fail. for remote files, take a leap of faith.
+                    var info = new FileInfo(localFilename);
+
+                    if (!info.Exists)
+                    {
+                        Shares.RequestScan();
+                        throw new NotFoundException($"The file '{localFilename}' could not be located on disk. A share scan should be performed.");
+                    }
+
+                    localFileLength = info.Length;
+                }
+                else
+                {
+                    var (exists, length) = await Relay.GetFileInfoAsync(agentName: host, filename);
+
+                    if (!exists || length <= 0)
+                    {
+                        // todo: force a remote scan
+                        throw new NotFoundException($"The file '{localFilename}' could not be located on Agent {host}. A share scan should be performed.");
+                    }
+
+                    localFileLength = length;
                 }
             }
             catch (NotFoundException)
@@ -128,6 +155,8 @@ namespace slskd.Transfers.Uploads
                 Log.Information("[{Context}] {Filename} for {Username}: file not found", "UPLOAD REJECTED", username, filename);
                 throw new DownloadEnqueueException($"File not shared.");
             }
+
+            Log.Information("Resolved {Remote} to physical file {Physical} on host '{Host}'", filename, localFilename, host);
 
             // find existing records for this username and file that haven't been removed from the UI
             var existingRecords = List(t => t.Username == username && t.Filename == localFilename && !t.Removed);
@@ -147,7 +176,7 @@ namespace slskd.Transfers.Uploads
                 Username = username,
                 Direction = TransferDirection.Upload,
                 Filename = localFilename,
-                Size = fileInfo.Length,
+                Size = localFileLength,
                 StartOffset = 0, // potentially updated later during handshaking
                 RequestedAt = DateTime.UtcNow,
             };
@@ -166,9 +195,9 @@ namespace slskd.Transfers.Uploads
                 using var rateLimiter = new RateLimiter(250, flushOnDispose: true);
                 var syncRoot = new SemaphoreSlim(1, 1);
 
-                void SynchronizedUpdate(Transfer transfer)
+                void SynchronizedUpdate(Transfer transfer, bool cancellable = true)
                 {
-                    syncRoot.Wait(cts.Token);
+                    syncRoot.Wait(cancellable ? cts.Token : CancellationToken.None);
 
                     try
                     {
@@ -214,38 +243,66 @@ namespace slskd.Transfers.Uploads
                         progressUpdated: (args) => rateLimiter.Invoke(() =>
                         {
                             transfer = transfer.WithSoulseekTransfer(args.Transfer);
+
                             // todo: broadcast
                             SynchronizedUpdate(transfer);
                         }),
+                        seekInputStreamAutomatically: false,
+                        disposeInputStreamOnCompletion: true,
                         governor: (tx, req, ct) => Governor.GetBytesAsync(tx.Username, req, ct),
                         reporter: (tx, att, grant, act) => Governor.ReturnBytes(tx.Username, att, grant, act),
                         slotAwaiter: (tx, ct) => Queue.AwaitStartAsync(tx.Username, tx.Filename),
                         slotReleased: (tx) => Queue.Complete(tx.Username, tx.Filename));
 
-                    using var stream = new FileStream(fileInfo.FullName, FileMode.Open, FileAccess.Read);
-                    var completedTransfer = await Client.UploadAsync(
-                        username,
-                        filename,
-                        fileInfo.FullName,
-                        options: topts,
-                        cancellationToken: cts.Token);
+                    if (host == Program.LocalHostName)
+                    {
+                        var completedTransfer = await Client.UploadAsync(
+                            username,
+                            filename,
+                            size: localFileLength,
+                            inputStreamFactory: (startOffset) =>
+                            {
+                                var stream = new FileStream(localFilename, FileMode.Open, FileAccess.Read);
+                                stream.Seek(startOffset, SeekOrigin.Begin);
+                                return Task.FromResult((Stream)stream);
+                            },
+                            options: topts,
+                            cancellationToken: cts.Token);
+
+                        transfer = transfer.WithSoulseekTransfer(completedTransfer);
+                    }
+                    else
+                    {
+                        var completedTransfer = await Client.UploadAsync(
+                            username,
+                            filename,
+                            size: localFileLength,
+                            inputStreamFactory: (startOffset) => Relay.GetFileStreamAsync(agentName: host, filename, startOffset, id),
+                            options: topts,
+                            cancellationToken: cts.Token);
+
+                        Relay.TryCloseFileStream(host, id);
+
+                        transfer = transfer.WithSoulseekTransfer(completedTransfer);
+                    }
 
                     // explicitly dispose the rate limiter to prevent updates from it
                     // beyond this point, which may overwrite the final state
                     rateLimiter.Dispose();
 
-                    transfer = transfer.WithSoulseekTransfer(completedTransfer);
-                    //todo: broadcast
-                    SynchronizedUpdate(transfer);
+                    // todo: broadcast
+                    SynchronizedUpdate(transfer, cancellable: false);
                 }
-                catch (TaskCanceledException ex)
+                catch (OperationCanceledException ex)
                 {
                     transfer.EndedAt = DateTime.UtcNow;
                     transfer.Exception = ex.Message;
                     transfer.State = TransferStates.Completed | TransferStates.Cancelled;
 
                     // todo: broadcast
-                    SynchronizedUpdate(transfer);
+                    SynchronizedUpdate(transfer, cancellable: false);
+
+                    Relay.TryCloseFileStream(host, id, ex);
 
                     throw;
                 }
@@ -258,8 +315,9 @@ namespace slskd.Transfers.Uploads
                     transfer.State = TransferStates.Completed | TransferStates.Errored;
 
                     // todo: broadcast
-                    SynchronizedUpdate(transfer);
+                    SynchronizedUpdate(transfer, cancellable: false);
 
+                    Relay.TryCloseFileStream(host, id, ex);
                     throw;
                 }
                 finally
@@ -379,7 +437,7 @@ namespace slskd.Transfers.Uploads
         /// <param name="transfer">The transfer to update.</param>
         public void Update(Transfer transfer)
         {
-            var experimental = OptionsMonitor.CurrentValue.Experimental;
+            var experimental = OptionsMonitor.CurrentValue.Flags.Experimental;
             var id = Guid.NewGuid();
 
             System.Diagnostics.Stopwatch sw = default;

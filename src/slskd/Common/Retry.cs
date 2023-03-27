@@ -19,6 +19,7 @@ namespace slskd
 {
     using System;
     using System.Collections.Generic;
+    using System.Threading;
     using System.Threading.Tasks;
 
     /// <summary>
@@ -34,14 +35,15 @@ namespace slskd
         /// <param name="onFailure">An action to execute on failure.</param>
         /// <param name="maxAttempts">The maximum number of retry attempts.</param>
         /// <param name="maxDelayInMilliseconds">The maximum delay in milliseconds.</param>
+        /// <param name="cancellationToken">The token to monitor for cancellation requests.</param>
         /// <returns>The execution context.</returns>
-        public static async Task Do(Func<Task> task, Func<int, Exception, bool> isRetryable = null, Action<int, Exception> onFailure = null, int maxAttempts = 3, int maxDelayInMilliseconds = int.MaxValue)
+        public static async Task Do(Func<Task> task, Func<int, Exception, bool> isRetryable = null, Action<int, Exception> onFailure = null, int maxAttempts = 3, int maxDelayInMilliseconds = int.MaxValue, CancellationToken cancellationToken = default)
         {
             await Do<object>(async () =>
             {
                 await task();
                 return Task.FromResult<object>(null);
-            }, isRetryable, onFailure, maxAttempts, maxDelayInMilliseconds);
+            }, isRetryable, onFailure, maxAttempts, maxDelayInMilliseconds, cancellationToken);
         }
 
         /// <summary>
@@ -52,9 +54,10 @@ namespace slskd
         /// <param name="onFailure">An action to execute on failure.</param>
         /// <param name="maxAttempts">The maximum number of retry attempts.</param>
         /// <param name="maxDelayInMilliseconds">The maximum delay in miliseconds.</param>
+        /// <param name="cancellationToken">The token to monitor for cancellation requests.</param>
         /// <typeparam name="T">The Type of the logic return value.</typeparam>
         /// <returns>The execution context.</returns>
-        public static async Task<T> Do<T>(Func<Task<T>> task, Func<int, Exception, bool> isRetryable = null, Action<int, Exception> onFailure = null, int maxAttempts = 3, int maxDelayInMilliseconds = int.MaxValue)
+        public static async Task<T> Do<T>(Func<Task<T>> task, Func<int, Exception, bool> isRetryable = null, Action<int, Exception> onFailure = null, int maxAttempts = 3, int maxDelayInMilliseconds = int.MaxValue, CancellationToken cancellationToken = default)
         {
             isRetryable ??= (_, _) => true;
             onFailure ??= (_, _) => { };
@@ -63,12 +66,17 @@ namespace slskd
 
             for (int attempts = 0; attempts < maxAttempts; attempts++)
             {
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    throw new OperationCanceledException();
+                }
+
                 try
                 {
                     if (attempts > 0)
                     {
                         var (delay, jitter) = Compute.ExponentialBackoffDelay(attempts, maxDelayInMilliseconds);
-                        await Task.Delay(delay + jitter);
+                        await Task.Delay(delay + jitter, cancellationToken);
                     }
 
                     return await task();

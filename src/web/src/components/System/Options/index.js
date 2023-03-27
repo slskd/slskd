@@ -12,7 +12,7 @@ import {
   Switch,
 } from '../../Shared';
 
-const Index = ({ options }) => {
+const Index = ({ options, theme }) => {
   const [debugModal, setDebugModal] = useState(false);
   const [editModal, setEditModal] = useState(false);
   const [contents, setContents] = useState();
@@ -26,7 +26,7 @@ const Index = ({ options }) => {
   const { remoteConfiguration, debug } = options;
 
   const DebugButton = ({ ...props }) => {
-    if (!debug) return <></>;
+    if (!remoteConfiguration || !debug) return <></>;
     
     return <ShrinkableButton
       icon='bug'
@@ -70,14 +70,17 @@ const Index = ({ options }) => {
           value={contents}
           basicSetup={false}
           editable={false}
+          theme={theme}
         />
       </Switch>
       <DebugModal
         open={debugModal}
+        theme={theme}
         onClose={() => setDebugModal(false)}
       />
       <EditModal
         open={editModal}
+        theme={theme}
         onClose={() => setEditModal(false)}
       />
     </>

@@ -22,6 +22,7 @@ namespace slskd.Core.API
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
+    using slskd.Relay;
     using Soulseek;
 
     /// <summary>
@@ -54,11 +55,16 @@ namespace slskd.Core.API
         /// <returns></returns>
         [HttpPut]
         [Route("")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(200)]
         [ProducesResponseType(403)]
         public async Task<IActionResult> Connect()
         {
+            if (Program.IsRelayAgent)
+            {
+                return Forbid();
+            }
+
             if (!Client.State.HasFlag(SoulseekClientStates.Connected))
             {
                 await Client.ConnectAsync(OptionsSnapshot.Value.Soulseek.Username, OptionsSnapshot.Value.Soulseek.Password);
@@ -74,11 +80,16 @@ namespace slskd.Core.API
         /// <returns></returns>
         [HttpDelete]
         [Route("")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(204)]
         [ProducesResponseType(403)]
         public IActionResult Disconnect([FromBody] string message)
         {
+            if (Program.IsRelayAgent)
+            {
+                return Forbid();
+            }
+
             if (Client.State.HasFlag(SoulseekClientStates.Connected))
             {
                 Client.Disconnect(message, new IntentionalDisconnectException(message));
@@ -94,7 +105,7 @@ namespace slskd.Core.API
         /// <response code="200"></response>
         [HttpGet]
         [Route("")]
-        [Authorize]
+        [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(typeof(ServerState), 200)]
         [ProducesResponseType(403)]
         public IActionResult Get()
