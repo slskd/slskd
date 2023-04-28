@@ -40,6 +40,18 @@ server {
 }
 ```
 
+## Apache
+
+With `URL_BASE` set to `/slskd`:
+
+```
+ProxyPass /slskd/ http://the.local.ip.address:5030/slskd/ upgrade=websocket
+ProxyPassReverse /slskd/ http://the.local.ip.address:5030/slskd/
+
+```
+
+From [discussion #890](https://github.com/slskd/slskd/discussions/890)
+
 ## IIS (Windows)
 
 You'll need the [URL rewrite module](https://learn.microsoft.com/en-us/iis/extensions/url-rewrite-module/using-the-url-rewrite-module) installed before you begin.
