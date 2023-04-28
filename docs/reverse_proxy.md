@@ -39,3 +39,27 @@ server {
         }
 }
 ```
+
+## IIS (Windows)
+
+You'll need the [URL rewrite module](https://learn.microsoft.com/en-us/iis/extensions/url-rewrite-module/using-the-url-rewrite-module) installed before you begin.
+
+Update the `web.config` for your root site to add a rewrite rule.  Here's an example that rewrites `<your site>/slskd`.
+
+You'll need to set `URL_BASE` to `/slskd` in the slskd config.
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+  <system.webServer>
+    <rewrite>
+        <rules>
+	    <rule name="slskd" stopProcessing="true">
+                <match url="slskd(/.*)" />
+                <action type="Rewrite" url="http://<ip of slskd>:<port of slskd>/slskd{R:1}" />
+            </rule>
+        </rules>
+    </rewrite>
+  </system.webServer>
+</configuration>
+```
