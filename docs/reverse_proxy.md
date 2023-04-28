@@ -54,11 +54,9 @@ From [discussion #890](https://github.com/slskd/slskd/discussions/890)
 
 ## IIS (Windows)
 
-You'll need the [URL rewrite module](https://learn.microsoft.com/en-us/iis/extensions/url-rewrite-module/using-the-url-rewrite-module) installed before you begin.
+You'll need the [URL rewrite module](https://learn.microsoft.com/en-us/iis/extensions/url-rewrite-module/using-the-url-rewrite-module) installed before you begin, and you'll need to set `URL_BASE` to `/slskd` in the slskd config.
 
-Update the `web.config` for your root site to add a rewrite rule.  Here's an example that rewrites `<your site>/slskd`.
-
-You'll need to set `URL_BASE` to `/slskd` in the slskd config.
+Update the `web.config` for your root site to add a rewrite rule.  Here's an example that rewrites `<your site>/slskd`:
 
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
