@@ -31,7 +31,6 @@ namespace slskd.Relay
     using Microsoft.AspNetCore.WebUtilities;
     using Microsoft.Net.Http.Headers;
     using Serilog;
-    using slskd.Cryptography;
     using slskd.Shares;
 
     /// <summary>
