@@ -50,22 +50,17 @@ jobs:
     strategy:
       matrix:
         runtime:
-          - "win-x86"
           - "win-x64"
           - "win-arm"
           - "win-arm64"
-          - "linux-x86"
           - "linux-x64"
           - "linux-arm"
           - "linux-arm64"
-          - "linux-musl-x86"
           - "linux-musl-x64"
           - "linux-musl-arm"
           - "linux-musl-arm64"
           - "osx-x64"
           - "osx-arm64"
-          - "freebsd-x64"
-          - "freebsd-arm64"
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -185,22 +180,17 @@ jobs:
     strategy:
       matrix:
         runtime:
-          - "win-x86"
           - "win-x64"
           - "win-arm"
           - "win-arm64"
-          - "linux-x86"
           - "linux-x64"
           - "linux-arm"
           - "linux-arm64"
-          - "linux-musl-x86"
           - "linux-musl-x64"
           - "linux-musl-arm"
           - "linux-musl-arm64"
           - "osx-x64"
           - "osx-arm64"
-          - "freebsd-x64"
-          - "freebsd-arm64"
     steps:
       - name: Checkout
         uses: actions/checkout@v2
