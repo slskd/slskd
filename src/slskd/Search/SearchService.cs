@@ -198,13 +198,25 @@ namespace slskd.Search
                     UpdateAndSaveChanges(search);
                 }));
 
-            var soulseekSearchTask = Client.SearchAsync(
+            Task<Soulseek.Search> soulseekSearchTask;
+            try
+            {
+                soulseekSearchTask = Client.SearchAsync(
                 query,
                 responseHandler: (response) => responses.Add(response),
                 scope,
                 token,
                 options,
                 cancellationToken: cancellationTokenSource.Token);
+            }
+            catch (Exception)
+            {
+                search.EndedAt = DateTime.UtcNow;
+                search.State = SearchStates.Errored;
+                UpdateAndSaveChanges(search);
+                await SearchHub.BroadcastUpdateAsync(search);
+                throw;
+            }
 
             _ = Task.Run(async () =>
             {
