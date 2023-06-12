@@ -38,6 +38,7 @@
     "eslint": "^8.16.0",
     "react-scripts": "^5.0.0"
   },
+    "css-select": "^3.1.0",
   "browserslist": {
     "production": [
       ">0.3%",
