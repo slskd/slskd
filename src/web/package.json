@@ -38,8 +38,10 @@
     "eslint": "^8.16.0",
     "react-scripts": "^5.0.0"
   },
+  "overrides": {
     "css-select": "^3.1.0",
     "css-what": "^5.0.1"
+  },
   "browserslist": {
     "production": [
       ">0.3%",
