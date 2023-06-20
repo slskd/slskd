@@ -19,11 +19,9 @@ using Microsoft.Extensions.Options;
 
 namespace slskd.Files
 {
-    using System;
     using System.Collections.Generic;
     using System.IO;
     using System.Linq;
-    using System.Linq.Expressions;
     using System.Threading.Tasks;
 
     /// <summary>
@@ -44,31 +42,48 @@ namespace slskd.Files
         private IOptionsSnapshot<Options> OptionsSnapshot { get; }
 
         /// <summary>
-        ///     Recursively lists all of the files in the downloads directory, starting from the optional <paramref name="parentDirectory"/>, and
-        ///     optionally applying the specified <paramref name="enumerationOptions"/>.
+        ///     Lists all of the directories in the specified <paramref name="parentDirectory"/>, optionally applying the
+        ///     specified <paramref name="enumerationOptions"/>.
+        /// </summary>
+        /// <param name="parentDirectory">The directory from which to start the listing.</param>
+        /// <param name="enumerationOptions">Optional enumeration options to apply.</param>
+        /// <returns>The list of found directories.</returns>
+        /// <exception cref="InvalidDirectoryException">
+        ///     Thrown if the specified directory is not rooted in an allowed directory.
+        /// </exception>
+        public async Task<IEnumerable<DirectoryInfo>> ListDirectoriesAsync(string parentDirectory, EnumerationOptions enumerationOptions = null)
+        {
+            if (!IsPermissibleDirectory(parentDirectory, OptionsSnapshot.Value.Directories))
+            {
+                throw new InvalidDirectoryException($"The directory '{parentDirectory}' is not rooted in any of the allowed directories");
+            }
+
+            return await Task.Run(() => new DirectoryInfo(parentDirectory).GetDirectories("*", enumerationOptions));
+        }
+
+        /// <summary>
+        ///     Lists all of the files in the specified <paramref name="parentDirectory"/>, optionally applying the specified <paramref name="enumerationOptions"/>.
         /// </summary>
         /// <param name="parentDirectory">An optional parent directory from which to begin searching.</param>
         /// <param name="enumerationOptions">Optional enumeration options to apply.</param>
         /// <returns>The list of found files.</returns>
-        public async Task<IEnumerable<FileInfo>> ListDownloadedFiles(string parentDirectory = null, EnumerationOptions enumerationOptions = null)
+        /// <exception cref="InvalidDirectoryException">
+        ///     Thrown if the specified directory is not rooted in an allowed directory.
+        /// </exception>
+        public async Task<IEnumerable<FileInfo>> ListFilesAsync(string parentDirectory, EnumerationOptions enumerationOptions = null)
         {
-            var root = OptionsSnapshot.Value.Directories.Downloads;
-            parentDirectory = Path.Combine(root, parentDirectory) ?? root;
-            var dir = new DirectoryInfo(parentDirectory);
-
-            enumerationOptions ??= new EnumerationOptions();
-
-            var files = await Task.Run(() =>
+            if (!IsPermissibleDirectory(parentDirectory, OptionsSnapshot.Value.Directories))
             {
-                return dir.GetFiles("*", enumerationOptions);
-            });
+                throw new InvalidDirectoryException($"The directory '{parentDirectory}' is not rooted in any of the applowed directories");
+            }
 
-            return files.AsEnumerable();
+            return await Task.Run(() => new DirectoryInfo(parentDirectory).GetFiles("*", enumerationOptions));
         }
 
-        public Task<IEnumerable<FileInfo>> ListIncompleteFiles(Expression<Func<FileInfo, bool>> expression = null)
+        private bool IsPermissibleDirectory(string dir, Options.DirectoriesOptions options)
         {
-            throw new NotImplementedException();
+            var allowedRoots = new[] { options.Downloads, options.Incomplete };
+            return allowedRoots.Any(r => dir.StartsWith(r));
         }
     }
 }
