@@ -43,18 +43,24 @@ namespace slskd.Files
 
         private IOptionsSnapshot<Options> OptionsSnapshot { get; }
 
-        public async Task<IEnumerable<FileInfo>> ListDownloadedFiles()
+        /// <summary>
+        ///     Recursively lists all of the files in the downloads directory, starting from the optional <paramref name="parentDirectory"/>, and
+        ///     optionally applying the specified <paramref name="enumerationOptions"/>.
+        /// </summary>
+        /// <param name="parentDirectory">An optional parent directory from which to begin searching.</param>
+        /// <param name="enumerationOptions">Optional enumeration options to apply.</param>
+        /// <returns>The list of found files.</returns>
+        public async Task<IEnumerable<FileInfo>> ListDownloadedFiles(string parentDirectory = null, EnumerationOptions enumerationOptions = null)
         {
-            var dir = new DirectoryInfo(OptionsSnapshot.Value.Directories.Downloads);
+            var root = OptionsSnapshot.Value.Directories.Downloads;
+            parentDirectory = Path.Combine(root, parentDirectory) ?? root;
+            var dir = new DirectoryInfo(parentDirectory);
+
+            enumerationOptions ??= new EnumerationOptions();
 
             var files = await Task.Run(() =>
             {
-                return dir.GetFiles("*", new EnumerationOptions
-                {
-                    AttributesToSkip = FileAttributes.Hidden | FileAttributes.System,
-                    IgnoreInaccessible = false,
-                    RecurseSubdirectories = true,
-                });
+                return dir.GetFiles("*", enumerationOptions);
             });
 
             return files.AsEnumerable();
