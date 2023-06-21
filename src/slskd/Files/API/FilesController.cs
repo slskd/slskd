@@ -21,6 +21,7 @@ namespace slskd.Files.API
 {
     using System.Collections.Generic;
     using System.IO;
+    using System.Threading.Tasks;
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
 
@@ -45,101 +46,28 @@ namespace slskd.Files.API
         private IFileService Files { get; }
         private IOptionsSnapshot<Options> OptionsSnapshot { get; }
 
-        [HttpGet("downloads")]
-        [Authorize(Policy = AuthPolicy.Any)]
-        [ProducesResponseType(typeof(IEnumerable<FileSystemInfo>), 200)]
-        public IActionResult GetAllDownloadContentsAsync([FromQuery]bool recursive = false)
-        {
-            try
-            {
-                var dirs = Files.ListContentsAsync(OptionsSnapshot.Value.Directories.Downloads, new EnumerationOptions
-                {
-                    AttributesToSkip = FileAttributes.System,
-                    RecurseSubdirectories = recursive,
-                });
-
-                return Ok(dirs);
-            }
-            catch (InvalidDirectoryException)
-            {
-                return Forbid();
-            }
-            catch (NotFoundException)
-            {
-                return NotFound();
-            }
-        }
-
         [HttpGet("downloads/{base64SubdirectoryName}")]
         [Authorize(Policy = AuthPolicy.Any)]
-        [ProducesResponseType(typeof(IEnumerable<FileSystemInfo>), 200)]
-        public IActionResult GetSpecificDownloadContentsAsync([FromRoute]string base64SubdirectoryName, [FromQuery]bool recursive = false)
+        [ProducesResponseType(typeof(IEnumerable<FilesystemDirectory>), 200)]
+        public async Task<IActionResult> GetDownloadContentsAsync([FromRoute]string base64SubdirectoryName = null, [FromQuery]bool recursive = false)
         {
-            var decodedDir = base64SubdirectoryName.FromBase64();
-            var fullDir = Path.Combine(OptionsSnapshot.Value.Directories.Downloads, decodedDir);
+            var dir = OptionsSnapshot.Value.Directories.Downloads;
+
+            if (!string.IsNullOrEmpty(base64SubdirectoryName))
+            {
+                var decodedDir = base64SubdirectoryName.FromBase64();
+                dir = Path.Combine(dir, decodedDir);
+            }
 
             try
             {
-                var dirs = Files.ListContentsAsync(fullDir, new EnumerationOptions
+                var response = await Files.ListContentsAsync(dir, new EnumerationOptions
                 {
                     AttributesToSkip = FileAttributes.System,
                     RecurseSubdirectories = recursive,
                 });
 
-                return Ok(dirs);
-            }
-            catch (InvalidDirectoryException)
-            {
-                return Forbid();
-            }
-            catch (NotFoundException)
-            {
-                return NotFound();
-            }
-        }
-
-        [HttpGet("incomplete")]
-        [Authorize(Policy = AuthPolicy.Any)]
-        [ProducesResponseType(typeof(IEnumerable<FileSystemInfo>), 200)]
-        public IActionResult GetAllIncompleteDirectoriesAsync([FromQuery] bool recursive = false)
-        {
-            try
-            {
-                var dirs = Files.ListContentsAsync(OptionsSnapshot.Value.Directories.Incomplete, new EnumerationOptions
-                {
-                    AttributesToSkip = FileAttributes.System,
-                    RecurseSubdirectories = recursive,
-                });
-
-                return Ok(dirs);
-            }
-            catch (InvalidDirectoryException)
-            {
-                return Forbid();
-            }
-            catch (NotFoundException)
-            {
-                return NotFound();
-            }
-        }
-
-        [HttpGet("incomplete/{base64SubdirectoryName}")]
-        [Authorize(Policy = AuthPolicy.Any)]
-        [ProducesResponseType(typeof(IEnumerable<FileSystemInfo>), 200)]
-        public IActionResult GetSpecificIncompleteDirectoriesAsync([FromRoute] string base64SubdirectoryName, [FromQuery] bool recursive = false)
-        {
-            var decodedDir = base64SubdirectoryName.FromBase64();
-            var fullDir = Path.Combine(OptionsSnapshot.Value.Directories.Incomplete, decodedDir);
-
-            try
-            {
-                var dirs = Files.ListContentsAsync(fullDir, new EnumerationOptions
-                {
-                    AttributesToSkip = FileAttributes.System,
-                    RecurseSubdirectories = recursive,
-                });
-
-                return Ok(dirs);
+                return Ok(response);
             }
             catch (InvalidDirectoryException)
             {
