@@ -27,26 +27,16 @@ namespace slskd.Files
     public interface IFileService
     {
         /// <summary>
-        ///     Lists all of the directories in the specified <paramref name="parentDirectory"/>, optionally applying the
+        ///     Lists all of the contents of the specified <paramref name="parentDirectory"/>, optionally applying the
         ///     specified <paramref name="enumerationOptions"/>.
         /// </summary>
         /// <param name="parentDirectory">The directory from which to start the listing.</param>
         /// <param name="enumerationOptions">Optional enumeration options to apply.</param>
-        /// <returns>The list of found directories.</returns>
+        /// <returns>The list of found contents.</returns>
         /// <exception cref="InvalidDirectoryException">
         ///     Thrown if the specified directory is not rooted in an allowed directory.
         /// </exception>
-        Task<IEnumerable<DirectoryInfo>> ListDirectoriesAsync(string parentDirectory, EnumerationOptions enumerationOptions = null);
-
-        /// <summary>
-        ///     Lists all of the files in the specified <paramref name="parentDirectory"/>, optionally applying the specified <paramref name="enumerationOptions"/>.
-        /// </summary>
-        /// <param name="parentDirectory">An optional parent directory from which to begin searching.</param>
-        /// <param name="enumerationOptions">Optional enumeration options to apply.</param>
-        /// <returns>The list of found files.</returns>
-        /// <exception cref="InvalidDirectoryException">
-        ///     Thrown if the specified directory is not rooted in an allowed directory.
-        /// </exception>
-        Task<IEnumerable<FileInfo>> ListFilesAsync(string parentDirectory, EnumerationOptions enumerationOptions = null);
+        /// <exception cref="NotFoundException">Thrown if the specified directory does not exist.</exception>
+        Task<IEnumerable<FileSystemInfo>> ListContentsAsync(string parentDirectory, EnumerationOptions enumerationOptions = null);
     }
 }

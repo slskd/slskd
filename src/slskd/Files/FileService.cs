@@ -42,42 +42,29 @@ namespace slskd.Files
         private IOptionsSnapshot<Options> OptionsSnapshot { get; }
 
         /// <summary>
-        ///     Lists all of the directories in the specified <paramref name="parentDirectory"/>, optionally applying the
+        ///     Lists all of the contents of the specified <paramref name="parentDirectory"/>, optionally applying the
         ///     specified <paramref name="enumerationOptions"/>.
         /// </summary>
         /// <param name="parentDirectory">The directory from which to start the listing.</param>
         /// <param name="enumerationOptions">Optional enumeration options to apply.</param>
-        /// <returns>The list of found directories.</returns>
+        /// <returns>The list of found contents.</returns>
         /// <exception cref="InvalidDirectoryException">
         ///     Thrown if the specified directory is not rooted in an allowed directory.
         /// </exception>
-        public async Task<IEnumerable<DirectoryInfo>> ListDirectoriesAsync(string parentDirectory, EnumerationOptions enumerationOptions = null)
+        /// <exception cref="NotFoundException">Thrown if the specified directory does not exist.</exception>
+        public async Task<IEnumerable<FileSystemInfo>> ListContentsAsync(string parentDirectory, EnumerationOptions enumerationOptions = null)
         {
             if (!IsPermissibleDirectory(parentDirectory, OptionsSnapshot.Value.Directories))
             {
                 throw new InvalidDirectoryException($"The directory '{parentDirectory}' is not rooted in any of the allowed directories");
             }
 
-            return await Task.Run(() => new DirectoryInfo(parentDirectory).GetDirectories("*", enumerationOptions));
-        }
-
-        /// <summary>
-        ///     Lists all of the files in the specified <paramref name="parentDirectory"/>, optionally applying the specified <paramref name="enumerationOptions"/>.
-        /// </summary>
-        /// <param name="parentDirectory">An optional parent directory from which to begin searching.</param>
-        /// <param name="enumerationOptions">Optional enumeration options to apply.</param>
-        /// <returns>The list of found files.</returns>
-        /// <exception cref="InvalidDirectoryException">
-        ///     Thrown if the specified directory is not rooted in an allowed directory.
-        /// </exception>
-        public async Task<IEnumerable<FileInfo>> ListFilesAsync(string parentDirectory, EnumerationOptions enumerationOptions = null)
-        {
-            if (!IsPermissibleDirectory(parentDirectory, OptionsSnapshot.Value.Directories))
+            if (!Directory.Exists(parentDirectory))
             {
-                throw new InvalidDirectoryException($"The directory '{parentDirectory}' is not rooted in any of the applowed directories");
+                throw new NotFoundException($"The directory '{parentDirectory}' does not exist");
             }
 
-            return await Task.Run(() => new DirectoryInfo(parentDirectory).GetFiles("*", enumerationOptions));
+            return await Task.Run(() => new DirectoryInfo(parentDirectory).GetFileSystemInfos("*", enumerationOptions));
         }
 
         private bool IsPermissibleDirectory(string dir, Options.DirectoriesOptions options)
