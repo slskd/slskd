@@ -42,7 +42,7 @@ namespace slskd.Files
         private IOptionsSnapshot<Options> OptionsSnapshot { get; }
 
         /// <summary>
-        ///     Lists all of the contents of the specified <paramref name="parentDirectory"/>, optionally applying the
+        ///     Lists the contents in the specified <paramref name="parentDirectory"/>, optionally applying the
         ///     specified <paramref name="enumerationOptions"/>.
         /// </summary>
         /// <param name="parentDirectory">The directory from which to start the listing.</param>
@@ -52,7 +52,7 @@ namespace slskd.Files
         ///     Thrown if the specified directory is not rooted in an allowed directory.
         /// </exception>
         /// <exception cref="NotFoundException">Thrown if the specified directory does not exist.</exception>
-        public async Task<IEnumerable<FileSystemInfo>> ListContentsAsync(string parentDirectory, EnumerationOptions enumerationOptions = null)
+        public async Task<IEnumerable<FilesystemDirectory>> ListContentsAsync(string parentDirectory, EnumerationOptions enumerationOptions = null)
         {
             if (!IsPermissibleDirectory(parentDirectory, OptionsSnapshot.Value.Directories))
             {
@@ -64,7 +64,23 @@ namespace slskd.Files
                 throw new NotFoundException($"The directory '{parentDirectory}' does not exist");
             }
 
-            return await Task.Run(() => new DirectoryInfo(parentDirectory).GetFileSystemInfos("*", enumerationOptions));
+            return await Task.Run(() =>
+            {
+                var dir = new DirectoryInfo(parentDirectory);
+
+                var contents = dir.GetFileSystemInfos("*", enumerationOptions);
+
+                var files = contents
+                    .OfType<FileInfo>()
+                    .Select(f => FilesystemFile.FromFileInfo(f));
+
+                var dirs = contents
+                    .OfType<DirectoryInfo>()
+                    .Prepend(dir)
+                    .Select(d => FilesystemDirectory.FromDirectoryInfo(d) with { Files = files.Where(f => f.Parent == d.FullName) });
+
+                return dirs;
+            });
         }
 
         private bool IsPermissibleDirectory(string dir, Options.DirectoriesOptions options)

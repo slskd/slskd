@@ -27,7 +27,7 @@ namespace slskd.Files
     public interface IFileService
     {
         /// <summary>
-        ///     Lists all of the contents of the specified <paramref name="parentDirectory"/>, optionally applying the
+        ///     Lists the contents in the specified <paramref name="parentDirectory"/>, optionally applying the
         ///     specified <paramref name="enumerationOptions"/>.
         /// </summary>
         /// <param name="parentDirectory">The directory from which to start the listing.</param>
@@ -37,6 +37,6 @@ namespace slskd.Files
         ///     Thrown if the specified directory is not rooted in an allowed directory.
         /// </exception>
         /// <exception cref="NotFoundException">Thrown if the specified directory does not exist.</exception>
-        Task<IEnumerable<FileSystemInfo>> ListContentsAsync(string parentDirectory, EnumerationOptions enumerationOptions = null);
+        Task<IEnumerable<FilesystemDirectory>> ListContentsAsync(string parentDirectory, EnumerationOptions enumerationOptions = null);
     }
 }
