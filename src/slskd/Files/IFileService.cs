@@ -30,13 +30,12 @@ namespace slskd.Files
         ///     Lists the contents in the specified <paramref name="parentDirectory"/>, optionally applying the
         ///     specified <paramref name="enumerationOptions"/>.
         /// </summary>
-        /// <param name="parentDirectory">The directory from which to start the listing.</param>
+        /// <param name="rootDirectory">The root directory.</param>
+        /// <param name="parentDirectory">An optional subdirectory from which to start the listing.</param>
         /// <param name="enumerationOptions">Optional enumeration options to apply.</param>
         /// <returns>The list of found contents.</returns>
-        /// <exception cref="InvalidDirectoryException">
-        ///     Thrown if the specified directory is not rooted in an allowed directory.
-        /// </exception>
         /// <exception cref="NotFoundException">Thrown if the specified directory does not exist.</exception>
-        Task<IEnumerable<FilesystemDirectory>> ListContentsAsync(string parentDirectory, EnumerationOptions enumerationOptions = null);
+        /// <exception cref="ForbiddenException">Thrown if the specified directory is restricted.</exception>
+        Task<IEnumerable<FilesystemDirectory>> ListContentsAsync(string rootDirectory, string parentDirectory = null, EnumerationOptions enumerationOptions = null);
     }
 }

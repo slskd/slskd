@@ -32,7 +32,6 @@ namespace slskd.Files
         /// <summary>
         ///     Initializes a new instance of the <see cref="FileService"/> class.
         /// </summary>
-        /// <param name="optionsSnapshot"></param>
         public FileService(
             IOptionsSnapshot<Options> optionsSnapshot)
         {
@@ -45,28 +44,32 @@ namespace slskd.Files
         ///     Lists the contents in the specified <paramref name="parentDirectory"/>, optionally applying the
         ///     specified <paramref name="enumerationOptions"/>.
         /// </summary>
-        /// <param name="parentDirectory">The directory from which to start the listing.</param>
+        /// <param name="rootDirectory">The root directory.</param>
+        /// <param name="parentDirectory">An optional subdirectory from which to start the listing.</param>
         /// <param name="enumerationOptions">Optional enumeration options to apply.</param>
         /// <returns>The list of found contents.</returns>
-        /// <exception cref="InvalidDirectoryException">
-        ///     Thrown if the specified directory is not rooted in an allowed directory.
-        /// </exception>
         /// <exception cref="NotFoundException">Thrown if the specified directory does not exist.</exception>
-        public async Task<IEnumerable<FilesystemDirectory>> ListContentsAsync(string parentDirectory, EnumerationOptions enumerationOptions = null)
+        /// <exception cref="ForbiddenException">Thrown if the specified directory is restricted.</exception>
+        public async Task<IEnumerable<FilesystemDirectory>> ListContentsAsync(string rootDirectory, string parentDirectory = null, EnumerationOptions enumerationOptions = null)
         {
-            if (!IsPermissibleDirectory(parentDirectory, OptionsSnapshot.Value.Directories))
+            var configuredDirectories = OptionsSnapshot.Value.Directories;
+            var allowedDirectories = new[] { configuredDirectories.Incomplete, configuredDirectories.Downloads };
+
+            if (!allowedDirectories.Any(d => rootDirectory == d))
             {
-                throw new InvalidDirectoryException($"The directory '{parentDirectory}' is not rooted in any of the allowed directories");
+                throw new ForbiddenException($"For security reasons, only the configured Downloads and Incomplete directories can be listed");
             }
 
-            if (!Directory.Exists(parentDirectory))
+            var fullDirectory = Path.Combine(rootDirectory, parentDirectory);
+
+            if (!Directory.Exists(fullDirectory))
             {
-                throw new NotFoundException($"The directory '{parentDirectory}' does not exist");
+                throw new NotFoundException($"The directory '{fullDirectory}' does not exist");
             }
 
             return await Task.Run(() =>
             {
-                var dir = new DirectoryInfo(parentDirectory);
+                var dir = new DirectoryInfo(fullDirectory);
 
                 var contents = dir.GetFileSystemInfos("*", enumerationOptions);
 
@@ -77,16 +80,16 @@ namespace slskd.Files
                 var dirs = contents
                     .OfType<DirectoryInfo>()
                     .Prepend(dir)
-                    .Select(d => FilesystemDirectory.FromDirectoryInfo(d) with { Files = files.Where(f => f.Parent == d.FullName) });
+                    .Select(d => FilesystemDirectory.FromDirectoryInfo(d) with
+                    {
+                        FullName = d.FullName.ReplaceFirst(rootDirectory, string.Empty).TrimStart('\\', '/'),
+                        Files = files
+                            .Where(f => Path.GetDirectoryName(f.FullName) == d.FullName)
+                            .Select(f => f with { FullName = f.FullName.ReplaceFirst(rootDirectory, string.Empty).TrimStart('\\', '/') }),
+                    });
 
                 return dirs;
             });
-        }
-
-        private bool IsPermissibleDirectory(string dir, Options.DirectoriesOptions options)
-        {
-            var allowedRoots = new[] { options.Downloads, options.Incomplete };
-            return allowedRoots.Any(r => dir.StartsWith(r));
         }
     }
 }
