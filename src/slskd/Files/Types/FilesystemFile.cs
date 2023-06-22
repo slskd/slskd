@@ -22,7 +22,6 @@ namespace slskd.Files
 
     public record FilesystemFile
     {
-        public string Parent { get; init; }
         public string Name { get; init; }
         public string FullName { get; init; }
         public long Length { get; init; }
@@ -34,7 +33,6 @@ namespace slskd.Files
         {
             return new FilesystemFile
             {
-                Parent = Path.GetDirectoryName(i.FullName),
                 Name = i.Name,
                 FullName = i.FullName,
                 Length = i.Length,
