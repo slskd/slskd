@@ -1,4 +1,4 @@
-﻿// <copyright file="InvalidDirectoryException.cs" company="slskd Team">
+﻿// <copyright file="ForbiddenException.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -22,31 +22,31 @@ namespace slskd
     using System.Runtime.Serialization;
 
     /// <summary>
-    ///     Represents errors that originate when a searched resource can't be located.
+    ///     Represents errors that originate when an attempt is made to access a restricted resource.
     /// </summary>
     [ExcludeFromCodeCoverage]
     [Serializable]
-    public class InvalidDirectoryException : SlskdException
+    public class ForbiddenException : SlskdException
     {
         /// <summary>
-        ///     Initializes a new instance of the <see cref="InvalidDirectoryException"/> class.
+        ///     Initializes a new instance of the <see cref="ForbiddenException"/> class.
         /// </summary>
-        public InvalidDirectoryException()
+        public ForbiddenException()
             : base()
         {
         }
 
         /// <summary>
-        ///     Initializes a new instance of the <see cref="InvalidDirectoryException"/> class with a specified error message.
+        ///     Initializes a new instance of the <see cref="ForbiddenException"/> class with a specified error message.
         /// </summary>
         /// <param name="message">The message that describes the error.</param>
-        public InvalidDirectoryException(string message)
+        public ForbiddenException(string message)
             : base(message)
         {
         }
 
         /// <summary>
-        ///     Initializes a new instance of the <see cref="InvalidDirectoryException"/> class with a specified error message and a
+        ///     Initializes a new instance of the <see cref="ForbiddenException"/> class with a specified error message and a
         ///     reference to the inner exception that is the cause of this exception.
         /// </summary>
         /// <param name="message">The message that describes the error.</param>
@@ -54,17 +54,17 @@ namespace slskd
         ///     The exception that is the cause of the current exception, or a null reference (Nothing in Visual Basic) if no
         ///     inner exception is specified.
         /// </param>
-        public InvalidDirectoryException(string message, Exception innerException)
+        public ForbiddenException(string message, Exception innerException)
             : base(message, innerException)
         {
         }
 
         /// <summary>
-        ///     Initializes a new instance of the <see cref="InvalidDirectoryException"/> class with serialized data.
+        ///     Initializes a new instance of the <see cref="ForbiddenException"/> class with serialized data.
         /// </summary>
         /// <param name="info">The SerializationInfo that holds the serialized object data about the exception being thrown.</param>
         /// <param name="context">The StreamingContext that contains contextual information about the source or destination.</param>
-        protected InvalidDirectoryException(SerializationInfo info, StreamingContext context)
+        protected ForbiddenException(SerializationInfo info, StreamingContext context)
             : base(info, context)
         {
         }
