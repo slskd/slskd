@@ -20,6 +20,7 @@ using Microsoft.Extensions.Options;
 namespace slskd.Files.API
 {
     using System.Collections.Generic;
+    using System.ComponentModel.DataAnnotations;
     using System.IO;
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.Authorization;
@@ -46,22 +47,16 @@ namespace slskd.Files.API
         private IFileService Files { get; }
         private IOptionsSnapshot<Options> OptionsSnapshot { get; }
 
-        [HttpGet("downloads/{base64SubdirectoryName}")]
+        [HttpGet("downloads")]
         [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(typeof(IEnumerable<FilesystemDirectory>), 200)]
-        public async Task<IActionResult> GetDownloadContentsAsync([FromRoute]string base64SubdirectoryName = null, [FromQuery]bool recursive = false)
+        public async Task<IActionResult> GetDownloadContentsAsync([FromQuery] bool recursive = false)
         {
-            var dir = OptionsSnapshot.Value.Directories.Downloads;
-
-            if (!string.IsNullOrEmpty(base64SubdirectoryName))
-            {
-                var decodedDir = base64SubdirectoryName.FromBase64();
-                dir = Path.Combine(dir, decodedDir);
-            }
-
             try
             {
-                var response = await Files.ListContentsAsync(dir, new EnumerationOptions
+                var response = await Files.ListContentsAsync(
+                    rootDirectory: OptionsSnapshot.Value.Directories.Downloads,
+                    enumerationOptions: new EnumerationOptions
                 {
                     AttributesToSkip = FileAttributes.System,
                     RecurseSubdirectories = recursive,
@@ -69,7 +64,94 @@ namespace slskd.Files.API
 
                 return Ok(response);
             }
-            catch (InvalidDirectoryException)
+            catch (ForbiddenException)
+            {
+                return Forbid();
+            }
+            catch (NotFoundException)
+            {
+                return NotFound();
+            }
+        }
+
+        [HttpGet("downloads/{base64SubdirectoryName}")]
+        [Authorize(Policy = AuthPolicy.Any)]
+        [ProducesResponseType(typeof(IEnumerable<FilesystemDirectory>), 200)]
+        public async Task<IActionResult> GetDownloadSubdirectoryContentsAsync([FromRoute] string base64SubdirectoryName, [FromQuery]bool recursive = false)
+        {
+            var decodedDir = base64SubdirectoryName.FromBase64();
+
+            try
+            {
+                var response = await Files.ListContentsAsync(
+                    rootDirectory: OptionsSnapshot.Value.Directories.Downloads,
+                    parentDirectory: decodedDir,
+                    enumerationOptions: new EnumerationOptions
+                {
+                    AttributesToSkip = FileAttributes.System,
+                    RecurseSubdirectories = recursive,
+                });
+
+                return Ok(response);
+            }
+            catch (ForbiddenException)
+            {
+                return Forbid();
+            }
+            catch (NotFoundException)
+            {
+                return NotFound();
+            }
+        }
+
+        [HttpGet("incomplete")]
+        [Authorize(Policy = AuthPolicy.Any)]
+        [ProducesResponseType(typeof(IEnumerable<FilesystemDirectory>), 200)]
+        public async Task<IActionResult> GetIncompleteContentsAsync([FromQuery] bool recursive = false)
+        {
+            try
+            {
+                var response = await Files.ListContentsAsync(
+                    rootDirectory: OptionsSnapshot.Value.Directories.Incomplete,
+                    enumerationOptions: new EnumerationOptions
+                    {
+                        AttributesToSkip = FileAttributes.System,
+                        RecurseSubdirectories = recursive,
+                    });
+
+                return Ok(response);
+            }
+            catch (ForbiddenException)
+            {
+                return Forbid();
+            }
+            catch (NotFoundException)
+            {
+                return NotFound();
+            }
+        }
+
+        [HttpGet("incomplete/{base64SubdirectoryName}")]
+        [Authorize(Policy = AuthPolicy.Any)]
+        [ProducesResponseType(typeof(IEnumerable<FilesystemDirectory>), 200)]
+        public async Task<IActionResult> GetIncompleteSubdirectoryContentsAsync([FromRoute, Required] string base64SubdirectoryName, [FromQuery] bool recursive = false)
+        {
+            var decodedDir = base64SubdirectoryName.FromBase64();
+
+            try
+            {
+                var response = await Files.ListContentsAsync(
+                    rootDirectory: OptionsSnapshot.Value.Directories.Incomplete,
+                    parentDirectory: decodedDir,
+                    enumerationOptions: new EnumerationOptions
+                {
+                    AttributesToSkip = FileAttributes.System,
+                    RecurseSubdirectories = recursive,
+                });
+
+                return Ok(response);
+            }
+            catch (ForbiddenException)
             {
                 return Forbid();
             }
