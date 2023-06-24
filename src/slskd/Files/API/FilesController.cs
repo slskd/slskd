@@ -25,6 +25,7 @@ namespace slskd.Files.API
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
+    using OneOf;
 
     /// <summary>
     ///     Files.
@@ -47,7 +48,7 @@ namespace slskd.Files.API
         private IFileService Files { get; }
         private IOptionsSnapshot<Options> OptionsSnapshot { get; }
 
-        [HttpGet("downloads")]
+        [HttpGet("downloads/directories")]
         [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(typeof(IEnumerable<FilesystemDirectory>), 200)]
         public async Task<IActionResult> GetDownloadContentsAsync([FromQuery] bool recursive = false)
@@ -74,7 +75,7 @@ namespace slskd.Files.API
             }
         }
 
-        [HttpGet("downloads/{base64SubdirectoryName}")]
+        [HttpGet("downloads/directories/{base64SubdirectoryName}")]
         [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(typeof(IEnumerable<FilesystemDirectory>), 200)]
         public async Task<IActionResult> GetDownloadSubdirectoryContentsAsync([FromRoute] string base64SubdirectoryName, [FromQuery]bool recursive = false)
@@ -104,7 +105,57 @@ namespace slskd.Files.API
             }
         }
 
-        [HttpGet("incomplete")]
+        [HttpDelete("downloads/directories/{base64SubdirectoryName")]
+        [Authorize(Policy = AuthPolicy.Any)]
+        [ProducesResponseType(typeof(Dictionary<string, OneOf<bool, string>>), 204)]
+        public async Task<IActionResult> DeleteDownloadSubdirectoryAsync([FromRoute] string base64SubdirectoryName)
+        {
+            var decodedDir = base64SubdirectoryName.FromBase64();
+
+            try
+            {
+                var results = await Files.DeleteDirectoriesAsync(OptionsSnapshot.Value.Directories.Downloads, decodedDir);
+
+                return results[decodedDir].Match(
+                    success => NoContent(),
+                    failure => throw failure);
+            }
+            catch (ForbiddenException)
+            {
+                return Forbid();
+            }
+            catch (NotFoundException)
+            {
+                return NotFound();
+            }
+        }
+
+        [HttpDelete("downloads/files/{base64Filename}")]
+        [Authorize(Policy = AuthPolicy.Any)]
+        [ProducesResponseType(typeof(Dictionary<string, OneOf<bool, string>>), 204)]
+        public async Task<IActionResult> DeleteDownloadFileAsync([FromRoute] string base64filename)
+        {
+            var decodedFilename = base64filename.FromBase64();
+
+            try
+            {
+                var results = await Files.DeleteFilesAsync(OptionsSnapshot.Value.Directories.Downloads, base64filename);
+
+                return results[decodedFilename].Match(
+                    success => NoContent(),
+                    failure => throw failure);
+            }
+            catch (ForbiddenException)
+            {
+                return Forbid();
+            }
+            catch (NotFoundException)
+            {
+                return NotFound();
+            }
+        }
+
+        [HttpGet("incomplete/directories")]
         [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(typeof(IEnumerable<FilesystemDirectory>), 200)]
         public async Task<IActionResult> GetIncompleteContentsAsync([FromQuery] bool recursive = false)
@@ -131,7 +182,7 @@ namespace slskd.Files.API
             }
         }
 
-        [HttpGet("incomplete/{base64SubdirectoryName}")]
+        [HttpGet("incomplete/directories/{base64SubdirectoryName}")]
         [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(typeof(IEnumerable<FilesystemDirectory>), 200)]
         public async Task<IActionResult> GetIncompleteSubdirectoryContentsAsync([FromRoute, Required] string base64SubdirectoryName, [FromQuery] bool recursive = false)
@@ -150,6 +201,56 @@ namespace slskd.Files.API
                 });
 
                 return Ok(response);
+            }
+            catch (ForbiddenException)
+            {
+                return Forbid();
+            }
+            catch (NotFoundException)
+            {
+                return NotFound();
+            }
+        }
+
+        [HttpDelete("incomplete/directories/{base64SubdirectoryName")]
+        [Authorize(Policy = AuthPolicy.Any)]
+        [ProducesResponseType(typeof(Dictionary<string, OneOf<bool, string>>), 204)]
+        public async Task<IActionResult> DeleteIncompleteSubdirectoryAsync([FromRoute] string base64SubdirectoryName)
+        {
+            var decodedDir = base64SubdirectoryName.FromBase64();
+
+            try
+            {
+                var results = await Files.DeleteDirectoriesAsync(OptionsSnapshot.Value.Directories.Incomplete, decodedDir);
+
+                return results[decodedDir].Match(
+                    success => NoContent(),
+                    failure => throw failure);
+            }
+            catch (ForbiddenException)
+            {
+                return Forbid();
+            }
+            catch (NotFoundException)
+            {
+                return NotFound();
+            }
+        }
+
+        [HttpDelete("incomplete/files/{base64Filename}")]
+        [Authorize(Policy = AuthPolicy.Any)]
+        [ProducesResponseType(typeof(Dictionary<string, OneOf<bool, string>>), 204)]
+        public async Task<IActionResult> DeleteIncompleteFileAsync([FromRoute] string base64filename)
+        {
+            var decodedFilename = base64filename.FromBase64();
+
+            try
+            {
+                var results = await Files.DeleteFilesAsync(OptionsSnapshot.Value.Directories.Incomplete, base64filename);
+
+                return results[decodedFilename].Match(
+                    success => NoContent(),
+                    failure => throw failure);
             }
             catch (ForbiddenException)
             {
