@@ -19,10 +19,12 @@ using Microsoft.Extensions.Options;
 
 namespace slskd.Files
 {
+    using System;
     using System.Collections.Generic;
     using System.IO;
     using System.Linq;
     using System.Threading.Tasks;
+    using OneOf;
 
     /// <summary>
     ///     Manages files on disk.
@@ -38,11 +40,105 @@ namespace slskd.Files
             OptionsSnapshot = optionsSnapshot;
         }
 
+        private IEnumerable<string> AllowedDirectories => new[] { OptionsSnapshot.Value.Directories.Downloads, OptionsSnapshot.Value.Directories.Incomplete };
         private IOptionsSnapshot<Options> OptionsSnapshot { get; }
 
         /// <summary>
-        ///     Lists the contents in the specified <paramref name="parentDirectory"/>, optionally applying the
-        ///     specified <paramref name="enumerationOptions"/>.
+        ///     Deletes the specified <paramref name="directories"/>.
+        /// </summary>
+        /// <remarks>
+        ///     Returns a dictionary keyed on directory name and containing a result for each specified directory. Exceptions are
+        ///     contained in the result, and are not thrown.
+        /// </remarks>
+        /// <param name="rootDirectory">The root directory.</param>
+        /// <param name="directories">The directories to delete.</param>
+        /// <returns>The operation context.</returns>
+        /// <exception cref="NotFoundException">Thrown if a specified directory does not exist.</exception>
+        /// <exception cref="ForbiddenException">Thrown if a specified directory is restricted.</exception>
+        public async Task<Dictionary<string, OneOf<bool, Exception>>> DeleteDirectoriesAsync(string rootDirectory, params string[] directories)
+        {
+            if (!AllowedDirectories.Any(d => rootDirectory == d))
+            {
+                throw new ForbiddenException($"For security reasons, only application-controlled directories can be deleted");
+            }
+
+            await Task.Yield();
+
+            Dictionary<string, OneOf<bool, Exception>> results = new();
+
+            foreach (var directory in directories)
+            {
+                try
+                {
+                    Directory.Delete(Path.Combine(rootDirectory, directory), recursive: true);
+                    results.Add(directory, true);
+                }
+                catch (FileNotFoundException)
+                {
+                    results.Add(directory, new NotFoundException($"The directory '{directory}' does not exist"));
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    results.Add(directory, new ForbiddenException());
+                }
+                catch (Exception ex)
+                {
+                    results.Add(directory, ex);
+                }
+            }
+
+            return results;
+        }
+
+        /// <summary>
+        ///     Deletes the specified <paramref name="files"/>.
+        /// </summary>
+        /// <remarks>
+        ///     Returns a dictionary keyed on directory name and containing a result for each specified directory. Exceptions are
+        ///     contained in the result, and are not thrown.
+        /// </remarks>
+        /// <param name="rootDirectory">The root directory.</param>
+        /// <param name="files">The list of files to delete.</param>
+        /// <returns>The operation context.</returns>
+        /// <exception cref="NotFoundException">Thrown if a specified file does not exist.</exception>
+        /// <exception cref="ForbiddenException">Thrown if a specified file is restricted.</exception>
+        public async Task<Dictionary<string, OneOf<bool, Exception>>> DeleteFilesAsync(string rootDirectory, params string[] files)
+        {
+            if (!AllowedDirectories.Any(d => rootDirectory == d))
+            {
+                throw new ForbiddenException($"For security reasons, only application-controlled directories can be deleted");
+            }
+
+            await Task.Yield();
+
+            Dictionary<string, OneOf<bool, Exception>> results = new();
+
+            foreach (var file in files)
+            {
+                try
+                {
+                    File.Delete(Path.Combine(rootDirectory, file));
+                    results.Add(file, true);
+                }
+                catch (FileNotFoundException)
+                {
+                    results.Add(file, new NotFoundException($"The file '{file}' does not exist"));
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    results.Add(file, new ForbiddenException());
+                }
+                catch (Exception ex)
+                {
+                    results.Add(file, ex);
+                }
+            }
+
+            return results;
+        }
+
+        /// <summary>
+        ///     Lists the contents in the specified <paramref name="parentDirectory"/>, optionally applying the specified <paramref name="enumerationOptions"/>.
         /// </summary>
         /// <param name="rootDirectory">The root directory.</param>
         /// <param name="parentDirectory">An optional subdirectory from which to start the listing.</param>
@@ -52,15 +148,12 @@ namespace slskd.Files
         /// <exception cref="ForbiddenException">Thrown if the specified directory is restricted.</exception>
         public async Task<IEnumerable<FilesystemDirectory>> ListContentsAsync(string rootDirectory, string parentDirectory = null, EnumerationOptions enumerationOptions = null)
         {
-            var configuredDirectories = OptionsSnapshot.Value.Directories;
-            var allowedDirectories = new[] { configuredDirectories.Incomplete, configuredDirectories.Downloads };
-
-            if (!allowedDirectories.Any(d => rootDirectory == d))
+            if (!AllowedDirectories.Any(d => rootDirectory == d))
             {
-                throw new ForbiddenException($"For security reasons, only the configured Downloads and Incomplete directories can be listed");
+                throw new ForbiddenException($"For security reasons, only application-controlled directories can be deleted");
             }
 
-            var fullDirectory = Path.Combine(rootDirectory, parentDirectory);
+            var fullDirectory = parentDirectory is not null ? Path.Combine(rootDirectory, parentDirectory) : rootDirectory;
 
             if (!Directory.Exists(fullDirectory))
             {
