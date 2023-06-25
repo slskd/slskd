@@ -110,6 +110,11 @@ namespace slskd.Files.API
         [ProducesResponseType(typeof(Dictionary<string, OneOf<bool, string>>), 204)]
         public async Task<IActionResult> DeleteDownloadSubdirectoryAsync([FromRoute] string base64SubdirectoryName)
         {
+            if (!OptionsSnapshot.Value.RemoteFileManagement)
+            {
+                return Forbid();
+            }
+
             var decodedDir = base64SubdirectoryName.FromBase64();
 
             try
@@ -135,6 +140,11 @@ namespace slskd.Files.API
         [ProducesResponseType(typeof(Dictionary<string, OneOf<bool, string>>), 204)]
         public async Task<IActionResult> DeleteDownloadFileAsync([FromRoute] string base64filename)
         {
+            if (!OptionsSnapshot.Value.RemoteFileManagement)
+            {
+                return Forbid();
+            }
+
             var decodedFilename = base64filename.FromBase64();
 
             try
@@ -217,6 +227,11 @@ namespace slskd.Files.API
         [ProducesResponseType(typeof(Dictionary<string, OneOf<bool, string>>), 204)]
         public async Task<IActionResult> DeleteIncompleteSubdirectoryAsync([FromRoute] string base64SubdirectoryName)
         {
+            if (!OptionsSnapshot.Value.RemoteFileManagement)
+            {
+                return Forbid();
+            }
+
             var decodedDir = base64SubdirectoryName.FromBase64();
 
             try
@@ -242,6 +257,11 @@ namespace slskd.Files.API
         [ProducesResponseType(typeof(Dictionary<string, OneOf<bool, string>>), 204)]
         public async Task<IActionResult> DeleteIncompleteFileAsync([FromRoute] string base64filename)
         {
+            if (!OptionsSnapshot.Value.RemoteFileManagement)
+            {
+                return Forbid();
+            }
+
             var decodedFilename = base64filename.FromBase64();
 
             try
