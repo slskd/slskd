@@ -31,7 +31,6 @@ namespace slskd
     using NetTools;
     using slskd.Authentication;
     using slskd.Configuration;
-    using slskd.Cryptography;
     using slskd.Relay;
     using slskd.Shares;
     using slskd.Validation;
@@ -157,6 +156,14 @@ namespace slskd
         [EnvironmentVariable("REMOTE_CONFIGURATION")]
         [Description("allow remote configuration")]
         public bool RemoteConfiguration { get; init; } = false;
+
+        /// <summary>
+        ///     Gets a value indicating whether remote file management is allowed.
+        /// </summary>
+        [Argument(default, "remote-file-management")]
+        [EnvironmentVariable("REMOTE_FILE_MANAGEMENT")]
+        [Description("allow remote file management")]
+        public bool RemoteFileManagement { get; init; } = false;
 
         /// <summary>
         ///     Gets the unique name for this instance.

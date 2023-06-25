@@ -1,5 +1,6 @@
 # debug: false
 # remote_configuration: false
+# remote_file_management: false
 # instance_name: default
 # flags:
 #   no_logo: false
