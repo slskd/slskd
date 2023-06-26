@@ -55,6 +55,7 @@ namespace slskd
     using slskd.Configuration;
     using slskd.Core.API;
     using slskd.Cryptography;
+    using slskd.Files;
     using slskd.Integrations.FTP;
     using slskd.Integrations.Pushbullet;
     using slskd.Messaging;
@@ -556,6 +557,7 @@ namespace slskd
             services.AddSingleton<ITransferService, TransferService>();
             services.AddSingleton<IDownloadService, DownloadService>();
             services.AddSingleton<IUploadService, UploadService>();
+            services.AddTransient<IFileService, FileService>();
 
             services.AddSingleton<IRelayService, RelayService>();
 
