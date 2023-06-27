@@ -24,7 +24,7 @@ const ShareTable = ({ shares, onClick }) => {
       <Table.Body>
         <Switch
           empty={shares.length === 0 && <Table.Row>
-            <Table.Cell colSpan={5} style={{ opacity: .5, padding: '10px !important', textAlign: 'center' }}>
+            <Table.Cell colSpan={6} style={{ opacity: .5, padding: '10px !important', textAlign: 'center' }}>
               No shares configured
             </Table.Cell>
           </Table.Row>}
