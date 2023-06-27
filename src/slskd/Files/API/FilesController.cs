@@ -58,10 +58,10 @@ namespace slskd.Files.API
                 var response = await Files.ListContentsAsync(
                     rootDirectory: OptionsSnapshot.Value.Directories.Downloads,
                     enumerationOptions: new EnumerationOptions
-                {
-                    AttributesToSkip = FileAttributes.System,
-                    RecurseSubdirectories = recursive,
-                });
+                    {
+                        AttributesToSkip = FileAttributes.System,
+                        RecurseSubdirectories = recursive,
+                    });
 
                 return Ok(response);
             }
@@ -78,7 +78,7 @@ namespace slskd.Files.API
         [HttpGet("downloads/directories/{base64SubdirectoryName}")]
         [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(typeof(IEnumerable<FilesystemDirectory>), 200)]
-        public async Task<IActionResult> GetDownloadSubdirectoryContentsAsync([FromRoute] string base64SubdirectoryName, [FromQuery]bool recursive = false)
+        public async Task<IActionResult> GetDownloadSubdirectoryContentsAsync([FromRoute] string base64SubdirectoryName, [FromQuery] bool recursive = false)
         {
             var decodedDir = base64SubdirectoryName.FromBase64();
 
@@ -88,10 +88,10 @@ namespace slskd.Files.API
                     rootDirectory: OptionsSnapshot.Value.Directories.Downloads,
                     parentDirectory: decodedDir,
                     enumerationOptions: new EnumerationOptions
-                {
-                    AttributesToSkip = FileAttributes.System,
-                    RecurseSubdirectories = recursive,
-                });
+                    {
+                        AttributesToSkip = FileAttributes.System,
+                        RecurseSubdirectories = recursive,
+                    });
 
                 return Ok(response);
             }
@@ -105,7 +105,7 @@ namespace slskd.Files.API
             }
         }
 
-        [HttpDelete("downloads/directories/{base64SubdirectoryName")]
+        [HttpDelete("downloads/directories/{base64SubdirectoryName}")]
         [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(typeof(Dictionary<string, OneOf<bool, string>>), 204)]
         public async Task<IActionResult> DeleteDownloadSubdirectoryAsync([FromRoute] string base64SubdirectoryName)
@@ -205,10 +205,10 @@ namespace slskd.Files.API
                     rootDirectory: OptionsSnapshot.Value.Directories.Incomplete,
                     parentDirectory: decodedDir,
                     enumerationOptions: new EnumerationOptions
-                {
-                    AttributesToSkip = FileAttributes.System,
-                    RecurseSubdirectories = recursive,
-                });
+                    {
+                        AttributesToSkip = FileAttributes.System,
+                        RecurseSubdirectories = recursive,
+                    });
 
                 return Ok(response);
             }
@@ -222,7 +222,7 @@ namespace slskd.Files.API
             }
         }
 
-        [HttpDelete("incomplete/directories/{base64SubdirectoryName")]
+        [HttpDelete("incomplete/directories/{base64SubdirectoryName}")]
         [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(typeof(Dictionary<string, OneOf<bool, string>>), 204)]
         public async Task<IActionResult> DeleteIncompleteSubdirectoryAsync([FromRoute] string base64SubdirectoryName)
