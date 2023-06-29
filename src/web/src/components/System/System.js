@@ -57,9 +57,9 @@ const System = ({ state = {}, theme, options = {} }) => {
       menuItem: {
         key: 'files',
         icon: 'folder open',
-        content: 'Files'
+        content: 'Files',
       },
-      render: () => <Tab.Pane className='full-height'><Files theme={theme}/></Tab.Pane>
+      render: () => <Tab.Pane className='full-height'><Files theme={theme}/></Tab.Pane>,
     },
     {
       route: 'data',
