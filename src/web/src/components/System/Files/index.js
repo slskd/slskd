@@ -1,10 +1,23 @@
 import React from 'react';
-import { Header } from 'semantic-ui-react';
+import { Tab } from 'semantic-ui-react';
+
+const panes = [
+  { 
+    route: 'downloads',
+    menuItem: 'Downloads',
+    render: () => <Tab.Pane>Downloads</Tab.Pane>,
+  },
+  { 
+    route: 'incomplete',
+    menuItem: 'Incomplete',
+    render: () => <Tab.Pane>Incomplete</Tab.Pane>,
+  },
+];
 
 const Files = () => {
   return (
     <div>
-      <Header as='h3' className='file-management-header'>Files</Header>
+      <Tab panes={panes}/>
     </div>
   );
 };
