@@ -1,23 +1,27 @@
 import React from 'react';
 import { Tab } from 'semantic-ui-react';
 
-const panes = [
-  { 
-    route: 'downloads',
-    menuItem: 'Downloads',
-    render: () => <Tab.Pane>Downloads</Tab.Pane>,
-  },
-  { 
-    route: 'incomplete',
-    menuItem: 'Incomplete',
-    render: () => <Tab.Pane>Incomplete</Tab.Pane>,
-  },
-];
+import Explorer from './Explorer';
 
 const Files = () => {
+  const panes = [
+    { 
+      route: 'downloads',
+      menuItem: 'Downloads',
+      render: () => <Tab.Pane><Explorer root={'downloads'}/></Tab.Pane>,
+    },
+    { 
+      route: 'incomplete',
+      menuItem: 'Incomplete',
+      render: () => <Tab.Pane><Explorer root={'incomplete'}/></Tab.Pane>,
+    },
+  ];
+
   return (
     <div>
-      <Tab panes={panes}/>
+      <Tab
+        panes={panes}
+      />
     </div>
   );
 };
