@@ -146,7 +146,7 @@ namespace slskd.Files
         /// <returns>The list of found contents.</returns>
         /// <exception cref="NotFoundException">Thrown if the specified directory does not exist.</exception>
         /// <exception cref="ForbiddenException">Thrown if the specified directory is restricted.</exception>
-        public async Task<IEnumerable<FilesystemDirectory>> ListContentsAsync(string rootDirectory, string parentDirectory = null, EnumerationOptions enumerationOptions = null)
+        public async Task<FilesystemDirectory> ListContentsAsync(string rootDirectory, string parentDirectory = null, EnumerationOptions enumerationOptions = null)
         {
             if (!AllowedDirectories.Any(d => rootDirectory == d))
             {
@@ -168,20 +168,26 @@ namespace slskd.Files
 
                 var files = contents
                     .OfType<FileInfo>()
-                    .Select(f => FilesystemFile.FromFileInfo(f));
+                    .Select(f => FilesystemFile.FromFileInfo(f) with
+                    {
+                        FullName = f.FullName.ReplaceFirst(rootDirectory, string.Empty).TrimStart('\\', '/'),
+                    });
 
                 var dirs = contents
                     .OfType<DirectoryInfo>()
-                    .Prepend(dir)
                     .Select(d => FilesystemDirectory.FromDirectoryInfo(d) with
                     {
                         FullName = d.FullName.ReplaceFirst(rootDirectory, string.Empty).TrimStart('\\', '/'),
-                        Files = files
-                            .Where(f => Path.GetDirectoryName(f.FullName) == d.FullName)
-                            .Select(f => f with { FullName = f.FullName.ReplaceFirst(rootDirectory, string.Empty).TrimStart('\\', '/') }),
                     });
 
-                return dirs;
+                var response = FilesystemDirectory.FromDirectoryInfo(dir) with
+                {
+                    FullName = dir.FullName.ReplaceFirst(rootDirectory, string.Empty).TrimStart('\\', '/'),
+                    Files = files,
+                    Directories = dirs,
+                };
+
+                return response;
             });
         }
     }

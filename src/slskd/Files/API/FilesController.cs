@@ -50,7 +50,7 @@ namespace slskd.Files.API
 
         [HttpGet("downloads/directories")]
         [Authorize(Policy = AuthPolicy.Any)]
-        [ProducesResponseType(typeof(IEnumerable<FilesystemDirectory>), 200)]
+        [ProducesResponseType(typeof(FilesystemDirectory), 200)]
         public async Task<IActionResult> GetDownloadContentsAsync([FromQuery] bool recursive = false)
         {
             try
@@ -77,7 +77,7 @@ namespace slskd.Files.API
 
         [HttpGet("downloads/directories/{base64SubdirectoryName}")]
         [Authorize(Policy = AuthPolicy.Any)]
-        [ProducesResponseType(typeof(IEnumerable<FilesystemDirectory>), 200)]
+        [ProducesResponseType(typeof(FilesystemDirectory), 200)]
         public async Task<IActionResult> GetDownloadSubdirectoryContentsAsync([FromRoute] string base64SubdirectoryName, [FromQuery] bool recursive = false)
         {
             var decodedDir = base64SubdirectoryName.FromBase64();
@@ -167,7 +167,7 @@ namespace slskd.Files.API
 
         [HttpGet("incomplete/directories")]
         [Authorize(Policy = AuthPolicy.Any)]
-        [ProducesResponseType(typeof(IEnumerable<FilesystemDirectory>), 200)]
+        [ProducesResponseType(typeof(FilesystemDirectory), 200)]
         public async Task<IActionResult> GetIncompleteContentsAsync([FromQuery] bool recursive = false)
         {
             try
@@ -194,7 +194,7 @@ namespace slskd.Files.API
 
         [HttpGet("incomplete/directories/{base64SubdirectoryName}")]
         [Authorize(Policy = AuthPolicy.Any)]
-        [ProducesResponseType(typeof(IEnumerable<FilesystemDirectory>), 200)]
+        [ProducesResponseType(typeof(FilesystemDirectory), 200)]
         public async Task<IActionResult> GetIncompleteSubdirectoryContentsAsync([FromRoute, Required] string base64SubdirectoryName, [FromQuery] bool recursive = false)
         {
             var decodedDir = base64SubdirectoryName.FromBase64();

@@ -29,6 +29,7 @@ namespace slskd.Files
         public DateTime CreatedAt { get; init; }
         public DateTime ModifiedAt { get; init; }
         public IEnumerable<FilesystemFile> Files { get; init; }
+        public IEnumerable<FilesystemDirectory> Directories { get; init; }
 
         public static FilesystemDirectory FromDirectoryInfo(DirectoryInfo i)
         {

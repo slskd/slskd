@@ -65,6 +65,6 @@ namespace slskd.Files
         /// <returns>The list of found contents.</returns>
         /// <exception cref="NotFoundException">Thrown if the specified directory does not exist.</exception>
         /// <exception cref="ForbiddenException">Thrown if the specified root directory is restricted.</exception>
-        Task<IEnumerable<FilesystemDirectory>> ListContentsAsync(string rootDirectory, string parentDirectory = null, EnumerationOptions enumerationOptions = null);
+        Task<FilesystemDirectory> ListContentsAsync(string rootDirectory, string parentDirectory = null, EnumerationOptions enumerationOptions = null);
     }
 }
