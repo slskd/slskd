@@ -95,24 +95,24 @@ namespace slskd.Files.API
         /// <response code="404">The specified subdirectory does not exist.</response>
         [HttpDelete("downloads/directories/{base64SubdirectoryName}")]
         [Authorize(Policy = AuthPolicy.Any)]
-        [ProducesResponseType(typeof(Dictionary<string, OneOf<bool, string>>), 204)]
+        [ProducesResponseType(204)]
         public Task<IActionResult> DeleteDownloadSubdirectoryAsync([FromRoute] string base64SubdirectoryName)
             => DeleteSubdirectoryAsync(rootDirectory: OptionsSnapshot.Value.Directories.Downloads, base64SubdirectoryName);
 
         /// <summary>
         ///     Deletes the specified file within the downloads directory.
         /// </summary>
-        /// <param name="base64filename">The relative, base 64 encoded, name of the file to delete.</param>
+        /// <param name="base64FileName">The relative, base 64 encoded, name of the file to delete.</param>
         /// <returns></returns>
         /// <response code="204">The request completed successfully.</response>
         /// <response code="401">Authentication failed.</response>
         /// <response code="403">Access to the specified subdirectory was denied.</response>
         /// <response code="404">The specified subdirectory does not exist.</response>
-        [HttpDelete("downloads/files/{base64Filename}")]
+        [HttpDelete("downloads/files/{base64FileName}")]
         [Authorize(Policy = AuthPolicy.Any)]
-        [ProducesResponseType(typeof(Dictionary<string, OneOf<bool, string>>), 204)]
-        public Task<IActionResult> DeleteDownloadFileAsync([FromRoute] string base64filename)
-            => DeleteFileAsync(rootDirectory: OptionsSnapshot.Value.Directories.Downloads, base64filename);
+        [ProducesResponseType(204)]
+        public Task<IActionResult> DeleteDownloadFileAsync([FromRoute] string base64FileName)
+            => DeleteFileAsync(rootDirectory: OptionsSnapshot.Value.Directories.Downloads, base64FileName);
 
         /// <summary>
         ///     Lists the contents of the downloads directory.
@@ -154,24 +154,24 @@ namespace slskd.Files.API
         /// <response code="404">The specified subdirectory does not exist.</response>
         [HttpDelete("incomplete/directories/{base64SubdirectoryName}")]
         [Authorize(Policy = AuthPolicy.Any)]
-        [ProducesResponseType(typeof(Dictionary<string, OneOf<bool, string>>), 204)]
+        [ProducesResponseType(204)]
         public Task<IActionResult> DeleteIncompleteSubdirectoryAsync([FromRoute] string base64SubdirectoryName)
             => DeleteSubdirectoryAsync(rootDirectory: OptionsSnapshot.Value.Directories.Incomplete, base64SubdirectoryName);
 
         /// <summary>
         ///     Deletes the specified file within the downloads directory.
         /// </summary>
-        /// <param name="base64filename">The relative, base 64 encoded, name of the file to delete.</param>
+        /// <param name="base64FileName">The relative, base 64 encoded, name of the file to delete.</param>
         /// <returns></returns>
         /// <response code="204">The request completed successfully.</response>
         /// <response code="401">Authentication failed.</response>
         /// <response code="403">Access to the specified subdirectory was denied.</response>
         /// <response code="404">The specified subdirectory does not exist.</response>
-        [HttpDelete("incomplete/files/{base64Filename}")]
+        [HttpDelete("incomplete/files/{base64FileName}")]
         [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(204)]
-        public Task<IActionResult> DeleteIncompleteFileAsync([FromRoute] string base64filename)
-            => DeleteFileAsync(rootDirectory: OptionsSnapshot.Value.Directories.Incomplete, base64filename);
+        public Task<IActionResult> DeleteIncompleteFileAsync([FromRoute] string base64FileName)
+            => DeleteFileAsync(rootDirectory: OptionsSnapshot.Value.Directories.Incomplete, base64FileName);
 
         private async Task<IActionResult> ListDirectoryAsync(string rootDirectory, string base64SubdirectoryName = null, bool recursive = false)
         {
@@ -244,14 +244,14 @@ namespace slskd.Files.API
             }
         }
 
-        private async Task<IActionResult> DeleteFileAsync(string rootDirectory, string base64Filename)
+        private async Task<IActionResult> DeleteFileAsync(string rootDirectory, string base64FileName)
         {
             if (!OptionsSnapshot.Value.RemoteFileManagement)
             {
                 return Forbid();
             }
 
-            var requestedFilename = base64Filename
+            var requestedFilename = base64FileName
                 .FromBase64()
                 .Replace('\\', Path.DirectorySeparatorChar)
                 .Replace('/', Path.DirectorySeparatorChar);
