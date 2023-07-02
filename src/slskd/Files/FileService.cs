@@ -65,7 +65,7 @@ namespace slskd.Files
         ///     Thrown if any of the directories is an exact match for an application-controlled directory.
         /// </exception>
         /// <exception cref="NotFoundException">Thrown if a specified directory does not exist.</exception>
-        /// <exception cref="SecurityException">Thrown if a specified directory is restricted.</exception>
+        /// <exception cref="UnauthorizedException">Thrown if a specified directory is restricted.</exception>
         public async Task<Dictionary<string, OneOf<bool, Exception>>> DeleteDirectoriesAsync(params string[] directories)
         {
             if (directories.Any(directory => Path.GetFullPath(directory) != directory))
@@ -84,7 +84,7 @@ namespace slskd.Files
             // if any of the resolved directory paths aren't rooted in one of the allowed directories, forbid the entire request
             if (!directories.All(directory => IsAllowed(directory)))
             {
-                throw new SecurityException("Only application-controlled directories can be deleted");
+                throw new UnauthorizedException("Only application-controlled directories can be deleted");
             }
 
             await Task.Yield();
@@ -104,9 +104,9 @@ namespace slskd.Files
                 {
                     results.Add(directory, new NotFoundException($"The directory '{directory}' does not exist"));
                 }
-                catch (UnauthorizedAccessException)
+                catch (UnauthorizedAccessException ex)
                 {
-                    results.Add(directory, new SecurityException());
+                    results.Add(directory, new UnauthorizedException($"Deletion of the directory '{directory}' was denied: {ex.Message}", ex));
                 }
                 catch (Exception ex)
                 {
@@ -128,7 +128,7 @@ namespace slskd.Files
         /// <returns>The operation context.</returns>
         /// <exception cref="ArgumentException">Thrown if any of the specified files have a relative path.</exception>
         /// <exception cref="NotFoundException">Thrown if a specified file does not exist.</exception>
-        /// <exception cref="SecurityException">Thrown if a specified file is restricted.</exception>
+        /// <exception cref="UnauthorizedException">Thrown if a specified file is restricted.</exception>
         public async Task<Dictionary<string, OneOf<bool, Exception>>> DeleteFilesAsync(params string[] files)
         {
             if (files.Any(file => Path.GetFullPath(file) != file))
@@ -142,7 +142,7 @@ namespace slskd.Files
             // if any of the resolved file paths aren't rooted in one of the allowed directories, forbid the entire request
             if (!files.All(file => IsAllowed(file)))
             {
-                throw new SecurityException("Only files in application-controlled directories can be deleted");
+                throw new UnauthorizedException("Only files in application-controlled directories can be deleted");
             }
 
             await Task.Yield();
@@ -160,9 +160,9 @@ namespace slskd.Files
                 {
                     results.Add(file, new NotFoundException($"The file '{file}' does not exist"));
                 }
-                catch (UnauthorizedAccessException)
+                catch (UnauthorizedAccessException ex)
                 {
-                    results.Add(file, new SecurityException());
+                    results.Add(file, new UnauthorizedException($"Deletion of the file '{file}' was denied: {ex.Message}", ex));
                 }
                 catch (Exception ex)
                 {
@@ -181,7 +181,7 @@ namespace slskd.Files
         /// <returns>The list of found contents.</returns>
         /// <exception cref="ArgumentException">Thrown if the specified directory has a relative path.</exception>
         /// <exception cref="NotFoundException">Thrown if the specified directory does not exist.</exception>
-        /// <exception cref="SecurityException">Thrown if the specified root directory is restricted.</exception>
+        /// <exception cref="UnauthorizedException">Thrown if the specified root directory is restricted.</exception>
         public async Task<FilesystemDirectory> ListContentsAsync(string directory, EnumerationOptions enumerationOptions = null)
         {
             if (Path.GetFullPath(directory) != directory)
@@ -192,7 +192,7 @@ namespace slskd.Files
             // important! we must fully expand the path with GetFullPath() to resolve a given relative directory, like '..'
             if (!AllowedDirectories.Any(allowed => directory.StartsWith(allowed)))
             {
-                throw new SecurityException($"For security reasons, only application-controlled directories can be deleted");
+                throw new UnauthorizedException($"Only application-controlled directories can be deleted");
             }
 
             if (!Directory.Exists(directory))
@@ -233,7 +233,7 @@ namespace slskd.Files
                 }
                 catch (UnauthorizedAccessException ex)
                 {
-                    throw new SecurityException($"Access to '{directory}' was denied", ex);
+                    throw new UnauthorizedException($"Access to directory '{directory}' was denied: {ex.Message}", ex);
                 }
             });
         }

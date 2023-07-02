@@ -43,7 +43,7 @@ namespace slskd.Files
         ///     Thrown if any of the directories is an exact match for an application-controlled directory.
         /// </exception>
         /// <exception cref="NotFoundException">Thrown if a specified directory does not exist.</exception>
-        /// <exception cref="SecurityException">Thrown if a specified directory is restricted.</exception>
+        /// <exception cref="UnauthorizedException">Thrown if a specified directory is restricted.</exception>
         Task<Dictionary<string, OneOf<bool, Exception>>> DeleteDirectoriesAsync(params string[] directories);
 
         /// <summary>
@@ -57,7 +57,7 @@ namespace slskd.Files
         /// <returns>The operation context.</returns>
         /// <exception cref="ArgumentException">Thrown if any of the specified files have a relative path.</exception>
         /// <exception cref="NotFoundException">Thrown if a specified file does not exist.</exception>
-        /// <exception cref="SecurityException">Thrown if a specified file is restricted.</exception>
+        /// <exception cref="UnauthorizedException">Thrown if a specified file is restricted.</exception>
         Task<Dictionary<string, OneOf<bool, Exception>>> DeleteFilesAsync(params string[] files);
 
         /// <summary>
@@ -68,7 +68,7 @@ namespace slskd.Files
         /// <returns>The list of found contents.</returns>
         /// <exception cref="ArgumentException">Thrown if the specified directory has a relative path.</exception>
         /// <exception cref="NotFoundException">Thrown if the specified directory does not exist.</exception>
-        /// <exception cref="SecurityException">Thrown if the specified root directory is restricted.</exception>
+        /// <exception cref="UnauthorizedException">Thrown if the specified root directory is restricted.</exception>
         Task<FilesystemDirectory> ListContentsAsync(string directory, EnumerationOptions enumerationOptions = null);
     }
 }
