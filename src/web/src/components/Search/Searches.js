@@ -173,7 +173,7 @@ const Searches = ({ server } = {}) => {
           creating={creating}
           stopping={stopping}
           removing={removing}
-          disabled={!server.isConnected}
+          disabled={!server?.isConnected}
           onCreate={create}
           onStop={stop}
           onRemove={remove}
