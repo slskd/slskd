@@ -68,6 +68,11 @@
   width: 100%;
 }
 
+.ui.search-input > input {
+  padding: 0;
+  text-indent: 1em;
+}
+
 .search-loader {
   margin-top: 50px !important;
 }
