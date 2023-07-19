@@ -111,6 +111,9 @@ body {
 }
 
 .app {
+    position: absolute !important;
+    left: 0;
+    right: 0;
     margin: auto;
     border: 0px !important;
     border-radius: 0% !important;
@@ -118,12 +121,13 @@ body {
 }
 
 .pushable > .pusher.app-content {
-    margin-top: 70px;
     background: var(--background-color);
 }
 
 .navigation {
-    overflow: overlay;
+    overflow: overlay !important;
+    position: sticky !important;
+    top: 0 !important;
 }
 
 .result-card {
@@ -251,4 +255,8 @@ body {
         
 .ui.dimmer .ui.modal-loader.loader:after {
   border-color: #767676 transparent transparent;
+}
+
+.search-list-wrapper {
+    overflow-x: auto;
 }

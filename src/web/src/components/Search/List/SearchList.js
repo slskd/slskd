@@ -21,12 +21,12 @@ const SearchList = ({
   return (
     <Card className='search-list-card' raised>
       <Card.Content>
-        <div>
+        <div className='search-list-wrapper'>
           <Switch
             connecting={connecting && <Loader active inline='centered' size='small'/>}
             error={error && <ErrorSegment caption={error} />}
           >
-            <Table size='large'>
+            <Table size='large' className='unstackable'>
               <Table.Header>
                 <Table.Row>
                   <Table.HeaderCell className="search-list-action"><Icon name="info circle"/></Table.HeaderCell>
