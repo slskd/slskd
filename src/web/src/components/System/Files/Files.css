@@ -1,3 +1,7 @@
 .explorer-list-action {
-    width: 5px !important;
-  }
+  width: 5px !important;
+}
+
+.explorer-working-directory {
+  font-size: initial !important;
+}
