@@ -3,47 +3,104 @@ import React, { useState, useEffect } from 'react';
 import {
   Table,
   Icon,
-  Message
+  Message,
+  Modal,
+  Header,
 } from 'semantic-ui-react';
 
-import { list } from '../../../lib/files';
+import { list, deleteDirectory, deleteFile } from '../../../lib/files';
 import { formatBytes, formatDate } from '../../../lib/util';
 import { LoaderSegment } from '../../Shared';
 
-const Explorer = ({ root, isActive }) => {
+const Explorer = ({ root }) => {
   const [directory, setDirectory] = useState({ files: [], directories: [] });
   const [subdirectory, setSubdirectory] = useState([]);
   const [loading, setLoading] = useState(false);
  
   useEffect(() => {
-    setLoading(true);
-
-    console.log('fetching...', subdirectory);
-    const fetch = async () => {
-      const dir = await list({ root, subdirectory: subdirectory.join('/') });
-      console.log(dir)
-      setDirectory(dir);
-      setLoading(false);
-    };
-
     fetch();
-  }, [isActive, subdirectory]);
+  }, [subdirectory]); // eslint-disable-line react-hooks/exhaustive-deps
+  
+  useEffect(() => {
+    setSubdirectory([]);
+  }, [root]);
+
+  const fetch = async () => {
+    setLoading(true);
+    const dir = await list({ root, subdirectory: subdirectory.join('/') });
+    setDirectory(dir);
+    setLoading(false);
+  };
 
   const select = ({ path }) => {
     setSubdirectory([...subdirectory, path]);
-    console.log(path)
   };
 
-  const row = (icon, { name, fullName, modifiedAt, length }, onClick = () => { }) => <Table.Row key={name}>
-    <Table.Cell
-      style={{ cursor: 'pointer' }}
-      onClick={() => onClick({ path: name })}
-    ><Icon name={icon} />{name}</Table.Cell>
+  const upOneSubdirectory = () => {
+    const copy = [...subdirectory];
+    copy.pop();
+    setSubdirectory(copy);
+  };
+
+  const FileRow = ({ name, fullName, modifiedAt, length }) => <Table.Row key={fullName}>
+    <Table.Cell><Icon name='file outline'/>{name}</Table.Cell>
     <Table.Cell>{modifiedAt ? formatDate(modifiedAt) : ''}</Table.Cell>
     <Table.Cell>{length ? formatBytes(length) : ''}</Table.Cell>
     <Table.Cell>
-      <Icon name="trash alternate" color="red" onClick={() => console.log(fullName)} style={{ cursor: 'pointer' }}/>
+      <Modal
+        trigger={
+          <Icon name="trash alternate" color="red" style={{ cursor: 'pointer' }}/>
+        }
+        centered
+        size='small'
+        header={<Header icon='trash alternate' content='Confirm File Delete' />}
+        content={`Are you sure you want to delete file '${fullName}'?`}
+        actions={[
+          'Cancel',
+          {
+            key: 'done',
+            content: 'Delete',
+            negative: true,
+            onClick: async () => {
+              await deleteFile({ root, path: `${subdirectory.join('/')}/${fullName}`});
+              fetch();
+            },
+          },
+        ]}
+      />
     </Table.Cell>
+  </Table.Row>;
+
+  const DirectoryRow = ({ name, fullName, modifiedAt, onClick = () => {} }) => <Table.Row key={fullName}>
+    <Table.Cell
+      style={{ cursor: 'pointer' }}
+      onClick={onClick}
+    ><Icon name='folder'/>{name}</Table.Cell>
+    <Table.Cell>{modifiedAt ? formatDate(modifiedAt) : ''}</Table.Cell>
+    <Table.Cell></Table.Cell>
+    <Table.Cell>
+      <Modal
+        trigger={
+          <Icon name="trash alternate" color="red" style={{ cursor: 'pointer' }}/>
+        }
+        centered
+        size='small'
+        header={<Header icon='trash alternate' content='Confirm Directory Delete' />}
+        content={`Are you sure you want to delete directory '${fullName}'?`}
+        actions={[
+          'Cancel',
+          {
+            key: 'done',
+            content: 'Delete',
+            negative: true,
+            onClick: async () => {
+              await deleteDirectory({ root, path: `${subdirectory.join('/')}/${fullName}`});
+              fetch();
+            },
+          },
+        ]}
+      />
+    </Table.Cell>  
   </Table.Row>;
 
   if (loading) {
@@ -52,9 +109,9 @@ const Explorer = ({ root, isActive }) => {
 
   return (
     <>
-      {!!subdirectory && <Message className='no-grow edit-code-header'>
-        <Icon name='folder open'/>{root + '/' + subdirectory}
-      </Message>}
+      <Message className='no-grow explorer-working-directory'>
+        <Icon name='folder open'/>{'/' + root + '/' + subdirectory.join('/')}
+      </Message>
       <Table size='large' className='unstackable'>
         <Table.Header>
           <Table.Row>
@@ -65,9 +122,9 @@ const Explorer = ({ root, isActive }) => {
           </Table.Row>
         </Table.Header>
         <Table.Body>
-          {!!subdirectory && row('folder', { name: '..', fullName: '..' })}
-          {directory?.directories?.map((d => row('folder', d, select)))}
-          {directory?.files?.map(f => row('file outline', f))}
+          {subdirectory.length > 0 && <DirectoryRow name=".." fullName=".." onClick={upOneSubdirectory}/>}
+          {directory?.directories?.map(d => <DirectoryRow onClick={() => select({ path: d.name })} {...d}/>)}
+          {directory?.files?.map(f => <FileRow {...f}/>)}
         </Table.Body>
       </Table>
     </>
