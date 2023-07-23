@@ -6,3 +6,17 @@ export const list = async ({ root, subdirectory = '' }) => {
 
   return response;
 };
+
+export const deleteDirectory = async ({ root, path }) => {
+  path = btoa(path);
+  const response = (await api.delete(`/files/${root}/directories/${path}`));
+
+  return response;
+};
+
+export const deleteFile = async ({ root, path }) => {
+  path = btoa(path);
+  const response = (await api.delete(`/files/${root}/files/${path}`));
+
+  return response;
+};
