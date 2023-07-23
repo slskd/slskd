@@ -21,6 +21,10 @@ export const formatBytes = (bytes, decimals = 2) => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
 };
 
+export const formatDate = (date) => {
+  return new Date(date).toLocaleString();
+};
+
 export const getFileName = (fullPath) => {
   return fullPath.split('\\').pop().split('/').pop();
 };
