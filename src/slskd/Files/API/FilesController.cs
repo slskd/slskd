@@ -19,14 +19,12 @@ using Microsoft.Extensions.Options;
 
 namespace slskd.Files.API
 {
-    using System.Collections.Generic;
     using System.ComponentModel.DataAnnotations;
     using System.IO;
     using System.Security;
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
-    using OneOf;
     using Serilog;
 
     /// <summary>
@@ -218,7 +216,8 @@ namespace slskd.Files.API
             var requestedDir = base64SubdirectoryName
                 .FromBase64()
                 .Replace('\\', Path.DirectorySeparatorChar)
-                .Replace('/', Path.DirectorySeparatorChar);
+                .Replace('/', Path.DirectorySeparatorChar)
+                .TrimStart(Path.DirectorySeparatorChar);
 
             requestedDir = Path.GetFullPath(Path.Combine(rootDirectory, requestedDir));
 
@@ -254,7 +253,8 @@ namespace slskd.Files.API
             var requestedFilename = base64FileName
                 .FromBase64()
                 .Replace('\\', Path.DirectorySeparatorChar)
-                .Replace('/', Path.DirectorySeparatorChar);
+                .Replace('/', Path.DirectorySeparatorChar)
+                .TrimStart(Path.DirectorySeparatorChar);
 
             requestedFilename = Path.GetFullPath(Path.Combine(rootDirectory, requestedFilename));
 
