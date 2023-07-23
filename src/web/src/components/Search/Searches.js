@@ -22,7 +22,7 @@ import SearchDetail from './Detail/SearchDetail';
 import ErrorSegment from '../Shared/ErrorSegment';
 import PlaceholderSegment from '../Shared/PlaceholderSegment';
 
-const Searches = ({ server }) => {
+const Searches = ({ server } = {}) => {
   const [connecting, setConnecting] = useState(true);
   const [error, setError] = useState(undefined);
   const [searches, setSearches] = useState({});
@@ -173,7 +173,7 @@ const Searches = ({ server }) => {
           creating={creating}
           stopping={stopping}
           removing={removing}
-          disabled={!server.isConnected}
+          disabled={!server?.isConnected}
           onCreate={create}
           onStop={stop}
           onRemove={remove}
