@@ -1,7 +1,19 @@
-.explorer-list-action {
-  width: 5px !important;
+.explorer-working-directory {
+  margin-top: 7px !important;
 }
 
-.explorer-working-directory {
-  margin-top: 0px !important;
+.explorer-list-name {
+  word-wrap: break-word !important;
+}
+
+.explorer-list-size {
+  width: 100px;
+}
+
+.explorer-list-date {
+  width: 210px;
+}
+
+.explorer-list-action {
+  width: 5px !important;
 }

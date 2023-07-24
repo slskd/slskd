@@ -117,9 +117,9 @@ const Explorer = ({ root }) => {
       <Table size='large' className='unstackable'>
         <Table.Header>
           <Table.Row>
-            <Table.HeaderCell className="">Name</Table.HeaderCell>
-            <Table.HeaderCell className="">Date Modified</Table.HeaderCell>
-            <Table.HeaderCell className="">Size</Table.HeaderCell>
+            <Table.HeaderCell className="explorer-list-name">Name</Table.HeaderCell>
+            <Table.HeaderCell className="explorer-list-date">Date Modified</Table.HeaderCell>
+            <Table.HeaderCell className="explorer-list-size">Size</Table.HeaderCell>
             <Table.HeaderCell className="explorer-list-action"></Table.HeaderCell>
           </Table.Row>
         </Table.Header>
