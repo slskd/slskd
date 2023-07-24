@@ -107,6 +107,8 @@ const Explorer = ({ root }) => {
     return <LoaderSegment/>;
   }
 
+  const total = directory?.directories?.length + directory?.files?.length ?? 0;
+
   return (
     <>
       <Header size='small' className='explorer-working-directory'>
@@ -122,9 +124,18 @@ const Explorer = ({ root }) => {
           </Table.Row>
         </Table.Header>
         <Table.Body>
-          {subdirectory.length > 0 && <DirectoryRow name=".." fullName=".." onClick={upOneSubdirectory}/>}
-          {directory?.directories?.map(d => <DirectoryRow onClick={() => select({ path: d.name })} {...d}/>)}
-          {directory?.files?.map(f => <FileRow {...f}/>)}
+          {total === 0
+            ? <Table.Row>
+              <Table.Cell colSpan={99} style={{ opacity: .5, padding: '10px !important', textAlign: 'center' }}>
+                No files or directories
+              </Table.Cell>
+            </Table.Row>
+            : <>
+              {subdirectory.length > 0 && <DirectoryRow name=".." fullName=".." onClick={upOneSubdirectory}/>}
+              {directory?.directories?.map(d => <DirectoryRow onClick={() => select({ path: d.name })} {...d}/>)}
+              {directory?.files?.map(f => <FileRow {...f}/>)}
+            </>
+          }
         </Table.Body>
       </Table>
     </>
