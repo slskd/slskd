@@ -109,9 +109,9 @@ const Explorer = ({ root }) => {
 
   return (
     <>
-      <Message className='no-grow explorer-working-directory'>
+      <Header size='small' className='explorer-working-directory'>
         <Icon name='folder open'/>{'/' + root + '/' + subdirectory.join('/')}
-      </Message>
+      </Header>
       <Table size='large' className='unstackable'>
         <Table.Header>
           <Table.Row>
