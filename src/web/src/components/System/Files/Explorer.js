@@ -11,7 +11,7 @@ import { list, deleteDirectory, deleteFile } from '../../../lib/files';
 import { formatBytes, formatDate } from '../../../lib/util';
 import { LoaderSegment } from '../../Shared';
 
-const Explorer = ({ root }) => {
+const Explorer = ({ root, remoteFileManagement }) => {
   const [directory, setDirectory] = useState({ files: [], directories: [] });
   const [subdirectory, setSubdirectory] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -46,27 +46,28 @@ const Explorer = ({ root }) => {
     <Table.Cell>{modifiedAt ? formatDate(modifiedAt) : ''}</Table.Cell>
     <Table.Cell>{length ? formatBytes(length) : ''}</Table.Cell>
     <Table.Cell>
-      <Modal
-        trigger={
-          <Icon name="trash alternate" color="red" style={{ cursor: 'pointer' }}/>
-        }
-        centered
-        size='small'
-        header={<Header icon='trash alternate' content='Confirm File Delete' />}
-        content={`Are you sure you want to delete file '${fullName}'?`}
-        actions={[
-          'Cancel',
-          {
-            key: 'done',
-            content: 'Delete',
-            negative: true,
-            onClick: async () => {
-              await deleteFile({ root, path: `${subdirectory.join('/')}/${fullName}`});
-              fetch();
+      {remoteFileManagement 
+        ? <Modal
+          trigger={
+            <Icon name="trash alternate" color="red" style={{ cursor: 'pointer' }}/>
+          }
+          centered
+          size='small'
+          header={<Header icon='trash alternate' content='Confirm File Delete' />}
+          content={`Are you sure you want to delete file '${fullName}'?`}
+          actions={[
+            'Cancel',
+            {
+              key: 'done',
+              content: 'Delete',
+              negative: true,
+              onClick: async () => {
+                await deleteFile({ root, path: `${subdirectory.join('/')}/${fullName}`});
+                fetch();
+              },
             },
-          },
-        ]}
-      />
+          ]}/>
+        : <></>}
     </Table.Cell>
   </Table.Row>;
 
@@ -84,7 +85,7 @@ const Explorer = ({ root }) => {
     <Table.Cell>{modifiedAt ? formatDate(modifiedAt) : ''}</Table.Cell>
     <Table.Cell></Table.Cell>
     <Table.Cell>
-      {deletable
+      {remoteFileManagement && deletable
         ? <Modal
           trigger={
             <Icon name="trash alternate" color="red" style={{ cursor: 'pointer' }}/>
