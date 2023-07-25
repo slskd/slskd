@@ -652,17 +652,19 @@ namespace slskd
             {
                 var results = new List<ValidationResult>();
 
+                var directories = Directories ?? Enumerable.Empty<string>();
+
                 bool IsBlankPath(string share) => Regex.IsMatch(share.LocalizePath(), @"^(!|-){0,1}(\[.*\])$");
-                Directories.Where(share => IsBlankPath(share)).ToList()
+                directories?.Where(share => IsBlankPath(share)).ToList()
                     .ForEach(blank => results.Add(new ValidationResult($"Share {blank} doees not specify a path")));
 
                 bool IsRootMount(string share) => Regex.IsMatch(share.LocalizePath(), @"^(!|-){0,1}(\[.*\])/$");
-                Directories.Where(share => IsRootMount(share)).ToList()
+                directories?.Where(share => IsRootMount(share)).ToList()
                     .ForEach(blank => results.Add(new ValidationResult($"Share {blank} specifies a root mount, which is not supported.")));
 
                 // starts with '/', 'X:', or '\\'
                 bool IsAbsolutePath(string share) => Regex.IsMatch(share.LocalizePath(), @"^(!|-){0,1}(\[.*\])?(\/|[a-zA-Z]:|\\\\).*$");
-                Directories.Where(share => !IsAbsolutePath(share)).ToList()
+                directories?.Where(share => !IsAbsolutePath(share)).ToList()
                     .ForEach(relativePath => results.Add(new ValidationResult($"Share {relativePath} contains a relative path; only absolute paths are supported.")));
 
                 (string Raw, string Alias, string Path) Digest(string share)
@@ -677,7 +679,7 @@ namespace slskd
                     return (share, share.Split(new[] { '/', '\\' }).Last(), share);
                 }
 
-                var digestedShared = Directories
+                var digestedShared = directories
                     .Select(share => Digest(share.TrimEnd('/', '\\')))
                     .ToHashSet();
 
