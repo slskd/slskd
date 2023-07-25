@@ -3,7 +3,6 @@ import React, { useState, useEffect } from 'react';
 import {
   Table,
   Icon,
-  Message,
   Modal,
   Header,
 } from 'semantic-ui-react';
@@ -71,7 +70,13 @@ const Explorer = ({ root }) => {
     </Table.Cell>
   </Table.Row>;
 
-  const DirectoryRow = ({ name, fullName, modifiedAt, onClick = () => {} }) => <Table.Row key={fullName}>
+  const DirectoryRow = ({
+    name,
+    fullName,
+    modifiedAt,
+    onClick = () => {},
+    deletable = true,
+  }) => <Table.Row key={name}>
     <Table.Cell
       style={{ cursor: 'pointer' }}
       onClick={onClick}
@@ -79,27 +84,29 @@ const Explorer = ({ root }) => {
     <Table.Cell>{modifiedAt ? formatDate(modifiedAt) : ''}</Table.Cell>
     <Table.Cell></Table.Cell>
     <Table.Cell>
-      <Modal
-        trigger={
-          <Icon name="trash alternate" color="red" style={{ cursor: 'pointer' }}/>
-        }
-        centered
-        size='small'
-        header={<Header icon='trash alternate' content='Confirm Directory Delete' />}
-        content={`Are you sure you want to delete directory '${fullName}'?`}
-        actions={[
-          'Cancel',
-          {
-            key: 'done',
-            content: 'Delete',
-            negative: true,
-            onClick: async () => {
-              await deleteDirectory({ root, path: `${subdirectory.join('/')}/${fullName}`});
-              fetch();
+      {deletable
+        ? <Modal
+          trigger={
+            <Icon name="trash alternate" color="red" style={{ cursor: 'pointer' }}/>
+          }
+          centered
+          size='small'
+          header={<Header icon='trash alternate' content='Confirm Directory Delete' />}
+          content={`Are you sure you want to delete directory '${fullName}'?`}
+          actions={[
+            'Cancel',
+            {
+              key: 'done',
+              content: 'Delete',
+              negative: true,
+              onClick: async () => {
+                await deleteDirectory({ root, path: `${subdirectory.join('/')}/${fullName}`});
+                fetch();
+              },
             },
-          },
-        ]}
-      />
+          ]}
+        />
+        : ''}
     </Table.Cell>  
   </Table.Row>;
 
@@ -131,8 +138,10 @@ const Explorer = ({ root }) => {
               </Table.Cell>
             </Table.Row>
             : <>
-              {subdirectory.length > 0 && <DirectoryRow name=".." fullName=".." onClick={upOneSubdirectory}/>}
-              {directory?.directories?.map(d => <DirectoryRow onClick={() => select({ path: d.name })} {...d}/>)}
+              {subdirectory.length > 0 
+                && <DirectoryRow name=".." fullName=".." onClick={upOneSubdirectory} deletable={false}/>}
+              {directory?.directories?.map(d => <DirectoryRow
+                key={d.name} onClick={() => select({ path: d.name })} {...d}/>)}
               {directory?.files?.map(f => <FileRow {...f}/>)}
             </>
           }
