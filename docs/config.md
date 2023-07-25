@@ -103,6 +103,20 @@ directories:
   downloads: ~
 ```
 
+## Remote File Management
+
+The application offers APIs for listing and deleting files within the 'Incomplete' and 'Downloads' directories.  Listing is always allowed, while the ability
+to delete is disabled by default.  Deletions can be enabled by enabling the remote file management option.
+
+| Command-Line               | Environment Variable           | Description                                                                               |
+| -------------------------- | ------------------------------ | ----------------------------------------------------------------------------------------- |
+| `--remote-file-management` | `SLSKD_REMOTE_FILE_MANAGEMENT` | Determines whether the remote management of 'Incomplete' and 'Downloads' files is allowed |
+
+#### **YAML**
+```yaml
+remote_file_management: false
+```
+
 # Shares
 
 ## Directories

@@ -59,7 +59,7 @@ const System = ({ state = {}, theme, options = {} }) => {
         icon: 'folder open',
         content: 'Files',
       },
-      render: () => <Tab.Pane className='full-height'><Files theme={theme}/></Tab.Pane>,
+      render: () => <Tab.Pane className='full-height'><Files options={options} theme={theme}/></Tab.Pane>,
     },
     {
       route: 'data',
