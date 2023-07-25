@@ -280,6 +280,8 @@ namespace slskd
 
         async Task IHostedService.StartAsync(CancellationToken cancellationToken)
         {
+            Log.Information("Application started");
+
             // if the application shut down "uncleanly", transfers may need to be cleaned up. we deliberately don't allow these
             // records to be updated if the application has started to shut down so that we can do this cleanup and properly
             // disposition them as having failed due to an application shutdown, instead of some random exception thrown while

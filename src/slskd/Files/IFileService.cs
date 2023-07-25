@@ -20,6 +20,7 @@ namespace slskd.Files
     using System;
     using System.Collections.Generic;
     using System.IO;
+    using System.Security;
     using System.Threading.Tasks;
     using OneOf;
 
@@ -35,12 +36,15 @@ namespace slskd.Files
         ///     Returns a dictionary keyed on directory name and containing a result for each specified directory. Exceptions are
         ///     contained in the result, and are not thrown.
         /// </remarks>
-        /// <param name="rootDirectory">The root directory.</param>
         /// <param name="directories">The directories to delete.</param>
         /// <returns>The operation context.</returns>
+        /// <exception cref="ArgumentException">Thrown if any of the specified directories have a relative path.</exception>
+        /// <exception cref="ArgumentException">
+        ///     Thrown if any of the directories is an exact match for an application-controlled directory.
+        /// </exception>
         /// <exception cref="NotFoundException">Thrown if a specified directory does not exist.</exception>
-        /// <exception cref="ForbiddenException">Thrown if a specified directory is restricted.</exception>
-        Task<Dictionary<string, OneOf<bool, Exception>>> DeleteDirectoriesAsync(string rootDirectory, params string[] directories);
+        /// <exception cref="UnauthorizedException">Thrown if a specified directory is restricted.</exception>
+        Task<Dictionary<string, OneOf<bool, Exception>>> DeleteDirectoriesAsync(params string[] directories);
 
         /// <summary>
         ///     Deletes the specified <paramref name="files"/>.
@@ -49,22 +53,22 @@ namespace slskd.Files
         ///     Returns a dictionary keyed on directory name and containing a result for each specified directory. Exceptions are
         ///     contained in the result, and are not thrown.
         /// </remarks>
-        /// <param name="rootDirectory">The root directory.</param>
         /// <param name="files">The list of files to delete.</param>
         /// <returns>The operation context.</returns>
+        /// <exception cref="ArgumentException">Thrown if any of the specified files have a relative path.</exception>
         /// <exception cref="NotFoundException">Thrown if a specified file does not exist.</exception>
-        /// <exception cref="ForbiddenException">Thrown if a specified file is restricted.</exception>
-        Task<Dictionary<string, OneOf<bool, Exception>>> DeleteFilesAsync(string rootDirectory, params string[] files);
+        /// <exception cref="UnauthorizedException">Thrown if a specified file is restricted.</exception>
+        Task<Dictionary<string, OneOf<bool, Exception>>> DeleteFilesAsync(params string[] files);
 
         /// <summary>
-        ///     Lists the contents in the specified <paramref name="parentDirectory"/>, optionally applying the specified <paramref name="enumerationOptions"/>.
+        ///     Lists the contents in the specified <paramref name="directory"/>, optionally applying the specified <paramref name="enumerationOptions"/>.
         /// </summary>
-        /// <param name="rootDirectory">The root directory.</param>
-        /// <param name="parentDirectory">An optional subdirectory from which to start the listing.</param>
+        /// <param name="directory">The directory from which to start the listing.</param>
         /// <param name="enumerationOptions">Optional enumeration options to apply.</param>
         /// <returns>The list of found contents.</returns>
+        /// <exception cref="ArgumentException">Thrown if the specified directory has a relative path.</exception>
         /// <exception cref="NotFoundException">Thrown if the specified directory does not exist.</exception>
-        /// <exception cref="ForbiddenException">Thrown if the specified root directory is restricted.</exception>
-        Task<IEnumerable<FilesystemDirectory>> ListContentsAsync(string rootDirectory, string parentDirectory = null, EnumerationOptions enumerationOptions = null);
+        /// <exception cref="UnauthorizedException">Thrown if the specified root directory is restricted.</exception>
+        Task<FilesystemDirectory> ListContentsAsync(string directory, EnumerationOptions enumerationOptions = null);
     }
 }

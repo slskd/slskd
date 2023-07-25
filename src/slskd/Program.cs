@@ -397,6 +397,8 @@ namespace slskd
             Log.Information("Invocation ID: {InvocationId}", InvocationId);
             Log.Information("Instance Name: {InstanceName}", OptionsAtStartup.InstanceName);
 
+            Log.Information("Configuring application...");
+
             // SQLite must have specific capabilities to function properly. this shouldn't be a concern for shrinkwrapped
             // binaries or in Docker, but if someone builds from source weird things can happen.
             InitSQLiteOrFailFast();
@@ -465,6 +467,7 @@ namespace slskd
                     return;
                 }
 
+                Log.Information("Configuration complete.  Starting application...");
                 app.Run();
             }
             catch (Exception ex)

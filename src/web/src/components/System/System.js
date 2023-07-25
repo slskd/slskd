@@ -5,11 +5,12 @@ import { Segment, Tab, Menu, Icon } from 'semantic-ui-react';
 
 import './System.css';
 
+import { Switch } from '../Shared';
 import Info from './Info';
 import Logs from './Logs';
 import Options from './Options';
 import Shares from './Shares';
-import { Switch } from '../Shared';
+import Files from './Files';
 import Data from './Data';
 
 const System = ({ state = {}, theme, options = {} }) => {
@@ -50,6 +51,15 @@ const System = ({ state = {}, theme, options = {} }) => {
         Shares
       </Menu.Item>),
       render: () => <Tab.Pane><Shares state={state.shares} theme={theme}/></Tab.Pane>,
+    },
+    {
+      route: 'files',
+      menuItem: {
+        key: 'files',
+        icon: 'folder open',
+        content: 'Files',
+      },
+      render: () => <Tab.Pane className='full-height'><Files theme={theme}/></Tab.Pane>,
     },
     {
       route: 'data',

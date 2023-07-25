@@ -21,15 +21,51 @@ namespace slskd.Files
     using System.Collections.Generic;
     using System.IO;
 
+    /// <summary>
+    ///     A file directory on the host filesystem.
+    /// </summary>
     public record FilesystemDirectory
     {
+        /// <summary>
+        ///     The name of the directory.
+        /// </summary>
         public string Name { get; init; }
+
+        /// <summary>
+        ///     The fully qualified name of the directory.
+        /// </summary>
         public string FullName { get; init; }
+
+        /// <summary>
+        ///     The directories' attributes.
+        /// </summary>
         public FileAttributes Attributes { get; init; }
+
+        /// <summary>
+        ///     The timestamp at which the directory was created.
+        /// </summary>
         public DateTime CreatedAt { get; init; }
+
+        /// <summary>
+        ///     The timestamp at which the directory was last modified.
+        /// </summary>
         public DateTime ModifiedAt { get; init; }
+
+        /// <summary>
+        ///     The files within the directory.
+        /// </summary>
         public IEnumerable<FilesystemFile> Files { get; init; }
 
+        /// <summary>
+        ///     The directories within the directory.
+        /// </summary>
+        public IEnumerable<FilesystemDirectory> Directories { get; init; }
+
+        /// <summary>
+        ///     Maps a <see cref="FilesystemDirectory"/> from the specified <see cref="DirectoryInfo"/>.
+        /// </summary>
+        /// <param name="i">The DirectoryInfo instance from which to map.</param>
+        /// <returns>A new instance of FilesystemDirectory.</returns>
         public static FilesystemDirectory FromDirectoryInfo(DirectoryInfo i)
         {
             return new FilesystemDirectory

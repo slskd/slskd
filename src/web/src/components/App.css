@@ -260,3 +260,7 @@ body {
 .search-list-wrapper {
     overflow-x: auto;
 }
+
+.message {
+    padding: 8px 12px 8px 12px !important;
+}
