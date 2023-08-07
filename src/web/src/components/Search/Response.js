@@ -66,15 +66,22 @@ class Response extends Component {
     this.setState({ fetchingDirectoryContents: true });
 
     try {
+      const oldTree = { ...this.state.tree };
+      const oldFiles = oldTree[directory];
+
       const { name, files } = await getDirectoryContents({ username, directory });
-      files.forEach((file, index) => {
-        const newFilename = `${directory}\\${file.filename}`;
-        files[index] = { ...files[index], filename: newFilename };
-      });
-  
-      const newTree = this.state.tree;
-      newTree[name] = files;
-      this.setState({ tree: { ...newTree } });
+
+      // the api returns file names only, so we need to prepend the directory
+      // to make it look like a search result.  we also need to preserve
+      // any file selections, so check the old files and assign accordingly
+      const fixedFiles = files.map(file => ({
+        ...file,
+        filename: `${directory}\\${file.filename}`,
+        selected: oldFiles.find(f => f.filename === `${directory}\\${file.filename}`)?.selected ?? false,
+      }));
+
+      oldTree[name] = fixedFiles;
+      this.setState({ tree: { ...oldTree } });
     } catch (error) {
       console.error(error);
       toast.error(error?.response?.data ?? error?.message ?? error);
