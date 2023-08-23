@@ -576,7 +576,7 @@ namespace slskd
         {
             if (force || !Cache.TryGetValue(CacheKeys.UserStatisticsToken, out _))
             {
-                var stats = await Client.GetUserStatisticsAsync(OptionsAtStartup.Soulseek.Username);
+                var stats = await Client.GetUserStatisticsAsync(Client.Username);
                 var privileges = await Client.GetPrivilegesAsync();
 
                 State.SetValue(state => state with
