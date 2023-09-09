@@ -1,5 +1,5 @@
 # build static web content
-FROM node:lts-alpine3.16 AS web
+FROM node:lts-alpine3.18 AS web
 ARG VERSION=0.0.1.65534-local
 
 WORKDIR /slskd
@@ -12,7 +12,7 @@ RUN sh ./bin/build --web-only --version $VERSION
 # build, test, and publish application binaries
 # note: this needs to be pinned to an amd64 image in order to publish armv7 binaries
 # https://github.com/dotnet/dotnet-docker/issues/1537#issuecomment-615269150
-FROM mcr.microsoft.com/dotnet/sdk:7.0-bullseye-slim-amd64 AS publish
+FROM mcr.microsoft.com/dotnet/sdk:7.0-bookworm-slim-amd64 AS publish
 ARG TARGETPLATFORM
 ARG VERSION=0.0.1.65534-local
 
@@ -31,17 +31,22 @@ RUN bash ./bin/build --dotnet-only --version $VERSION
 RUN bash ./bin/publish --no-prebuild --platform $TARGETPLATFORM --version $VERSION --output ../../dist/${TARGETPLATFORM}
 
 # application
-FROM mcr.microsoft.com/dotnet/runtime-deps:7.0-bullseye-slim AS slskd
+FROM mcr.microsoft.com/dotnet/runtime-deps:7.0-bookworm-slim AS slskd
 ARG TARGETPLATFORM
 ARG TAG=0.0.1
 ARG VERSION=0.0.1.65534-local
 ARG REVISION=0
 ARG BUILD_DATE
 
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install --no-installs-recommends -y \
   wget \
   tini \
-  && rm -rf /var/lib/apt/lists/*
+  && \
+  rm -rf \
+    /tmp/* \
+    /var/lib/apt/lists/* \
+    /var/cache/apt/* \
+    /var/tmp/*
 
 RUN bash -c 'mkdir -p /app/{incomplete,downloads} \ 
   && chmod -R 777 /app \
