@@ -38,7 +38,7 @@ ARG VERSION=0.0.1.65534-local
 ARG REVISION=0
 ARG BUILD_DATE
 
-RUN apt-get update && apt-get install --no-installs-recommends -y \
+RUN apt-get update && apt-get install --no-install-recommends -y \
   wget \
   tini \
   && \
