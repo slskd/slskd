@@ -107,6 +107,15 @@
 #         key: <some example string between 16 and 255 characters>
 #         role: readonly # readonly, readwrite, administrator
 #         cidr: 0.0.0.0/0,::/0
+# retention:
+#   upload:
+#     succeeded: 2147483647
+#     errored: 2147483647
+#     cancelled: 2147483647
+#   download:
+#     succeeded: 2147483647
+#     errored: 2147483647
+#     cancelled: 2147483647
 # logger:
 #   loki: ~
 # metrics:
