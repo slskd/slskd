@@ -453,6 +453,47 @@ namespace slskd.Transfers.Uploads
         }
 
         /// <summary>
+        ///     Removes <see cref="TransferStates.Completed"/> uploads older than the specified <paramref name="age"/>.
+        /// </summary>
+        /// <param name="age">The age after which uploads are eligible for pruning, in hours.</param>
+        /// <param name="state">An optional, additional state by which uploads are filtered for pruning.</param>
+        /// <returns>The number of pruned uploads.</returns>
+        public int Prune(int age, TransferStates state = TransferStates.Completed)
+        {
+            if (!state.HasFlag(TransferStates.Completed))
+            {
+                throw new ArgumentException($"State must include {TransferStates.Completed}", nameof(state));
+            }
+
+            try
+            {
+                using var context = ContextFactory.CreateDbContext();
+
+                var expired = context.Transfers
+                    .Where(t => t.Direction == TransferDirection.Upload)
+                    .Where(t => !t.Removed)
+                    .Where(t => t.EndedAt.HasValue && (DateTime.UtcNow - t.EndedAt.Value).Hours >= age)
+                    .Where(t => t.State.HasFlag(state))
+                    .ToList();
+
+                foreach (var tx in expired)
+                {
+                    tx.Removed = true;
+                }
+
+                var pruned = context.SaveChanges();
+
+                Log.Debug("Pruned {Count} expired uploads with state {State}", pruned, state);
+                return pruned;
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to prune uploads: {Message}", ex.Message);
+                throw;
+            }
+        }
+
+        /// <summary>
         ///     Removes the upload matching the specified <paramref name="id"/>.
         /// </summary>
         /// <remarks>This is a soft delete; the record is retained for historical retrieval.</remarks>
