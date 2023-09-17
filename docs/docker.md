@@ -44,8 +44,8 @@ docker run -d \
 And the YAML configuration file would contain:
 
 ```yaml
-directories:
-  shared:
+shares:
+  directories:
     - /music
     - /ebooks
 ```
