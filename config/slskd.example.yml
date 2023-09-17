@@ -109,13 +109,13 @@
 #         cidr: 0.0.0.0/0,::/0
 # retention:
 #   upload:
-#     succeeded: 2147483647
-#     errored: 2147483647
-#     cancelled: 2147483647
+#     succeeded: 1440 # 1 day
+#     errored: 30
+#     cancelled: 5
 #   download:
-#     succeeded: 2147483647
-#     errored: 2147483647
-#     cancelled: 2147483647
+#     succeeded: 1440 # 1 day
+#     errored: 20160 # 2 weeks 
+#     cancelled: 5
 # logger:
 #   loki: ~
 # metrics:
