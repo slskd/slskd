@@ -180,6 +180,7 @@ namespace slskd
 
             Clock.EveryMinute += Clock_EveryMinute;
             Clock.EveryFiveMinutes += Clock_EveryFiveMinutes;
+            Clock.EveryThirtyMinutes += Clock_EveryThirtyMinutes;
             Clock.EveryHour += Clock_EveryHour;
         }
 
@@ -726,12 +727,51 @@ namespace slskd
 
         private void Clock_EveryFiveMinutes(object sender, EventArgs e)
         {
+            PruneTransfers();
+        }
 
+        private void Clock_EveryThirtyMinutes(object sender, EventArgs e)
+        {
         }
 
         private void Clock_EveryHour(object sender, EventArgs e)
         {
+        }
 
+        private void PruneTransfers()
+        {
+            var options = OptionsMonitor.CurrentValue.Retention;
+
+            void PruneUpload(int? age, TransferStates state)
+            {
+                if (age.HasValue)
+                {
+                    Transfers.Uploads.Prune(age.Value, TransferStates.Completed | state);
+                }
+            }
+
+            void PruneDownload(int? age, TransferStates state)
+            {
+                if (age.HasValue)
+                {
+                    Transfers.Downloads.Prune(age.Value, TransferStates.Completed | state);
+                }
+            }
+
+            try
+            {
+                PruneUpload(options.Upload.Succeeded, TransferStates.Succeeded);
+                PruneUpload(options.Upload.Cancelled, TransferStates.Cancelled);
+                PruneUpload(options.Upload.Errored, TransferStates.Errored);
+
+                PruneDownload(options.Download.Succeeded, TransferStates.Succeeded);
+                PruneDownload(options.Download.Cancelled, TransferStates.Cancelled);
+                PruneDownload(options.Download.Errored, TransferStates.Errored);
+            }
+            catch
+            {
+                Log.Error("Encountered one or more errors while pruning transfers");
+            }
         }
 
         private void Client_TransferProgressUpdated(object sender, TransferProgressUpdatedEventArgs args)
