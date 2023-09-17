@@ -1077,21 +1077,21 @@ namespace slskd
             public class TransferRetentionOptions
             {
                 /// <summary>
-                ///     Gets the time to retain successful transfers, in minutes.
+                ///     Gets the time to retain successful transfers, in hours.
                 /// </summary>
-                [Range(60, maximum: int.MaxValue)]
+                [Range(1, maximum: int.MaxValue)]
                 public int Succeeded { get; init; } = int.MaxValue;
 
                 /// <summary>
-                ///     Gets the time to retain errored transfers, in minutes.
+                ///     Gets the time to retain errored transfers, in hours.
                 /// </summary>
-                [Range(60, maximum: int.MaxValue)]
+                [Range(1, maximum: int.MaxValue)]
                 public int Errored { get; init; } = int.MaxValue;
 
                 /// <summary>
-                ///     Gets the time to retain cancelled transfers, in minutes.
+                ///     Gets the time to retain cancelled transfers, in hours.
                 /// </summary>
-                [Range(60, maximum: int.MaxValue)]
+                [Range(1, maximum: int.MaxValue)]
                 public int Cancelled { get; init; } = int.MaxValue;
             }
         }
