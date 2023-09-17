@@ -28,6 +28,8 @@ namespace slskd
         static Clock()
         {
             EveryMinuteTimer.Elapsed += (_, _) => EveryMinute?.Invoke(null, EventArgs.Empty);
+            EveryFiveMinutesTimer.Elapsed += (_, _) => EveryFiveMinutes?.Invoke(null, EventArgs.Empty);
+            EveryHourTimer.Elapsed += (_, _) => EveryHour?.Invoke(null, EventArgs.Empty);
         }
 
         /// <summary>
@@ -35,6 +37,20 @@ namespace slskd
         /// </summary>
         public static event EventHandler EveryMinute;
 
-        private static Timer EveryMinuteTimer { get; } = new Timer() { AutoReset = true, Interval = 60000, Enabled = true };
+        /// <summary>
+        ///     Fires every 5 minutes.
+        /// </summary>
+        public static event EventHandler EveryFiveMinutes;
+
+        /// <summary>
+        ///     Fires every 60 minutes.
+        /// </summary>
+        public static event EventHandler EveryHour;
+
+        private static Timer EveryMinuteTimer { get; } = CreateTimer(interval: 1000 * 60);
+        private static Timer EveryFiveMinutesTimer { get; } = CreateTimer(interval: 1000 * 60 * 5);
+        private static Timer EveryHourTimer { get; } = CreateTimer(interval: 1000 * 60 * 60);
+
+        private static Timer CreateTimer(double interval) => new() { AutoReset = true, Interval = interval, Enabled = true };
     }
 }
