@@ -179,6 +179,8 @@ namespace slskd
             ConnectionWatchdog = connectionWatchdog;
 
             Clock.EveryMinute += Clock_EveryMinute;
+            Clock.EveryFiveMinutes += Clock_EveryFiveMinutes;
+            Clock.EveryHour += Clock_EveryHour;
         }
 
         /// <summary>
@@ -720,6 +722,16 @@ namespace slskd
         {
             Metrics.DistributedNetwork.BroadcastLatency.Observe(Client.DistributedNetwork.AverageBroadcastLatency ?? 0);
             Metrics.DistributedNetwork.CurrentBroadcastLatency.Set(Client.DistributedNetwork.AverageBroadcastLatency ?? 0);
+        }
+
+        private void Clock_EveryFiveMinutes(object sender, EventArgs e)
+        {
+
+        }
+
+        private void Clock_EveryHour(object sender, EventArgs e)
+        {
+
         }
 
         private void Client_TransferProgressUpdated(object sender, TransferProgressUpdatedEventArgs args)
