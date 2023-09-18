@@ -721,7 +721,7 @@ filters:
 
 # Data Retention
 
-Retention of transfer records on the UI (and in API endpoints) is, by default, indefinite; completed transfers will remain visible until they are manually removed.  Users can optionally configure time-based retention rules for both uploads and downloads, and can specify different settings for different dispositions (succeeded, errored, and cancelled).
+Retention of transfer records on the UI (and in API endpoints) is, by default, indefinite; completed transfers will remain visible until they are manually removed.  Users can optionally configure time-based retention rules for both uploads and downloads, and can specify different settings for different dispositions (succeeded, errored, and cancelled).  Transfers are checked for expiration on a 5 minute interval, and the minimum retention time is 5 minutes.
 
 All retention periods are specified in minutes.
 
