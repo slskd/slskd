@@ -254,6 +254,12 @@ namespace slskd
         public WebOptions Web { get; init; } = new WebOptions();
 
         /// <summary>
+        ///     Gets retention options.
+        /// </summary>
+        [Validate]
+        public RetentionOptions Retention { get; init; } = new RetentionOptions();
+
+        /// <summary>
         ///     Gets logger options.
         /// </summary>
         [Validate]
@@ -1046,6 +1052,48 @@ namespace slskd
             [Description("optional; url to a Grafana Loki instance to which to log")]
             [RequiresRestart]
             public string Loki { get; init; } = null;
+        }
+
+        /// <summary>
+        ///     Retention options.
+        /// </summary>
+        public class RetentionOptions
+        {
+            /// <summary>
+            ///     Gets upload retention options.
+            /// </summary>
+            [Validate]
+            public TransferRetentionOptions Upload { get; init; } = new TransferRetentionOptions();
+
+            /// <summary>
+            ///     Gets download retention options.
+            /// </summary>
+            [Validate]
+            public TransferRetentionOptions Download { get; init; } = new TransferRetentionOptions();
+
+            /// <summary>
+            ///     Transfer retention options.
+            /// </summary>
+            public class TransferRetentionOptions
+            {
+                /// <summary>
+                ///     Gets the time to retain successful transfers, in minutes.
+                /// </summary>
+                [Range(5, maximum: int.MaxValue)]
+                public int? Succeeded { get; init; } = null;
+
+                /// <summary>
+                ///     Gets the time to retain errored transfers, in minutes.
+                /// </summary>
+                [Range(5, maximum: int.MaxValue)]
+                public int? Errored { get; init; } = null;
+
+                /// <summary>
+                ///     Gets the time to retain cancelled transfers, in minutes.
+                /// </summary>
+                [Range(5, maximum: int.MaxValue)]
+                public int? Cancelled { get; init; } = null;
+            }
         }
 
         /// <summary>

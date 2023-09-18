@@ -37,6 +37,80 @@ namespace slskd.Transfers.Uploads
     /// <summary>
     ///     Manages uploads.
     /// </summary>
+    public interface IUploadService
+    {
+        /// <summary>
+        ///     Gets the upload governor.
+        /// </summary>
+        IUploadGovernor Governor { get; }
+
+        /// <summary>
+        ///     Gets the upload queue.
+        /// </summary>
+        IUploadQueue Queue { get; }
+
+        /// <summary>
+        ///     Adds the specified <paramref name="transfer"/>. Supersedes any existing record for the same file and username.
+        /// </summary>
+        /// <remarks>This should generally not be called; use <see cref="EnqueueAsync(string, string)"/> instead.</remarks>
+        /// <param name="transfer"></param>
+        void AddOrSupersede(Transfer transfer);
+
+        /// <summary>
+        ///     Enqueues the requested file.
+        /// </summary>
+        /// <param name="username">The username of the requesting user.</param>
+        /// <param name="filename">The local filename of the requested file.</param>
+        /// <returns>The operation context.</returns>
+        Task EnqueueAsync(string username, string filename);
+
+        /// <summary>
+        ///     Finds a single upload matching the specified <paramref name="expression"/>.
+        /// </summary>
+        /// <param name="expression">The expression to use to match uploads.</param>
+        /// <returns>The found transfer, or default if not found.</returns>
+        Transfer Find(Expression<Func<Transfer, bool>> expression);
+
+        /// <summary>
+        ///     Returns a list of all uploads matching the optional <paramref name="expression"/>.
+        /// </summary>
+        /// <param name="expression">An optional expression used to match uploads.</param>
+        /// <param name="includeRemoved">Optionally include uploads that have been removed previously.</param>
+        /// <returns>The list of uploads matching the specified expression, or all uploads if no expression is specified.</returns>
+        List<Transfer> List(Expression<Func<Transfer, bool>> expression = null, bool includeRemoved = false);
+
+        /// <summary>
+        ///     Removes <see cref="TransferStates.Completed"/> uploads older than the specified <paramref name="age"/>.
+        /// </summary>
+        /// <param name="age">The age after which uploads are eligible for pruning, in hours.</param>
+        /// <param name="state">An optional, additional state by which uploads are filtered for pruning.</param>
+        /// <returns>The number of pruned uploads.</returns>
+        int Prune(int age, TransferStates state = TransferStates.Completed);
+
+        /// <summary>
+        ///     Removes the upload matching the specified <paramref name="id"/>.
+        /// </summary>
+        /// <remarks>This is a soft delete; the record is retained for historical retrieval.</remarks>
+        /// <param name="id">The unique identifier of the upload.</param>
+        void Remove(Guid id);
+
+        /// <summary>
+        ///     Cancels the upload matching the specified <paramref name="id"/>, if it is in progress.
+        /// </summary>
+        /// <param name="id">The unique identifier for the upload.</param>
+        /// <returns>A value indicating whether the upload was successfully cancelled.</returns>
+        bool TryCancel(Guid id);
+
+        /// <summary>
+        ///     Synchronously updates the specified <paramref name="transfer"/>.
+        /// </summary>
+        /// <param name="transfer">The transfer to update.</param>
+        void Update(Transfer transfer);
+    }
+
+    /// <summary>
+    ///     Manages uploads.
+    /// </summary>
     public class UploadService : IUploadService
     {
         public UploadService(
@@ -374,6 +448,53 @@ namespace slskd.Transfers.Uploads
             catch (Exception ex)
             {
                 Log.Error(ex, "Failed to list uploads: {Message}", ex.Message);
+                throw;
+            }
+        }
+
+        /// <summary>
+        ///     Removes <see cref="TransferStates.Completed"/> uploads older than the specified <paramref name="age"/>.
+        /// </summary>
+        /// <param name="age">The age after which uploads are eligible for pruning, in hours.</param>
+        /// <param name="state">An optional, additional state by which uploads are filtered for pruning.</param>
+        /// <returns>The number of pruned uploads.</returns>
+        public int Prune(int age, TransferStates state = TransferStates.Completed)
+        {
+            if (!state.HasFlag(TransferStates.Completed))
+            {
+                throw new ArgumentException($"State must include {TransferStates.Completed}", nameof(state));
+            }
+
+            try
+            {
+                using var context = ContextFactory.CreateDbContext();
+
+                var cutoffDateTime = DateTime.UtcNow.AddMinutes(-age);
+
+                var expired = context.Transfers
+                    .Where(t => t.Direction == TransferDirection.Upload)
+                    .Where(t => !t.Removed)
+                    .Where(t => t.EndedAt.HasValue && t.EndedAt.Value < cutoffDateTime)
+                    .Where(t => t.State == state) // https://github.com/dotnet/efcore/issues/20094
+                    .ToList();
+
+                foreach (var tx in expired)
+                {
+                    tx.Removed = true;
+                }
+
+                var pruned = context.SaveChanges();
+
+                if (pruned > 0)
+                {
+                    Log.Debug("Pruned {Count} expired uploads with state {State}", pruned, state);
+                }
+
+                return pruned;
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to prune uploads: {Message}", ex.Message);
                 throw;
             }
         }
