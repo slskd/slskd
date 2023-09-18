@@ -719,6 +719,25 @@ filters:
       - ^.{1,2}$
 ```
 
+# Data Retention
+
+Retention of transfer records on the UI (and in API endpoints) is, by default, indefinite; completed transfers will remain visible until they are manually removed.  Users can optionally configure time-based retention rules for both uploads and downloads, and can specify different settings for different dispositions (succeeded, errored, and cancelled).
+
+All retention periods are specified in minutes.
+
+#### **YAML**
+```yaml
+retention:
+  upload:
+    succeeded: 1440 # 1 day
+    errored: 30
+    cancelled: 5
+  download:
+    succeeded: 1440 # 1 day
+    errored: 20160 # 2 weeks 
+    cancelled: 5
+```
+
 # Integrations
 
 ## FTP
