@@ -493,11 +493,13 @@ namespace slskd.Transfers.Downloads
             {
                 using var context = ContextFactory.CreateDbContext();
 
+                var cutoffDateTime = DateTime.UtcNow.AddMinutes(-age);
+
                 var expired = context.Transfers
                     .Where(t => t.Direction == TransferDirection.Download)
                     .Where(t => !t.Removed)
-                    .Where(t => t.EndedAt.HasValue && (DateTime.UtcNow - t.EndedAt.Value).Hours >= age)
-                    .Where(t => t.State.HasFlag(state))
+                    .Where(t => t.EndedAt.HasValue && t.EndedAt.Value < cutoffDateTime)
+                    .Where(t => t.State == state) // https://github.com/dotnet/efcore/issues/20094
                     .ToList();
 
                 foreach (var tx in expired)
