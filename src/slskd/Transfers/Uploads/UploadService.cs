@@ -485,7 +485,11 @@ namespace slskd.Transfers.Uploads
 
                 var pruned = context.SaveChanges();
 
-                Log.Debug("Pruned {Count} expired uploads with state {State}", pruned, state);
+                if (pruned > 0)
+                {
+                    Log.Debug("Pruned {Count} expired uploads with state {State}", pruned, state);
+                }
+
                 return pruned;
             }
             catch (Exception ex)

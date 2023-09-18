@@ -509,7 +509,11 @@ namespace slskd.Transfers.Downloads
 
                 var pruned = context.SaveChanges();
 
-                Log.Debug("Pruned {Count} expired downloads with state {State}", pruned, state);
+                if (pruned > 0)
+                {
+                    Log.Debug("Pruned {Count} expired downloads with state {State}", pruned, state);
+                }
+
                 return pruned;
             }
             catch (Exception ex)
