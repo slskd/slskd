@@ -14,3 +14,7 @@
 ### [In Docker](https://github.com/slskd/slskd/blob/master/docs/docker.md)
 ### [Behind a Reverse Proxy](https://github.com/slskd/slskd/blob/master/docs/reverse_proxy.md)
 ### [In Relay Mode](https://github.com/slskd/slskd/blob/master/docs/relay.md)
+
+## Building slskd from Source
+
+### [Build](https://github.com/slskd/slskd/blob/master/docs/build.md)
