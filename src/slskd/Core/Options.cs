@@ -1060,6 +1060,12 @@ namespace slskd
         public class RetentionOptions
         {
             /// <summary>
+            ///     Gets file retention options.
+            /// </summary>
+            [Validate]
+            public FileRetentionOptions File { get; init; } = new FileRetentionOptions();
+
+            /// <summary>
             ///     Gets upload retention options.
             /// </summary>
             [Validate]
@@ -1070,6 +1076,22 @@ namespace slskd
             /// </summary>
             [Validate]
             public TransferRetentionOptions Download { get; init; } = new TransferRetentionOptions();
+
+            /// <summary>
+            ///     File retention options.
+            /// </summary>
+            public class FileRetentionOptions
+            {
+                /// <summary>
+                ///     Gets the time to retain completed files, in minutes.
+                /// </summary>
+                public int? Complete { get; init; } = null;
+
+                /// <summary>
+                ///     Gets the time to retain incomplete files, in minutes.
+                /// </summary>
+                public int? Incomplete { get; init; } = null;
+            }
 
             /// <summary>
             ///     Transfer retention options.
