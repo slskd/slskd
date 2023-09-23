@@ -1078,6 +1078,11 @@ namespace slskd
             public TransferRetentionOptions Download { get; init; } = new TransferRetentionOptions();
 
             /// <summary>
+            ///     Gets log retention options.
+            /// </summary>
+            public int? Logs { get; init; } = 259200; // 180 days
+
+            /// <summary>
             ///     File retention options.
             /// </summary>
             public class FileRetentionOptions

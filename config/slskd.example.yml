@@ -118,7 +118,8 @@
 #     cancelled: 5
 #   file:
 #     complete: 20160 # 2 weeks
-#     incomplete: 10080 # 1 week#
+#     incomplete: 10080 # 1 week
+#   logs: 259200 # 180 days
 # logger:
 #   loki: ~
 # metrics:
