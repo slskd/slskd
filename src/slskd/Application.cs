@@ -727,15 +727,27 @@ namespace slskd
 
         private void Clock_EveryFiveMinutes(object sender, EventArgs e)
         {
-            PruneTransfers();
+            _ = Task.Run(() => PruneTransfers());
         }
 
         private void Clock_EveryThirtyMinutes(object sender, EventArgs e)
         {
+            _ = Task.Run(() => PruneFiles());
         }
 
         private void Clock_EveryHour(object sender, EventArgs e)
         {
+            _ = Task.Run(() => PruneLogs());
+        }
+
+        private void PruneFiles()
+        {
+
+        }
+
+        private void PruneLogs()
+        {
+
         }
 
         private void PruneTransfers()
