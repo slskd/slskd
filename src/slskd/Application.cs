@@ -742,12 +742,13 @@ namespace slskd
 
         private void PruneFiles()
         {
-
+            // todo: incomplete
+            // todo: complete
         }
 
         private void PruneLogs()
         {
-
+            // todo: delete files matching pattern slskd-20230216.log
         }
 
         private void PruneTransfers()
