@@ -28,15 +28,10 @@ namespace slskd
     {
         static Clock()
         {
-            EveryMinuteTimer.Elapsed += (_, _) => EveryMinute?.Fire();
-            EveryFiveMinutesTimer.Elapsed += (_, _) => EveryFiveMinutes?.Fire();
-            EveryThirtyMinutesTimer.Elapsed += (_, _) => EveryThirtyMinutes?.Fire();
-            EveryHourTimer.Elapsed += (_, _) => EveryHour?.Fire();
-
-            _ = Task.Run(() => EveryMinute?.Fire());
-            _ = Task.Run(() => EveryFiveMinutes?.Fire());
-            _ = Task.Run(() => EveryThirtyMinutes?.Fire());
-            _ = Task.Run(() => EveryHour?.Fire());
+            EveryMinuteTimer.Elapsed += (_, _) => Fire(EveryMinute);
+            EveryFiveMinutesTimer.Elapsed += (_, _) => Fire(EveryFiveMinutes);
+            EveryThirtyMinutesTimer.Elapsed += (_, _) => Fire(EveryThirtyMinutes);
+            EveryHourTimer.Elapsed += (_, _) => Fire(EveryHour);
         }
 
         /// <summary>
@@ -59,18 +54,25 @@ namespace slskd
         /// </summary>
         public static event EventHandler EveryHour;
 
-        /// <summary>
-        ///     Invokes the EventHandler <paramref name="e"/> with a null sender and <see cref="EventArgs.Empty"/>.
-        /// </summary>
-        /// <param name="e">The EventHandler to invoke.</param>
-        public static void Fire(this EventHandler e) => e?.Invoke(null, EventArgs.Empty);
+        public static void Start()
+        {
+            EveryMinuteTimer.Enabled = true;
+            EveryFiveMinutesTimer.Enabled = true;
+            EveryThirtyMinutesTimer.Enabled = true;
+            EveryHourTimer.Enabled = true;
+
+            _ = Task.Run(() => Fire(EveryMinute));
+            _ = Task.Run(() => Fire(EveryFiveMinutes));
+            _ = Task.Run(() => Fire(EveryThirtyMinutes));
+            _ = Task.Run(() => Fire(EveryHour));
+        }
 
         private static Timer EveryMinuteTimer { get; } = CreateTimer(interval: 1000 * 60);
         private static Timer EveryFiveMinutesTimer { get; } = CreateTimer(interval: 1000 * 60 * 5);
         private static Timer EveryThirtyMinutesTimer { get; } = CreateTimer(interval: 1000 * 60 * 30);
         private static Timer EveryHourTimer { get; } = CreateTimer(interval: 1000 * 60 * 60);
 
-        private static Timer CreateTimer(double interval) => new() { AutoReset = true, Interval = interval, Enabled = true };
-
+        private static Timer CreateTimer(double interval) => new() { AutoReset = true, Interval = interval, Enabled = false };
+        private static void Fire(EventHandler e) => e?.Invoke(null, EventArgs.Empty);
     }
 }
