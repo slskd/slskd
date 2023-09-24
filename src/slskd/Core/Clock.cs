@@ -18,6 +18,7 @@
 namespace slskd
 {
     using System;
+    using System.Threading.Tasks;
     using System.Timers;
 
     /// <summary>
@@ -27,10 +28,15 @@ namespace slskd
     {
         static Clock()
         {
-            EveryMinuteTimer.Elapsed += (_, _) => EveryMinute?.Invoke(null, EventArgs.Empty);
-            EveryFiveMinutesTimer.Elapsed += (_, _) => EveryFiveMinutes?.Invoke(null, EventArgs.Empty);
-            EveryThirtyMinutesTimer.Elapsed += (_, _) => EveryThirtyMinutes?.Invoke(null, EventArgs.Empty);
-            EveryHourTimer.Elapsed += (_, _) => EveryHour?.Invoke(null, EventArgs.Empty);
+            EveryMinuteTimer.Elapsed += (_, _) => EveryMinute?.Fire();
+            EveryFiveMinutesTimer.Elapsed += (_, _) => EveryFiveMinutes?.Fire();
+            EveryThirtyMinutesTimer.Elapsed += (_, _) => EveryThirtyMinutes?.Fire();
+            EveryHourTimer.Elapsed += (_, _) => EveryHour?.Fire();
+
+            _ = Task.Run(() => EveryMinute?.Fire());
+            _ = Task.Run(() => EveryFiveMinutes?.Fire());
+            _ = Task.Run(() => EveryThirtyMinutes?.Fire());
+            _ = Task.Run(() => EveryHour?.Fire());
         }
 
         /// <summary>
@@ -53,11 +59,18 @@ namespace slskd
         /// </summary>
         public static event EventHandler EveryHour;
 
+        /// <summary>
+        ///     Invokes the EventHandler <paramref name="e"/> with a null sender and <see cref="EventArgs.Empty"/>.
+        /// </summary>
+        /// <param name="e">The EventHandler to invoke.</param>
+        public static void Fire(this EventHandler e) => e?.Invoke(null, EventArgs.Empty);
+
         private static Timer EveryMinuteTimer { get; } = CreateTimer(interval: 1000 * 60);
         private static Timer EveryFiveMinutesTimer { get; } = CreateTimer(interval: 1000 * 60 * 5);
         private static Timer EveryThirtyMinutesTimer { get; } = CreateTimer(interval: 1000 * 60 * 30);
         private static Timer EveryHourTimer { get; } = CreateTimer(interval: 1000 * 60 * 60);
 
         private static Timer CreateTimer(double interval) => new() { AutoReset = true, Interval = interval, Enabled = true };
+
     }
 }
