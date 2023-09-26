@@ -4,7 +4,7 @@ import {
   Checkbox,
 } from 'semantic-ui-react';
 
-import { formatBytes, getFileName } from '../../lib/util';
+import { formatBytes, formatBytesAsUnit, getFileName } from '../../lib/util';
 
 import { 
   Header, 
@@ -37,23 +37,10 @@ const isRetryableState = (state) => getColor(state).color === 'red';
 const isQueuedState = (state) => state.includes('Queued');
 
 const formatBytesTransferred = ({ transferred, size }) => {
-  const [t, tExt] = formatBytes(transferred).split(' ');
-  const [s, sExt] = formatBytes(size).split(' ');
+  const [s, sExt] = formatBytes(size, 1).split(' ');
+  const t = formatBytesAsUnit(transferred, 1, sExt);
 
-  const fmt = (n) => parseFloat(n).toFixed(2);
-
-  // if less than 1 MB has been transferred, don't include decimals
-  if (tExt === 'KB') {
-    return `${t} KB/${fmt(s)} ${sExt}`;
-  }
-
-  // if the suffix for size and transferred doesn't match, include
-  // the suffix for each
-  if (tExt !== sExt) {
-    return `${fmt(t)} ${tExt}/${fmt(s)} ${sExt}`;
-  }
-
-  return `${fmt(t)}/${fmt(s)} ${sExt}`;
+  return `${t}/${s} ${sExt}`;
 };
 
 class TransferList extends Component {
