@@ -17,7 +17,7 @@ export const formatBytesAsUnit = (bytes, decimals = 2, unit) => {
   const sizes = {'KB': 1, 'MB': 2, 'GB': 3, 'TB': 4, 'PB': 5, 'EB': 6, 'ZB': 7, 'YB': 8};
 
   return parseFloat((bytes / Math.pow(k, sizes[unit])).toFixed(dm));
-}
+};
 
 export const formatBytes = (bytes, decimals = 2) => {
   if (bytes === 0) return '0 B';
