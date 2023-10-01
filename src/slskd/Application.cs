@@ -286,7 +286,7 @@ namespace slskd
             Log.Information("Application started");
 
             Log.Debug("Starting clock");
-            Clock.Start();
+            await Clock.StartAsync();
             Log.Debug("Clock started");
 
             // if the application shut down "uncleanly", transfers may need to be cleaned up. we deliberately don't allow these

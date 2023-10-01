@@ -54,17 +54,22 @@ namespace slskd
         /// </summary>
         public static event EventHandler EveryHour;
 
-        public static void Start()
+        /// <summary>
+        ///     Starts the clock.
+        /// </summary>
+        /// <returns>A Task that completes when all startup events have finished processing.</returns>
+        public static Task StartAsync()
         {
             EveryMinuteTimer.Enabled = true;
             EveryFiveMinutesTimer.Enabled = true;
             EveryThirtyMinutesTimer.Enabled = true;
             EveryHourTimer.Enabled = true;
 
-            _ = Task.Run(() => Fire(EveryMinute));
-            _ = Task.Run(() => Fire(EveryFiveMinutes));
-            _ = Task.Run(() => Fire(EveryThirtyMinutes));
-            _ = Task.Run(() => Fire(EveryHour));
+            return Task.WhenAll(
+                Task.Run(() => Fire(EveryMinute)),
+                Task.Run(() => Fire(EveryFiveMinutes)),
+                Task.Run(() => Fire(EveryThirtyMinutes)),
+                Task.Run(() => Fire(EveryHour)));
         }
 
         private static Timer EveryMinuteTimer { get; } = CreateTimer(interval: 1000 * 60);
