@@ -446,6 +446,9 @@ namespace slskd
         {
             ShuttingDown = true;
             Log.Warning("Application is shutting down");
+
+            Clock.Stop();
+
             Client.Disconnect("Shutting down", new ApplicationShutdownException("Shutting down"));
             Client.Dispose();
             Log.Information("Client stopped");

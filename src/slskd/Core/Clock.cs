@@ -72,6 +72,17 @@ namespace slskd
                 Task.Run(() => Fire(EveryHour)));
         }
 
+        /// <summary>
+        ///     Stops the clock.
+        /// </summary>
+        public static void Stop()
+        {
+            EveryMinuteTimer.Stop();
+            EveryFiveMinutesTimer.Stop();
+            EveryThirtyMinutesTimer.Stop();
+            EveryHourTimer.Stop();
+        }
+
         private static Timer EveryMinuteTimer { get; } = CreateTimer(interval: 1000 * 60);
         private static Timer EveryFiveMinutesTimer { get; } = CreateTimer(interval: 1000 * 60 * 5);
         private static Timer EveryThirtyMinutesTimer { get; } = CreateTimer(interval: 1000 * 60 * 30);
