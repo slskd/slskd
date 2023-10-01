@@ -952,7 +952,8 @@ namespace slskd
                     config.File(
                         Path.Combine(AppDirectory, "logs", $"{AppName}-.log"),
                         outputTemplate: (OptionsAtStartup.Debug ? "[{SourceContext}] " : string.Empty) + "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}",
-                        rollingInterval: RollingInterval.Day))
+                        rollingInterval: RollingInterval.Day,
+                        retainedFileTimeLimit: TimeSpan.FromMinutes(OptionsAtStartup.Retention.Logs)))
                 .WriteTo.Conditional(
                     e => !string.IsNullOrEmpty(OptionsAtStartup.Logger.Loki),
                     config => config.GrafanaLoki(
