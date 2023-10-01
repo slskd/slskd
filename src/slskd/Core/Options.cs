@@ -1080,7 +1080,7 @@ namespace slskd
             /// <summary>
             ///     Gets log retention options.
             /// </summary>
-            public int? Logs { get; init; } = 259200; // 180 days
+            public int Logs { get; init; } = 259200; // 180 days
 
             /// <summary>
             ///     File retention options.
