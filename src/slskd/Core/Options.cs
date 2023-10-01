@@ -1078,9 +1078,10 @@ namespace slskd
             public TransferRetentionOptions Download { get; init; } = new TransferRetentionOptions();
 
             /// <summary>
-            ///     Gets log retention options.
+            ///     Gets the time to retain logs, in days.
             /// </summary>
-            public int Logs { get; init; } = 259200; // 180 days
+            [Range(1, maximum: int.MaxValue)]
+            public int Logs { get; init; } = 180;
 
             /// <summary>
             ///     File retention options.
