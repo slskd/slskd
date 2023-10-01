@@ -1091,11 +1091,13 @@ namespace slskd
                 /// <summary>
                 ///     Gets the time to retain completed files, in minutes.
                 /// </summary>
+                [Range(30, maximum: int.MaxValue)]
                 public int? Complete { get; init; } = null;
 
                 /// <summary>
                 ///     Gets the time to retain incomplete files, in minutes.
                 /// </summary>
+                [Range(30, maximum: int.MaxValue)]
                 public int? Incomplete { get; init; } = null;
             }
 
