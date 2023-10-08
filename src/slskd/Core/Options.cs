@@ -1063,7 +1063,7 @@ namespace slskd
             ///     Gets file retention options.
             /// </summary>
             [Validate]
-            public FileRetentionOptions File { get; init; } = new FileRetentionOptions();
+            public FileRetentionOptions Files { get; init; } = new FileRetentionOptions();
 
             /// <summary>
             ///     Gets upload retention options.

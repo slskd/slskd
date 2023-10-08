@@ -116,7 +116,7 @@
 #     succeeded: 1440 # 1 day
 #     errored: 20160 # 2 weeks 
 #     cancelled: 5
-#   file:
+#   files:
 #     complete: 20160 # 2 weeks
 #     incomplete: 10080 # 1 week
 #   logs: 259200 # 180 days
