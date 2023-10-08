@@ -118,7 +118,7 @@
 #     cancelled: 5
 #   files:
 #     complete: 20160 # 2 weeks
-#     incomplete: 10080 # 1 week
+#     incomplete: 43200 # 30 days
 #   logs: 259200 # 180 days
 # logger:
 #   loki: ~
