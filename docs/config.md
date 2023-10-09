@@ -721,7 +721,13 @@ filters:
 
 # Data Retention
 
-Retention of transfer records on the UI (and in API endpoints) is, by default, indefinite; completed transfers will remain visible until they are manually removed.  Users can optionally configure time-based retention rules for both uploads and downloads, and can specify different settings for different dispositions (succeeded, errored, and cancelled).  Transfers are checked for expiration on a 5 minute interval, and the minimum retention time is 5 minutes.
+By default, most things created by the application are retained indefinitely; they have to be removed manually by the user.  Users can optionally configure certain things to be removed or deleted automatically after a period of time.
+
+Transfers can be configured to be removed from the UI after they are complete.  Users can specify different retention periods for uploads and downloads separately, and by transfer state; succeeded, errored, and cancelled.
+
+Files (on disk) can be configured to be deleted after the age of their last access time exceeds the configured time.  Completed and incomplete files can be configured separately.
+
+Application logs are removed after 180 days by default, but this can be configured as well.
 
 All retention periods are specified in minutes.
 
@@ -736,6 +742,10 @@ retention:
     succeeded: 1440 # 1 day
     errored: 20160 # 2 weeks 
     cancelled: 5
+  files:
+    complete: 20160 # 2 weeks
+    incomplete: 43200 # 30 days
+  logs: 259200 # 180 days
 ```
 
 # Integrations
