@@ -285,6 +285,10 @@ namespace slskd
         {
             Log.Information("Application started");
 
+            Log.Debug("Starting clock");
+            await Clock.StartAsync();
+            Log.Debug("Clock started");
+
             // if the application shut down "uncleanly", transfers may need to be cleaned up. we deliberately don't allow these
             // records to be updated if the application has started to shut down so that we can do this cleanup and properly
             // disposition them as having failed due to an application shutdown, instead of some random exception thrown while
@@ -442,6 +446,9 @@ namespace slskd
         {
             ShuttingDown = true;
             Log.Warning("Application is shutting down");
+
+            Clock.Stop();
+
             Client.Disconnect("Shutting down", new ApplicationShutdownException("Shutting down"));
             Client.Dispose();
             Log.Information("Client stopped");
@@ -727,15 +734,69 @@ namespace slskd
 
         private void Clock_EveryFiveMinutes(object sender, EventArgs e)
         {
-            PruneTransfers();
+            _ = Task.Run(() => PruneTransfers());
         }
 
         private void Clock_EveryThirtyMinutes(object sender, EventArgs e)
         {
+            _ = Task.Run(() => PruneFiles());
         }
 
         private void Clock_EveryHour(object sender, EventArgs e)
         {
+        }
+
+        private void PruneFiles()
+        {
+            void PruneDirectory(int? age, string directory)
+            {
+                try
+                {
+                    if (!age.HasValue)
+                    {
+                        return;
+                    }
+
+                    Log.Debug("Pruning files older than {Age} minutes from {Directory}", age, directory);
+
+                    var options = new EnumerationOptions
+                    {
+                        IgnoreInaccessible = true,
+                        AttributesToSkip = FileAttributes.Hidden | FileAttributes.System,
+                        RecurseSubdirectories = true,
+                    };
+
+                    var files = System.IO.Directory.GetFiles(directory, "*", options)
+                        .Select(filename => new FileInfo(filename))
+                        .Where(file => file.LastAccessTimeUtc <= DateTime.UtcNow.AddMinutes(-age.Value));
+
+                    Log.Debug("Found {Count} files of need of pruning", files.Count());
+
+                    int errors = 0;
+
+                    foreach (var file in files)
+                    {
+                        try
+                        {
+                            file.Delete();
+                        }
+                        catch (Exception ex)
+                        {
+                            errors++;
+                            Log.Warning(ex, "Failed to prune file {File}: {Message}", file, ex.Message);
+                        }
+                    }
+
+                    Log.Debug("Pruning complete. Deleted: {Deleted}, Errors: {Errors}", files.Count() - errors, errors);
+                }
+                catch (Exception ex)
+                {
+                    Log.Error("Failed to prune files in directory {Directory}: {Message}", directory, ex.Message);
+                }
+            }
+
+            PruneDirectory(age: Options.Retention.Files.Incomplete, directory: Options.Directories.Incomplete);
+            PruneDirectory(age: Options.Retention.Files.Complete, directory: Options.Directories.Downloads);
         }
 
         private void PruneTransfers()
