@@ -1060,28 +1060,64 @@ namespace slskd
         public class RetentionOptions
         {
             /// <summary>
+            ///     Gets transfer retention options.
+            /// </summary>
+            [Validate]
+            public TransferRetentionOptions Transfers { get; init; } = new TransferRetentionOptions();
+
+            /// <summary>
             ///     Gets file retention options.
             /// </summary>
             [Validate]
             public FileRetentionOptions Files { get; init; } = new FileRetentionOptions();
 
             /// <summary>
-            ///     Gets upload retention options.
-            /// </summary>
-            [Validate]
-            public TransferRetentionOptions Upload { get; init; } = new TransferRetentionOptions();
-
-            /// <summary>
-            ///     Gets download retention options.
-            /// </summary>
-            [Validate]
-            public TransferRetentionOptions Download { get; init; } = new TransferRetentionOptions();
-
-            /// <summary>
             ///     Gets the time to retain logs, in days.
             /// </summary>
             [Range(1, maximum: int.MaxValue)]
             public int Logs { get; init; } = 180;
+
+            /// <summary>
+            ///     Transfer retention options.
+            /// </summary>
+            public class TransferRetentionOptions
+            {
+                /// <summary>
+                ///     Gets upload retention options.
+                /// </summary>
+                [Validate]
+                public TransferTypeRetentionOptions Upload { get; init; } = new TransferTypeRetentionOptions();
+
+                /// <summary>
+                ///     Gets download retention options.
+                /// </summary>
+                [Validate]
+                public TransferTypeRetentionOptions Download { get; init; } = new TransferTypeRetentionOptions();
+
+                /// <summary>
+                ///     Transfer retention options.
+                /// </summary>
+                public class TransferTypeRetentionOptions
+                {
+                    /// <summary>
+                    ///     Gets the time to retain successful transfers, in minutes.
+                    /// </summary>
+                    [Range(5, maximum: int.MaxValue)]
+                    public int? Succeeded { get; init; } = null;
+
+                    /// <summary>
+                    ///     Gets the time to retain errored transfers, in minutes.
+                    /// </summary>
+                    [Range(5, maximum: int.MaxValue)]
+                    public int? Errored { get; init; } = null;
+
+                    /// <summary>
+                    ///     Gets the time to retain cancelled transfers, in minutes.
+                    /// </summary>
+                    [Range(5, maximum: int.MaxValue)]
+                    public int? Cancelled { get; init; } = null;
+                }
+            }
 
             /// <summary>
             ///     File retention options.
@@ -1099,30 +1135,6 @@ namespace slskd
                 /// </summary>
                 [Range(30, maximum: int.MaxValue)]
                 public int? Incomplete { get; init; } = null;
-            }
-
-            /// <summary>
-            ///     Transfer retention options.
-            /// </summary>
-            public class TransferRetentionOptions
-            {
-                /// <summary>
-                ///     Gets the time to retain successful transfers, in minutes.
-                /// </summary>
-                [Range(5, maximum: int.MaxValue)]
-                public int? Succeeded { get; init; } = null;
-
-                /// <summary>
-                ///     Gets the time to retain errored transfers, in minutes.
-                /// </summary>
-                [Range(5, maximum: int.MaxValue)]
-                public int? Errored { get; init; } = null;
-
-                /// <summary>
-                ///     Gets the time to retain cancelled transfers, in minutes.
-                /// </summary>
-                [Range(5, maximum: int.MaxValue)]
-                public int? Cancelled { get; init; } = null;
             }
         }
 

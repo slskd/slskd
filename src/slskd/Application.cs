@@ -821,13 +821,13 @@ namespace slskd
 
             try
             {
-                PruneUpload(options.Upload.Succeeded, TransferStates.Succeeded);
-                PruneUpload(options.Upload.Cancelled, TransferStates.Cancelled);
-                PruneUpload(options.Upload.Errored, TransferStates.Errored);
+                PruneUpload(options.Transfers.Upload.Succeeded, TransferStates.Succeeded);
+                PruneUpload(options.Transfers.Upload.Cancelled, TransferStates.Cancelled);
+                PruneUpload(options.Transfers.Upload.Errored, TransferStates.Errored);
 
-                PruneDownload(options.Download.Succeeded, TransferStates.Succeeded);
-                PruneDownload(options.Download.Cancelled, TransferStates.Cancelled);
-                PruneDownload(options.Download.Errored, TransferStates.Errored);
+                PruneDownload(options.Transfers.Download.Succeeded, TransferStates.Succeeded);
+                PruneDownload(options.Transfers.Download.Cancelled, TransferStates.Cancelled);
+                PruneDownload(options.Transfers.Download.Errored, TransferStates.Errored);
             }
             catch
             {
