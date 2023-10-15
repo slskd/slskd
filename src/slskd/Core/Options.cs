@@ -850,6 +850,7 @@ namespace slskd
             /// <summary>
             ///     Gets options for the blacklisted user group.
             /// </summary>
+            [Validate]
             public BlacklistedOptions Blacklisted { get; init; } = new BlacklistedOptions();
 
             /// <summary>
@@ -886,12 +887,41 @@ namespace slskd
             /// <summary>
             ///     Built in blacklisted group options.
             /// </summary>
-            public class BlacklistedOptions
+            public class BlacklistedOptions : IValidatableObject
             {
                 /// <summary>
                 ///     Gets the list of group member usernames.
                 /// </summary>
                 public string[] Members { get; init; } = Array.Empty<string>();
+
+                /// <summary>
+                ///     Gets the list of group CIDRs.
+                /// </summary>
+                public string[] Cidrs { get; init; } = Array.Empty<string>();
+
+                /// <summary>
+                ///     Extended validation.
+                /// </summary>
+                /// <param name="validationContext"></param>
+                /// <returns></returns>
+                public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+                {
+                    var results = new List<ValidationResult>();
+
+                    foreach (var cidr in Cidrs)
+                    {
+                        try
+                        {
+                            _ = IPAddressRange.Parse(cidr);
+                        }
+                        catch (Exception ex)
+                        {
+                            results.Add(new ValidationResult($"CIDR {cidr} is invalid: {ex.Message}"));
+                        }
+                    }
+
+                    return results;
+                }
             }
 
             /// <summary>
