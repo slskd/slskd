@@ -734,14 +734,15 @@ All retention periods are specified in minutes.
 #### **YAML**
 ```yaml
 retention:
-  upload:
-    succeeded: 1440 # 1 day
-    errored: 30
-    cancelled: 5
-  download:
-    succeeded: 1440 # 1 day
-    errored: 20160 # 2 weeks 
-    cancelled: 5
+  transfers:
+    upload:
+      succeeded: 1440 # 1 day
+      errored: 30
+      cancelled: 5
+    download:
+      succeeded: 1440 # 1 day
+      errored: 20160 # 2 weeks 
+      cancelled: 5
   files:
     complete: 20160 # 2 weeks
     incomplete: 43200 # 30 days
