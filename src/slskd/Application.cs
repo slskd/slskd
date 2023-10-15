@@ -36,6 +36,7 @@ namespace slskd
     using Microsoft.AspNetCore.SignalR;
     using Microsoft.Extensions.Caching.Memory;
     using Microsoft.Extensions.Hosting;
+    using NetTools;
     using Serilog;
     using Serilog.Events;
     using slskd.Configuration;
@@ -457,7 +458,7 @@ namespace slskd
 
         private Task EnqueueDownload(string username, IPEndPoint endpoint, string filename)
         {
-            if (Options.Groups.Blacklisted.Members.Contains(username))
+            if (IsBlacklisted(username, endpoint.Address))
             {
                 return Task.FromException(new DownloadEnqueueException($"File not shared."));
             }
@@ -475,7 +476,7 @@ namespace slskd
         {
             Metrics.Browse.RequestsReceived.Inc(1);
 
-            if (Options.Groups.Blacklisted.Members.Contains(username))
+            if (IsBlacklisted(username, endpoint.Address))
             {
                 return new BrowseResponse();
             }
@@ -899,7 +900,7 @@ namespace slskd
         /// <returns>A Task resolving an instance of Soulseek.Directory containing the contents of the requested directory.</returns>
         private async Task<Soulseek.Directory> DirectoryContentsResponseResolver(string username, IPEndPoint endpoint, int token, string directory)
         {
-            if (Options.Groups.Blacklisted.Members.Contains(username))
+            if (IsBlacklisted(username, endpoint.Address))
             {
                 return new Soulseek.Directory(directory);
             }
@@ -1094,7 +1095,7 @@ namespace slskd
         {
             Metrics.Search.RequestsReceived.Inc(1);
 
-            if (Options.Groups.Blacklisted.Members.Contains(username))
+            if (IsBlacklisted(username))
             {
                 return new SearchResponse(username, token, hasFreeUploadSlot: false, uploadSpeed: 0, queueLength: int.MaxValue, fileList: Enumerable.Empty<Soulseek.File>());
             }
@@ -1315,6 +1316,21 @@ namespace slskd
                 Log.Warning(ex, "Failed to resolve user info: {Message}", ex.Message);
                 throw;
             }
+        }
+
+        private bool IsBlacklisted(string username, IPAddress ipAddress = null)
+        {
+            if (Options.Groups.Blacklisted.Members.Contains(username))
+            {
+                return true;
+            }
+
+            if (ipAddress is not null && Options.Groups.Blacklisted.Cidrs.Select(c => IPAddressRange.Parse(c)).Any(range => range.Contains(ipAddress)))
+            {
+                return true;
+            }
+
+            return false;
         }
     }
 }
