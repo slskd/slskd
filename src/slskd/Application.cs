@@ -460,6 +460,7 @@ namespace slskd
         {
             if (IsBlacklisted(username, endpoint.Address))
             {
+                Log.Information("Rejected enqueue request for blacklisted user {Username} ({IP})", username, endpoint.Address);
                 return Task.FromException(new DownloadEnqueueException($"File not shared."));
             }
 
@@ -478,6 +479,7 @@ namespace slskd
 
             if (IsBlacklisted(username, endpoint.Address))
             {
+                Log.Information("Returned empty browse listing for blacklisted user {Username} ({IP})", username, endpoint.Address);
                 return new BrowseResponse();
             }
 
@@ -902,6 +904,7 @@ namespace slskd
         {
             if (IsBlacklisted(username, endpoint.Address))
             {
+                Log.Information("Returned empty directory listing for blacklisted user {Username} ({IP})", username, endpoint.Address);
                 return new Soulseek.Directory(directory);
             }
 
@@ -1097,6 +1100,7 @@ namespace slskd
 
             if (IsBlacklisted(username))
             {
+                Log.Information("Returned empty search response for blacklisted user {Username}", username);
                 return new SearchResponse(username, token, hasFreeUploadSlot: false, uploadSpeed: 0, queueLength: int.MaxValue, fileList: Enumerable.Empty<Soulseek.File>());
             }
 
