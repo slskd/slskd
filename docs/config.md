@@ -322,7 +322,7 @@ The `leechers` built-in group contains users that have not been explicitly added
 
 The `privileged` built-in is used to prioritize users who have purchased privileges on the Soulseek network. This groups is not configurable, has a priority of 0 (the highest), a strategy of `FirstInFirstOut`, and can use any number of slots up to the global limit.
 
-It is impossible to explicitly assign users to built-in groups, but the priority, number of slots, speed, and queue strategy can be adjusted (excluding `privileged`).
+It is impossible to explicitly assign users to these built-in groups, but the priority, number of slots, speed, and queue strategy can be adjusted (excluding `privileged`).
 
 #### **YAML**
 ```yaml
@@ -345,7 +345,8 @@ groups:
 ```
 
 ## Blacklist
-As of version `0.16.28` a blacklist group is available.
+
+A fourth built-in group, `blacklisted`, is used to disallow other users from various activities.
 
 Blacklisted users are prevented from:
 - Receiving search results
@@ -353,17 +354,16 @@ Blacklisted users are prevented from:
 - Retrieving directory contents
 - Enqueueing downloads
 
-Note:
-- Adding someone to the blacklist doesn't cancel transfers in flight; users will need to do that themselves.
-
-This could be expanded to ignore messages in chat rooms and private messages, but that's probably best done separately for now.
+Users can be blacklisted by adding their username to the `members` list.  Additionally, users can be blacklisted by IP address, or range of addresses by adding a CIDR entry to the `cidrs` list.
 
 **YAML**
 ```yaml
 groups:
-   blacklisted:
-     members:
-       - <username to blacklist>
+  blacklisted:
+    members:
+      - <username to blacklist>
+    cidrs:
+      - <CIDR to blacklist, e.g. 255.255.255.255/32>
 ```
 
 ## User Defined Groups
