@@ -198,6 +198,7 @@ The default number of workers determined by the [Environment.ProcessorCount](htt
 shares:
   cache:
     storage_mode: memory
+    workers: 4 # assuming the host has a quad core CPU
 ```
 
 # Relay
