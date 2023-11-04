@@ -413,6 +413,15 @@ namespace slskd
             Log.Information("Using configuration file {ConfigurationFile}", ConfigurationFile);
             Log.Information("Storing application data in {DataDirectory}", DataDirectory);
 
+            if (OptionsAtStartup.Logger.Disk)
+            {
+                Log.Information("Saving application logs to {LogDirectory}", LogDirectory);
+            }
+            else
+            {
+                Log.Information("Logging to disk is disabled");
+            }
+
             RecreateConfigurationFileIfMissing(ConfigurationFile);
 
             if (!string.IsNullOrEmpty(OptionsAtStartup.Logger.Loki))
@@ -955,11 +964,13 @@ namespace slskd
                 .WriteTo.Console(
                     outputTemplate: (OptionsAtStartup.Debug ? "[{SourceContext}] " : string.Empty) + "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
                 .WriteTo.Async(config =>
-                    config.File(
-                        Path.Combine(AppDirectory, "logs", $"{AppName}-.log"),
-                        outputTemplate: (OptionsAtStartup.Debug ? "[{SourceContext}] " : string.Empty) + "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}",
-                        rollingInterval: RollingInterval.Day,
-                        retainedFileTimeLimit: TimeSpan.FromDays(OptionsAtStartup.Retention.Logs)))
+                    config.Conditional(
+                        e => OptionsAtStartup.Logger.Disk,
+                        config => config.File(
+                            Path.Combine(LogDirectory, $"{AppName}-.log"),
+                            outputTemplate: (OptionsAtStartup.Debug ? "[{SourceContext}] " : string.Empty) + "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}",
+                            rollingInterval: RollingInterval.Day,
+                            retainedFileTimeLimit: TimeSpan.FromDays(OptionsAtStartup.Retention.Logs))))
                 .WriteTo.Conditional(
                     e => !string.IsNullOrEmpty(OptionsAtStartup.Logger.Loki),
                     config => config.GrafanaLoki(
