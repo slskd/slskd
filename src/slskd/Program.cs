@@ -198,6 +198,11 @@ namespace slskd
         public static string DefaultIncompleteDirectory { get; private set; }
 
         /// <summary>
+        ///     Gets the path where application logs are saved.
+        /// </summary>
+        public static string LogDirectory { get; private set; } = null;
+
+        /// <summary>
         ///     Gets a buffer containing the last few log events.
         /// </summary>
         public static ConcurrentFixedSizeQueue<LogRecord> LogBuffer { get; } = new ConcurrentFixedSizeQueue<LogRecord>(size: 100);
@@ -315,6 +320,7 @@ namespace slskd
             // derive the application directory value and defaults that are dependent upon it
             AppDirectory ??= DefaultAppDirectory;
             DataDirectory = Path.Combine(AppDirectory, "data");
+            LogDirectory = Path.Combine(AppDirectory, "logs");
 
             DefaultConfigurationFile = Path.Combine(AppDirectory, $"{AppName}.yml");
             DefaultDownloadsDirectory = Path.Combine(AppDirectory, "downloads");
