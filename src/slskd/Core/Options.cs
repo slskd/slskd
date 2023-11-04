@@ -1082,6 +1082,15 @@ namespace slskd
             [Description("optional; url to a Grafana Loki instance to which to log")]
             [RequiresRestart]
             public string Loki { get; init; } = null;
+
+            /// <summary>
+            ///     Gets a value indicating whether to write logs to disk.
+            /// </summary>
+            [Argument(default, "no-disk-logger")]
+            [EnvironmentVariable("NO_DISK_LOGGER")]
+            [Description("disable logging to disk")]
+            [RequiresRestart]
+            public bool Disk { get; init; } = true;
         }
 
         /// <summary>

@@ -838,18 +838,22 @@ instance_name: default
 
 ## Loggers
 
-By default, the application logs to disk (`/logs` in the application directory). Logs can optionally be forwarded to external services, and the targets can be expanded to any service supported by a [Serilog Sink](https://github.com/serilog/serilog/wiki/Provided-Sinks). Support for targets is added on an as-needed basis and within reason.
+By default, the application logs to console and to disk (`/logs` in the application directory); disk logging can be disabled.
+
+Logs can optionally be forwarded to external services, and the targets can be expanded to any service supported by a [Serilog Sink](https://github.com/serilog/serilog/wiki/Provided-Sinks). Support for targets is added on an as-needed basis and within reason.
 
 The current list of available targets is:
 
-| Command Line | Environment Variable       | Description                        |
-| ------------ | -------------------------- | ---------------------------------- |
-| `--loki`     | `SLSKD_LOKI`               | The URL to a Grafana Loki instance |
+| Command Line       | Environment Variable       | Description                        |
+| ------------------ | -------------------------- | ---------------------------------- |
+| `--loki`           | `SLSKD_LOKI`               | The URL to a Grafana Loki instance |
+| `--no-disk-logger` | `SLSKD_NO_DISK_LOGGER`     | Disable logging to disk            |
 
 #### **YAML**
 ```yaml
 logger:
   loki: ~
+  disk: true
 ```
 
 ## Metrics

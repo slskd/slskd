@@ -198,6 +198,11 @@ namespace slskd
         public static string DefaultIncompleteDirectory { get; private set; }
 
         /// <summary>
+        ///     Gets the path where application logs are saved.
+        /// </summary>
+        public static string LogDirectory { get; private set; } = null;
+
+        /// <summary>
         ///     Gets a buffer containing the last few log events.
         /// </summary>
         public static ConcurrentFixedSizeQueue<LogRecord> LogBuffer { get; } = new ConcurrentFixedSizeQueue<LogRecord>(size: 100);
@@ -315,6 +320,7 @@ namespace slskd
             // derive the application directory value and defaults that are dependent upon it
             AppDirectory ??= DefaultAppDirectory;
             DataDirectory = Path.Combine(AppDirectory, "data");
+            LogDirectory = Path.Combine(AppDirectory, "logs");
 
             DefaultConfigurationFile = Path.Combine(AppDirectory, $"{AppName}.yml");
             DefaultDownloadsDirectory = Path.Combine(AppDirectory, "downloads");
@@ -406,6 +412,15 @@ namespace slskd
             Log.Information("Using application directory {AppDirectory}", AppDirectory);
             Log.Information("Using configuration file {ConfigurationFile}", ConfigurationFile);
             Log.Information("Storing application data in {DataDirectory}", DataDirectory);
+
+            if (OptionsAtStartup.Logger.Disk)
+            {
+                Log.Information("Saving application logs to {LogDirectory}", LogDirectory);
+            }
+            else
+            {
+                Log.Information("Logging to disk is disabled");
+            }
 
             RecreateConfigurationFileIfMissing(ConfigurationFile);
 
@@ -949,11 +964,13 @@ namespace slskd
                 .WriteTo.Console(
                     outputTemplate: (OptionsAtStartup.Debug ? "[{SourceContext}] " : string.Empty) + "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
                 .WriteTo.Async(config =>
-                    config.File(
-                        Path.Combine(AppDirectory, "logs", $"{AppName}-.log"),
-                        outputTemplate: (OptionsAtStartup.Debug ? "[{SourceContext}] " : string.Empty) + "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}",
-                        rollingInterval: RollingInterval.Day,
-                        retainedFileTimeLimit: TimeSpan.FromDays(OptionsAtStartup.Retention.Logs)))
+                    config.Conditional(
+                        e => OptionsAtStartup.Logger.Disk,
+                        config => config.File(
+                            Path.Combine(LogDirectory, $"{AppName}-.log"),
+                            outputTemplate: (OptionsAtStartup.Debug ? "[{SourceContext}] " : string.Empty) + "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}",
+                            rollingInterval: RollingInterval.Day,
+                            retainedFileTimeLimit: TimeSpan.FromDays(OptionsAtStartup.Retention.Logs))))
                 .WriteTo.Conditional(
                     e => !string.IsNullOrEmpty(OptionsAtStartup.Logger.Loki),
                     config => config.GrafanaLoki(
