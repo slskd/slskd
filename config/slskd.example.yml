@@ -76,7 +76,7 @@
 #     my_buddies:
 #       upload:
 #         priority: 250
-#         queue_strategy: firstinfirstout
+#         strategy: firstinfirstout
 #         slots: 10
 #       members:
 #         - alice
