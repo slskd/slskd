@@ -67,7 +67,13 @@ namespace slskd.Core.API
 
             if (!Client.State.HasFlag(SoulseekClientStates.Connected))
             {
-                await Client.ConnectAsync(OptionsSnapshot.Value.Soulseek.Username, OptionsSnapshot.Value.Soulseek.Password);
+                var opt = OptionsSnapshot.Value.Soulseek;
+
+                await Client.ConnectAsync(
+                    address: opt.Address,
+                    port: opt.Port,
+                    username: opt.Username,
+                    password: opt.Password);
             }
 
             return Ok();
