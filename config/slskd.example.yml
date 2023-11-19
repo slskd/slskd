@@ -136,6 +136,8 @@
 # feature:
 #   swagger: false
 # soulseek:
+#   address: vps.slsknet.org
+#   port: 2271
 #   username: ~
 #   password: ~
 #   description: |
