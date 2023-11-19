@@ -438,7 +438,13 @@ namespace slskd
                 }
                 else
                 {
-                    await Client.ConnectAsync(OptionsAtStartup.Soulseek.Username, OptionsAtStartup.Soulseek.Password).ConfigureAwait(false);
+                    var opt = OptionsAtStartup.Soulseek;
+
+                    await Client.ConnectAsync(
+                        address: opt.Address,
+                        port: opt.Port,
+                        username: opt.Username,
+                        password: opt.Password).ConfigureAwait(false);
                 }
             }
         }

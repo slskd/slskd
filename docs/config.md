@@ -433,6 +433,22 @@ groups:
 
 The Soulseek configuration determines how slskd interacts with the Soulseek network and underlying [Soulseek.NET](https://github.com/jpdillingham/Soulseek.NET) library.
 
+## Server Connection
+
+By default the application connects to `vps.slsknet.org` on port `2271`.  This should work for nearly everyone, but it is possible to override both defaults if necessary.
+
+| Command-Line     | Environment Variable | Description                        |
+| ---------------- | ---------------------| -----------------------------------|
+| `--slsk-address` | `SLSKD_SLSK_ADDRESS` | The address of the Soulseek server |
+| `--slsk-port`    | `SLSKD_SLSK_PORT`    | The port of the Soulseek server    |
+
+#### **YAML**
+```yaml
+soulseek:
+  address: vps.slsknet.org
+  port: 2271
+```
+
 ## Username and Password
 
 Credentials to log in to the Soulseek network.

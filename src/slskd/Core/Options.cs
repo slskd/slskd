@@ -1249,6 +1249,25 @@ namespace slskd
         public class SoulseekOptions
         {
             /// <summary>
+            ///     Gets the address of the Soulseek server.
+            /// </summary>
+            [Argument(default, "slsk-address")]
+            [EnvironmentVariable("SLSK_ADDRESS")]
+            [Description("address of the Soulseek server")]
+            [RequiresReconnect]
+            public string Address { get; init; } = "vps.slsknet.org";
+
+            /// <summary>
+            ///     Gets the port of the Soulseek server.
+            /// </summary>
+            [Argument(default, "slsk-port")]
+            [EnvironmentVariable("SLSK_PORT")]
+            [Description("port of the Soulseek server")]
+            [RequiresReconnect]
+            [Range(1024, 65535)]
+            public int Port { get; init; } = 2271;
+
+            /// <summary>
             ///     Gets the username for the Soulseek network.
             /// </summary>
             [Argument(default, "slsk-username")]
