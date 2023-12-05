@@ -1,5 +1,5 @@
 # build static web content
-FROM node:lts-alpine3.18 AS web
+FROM node:18-alpine3.18 AS web
 ARG VERSION=0.0.1.65534-local
 
 WORKDIR /slskd
@@ -43,10 +43,10 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
   tini \
   && \
   rm -rf \
-    /tmp/* \
-    /var/lib/apt/lists/* \
-    /var/cache/apt/* \
-    /var/tmp/*
+  /tmp/* \
+  /var/lib/apt/lists/* \
+  /var/cache/apt/* \
+  /var/tmp/*
 
 RUN bash -c 'mkdir -p /app/{incomplete,downloads} \ 
   && chmod -R 777 /app \
