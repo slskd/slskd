@@ -22,9 +22,10 @@ docker run -d \
 
 This configuration, however, doesn't include any shared directories.
 
-First, you need to map each share to the container as a volume. Then each local directory within the container needs to be added to the configuration.
+First, you need to map each share to the container as a volume. Then each local directory within the container needs to be added to the configuration. You may also need to specify the user and group ID that should run the container and own files created by slskd. The default is `root:root`, but Docker will accept any numeric values in the `UID:GID` format, such as `1000:1000` in this example.
 
-In the following example, assume that the slskd application directory will be `/var/slskd` on the docker host. Assume that the directories `/home/JohnDoe/Music` and `/home/JohnDoe/eBooks` will be shared.
+In the following example, assume that the slskd application directory will be `/var/slskd` on the docker host. Assume that the directories `/home/JohnDoe/Music` and `/home/JohnDoe/eBooks` will be shared. 
+
 
 For this scenario, the `docker run` command would be:
 
@@ -38,10 +39,30 @@ docker run -d \
   -v /home/JohnDoe/Music:/music \
   -v /home/JohnDoe/eBooks:/ebooks \
   --name slskd \
+  --user 1000:1000 \
   slskd/slskd:latest
 ```
 
-And the YAML configuration file would contain:
+Or, for `docker-compose`:
+
+```yaml
+version: "3"
+services:
+  slskd:
+    environment:
+      - SLSKD_REMOTE_CONFIGURATION=true
+    ports:
+      - 5030:5030/tcp
+      - 5031:5031/tcp
+      - 50300:50300/tcp
+    volumes:
+      - /var/slskd:/app:rw
+      - /home/JohnDoe/Music:/music:rw
+      - /home/JohnDoe/eBooks:/ebooks:rw
+    user: 1000:1000
+    image: slskd/slskd:latest
+```
+The YAML configuration file would contain:
 
 ```yaml
 shares:
@@ -63,5 +84,27 @@ docker run -d \
   -v /home/JohnDoe/eBooks:/ebooks \
   -e "SLSKD_SHARED_DIR=/music;/ebooks" \
   --name slskd \
+  --user 1000:1000 \
   slskd/slskd:latest
+```
+
+Or, for `docker-compose`:
+
+```yaml
+version: "3"
+services:
+  slskd:
+    environment:
+      - SLSKD_REMOTE_CONFIGURATION=true
+      - "SLSKD_SHARED_DIR=/music;/ebooks"
+    ports:
+      - 5030:5030/tcp
+      - 5031:5031/tcp
+      - 50300:50300/tcp
+    volumes:
+      - /var/slskd:/app:rw
+      - /home/JohnDoe/Music:/music:rw
+      - /home/JohnDoe/eBooks:/ebooks:rw
+    user: 1000:1000
+    image: slskd/slskd:latest
 ```
