@@ -429,6 +429,29 @@ groups:
         - bob
 ```
 
+# Chat Rooms and Private Messaging
+
+## Auto-Joining Rooms
+
+A configured list of chat rooms will now be automatically joined on connect.
+
+The list can be specified via command line (e.g. --rooms <room1> --rooms <room2>), with the SLSKD_ROOMS environment variable (rooms separated by a semicolon).
+
+Additionally, when the client is disconnected, any rooms that were joined at the time of the disconnect are rejoined upon reconnect, as long as the app hasn't been restarted in between.
+
+
+| Command-Line  | Environment Variable | Description                             |
+| ------------- | ---------------------| ----------------------------------------|
+| `--rooms`     | `ROOMS`              | A list of chat rooms to join on startup |
+
+#### **YAML**
+```yaml
+rooms:
+  - <room 1>
+  - <room 2>
+```
+
+
 # Soulseek Configuration
 
 The Soulseek configuration determines how slskd interacts with the Soulseek network and underlying [Soulseek.NET](https://github.com/jpdillingham/Soulseek.NET) library.
