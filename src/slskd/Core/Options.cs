@@ -1295,6 +1295,15 @@ namespace slskd
             public string Description { get; init; } = "A slskd user. https://github.com/slskd/slskd";
 
             /// <summary>
+            ///     Gets the local IP address on which to listen for incoming connections.
+            /// </summary>
+            [Argument(default, "slsk-listen-address")]
+            [EnvironmentVariable("SLSK_LISTEN_ADDRESS")]
+            [Description("local IP address on which to listen for incoming connections")]
+            [IPAddress]
+            public string ListenAddress { get; init; } = "0.0.0.0";
+
+            /// <summary>
             ///     Gets the port on which to listen for incoming connections.
             /// </summary>
             [Argument(default, "slsk-listen-port")]
