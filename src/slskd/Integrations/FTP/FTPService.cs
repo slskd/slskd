@@ -24,6 +24,7 @@ namespace slskd.Integrations.FTP
     using System.Threading;
     using System.Threading.Tasks;
     using FluentFTP;
+    using FluentFTP.Exceptions;
     using Microsoft.Extensions.Logging;
     using static slskd.Options.IntegrationOptions;
 
