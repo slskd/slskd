@@ -142,6 +142,7 @@
 #   password: ~
 #   description: |
 #     A slskd user. https://github.com/slskd/slskd
+#   listen_ip_address: 0.0.0.0
 #   listen_port: 50300
 #   diagnostic_level: Info
 #   distributed_network:
