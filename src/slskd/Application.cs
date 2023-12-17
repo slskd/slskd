@@ -361,7 +361,7 @@ namespace slskd
                 writeBufferSize: OptionsAtStartup.Soulseek.Connection.Buffer.Transfer);
 
             var patch = new SoulseekClientOptionsPatch(
-                listenIPAddress: IPAddress.Parse(OptionsAtStartup.Soulseek.ListenIPAddress),
+                listenIPAddress: IPAddress.Parse(OptionsAtStartup.Soulseek.ListenIpAddress),
                 listenPort: OptionsAtStartup.Soulseek.ListenPort,
                 enableListener: true,
                 userEndPointCache: new UserEndPointCache(),
@@ -387,7 +387,7 @@ namespace slskd
             await Client.ReconfigureOptionsAsync(patch);
 
             Log.Debug("Client configured");
-            Log.Information("Listening for incoming connections on {IP:Port}", OptionsAtStartup.Soulseek.ListenIPAddress, OptionsAtStartup.Soulseek.ListenPort);
+            Log.Information("Listening for incoming connections son {IP}:{Port}", OptionsAtStartup.Soulseek.ListenIpAddress, OptionsAtStartup.Soulseek.ListenPort);
 
             if (OptionsAtStartup.Soulseek.Connection.Proxy.Enabled)
             {
@@ -1050,7 +1050,7 @@ namespace slskd
                     }
 
                     var patch = new SoulseekClientOptionsPatch(
-                        listenIPAddress: old.ListenIPAddress == update.ListenIPAddress ? null : IPAddress.Parse(update.ListenIPAddress),
+                        listenIPAddress: old.ListenIpAddress == update.ListenIpAddress ? null : IPAddress.Parse(update.ListenIpAddress),
                         listenPort: old.ListenPort == update.ListenPort ? null : update.ListenPort,
                         enableDistributedNetwork: old.DistributedNetwork.Disabled == update.DistributedNetwork.Disabled ? null : !update.DistributedNetwork.Disabled,
                         distributedChildLimit: old.DistributedNetwork.ChildLimit == update.DistributedNetwork.ChildLimit ? null : update.DistributedNetwork.ChildLimit,

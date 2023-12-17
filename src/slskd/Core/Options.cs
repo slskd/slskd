@@ -1301,7 +1301,7 @@ namespace slskd
             [EnvironmentVariable("SLSK_LISTEN_IP_ADDRESS")]
             [Description("local IP address on which to listen for incoming connections")]
             [IPAddress]
-            public string ListenIPAddress { get; init; } = "0.0.0.0";
+            public string ListenIpAddress { get; init; } = "0.0.0.0";
 
             /// <summary>
             ///     Gets the port on which to listen for incoming connections.
