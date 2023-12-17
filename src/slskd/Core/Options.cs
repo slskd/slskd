@@ -1653,7 +1653,7 @@ namespace slskd
                     [StringLength(255, MinimumLength = 16)]
                     [Secret]
                     [RequiresRestart]
-                    public string Key { get; init; } = Cryptography.Random.GetBytes(16).ToBase62();
+                    public string Key { get; init; } = Cryptography.Random.GetBytes(32).ToBase62();
 
                     /// <summary>
                     ///     Gets the TTL for JWTs, in milliseconds.
