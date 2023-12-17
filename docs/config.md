@@ -518,17 +518,21 @@ soulseek:
     child_limit: 25
 ```
 
-## Listen Port
+## Listen IP Address Port
 
-The port on which the application listens for incoming connections.
+The locak IP address and port on which the application listens for incoming connections.
 
 As with any other Soulseek client, configuring the listen port and port forwarding ensures full connectivity with other clients, including those without a correctly configured a listening port.  
 
 Symptoms of a misconfigured listen port include poor search results and the inability to browse or retrieve user information for some users.
 
-| Command-Line         | Environment Variable       | Description                                          |
-| -------------------- | -------------------------- | ---------------------------------------------------- |
-| `--slsk-listen-port` | `SLSKD_SLSK_LISTEN_PORT`   | The port on which to listen for incoming connections |
+The local IP address defaults to 0.0.0.0, and this should be correct for most people.  If you have multiple network adapters or are using a VPN you may want to set this value to ensure
+incoming traffic is properly routed.
+
+| Command-Line                | Environment Variable           | Description                                                      |
+| --------------------------- | ------------------------------ | ---------------------------------------------------------------- |
+| `--slsk-listen-ip-address`  | `SLSKD_SLSK_LISTEN_IP_ADDRESS` | The local IP address on which to listen for incoming connections |
+| `--slsk-listen-port`        | `SLSKD_SLSK_LISTEN_PORT`       | The port on which to listen for incoming connections             |
 
 #### **YAML**
 ```yaml
