@@ -1,4 +1,5 @@
 # build static web content
+# note: pin this to amd64 to speed it up, it is prohibitively slow under QEMU
 FROM --platform=$BUILDPLATFORM node:18-alpine3.18 AS web
 ARG VERSION=0.0.1.65534-local
 
@@ -31,7 +32,7 @@ RUN bash ./bin/build --dotnet-only --version $VERSION
 RUN bash ./bin/publish --no-prebuild --platform $TARGETPLATFORM --version $VERSION --output ../../dist/${TARGETPLATFORM}
 
 # application
-FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/runtime-deps:7.0-bookworm-slim AS slskd
+FROM mcr.microsoft.com/dotnet/runtime-deps:7.0-bookworm-slim AS slskd
 ARG TARGETPLATFORM
 ARG TAG=0.0.1
 ARG VERSION=0.0.1.65534-local
