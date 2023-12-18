@@ -1222,29 +1222,31 @@ namespace slskd
 
         private static void PrintLogo(string version)
         {
-            var padding = 56 - version.Length;
-            var paddingLeft = padding / 2;
-            var paddingRight = paddingLeft + (padding % 2);
-
-            var centeredVersion = new string(' ', paddingLeft) + version + new string(' ', paddingRight);
-
-            var logos = new[]
+            try
             {
-                $@"
-                   ▄▄▄▄         ▄▄▄▄       ▄▄▄▄
-           ▄▄▄▄▄▄▄ █  █ ▄▄▄▄▄▄▄ █  █▄▄▄ ▄▄▄█  █
-           █__ --█ █  █ █__ --█ █    ◄█ █  -  █
-           █▄▄▄▄▄█ █▄▄█ █▄▄▄▄▄█ █▄▄█▄▄█ █▄▄▄▄▄█",
-                @$"
-                     ▄▄▄▄     ▄▄▄▄     ▄▄▄▄
-               ▄▄▄▄▄▄█  █▄▄▄▄▄█  █▄▄▄▄▄█  █
-               █__ --█  █__ --█    ◄█  -  █
-               █▄▄▄▄▄█▄▄█▄▄▄▄▄█▄▄█▄▄█▄▄▄▄▄█",
-            };
+                var padding = 56 - version.Length;
+                var paddingLeft = padding / 2;
+                var paddingRight = paddingLeft + (padding % 2);
 
-            var logo = logos[new System.Random().Next(0, logos.Length)];
+                var centeredVersion = new string(' ', paddingLeft) + version + new string(' ', paddingRight);
 
-            var banner = @$"
+                var logos = new[]
+                {
+                    $@"
+                       ▄▄▄▄         ▄▄▄▄       ▄▄▄▄
+               ▄▄▄▄▄▄▄ █  █ ▄▄▄▄▄▄▄ █  █▄▄▄ ▄▄▄█  █
+               █__ --█ █  █ █__ --█ █    ◄█ █  -  █
+               █▄▄▄▄▄█ █▄▄█ █▄▄▄▄▄█ █▄▄█▄▄█ █▄▄▄▄▄█",
+                    @$"
+                         ▄▄▄▄     ▄▄▄▄     ▄▄▄▄
+                   ▄▄▄▄▄▄█  █▄▄▄▄▄█  █▄▄▄▄▄█  █
+                   █__ --█  █__ --█    ◄█  -  █
+                   █▄▄▄▄▄█▄▄█▄▄▄▄▄█▄▄█▄▄█▄▄▄▄▄█",
+                };
+
+                var logo = logos[new System.Random().Next(0, logos.Length)];
+
+                var banner = @$"
 {logo}
 ╒════════════════════════════════════════════════════════╕
 │           GNU AFFERO GENERAL PUBLIC LICENSE            │
@@ -1252,20 +1254,18 @@ namespace slskd
 │                                                        │
 │{centeredVersion}│";
 
-            if (IsDevelopment)
-            {
-                banner += "\n│■■■■■■■■■■■■■■■■■■■■► DEVELOPMENT ◄■■■■■■■■■■■■■■■■■■■■■│";
-            }
+                if (IsDevelopment)
+                {
+                    banner += "\n│■■■■■■■■■■■■■■■■■■■■► DEVELOPMENT ◄■■■■■■■■■■■■■■■■■■■■■│";
+                }
 
-            if (IsCanary)
-            {
-                banner += "\n│■■■■■■■■■■■■■■■■■■■■■■■► CANARY ◄■■■■■■■■■■■■■■■■■■■■■■■│";
-            }
+                if (IsCanary)
+                {
+                    banner += "\n│■■■■■■■■■■■■■■■■■■■■■■■► CANARY ◄■■■■■■■■■■■■■■■■■■■■■■■│";
+                }
 
-            banner += "\n└────────────────────────────────────────────────────────┘";
+                banner += "\n└────────────────────────────────────────────────────────┘";
 
-            try
-            {
                 Console.WriteLine(banner);
             }
             catch
