@@ -102,6 +102,7 @@ namespace slskd.Shares
 
         private IShareRepositoryFactory ShareRepositoryFactory { get; }
         private IShareScanner Scanner { get; }
+        private SemaphoreSlim ScannerSyncRoot { get; } = new SemaphoreSlim(1, 1);
         private string LastOptionsHash { get; set; }
         private IOptionsMonitor<Options> OptionsMonitor { get; }
         private ConcurrentDictionary<string, (Host Host, IShareRepository Repository)> HostDictionary { get; set; } = new();
@@ -333,6 +334,16 @@ namespace slskd.Shares
         /// <exception cref="ShareScanInProgressException">Thrown when a scan is already in progress.</exception>
         public async Task ScanAsync()
         {
+            // try to obtain the semaphore, or fail if it has already been obtained
+            // the scanner has an identical check, but because this method changes state we need it here, too
+            if (!await ScannerSyncRoot.WaitAsync(millisecondsTimeout: 0))
+            {
+                Log.Warning("Shared file scan rejected; scan is already in progress.");
+                throw new ShareScanInProgressException("Shared files are already being scanned.");
+            }
+
+            try
+            {
             State.SetValue(state => state with { Ready = false });
 
             await Scanner.ScanAsync(Local.Host.Shares, OptionsMonitor.CurrentValue.Shares, Local.Repository);
@@ -351,6 +362,11 @@ namespace slskd.Shares
                 Files = Hosts.SelectMany(host => host.Shares).Sum(share => share.Files ?? 0),
                 Ready = true,
             });
+        }
+            finally
+            {
+                ScannerSyncRoot.Release();
+            }
         }
 
         /// <summary>
