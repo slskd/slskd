@@ -43,6 +43,7 @@
 #   cache:
 #     storage_mode: memory
 #     workers: 16
+#     retention: ~ # retain indefinitely (do not automatically re-scan)
 # rooms:
 #   - ~
 # global:
