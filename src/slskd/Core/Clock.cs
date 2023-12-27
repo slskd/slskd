@@ -35,24 +35,29 @@ namespace slskd
         }
 
         /// <summary>
-        ///     Fires every minute.
-        /// </summary>
-        public static event EventHandler EveryMinute;
-
-        /// <summary>
         ///     Fires every 5 minutes.
         /// </summary>
-        public static event EventHandler EveryFiveMinutes;
-
-        /// <summary>
-        ///     Fires every 30 minutes.
-        /// </summary>
-        public static event EventHandler EveryThirtyMinutes;
+        public static event EventHandler<ClockEventArgs> EveryFiveMinutes;
 
         /// <summary>
         ///     Fires every hour.
         /// </summary>
-        public static event EventHandler EveryHour;
+        public static event EventHandler<ClockEventArgs> EveryHour;
+
+        /// <summary>
+        ///     Fires every minute.
+        /// </summary>
+        public static event EventHandler<ClockEventArgs> EveryMinute;
+
+        /// <summary>
+        ///     Fires every 30 minutes.
+        /// </summary>
+        public static event EventHandler<ClockEventArgs> EveryThirtyMinutes;
+
+        private static Timer EveryFiveMinutesTimer { get; } = CreateTimer(interval: 1000 * 60 * 5);
+        private static Timer EveryHourTimer { get; } = CreateTimer(interval: 1000 * 60 * 60);
+        private static Timer EveryMinuteTimer { get; } = CreateTimer(interval: 1000 * 60);
+        private static Timer EveryThirtyMinutesTimer { get; } = CreateTimer(interval: 1000 * 60 * 30);
 
         /// <summary>
         ///     Starts the clock.
@@ -65,11 +70,13 @@ namespace slskd
             EveryThirtyMinutesTimer.Enabled = true;
             EveryHourTimer.Enabled = true;
 
+            var firstRunArgs = new ClockEventArgs(firstRun: true);
+
             return Task.WhenAll(
-                Task.Run(() => Fire(EveryMinute)),
-                Task.Run(() => Fire(EveryFiveMinutes)),
-                Task.Run(() => Fire(EveryThirtyMinutes)),
-                Task.Run(() => Fire(EveryHour)));
+                Task.Run(() => Fire(EveryMinute, firstRunArgs)),
+                Task.Run(() => Fire(EveryFiveMinutes, firstRunArgs)),
+                Task.Run(() => Fire(EveryThirtyMinutes, firstRunArgs)),
+                Task.Run(() => Fire(EveryHour, firstRunArgs)));
         }
 
         /// <summary>
@@ -83,12 +90,27 @@ namespace slskd
             EveryHourTimer.Stop();
         }
 
-        private static Timer EveryMinuteTimer { get; } = CreateTimer(interval: 1000 * 60);
-        private static Timer EveryFiveMinutesTimer { get; } = CreateTimer(interval: 1000 * 60 * 5);
-        private static Timer EveryThirtyMinutesTimer { get; } = CreateTimer(interval: 1000 * 60 * 30);
-        private static Timer EveryHourTimer { get; } = CreateTimer(interval: 1000 * 60 * 60);
-
         private static Timer CreateTimer(double interval) => new() { AutoReset = true, Interval = interval, Enabled = false };
-        private static void Fire(EventHandler e) => e?.Invoke(null, EventArgs.Empty);
+        private static void Fire(EventHandler<ClockEventArgs> e, ClockEventArgs args = null) => e?.Invoke(null, args ?? new ClockEventArgs());
+    }
+
+    /// <summary>
+    ///     EventArgs for the application clock.
+    /// </summary>
+    public class ClockEventArgs : EventArgs
+    {
+        /// <summary>
+        ///     Initializes a new instance of the <see cref="ClockEventArgs"/> class.
+        /// </summary>
+        /// <param name="firstRun">A value indicating whether this event was raised when the clock was started.</param>
+        public ClockEventArgs(bool firstRun = false)
+        {
+            FirstRun = firstRun;
+        }
+
+        /// <summary>
+        ///     Gets a value indicating whether this event was raised when the click was started.
+        /// </summary>
+        public bool FirstRun { get; init; }
     }
 }
