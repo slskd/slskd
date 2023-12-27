@@ -790,17 +790,17 @@ namespace slskd
                 .AddMinutes(-ttl.Value)
                 .ToUnixTimeMilliseconds();
 
-            // get a list of all scans 1) started after our cutoff timestamp, 2) that succeeded (have a valid EndedAt) and
-            // 3) have not been marked suspect
-            var matchingScans = await Shares.ListScansAsync(s => s.StartedAt >= cutoffTimestamp && s.EndedAt != null && !s.Suspect);
+            // get a list of all scans 1) started after our cutoff timestamp
+            var scansInRange = await Shares.ListScansAsync(startedAtOrAfter: cutoffTimestamp);
 
-            Log.Warning("Scans: {@s}", matchingScans);
-
+            // 2) that succeeded (have a valid EndedAt) and 3) have not been marked suspect
             // if there's no scan that meets all 3 criteria, try to re-scan
-            if (!matchingScans.Any())
+            if (!scansInRange.Any(s => s.EndedAt is not null && !s.Suspect))
             {
+                Log.Information("Beginning scheduled re-scan of shares (previous scan is older than {Minutes} minutes)", ttl);
+
                 // fire and forget. if something slips through the underlying logic will log.
-                _ = Task.Run(() => Shares.RequestScan());
+                _ = Task.Run(() => Shares.ScanAsync());
             }
         }
 
