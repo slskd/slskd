@@ -23,6 +23,7 @@ namespace slskd.Shares
     using System.Collections.Concurrent;
     using System.Collections.Generic;
     using System.Linq;
+    using System.Linq.Expressions;
     using System.Threading;
     using System.Threading.Tasks;
     using Serilog;
@@ -307,6 +308,14 @@ namespace slskd.Shares
         }
 
         /// <summary>
+        ///     Returns the list of all <see cref="Scan"/> records matching the specified <paramref name="predicate"/>.
+        /// </summary>
+        /// <param name="predicate">An optional expression used to locate scans.</param>
+        /// <returns>The operation context, including the list of found scans.</returns>
+        public Task<IEnumerable<Scan>> ListScansAsync(Expression<Func<Scan, bool>> predicate = null)
+            => Task.FromResult(Local.Repository.ListScans(predicate));
+
+        /// <summary>
         ///     Requests that a share scan is performed.
         /// </summary>
         public void RequestScan()
@@ -344,25 +353,25 @@ namespace slskd.Shares
 
             try
             {
-            State.SetValue(state => state with { Ready = false });
+                State.SetValue(state => state with { Ready = false });
 
-            await Scanner.ScanAsync(Local.Host.Shares, OptionsMonitor.CurrentValue.Shares, Local.Repository);
+                await Scanner.ScanAsync(Local.Host.Shares, OptionsMonitor.CurrentValue.Shares, Local.Repository);
 
-            Log.Debug("Backing up shared file cache database...");
-            Local.Repository.BackupTo(ShareRepositoryFactory.CreateFromHostBackup(Local.Host.Name));
-            Log.Debug("Shared file cache database backup complete");
+                Log.Debug("Backing up shared file cache database...");
+                Local.Repository.BackupTo(ShareRepositoryFactory.CreateFromHostBackup(Local.Host.Name));
+                Log.Debug("Shared file cache database backup complete");
 
-            Log.Debug("Recomputing share statistics...");
-            ComputeShareStatistics();
-            Log.Debug("Share statistics updated: {Shares}", Local.Host.Shares.ToJson());
+                Log.Debug("Recomputing share statistics...");
+                ComputeShareStatistics();
+                Log.Debug("Share statistics updated: {Shares}", Local.Host.Shares.ToJson());
 
-            State.SetValue(state => state with
-            {
-                Directories = Hosts.SelectMany(host => host.Shares).Sum(share => share.Directories ?? 0 ),
-                Files = Hosts.SelectMany(host => host.Shares).Sum(share => share.Files ?? 0),
-                Ready = true,
-            });
-        }
+                State.SetValue(state => state with
+                {
+                    Directories = Hosts.SelectMany(host => host.Shares).Sum(share => share.Directories ?? 0),
+                    Files = Hosts.SelectMany(host => host.Shares).Sum(share => share.Files ?? 0),
+                    Ready = true,
+                });
+            }
             finally
             {
                 ScannerSyncRoot.Release();
