@@ -20,7 +20,6 @@ namespace slskd.Shares
     using System;
     using System.Collections.Generic;
     using System.Linq;
-    using System.Linq.Expressions;
     using System.Timers;
     using Microsoft.Data.Sqlite;
     using Serilog;
@@ -421,14 +420,15 @@ namespace slskd.Shares
         }
 
         /// <summary>
-        ///     Returns the list of all <see cref="Scan"/> s matching the optionally specified <paramref name="predicate"/>.
+        ///     Returns the list of all <see cref="Scan"/> started at or after the specified <paramref name="startedAtOrAfter"/>
+        ///     unix timestamp.
         /// </summary>
-        /// <param name="predicate">An optional expression used to filter scans.</param>
+        /// <param name="startedAtOrAfter">A unix timestamp that serves as the lower bound of the time-based listing.</param>
         /// <returns>The operation context, including the list of found scans.</returns>
-        public IEnumerable<Scan> ListScans(Expression<Func<Scan, bool>> predicate = null)
+        public IEnumerable<Scan> ListScans(long startedAtOrAfter = 0)
         {
             using var conn = GetConnection();
-            using var cmd = new SqliteCommand("SELECT timestamp, options, COALESCE(end, -1), suspect FROM scans", conn);
+            using var cmd = new SqliteCommand($"SELECT timestamp, options, COALESCE(end, -1), suspect FROM scans WHERE timestamp >= {startedAtOrAfter}", conn);
 
             var reader = cmd.ExecuteReader();
             var scans = new List<Scan>();
