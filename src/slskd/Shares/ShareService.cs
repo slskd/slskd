@@ -458,7 +458,7 @@ namespace slskd.Shares
 
                 var options = OptionsMonitor.CurrentValue.Shares;
                 var latestScan = Local.Repository.FindLatestScan();
-                Log.Debug("Latest scan: {Scan}, current options {Options}", latestScan, options);
+                Log.Debug("Latest scan: {Scan}, current options {@Options}", latestScan, options);
 
                 if (latestScan == default)
                 {
