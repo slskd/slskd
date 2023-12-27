@@ -20,6 +20,7 @@ namespace slskd.Shares
     using System;
     using System.Collections.Generic;
     using System.Linq;
+    using System.Linq.Expressions;
     using System.Timers;
     using Microsoft.Data.Sqlite;
     using Serilog;
@@ -38,11 +39,11 @@ namespace slskd.Shares
         {
             ConnectionString = connectionString;
 
-            // in-memory databases will be destroyed if at any point the number of connections reaches zero to prevent this,
+            // in-memory databases will be destroyed if at any point the number of connections reaches zero. to prevent this,
             // create a connection and hold it open for the duration of the application. SQLite will destroy this database when
-            // the connection that created it closes. since this is the first connection, it *should* keep the db alive.
-            // it's possible that this connection will be recycled somehow due to pooling; the app will crash if this happens
-            // so i'll know to keep digging.
+            // the connection that created it closes. since this is the first connection, it *should* keep the db alive. it's
+            // possible that this connection will be recycled somehow due to pooling; the app will crash if this happens so i'll
+            // know to keep digging.
             KeepaliveConnection = GetConnection(ConnectionString);
             KeepaliveTimer = new Timer(1000)
             {
@@ -417,6 +418,35 @@ namespace slskd.Shares
             {
                 cmd?.Dispose();
             }
+        }
+
+        /// <summary>
+        ///     Returns the list of all <see cref="Scan"/> s matching the optionally specified <paramref name="predicate"/>.
+        /// </summary>
+        /// <param name="predicate">An optional expression used to filter scans.</param>
+        /// <returns>The operation context, including the list of found scans.</returns>
+        public IEnumerable<Scan> ListScans(Expression<Func<Scan, bool>> predicate = null)
+        {
+            using var conn = GetConnection();
+            using var cmd = new SqliteCommand("SELECT timestamp, options, COALESCE(end, -1), suspect FROM scans", conn);
+
+            var reader = cmd.ExecuteReader();
+            var scans = new List<Scan>();
+
+            while (reader.Read())
+            {
+                var timestamp = reader.GetInt64(0);
+                var optionsJson = reader.GetString(1);
+
+                var endRaw = reader.GetInt64(2);
+                long? end = endRaw == -1 ? null : endRaw;
+
+                var suspect = reader.GetInt32(3) > 0;
+
+                scans.Add(new Scan { StartedAt = timestamp, OptionsJson = optionsJson, EndedAt = end, Suspect = suspect });
+            }
+
+            return scans;
         }
 
         /// <summary>

@@ -19,6 +19,7 @@ namespace slskd.Shares
 {
     using System;
     using System.Collections.Generic;
+    using System.Linq.Expressions;
     using Soulseek;
 
     /// <summary>
@@ -129,6 +130,13 @@ namespace slskd.Shares
         /// <param name="includeFullPath">A value indicating whether the fully qualified path should be returned.</param>
         /// <returns>The list of files.</returns>
         IEnumerable<File> ListFiles(string parentDirectory = null, bool includeFullPath = false);
+
+        /// <summary>
+        ///     Returns the list of all <see cref="Scan"/> s matching the optionally specified <paramref name="predicate"/>.
+        /// </summary>
+        /// <param name="predicate">An optional expression used to filter scans.</param>
+        /// <returns>The operation context, including the list of found scans.</returns>
+        IEnumerable<Scan> ListScans(Expression<Func<Scan, bool>> predicate = null);
 
         /// <summary>
         ///     Deletes directory records with a timestamp prior to the specified <paramref name="olderThanTimestamp"/>.
