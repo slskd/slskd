@@ -308,12 +308,13 @@ namespace slskd.Shares
         }
 
         /// <summary>
-        ///     Returns the list of all <see cref="Scan"/> records matching the specified <paramref name="predicate"/>.
+        ///     Returns the list of all <see cref="Scan"/>  started at or after the specified <paramref name="startedAtOrAfter"/>
+        ///     unix timestamp.
         /// </summary>
-        /// <param name="predicate">An optional expression used to locate scans.</param>
+        /// <param name="startedAtOrAfter">A unix timestamp that serves as the lower bound of the time-based listing.</param>
         /// <returns>The operation context, including the list of found scans.</returns>
-        public Task<IEnumerable<Scan>> ListScansAsync(Expression<Func<Scan, bool>> predicate = null)
-            => Task.FromResult(Local.Repository.ListScans(predicate));
+        public Task<IEnumerable<Scan>> ListScansAsync(long startedAtOrAfter = 0)
+            => Task.FromResult(Local.Repository.ListScans(startedAtOrAfter));
 
         /// <summary>
         ///     Requests that a share scan is performed.
