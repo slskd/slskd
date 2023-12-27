@@ -286,10 +286,6 @@ namespace slskd
         {
             Log.Information("Application started");
 
-            Log.Debug("Starting clock");
-            await Clock.StartAsync();
-            Log.Debug("Clock started");
-
             // if the application shut down "uncleanly", transfers may need to be cleaned up. we deliberately don't allow these
             // records to be updated if the application has started to shut down so that we can do this cleanup and properly
             // disposition them as having failed due to an application shutdown, instead of some random exception thrown while
@@ -410,6 +406,17 @@ namespace slskd
                     Log.Error("Failed to initialize shares. Sharing is disabled");
                 }
             }
+
+            // the placement of this may be a bit contentious long term; when the clock starts, all of the
+            // scheduled tasks will fire for the first time. the clock EventArgs contain a FirstRun flag
+            // to help timed logic decide whether to run, but as a safeguard the start is delayed until
+            // *just* before the application connects to the server/controller, meaning all configuration
+            // and bootup tasks are complete. if this needs to be moved higher, a way to defer tasks from
+            // the first run of the clock will need to be introduced, and those deferred tasks will need
+            // to be executed around here somewhere.
+            Log.Information("Starting system clock...");
+            await Clock.StartAsync();
+            Log.Information("System clock started");
 
             if (OptionsAtStartup.Relay.Enabled && OptionsAtStartup.Relay.Mode.ToEnum<RelayMode>() == RelayMode.Agent)
             {
@@ -736,23 +743,23 @@ namespace slskd
             Metrics.DistributedNetwork.Children.Set(e.Children.Count);
         }
 
-        private void Clock_EveryMinute(object sender, EventArgs e)
+        private void Clock_EveryMinute(object sender, ClockEventArgs e)
         {
             Metrics.DistributedNetwork.BroadcastLatency.Observe(Client.DistributedNetwork.AverageBroadcastLatency ?? 0);
             Metrics.DistributedNetwork.CurrentBroadcastLatency.Set(Client.DistributedNetwork.AverageBroadcastLatency ?? 0);
         }
 
-        private void Clock_EveryFiveMinutes(object sender, EventArgs e)
+        private void Clock_EveryFiveMinutes(object sender, ClockEventArgs e)
         {
             _ = Task.Run(() => PruneTransfers());
         }
 
-        private void Clock_EveryThirtyMinutes(object sender, EventArgs e)
+        private void Clock_EveryThirtyMinutes(object sender, ClockEventArgs e)
         {
             _ = Task.Run(() => PruneFiles());
         }
 
-        private void Clock_EveryHour(object sender, EventArgs e)
+        private void Clock_EveryHour(object sender, ClockEventArgs e)
         {
         }
 
