@@ -188,10 +188,13 @@ performance will start to get worse as more are added.  The optimal number of wo
 
 The default number of workers determined by the [Environment.ProcessorCount](https://learn.microsoft.com/en-us/dotnet/api/system.environment.processorcount?view=net-6.0) property.
 
-| Command Line                 | Environment Variable             | Description                                             |
-| ---------------------------- | -------------------------------- | ------------------------------------------------------- |
-| `--share-cache-storage-mode` | `SLSKD_SHARE_CACHE_STORAGE_MODE` | The type of storage to use for the cache (Memory, Disk) |
-| `--share-cache-workers`      | `SLSKD_SHARE_CACHE_WORKERS`      | The number of workers to use while scanning shares      |
+Shares can be configured to be automatically re-scanned at a regular interval by setting the retention limit for the cache.  This value is empty by default, and shares will not be re-scanned automatically.  The interval is set in minutes.
+
+| Command Line                 | Environment Variable             | Description                                               |
+| ---------------------------- | -------------------------------- | --------------------------------------------------------- |
+| `--share-cache-storage-mode` | `SLSKD_SHARE_CACHE_STORAGE_MODE` | The type of storage to use for the cache (Memory, Disk)   |
+| `--share-cache-workers`      | `SLSKD_SHARE_CACHE_WORKERS`      | The number of workers to use while scanning shares        |
+| `--share-cache-retention`    | `SLSKD_SHARE_CACHE_RETENTION`    | The interval on which the cache is re-scanned, in minutes |
 
 #### **YAML**
 ```yaml
@@ -199,6 +202,7 @@ shares:
   cache:
     storage_mode: memory
     workers: 4 # assuming the host has a quad core CPU
+    retention: 10080 # 1 week
 ```
 
 # Relay
