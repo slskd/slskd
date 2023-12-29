@@ -766,13 +766,10 @@ namespace slskd
 
         private async Task MaybeRescanShares()
         {
-            Log.Warning("Running MaybeRescanShares");
-
             // ignore this if we're already scanning. there are multiple safeguards using
             // SemaphoreSlim later in the call chain if we manage to slip by somehow, though
             if (Shares.StateMonitor.CurrentValue.Scanning)
             {
-                Log.Warning("Already scanning");
                 return;
             }
 
@@ -781,7 +778,6 @@ namespace slskd
             // no configured TTL; never re-scan automatically
             if (!ttl.HasValue)
             {
-                Log.Warning("No ttl configured");
                 return;
             }
 
@@ -790,10 +786,11 @@ namespace slskd
                 .AddMinutes(-ttl.Value)
                 .ToUnixTimeMilliseconds();
 
-            // get a list of all scans 1) started after our cutoff timestamp
+            // get a list of all scans that 1) started after our cutoff timestamp
             var scansInRange = await Shares.ListScansAsync(startedAtOrAfter: cutoffTimestamp);
 
-            // 2) that succeeded (have a valid EndedAt) and 3) have not been marked suspect
+            // 2) that succeeded (have a valid EndedAt)
+            // and 3) have not been marked suspect
             // if there's no scan that meets all 3 criteria, try to re-scan
             if (!scansInRange.Any(s => s.EndedAt is not null && !s.Suspect))
             {
