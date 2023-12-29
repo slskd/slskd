@@ -38,11 +38,11 @@ namespace slskd.Shares
         {
             ConnectionString = connectionString;
 
-            // in-memory databases will be destroyed if at any point the number of connections reaches zero to prevent this,
+            // in-memory databases will be destroyed if at any point the number of connections reaches zero. to prevent this,
             // create a connection and hold it open for the duration of the application. SQLite will destroy this database when
-            // the connection that created it closes. since this is the first connection, it *should* keep the db alive.
-            // it's possible that this connection will be recycled somehow due to pooling; the app will crash if this happens
-            // so i'll know to keep digging.
+            // the connection that created it closes. since this is the first connection, it *should* keep the db alive. it's
+            // possible that this connection will be recycled somehow due to pooling; the app will crash if this happens so i'll
+            // know to keep digging.
             KeepaliveConnection = GetConnection(ConnectionString);
             KeepaliveTimer = new Timer(1000)
             {
@@ -417,6 +417,36 @@ namespace slskd.Shares
             {
                 cmd?.Dispose();
             }
+        }
+
+        /// <summary>
+        ///     Returns the list of all <see cref="Scan"/> started at or after the specified <paramref name="startedAtOrAfter"/>
+        ///     unix timestamp.
+        /// </summary>
+        /// <param name="startedAtOrAfter">A unix timestamp that serves as the lower bound of the time-based listing.</param>
+        /// <returns>The operation context, including the list of found scans.</returns>
+        public IEnumerable<Scan> ListScans(long startedAtOrAfter = 0)
+        {
+            using var conn = GetConnection();
+            using var cmd = new SqliteCommand($"SELECT timestamp, options, COALESCE(end, -1), suspect FROM scans WHERE timestamp >= {startedAtOrAfter}", conn);
+
+            var reader = cmd.ExecuteReader();
+            var scans = new List<Scan>();
+
+            while (reader.Read())
+            {
+                var timestamp = reader.GetInt64(0);
+                var optionsJson = reader.GetString(1);
+
+                var endRaw = reader.GetInt64(2);
+                long? end = endRaw == -1 ? null : endRaw;
+
+                var suspect = reader.GetInt32(3) > 0;
+
+                scans.Add(new Scan { StartedAt = timestamp, OptionsJson = optionsJson, EndedAt = end, Suspect = suspect });
+            }
+
+            return scans;
         }
 
         /// <summary>

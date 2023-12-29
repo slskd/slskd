@@ -131,6 +131,14 @@ namespace slskd.Shares
         IEnumerable<File> ListFiles(string parentDirectory = null, bool includeFullPath = false);
 
         /// <summary>
+        ///     Returns the list of all <see cref="Scan"/> started at or after the specified <paramref name="startedAtOrAfter"/>
+        ///     unix timestamp.
+        /// </summary>
+        /// <param name="startedAtOrAfter">A unix timestamp that serves as the lower bound of the time-based listing.</param>
+        /// <returns>The operation context, including the list of found scans.</returns>
+        IEnumerable<Scan> ListScans(long startedAtOrAfter = 0);
+
+        /// <summary>
         ///     Deletes directory records with a timestamp prior to the specified <paramref name="olderThanTimestamp"/>.
         /// </summary>
         /// <param name="olderThanTimestamp">The timestamp before which to delete directories.</param>

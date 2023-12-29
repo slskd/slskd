@@ -102,6 +102,7 @@ namespace slskd.Shares
 
         private IShareRepositoryFactory ShareRepositoryFactory { get; }
         private IShareScanner Scanner { get; }
+        private SemaphoreSlim ScannerSyncRoot { get; } = new SemaphoreSlim(1, 1);
         private string LastOptionsHash { get; set; }
         private IOptionsMonitor<Options> OptionsMonitor { get; }
         private ConcurrentDictionary<string, (Host Host, IShareRepository Repository)> HostDictionary { get; set; } = new();
@@ -306,6 +307,15 @@ namespace slskd.Shares
         }
 
         /// <summary>
+        ///     Returns the list of all <see cref="Scan"/>  started at or after the specified <paramref name="startedAtOrAfter"/>
+        ///     unix timestamp.
+        /// </summary>
+        /// <param name="startedAtOrAfter">A unix timestamp that serves as the lower bound of the time-based listing.</param>
+        /// <returns>The operation context, including the list of found scans.</returns>
+        public Task<IEnumerable<Scan>> ListScansAsync(long startedAtOrAfter = 0)
+            => Task.FromResult(Local.Repository.ListScans(startedAtOrAfter));
+
+        /// <summary>
         ///     Requests that a share scan is performed.
         /// </summary>
         public void RequestScan()
@@ -333,24 +343,39 @@ namespace slskd.Shares
         /// <exception cref="ShareScanInProgressException">Thrown when a scan is already in progress.</exception>
         public async Task ScanAsync()
         {
-            State.SetValue(state => state with { Ready = false });
-
-            await Scanner.ScanAsync(Local.Host.Shares, OptionsMonitor.CurrentValue.Shares, Local.Repository);
-
-            Log.Debug("Backing up shared file cache database...");
-            Local.Repository.BackupTo(ShareRepositoryFactory.CreateFromHostBackup(Local.Host.Name));
-            Log.Debug("Shared file cache database backup complete");
-
-            Log.Debug("Recomputing share statistics...");
-            ComputeShareStatistics();
-            Log.Debug("Share statistics updated: {Shares}", Local.Host.Shares.ToJson());
-
-            State.SetValue(state => state with
+            // try to obtain the semaphore, or fail if it has already been obtained
+            // the scanner has an identical check, but because this method changes state we need it here, too
+            if (!await ScannerSyncRoot.WaitAsync(millisecondsTimeout: 0))
             {
-                Directories = Hosts.SelectMany(host => host.Shares).Sum(share => share.Directories ?? 0 ),
-                Files = Hosts.SelectMany(host => host.Shares).Sum(share => share.Files ?? 0),
-                Ready = true,
-            });
+                Log.Warning("Shared file scan rejected; scan is already in progress.");
+                throw new ShareScanInProgressException("Shared files are already being scanned.");
+            }
+
+            try
+            {
+                State.SetValue(state => state with { Ready = false });
+
+                await Scanner.ScanAsync(Local.Host.Shares, OptionsMonitor.CurrentValue.Shares, Local.Repository);
+
+                Log.Debug("Backing up shared file cache database...");
+                Local.Repository.BackupTo(ShareRepositoryFactory.CreateFromHostBackup(Local.Host.Name));
+                Log.Debug("Shared file cache database backup complete");
+
+                Log.Debug("Recomputing share statistics...");
+                ComputeShareStatistics();
+                Log.Debug("Share statistics updated: {Shares}", Local.Host.Shares.ToJson());
+
+                State.SetValue(state => state with
+                {
+                    Directories = Hosts.SelectMany(host => host.Shares).Sum(share => share.Directories ?? 0),
+                    Files = Hosts.SelectMany(host => host.Shares).Sum(share => share.Files ?? 0),
+                    Ready = true,
+                });
+            }
+            finally
+            {
+                ScannerSyncRoot.Release();
+            }
         }
 
         /// <summary>
@@ -433,7 +458,7 @@ namespace slskd.Shares
 
                 var options = OptionsMonitor.CurrentValue.Shares;
                 var latestScan = Local.Repository.FindLatestScan();
-                Log.Debug("Latest scan: {Scan}, current options {Options}", latestScan, options);
+                Log.Debug("Latest scan: {Scan}, current options {@Options}", latestScan, options);
 
                 if (latestScan == default)
                 {

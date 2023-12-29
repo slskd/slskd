@@ -761,6 +761,44 @@ namespace slskd
 
         private void Clock_EveryHour(object sender, ClockEventArgs e)
         {
+            _ = Task.Run(() => MaybeRescanShares());
+        }
+
+        private async Task MaybeRescanShares()
+        {
+            // ignore this if we're already scanning. there are multiple safeguards using
+            // SemaphoreSlim later in the call chain if we manage to slip by somehow, though
+            if (Shares.StateMonitor.CurrentValue.Scanning)
+            {
+                return;
+            }
+
+            var ttl = Options.Shares.Cache.Retention;
+
+            // no configured TTL; never re-scan automatically
+            if (!ttl.HasValue)
+            {
+                return;
+            }
+
+            // "x minutes ago"
+            var cutoffTimestamp = DateTimeOffset.UtcNow
+                .AddMinutes(-ttl.Value)
+                .ToUnixTimeMilliseconds();
+
+            // get a list of all scans that 1) started after our cutoff timestamp
+            var scansInRange = await Shares.ListScansAsync(startedAtOrAfter: cutoffTimestamp);
+
+            // 2) that succeeded (have a valid EndedAt)
+            // and 3) have not been marked suspect
+            // if there's no scan that meets all 3 criteria, try to re-scan
+            if (!scansInRange.Any(s => s.EndedAt is not null && !s.Suspect))
+            {
+                Log.Information("Beginning scheduled re-scan of shares (previous scan is older than {Minutes} minutes)", ttl);
+
+                // fire and forget. if something slips through the underlying logic will log.
+                _ = Task.Run(() => Shares.ScanAsync());
+            }
         }
 
         private void PruneFiles()

@@ -61,12 +61,11 @@ namespace slskd.Shares
         Task DumpAsync(string filename);
 
         /// <summary>
-        ///     Returns the share host with the specified <paramref name="name"/>.
+        ///     Initializes the service and shares.
         /// </summary>
-        /// <param name="name">The name of the host.</param>
-        /// <param name="host">The host, if found.</param>
-        /// <returns>A value indicating whether the host was found.</returns>
-        bool TryGetHost(string name, out Host host);
+        /// <param name="forceRescan">A value indicating whether a full re-scan of shares should be performed.</param>
+        /// <returns>The operation context.</returns>
+        Task InitializeAsync(bool forceRescan = false);
 
         /// <summary>
         ///     Returns the contents of the specified <paramref name="directory"/>.
@@ -76,11 +75,17 @@ namespace slskd.Shares
         Task<Directory> ListDirectoryAsync(string directory);
 
         /// <summary>
-        ///     Removes the share host with the specified <paramref name="name"/>.
+        ///     Returns the list of all <see cref="Scan"/>  started at or after the specified <paramref name="startedAtOrAfter"/>
+        ///     unix timestamp.
         /// </summary>
-        /// <param name="name">The name of the host.</param>
-        /// <returns>A value indicating whether the host was removed.</returns>
-        bool TryRemoveHost(string name);
+        /// <param name="startedAtOrAfter">A unix timestamp that serves as the lower bound of the time-based listing.</param>
+        /// <returns>The operation context, including the list of found scans.</returns>
+        Task<IEnumerable<Scan>> ListScansAsync(long startedAtOrAfter = 0);
+
+        /// <summary>
+        ///     Requests that a share scan is performed.
+        /// </summary>
+        void RequestScan();
 
         /// <summary>
         ///     Resolves the local filename of the specified <paramref name="remoteFilename"/>, if the mask is associated with a
@@ -94,9 +99,11 @@ namespace slskd.Shares
         Task<(string Host, string Filename)> ResolveFileAsync(string remoteFilename);
 
         /// <summary>
-        ///     Requests that a share scan is performed.
+        ///     Scans the configured shares on the local host.
         /// </summary>
-        void RequestScan();
+        /// <returns>The operation context.</returns>
+        /// <exception cref="ShareScanInProgressException">Thrown when a scan is already in progress.</exception>
+        Task ScanAsync();
 
         /// <summary>
         ///     Searches the cache for the specified <paramref name="query"/> and returns the matching files.
@@ -106,23 +113,24 @@ namespace slskd.Shares
         Task<IEnumerable<File>> SearchAsync(SearchQuery query);
 
         /// <summary>
-        ///     Scans the configured shares on the local host.
-        /// </summary>
-        /// <returns>The operation context.</returns>
-        /// <exception cref="ShareScanInProgressException">Thrown when a scan is already in progress.</exception>
-        Task ScanAsync();
-
-        /// <summary>
         ///     Cancels the currently running scan on the local host, if one is running.
         /// </summary>
         /// <returns>A value indicating whether a scan was cancelled.</returns>
         bool TryCancelScan();
 
         /// <summary>
-        ///     Initializes the service and shares.
+        ///     Returns the share host with the specified <paramref name="name"/>.
         /// </summary>
-        /// <param name="forceRescan">A value indicating whether a full re-scan of shares should be performed.</param>
-        /// <returns>The operation context.</returns>
-        Task InitializeAsync(bool forceRescan = false);
+        /// <param name="name">The name of the host.</param>
+        /// <param name="host">The host, if found.</param>
+        /// <returns>A value indicating whether the host was found.</returns>
+        bool TryGetHost(string name, out Host host);
+
+        /// <summary>
+        ///     Removes the share host with the specified <paramref name="name"/>.
+        /// </summary>
+        /// <param name="name">The name of the host.</param>
+        /// <returns>A value indicating whether the host was removed.</returns>
+        bool TryRemoveHost(string name);
     }
 }

@@ -752,6 +752,15 @@ namespace slskd
                 [Range(1, 128)]
                 [RequiresRestart]
                 public int Workers { get; init; } = Environment.ProcessorCount;
+
+                /// <summary>
+                ///     Gets the time to retain the cache (the interval on which to re-scan automatically), in minutes.
+                /// </summary>
+                [Argument(default, "share-cache-retention")]
+                [EnvironmentVariable("SHARE_CACHE_RETENTION")]
+                [Description("the time to retain the cache (re-scan interval), in minutes")]
+                [Range(60, int.MaxValue)]
+                public int? Retention { get; init; } = null;
             }
         }
 
