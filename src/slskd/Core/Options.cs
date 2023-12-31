@@ -891,6 +891,12 @@ namespace slskd
                 /// </summary>
                 [Validate]
                 public UploadOptions Upload { get; init; } = new UploadOptions();
+
+                /// <summary>
+                ///     Gets limit options.
+                /// </summary>
+                [Validate]
+                public LimitsOptions Limits { get; init; } = new LimitsOptions();
             }
 
             /// <summary>
@@ -949,6 +955,12 @@ namespace slskd
                 /// </summary>
                 [Validate]
                 public UploadOptions Upload { get; init; } = new UploadOptions();
+
+                /// <summary>
+                ///     Gets limit options.
+                /// </summary>
+                [Validate]
+                public LimitsOptions Limits { get; init; } = new LimitsOptions();
             }
 
             /// <summary>
@@ -979,6 +991,12 @@ namespace slskd
                 /// </summary>
                 [Validate]
                 public UploadOptions Upload { get; init; } = new UploadOptions();
+
+                /// <summary>
+                ///     Gets limit options.
+                /// </summary>
+                [Validate]
+                public LimitsOptions Limits { get; init; } = new LimitsOptions();
 
                 /// <summary>
                 ///     Gets the list of group member usernames.
@@ -1014,6 +1032,54 @@ namespace slskd
                 /// </summary>
                 [Range(1, int.MaxValue)]
                 public int SpeedLimit { get; init; } = int.MaxValue;
+            }
+
+            /// <summary>
+            ///     Upload limit options.
+            /// </summary>
+            public class LimitsOptions
+            {
+                /// <summary>
+                ///     Gets limits for queued transfers.
+                /// </summary>
+                [Validate]
+                public LimitsExtendedOptions Queued { get; init; } = new LimitsExtendedOptions();
+
+                /// <summary>
+                ///     Gets daily limits for transfers.
+                /// </summary>
+                [Validate]
+                public LimitsExtendedOptions Daily { get; init; } = new LimitsExtendedOptions();
+
+                /// <summary>
+                ///     Gets weekly limits for transfers.
+                /// </summary>
+                [Validate]
+                public LimitsExtendedOptions Weekly { get; init; } = new LimitsExtendedOptions();
+            }
+
+            /// <summary>
+            ///     Extended limit options.
+            /// </summary>
+            public class LimitsExtendedOptions
+            {
+                /// <summary>
+                ///     Gets the limit for number of files.
+                /// </summary>
+                [Range(1, int.MaxValue)]
+                public int? Files { get; init; } = null;
+
+                /// <summary>
+                ///     Gets the limit for number of directories.
+                /// </summary>
+                [Range(1, int.MaxValue)]
+                public int? Directories { get; init; } = null;
+
+                /// <summary>
+                ///     Gets the limit for number of megabytes.
+                /// </summary>
+                [Range(1, int.MaxValue)]
+                public int? Megabytes { get; init; } = null;
             }
         }
 
