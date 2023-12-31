@@ -59,6 +59,16 @@
 #       priority: 500
 #       strategy: roundrobin
 #       slots: 10
+#     limits:
+#       queued:
+#         files: 150
+#         directories: 10
+#         megabytes: 1500
+#       daily: ~ # no daily limits (weekly still apply)
+#       weekly:
+#         files: 1500
+#         directories: 100
+#         megabytes: 15000
 #   leechers:
 #     thresholds:
 #       files: 1
@@ -68,6 +78,19 @@
 #       strategy: roundrobin
 #       slots: 1
 #       speed_limit: 100
+#     limits:
+#       queued:
+#         files: 15
+#         directories: 1
+#         megabytes: 150
+#       daily:
+#         files: 30
+#         directories: 2
+#         megabytes: 300
+#       weekly:
+#         files: 150
+#         directories: 10
+#         megabytes: 1500
 #   blacklisted:
 #     members:
 #       - <username to blacklist>
@@ -79,6 +102,7 @@
 #         priority: 250
 #         strategy: firstinfirstout
 #         slots: 10
+#       limits: ~ # no limits for buddies
 #       members:
 #         - alice
 #         - bob
