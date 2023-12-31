@@ -882,9 +882,9 @@ namespace slskd
             }
 
             /// <summary>
-            ///     Built in user group options.
+            ///     Options that are common to all groups.
             /// </summary>
-            public class BuiltInOptions
+            public class GroupOptions
             {
                 /// <summary>
                 ///     Gets upload options.
@@ -897,6 +897,13 @@ namespace slskd
                 /// </summary>
                 [Validate]
                 public LimitsOptions Limits { get; init; } = new LimitsOptions();
+            }
+
+            /// <summary>
+            ///     Built in user group options.
+            /// </summary>
+            public class BuiltInOptions : GroupOptions
+            {
             }
 
             /// <summary>
@@ -942,25 +949,13 @@ namespace slskd
             /// <summary>
             ///     Built in leecher group options.
             /// </summary>
-            public class LeecherOptions
+            public class LeecherOptions : GroupOptions
             {
                 /// <summary>
                 ///     Gets leecher threshold options.
                 /// </summary>
                 [Validate]
                 public ThresholdOptions Thresholds { get; init; } = new ThresholdOptions();
-
-                /// <summary>
-                ///     Gets upload options.
-                /// </summary>
-                [Validate]
-                public UploadOptions Upload { get; init; } = new UploadOptions();
-
-                /// <summary>
-                ///     Gets limit options.
-                /// </summary>
-                [Validate]
-                public LimitsOptions Limits { get; init; } = new LimitsOptions();
             }
 
             /// <summary>
@@ -984,20 +979,8 @@ namespace slskd
             /// <summary>
             ///     User defined user group options.
             /// </summary>
-            public class UserDefinedOptions
+            public class UserDefinedOptions : GroupOptions
             {
-                /// <summary>
-                ///     Gets upload options.
-                /// </summary>
-                [Validate]
-                public UploadOptions Upload { get; init; } = new UploadOptions();
-
-                /// <summary>
-                ///     Gets limit options.
-                /// </summary>
-                [Validate]
-                public LimitsOptions Limits { get; init; } = new LimitsOptions();
-
                 /// <summary>
                 ///     Gets the list of group member usernames.
                 /// </summary>
