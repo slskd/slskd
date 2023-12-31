@@ -58,6 +58,13 @@ namespace slskd.Users
         Task<Status> GetStatusAsync(string username);
 
         /// <summary>
+        ///     Retrieves the current <see cref="Statistics"/> of a peer.
+        /// </summary>
+        /// <param name="username">The username of the peer.</param>
+        /// <returns>The retrieved statistics.</returns>
+        Task<Statistics> GetStatisticsAsync(string username);
+
+        /// <summary>
         ///     Grants the specified peer the specified number of privilege days.
         /// </summary>
         /// <param name="username">The username of the peer.</param>
