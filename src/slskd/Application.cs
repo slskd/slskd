@@ -478,6 +478,12 @@ namespace slskd
                 return Task.FromException(new DownloadEnqueueException($"File not shared."));
             }
 
+            // todo: determine the user's group
+            // todo: get limit config for that group
+            // todo: if limits have been set, retrieve all of the user's transfers for the last week, including those currently in the queue
+            // todo: determine if any of the configured limits have been met or exceeded
+            // todo: if limits met or exceeded, return Task.FromException(new DownloadEnqueueException($"Limit(s) exceeded.");
+
             return Transfers.Uploads.EnqueueAsync(username, filename);
         }
 
