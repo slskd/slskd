@@ -361,6 +361,8 @@ Blacklisted users are prevented from:
 
 Users can be blacklisted by adding their username to the `members` list.  Additionally, users can be blacklisted by IP address, or range of addresses by adding a CIDR entry to the `cidrs` list.
 
+Users added to the blacklist will be blocked from enqueueing any new files.  Any existing active or queued transfers will need to be cancelled manually.
+
 **YAML**
 ```yaml
 groups:
