@@ -198,30 +198,30 @@ namespace slskd.Users
                 if (user.Status?.IsPrivileged ?? false)
                 {
                     return Application.PrivilegedGroup;
-        }
+                }
 
                 if (user.Group != null)
-        {
+                {
                     return user.Group;
                 }
 
                 if (user.Statistics?.FileCount < thresholds.Files || user.Statistics?.DirectoryCount < thresholds.Directories)
                 {
                     return Application.LeecherGroup;
-        }
+                }
             }
 
             // the user hasn't been added to the dictionary, so we know they aren't part of a user defined group
             // the caller may have specified status and statistics. check and see.
             if (status?.IsPrivileged ?? false)
-        {
+            {
                 return Application.PrivilegedGroup;
             }
 
             if (statistics?.FileCount < thresholds.Files || statistics?.DirectoryCount < thresholds.Directories)
             {
                 return Application.LeecherGroup;
-        }
+            }
 
             return Application.DefaultGroup;
         }
