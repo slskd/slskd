@@ -254,11 +254,11 @@ namespace slskd.Transfers
         /// <exception cref="NotFoundException">Thrown if the specified filename is not enqueued.</exception>
         public int EstimatePosition(string username, string filename)
         {
-            var groupName = Users.GetGroup(username);
+            var groupName = Users.ResolveGroup(username);
             var groupRecord = Groups.GetValueOrDefault(groupName);
 
             // the Uploads dictionary is keyed by username; gather all of the users that belong to the same group as the requested user
-            var uploadsForGroup = Uploads.Where(kvp => Users.GetGroup(kvp.Key) == groupName);
+            var uploadsForGroup = Uploads.Where(kvp => Users.ResolveGroup(kvp.Key) == groupName);
 
             // the RoundRobin queue implementation is not strictly fair to all users; only uploads that are ready are candidates
             // for selection. this means that if Bob downloads files twice as fast as Alice, Bob is going to advance through the
@@ -337,7 +337,7 @@ namespace slskd.Transfers
         /// </returns>
         public int ForecastPosition(string username)
         {
-            var groupName = Users.GetGroup(username);
+            var groupName = Users.ResolveGroup(username);
 
             // if there's a slot available, the user will enter the queue at position 0 (will start immediately)
             if (Groups.TryGetValue(groupName, out var groupRecord) && groupRecord.SlotAvailable)
@@ -346,7 +346,7 @@ namespace slskd.Transfers
             }
 
             // the Uploads dictionary is keyed by username; gather all of the users that belong to the same group as the requested user
-            var uploadsForGroup = Uploads.Where(kvp => Users.GetGroup(kvp.Key) == groupName);
+            var uploadsForGroup = Uploads.Where(kvp => Users.ResolveGroup(kvp.Key) == groupName);
 
             // assuming that the queue will be processed in a true round-robin fashion and that the user will be the last in the
             // rotation (worst case), the user's start position will be equal to the number of users downloading or waiting, + 1.
@@ -462,7 +462,7 @@ namespace slskd.Transfers
 
                         if (ready.Any())
                         {
-                            var group = Users.GetGroup(user.Key);
+                            var group = Users.ResolveGroup(user.Key);
 
                             groups.AddOrUpdate(
                                 key: group,

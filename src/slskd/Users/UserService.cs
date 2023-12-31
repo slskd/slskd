@@ -50,9 +50,9 @@ namespace slskd.Users
             OptionsMonitor = optionsMonitor;
             OptionsMonitor.OnChange(options => Configure(options));
 
-            // updates may be sent unsolicited from the server, so update when we get them.
-            // binding these events will cause multiple redundant round trips when initially watching a user
-            // or when explicitly requesting via GetStatus/GetStatistics. this is wasteful, but there's no functional side effect.
+            // updates may be sent unsolicited from the server, so update when we get them. binding these events will cause
+            // multiple redundant round trips when initially watching a user or when explicitly requesting via
+            // GetStatus/GetStatistics. this is wasteful, but there's no functional side effect.
             Client.UserStatisticsChanged += (_, userStatistics) => UpdateStatistics(userStatistics.Username, userStatistics.ToStatistics());
             Client.UserStatusChanged += (sender, userStatus) =>
             {
@@ -85,37 +85,6 @@ namespace slskd.Users
         private IStateMutator<State> StateMutator { get; }
         private ConcurrentDictionary<string, User> UserDictionary { get; set; } = new ConcurrentDictionary<string, User>();
         private ConcurrentDictionary<string, bool> WatchedUsernamesDictionary { get; set; } = new ConcurrentDictionary<string, bool>();
-
-        /// <summary>
-        ///     Gets the name of the group for the specified <paramref name="username"/>.
-        /// </summary>
-        /// <param name="username">The username of the peer.</param>
-        /// <returns>The group for the specified username.</returns>
-        public string GetGroup(string username)
-        {
-            // note: this is an extremely hot path; keep the work done to an absolute minimum.
-            if (UserDictionary.TryGetValue(username ?? string.Empty, out var user))
-            {
-                if (user.Status?.IsPrivileged ?? false)
-                {
-                    return Application.PrivilegedGroup;
-                }
-
-                if (user.Group != null)
-                {
-                    return user.Group;
-                }
-
-                var thresholds = OptionsMonitor.CurrentValue.Groups.Leechers.Thresholds;
-
-                if (user.Statistics?.FileCount < thresholds.Files || user.Statistics?.DirectoryCount < thresholds.Directories)
-                {
-                    return Application.LeecherGroup;
-                }
-            }
-
-            return Application.DefaultGroup;
-        }
 
         /// <summary>
         ///     Retrieves peer <see cref="Info"/>.
@@ -196,6 +165,68 @@ namespace slskd.Users
         public bool IsWatched(string username) => WatchedUsernamesDictionary.ContainsKey(username);
 
         /// <summary>
+        ///     Resolves the name of the group for the specified <paramref name="username"/>.
+        /// </summary>
+        /// <remarks>
+        ///     If the user is watched, and therefore the application is tracking their status and statistics, leech and privilege
+        ///     detection works as expected. If the user is not watched, their status and statistics can be specified. If the user
+        ///     is neither watched nor status and statistics are supplied, leech and privilege detection will not work.
+        /// </remarks>
+        /// <param name="username">The username of the peer.</param>
+        /// <param name="status">The optional status for the user.</param>
+        /// <param name="statistics">The optional statistics for the user.</param>
+        /// <returns>The group for the specified username.</returns>
+        public string ResolveGroup(string username, Status status = null, Statistics statistics = null)
+        {
+            /*
+             * note: this is an extremely hot path; keep the work done to an absolute minimum.
+             */
+
+            // we shouldn't be asking, but this could happen in some scenarios.
+            if (OptionsMonitor.CurrentValue.Groups.Blacklisted.Members.Contains(username))
+            {
+                return Application.BlacklistedGroup;
+            }
+
+            var thresholds = OptionsMonitor.CurrentValue.Groups.Leechers.Thresholds;
+
+            // any user that's been explicitly added to a group is "watched" and will be in this dictionary,
+            // along with their latest status and statistics.  we *need* to do this lookup to expedite the
+            // resolution of their group from configuration quickly.
+            if (UserDictionary.TryGetValue(username ?? string.Empty, out var user))
+            {
+                if (user.Status?.IsPrivileged ?? false)
+                {
+                    return Application.PrivilegedGroup;
+        }
+
+                if (user.Group != null)
+        {
+                    return user.Group;
+                }
+
+                if (user.Statistics?.FileCount < thresholds.Files || user.Statistics?.DirectoryCount < thresholds.Directories)
+                {
+                    return Application.LeecherGroup;
+        }
+            }
+
+            // the user hasn't been added to the dictionary, so we know they aren't part of a user defined group
+            // the caller may have specified status and statistics. check and see.
+            if (status?.IsPrivileged ?? false)
+        {
+                return Application.PrivilegedGroup;
+            }
+
+            if (statistics?.FileCount < thresholds.Files || statistics?.DirectoryCount < thresholds.Directories)
+            {
+                return Application.LeecherGroup;
+        }
+
+            return Application.DefaultGroup;
+        }
+
+        /// <summary>
         ///     Adds the specified username to the server-side user list.
         /// </summary>
         /// <param name="username">The username of the peer.</param>
@@ -207,39 +238,13 @@ namespace slskd.Users
 
             Log.Information("Added user {Username} to watch list", username);
 
-            // the server does not automatically send status and statistics information
-            // when watching a user initially.  explicitly fetch both, so that the user has been
-            // watched and all information populated when this method returns.
-            await GetStatusAsync(username);
-            await GetStatisticsAsync(username);
-        }
+            // the server does not automatically send status and statistics information when watching a user initially. explicitly
+            // fetch both, so that the user has been watched and all information populated when this method returns.
+            var status = await GetStatusAsync(username);
+            UpdateStatus(username, status);
 
-        private void UpdateStatistics(string username, Statistics statistics)
-        {
-            UserDictionary.AddOrUpdate(
-                key: username,
-                addValue: new User() { Statistics = statistics },
-                updateValueFactory: (key, user) => user with { Username = username, Statistics = statistics });
-
-            StateMutator.SetValue(state => state with { Users = Users.ToArray() });
-        }
-
-        private void UpdateStatus(string username, Status status)
-        {
-            UserDictionary.AddOrUpdate(
-                key: username,
-                addValue: new User() { Status = status },
-                updateValueFactory: (key, user) => user with { Username = username, Status = status });
-
-            StateMutator.SetValue(state => state with { Users = Users.ToArray() });
-        }
-
-        private void Reset()
-        {
-            WatchedUsernamesDictionary.Clear();
-            UserDictionary.Clear();
-
-            StateMutator.SetValue(state => state with { Users = Users.ToArray() });
+            var statistics = await GetStatisticsAsync(username);
+            UpdateStatistics(username, statistics);
         }
 
         private void Configure(Options options, bool force = false)
@@ -251,8 +256,8 @@ namespace slskd.Users
                 return;
             }
 
-            // get a list of tracked names that haven't been explicitly added to any group, including
-            // those that were previlously configured but have now been removed
+            // get a list of tracked names that haven't been explicitly added to any group, including those that were previlously
+            // configured but have now been removed
             var usernamesBeforeUpdate = UserDictionary.Keys.ToList();
             var usernamesAfterUpdate = options.Groups.UserDefined.SelectMany(g => g.Value.Members);
             var usernamesRemoved = usernamesBeforeUpdate.Except(usernamesAfterUpdate);
@@ -284,6 +289,34 @@ namespace slskd.Users
             WatchAllUsers();
 
             LastOptionsHash = optionsHash;
+        }
+
+        private void Reset()
+        {
+            WatchedUsernamesDictionary.Clear();
+            UserDictionary.Clear();
+
+            StateMutator.SetValue(state => state with { Users = Users.ToArray() });
+        }
+
+        private void UpdateStatistics(string username, Statistics statistics)
+        {
+            UserDictionary.AddOrUpdate(
+                key: username,
+                addValue: new User() { Statistics = statistics },
+                updateValueFactory: (key, user) => user with { Username = username, Statistics = statistics });
+
+            StateMutator.SetValue(state => state with { Users = Users.ToArray() });
+        }
+
+        private void UpdateStatus(string username, Status status)
+        {
+            UserDictionary.AddOrUpdate(
+                key: username,
+                addValue: new User() { Status = status },
+                updateValueFactory: (key, user) => user with { Username = username, Status = status });
+
+            StateMutator.SetValue(state => state with { Users = Users.ToArray() });
         }
 
         private void WatchAllUsers()

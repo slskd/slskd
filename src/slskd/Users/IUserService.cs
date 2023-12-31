@@ -37,13 +37,6 @@ namespace slskd.Users
         IReadOnlyList<string> WatchedUsernames { get; }
 
         /// <summary>
-        ///     Gets the name of the group for the specified <paramref name="username"/>.
-        /// </summary>
-        /// <param name="username">The username of the peer.</param>
-        /// <returns>The group for the specified username.</returns>
-        string GetGroup(string username);
-
-        /// <summary>
         ///     Retrieves peer <see cref="Info"/>.
         /// </summary>
         /// <param name="username">The username of the peer.</param>
@@ -85,6 +78,20 @@ namespace slskd.Users
         /// <param name="username">The username of the peer.</param>
         /// <returns>A value indicating whether the username is watched.</returns>
         bool IsWatched(string username);
+
+        /// <summary>
+        ///     Resolves the name of the group for the specified <paramref name="username"/>.
+        /// </summary>
+        /// <remarks>
+        ///     If the user is watched, and therefore the application is tracking their status and statistics, leech and privilege
+        ///     detection works as expected. If the user is not watched, their status and statistics can be specified. If the user
+        ///     is neither watched nor status and statistics are supplied, leech and privilege detection will not work.
+        /// </remarks>
+        /// <param name="username">The username of the peer.</param>
+        /// <param name="status">The optional status for the user.</param>
+        /// <param name="statistics">The optional statistics for the user.</param>
+        /// <returns>The group for the specified username.</returns>
+        string ResolveGroup(string username, Status status = null, Statistics statistics = null);
 
         /// <summary>
         ///     Adds the specified username to the server-side user list.
