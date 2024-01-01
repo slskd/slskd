@@ -23,6 +23,7 @@ namespace slskd
     using System.Net;
     using System.Text.Json.Serialization;
     using slskd.Relay;
+    using slskd.Users;
     using Soulseek;
 
     /// <summary>
@@ -35,9 +36,11 @@ namespace slskd
         public bool PendingRestart { get; init; }
         public ServerState Server { get; init; } = new ServerState();
         public RelayState Relay { get; init; } = new RelayState();
+        public UserState User { get; init; } = new UserState();
         public DistributedNetworkState DistributedNetwork { get; init; } = new DistributedNetworkState();
         public ShareState Shares { get; init; } = new ShareState();
         public string[] Rooms { get; init; } = Array.Empty<string>();
+        public User[] Users { get; init; } = Array.Empty<User>();
     }
 
     public record VersionState
@@ -73,6 +76,27 @@ namespace slskd
     {
         public string Address { get; init; }
         public RelayClientState State { get; init; } = RelayClientState.Disconnected;
+    }
+
+    public record UserState
+    {
+        public string Username { get; init; }
+        public UserPrivilegeState Privileges { get; init; } = new UserPrivilegeState();
+        public UserStatisticsState Statistics { get; init; } = new UserStatisticsState();
+    }
+
+    public record UserPrivilegeState
+    {
+        public bool IsPrivileged { get; init; }
+        public int PrivilegesRemaining { get; init; }
+    }
+
+    public record UserStatisticsState
+    {
+        public int AverageSpeed { get; init; }
+        public int DirectoryCount { get; init; }
+        public int FileCount { get; init; }
+        public long UploadCount { get; init; }
     }
 
     public record DistributedNetworkState

@@ -74,6 +74,11 @@ namespace slskd
         /// </summary>
         public static readonly string LeecherGroup = "leechers";
 
+        /// <summary>
+        ///     The name of the blacklisted user group.
+        /// </summary>
+        public static readonly string BlacklistedGroup = "blacklisted";
+
         private static readonly string ApplicationShutdownTransferExceptionMessage = "Application shut down";
 
         public Application(
