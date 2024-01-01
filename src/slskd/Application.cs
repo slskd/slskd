@@ -1359,7 +1359,10 @@ namespace slskd
         {
             try
             {
-                var groupName = Users.GetGroup(username);
+                // note: users must first be watched or cached for leech and privilege detection to work.
+                // we are deliberately skipping it here; if the username is watched
+                // leech detection works and they get accurate info, if not, they won't
+                var groupName = Users.ResolveGroup(username);
                 var group = Transfers.Uploads.Queue.GetGroupInfo(groupName);
 
                 // forecast the position at which this user would enter the queue if they were to request
