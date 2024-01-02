@@ -39,9 +39,26 @@ namespace slskd.Users
         /// <summary>
         ///     Gets the name of the group for the specified <paramref name="username"/>.
         /// </summary>
+        /// <remarks>
+        ///     The group name is fetched from cached data, and lookups should always be fast.
+        /// </remarks>
         /// <param name="username">The username of the peer.</param>
         /// <returns>The group for the specified username.</returns>
         string GetGroup(string username);
+
+        /// <summary>
+        ///     Gets the name of the group for the specified <paramref name="username"/>.
+        /// </summary>
+        /// <remarks>
+        ///     An alternative to <see cref="GetGroup(string)"/> that does not rely on the 
+        ///     internal cache.  This method allows privilege and leech detection for users
+        ///     that are not watched.
+        /// </remarks>
+        /// <param name="username">The username of the peer.</param>
+        /// <param name="status">The peer's status.</param>
+        /// <param name="statistics">The peer's statistics</param>
+        /// <returns>The group for the specified username.</returns>
+        string GetGroup(string username, Status status, Statistics statistics);
 
         /// <summary>
         ///     Retrieves peer <see cref="Info"/>.

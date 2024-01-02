@@ -1357,13 +1357,21 @@ namespace slskd
         /// <returns>A Task resolving the UserInfo instance.</returns>
         private Task<UserInfo> UserInfoResolver(string username, IPEndPoint endpoint)
         {
+            if (IsBlacklisted(username, endpoint.Address))
+            {
+                return Task.FromResult(new UserInfo(
+                    description: Options.Soulseek.Description,
+                    uploadSlots: 0,
+                    queueLength: int.MaxValue,
+                    hasFreeUploadSlot: false));
+            }
+
             try
             {
                 // note: users must first be watched or cached for leech and privilege detection to work.
                 // we are deliberately skipping it here; if the username is watched
                 // leech detection works and they get accurate info, if not, they won't
-                // todo: add a fetch of user info to ensure group accuracy
-                var groupName = Users.ResolveGroup(username);
+                var groupName = Users.GetGroup(username);
                 var group = Transfers.Uploads.Queue.GetGroupInfo(groupName);
 
                 // forecast the position at which this user would enter the queue if they were to request

@@ -30,6 +30,13 @@ namespace slskd.Users
     /// <summary>
     ///     Provides information and operations for network peers.
     /// </summary>
+    /// <remarks>
+    ///     The <see cref="WatchAsync(string)"/> method should be called to 'watch' users prior to any call to
+    ///     <see cref="GetGroup(string)"/>.  <see cref="GetGroup(string)"/> relies *only* on information stored in
+    ///     the internal <see cref="UserDictionary"/>, and this dictionary is only populated for users that have been
+    ///     watched.  Prior to calling <see cref="WatchAsync(string)"/>, check <see cref="IsWatched(string)"/> to
+    ///     reduce round trips to the server.
+    /// </remarks>
     public class UserService : IUserService
     {
         /// <summary>
@@ -83,8 +90,32 @@ namespace slskd.Users
         private ILogger Log { get; set; } = Serilog.Log.ForContext<UserService>();
         private IOptionsMonitor<Options> OptionsMonitor { get; }
         private IStateMutator<State> StateMutator { get; }
-        private ConcurrentDictionary<string, User> UserDictionary { get; set; } = new ConcurrentDictionary<string, User>();
         private ConcurrentDictionary<string, bool> WatchedUsernamesDictionary { get; set; } = new ConcurrentDictionary<string, bool>();
+
+        /// <summary>
+        ///     Gets or sets the internal cache of User data.
+        /// </summary>
+        /// <remarks>
+        ///     <para>
+        ///         This method retrieves the requested user's information from a dictionary, and
+        ///         is therefore a 'get'. This information is needed to control who can do what,
+        ///         who is subject to what limits, how to control the upload queue, and how to
+        ///         govern speeds. The logic in this method is the 'hottest' in the application
+        ///         and *must* remain very simple and _fast_.
+        ///     </para>
+        ///     <para>
+        ///         If this method is called for a user who has not previously been cached, it
+        ///         will return the default group, meaning leech, privilege, and user defined group
+        ///         discrimination will not work.  For this reason it is critical that user information
+        ///         is retrieved and cached upon first interaction with that user.
+        ///     </para>
+        ///     <para>
+        ///         Uploads can be cached indefinitely, and for that reason the user data cache must be
+        ///         filled indefinitely; meaning there is no invalidation and that user data will accrue
+        ///         for the lifetime of the application (instance).
+        ///     </para>
+        /// </remarks>
+        private ConcurrentDictionary<string, User> UserDictionary { get; set; } = new ConcurrentDictionary<string, User>();
 
         /// <summary>
         ///     Gets the name of the group for the specified <paramref name="username"/>.
@@ -198,12 +229,25 @@ namespace slskd.Users
         /// <summary>
         ///     Adds the specified username to the server-side user list.
         /// </summary>
+        /// <remarks>
+        ///     <para>
+        ///         Idempotent; if a user is already watched, subsequent calls will
+        ///         only update their status and statistics.
+        ///     </para>
+        ///     <para>
+        ///         Any user we want to track in any way needs to be watched so that
+        ///         their statistics and status are updated properly via server side events.
+        ///         This seems extreme and wasteful, but the only alternative is to periodically
+        ///         spam the server for the information instead of letting the server spam the client
+        ///         when things change.
+        ///     </para>
+        /// </remarks>
         /// <param name="username">The username of the peer.</param>
         /// <returns>The operation context.</returns>
         public async Task WatchAsync(string username)
         {
             await Client.AddUserAsync(username);
-            WatchedUsernamesDictionary.TryAdd(username, true);
+            UserDictionary.TryAdd(username, new User { Username = username });
 
             Log.Information("Added user {Username} to watch list", username);
 
@@ -212,6 +256,14 @@ namespace slskd.Users
             // watched and all information populated when this method returns.
             await GetStatusAsync(username);
             await GetStatisticsAsync(username);
+
+            // delay the add until last, so that IsWatched won't return true until stats
+            // and status are populated. this may result in several unecessary calls to
+            // WatchAsync (if someone is checking IsWatched() and WatchAsync()ing if false),
+            // but we can be sure that if IsWatched() is true, we have valid stats and status.
+            // if we can't ensure this, the application will have non-deterministic behavior
+            // when it makes decisions about user groups, limits, governance etc.
+            WatchedUsernamesDictionary.TryAdd(username, true);
         }
 
         private void UpdateStatistics(string username, Statistics statistics)
