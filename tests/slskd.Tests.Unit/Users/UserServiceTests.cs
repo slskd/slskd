@@ -125,7 +125,6 @@
             var mocks = new Mocks(options);
             var service = new UserService(
                 mocks.SoulseekClient.Object,
-                mocks.StateMutator.Object,
                 mocks.OptionsMonitor);
 
             return (service, mocks);
@@ -139,7 +138,6 @@
             }
 
             public Mock<ISoulseekClient> SoulseekClient { get; } = new Mock<ISoulseekClient>();
-            public Mock<IStateMutator<State>> StateMutator { get; } = new Mock<IStateMutator<State>>();
             public TestOptionsMonitor<Options> OptionsMonitor { get; init; }
         }
     }
