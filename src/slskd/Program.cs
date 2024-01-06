@@ -524,10 +524,6 @@ namespace slskd
             // IManagedState should be used where state is being mutated and accessed in the same context
             services.AddManagedState<State>();
 
-            // avoid injecting IMemoryCache unless the use case is super simple. use the factory to create
-            // use-case-specific instances and to enable things like destruction/recreation at runtime.
-            services.AddSingleton(new MemoryCacheFactory());
-
             // add IHttpClientFactory
             // use through 'using var http = HttpClientFactory.CreateClient()' wherever HTTP calls will be made
             // this is important to prevent memory leaks
