@@ -1162,7 +1162,7 @@ namespace slskd
         {
             Metrics.Search.RequestsReceived.Inc(1);
 
-            if (IsBlacklisted(username))
+            if (Users.IsBlacklisted(username))
             {
                 Log.Information("Returned empty search response for blacklisted user {Username}", username);
                 return new SearchResponse(username, token, hasFreeUploadSlot: false, uploadSpeed: 0, queueLength: int.MaxValue, fileList: Enumerable.Empty<Soulseek.File>());
@@ -1197,6 +1197,9 @@ namespace slskd
                     // make sure our average speed (as reported by the server) is reasonably up to date
                     await RefreshUserStatistics();
 
+                    // note: the following uses cached user data to determine group, so if the user's data
+                    // isn't cached they may get a forecast based on the wrong group.  this is a hot path though,
+                    // and we don't want to incur the massive penalties that would caching data for each request.
                     var forecastedPosition = Transfers.Uploads.Queue.ForecastPosition(username);
 
                     Log.Information("[{Context}]: Sending {Count} records to {Username} for query '{Query}'", "SEARCH RESULT SENT", results.Count(), username, query.SearchText);
@@ -1357,7 +1360,7 @@ namespace slskd
         /// <returns>A Task resolving the UserInfo instance.</returns>
         private Task<UserInfo> UserInfoResolver(string username, IPEndPoint endpoint)
         {
-            if (IsBlacklisted(username, endpoint.Address))
+            if (Users.IsBlacklisted(username, endpoint.Address))
             {
                 return Task.FromResult(new UserInfo(
                     description: Options.Soulseek.Description,
@@ -1371,7 +1374,7 @@ namespace slskd
                 // note: users must first be watched or cached for leech and privilege detection to work.
                 // we are deliberately skipping it here; if the username is watched
                 // leech detection works and they get accurate info, if not, they won't
-                var groupName = Users.GetGroup(username);
+                var groupName = Users.GetOrFetchGroup(username);
                 var group = Transfers.Uploads.Queue.GetGroupInfo(groupName);
 
                 // forecast the position at which this user would enter the queue if they were to request
@@ -1396,21 +1399,6 @@ namespace slskd
                 Log.Warning(ex, "Failed to resolve user info: {Message}", ex.Message);
                 throw;
             }
-        }
-
-        private bool IsBlacklisted(string username, IPAddress ipAddress = null)
-        {
-            if (Options.Groups.Blacklisted.Members.Contains(username))
-            {
-                return true;
-            }
-
-            if (ipAddress is not null && Options.Groups.Blacklisted.Cidrs.Select(c => IPAddressRange.Parse(c)).Any(range => range.Contains(ipAddress)))
-            {
-                return true;
-            }
-
-            return false;
         }
     }
 }
