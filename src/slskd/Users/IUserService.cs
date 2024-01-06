@@ -26,23 +26,23 @@ namespace slskd.Users
     /// </summary>
     /// <remarks>
     ///     <para>
-    ///         This class maintains a <see cref="UserDictionary"/> that acts as a non-expiring cache of information
+    ///         This class maintains a UserDictionary that acts as a non-expiring cache of information
     ///         collected about a user.  This includes their statistics (share counts, speed, etc), their status (privileged, etc)
     ///         and, if they are a member of a user-defined group, their group.
     ///     </para>
     ///     <para>
-    ///         This class also maintains a <see cref="WatchedUsernamesDictionary"/> to keep track of which usernames have been
+    ///         This class also maintains a WatchedUsernamesDictionary to keep track of which usernames have been
     ///         "watched" server side and for which we will therefore receive events when their status changes.
     ///     </para>
     ///     <para>
-    ///         If a user's information is in the <see cref="UserDictionary"/>, it's because we requested it at some point.  If that user
+    ///         If a user's information is in the UserDictionary, it's because we requested it at some point.  If that user
     ///         is also "watched", we can assume that the data in the dictionary is up to date and will be kept so.
     ///     </para>
     ///     <para>
-    ///         The data in the <see cref="UserDictionary"/> can continue to grow until -- unlikely -- it contains a record for every
+    ///         The data in the UserDictionary can continue to grow until -- unlikely -- it contains a record for every
     ///         user on or that was on the network at any point since the last client connect.  This is a calculated risk, roughly
     ///         knowing the size of the network, the size of the data being stored, and balanced against the consequences of not having
-    ///         a user's data when it is needed (for queue positioning, speed limits, etc)
+    ///         a user's data when it is needed (for queue positioning, speed limits, etc).
     ///     </para>
     ///     <para>
     ///         The <see cref="GetGroup(string)"/> method acts on cached data _only_.  This method should be called within hot paths,
