@@ -259,7 +259,9 @@ namespace slskd.Relay
                         {
                             if (message is HttpClientHandler clientHandler && options.Relay.Controller.IgnoreCertificateErrors)
                             {
+#pragma warning disable S4830 // Enable server certificate validation on this SSL/TLS connection
                                 clientHandler.ServerCertificateCustomValidationCallback += (_, _, _, _) => true;
+#pragma warning restore S4830 // Enable server certificate validation on this SSL/TLS connection
                             }
 
                             return message;
@@ -304,7 +306,9 @@ namespace slskd.Relay
                 client = new HttpClient(new HttpClientHandler()
                 {
                     ClientCertificateOptions = ClientCertificateOption.Manual,
+#pragma warning disable S4830 // Enable server certificate validation on this SSL/TLS connection
                     ServerCertificateCustomValidationCallback = (_, _, _, _) => true,
+#pragma warning restore S4830 // Enable server certificate validation on this SSL/TLS connection
                 });
             }
             else

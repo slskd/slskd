@@ -49,7 +49,7 @@ namespace slskd.Users
     ///         The data in the <see cref="UserDictionary"/> can continue to grow until -- unlikely -- it contains a record for every
     ///         user on or that was on the network at any point since the last client connect.  This is a calculated risk, roughly
     ///         knowing the size of the network, the size of the data being stored, and balanced against the consequences of not having
-    ///         a user's data when it is needed (for queue positioning, speed limits, etc)
+    ///         a user's data when it is needed (for queue positioning, speed limits, etc).
     ///     </para>
     ///     <para>
     ///         The <see cref="GetGroup(string)"/> method acts on cached data _only_.  This method should be called within hot paths,

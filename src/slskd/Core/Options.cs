@@ -682,7 +682,9 @@ namespace slskd
                         return (share, matches[0].Groups[2].Value, matches[0].Groups[3].Value);
                     }
 
+#pragma warning disable S3878 // Arrays should not be created for params parameters
                     return (share, share.Split(new[] { '/', '\\' }).Last(), share);
+#pragma warning restore S3878 // Arrays should not be created for params parameters
                 }
 
                 var digestedShared = directories

@@ -624,7 +624,7 @@ namespace slskd.Relay
             // ensure filename is relative to the local download directory and make sure it doesn't start with a slash
             filename = filename
                 .ReplaceFirst(OptionsMonitor.CurrentValue.Directories.Downloads, string.Empty)
-                .TrimStart(new[] { '/', '\\' });
+                .TrimStart('/', '\\');
 
             async Task Notify((string ConnectionId, Agent Agent) record)
             {
