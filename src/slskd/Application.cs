@@ -477,7 +477,7 @@ namespace slskd
 
         private Task EnqueueDownload(string username, IPEndPoint endpoint, string filename)
         {
-            if (IsBlacklisted(username, endpoint.Address))
+            if (Users.IsBlacklisted(username, endpoint.Address))
             {
                 Log.Information("Rejected enqueue request for blacklisted user {Username} ({IP})", username, endpoint.Address);
                 return Task.FromException(new DownloadEnqueueException($"File not shared."));
@@ -502,7 +502,7 @@ namespace slskd
         {
             Metrics.Browse.RequestsReceived.Inc(1);
 
-            if (IsBlacklisted(username, endpoint.Address))
+            if (Users.IsBlacklisted(username, endpoint.Address))
             {
                 Log.Information("Returned empty browse listing for blacklisted user {Username} ({IP})", username, endpoint.Address);
                 return new BrowseResponse();
@@ -965,7 +965,7 @@ namespace slskd
         /// <returns>A Task resolving an instance of Soulseek.Directory containing the contents of the requested directory.</returns>
         private async Task<Soulseek.Directory> DirectoryContentsResponseResolver(string username, IPEndPoint endpoint, int token, string directory)
         {
-            if (IsBlacklisted(username, endpoint.Address))
+            if (Users.IsBlacklisted(username, endpoint.Address))
             {
                 Log.Information("Returned empty directory listing for blacklisted user {Username} ({IP})", username, endpoint.Address);
                 return new Soulseek.Directory(directory);
@@ -1358,15 +1358,15 @@ namespace slskd
         /// <param name="username">The username of the requesting user.</param>
         /// <param name="endpoint">The IP endpoint of the requesting user.</param>
         /// <returns>A Task resolving the UserInfo instance.</returns>
-        private Task<UserInfo> UserInfoResolver(string username, IPEndPoint endpoint)
+        private async Task<UserInfo> UserInfoResolver(string username, IPEndPoint endpoint)
         {
             if (Users.IsBlacklisted(username, endpoint.Address))
             {
-                return Task.FromResult(new UserInfo(
+                return new UserInfo(
                     description: Options.Soulseek.Description,
                     uploadSlots: 0,
                     queueLength: int.MaxValue,
-                    hasFreeUploadSlot: false));
+                    hasFreeUploadSlot: false);
             }
 
             try
@@ -1374,7 +1374,7 @@ namespace slskd
                 // note: users must first be watched or cached for leech and privilege detection to work.
                 // we are deliberately skipping it here; if the username is watched
                 // leech detection works and they get accurate info, if not, they won't
-                var groupName = Users.GetOrFetchGroup(username);
+                var groupName = await Users.GetOrFetchGroupAsync(username);
                 var group = Transfers.Uploads.Queue.GetGroupInfo(groupName);
 
                 // forecast the position at which this user would enter the queue if they were to request
@@ -1392,7 +1392,7 @@ namespace slskd
                     queueLength: forecastedPosition,
                     hasFreeUploadSlot: forecastedPosition == 0);
 
-                return Task.FromResult(info);
+                return info;
             }
             catch (Exception ex)
             {
