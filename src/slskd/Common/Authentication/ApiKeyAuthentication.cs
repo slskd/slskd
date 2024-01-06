@@ -96,7 +96,9 @@ namespace slskd.Authentication
     /// <summary>
     ///     API key authentication options.
     /// </summary>
+#pragma warning disable S2094 // Classes should not be empty
     public class ApiKeyAuthenticationOptions : AuthenticationSchemeOptions
+#pragma warning restore S2094 // Classes should not be empty
     {
     }
 }
