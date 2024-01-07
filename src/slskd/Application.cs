@@ -36,7 +36,6 @@ namespace slskd
     using Microsoft.AspNetCore.SignalR;
     using Microsoft.Extensions.Caching.Memory;
     using Microsoft.Extensions.Hosting;
-    using NetTools;
     using Serilog;
     using Serilog.Events;
     using slskd.Configuration;
@@ -62,22 +61,22 @@ namespace slskd
         /// <summary>
         ///     The name of the default user group.
         /// </summary>
-        public static readonly string DefaultGroup = "default";
+        public const string DefaultGroup = "default";
 
         /// <summary>
         ///     The name of the privileged user group.
         /// </summary>
-        public static readonly string PrivilegedGroup = "privileged";
+        public const string PrivilegedGroup = "privileged";
 
         /// <summary>
         ///     The name of the leecher user group.
         /// </summary>
-        public static readonly string LeecherGroup = "leechers";
+        public const string LeecherGroup = "leechers";
 
         /// <summary>
         ///     The name of the blacklisted user group.
         /// </summary>
-        public static readonly string BlacklistedGroup = "blacklisted";
+        public const string BlacklistedGroup = "blacklisted";
 
         private static readonly string ApplicationShutdownTransferExceptionMessage = "Application shut down";
 
@@ -475,21 +474,54 @@ namespace slskd
             return Task.CompletedTask;
         }
 
-        private Task EnqueueDownload(string username, IPEndPoint endpoint, string filename)
+        private async Task EnqueueDownload(string username, IPEndPoint endpoint, string filename)
         {
             if (Users.IsBlacklisted(username, endpoint.Address))
             {
                 Log.Information("Rejected enqueue request for blacklisted user {Username} ({IP})", username, endpoint.Address);
-                return Task.FromException(new DownloadEnqueueException($"File not shared."));
+                throw new DownloadEnqueueException($"File not shared.");
             }
 
-            // todo: determine the user's group
-            // todo: get limit config for that group
-            // todo: if limits have been set, retrieve all of the user's transfers for the last week, including those currently in the queue
-            // todo: determine if any of the configured limits have been met or exceeded
-            // todo: if limits met or exceeded, return Task.FromException(new DownloadEnqueueException($"Limit(s) exceeded.");
+            // get the user's group. this will be the name of the user's group, if they have been added to a
+            // user defined group, or one of the built-ins; 'default', 'privileged', 'leecher', or 'blacklisted'
+            var group = await Users.GetOrFetchGroupAsync(username);
 
-            return Transfers.Uploads.EnqueueAsync(username, filename);
+            // privileged users aren't subject to limits (for now)
+            // i'm putting this off because 1) limits are unique to slskd, so all other clients are "unlimited"
+            // and 2) i can't figure out what the limits would be, if not unlimited. users should get some level
+            // of control, but i'd need to figure out a lower bound
+            if (string.Equals(group, PrivilegedGroup))
+            {
+                await Transfers.Uploads.EnqueueAsync(username, filename);
+            }
+
+            Options.GroupsOptions.LimitsOptions limits;
+
+            if (Options.Groups.UserDefined.TryGetValue(group, out var userDefinedOptions))
+            {
+                limits = userDefinedOptions.Limits;
+            }
+            else
+            {
+                limits = group switch
+                {
+                    DefaultGroup => Options.Groups.Default.Limits,
+                    LeecherGroup => Options.Groups.Leechers.Limits,
+                    _ => Options.Groups.Default.Limits,
+                };
+            }
+
+            // if no limits are set, we're good to go
+            if (limits is null || (limits.Daily is null && limits.Weekly is null && limits.Queued is null))
+            {
+                await Transfers.Uploads.EnqueueAsync(username, filename);
+            }
+
+            // todo: retrieve all of the user's transfers for the last week, including those currently in the queue
+            // todo: determine if any of the configured limits have been met or exceeded
+            // todo: if limits met or exceeded, throw new DownloadEnqueueException($"Limit(s) exceeded.");
+
+            await Transfers.Uploads.EnqueueAsync(username, filename);
         }
 
         /// <summary>
