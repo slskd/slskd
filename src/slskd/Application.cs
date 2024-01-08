@@ -294,7 +294,7 @@ namespace slskd
             // records to be updated if the application has started to shut down so that we can do this cleanup and properly
             // disposition them as having failed due to an application shutdown, instead of some random exception thrown while
             // things are being disposed.
-            var activeUploads = Transfers.Uploads.List(t => !t.State.HasFlag(TransferStates.Completed) && !t.Removed)
+            var activeUploads = Transfers.Uploads.List(t => !t.State.HasFlag(TransferStates.Completed), includeRemoved: false)
                 .Where(t => !t.State.HasFlag(TransferStates.Completed)) // https://github.com/dotnet/efcore/issues/10434
                 .ToList();
 
@@ -511,15 +511,93 @@ namespace slskd
                 };
             }
 
-            // if no limits are set, we're good to go
+            // if no limits are set, we're good to go; just enqueue the file.
             if (limits is null || (limits.Daily is null && limits.Weekly is null && limits.Queued is null))
             {
                 await Transfers.Uploads.EnqueueAsync(username, filename);
             }
 
-            // todo: retrieve all of the user's transfers for the last week, including those currently in the queue
-            // todo: determine if any of the configured limits have been met or exceeded
-            // todo: if limits met or exceeded, throw new DownloadEnqueueException($"Limit(s) exceeded.");
+            var sw = new Stopwatch();
+            sw.Start();
+
+            /*
+             * we have limits set, so now we have to fetch the data and compare to see if any would be hit if we allow this transfer to be enqueued.
+             * the strategy here is to summarize all uploads:
+             * 1) belonging to this user
+             * 2) that were started within the time period
+             * 3) that did not end due to an error (state includes errored, exception column is set)
+            */
+            bool OverLimits((int Transfers, int Files, int Directories, long Bytes) stats, Options.GroupsOptions.LimitsExtendedOptions options, out string reason)
+            {
+                reason = null;
+                var byteLimit = options.Megabytes * 1000 * 1000;
+
+                if (stats.Bytes >= byteLimit)
+                {
+                    reason = $"bytes {stats.Bytes} exceeds limit of {byteLimit}";
+                    return true;
+                }
+
+                if (stats.Files >= options.Files)
+                {
+                    reason = $"files {stats.Files} exceeds limit of {options.Files}";
+                    return true;
+                }
+
+                if (stats.Directories >= options.Directories)
+                {
+                    reason = $"directories {stats.Directories} exceeds limit of {options.Directories}";
+                    return true;
+                }
+
+                return false;
+            }
+
+            // start with the queue, since that should contain the fewest files and should be the least expensive to check
+            // "queued" includes both queued and in progress; records with a null EndedAt property, which is guaranteed to be set
+            // for terminal transfers.
+            var queued = Transfers.Uploads.Summarize(t => t.Username == username && t.EndedAt == null);
+
+            Log.Debug("Fetched queue stats: {@Stats} ({Time}ms)", queued, sw.ElapsedMilliseconds);
+
+            if (OverLimits(queued, limits.Queued, out var queuedReason))
+            {
+                Log.Information("Rejected enqueue request for user {Username}: Queued {Reason}", queuedReason);
+                throw new DownloadEnqueueException($"Queued {queuedReason}");
+            }
+
+            // start with weekly, as this is the most likely limit to be hit and we want to keep the work to a minimum
+            var erroredState = (TransferStates.Completed | TransferStates.Errored).ToString();
+            var weekly = Transfers.Uploads.Summarize(t =>
+                t.Username == username
+                && t.StartedAt >= DateTime.UtcNow.AddDays(-7)
+                && t.State.ToString() != erroredState
+                && t.Exception == null);
+
+            Log.Debug("Fetched weekly stats: {Stats} ({Time}ms)", weekly, sw.ElapsedMilliseconds);
+
+            if (OverLimits(weekly, limits.Weekly, out var weeklyReason))
+            {
+                Log.Information("Rejected enqueue request for user {Username}: Weekly {Reason}", weeklyReason);
+                throw new DownloadEnqueueException($"Weekly {weeklyReason}");
+            }
+
+            var daily = Transfers.Uploads.Summarize(t =>
+                t.Username == username
+                && t.StartedAt >= DateTime.UtcNow.AddDays(-1)
+                && t.State.ToString() != erroredState
+                && t.Exception == null);
+
+            Log.Debug("Fetched daily stats: {Stats} ({Time}ms)", weekly, sw.ElapsedMilliseconds);
+
+            if (OverLimits(daily, limits.Daily, out var dailyReason))
+            {
+                Log.Information("Rejected enqueue request for user {Username}: Daily {Reason}", dailyReason);
+                throw new DownloadEnqueueException($"Daily {dailyReason}");
+            }
+
+            sw.Stop();
+            Log.Debug("Enqueue decision made in {Duration}ms", sw.ElapsedMilliseconds);
 
             await Transfers.Uploads.EnqueueAsync(username, filename);
         }
