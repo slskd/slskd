@@ -75,9 +75,9 @@ namespace slskd.Transfers.Uploads
         ///     Returns a list of all uploads matching the optional <paramref name="expression"/>.
         /// </summary>
         /// <param name="expression">An optional expression used to match uploads.</param>
-        /// <param name="includeRemoved">Optionally include uploads that have been removed previously.</param>
+        /// <param name="includeRemoved">A value indicating whether to include uploads that have been removed previously.</param>
         /// <returns>The list of uploads matching the specified expression, or all uploads if no expression is specified.</returns>
-        List<Transfer> List(Expression<Func<Transfer, bool>> expression = null, bool includeRemoved = false);
+        List<Transfer> List(Expression<Func<Transfer, bool>> expression, bool includeRemoved);
 
         /// <summary>
         ///     Removes <see cref="TransferStates.Completed"/> uploads older than the specified <paramref name="age"/>.
@@ -233,7 +233,7 @@ namespace slskd.Transfers.Uploads
             Log.Information("Resolved {Remote} to physical file {Physical} on host '{Host}'", filename, localFilename, host);
 
             // find existing records for this username and file that haven't been removed from the UI
-            var existingRecords = List(t => t.Username == username && t.Filename == localFilename && !t.Removed);
+            var existingRecords = List(t => t.Username == username && t.Filename == localFilename, includeRemoved: false);
 
             // check whether any of these records is in a non-complete state and bail out if so
             if (existingRecords.Any(t => !t.State.HasFlag(TransferStates.Completed)))
@@ -428,9 +428,9 @@ namespace slskd.Transfers.Uploads
         ///     Returns a list of all uploads matching the optional <paramref name="expression"/>.
         /// </summary>
         /// <param name="expression">An optional expression used to match uploads.</param>
-        /// <param name="includeRemoved">Optionally include uploads that have been removed previously.</param>
+        /// <param name="includeRemoved">A value indicating whether to include uploads that have been removed previously.</param>
         /// <returns>The list of uploads matching the specified expression, or all uploads if no expression is specified.</returns>
-        public List<Transfer> List(Expression<Func<Transfer, bool>> expression = null, bool includeRemoved = false)
+        public List<Transfer> List(Expression<Func<Transfer, bool>> expression, bool includeRemoved)
         {
             expression ??= t => true;
 
