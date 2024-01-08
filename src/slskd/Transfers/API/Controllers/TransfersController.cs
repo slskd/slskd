@@ -180,8 +180,9 @@ namespace slskd.Transfers.API
                 return Forbid();
             }
 
+            // get all the transfers that aren't removed
             var transfers = Transfers.Uploads
-                .List() // https://github.com/dotnet/efcore/issues/10434
+                .List(t => true, includeRemoved: false) // https://github.com/dotnet/efcore/issues/10434
                 .Where(t => t.State.HasFlag(Soulseek.TransferStates.Completed));
 
             foreach (var id in transfers.Select(t => t.Id))
@@ -373,7 +374,9 @@ namespace slskd.Transfers.API
                 return Forbid();
             }
 
-            var uploads = Transfers.Uploads.List(includeRemoved: includeRemoved);
+            // todo: refactor this so it doesn't return the world. start and end time params 
+            // should be required.  consider pagination.
+            var uploads = Transfers.Uploads.List(t => true, includeRemoved: includeRemoved);
 
             var response = uploads.GroupBy(t => t.Username).Select(grouping => new UserResponse()
             {
@@ -405,7 +408,7 @@ namespace slskd.Transfers.API
                 return Forbid();
             }
 
-            var uploads = Transfers.Uploads.List(d => d.Username == username);
+            var uploads = Transfers.Uploads.List(d => d.Username == username, includeRemoved: false);
 
             if (!uploads.Any())
             {
