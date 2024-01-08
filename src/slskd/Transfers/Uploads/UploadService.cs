@@ -95,6 +95,17 @@ namespace slskd.Transfers.Uploads
         void Remove(Guid id);
 
         /// <summary>
+        ///     Returns a summary of the uploads matching the specified <paramref name="expression"/>. This can be expensive;
+        ///     consider caching.
+        /// </summary>
+        /// <param name="expression">The expression used to select uploads for summarization.</param>
+        /// <returns>
+        ///     The generated summary, including the total number of transfers, the number of unique files and directories, and
+        ///     total size in bytes.
+        /// </returns>
+        (int Transfers, int Files, int Directories, long Bytes) Summarize(Expression<Func<Transfer, bool>> expression);
+
+        /// <summary>
         ///     Cancels the upload matching the specified <paramref name="id"/>, if it is in progress.
         /// </summary>
         /// <param name="id">The unique identifier for the upload.</param>
@@ -146,10 +157,10 @@ namespace slskd.Transfers.Uploads
         private ISoulseekClient Client { get; set; }
         private IDbContextFactory<TransfersDbContext> ContextFactory { get; }
         private ILogger Log { get; } = Serilog.Log.ForContext<UploadService>();
-        private IShareService Shares { get; set; }
-        private IUserService Users { get; set; }
         private IOptionsMonitor<Options> OptionsMonitor { get; }
         private IRelayService Relay { get; }
+        private IShareService Shares { get; set; }
+        private IUserService Users { get; set; }
 
         /// <summary>
         ///     Adds the specified <paramref name="transfer"/>. Supersedes any existing record for the same file and username.
@@ -199,8 +210,8 @@ namespace slskd.Transfers.Uploads
 
                 if (host == Program.LocalHostName)
                 {
-                    // if it's local, do a quick check to see if it exists to spare the caller from
-                    // queueing up if the transfer is doomed to fail. for remote files, take a leap of faith.
+                    // if it's local, do a quick check to see if it exists to spare the caller from queueing up if the transfer is
+                    // doomed to fail. for remote files, take a leap of faith.
                     var info = new FileInfo(localFilename);
 
                     if (!info.Exists)
@@ -360,8 +371,8 @@ namespace slskd.Transfers.Uploads
                         transfer = transfer.WithSoulseekTransfer(completedTransfer);
                     }
 
-                    // explicitly dispose the rate limiter to prevent updates from it
-                    // beyond this point, which may overwrite the final state
+                    // explicitly dispose the rate limiter to prevent updates from it beyond this point, which may overwrite the
+                    // final state
                     rateLimiter.Dispose();
 
                     // todo: broadcast
@@ -534,6 +545,42 @@ namespace slskd.Transfers.Uploads
                 Log.Error(ex, "Failed to remove upload {Id}: {Message}", id, ex.Message);
                 throw;
             }
+        }
+
+        /// <summary>
+        ///     Returns a summary of the uploads matching the specified <paramref name="expression"/>. This can be expensive;
+        ///     consider caching.
+        /// </summary>
+        /// <param name="expression">The expression used to select uploads for summarization.</param>
+        /// <returns>
+        ///     The generated summary, including the total number of transfers, the number of unique files and directories, and
+        ///     total size in bytes.
+        /// </returns>
+        public (int Transfers, int Files, int Directories, long Bytes) Summarize(Expression<Func<Transfer, bool>> expression)
+        {
+            // get all matching transfers, regardless of whether they have been removed from the UI
+            // note that this could be a raw SQL query, and if it were the performance would be much better
+            // however, passing an expression wouldn't work. if performance becomes an issue, consider passing in
+            // a query object instead of an expression and then converting this to a raw query.
+            var records = List(expression, includeRemoved: true);
+
+            int transfers = 0;
+            long bytes = 0;
+            var files = new HashSet<string>();
+            var directories = new HashSet<string>();
+
+            foreach (var t in records)
+            {
+                transfers++;
+                bytes += t.Size;
+                files.Add(t.Filename);
+
+                // this sucks, but this ensures history works even in cases where someone moves the app + data between windows and
+                // linux. if this causes a huge performance problem, i'll revisit.
+                directories.Add(t.Filename.NormalizePathForSoulseek().GetNormalizedDirectoryName());
+            }
+
+            return (transfers, files.Count, directories.Count, bytes);
         }
 
         /// <summary>
