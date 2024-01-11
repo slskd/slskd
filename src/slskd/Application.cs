@@ -387,7 +387,7 @@ namespace slskd
             await Client.ReconfigureOptionsAsync(patch);
 
             Log.Debug("Client configured");
-            Log.Information("Listening for incoming connections son {IP}:{Port}", OptionsAtStartup.Soulseek.ListenIpAddress, OptionsAtStartup.Soulseek.ListenPort);
+            Log.Information("Listening for incoming connections on {IP}:{Port}", OptionsAtStartup.Soulseek.ListenIpAddress, OptionsAtStartup.Soulseek.ListenPort);
 
             if (OptionsAtStartup.Soulseek.Connection.Proxy.Enabled)
             {
