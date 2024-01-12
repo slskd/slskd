@@ -72,6 +72,18 @@ namespace slskd.Transfers.Uploads
         Transfer Find(Expression<Func<Transfer, bool>> expression);
 
         /// <summary>
+        ///     Returns a summary of the uploads matching the specified <paramref name="expression"/>. This can be expensive;
+        ///     consider caching.
+        /// </summary>
+        /// <param name="expression">The expression used to select uploads for summarization.</param>
+        /// <param name="hypothetical">The hypotheticaly new transfer.</param>
+        /// <returns>
+        ///     The generated summary, including the total number of transfers, the number of unique files and directories, and
+        ///     total size in bytes.
+        /// </returns>
+        (int Transfers, int Files, int Directories, long Bytes) Hypothesize(Expression<Func<Transfer, bool>> expression, Transfer hypothetical);
+
+        /// <summary>
         ///     Returns a list of all uploads matching the optional <paramref name="expression"/>.
         /// </summary>
         /// <param name="expression">An optional expression used to match uploads.</param>
@@ -93,17 +105,6 @@ namespace slskd.Transfers.Uploads
         /// <remarks>This is a soft delete; the record is retained for historical retrieval.</remarks>
         /// <param name="id">The unique identifier of the upload.</param>
         void Remove(Guid id);
-
-        /// <summary>
-        ///     Returns a summary of the uploads matching the specified <paramref name="expression"/>. This can be expensive;
-        ///     consider caching.
-        /// </summary>
-        /// <param name="expression">The expression used to select uploads for summarization.</param>
-        /// <returns>
-        ///     The generated summary, including the total number of transfers, the number of unique files and directories, and
-        ///     total size in bytes.
-        /// </returns>
-        (int Transfers, int Files, int Directories, long Bytes) Summarize(Expression<Func<Transfer, bool>> expression);
 
         /// <summary>
         ///     Cancels the upload matching the specified <paramref name="id"/>, if it is in progress.
@@ -436,6 +437,45 @@ namespace slskd.Transfers.Uploads
         }
 
         /// <summary>
+        ///     Returns a summary of the uploads matching the specified <paramref name="expression"/>. This can be expensive;
+        ///     consider caching.
+        /// </summary>
+        /// <param name="expression">The expression used to select uploads for summarization.</param>
+        /// <param name="hypothetical">The hypotheticaly new transfer.</param>
+        /// <returns>
+        ///     The generated summary, including the total number of transfers, the number of unique files and directories, and
+        ///     total size in bytes.
+        /// </returns>
+        public (int Transfers, int Files, int Directories, long Bytes) Hypothesize(Expression<Func<Transfer, bool>> expression, Transfer hypothetical)
+        {
+            // get all matching transfers, regardless of whether they have been removed from the UI note that this could be a raw
+            // SQL query, and if it were the performance would be much better however, passing an expression wouldn't work. if
+            // performance becomes an issue, consider passing in a query object instead of an expression and then converting this
+            // to a raw query.
+            var records = List(expression, includeRemoved: true);
+
+            records.Add(hypothetical);
+
+            int transfers = 0;
+            long bytes = 0;
+            var files = new HashSet<string>();
+            var directories = new HashSet<string>();
+
+            foreach (var t in records)
+            {
+                transfers++;
+                bytes += t.Size;
+                files.Add(t.Filename);
+
+                // this sucks, but this ensures history works even in cases where someone moves the app + data between windows and
+                // linux. if this causes a huge performance problem, i'll revisit.
+                directories.Add(t.Filename.NormalizePathForSoulseek().GetNormalizedDirectoryName());
+            }
+
+            return (transfers, files.Count, directories.Count, bytes);
+        }
+
+        /// <summary>
         ///     Returns a list of all uploads matching the optional <paramref name="expression"/>.
         /// </summary>
         /// <param name="expression">An optional expression used to match uploads.</param>
@@ -545,42 +585,6 @@ namespace slskd.Transfers.Uploads
                 Log.Error(ex, "Failed to remove upload {Id}: {Message}", id, ex.Message);
                 throw;
             }
-        }
-
-        /// <summary>
-        ///     Returns a summary of the uploads matching the specified <paramref name="expression"/>. This can be expensive;
-        ///     consider caching.
-        /// </summary>
-        /// <param name="expression">The expression used to select uploads for summarization.</param>
-        /// <returns>
-        ///     The generated summary, including the total number of transfers, the number of unique files and directories, and
-        ///     total size in bytes.
-        /// </returns>
-        public (int Transfers, int Files, int Directories, long Bytes) Summarize(Expression<Func<Transfer, bool>> expression)
-        {
-            // get all matching transfers, regardless of whether they have been removed from the UI
-            // note that this could be a raw SQL query, and if it were the performance would be much better
-            // however, passing an expression wouldn't work. if performance becomes an issue, consider passing in
-            // a query object instead of an expression and then converting this to a raw query.
-            var records = List(expression, includeRemoved: true);
-
-            int transfers = 0;
-            long bytes = 0;
-            var files = new HashSet<string>();
-            var directories = new HashSet<string>();
-
-            foreach (var t in records)
-            {
-                transfers++;
-                bytes += t.Size;
-                files.Add(t.Filename);
-
-                // this sucks, but this ensures history works even in cases where someone moves the app + data between windows and
-                // linux. if this causes a huge performance problem, i'll revisit.
-                directories.Add(t.Filename.NormalizePathForSoulseek().GetNormalizedDirectoryName());
-            }
-
-            return (transfers, files.Count, directories.Count, bytes);
         }
 
         /// <summary>
