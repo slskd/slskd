@@ -46,6 +46,7 @@ namespace slskd
     using slskd.Search;
     using slskd.Shares;
     using slskd.Transfers;
+    using slskd.Transfers.API;
     using slskd.Users;
     using Soulseek;
     using Soulseek.Diagnostics;
@@ -479,7 +480,7 @@ namespace slskd
             if (Users.IsBlacklisted(username, endpoint.Address))
             {
                 Log.Information("Rejected enqueue request for blacklisted user {Username} ({IP})", username, endpoint.Address);
-                throw new DownloadEnqueueException($"File not shared.");
+                throw new DownloadEnqueueException("File not shared.");
             }
 
             // get the user's group. this will be the name of the user's group, if they have been added to a
@@ -520,6 +521,47 @@ namespace slskd
             var sw = new Stopwatch();
             sw.Start();
 
+            // in order to properly determine if the requested file would exceed any limits, we need to know the size of the file
+            // this is unfortunately not very straightforward; the size depends on which share repository the file is in and which
+            // host is hosting the file. figure all that out here
+            long size;
+
+            try
+            {
+                var (host, localFilename) = await Shares.ResolveFileAsync(filename);
+
+                Log.Debug("Resolved file {RemoteFilename} to host {Host} and file {LocalFilename}", filename, host, localFilename);
+
+                if (host == Program.LocalHostName)
+                {
+                    // if it's local, do a quick check to see if it exists to spare the caller from queueing up if the transfer is
+                    // doomed to fail. for remote files, take a leap of faith.
+                    var info = new FileInfo(localFilename);
+
+                    if (!info.Exists)
+                    {
+                        Shares.RequestScan();
+                        throw new NotFoundException($"The file '{localFilename}' could not be located on disk. A share scan should be performed.");
+                    }
+
+                    size = info.Length;
+                }
+
+                var (exists, length) = await Relay.GetFileInfoAsync(agentName: host, filename);
+
+                if (!exists || length <= 0)
+                {
+                    // todo: force a remote scan
+                    throw new NotFoundException($"The file '{localFilename}' could not be located on Agent {host}. A share scan should be performed.");
+                }
+
+                size = length;
+            }
+            catch (NotFoundException)
+            {
+                throw new DownloadEnqueueException("File not shared.");
+            }
+
             /*
              * we have limits set, so now we have to fetch the data and compare to see if any would be hit if we allow this transfer to be enqueued.
              * the strategy here is to summarize all uploads:
@@ -532,19 +574,19 @@ namespace slskd
                 reason = null;
                 var byteLimit = options.Megabytes * 1000 * 1000;
 
-                if (stats.Bytes >= byteLimit)
+                if (stats.Bytes > byteLimit)
                 {
                     reason = $"bytes {stats.Bytes} exceeds limit of {byteLimit}";
                     return true;
                 }
 
-                if (stats.Files >= options.Files)
+                if (stats.Files > options.Files)
                 {
                     reason = $"files {stats.Files} exceeds limit of {options.Files}";
                     return true;
                 }
 
-                if (stats.Directories >= options.Directories)
+                if (stats.Directories > options.Directories)
                 {
                     reason = $"directories {stats.Directories} exceeds limit of {options.Directories}";
                     return true;
@@ -556,7 +598,13 @@ namespace slskd
             // start with the queue, since that should contain the fewest files and should be the least expensive to check
             // "queued" includes both queued and in progress; records with a null EndedAt property, which is guaranteed to be set
             // for terminal transfers.
-            var queued = Transfers.Uploads.Summarize(t => t.Username == username && t.EndedAt == null);
+            var queued = Transfers.Uploads.Hypothesize(
+                expression: t => t.Username == username && t.EndedAt == null,
+                hypothetical: new Transfers.Transfer()
+                {
+                    Filename = filename,
+                    Size = size,
+                });
 
             Log.Debug("Fetched queue stats: {@Stats} ({Time}ms)", queued, sw.ElapsedMilliseconds);
 
@@ -569,11 +617,17 @@ namespace slskd
             // start with weekly, as this is the most likely limit to be hit and we want to keep the work to a minimum
             var erroredState = TransferStates.Completed | TransferStates.Errored;
             var cutoffDateTime = DateTime.UtcNow.AddDays(-7);
-            var weekly = Transfers.Uploads.Summarize(t =>
-                t.Username == username
-                && t.StartedAt >= cutoffDateTime
-                && !t.State.HasFlag(erroredState)
-                && t.Exception == null);
+            var weekly = Transfers.Uploads.Hypothesize(
+                expression: t =>
+                    t.Username == username
+                    && t.StartedAt >= cutoffDateTime
+                    && !t.State.HasFlag(erroredState)
+                    && t.Exception == null,
+                hypothetical: new Transfers.Transfer()
+                {
+                    Filename = filename,
+                    Size = size,
+                });
 
             Log.Debug("Fetched weekly stats: {Stats} ({Time}ms)", weekly, sw.ElapsedMilliseconds);
 
@@ -584,11 +638,17 @@ namespace slskd
             }
 
             cutoffDateTime = DateTime.UtcNow.AddDays(-1);
-            var daily = Transfers.Uploads.Summarize(t =>
-                t.Username == username
-                && t.StartedAt >= cutoffDateTime
-                && !t.State.HasFlag(erroredState)
-                && t.Exception == null);
+            var daily = Transfers.Uploads.Hypothesize(
+                expression: t =>
+                    t.Username == username
+                    && t.StartedAt >= cutoffDateTime
+                    && !t.State.HasFlag(erroredState)
+                    && t.Exception == null,
+                hypothetical: new Transfers.Transfer()
+                {
+                    Filename = filename,
+                    Size = size,
+                });
 
             Log.Debug("Fetched daily stats: {Stats} ({Time}ms)", weekly, sw.ElapsedMilliseconds);
 
@@ -1511,6 +1571,38 @@ namespace slskd
                 Log.Warning(ex, "Failed to resolve user info: {Message}", ex.Message);
                 throw;
             }
+        }
+
+        private async Task<long> GetSharedFileLengthAsync(string filename)
+        {
+            var (host, localFilename) = await Shares.ResolveFileAsync(filename);
+
+            Log.Debug("Resolved file {RemoteFilename} to host {Host} and file {LocalFilename}", filename, host, localFilename);
+
+            if (host == Program.LocalHostName)
+            {
+                // if it's local, do a quick check to see if it exists to spare the caller from queueing up if the transfer is
+                // doomed to fail. for remote files, take a leap of faith.
+                var info = new FileInfo(localFilename);
+
+                if (!info.Exists)
+                {
+                    Shares.RequestScan();
+                    throw new NotFoundException($"The file '{localFilename}' could not be located on disk. A share scan should be performed.");
+                }
+
+                return info.Length;
+            }
+
+            var (exists, length) = await Relay.GetFileInfoAsync(agentName: host, filename);
+
+            if (!exists || length <= 0)
+            {
+                // todo: force a remote scan
+                throw new NotFoundException($"The file '{localFilename}' could not be located on Agent {host}. A share scan should be performed.");
+            }
+
+            return length;
         }
     }
 }
