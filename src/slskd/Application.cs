@@ -524,38 +524,11 @@ namespace slskd
             // in order to properly determine if the requested file would exceed any limits, we need to know the size of the file
             // this is unfortunately not very straightforward; the size depends on which share repository the file is in and which
             // host is hosting the file. figure all that out here
-            long size;
+            (string Host, string Filename, long Size) resolved;
 
             try
             {
-                var (host, localFilename) = await Shares.ResolveFileAsync(filename);
-
-                Log.Debug("Resolved file {RemoteFilename} to host {Host} and file {LocalFilename}", filename, host, localFilename);
-
-                if (host == Program.LocalHostName)
-                {
-                    // if it's local, do a quick check to see if it exists to spare the caller from queueing up if the transfer is
-                    // doomed to fail. for remote files, take a leap of faith.
-                    var info = new FileInfo(localFilename);
-
-                    if (!info.Exists)
-                    {
-                        Shares.RequestScan();
-                        throw new NotFoundException($"The file '{localFilename}' could not be located on disk. A share scan should be performed.");
-                    }
-
-                    size = info.Length;
-                }
-
-                var (exists, length) = await Relay.GetFileInfoAsync(agentName: host, filename);
-
-                if (!exists || length <= 0)
-                {
-                    // todo: force a remote scan
-                    throw new NotFoundException($"The file '{localFilename}' could not be located on Agent {host}. A share scan should be performed.");
-                }
-
-                size = length;
+                resolved = await Shares.ResolveFileAsync(filename);
             }
             catch (NotFoundException)
             {
@@ -603,7 +576,7 @@ namespace slskd
                 hypothetical: new Transfers.Transfer()
                 {
                     Filename = filename,
-                    Size = size,
+                    Size = resolved.Size,
                 });
 
             Log.Debug("Fetched queue stats: {@Stats} ({Time}ms)", queued, sw.ElapsedMilliseconds);
@@ -626,7 +599,7 @@ namespace slskd
                 hypothetical: new Transfers.Transfer()
                 {
                     Filename = filename,
-                    Size = size,
+                    Size = resolved.Size,
                 });
 
             Log.Debug("Fetched weekly stats: {Stats} ({Time}ms)", weekly, sw.ElapsedMilliseconds);
@@ -647,7 +620,7 @@ namespace slskd
                 hypothetical: new Transfers.Transfer()
                 {
                     Filename = filename,
-                    Size = size,
+                    Size = resolved.Size,
                 });
 
             Log.Debug("Fetched daily stats: {Stats} ({Time}ms)", weekly, sw.ElapsedMilliseconds);
@@ -1571,38 +1544,6 @@ namespace slskd
                 Log.Warning(ex, "Failed to resolve user info: {Message}", ex.Message);
                 throw;
             }
-        }
-
-        private async Task<long> GetSharedFileLengthAsync(string filename)
-        {
-            var (host, localFilename) = await Shares.ResolveFileAsync(filename);
-
-            Log.Debug("Resolved file {RemoteFilename} to host {Host} and file {LocalFilename}", filename, host, localFilename);
-
-            if (host == Program.LocalHostName)
-            {
-                // if it's local, do a quick check to see if it exists to spare the caller from queueing up if the transfer is
-                // doomed to fail. for remote files, take a leap of faith.
-                var info = new FileInfo(localFilename);
-
-                if (!info.Exists)
-                {
-                    Shares.RequestScan();
-                    throw new NotFoundException($"The file '{localFilename}' could not be located on disk. A share scan should be performed.");
-                }
-
-                return info.Length;
-            }
-
-            var (exists, length) = await Relay.GetFileInfoAsync(agentName: host, filename);
-
-            if (!exists || length <= 0)
-            {
-                // todo: force a remote scan
-                throw new NotFoundException($"The file '{localFilename}' could not be located on Agent {host}. A share scan should be performed.");
-            }
-
-            return length;
         }
     }
 }
