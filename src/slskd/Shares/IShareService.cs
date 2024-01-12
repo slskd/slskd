@@ -88,7 +88,7 @@ namespace slskd.Shares
         void RequestScan();
 
         /// <summary>
-        ///     Resolves the local filename of the specified <paramref name="remoteFilename"/>, if the mask is associated with a
+        ///     Resolves the local filename and size of the specified <paramref name="remoteFilename"/>, if the mask is associated with a
         ///     configured share.
         /// </summary>
         /// <param name="remoteFilename">The fully qualified filename to resolve.</param>
@@ -96,7 +96,7 @@ namespace slskd.Shares
         /// <exception cref="NotFoundException">
         ///     Thrown when the specified remote filename can not be associated with a configured share.
         /// </exception>
-        Task<(string Host, string Filename)> ResolveFileAsync(string remoteFilename);
+        Task<(string Host, string Filename, long Size)> ResolveFileAsync(string remoteFilename);
 
         /// <summary>
         ///     Scans the configured shares on the local host.

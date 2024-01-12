@@ -267,9 +267,9 @@ namespace slskd.Shares
         /// <exception cref="NotFoundException">
         ///     Thrown when the specified remote filename can not be associated with a configured share.
         /// </exception>
-        public Task<(string Host, string Filename)> ResolveFileAsync(string remoteFilename)
+        public Task<(string Host, string Filename, long Size)> ResolveFileAsync(string remoteFilename)
         {
-            string resolvedFilename = Local.Repository.FindFilename(remoteFilename);
+            var (resolvedFilename, size) = Local.Repository.FindFileInfo(remoteFilename);
 
             // when we're debugging the relay (running as both controller and agent on the same instance)
             // always resolve files from remote hosts, ignoring local. this is a crappy hack, but it is the
@@ -281,7 +281,7 @@ namespace slskd.Shares
             else if (!string.IsNullOrEmpty(resolvedFilename))
             {
                 Log.Debug("Resolved remote file to {ResolvedFilename} on local host", resolvedFilename);
-                return Task.FromResult((Program.LocalHostName, resolvedFilename));
+                return Task.FromResult((Program.LocalHostName, resolvedFilename, size));
             }
             else
             {
@@ -292,12 +292,12 @@ namespace slskd.Shares
             // this is the slow, dumb way to do this, but it's plenty fast in this context.
             foreach (var host in HostDictionary.Values)
             {
-                resolvedFilename = host.Repository.FindFilename(remoteFilename);
+                (resolvedFilename, size) = host.Repository.FindFileInfo(remoteFilename);
 
                 if (!string.IsNullOrEmpty(resolvedFilename))
                 {
                     Log.Debug("Resolved remote file to {ResolvedFilename} on host {Host}", remoteFilename, host.Host.Name);
-                    return Task.FromResult((host.Host.Name, resolvedFilename));
+                    return Task.FromResult((host.Host.Name, resolvedFilename, size));
                 }
 
                 Log.Debug("Failed to resolve remote file on host {Host}", host.Host.Name);
