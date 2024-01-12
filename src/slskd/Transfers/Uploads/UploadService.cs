@@ -199,13 +199,14 @@ namespace slskd.Transfers.Uploads
         {
             string host = default;
             string localFilename = default;
+            long resolvedFileLength = default;
             long localFileLength = default;
 
             Log.Information("[{Context}] {Username} requested {Filename}", "UPLOAD REQUESTED", username, filename);
 
             try
             {
-                (host, localFilename) = await Shares.ResolveFileAsync(filename);
+                (host, localFilename, resolvedFileLength) = await Shares.ResolveFileAsync(filename);
 
                 Log.Debug("Resolved file {RemoteFilename} to host {Host} and file {LocalFilename}", filename, host, localFilename);
 
@@ -243,6 +244,13 @@ namespace slskd.Transfers.Uploads
             }
 
             Log.Information("Resolved {Remote} to physical file {Physical} on host '{Host}'", filename, localFilename, host);
+
+            if (localFileLength != resolvedFileLength)
+            {
+                // todo: should we fail the transfer? the file changed on disk since the last scan. i guess not? since the caller doesn't provide a size
+                Shares.RequestScan();
+                Log.Warning("Resolved size for {Remote} of {Resolved} doesn't match actual size {Actual}", filename, resolvedFileLength, localFileLength);
+            }
 
             // find existing records for this username and file that haven't been removed from the UI
             var existingRecords = List(t => t.Username == username && t.Filename == localFilename, includeRemoved: false);
