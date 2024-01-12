@@ -210,10 +210,10 @@ namespace slskd.Shares
         /// </summary>
         /// <param name="maskedFilename">The fully qualified remote path of the file.</param>
         /// <returns>The filename, if found.</returns>
-        public string FindFilename(string maskedFilename)
+        public (string Filename, long Size) FindFileInfo(string maskedFilename)
         {
             using var conn = GetConnection();
-            using var cmd = new SqliteCommand("SELECT originalFilename FROM files WHERE maskedFilename = @maskedFilename;", conn);
+            using var cmd = new SqliteCommand("SELECT originalFilename, size FROM files WHERE maskedFilename = @maskedFilename;", conn);
             cmd.Parameters.AddWithValue("maskedFilename", maskedFilename);
 
             var reader = cmd.ExecuteReader();
@@ -221,12 +221,13 @@ namespace slskd.Shares
             if (!reader.Read())
             {
                 Log.Warning("Failed to resolve shared file {Filename}", maskedFilename);
-                return null;
+                return default;
             }
 
-            var resolved = reader.GetString(0);
-            Log.Debug($"Resolved requested shared file {maskedFilename} to {resolved}");
-            return resolved;
+            var filename = (string)reader["originalFilename"];
+            var size = (long)reader["size"];
+            Log.Debug($"Resolved requested shared file {maskedFilename} to {filename} ({size} bytes)");
+            return (filename, size);
         }
 
         /// <summary>
