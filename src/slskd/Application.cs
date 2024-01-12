@@ -575,7 +575,7 @@ namespace slskd
                 expression: t => t.Username == username && t.EndedAt == null,
                 hypothetical: new Transfers.Transfer()
                 {
-                    Filename = filename,
+                    Filename = resolved.Filename,
                     Size = resolved.Size,
                 });
 
@@ -598,7 +598,7 @@ namespace slskd
                     && t.Exception == null,
                 hypothetical: new Transfers.Transfer()
                 {
-                    Filename = filename,
+                    Filename = resolved.Filename,
                     Size = resolved.Size,
                 });
 
@@ -619,7 +619,7 @@ namespace slskd
                     && t.Exception == null,
                 hypothetical: new Transfers.Transfer()
                 {
-                    Filename = filename,
+                    Filename = resolved.Filename,
                     Size = resolved.Size,
                 });
 
