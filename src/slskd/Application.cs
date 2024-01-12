@@ -562,7 +562,7 @@ namespace slskd
 
             if (OverLimits(queued, limits.Queued, out var queuedReason))
             {
-                Log.Information("Rejected enqueue request for user {Username}: Queued {Reason}", queuedReason);
+                Log.Information("Rejected enqueue request for user {Username}: Queued {Reason}", username, queuedReason);
                 throw new DownloadEnqueueException($"Queued {queuedReason}");
             }
 
