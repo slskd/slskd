@@ -480,6 +480,9 @@ namespace slskd.Transfers.Uploads
                 directories.Add(t.Filename.NormalizePathForSoulseek().GetNormalizedDirectoryName());
             }
 
+            Log.Warning("Directories: {@Directories}", directories);
+            Log.Warning("Files: {@Files}", files);
+
             return (transfers, files.Count, directories.Count, bytes);
         }
 

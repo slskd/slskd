@@ -587,49 +587,49 @@ namespace slskd
                 throw new DownloadEnqueueException($"Queued {queuedReason}");
             }
 
-            // start with weekly, as this is the most likely limit to be hit and we want to keep the work to a minimum
-            var erroredState = TransferStates.Completed | TransferStates.Errored;
-            var cutoffDateTime = DateTime.UtcNow.AddDays(-7);
-            var weekly = Transfers.Uploads.Hypothesize(
-                expression: t =>
-                    t.Username == username
-                    && t.StartedAt >= cutoffDateTime
-                    && !t.State.HasFlag(erroredState)
-                    && t.Exception == null,
-                hypothetical: new Transfers.Transfer()
-                {
-                    Filename = resolved.Filename,
-                    Size = resolved.Size,
-                });
+            //// start with weekly, as this is the most likely limit to be hit and we want to keep the work to a minimum
+            //var erroredState = TransferStates.Completed | TransferStates.Errored;
+            //var cutoffDateTime = DateTime.UtcNow.AddDays(-7);
+            //var weekly = Transfers.Uploads.Hypothesize(
+            //    expression: t =>
+            //        t.Username == username
+            //        && t.StartedAt >= cutoffDateTime
+            //        && !t.State.HasFlag(erroredState)
+            //        && t.Exception == null,
+            //    hypothetical: new Transfers.Transfer()
+            //    {
+            //        Filename = resolved.Filename,
+            //        Size = resolved.Size,
+            //    });
 
-            Log.Debug("Fetched weekly stats: {Stats} ({Time}ms)", weekly, sw.ElapsedMilliseconds);
+            //Log.Debug("Fetched weekly stats: {Stats} ({Time}ms)", weekly, sw.ElapsedMilliseconds);
 
-            if (OverLimits(weekly, limits.Weekly, out var weeklyReason))
-            {
-                Log.Information("Rejected enqueue request for user {Username}: Weekly {Reason}", weeklyReason);
-                throw new DownloadEnqueueException($"Weekly {weeklyReason}");
-            }
+            //if (OverLimits(weekly, limits.Weekly, out var weeklyReason))
+            //{
+            //    Log.Information("Rejected enqueue request for user {Username}: Weekly {Reason}", weeklyReason);
+            //    throw new DownloadEnqueueException($"Weekly {weeklyReason}");
+            //}
 
-            cutoffDateTime = DateTime.UtcNow.AddDays(-1);
-            var daily = Transfers.Uploads.Hypothesize(
-                expression: t =>
-                    t.Username == username
-                    && t.StartedAt >= cutoffDateTime
-                    && !t.State.HasFlag(erroredState)
-                    && t.Exception == null,
-                hypothetical: new Transfers.Transfer()
-                {
-                    Filename = resolved.Filename,
-                    Size = resolved.Size,
-                });
+            //cutoffDateTime = DateTime.UtcNow.AddDays(-1);
+            //var daily = Transfers.Uploads.Hypothesize(
+            //    expression: t =>
+            //        t.Username == username
+            //        && t.StartedAt >= cutoffDateTime
+            //        && !t.State.HasFlag(erroredState)
+            //        && t.Exception == null,
+            //    hypothetical: new Transfers.Transfer()
+            //    {
+            //        Filename = resolved.Filename,
+            //        Size = resolved.Size,
+            //    });
 
-            Log.Debug("Fetched daily stats: {Stats} ({Time}ms)", weekly, sw.ElapsedMilliseconds);
+            //Log.Debug("Fetched daily stats: {Stats} ({Time}ms)", weekly, sw.ElapsedMilliseconds);
 
-            if (OverLimits(daily, limits.Daily, out var dailyReason))
-            {
-                Log.Information("Rejected enqueue request for user {Username}: Daily {Reason}", dailyReason);
-                throw new DownloadEnqueueException($"Daily {dailyReason}");
-            }
+            //if (OverLimits(daily, limits.Daily, out var dailyReason))
+            //{
+            //    Log.Information("Rejected enqueue request for user {Username}: Daily {Reason}", dailyReason);
+            //    throw new DownloadEnqueueException($"Daily {dailyReason}");
+            //}
 
             sw.Stop();
             Log.Debug("Enqueue decision made in {Duration}ms", sw.ElapsedMilliseconds);
