@@ -358,7 +358,7 @@ namespace slskd.Relay
 
             try
             {
-                var (_, localFilename) = await Shares.ResolveFileAsync(filename);
+                var (_, localFilename, _) = await Shares.ResolveFileAsync(filename);
 
                 var localFileInfo = new FileInfo(localFilename);
 
@@ -379,7 +379,7 @@ namespace slskd.Relay
 
                 try
                 {
-                    var (_, localFilename) = await Shares.ResolveFileAsync(filename);
+                    var (_, localFilename, _) = await Shares.ResolveFileAsync(filename);
 
                     var localFileInfo = new FileInfo(localFilename);
 
