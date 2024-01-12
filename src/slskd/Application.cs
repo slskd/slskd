@@ -567,11 +567,12 @@ namespace slskd
             }
 
             // start with weekly, as this is the most likely limit to be hit and we want to keep the work to a minimum
-            var erroredState = (TransferStates.Completed | TransferStates.Errored).ToString();
+            var erroredState = TransferStates.Completed | TransferStates.Errored;
+            var cutoffDateTime = DateTime.UtcNow.AddDays(-7);
             var weekly = Transfers.Uploads.Summarize(t =>
                 t.Username == username
-                && t.StartedAt >= DateTime.UtcNow.AddDays(-7)
-                && t.State.ToString() != erroredState
+                && t.StartedAt >= cutoffDateTime
+                && !t.State.HasFlag(erroredState)
                 && t.Exception == null);
 
             Log.Debug("Fetched weekly stats: {Stats} ({Time}ms)", weekly, sw.ElapsedMilliseconds);
@@ -582,10 +583,11 @@ namespace slskd
                 throw new DownloadEnqueueException($"Weekly {weeklyReason}");
             }
 
+            cutoffDateTime = DateTime.UtcNow.AddDays(-1);
             var daily = Transfers.Uploads.Summarize(t =>
                 t.Username == username
-                && t.StartedAt >= DateTime.UtcNow.AddDays(-1)
-                && t.State.ToString() != erroredState
+                && t.StartedAt >= cutoffDateTime
+                && !t.State.HasFlag(erroredState)
                 && t.Exception == null);
 
             Log.Debug("Fetched daily stats: {Stats} ({Time}ms)", weekly, sw.ElapsedMilliseconds);
