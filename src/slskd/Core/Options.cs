@@ -1055,12 +1055,6 @@ namespace slskd
                 public int? Files { get; init; } = null;
 
                 /// <summary>
-                ///     Gets the limit for number of directories.
-                /// </summary>
-                [Range(1, int.MaxValue)]
-                public int? Directories { get; init; } = null;
-
-                /// <summary>
                 ///     Gets the limit for number of megabytes.
                 /// </summary>
                 [Range(1, int.MaxValue)]
