@@ -505,9 +505,13 @@ namespace slskd
             // of control, but i'd need to figure out a lower bound
             if (string.Equals(group, PrivilegedGroup))
             {
+                Log.Debug("Limits bypassed for {Username} and {File}; user is privileged", username, filename);
                 await Transfers.Uploads.EnqueueAsync(username, filename);
+                return;
             }
 
+            // resolve the limits for this user's group.  there's no 'fallthrough' here, if limits for a group
+            // are unset, then that group is unlimited.
             Options.GroupsOptions.LimitsOptions limits;
 
             if (Options.Groups.UserDefined.TryGetValue(group, out var userDefinedOptions))
@@ -524,28 +528,18 @@ namespace slskd
                 };
             }
 
+            bool IsNull(Options.GroupsOptions.LimitsExtendedOptions l) => l is null || (l?.Files is null && l?.Megabytes is null);
+
             // if no limits are set, we're good to go; just enqueue the file.
-            if (limits is null || (limits.Daily is null && limits.Weekly is null && limits.Queued is null))
+            if (limits is null || (IsNull(limits.Daily) && IsNull(limits.Weekly) && IsNull(limits.Queued)))
             {
+                Log.Debug("Limits bypassed for {Username} and {File}; limits are all null", username, filename);
                 await Transfers.Uploads.EnqueueAsync(username, filename);
+                return;
             }
 
             var sw = new Stopwatch();
             sw.Start();
-
-            // in order to properly determine if the requested file would exceed any limits, we need to know the size of the file
-            // this is unfortunately not very straightforward; the size depends on which share repository the file is in and which
-            // host is hosting the file. figure all that out here
-            (string Host, string Filename, long Size) resolved;
-
-            try
-            {
-                resolved = await Shares.ResolveFileAsync(filename);
-            }
-            catch (NotFoundException)
-            {
-                throw new DownloadEnqueueException("File not shared.");
-            }
 
             /*
              * we have limits set, so now we have to fetch the data and compare to see if any would be hit if we allow this transfer to be enqueued.
@@ -554,26 +548,20 @@ namespace slskd
              * 2) that were started within the time period
              * 3) that did not end due to an error (state includes errored, exception column is set)
             */
-            bool OverLimits((int Transfers, int Files, int Directories, long Bytes) stats, Options.GroupsOptions.LimitsExtendedOptions options, out string reason)
+            bool OverLimits((int Files, long Bytes) stats, Options.GroupsOptions.LimitsExtendedOptions options, long size, out string reason)
             {
                 reason = null;
-                var byteLimit = options.Megabytes * 1000 * 1000;
+                var byteLimit = (options?.Megabytes ?? 0) * 1000 * 1000;
 
-                if (stats.Bytes > byteLimit)
+                if (options?.Megabytes is not null && (stats.Bytes + size) > byteLimit)
                 {
-                    reason = $"bytes {stats.Bytes} exceeds limit of {byteLimit}";
+                    reason = $"bytes {stats.Bytes + size} would exceed limit of {byteLimit}";
                     return true;
                 }
 
-                if (stats.Files > options.Files)
+                if (options?.Files is not null && (stats.Files + 1) > options.Files)
                 {
-                    reason = $"files {stats.Files} exceeds limit of {options.Files}";
-                    return true;
-                }
-
-                if (stats.Directories > options.Directories)
-                {
-                    reason = $"directories {stats.Directories} exceeds limit of {options.Directories}";
+                    reason = $"file would exceed limit of {options.Files}";
                     return true;
                 }
 
@@ -583,20 +571,18 @@ namespace slskd
             // start with the queue, since that should contain the fewest files and should be the least expensive to check
             // "queued" includes both queued and in progress; records with a null EndedAt property, which is guaranteed to be set
             // for terminal transfers.
-            var queued = Transfers.Uploads.Hypothesize(
-                expression: t => t.Username == username && t.EndedAt == null,
-                hypothetical: new Transfers.Transfer()
-                {
-                    Filename = resolved.Filename,
-                    Size = resolved.Size,
-                });
-
-            Log.Debug("Fetched queue stats: {@Stats} ({Time}ms)", queued, sw.ElapsedMilliseconds);
-
-            if (OverLimits(queued, limits.Queued, out var queuedReason))
+            if (!IsNull(limits.Queued))
             {
-                Log.Information("Rejected enqueue request for user {Username}: Queued {Reason}", username, queuedReason);
-                throw new DownloadEnqueueException($"Queued {queuedReason}");
+                var queued = Transfers.Uploads.Summarize(
+                    expression: t => t.Username == username && t.EndedAt == null);
+
+                Log.Debug("Fetched queue stats: files: {Files}, bytes: {Bytes} ({Time}ms)", queued.Files, queued.Bytes, sw.ElapsedMilliseconds);
+
+                if (OverLimits(queued, limits!.Queued, resolved.Size, out var queuedReason))
+                {
+                    Log.Information("Rejected enqueue request for user {Username}: Queued {Reason}", username, queuedReason);
+                    throw new DownloadEnqueueException($"Queued {queuedReason}");
+                }
             }
 
             //// start with weekly, as this is the most likely limit to be hit and we want to keep the work to a minimum
