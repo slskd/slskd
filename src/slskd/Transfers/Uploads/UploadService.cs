@@ -76,12 +76,10 @@ namespace slskd.Transfers.Uploads
         ///     consider caching.
         /// </summary>
         /// <param name="expression">The expression used to select uploads for summarization.</param>
-        /// <param name="hypothetical">The hypotheticaly new transfer.</param>
         /// <returns>
-        ///     The generated summary, including the total number of transfers, the number of unique files and directories, and
-        ///     total size in bytes.
+        ///     The generated summary, including the number of files and total size in bytes.
         /// </returns>
-        (int Transfers, int Files, int Directories, long Bytes) Hypothesize(Expression<Func<Transfer, bool>> expression, Transfer hypothetical);
+        (int Files, long Bytes) Summarize(Expression<Func<Transfer, bool>> expression);
 
         /// <summary>
         ///     Returns a list of all uploads matching the optional <paramref name="expression"/>.
@@ -449,41 +447,36 @@ namespace slskd.Transfers.Uploads
         ///     consider caching.
         /// </summary>
         /// <param name="expression">The expression used to select uploads for summarization.</param>
-        /// <param name="hypothetical">The hypotheticaly new transfer.</param>
         /// <returns>
-        ///     The generated summary, including the total number of transfers, the number of unique files and directories, and
-        ///     total size in bytes.
+        ///     The generated summary, including the number of files and total size in bytes.
         /// </returns>
-        public (int Transfers, int Files, int Directories, long Bytes) Hypothesize(Expression<Func<Transfer, bool>> expression, Transfer hypothetical)
+        public (int Files, long Bytes) Summarize(Expression<Func<Transfer, bool>> expression)
         {
-            // get all matching transfers, regardless of whether they have been removed from the UI note that this could be a raw
-            // SQL query, and if it were the performance would be much better however, passing an expression wouldn't work. if
-            // performance becomes an issue, consider passing in a query object instead of an expression and then converting this
-            // to a raw query.
-            var records = List(expression, includeRemoved: true);
+            expression ??= t => true;
 
-            records.Add(hypothetical);
-
-            int transfers = 0;
-            long bytes = 0;
-            var files = new HashSet<string>();
-            var directories = new HashSet<string>();
-
-            foreach (var t in records)
+            try
             {
-                transfers++;
-                bytes += t.Size;
-                files.Add(t.Filename);
+                using var context = ContextFactory.CreateDbContext();
 
-                // this sucks, but this ensures history works even in cases where someone moves the app + data between windows and
-                // linux. if this causes a huge performance problem, i'll revisit.
-                directories.Add(t.Filename.NormalizePathForSoulseek().GetNormalizedDirectoryName());
+                var stats = context.Transfers
+                    .AsNoTracking()
+                    .Where(t => t.Direction == TransferDirection.Upload)
+                    .Where(expression)
+                    .GroupBy(t => true) // https://stackoverflow.com/a/25489456
+                    .Select(t => new
+                    {
+                        Files = t.Count(),
+                        Bytes = t.Sum(x => x.Size),
+                    })
+                    .FirstOrDefault();
+
+                return (stats?.Files ?? 0, stats?.Bytes ?? 0);
             }
-
-            Log.Warning("Directories: {@Directories}", directories);
-            Log.Warning("Files: {@Files}", files);
-
-            return (transfers, files.Count, directories.Count, bytes);
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to list uploads: {Message}", ex.Message);
+                throw;
+            }
         }
 
         /// <summary>
