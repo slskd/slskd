@@ -483,6 +483,18 @@ namespace slskd
                 throw new DownloadEnqueueException("File not shared.");
             }
 
+            // in order to properly determine if the requested file would exceed any limits, we need to know the size of the file
+            (string Host, string Filename, long Size) resolved;
+
+            try
+            {
+                resolved = await Shares.ResolveFileAsync(filename);
+            }
+            catch (NotFoundException)
+            {
+                throw new DownloadEnqueueException("File not shared.");
+            }
+
             // get the user's group. this will be the name of the user's group, if they have been added to a
             // user defined group, or one of the built-ins; 'default', 'privileged', 'leecher', or 'blacklisted'
             var group = await Users.GetOrFetchGroupAsync(username);
