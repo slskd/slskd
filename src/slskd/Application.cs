@@ -585,28 +585,29 @@ namespace slskd
                 }
             }
 
-            //// start with weekly, as this is the most likely limit to be hit and we want to keep the work to a minimum
-            //var erroredState = TransferStates.Completed | TransferStates.Errored;
-            //var cutoffDateTime = DateTime.UtcNow.AddDays(-7);
-            //var weekly = Transfers.Uploads.Hypothesize(
-            //    expression: t =>
-            //        t.Username == username
-            //        && t.StartedAt >= cutoffDateTime
-            //        && !t.State.HasFlag(erroredState)
-            //        && t.Exception == null,
-            //    hypothetical: new Transfers.Transfer()
-            //    {
-            //        Filename = resolved.Filename,
-            //        Size = resolved.Size,
-            //    });
+            // start with weekly, as this is the most likely limit to be hit and we want to keep the work to a minimum
+            // transfers that 'count' for the weekly limit are uploads that started within the last week, which have ended,
+            // that were not errored
+            if (!IsNull(limits.Weekly))
+            {
+                var erroredState = TransferStates.Completed | TransferStates.Errored;
+                var cutoffDateTime = DateTime.UtcNow.AddDays(-7);
+                var weekly = Transfers.Uploads.Summarize(
+                    expression: t =>
+                        t.Username == username
+                        && t.StartedAt >= cutoffDateTime
+                        && t.EndedAt != null
+                        && !t.State.HasFlag(erroredState)
+                        && t.Exception == null);
 
-            //Log.Debug("Fetched weekly stats: {Stats} ({Time}ms)", weekly, sw.ElapsedMilliseconds);
+                Log.Debug("Fetched weekly stats: files: {Files}, bytes: {Bytes} ({Time}ms)", weekly.Files, weekly.Bytes, sw.ElapsedMilliseconds);
 
-            //if (OverLimits(weekly, limits.Weekly, out var weeklyReason))
-            //{
-            //    Log.Information("Rejected enqueue request for user {Username}: Weekly {Reason}", weeklyReason);
-            //    throw new DownloadEnqueueException($"Weekly {weeklyReason}");
-            //}
+                if (OverLimits(weekly, limits!.Weekly, resolved.Size, out var weeklyReason))
+                {
+                    Log.Information("Rejected enqueue request for user {Username}: Weekly {Reason}", username, weeklyReason);
+                    throw new DownloadEnqueueException($"Weekly {weeklyReason}");
+                }
+            }
 
             //cutoffDateTime = DateTime.UtcNow.AddDays(-1);
             //var daily = Transfers.Uploads.Hypothesize(
