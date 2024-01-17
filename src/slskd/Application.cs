@@ -534,7 +534,7 @@ namespace slskd
             // if no limits are set, we're good to go; just enqueue the file.
             if (limits is null || (IsNull(limits.Daily) && IsNull(limits.Weekly) && IsNull(limits.Queued)))
             {
-                Log.Debug("Limits bypassed for {Username} and {File}; limits are all null", username, filename);
+                Log.Debug("Limits bypassed for {Username} and {File}; no limits are set", username, filename);
                 await Transfers.Uploads.EnqueueAsync(username, filename);
                 return;
             }
@@ -549,24 +549,25 @@ namespace slskd
              * 2) that were started within the time period
              * 3) that did not end due to an error (state includes errored, exception column is set)
             */
-            bool OverLimits((int Files, long Bytes) stats, Options.GroupsOptions.LimitsExtendedOptions options, long size, out string reason)
+            (bool Files, bool Megabytes) OverLimits((int Files, long Bytes) stats, Options.GroupsOptions.LimitsExtendedOptions options, long size)
             {
-                reason = null;
+                var files = false;
+                var megabytes = false;
                 var byteLimit = (options?.Megabytes ?? 0) * 1000 * 1000;
 
                 if (options?.Megabytes is not null && (stats.Bytes + size) > byteLimit)
                 {
-                    reason = $"bytes {stats.Bytes + size} would exceed limit of {byteLimit}";
-                    return true;
+                    Log.Debug("Projected bytes {Bytes} exceeds limit {Limit}", stats.Bytes + size, byteLimit);
+                    megabytes = true;
                 }
 
                 if (options?.Files is not null && (stats.Files + 1) > options.Files)
                 {
-                    reason = $"file would exceed limit of {options.Files}";
-                    return true;
+                    Log.Debug("Projected file count {Files} exceeds limit {Limit}", stats.Files + 1, options.Files);
+                    files = true;
                 }
 
-                return false;
+                return (files, megabytes);
             }
 
             // start with the queue, since that should contain the fewest files and should be the least expensive to check
@@ -579,10 +580,12 @@ namespace slskd
 
                 Log.Debug("Fetched queue stats: files: {Files}, bytes: {Bytes} ({Time}ms)", queued.Files, queued.Bytes, sw.ElapsedMilliseconds);
 
-                if (OverLimits(queued, limits!.Queued, resolved.Size, out var queuedReason))
+                var over = OverLimits(queued, limits!.Queued, resolved.Size);
+
+                if (over.Files || over.Megabytes)
                 {
-                    Log.Information("Rejected enqueue request for user {Username}: Queued {Reason}", username, queuedReason);
-                    throw new DownloadEnqueueException($"Queued {queuedReason}");
+                    Log.Information("Rejected enqueue request for user {Username}: Queued limits exceeded", username);
+                    throw new DownloadEnqueueException($"Too many queued {(over.Files ? "files" : "megabytes")}");
                 }
             }
 
@@ -603,10 +606,12 @@ namespace slskd
 
                 Log.Debug("Fetched weekly stats: files: {Files}, bytes: {Bytes} ({Time}ms)", weekly.Files, weekly.Bytes, sw.ElapsedMilliseconds);
 
-                if (OverLimits(weekly, limits!.Weekly, resolved.Size, out var weeklyReason))
+                var over = OverLimits(weekly, limits!.Weekly, resolved.Size);
+
+                if (over.Files || over.Megabytes)
                 {
-                    Log.Information("Rejected enqueue request for user {Username}: Weekly {Reason}", username, weeklyReason);
-                    throw new DownloadEnqueueException($"Weekly {weeklyReason}");
+                    Log.Information("Rejected enqueue request for user {Username}: Weekly limits exceeded", username);
+                    throw new DownloadEnqueueException($"Too many weekly {(over.Files ? "files" : "megabytes")}");
                 }
             }
 
@@ -626,10 +631,12 @@ namespace slskd
 
                 Log.Debug("Fetched daily stats: files: {Files}, bytes: {Bytes} ({Time}ms)", daily.Files, daily.Bytes, sw.ElapsedMilliseconds);
 
-                if (OverLimits(daily, limits!.Daily, resolved.Size, out var dailyReason))
+                var over = OverLimits(daily, limits!.Daily, resolved.Size);
+
+                if (over.Files || over.Megabytes)
                 {
-                    Log.Information("Rejected enqueue request for user {Username}: Daily {Reason}", username, dailyReason);
-                    throw new DownloadEnqueueException($"Daily {dailyReason}");
+                    Log.Information("Rejected enqueue request for user {Username}: Daily limits exceeded", username);
+                    throw new DownloadEnqueueException($"Too many daily {(over.Files ? "files" : "megabytes")}");
                 }
             }
 
