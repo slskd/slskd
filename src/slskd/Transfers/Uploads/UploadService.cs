@@ -458,7 +458,7 @@ namespace slskd.Transfers.Uploads
             {
                 using var context = ContextFactory.CreateDbContext();
 
-                var stats = context.Transfers
+                var query = context.Transfers
                     .AsNoTracking()
                     .Where(t => t.Direction == TransferDirection.Upload)
                     .Where(expression)
@@ -467,8 +467,11 @@ namespace slskd.Transfers.Uploads
                     {
                         Files = t.Count(),
                         Bytes = t.Sum(x => x.Size),
-                    })
-                    .FirstOrDefault();
+                    });
+
+                Log.Verbose("{Method} SQL: {@Query}", nameof(Summarize), query.ToQueryString());
+
+                var stats = query.FirstOrDefault();
 
                 return (stats?.Files ?? 0, stats?.Bytes ?? 0);
             }
