@@ -484,6 +484,7 @@ namespace slskd
             }
 
             // in order to properly determine if the requested file would exceed any limits, we need to know the size of the file
+            // it helps, too, that this will tell us whether the file is even shared.
             (string Host, string Filename, long Size) resolved;
 
             try
@@ -609,26 +610,28 @@ namespace slskd
                 }
             }
 
-            //cutoffDateTime = DateTime.UtcNow.AddDays(-1);
-            //var daily = Transfers.Uploads.Hypothesize(
-            //    expression: t =>
-            //        t.Username == username
-            //        && t.StartedAt >= cutoffDateTime
-            //        && !t.State.HasFlag(erroredState)
-            //        && t.Exception == null,
-            //    hypothetical: new Transfers.Transfer()
-            //    {
-            //        Filename = resolved.Filename,
-            //        Size = resolved.Size,
-            //    });
+            // lastly, check daily limits. the criteria for this is the same as weekly, just looking over the previous day instead
+            // of the previous 7.
+            if (!IsNull(limits.Daily))
+            {
+                var erroredState = TransferStates.Completed | TransferStates.Errored;
+                var cutoffDateTime = DateTime.UtcNow.AddDays(-1);
+                var daily = Transfers.Uploads.Summarize(
+                    expression: t =>
+                        t.Username == username
+                        && t.StartedAt >= cutoffDateTime
+                        && t.EndedAt != null
+                        && !t.State.HasFlag(erroredState)
+                        && t.Exception == null);
 
-            //Log.Debug("Fetched daily stats: {Stats} ({Time}ms)", weekly, sw.ElapsedMilliseconds);
+                Log.Debug("Fetched daily stats: files: {Files}, bytes: {Bytes} ({Time}ms)", daily.Files, daily.Bytes, sw.ElapsedMilliseconds);
 
-            //if (OverLimits(daily, limits.Daily, out var dailyReason))
-            //{
-            //    Log.Information("Rejected enqueue request for user {Username}: Daily {Reason}", dailyReason);
-            //    throw new DownloadEnqueueException($"Daily {dailyReason}");
-            //}
+                if (OverLimits(daily, limits!.Daily, resolved.Size, out var dailyReason))
+                {
+                    Log.Information("Rejected enqueue request for user {Username}: Daily {Reason}", username, dailyReason);
+                    throw new DownloadEnqueueException($"Daily {dailyReason}");
+                }
+            }
 
             sw.Stop();
             Log.Debug("Enqueue decision made in {Duration}ms", sw.ElapsedMilliseconds);
