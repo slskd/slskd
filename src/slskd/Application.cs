@@ -585,13 +585,15 @@ namespace slskd
                 if (over.Files || over.Megabytes)
                 {
                     Log.Information("Rejected enqueue request for user {Username}: Queued limits exceeded", username);
-                    throw new DownloadEnqueueException($"Too many queued {(over.Files ? "files" : "megabytes")}");
+                    throw new DownloadEnqueueException($"Too many {(over.Files ? "files" : "megabytes")} queued");
                 }
             }
 
             // start with weekly, as this is the most likely limit to be hit and we want to keep the work to a minimum
-            // transfers that 'count' for the weekly limit are uploads that started within the last week, which have ended,
-            // that were not errored
+            // transfers that 'count' for the weekly limit are uploads that:
+            // * started within the last week
+            // * which have or have not ended (assuming queued files will complete)
+            // * that were not errored
             if (!IsNull(limits.Weekly))
             {
                 var erroredState = TransferStates.Completed | TransferStates.Errored;
@@ -600,7 +602,6 @@ namespace slskd
                     expression: t =>
                         t.Username == username
                         && t.StartedAt >= cutoffDateTime
-                        && t.EndedAt != null
                         && !t.State.HasFlag(erroredState)
                         && t.Exception == null);
 
@@ -611,7 +612,7 @@ namespace slskd
                 if (over.Files || over.Megabytes)
                 {
                     Log.Information("Rejected enqueue request for user {Username}: Weekly limits exceeded", username);
-                    throw new DownloadEnqueueException($"Too many weekly {(over.Files ? "files" : "megabytes")}");
+                    throw new DownloadEnqueueException($"Too many {(over.Files ? "files" : "megabytes")} this week");
                 }
             }
 
@@ -625,7 +626,6 @@ namespace slskd
                     expression: t =>
                         t.Username == username
                         && t.StartedAt >= cutoffDateTime
-                        && t.EndedAt != null
                         && !t.State.HasFlag(erroredState)
                         && t.Exception == null);
 
@@ -636,7 +636,7 @@ namespace slskd
                 if (over.Files || over.Megabytes)
                 {
                     Log.Information("Rejected enqueue request for user {Username}: Daily limits exceeded", username);
-                    throw new DownloadEnqueueException($"Too many daily {(over.Files ? "files" : "megabytes")}");
+                    throw new DownloadEnqueueException($"Too many {(over.Files ? "files" : "megabytes")} today");
                 }
             }
 
