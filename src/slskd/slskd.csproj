@@ -8,8 +8,7 @@
   </PropertyGroup>
   
   <PropertyGroup>
-    <TargetFramework>net7.0</TargetFramework>
-    <LangVersion>9.0</LangVersion>
+    <TargetFramework>net8.0</TargetFramework>
     <CodeAnalysisRuleSet>Properties\analysis.ruleset</CodeAnalysisRuleSet>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <IsTransformWebConfigDisabled>true</IsTransformWebConfigDisabled>
