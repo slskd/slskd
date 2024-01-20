@@ -682,7 +682,9 @@ namespace slskd
                         return (share, matches[0].Groups[2].Value, matches[0].Groups[3].Value);
                     }
 
+#pragma warning disable S3878 // Arrays should not be created for params parameters
                     return (share, share.Split(new[] { '/', '\\' }).Last(), share);
+#pragma warning restore S3878 // Arrays should not be created for params parameters
                 }
 
                 var digestedShared = directories
@@ -882,15 +884,28 @@ namespace slskd
             }
 
             /// <summary>
-            ///     Built in user group options.
+            ///     Options that are common to all groups.
             /// </summary>
-            public class BuiltInOptions
+            public class GroupOptions
             {
                 /// <summary>
                 ///     Gets upload options.
                 /// </summary>
                 [Validate]
                 public UploadOptions Upload { get; init; } = new UploadOptions();
+
+                /// <summary>
+                ///     Gets limit options.
+                /// </summary>
+                [Validate]
+                public LimitsOptions Limits { get; init; } = new LimitsOptions();
+            }
+
+            /// <summary>
+            ///     Built in user group options.
+            /// </summary>
+            public class BuiltInOptions : GroupOptions
+            {
             }
 
             /// <summary>
@@ -936,19 +951,13 @@ namespace slskd
             /// <summary>
             ///     Built in leecher group options.
             /// </summary>
-            public class LeecherOptions
+            public class LeecherOptions : GroupOptions
             {
                 /// <summary>
                 ///     Gets leecher threshold options.
                 /// </summary>
                 [Validate]
                 public ThresholdOptions Thresholds { get; init; } = new ThresholdOptions();
-
-                /// <summary>
-                ///     Gets upload options.
-                /// </summary>
-                [Validate]
-                public UploadOptions Upload { get; init; } = new UploadOptions();
             }
 
             /// <summary>
@@ -972,14 +981,8 @@ namespace slskd
             /// <summary>
             ///     User defined user group options.
             /// </summary>
-            public class UserDefinedOptions
+            public class UserDefinedOptions : GroupOptions
             {
-                /// <summary>
-                ///     Gets upload options.
-                /// </summary>
-                [Validate]
-                public UploadOptions Upload { get; init; } = new UploadOptions();
-
                 /// <summary>
                 ///     Gets the list of group member usernames.
                 /// </summary>
@@ -1014,6 +1017,48 @@ namespace slskd
                 /// </summary>
                 [Range(1, int.MaxValue)]
                 public int SpeedLimit { get; init; } = int.MaxValue;
+            }
+
+            /// <summary>
+            ///     Upload limit options.
+            /// </summary>
+            public class LimitsOptions
+            {
+                /// <summary>
+                ///     Gets limits for queued transfers.
+                /// </summary>
+                [Validate]
+                public LimitsExtendedOptions Queued { get; init; } = new LimitsExtendedOptions();
+
+                /// <summary>
+                ///     Gets daily limits for transfers.
+                /// </summary>
+                [Validate]
+                public LimitsExtendedOptions Daily { get; init; } = new LimitsExtendedOptions();
+
+                /// <summary>
+                ///     Gets weekly limits for transfers.
+                /// </summary>
+                [Validate]
+                public LimitsExtendedOptions Weekly { get; init; } = new LimitsExtendedOptions();
+            }
+
+            /// <summary>
+            ///     Extended limit options.
+            /// </summary>
+            public class LimitsExtendedOptions
+            {
+                /// <summary>
+                ///     Gets the limit for number of files.
+                /// </summary>
+                [Range(1, int.MaxValue)]
+                public int? Files { get; init; } = null;
+
+                /// <summary>
+                ///     Gets the limit for number of megabytes.
+                /// </summary>
+                [Range(1, int.MaxValue)]
+                public int? Megabytes { get; init; } = null;
             }
         }
 

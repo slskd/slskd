@@ -76,7 +76,9 @@ namespace slskd.Shares
             }
             else
             {
+#pragma warning disable S3878 // Arrays should not be created for params parameters
                 Alias = share.Split(new[] { '/', '\\' }).Last();
+#pragma warning restore S3878 // Arrays should not be created for params parameters
                 LocalPath = share;
             }
 

@@ -74,11 +74,11 @@ namespace slskd.Shares
         void EnableKeepalive(bool enable);
 
         /// <summary>
-        ///     Finds the filename of the file matching the specified <paramref name="maskedFilename"/>.
+        ///     Finds the filename and length of the file matching the specified <paramref name="maskedFilename"/>.
         /// </summary>
         /// <param name="maskedFilename">The fully qualified remote path of the file.</param>
         /// <returns>The filename, if found.</returns>
-        string FindFilename(string maskedFilename);
+        (string Filename, long Size) FindFileInfo(string maskedFilename);
 
         /// <summary>
         ///     Finds and returns the most recent scan record.

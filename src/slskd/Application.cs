@@ -36,7 +36,6 @@ namespace slskd
     using Microsoft.AspNetCore.SignalR;
     using Microsoft.Extensions.Caching.Memory;
     using Microsoft.Extensions.Hosting;
-    using NetTools;
     using Serilog;
     using Serilog.Events;
     using slskd.Configuration;
@@ -47,6 +46,7 @@ namespace slskd
     using slskd.Search;
     using slskd.Shares;
     using slskd.Transfers;
+    using slskd.Transfers.API;
     using slskd.Users;
     using Soulseek;
     using Soulseek.Diagnostics;
@@ -62,17 +62,22 @@ namespace slskd
         /// <summary>
         ///     The name of the default user group.
         /// </summary>
-        public static readonly string DefaultGroup = "default";
+        public const string DefaultGroup = "default";
 
         /// <summary>
         ///     The name of the privileged user group.
         /// </summary>
-        public static readonly string PrivilegedGroup = "privileged";
+        public const string PrivilegedGroup = "privileged";
 
         /// <summary>
         ///     The name of the leecher user group.
         /// </summary>
-        public static readonly string LeecherGroup = "leechers";
+        public const string LeecherGroup = "leechers";
+
+        /// <summary>
+        ///     The name of the blacklisted user group.
+        /// </summary>
+        public const string BlacklistedGroup = "blacklisted";
 
         private static readonly string ApplicationShutdownTransferExceptionMessage = "Application shut down";
 
@@ -290,7 +295,7 @@ namespace slskd
             // records to be updated if the application has started to shut down so that we can do this cleanup and properly
             // disposition them as having failed due to an application shutdown, instead of some random exception thrown while
             // things are being disposed.
-            var activeUploads = Transfers.Uploads.List(t => !t.State.HasFlag(TransferStates.Completed) && !t.Removed)
+            var activeUploads = Transfers.Uploads.List(t => !t.State.HasFlag(TransferStates.Completed), includeRemoved: false)
                 .Where(t => !t.State.HasFlag(TransferStates.Completed)) // https://github.com/dotnet/efcore/issues/10434
                 .ToList();
 
@@ -383,7 +388,7 @@ namespace slskd
             await Client.ReconfigureOptionsAsync(patch);
 
             Log.Debug("Client configured");
-            Log.Information("Listening for incoming connections son {IP}:{Port}", OptionsAtStartup.Soulseek.ListenIpAddress, OptionsAtStartup.Soulseek.ListenPort);
+            Log.Information("Listening for incoming connections on {IP}:{Port}", OptionsAtStartup.Soulseek.ListenIpAddress, OptionsAtStartup.Soulseek.ListenPort);
 
             if (OptionsAtStartup.Soulseek.Connection.Proxy.Enabled)
             {
@@ -470,15 +475,175 @@ namespace slskd
             return Task.CompletedTask;
         }
 
-        private Task EnqueueDownload(string username, IPEndPoint endpoint, string filename)
+        private async Task EnqueueDownload(string username, IPEndPoint endpoint, string filename)
         {
-            if (IsBlacklisted(username, endpoint.Address))
+            if (Users.IsBlacklisted(username, endpoint.Address))
             {
                 Log.Information("Rejected enqueue request for blacklisted user {Username} ({IP})", username, endpoint.Address);
-                return Task.FromException(new DownloadEnqueueException($"File not shared."));
+                throw new DownloadEnqueueException("File not shared.");
             }
 
-            return Transfers.Uploads.EnqueueAsync(username, filename);
+            // in order to properly determine if the requested file would exceed any limits, we need to know the size of the file
+            // it helps, too, that this will tell us whether the file is even shared.
+            (string Host, string Filename, long Size) resolved;
+
+            try
+            {
+                resolved = await Shares.ResolveFileAsync(filename);
+            }
+            catch (NotFoundException)
+            {
+                throw new DownloadEnqueueException("File not shared.");
+            }
+
+            // get the user's group. this will be the name of the user's group, if they have been added to a
+            // user defined group, or one of the built-ins; 'default', 'privileged', 'leecher', or 'blacklisted'
+            var group = await Users.GetOrFetchGroupAsync(username);
+
+            // privileged users aren't subject to limits (for now)
+            // i'm putting this off because 1) limits are unique to slskd, so all other clients are "unlimited"
+            // and 2) i can't figure out what the limits would be, if not unlimited. users should get some level
+            // of control, but i'd need to figure out a lower bound
+            if (string.Equals(group, PrivilegedGroup))
+            {
+                Log.Debug("Limits bypassed for {Username} and {File}; user is privileged", username, filename);
+                await Transfers.Uploads.EnqueueAsync(username, filename);
+                return;
+            }
+
+            // resolve the limits for this user's group.  there's no 'fallthrough' here, if limits for a group
+            // are unset, then that group is unlimited.
+            Options.GroupsOptions.LimitsOptions limits;
+
+            if (Options.Groups.UserDefined.TryGetValue(group, out var userDefinedOptions))
+            {
+                limits = userDefinedOptions.Limits;
+            }
+            else
+            {
+                limits = group switch
+                {
+                    DefaultGroup => Options.Groups.Default.Limits,
+                    LeecherGroup => Options.Groups.Leechers.Limits,
+                    _ => Options.Groups.Default.Limits,
+                };
+            }
+
+            bool IsNull(Options.GroupsOptions.LimitsExtendedOptions l) => l is null || (l?.Files is null && l?.Megabytes is null);
+
+            // if no limits are set, we're good to go; just enqueue the file.
+            if (limits is null || (IsNull(limits.Daily) && IsNull(limits.Weekly) && IsNull(limits.Queued)))
+            {
+                Log.Debug("Limits bypassed for {Username} and {File}; no limits are set", username, filename);
+                await Transfers.Uploads.EnqueueAsync(username, filename);
+                return;
+            }
+
+            var sw = new Stopwatch();
+            sw.Start();
+
+            /*
+             * we have limits set, so now we have to fetch the data and compare to see if any would be hit if we allow this transfer to be enqueued.
+             * the strategy here is to summarize all uploads:
+             * 1) belonging to this user
+             * 2) that were started within the time period
+             * 3) that did not end due to an error (state includes errored, exception column is set)
+            */
+            (bool Files, bool Megabytes) OverLimits((int Files, long Bytes) stats, Options.GroupsOptions.LimitsExtendedOptions options, long size)
+            {
+                var files = false;
+                var megabytes = false;
+                var byteLimit = (options?.Megabytes ?? 0) * 1000 * 1000;
+
+                if (options?.Megabytes is not null && (stats.Bytes + size) > byteLimit)
+                {
+                    Log.Debug("Projected bytes {Bytes} exceeds limit {Limit}", stats.Bytes + size, byteLimit);
+                    megabytes = true;
+                }
+
+                if (options?.Files is not null && (stats.Files + 1) > options.Files)
+                {
+                    Log.Debug("Projected file count {Files} exceeds limit {Limit}", stats.Files + 1, options.Files);
+                    files = true;
+                }
+
+                return (files, megabytes);
+            }
+
+            // start with the queue, since that should contain the fewest files and should be the least expensive to check
+            // "queued" includes both queued and in progress; records with a null EndedAt property, which is guaranteed to be set
+            // for terminal transfers.
+            if (!IsNull(limits.Queued))
+            {
+                var queued = Transfers.Uploads.Summarize(
+                    expression: t => t.Username == username && t.EndedAt == null);
+
+                Log.Debug("Fetched queue stats: files: {Files}, bytes: {Bytes} ({Time}ms)", queued.Files, queued.Bytes, sw.ElapsedMilliseconds);
+
+                var over = OverLimits(queued, limits!.Queued, resolved.Size);
+
+                if (over.Files || over.Megabytes)
+                {
+                    Log.Information("Rejected enqueue request for user {Username}: Queued limits exceeded", username);
+                    throw new DownloadEnqueueException($"Too many {(over.Files ? "files" : "megabytes")} queued");
+                }
+            }
+
+            // start with weekly, as this is the most likely limit to be hit and we want to keep the work to a minimum
+            // transfers that 'count' for the weekly limit are uploads that:
+            // * started within the last week
+            // * which have or have not ended (assuming queued files will complete)
+            // * that were not errored
+            if (!IsNull(limits.Weekly))
+            {
+                var erroredState = TransferStates.Completed | TransferStates.Errored;
+                var cutoffDateTime = DateTime.UtcNow.AddDays(-7);
+                var weekly = Transfers.Uploads.Summarize(
+                    expression: t =>
+                        t.Username == username
+                        && t.StartedAt >= cutoffDateTime
+                        && !t.State.HasFlag(erroredState)
+                        && t.Exception == null);
+
+                Log.Debug("Fetched weekly stats: files: {Files}, bytes: {Bytes} ({Time}ms)", weekly.Files, weekly.Bytes, sw.ElapsedMilliseconds);
+
+                var over = OverLimits(weekly, limits!.Weekly, resolved.Size);
+
+                if (over.Files || over.Megabytes)
+                {
+                    Log.Information("Rejected enqueue request for user {Username}: Weekly limits exceeded", username);
+                    throw new DownloadEnqueueException($"Too many {(over.Files ? "files" : "megabytes")} this week");
+                }
+            }
+
+            // lastly, check daily limits. the criteria for this is the same as weekly, just looking over the previous day instead
+            // of the previous 7.
+            if (!IsNull(limits.Daily))
+            {
+                var erroredState = TransferStates.Completed | TransferStates.Errored;
+                var cutoffDateTime = DateTime.UtcNow.AddDays(-1);
+                var daily = Transfers.Uploads.Summarize(
+                    expression: t =>
+                        t.Username == username
+                        && t.StartedAt >= cutoffDateTime
+                        && !t.State.HasFlag(erroredState)
+                        && t.Exception == null);
+
+                Log.Debug("Fetched daily stats: files: {Files}, bytes: {Bytes} ({Time}ms)", daily.Files, daily.Bytes, sw.ElapsedMilliseconds);
+
+                var over = OverLimits(daily, limits!.Daily, resolved.Size);
+
+                if (over.Files || over.Megabytes)
+                {
+                    Log.Information("Rejected enqueue request for user {Username}: Daily limits exceeded", username);
+                    throw new DownloadEnqueueException($"Too many {(over.Files ? "files" : "megabytes")} today");
+                }
+            }
+
+            sw.Stop();
+            Log.Debug("Enqueue decision made in {Duration}ms", sw.ElapsedMilliseconds);
+
+            await Transfers.Uploads.EnqueueAsync(username, filename);
         }
 
         /// <summary>
@@ -491,7 +656,7 @@ namespace slskd
         {
             Metrics.Browse.RequestsReceived.Inc(1);
 
-            if (IsBlacklisted(username, endpoint.Address))
+            if (Users.IsBlacklisted(username, endpoint.Address))
             {
                 Log.Information("Returned empty browse listing for blacklisted user {Username} ({IP})", username, endpoint.Address);
                 return new BrowseResponse();
@@ -954,7 +1119,7 @@ namespace slskd
         /// <returns>A Task resolving an instance of Soulseek.Directory containing the contents of the requested directory.</returns>
         private async Task<Soulseek.Directory> DirectoryContentsResponseResolver(string username, IPEndPoint endpoint, int token, string directory)
         {
-            if (IsBlacklisted(username, endpoint.Address))
+            if (Users.IsBlacklisted(username, endpoint.Address))
             {
                 Log.Information("Returned empty directory listing for blacklisted user {Username} ({IP})", username, endpoint.Address);
                 return new Soulseek.Directory(directory);
@@ -1151,7 +1316,7 @@ namespace slskd
         {
             Metrics.Search.RequestsReceived.Inc(1);
 
-            if (IsBlacklisted(username))
+            if (Users.IsBlacklisted(username))
             {
                 Log.Information("Returned empty search response for blacklisted user {Username}", username);
                 return new SearchResponse(username, token, hasFreeUploadSlot: false, uploadSpeed: 0, queueLength: int.MaxValue, fileList: Enumerable.Empty<Soulseek.File>());
@@ -1186,6 +1351,9 @@ namespace slskd
                     // make sure our average speed (as reported by the server) is reasonably up to date
                     await RefreshUserStatistics();
 
+                    // note: the following uses cached user data to determine group, so if the user's data
+                    // isn't cached they may get a forecast based on the wrong group.  this is a hot path though,
+                    // and we don't want to incur the massive penalties that would caching data for each request.
                     var forecastedPosition = Transfers.Uploads.Queue.ForecastPosition(username);
 
                     Log.Information("[{Context}]: Sending {Count} records to {Username} for query '{Query}'", "SEARCH RESULT SENT", results.Count(), username, query.SearchText);
@@ -1344,11 +1512,23 @@ namespace slskd
         /// <param name="username">The username of the requesting user.</param>
         /// <param name="endpoint">The IP endpoint of the requesting user.</param>
         /// <returns>A Task resolving the UserInfo instance.</returns>
-        private Task<UserInfo> UserInfoResolver(string username, IPEndPoint endpoint)
+        private async Task<UserInfo> UserInfoResolver(string username, IPEndPoint endpoint)
         {
+            if (Users.IsBlacklisted(username, endpoint.Address))
+            {
+                return new UserInfo(
+                    description: Options.Soulseek.Description,
+                    uploadSlots: 0,
+                    queueLength: int.MaxValue,
+                    hasFreeUploadSlot: false);
+            }
+
             try
             {
-                var groupName = Users.GetGroup(username);
+                // note: users must first be watched or cached for leech and privilege detection to work.
+                // we are deliberately skipping it here; if the username is watched
+                // leech detection works and they get accurate info, if not, they won't
+                var groupName = await Users.GetOrFetchGroupAsync(username);
                 var group = Transfers.Uploads.Queue.GetGroupInfo(groupName);
 
                 // forecast the position at which this user would enter the queue if they were to request
@@ -1366,28 +1546,13 @@ namespace slskd
                     queueLength: forecastedPosition,
                     hasFreeUploadSlot: forecastedPosition == 0);
 
-                return Task.FromResult(info);
+                return info;
             }
             catch (Exception ex)
             {
                 Log.Warning(ex, "Failed to resolve user info: {Message}", ex.Message);
                 throw;
             }
-        }
-
-        private bool IsBlacklisted(string username, IPAddress ipAddress = null)
-        {
-            if (Options.Groups.Blacklisted.Members.Contains(username))
-            {
-                return true;
-            }
-
-            if (ipAddress is not null && Options.Groups.Blacklisted.Cidrs.Select(c => IPAddressRange.Parse(c)).Any(range => range.Contains(ipAddress)))
-            {
-                return true;
-            }
-
-            return false;
         }
     }
 }

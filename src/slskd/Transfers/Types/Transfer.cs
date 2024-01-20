@@ -37,6 +37,13 @@ namespace slskd.Transfers
         public DateTime RequestedAt { get; set; }
         public DateTime? EnqueuedAt { get; set; }
         public DateTime? StartedAt { get; set; }
+
+        /// <summary>
+        ///     The time at which the transfer ended, or null if the transfer has not yet started or is in progress.
+        /// </summary>
+        /// <remarks>
+        ///     Guaranteed to be set for transfers in a terminal state.
+        /// </remarks>
         public DateTime? EndedAt { get; set; }
         public long BytesTransferred { get; set; }
         public double AverageSpeed { get; set; }

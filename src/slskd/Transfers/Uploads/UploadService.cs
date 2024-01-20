@@ -72,12 +72,22 @@ namespace slskd.Transfers.Uploads
         Transfer Find(Expression<Func<Transfer, bool>> expression);
 
         /// <summary>
+        ///     Returns a summary of the uploads matching the specified <paramref name="expression"/>. This can be expensive;
+        ///     consider caching.
+        /// </summary>
+        /// <param name="expression">The expression used to select uploads for summarization.</param>
+        /// <returns>
+        ///     The generated summary, including the number of files and total size in bytes.
+        /// </returns>
+        (int Files, long Bytes) Summarize(Expression<Func<Transfer, bool>> expression);
+
+        /// <summary>
         ///     Returns a list of all uploads matching the optional <paramref name="expression"/>.
         /// </summary>
         /// <param name="expression">An optional expression used to match uploads.</param>
-        /// <param name="includeRemoved">Optionally include uploads that have been removed previously.</param>
+        /// <param name="includeRemoved">A value indicating whether to include uploads that have been removed previously.</param>
         /// <returns>The list of uploads matching the specified expression, or all uploads if no expression is specified.</returns>
-        List<Transfer> List(Expression<Func<Transfer, bool>> expression = null, bool includeRemoved = false);
+        List<Transfer> List(Expression<Func<Transfer, bool>> expression, bool includeRemoved);
 
         /// <summary>
         ///     Removes <see cref="TransferStates.Completed"/> uploads older than the specified <paramref name="age"/>.
@@ -146,10 +156,10 @@ namespace slskd.Transfers.Uploads
         private ISoulseekClient Client { get; set; }
         private IDbContextFactory<TransfersDbContext> ContextFactory { get; }
         private ILogger Log { get; } = Serilog.Log.ForContext<UploadService>();
-        private IShareService Shares { get; set; }
-        private IUserService Users { get; set; }
         private IOptionsMonitor<Options> OptionsMonitor { get; }
         private IRelayService Relay { get; }
+        private IShareService Shares { get; set; }
+        private IUserService Users { get; set; }
 
         /// <summary>
         ///     Adds the specified <paramref name="transfer"/>. Supersedes any existing record for the same file and username.
@@ -187,20 +197,21 @@ namespace slskd.Transfers.Uploads
         {
             string host = default;
             string localFilename = default;
+            long resolvedFileLength = default;
             long localFileLength = default;
 
             Log.Information("[{Context}] {Username} requested {Filename}", "UPLOAD REQUESTED", username, filename);
 
             try
             {
-                (host, localFilename) = await Shares.ResolveFileAsync(filename);
+                (host, localFilename, resolvedFileLength) = await Shares.ResolveFileAsync(filename);
 
                 Log.Debug("Resolved file {RemoteFilename} to host {Host} and file {LocalFilename}", filename, host, localFilename);
 
                 if (host == Program.LocalHostName)
                 {
-                    // if it's local, do a quick check to see if it exists to spare the caller from
-                    // queueing up if the transfer is doomed to fail. for remote files, take a leap of faith.
+                    // if it's local, do a quick check to see if it exists to spare the caller from queueing up if the transfer is
+                    // doomed to fail. for remote files, take a leap of faith.
                     var info = new FileInfo(localFilename);
 
                     if (!info.Exists)
@@ -232,8 +243,15 @@ namespace slskd.Transfers.Uploads
 
             Log.Information("Resolved {Remote} to physical file {Physical} on host '{Host}'", filename, localFilename, host);
 
+            if (localFileLength != resolvedFileLength)
+            {
+                // todo: should we fail the transfer? the file changed on disk since the last scan. i guess not? since the caller doesn't provide a size
+                Shares.RequestScan();
+                Log.Warning("Resolved size for {Remote} of {Resolved} doesn't match actual size {Actual}", filename, resolvedFileLength, localFileLength);
+            }
+
             // find existing records for this username and file that haven't been removed from the UI
-            var existingRecords = List(t => t.Username == username && t.Filename == localFilename && !t.Removed);
+            var existingRecords = List(t => t.Username == username && t.Filename == localFilename, includeRemoved: false);
 
             // check whether any of these records is in a non-complete state and bail out if so
             if (existingRecords.Any(t => !t.State.HasFlag(TransferStates.Completed)))
@@ -360,8 +378,8 @@ namespace slskd.Transfers.Uploads
                         transfer = transfer.WithSoulseekTransfer(completedTransfer);
                     }
 
-                    // explicitly dispose the rate limiter to prevent updates from it
-                    // beyond this point, which may overwrite the final state
+                    // explicitly dispose the rate limiter to prevent updates from it beyond this point, which may overwrite the
+                    // final state
                     rateLimiter.Dispose();
 
                     // todo: broadcast
@@ -425,12 +443,52 @@ namespace slskd.Transfers.Uploads
         }
 
         /// <summary>
+        ///     Returns a summary of the uploads matching the specified <paramref name="expression"/>. This can be expensive;
+        ///     consider caching.
+        /// </summary>
+        /// <param name="expression">The expression used to select uploads for summarization.</param>
+        /// <returns>
+        ///     The generated summary, including the number of files and total size in bytes.
+        /// </returns>
+        public (int Files, long Bytes) Summarize(Expression<Func<Transfer, bool>> expression)
+        {
+            expression ??= t => true;
+
+            try
+            {
+                using var context = ContextFactory.CreateDbContext();
+
+                var query = context.Transfers
+                    .AsNoTracking()
+                    .Where(t => t.Direction == TransferDirection.Upload)
+                    .Where(expression)
+                    .GroupBy(t => true) // https://stackoverflow.com/a/25489456
+                    .Select(t => new
+                    {
+                        Files = t.Count(),
+                        Bytes = t.Sum(x => x.Size),
+                    });
+
+                Log.Verbose("{Method} SQL: {@Query}", nameof(Summarize), query.ToQueryString());
+
+                var stats = query.FirstOrDefault();
+
+                return (stats?.Files ?? 0, stats?.Bytes ?? 0);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to list uploads: {Message}", ex.Message);
+                throw;
+            }
+        }
+
+        /// <summary>
         ///     Returns a list of all uploads matching the optional <paramref name="expression"/>.
         /// </summary>
         /// <param name="expression">An optional expression used to match uploads.</param>
-        /// <param name="includeRemoved">Optionally include uploads that have been removed previously.</param>
+        /// <param name="includeRemoved">A value indicating whether to include uploads that have been removed previously.</param>
         /// <returns>The list of uploads matching the specified expression, or all uploads if no expression is specified.</returns>
-        public List<Transfer> List(Expression<Func<Transfer, bool>> expression = null, bool includeRemoved = false)
+        public List<Transfer> List(Expression<Func<Transfer, bool>> expression, bool includeRemoved)
         {
             expression ??= t => true;
 
