@@ -25,6 +25,7 @@ namespace slskd.Relay
     using System.IO;
     using System.Linq;
     using System.Threading.Tasks;
+    using Asp.Versioning;
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Http;
     using Microsoft.AspNetCore.Mvc;

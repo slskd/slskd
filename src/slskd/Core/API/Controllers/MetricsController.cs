@@ -18,6 +18,7 @@
 namespace slskd.Core.API
 {
     using System.Threading.Tasks;
+    using Asp.Versioning;
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
 

@@ -20,6 +20,7 @@ namespace slskd.Shares.API
     using System.Collections.Generic;
     using System.Linq;
     using System.Threading.Tasks;
+    using Asp.Versioning;
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
     using Soulseek;

@@ -32,6 +32,7 @@ namespace slskd
     using System.Text.Json.Serialization;
     using System.Threading;
     using System.Threading.Tasks;
+    using Asp.Versioning.ApiExplorer;
     using Microsoft.AspNetCore.Authentication.JwtBearer;
     using Microsoft.AspNetCore.Builder;
     using Microsoft.AspNetCore.DataProtection;
@@ -782,12 +783,12 @@ namespace slskd
 
             services.AddHealthChecks();
 
-            services.AddApiVersioning(options => options.ReportApiVersions = true);
-            services.AddVersionedApiExplorer(options =>
-            {
-                options.GroupNameFormat = "'v'VVV";
-                options.SubstituteApiVersionInUrl = true;
-            });
+            services.AddApiVersioning(options => options.ReportApiVersions = true)
+                .AddApiExplorer(options =>
+                {
+                    options.GroupNameFormat = "'v'VVV";
+                    options.SubstituteApiVersionInUrl = true;
+                });
 
             if (OptionsAtStartup.Feature.Swagger)
             {
@@ -802,7 +803,7 @@ namespace slskd
                             Version = "v0",
                         });
 
-                    if (System.IO.File.Exists(XmlDocumentationFile))
+                    if (IOFile.Exists(XmlDocumentationFile))
                     {
                         options.IncludeXmlComments(XmlDocumentationFile);
                     }

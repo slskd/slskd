@@ -23,6 +23,7 @@ namespace slskd.Users.API
     using System.ComponentModel.DataAnnotations;
     using System.Net;
     using System.Threading.Tasks;
+    using Asp.Versioning;
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
     using Soulseek;

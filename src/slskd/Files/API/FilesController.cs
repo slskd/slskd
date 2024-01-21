@@ -23,6 +23,7 @@ namespace slskd.Files.API
     using System.IO;
     using System.Security;
     using System.Threading.Tasks;
+    using Asp.Versioning;
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
     using Serilog;
