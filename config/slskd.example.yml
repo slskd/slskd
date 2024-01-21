@@ -5,6 +5,7 @@
 # flags:
 #   no_logo: false
 #   no_start: false
+#   no_config_watch: false
 #   no_connect: false
 #   no_share_scan: false
 #   force_share_scan: false

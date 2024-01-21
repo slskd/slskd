@@ -350,7 +350,7 @@ namespace slskd
             try
             {
                 Configuration = new ConfigurationBuilder()
-                    .AddConfigurationProviders(EnvironmentVariablePrefix, ConfigurationFile)
+                    .AddConfigurationProviders(EnvironmentVariablePrefix, ConfigurationFile, reloadOnChange: !OptionsAtStartup.Flags.NoConfigWatch)
                     .Build();
 
                 Configuration.GetSection(AppName)
@@ -436,7 +436,7 @@ namespace slskd
                 var builder = WebApplication.CreateBuilder(args);
 
                 builder.Configuration
-                    .AddConfigurationProviders(EnvironmentVariablePrefix, ConfigurationFile);
+                    .AddConfigurationProviders(EnvironmentVariablePrefix, ConfigurationFile, reloadOnChange: !OptionsAtStartup.Flags.NoConfigWatch);
 
                 builder.Host
                     .UseSerilog();
@@ -1019,7 +1019,7 @@ namespace slskd
                 .CreateLogger();
         }
 
-        private static IConfigurationBuilder AddConfigurationProviders(this IConfigurationBuilder builder, string environmentVariablePrefix, string configurationFile)
+        private static IConfigurationBuilder AddConfigurationProviders(this IConfigurationBuilder builder, string environmentVariablePrefix, string configurationFile, bool reloadOnChange)
         {
             configurationFile = Path.GetFullPath(configurationFile);
 
@@ -1045,7 +1045,7 @@ namespace slskd
                     path: Path.GetFileName(configurationFile),
                     targetType: typeof(Options),
                     optional: true,
-                    reloadOnChange: true,
+                    reloadOnChange: reloadOnChange,
                     provider: new PhysicalFileProvider(Path.GetDirectoryName(configurationFile), ExclusionFilters.None)) // required for locations outside of the app directory
                 .AddCommandLine(
                     targetType: typeof(Options),
