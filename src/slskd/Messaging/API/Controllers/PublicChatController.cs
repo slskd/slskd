@@ -20,10 +20,10 @@ using Microsoft.Extensions.Options;
 namespace slskd.Messaging.API
 {
     using System.Threading.Tasks;
+    using Asp.Versioning;
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Http;
     using Microsoft.AspNetCore.Mvc;
-    using slskd.Relay;
     using Soulseek;
 
     /// <summary>

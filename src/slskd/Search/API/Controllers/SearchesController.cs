@@ -21,9 +21,9 @@ namespace slskd.Search.API
 {
     using System;
     using System.Threading.Tasks;
+    using Asp.Versioning;
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
-    using slskd.Relay;
     using SearchQuery = Soulseek.SearchQuery;
     using SearchScope = Soulseek.SearchScope;
 

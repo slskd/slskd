@@ -24,9 +24,9 @@ namespace slskd.Transfers.API
     using System.ComponentModel.DataAnnotations;
     using System.Linq;
     using System.Threading.Tasks;
+    using Asp.Versioning;
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
-    using slskd.Relay;
 
     /// <summary>
     ///     Transfers.
