@@ -412,6 +412,12 @@ namespace slskd
 
             Log.Information("Using application directory {AppDirectory}", AppDirectory);
             Log.Information("Using configuration file {ConfigurationFile}", ConfigurationFile);
+
+            if (OptionsAtStartup.Flags.NoConfigWatch)
+            {
+                Log.Warning("Configuration watch DISABLED; all configuration changes will require a restart to take effect");
+            }
+
             Log.Information("Storing application data in {DataDirectory}", DataDirectory);
 
             if (OptionsAtStartup.Logger.Disk)
