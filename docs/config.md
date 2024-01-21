@@ -963,6 +963,7 @@ Several additional feature flags are provided to change the application's runtim
 | `--experimental`         | `SLSKD_EXPERIMENTAL`         | Run the application in experimental mode.  YMMV.                 |
 | `-n\|--no-logo`          | `SLSKD_NO_LOGO`              | Don't show the application logo on startup                       |
 | `-x\|--no-start`         | `SLSKD_NO_START`             | Bootstrap the application, but don't start                       |
+| `--no-config-watch`      | `SLSKD_NO_CONFIG_WATCH`      | Don't watch the configuration file for changes                   |
 | `--no-connect`           | `SLSKD_NO_CONNECT`           | Start the application, but don't connect to the server           |
 | `--no-share-scan`        | `SLSKD_NO_SHARE_SCAN`        | Don't perform a scan of shared directories on startup            |
 | `--force-share-scan`     | `SLSKD_FORCE_SHARE_SCAN`     | Force a scan of shared directories on startup                    |
@@ -977,12 +978,15 @@ debug: false
 flags:
   no_logo: false
   no_start: false
+  no_config_watch: false
   no_connect: false
   no_share_scan: false
+  force_share_scan: false
   no_version_check: false
   log_sql: false
+  experimental: false
   volatile: false
-  case_sensitive_regex: false
+  case_sensitive_reg_ex: false
 ```
 
 # Commands

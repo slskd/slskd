@@ -13,6 +13,7 @@
 #   log_sql: false
 #   experimental: false
 #   volatile: false
+#   case_sensitive_reg_ex: false
 # relay:
 #   enabled: false
 #   mode: controller # controller (default), agent, or debug (for local development)
