@@ -19,13 +19,11 @@ namespace slskd
 {
     using System;
     using System.Diagnostics.CodeAnalysis;
-    using System.Runtime.Serialization;
 
     /// <summary>
     ///     Represents errors that originate when a restricted resources is accessed without authorization.
     /// </summary>
     [ExcludeFromCodeCoverage]
-    [Serializable]
     public class UnauthorizedException : SlskdException
     {
         /// <summary>
@@ -56,16 +54,6 @@ namespace slskd
         /// </param>
         public UnauthorizedException(string message, Exception innerException)
             : base(message, innerException)
-        {
-        }
-
-        /// <summary>
-        ///     Initializes a new instance of the <see cref="UnauthorizedException"/> class with serialized data.
-        /// </summary>
-        /// <param name="info">The SerializationInfo that holds the serialized object data about the exception being thrown.</param>
-        /// <param name="context">The StreamingContext that contains contextual information about the source or destination.</param>
-        protected UnauthorizedException(SerializationInfo info, StreamingContext context)
-            : base(info, context)
         {
         }
     }

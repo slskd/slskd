@@ -340,7 +340,7 @@ namespace slskd.Transfers.Uploads
                             SynchronizedUpdate(transfer);
                         }),
                         seekInputStreamAutomatically: false,
-                        disposeInputStreamOnCompletion: true,
+                        disposeInputStreamOnCompletion: true, // note: don't set this to false!
                         governor: (tx, req, ct) => Governor.GetBytesAsync(tx.Username, req, ct),
                         reporter: (tx, att, grant, act) => Governor.ReturnBytes(tx.Username, att, grant, act),
                         slotAwaiter: (tx, ct) => Queue.AwaitStartAsync(tx.Username, tx.Filename),
@@ -354,7 +354,11 @@ namespace slskd.Transfers.Uploads
                             size: localFileLength,
                             inputStreamFactory: (startOffset) =>
                             {
+                                #pragma warning disable S2930 // "IDisposables" should be disposed
+                                // disposeInputStreamOnCompletion takes care of this
                                 var stream = new FileStream(localFilename, FileMode.Open, FileAccess.Read);
+                                #pragma warning restore S2930 // "IDisposables" should be disposed
+
                                 stream.Seek(startOffset, SeekOrigin.Begin);
                                 return Task.FromResult((Stream)stream);
                             },

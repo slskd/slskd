@@ -374,7 +374,7 @@ namespace slskd.Transfers.API
                 return Forbid();
             }
 
-            // todo: refactor this so it doesn't return the world. start and end time params 
+            // todo: refactor this so it doesn't return the world. start and end time params
             // should be required.  consider pagination.
             var uploads = Transfers.Uploads.List(t => true, includeRemoved: includeRemoved);
 
