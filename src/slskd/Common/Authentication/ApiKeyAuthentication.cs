@@ -49,14 +49,12 @@ namespace slskd.Authentication
         /// <param name="securityService">The security service.</param>
         /// <param name="logger">A logger factory.</param>
         /// <param name="urlEncoder">A url encoder.</param>
-        /// <param name="systemClock">A system clock interface.</param>
         public ApiKeyAuthenticationHandler(
             IOptionsMonitor<ApiKeyAuthenticationOptions> apiKeyOptionsMonitor,
             ISecurityService securityService,
             ILoggerFactory logger,
-            UrlEncoder urlEncoder,
-            ISystemClock systemClock)
-            : base(apiKeyOptionsMonitor, logger, urlEncoder, systemClock)
+            UrlEncoder urlEncoder)
+            : base(apiKeyOptionsMonitor, logger, urlEncoder)
         {
             Security = securityService;
         }

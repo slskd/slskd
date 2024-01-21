@@ -19,13 +19,11 @@ namespace slskd
 {
     using System;
     using System.Diagnostics.CodeAnalysis;
-    using System.Runtime.Serialization;
 
     /// <summary>
     ///     Represents erorrs that originate from slskd logic.
     /// </summary>
     [ExcludeFromCodeCoverage]
-    [Serializable]
     public class SlskdException : Exception
     {
         /// <summary>
@@ -56,16 +54,6 @@ namespace slskd
         /// </param>
         public SlskdException(string message, Exception innerException)
             : base(message, innerException)
-        {
-        }
-
-        /// <summary>
-        ///     Initializes a new instance of the <see cref="SlskdException"/> class with serialized data.
-        /// </summary>
-        /// <param name="info">The SerializationInfo that holds the serialized object data about the exception being thrown.</param>
-        /// <param name="context">The StreamingContext that contains contextual information about the source or destination.</param>
-        protected SlskdException(SerializationInfo info, StreamingContext context)
-            : base(info, context)
         {
         }
     }

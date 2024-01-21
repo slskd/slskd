@@ -3,7 +3,7 @@
 ## Prerequisites
 
 1. [Node.js](https://nodejs.org/en/download/current) v18 or greater (with npm 9.6 or greater)
-1. [.NET SDK](https://dotnet.microsoft.com/en-us/download) 7.0
+1. [.NET SDK](https://dotnet.microsoft.com/en-us/download) 8.0
 
 ## Easy Way
 

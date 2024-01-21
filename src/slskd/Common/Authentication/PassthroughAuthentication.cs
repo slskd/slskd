@@ -46,9 +46,8 @@ namespace slskd.Authentication
         /// <param name="optionsMonitor">An options monitor.</param>
         /// <param name="logger">A logger factory.</param>
         /// <param name="urlEncoder">A url encoder.</param>
-        /// <param name="systemClock">A system clock interface.</param>
-        public PassthroughAuthenticationHandler(IOptionsMonitor<PassthroughAuthenticationOptions> optionsMonitor, ILoggerFactory logger, UrlEncoder urlEncoder, ISystemClock systemClock)
-            : base(optionsMonitor, logger, urlEncoder, systemClock)
+        public PassthroughAuthenticationHandler(IOptionsMonitor<PassthroughAuthenticationOptions> optionsMonitor, ILoggerFactory logger, UrlEncoder urlEncoder)
+            : base(optionsMonitor, logger, urlEncoder)
         {
         }
 

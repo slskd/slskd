@@ -19,13 +19,11 @@ namespace slskd
 {
     using System;
     using System.Diagnostics.CodeAnalysis;
-    using System.Runtime.Serialization;
 
     /// <summary>
     ///     Represents an error that occurs when multiple share scans are attempted concurrently.
     /// </summary>
     [ExcludeFromCodeCoverage]
-    [Serializable]
     public class ShareValidationException : SlskdException
     {
         /// <summary>
@@ -56,16 +54,6 @@ namespace slskd
         /// </param>
         public ShareValidationException(string message, Exception innerException)
             : base(message, innerException)
-        {
-        }
-
-        /// <summary>
-        ///     Initializes a new instance of the <see cref="ShareValidationException"/> class with serialized data.
-        /// </summary>
-        /// <param name="info">The SerializationInfo that holds the serialized object data about the exception being thrown.</param>
-        /// <param name="context">The StreamingContext that contains contextual information about the source or destination.</param>
-        protected ShareValidationException(SerializationInfo info, StreamingContext context)
-            : base(info, context)
         {
         }
     }

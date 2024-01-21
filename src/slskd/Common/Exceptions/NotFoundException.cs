@@ -19,13 +19,11 @@ namespace slskd
 {
     using System;
     using System.Diagnostics.CodeAnalysis;
-    using System.Runtime.Serialization;
 
     /// <summary>
     ///     Represents errors that originate when a searched resource can't be located.
     /// </summary>
     [ExcludeFromCodeCoverage]
-    [Serializable]
     public class NotFoundException : SlskdException
     {
         /// <summary>
@@ -56,16 +54,6 @@ namespace slskd
         /// </param>
         public NotFoundException(string message, Exception innerException)
             : base(message, innerException)
-        {
-        }
-
-        /// <summary>
-        ///     Initializes a new instance of the <see cref="NotFoundException"/> class with serialized data.
-        /// </summary>
-        /// <param name="info">The SerializationInfo that holds the serialized object data about the exception being thrown.</param>
-        /// <param name="context">The StreamingContext that contains contextual information about the source or destination.</param>
-        protected NotFoundException(SerializationInfo info, StreamingContext context)
-            : base(info, context)
         {
         }
     }

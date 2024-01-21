@@ -19,13 +19,11 @@ namespace slskd
 {
     using System;
     using System.Diagnostics.CodeAnalysis;
-    using System.Runtime.Serialization;
 
     /// <summary>
     ///     Represents an intentional client disconnect.
     /// </summary>
     [ExcludeFromCodeCoverage]
-    [Serializable]
     public class IntentionalDisconnectException : SlskdException
     {
         /// <summary>
@@ -56,16 +54,6 @@ namespace slskd
         /// </param>
         public IntentionalDisconnectException(string message, Exception innerException)
             : base(message, innerException)
-        {
-        }
-
-        /// <summary>
-        ///     Initializes a new instance of the <see cref="IntentionalDisconnectException"/> class with serialized data.
-        /// </summary>
-        /// <param name="info">The SerializationInfo that holds the serialized object data about the exception being thrown.</param>
-        /// <param name="context">The StreamingContext that contains contextual information about the source or destination.</param>
-        protected IntentionalDisconnectException(SerializationInfo info, StreamingContext context)
-            : base(info, context)
         {
         }
     }
