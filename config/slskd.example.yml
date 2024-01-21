@@ -5,6 +5,7 @@
 # flags:
 #   no_logo: false
 #   no_start: false
+#   no_config_watch: false
 #   no_connect: false
 #   no_share_scan: false
 #   force_share_scan: false
@@ -12,6 +13,7 @@
 #   log_sql: false
 #   experimental: false
 #   volatile: false
+#   case_sensitive_reg_ex: false
 # relay:
 #   enabled: false
 #   mode: controller # controller (default), agent, or debug (for local development)

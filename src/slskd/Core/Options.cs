@@ -333,6 +333,15 @@ namespace slskd
             public bool NoStart { get; init; } = false;
 
             /// <summary>
+            ///     Gets a value indicating whether the application should watch the configuration file for changes.
+            /// </summary>
+            [Argument(default, "no-config-watch")]
+            [EnvironmentVariable("NO_CONFIG_WATCH")]
+            [Description("do not watch the config file for changes")]
+            [RequiresRestart]
+            public bool NoConfigWatch { get; init; } = false;
+
+            /// <summary>
             ///     Gets a value indicating whether the application should connect to the Soulseek network on startup.
             /// </summary>
             [Argument(default, "no-connect")]
