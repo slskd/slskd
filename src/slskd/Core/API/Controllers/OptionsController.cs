@@ -42,14 +42,17 @@ namespace slskd.Core.API
     {
         public OptionsController(
             OptionsAtStartup optionsAtStartup,
-            IOptionsSnapshot<Options> optionsSnapshot)
+            IOptionsSnapshot<Options> optionsSnapshot,
+            IStateMutator<State> stateMutator)
         {
             OptionsAtStartup = optionsAtStartup;
             OptionsSnapshot = optionsSnapshot;
+            StateMutator = stateMutator;
         }
 
         private IOptionsSnapshot<Options> OptionsSnapshot { get; }
         private OptionsAtStartup OptionsAtStartup { get; }
+        private IStateMutator<State> StateMutator { get; }
         private ILogger Logger { get; } = Log.ForContext(typeof(OptionsController));
 
         /// <summary>
@@ -146,6 +149,13 @@ namespace slskd.Core.API
             try
             {
                 IOFile.WriteAllText(Program.ConfigurationFile, yaml);
+
+                if (OptionsSnapshot.Value.Flags.NoConfigWatch)
+                {
+                    Logger.Information("Configuration watch is disabled; restart required for changes to take effect");
+                    StateMutator.SetValue(state => state with { PendingRestart = true });
+                }
+
                 return Ok();
             }
             catch (Exception ex)
