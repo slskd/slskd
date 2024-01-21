@@ -198,6 +198,8 @@ namespace slskd.Core.API
             }
             catch (Exception ex)
             {
+                Logger.Warning(ex, "Configuration validation failed");
+
                 error = ex.Message;
 
                 if (ex.InnerException != null)
