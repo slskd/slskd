@@ -359,7 +359,7 @@ Blacklisted users are prevented from:
 - Retrieving directory contents
 - Enqueueing downloads
 
-Users can be blacklisted by adding their username to the `members` list.  Additionally, users can be blacklisted by IP address, or range of addresses by adding a CIDR entry to the `cidrs` list.
+Users can be blacklisted by adding their username to the `members` list.  Users can also be blacklisted by IP address, or range of addresses by adding a CIDR entry to the `cidrs` list. In addition, an external blacklist file containing CIDRs can be specified using `blacklistfile`, with each CIDR on its own line. Empty lines and lines starting with `#` are ignored.
 
 Users added to the blacklist will be blocked from enqueueing any new files.  Any existing active or queued transfers will need to be cancelled manually.
 
@@ -371,6 +371,7 @@ groups:
       - <username to blacklist>
     cidrs:
       - <CIDR to blacklist, e.g. 255.255.255.255/32>
+    blacklistfile: 'D:\blacklist.txt'
 ```
 
 ## User Defined Groups
