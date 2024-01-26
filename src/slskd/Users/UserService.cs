@@ -273,7 +273,7 @@ namespace slskd.Users
                 return true;
             }
 
-            if (ipAddress is not null && blacklist.Cidrs.Select(c => IPAddressRange.Parse(c)).Any(range => range.Contains(ipAddress)))
+            if (ipAddress is not null && blacklist.GetBlacklistedCIDRs().Any(range => range.Contains(ipAddress)))
             {
                 return true;
             }
