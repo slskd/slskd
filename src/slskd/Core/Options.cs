@@ -928,9 +928,28 @@ namespace slskd
                 public string[] Members { get; init; } = Array.Empty<string>();
 
                 /// <summary>
+                ///     A pre-parsed cache of IPAddressRange objects describing all blacklisted ranges.
+                /// </summary>
+                private List<IPAddressRange> BlacklistedCIDRs = new List<IPAddressRange>();
+
+                /// <summary>
                 ///     Gets the list of group CIDRs.
                 /// </summary>
                 public string[] Cidrs { get; init; } = Array.Empty<string>();
+
+                /// <summary>
+                ///     Gets the CIDR blacklist file path.
+                /// </summary>
+                public string BlacklistFile { get; init; } = string.Empty;
+
+                /// <summary>
+                ///     Gets address ranges for all blacklisted CIDRs defined by the configuration file and the blacklist file.
+                /// </summary>
+                /// <returns>An IEnumerable of IPAddressRange objects describing the blacklisted CIDRs.</returns>
+                public IEnumerable<IPAddressRange> GetBlacklistedCIDRs()
+                {
+                    return BlacklistedCIDRs;
+                }
 
                 /// <summary>
                 ///     Extended validation.
@@ -940,18 +959,45 @@ namespace slskd
                 public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
                 {
                     var results = new List<ValidationResult>();
+                    var cache = new List<IPAddressRange>();
 
                     foreach (var cidr in Cidrs)
                     {
                         try
                         {
-                            _ = IPAddressRange.Parse(cidr);
+                            cache.Add(IPAddressRange.Parse(cidr));
                         }
                         catch (Exception ex)
                         {
                             results.Add(new ValidationResult($"CIDR {cidr} is invalid: {ex.Message}"));
                         }
                     }
+
+                    // if a blacklist file is specified, process it too.
+                    if (!string.IsNullOrEmpty(BlacklistFile))
+                    {
+                        try
+                        {
+                            var lines = System.IO.File.ReadAllLines(BlacklistFile).Where(line => !string.IsNullOrWhiteSpace(line) && !line.StartsWith("#"));
+                            foreach (var cidr in lines)
+                            {
+                                try
+                                {
+                                    cache.Add(IPAddressRange.Parse(cidr));
+                                }
+                                catch (Exception ex)
+                                {
+                                    results.Add(new ValidationResult($"CIDR {cidr} in blacklist file is invalid: {ex.Message}"));
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            results.Add(new ValidationResult($"CIDR blacklist file {BlacklistFile} could not be loaded: {ex.Message}"));
+                        }
+                    }
+
+                    BlacklistedCIDRs = cache.Distinct().ToList();
 
                     return results;
                 }
