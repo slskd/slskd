@@ -582,29 +582,10 @@ namespace slskd.Transfers.Downloads
         /// <param name="transfer">The transfer to update.</param>
         public void Update(Transfer transfer)
         {
-            var experimental = OptionsMonitor.CurrentValue.Flags.Experimental;
-            var id = Guid.NewGuid();
-
-            System.Diagnostics.Stopwatch sw = default;
-
-            // todo: remove this.  or check that Path.GetFileName works as expected if it is to be kept
-            if (experimental)
-            {
-                sw = new System.Diagnostics.Stopwatch();
-                sw.Start();
-                Log.Warning("=> [{ID}] {File} | {State} | {Complete}", id, Path.GetFileName(transfer.Filename), transfer.State, transfer.PercentComplete);
-            }
-
             using var context = ContextFactory.CreateDbContext();
 
             context.Update(transfer);
             context.SaveChanges();
-
-            if (experimental)
-            {
-                sw?.Stop();
-                Log.Warning("<= [{ID}] DONE in {Duration}ms", id, sw.ElapsedMilliseconds);
-            }
         }
 
         private static Stream GetLocalFileStream(string remoteFilename, string saveDirectory)
