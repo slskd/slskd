@@ -85,6 +85,11 @@ class App extends Component {
 
           await appHub.start();
         }
+
+        const availableThemes = ['light', 'dark'];
+        const preferredThemeRaw = document.cookie.split('; ').map(c => c.split('=')).find(c => c?.at(0) == "theme")?.at(1) ?? availableThemes[0];
+        const preferredTheme = availableThemes.find(theme => theme == preferredThemeRaw) ?? availableThemes[0];
+        this.setState({theme: preferredTheme});
   
         this.setState({
           error: false,
@@ -117,6 +122,12 @@ class App extends Component {
   withTokenCheck = (component) => {
     session.check(); // async, runs in the background
     return { ...component };
+  };
+
+  setThemeCookie = (themeName) => {
+    const availableThemes = ['light', 'dark'];
+    const themeNameValidated = availableThemes.find(theme => theme === themeName) ?? availableThemes[0];
+    document.cookie = "theme=" + themeNameValidated;
   };
 
   render = () => {
@@ -221,6 +232,7 @@ class App extends Component {
     } else {
       document.documentElement.classList.remove('dark');
     }
+    this.setThemeCookie(theme);
 
     return (
       <>
