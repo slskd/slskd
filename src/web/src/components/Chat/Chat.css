@@ -1,3 +1,13 @@
+:root {
+  --slskd-chat-color: #0e6eb8;
+  --slskd-self-message-background-color: rgba(0, 0, 0, 0.03);
+}
+
+:root.dark {
+  --slskd-chat-color: #cce2ff;
+  --slskd-self-message-background-color: rgba(255, 255, 255, 0.03);
+}
+
 .chat {
   display: flex;
   margin-top: 1rem;
@@ -76,14 +86,15 @@
 
 .chat-message-time {
   float:right;
-  opacity: .5;
+  opacity: .65;
   font-size: smaller;
   font-variant: small-caps;
   font-style: italic;
 }
 
 .chat-message-self {
-  color: blue;
+  color: var(--slskd-chat-color);
+  background-color: var(--slskd-self-message-background-color);
 }
 
 .chat-input {
