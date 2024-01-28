@@ -1318,8 +1318,7 @@ namespace slskd
 
             if (Users.IsBlacklisted(username))
             {
-                Log.Information("Returned empty search response for blacklisted user {Username}", username);
-                return new SearchResponse(username, token, hasFreeUploadSlot: false, uploadSpeed: 0, queueLength: int.MaxValue, fileList: Enumerable.Empty<Soulseek.File>());
+                return null;
             }
 
             if (CompiledSearchResponseFilters.Any(filter => filter.IsMatch(query.SearchText)))
@@ -1348,7 +1347,19 @@ namespace slskd
 
                 if (results.Any())
                 {
+                    // fetch the user's IP address so that we can check whether it's blacklisted.
+                    // it's unfortunate that we have to do this to get the IP, but we have to do it
+                    // anyway to send the results, and the information is cached. whether we do it here
+                    // or Soulseek.NET does it under the hood doesn't really matter.
+                    var endpoint = await Client.GetUserEndPointAsync(username);
+
+                    if (Users.IsBlacklisted(username, endpoint.Address))
+                    {
+                        return null;
+                    }
+
                     // make sure our average speed (as reported by the server) is reasonably up to date
+                    // we do this because we send the information along with the search response
                     await RefreshUserStatistics();
 
                     // note: the following uses cached user data to determine group, so if the user's data
