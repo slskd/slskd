@@ -620,28 +620,10 @@ namespace slskd.Transfers.Uploads
         /// <param name="transfer">The transfer to update.</param>
         public void Update(Transfer transfer)
         {
-            var experimental = OptionsMonitor.CurrentValue.Flags.Experimental;
-            var id = Guid.NewGuid();
-
-            System.Diagnostics.Stopwatch sw = default;
-
-            if (experimental)
-            {
-                sw = new System.Diagnostics.Stopwatch();
-                sw.Start();
-                Log.Warning("=> [{ID}] {File} | {State} | {Complete}", id, Path.GetFileName(transfer.Filename), transfer.State, transfer.PercentComplete);
-            }
-
             using var context = ContextFactory.CreateDbContext();
 
             context.Update(transfer);
             context.SaveChanges();
-
-            if (experimental)
-            {
-                sw?.Stop();
-                Log.Warning("<= [{ID}] DONE in {Duration}ms", id, sw.ElapsedMilliseconds);
-            }
         }
     }
 }
