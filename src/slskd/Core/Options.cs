@@ -941,7 +941,7 @@ namespace slskd
                 {
                     var results = new List<ValidationResult>();
 
-                    foreach (var cidr in Cidrs)
+                    foreach (var cidr in Cidrs ?? Array.Empty<string>())
                     {
                         try
                         {
