@@ -46,7 +46,6 @@ namespace slskd
     using slskd.Search;
     using slskd.Shares;
     using slskd.Transfers;
-    using slskd.Transfers.API;
     using slskd.Users;
     using Soulseek;
     using Soulseek.Diagnostics;
@@ -475,6 +474,7 @@ namespace slskd
             return Task.CompletedTask;
         }
 
+        // todo: consider moving this somewhere else; it's pretty long and complicated
         private async Task EnqueueDownload(string username, IPEndPoint endpoint, string filename)
         {
             if (Users.IsBlacklisted(username, endpoint.Address))
@@ -598,6 +598,21 @@ namespace slskd
             {
                 var erroredState = TransferStates.Completed | TransferStates.Errored;
                 var cutoffDateTime = DateTime.UtcNow.AddDays(-7);
+
+                var failures = Transfers.Uploads.Summarize(
+                    expression: t =>
+                        t.Username == username
+                        && t.StartedAt >= cutoffDateTime
+                        && (t.State.HasFlag(erroredState) || t.Exception != null));
+
+                Log.Debug("Fetched weekly failures: {Failures} ({Time}ms)", failures.Files, sw.ElapsedMilliseconds);
+
+                if (failures.Files >= limits.Weekly.Failures)
+                {
+                    Log.Information("Rejected enqueue request for user {Username}: Weekly failure limit met or exceeded", username);
+                    throw new DownloadEnqueueException("Too many failed transfers this week");
+                }
+
                 var weekly = Transfers.Uploads.Summarize(
                     expression: t =>
                         t.Username == username
@@ -622,6 +637,21 @@ namespace slskd
             {
                 var erroredState = TransferStates.Completed | TransferStates.Errored;
                 var cutoffDateTime = DateTime.UtcNow.AddDays(-1);
+
+                var failures = Transfers.Uploads.Summarize(
+                    expression: t =>
+                        t.Username == username
+                        && t.StartedAt >= cutoffDateTime
+                        && (t.State.HasFlag(erroredState) || t.Exception != null));
+
+                Log.Debug("Fetched daily failures: {Failures} ({Time}ms)", failures.Files, sw.ElapsedMilliseconds);
+
+                if (failures.Files >= limits.Daily.Failures)
+                {
+                    Log.Information("Rejected enqueue request for user {Username}: Daily failure limit met or exceeded", username);
+                    throw new DownloadEnqueueException("Too many failed transfers today");
+                }
+
                 var daily = Transfers.Uploads.Summarize(
                     expression: t =>
                         t.Username == username

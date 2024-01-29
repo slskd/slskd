@@ -69,6 +69,7 @@
 #       weekly:
 #         files: 1500
 #         megabytes: 15000
+#         failures: 150
 #   leechers:
 #     thresholds:
 #       files: 1
@@ -85,9 +86,11 @@
 #       daily:
 #         files: 30
 #         megabytes: 300
+#         failures: 10
 #       weekly:
 #         files: 150
 #         megabytes: 1500
+#         failures: 30
 #   blacklisted:
 #     members:
 #       - <username to blacklist>
