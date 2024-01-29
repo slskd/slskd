@@ -585,7 +585,10 @@ namespace slskd
                 if (over.Files || over.Megabytes)
                 {
                     Log.Information("Rejected enqueue request for user {Username}: Queued limits exceeded", username);
-                    throw new DownloadEnqueueException($"Too many {(over.Files ? "files" : "megabytes")} queued");
+
+                    // note: return exactly 'Too many files' or 'Too many megabytes' to ensure interop with other clients.
+                    // these messages are retryable, while anything else is not
+                    throw new DownloadEnqueueException($"Too many {(over.Files ? "files" : "megabytes")}");
                 }
             }
 
