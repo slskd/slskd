@@ -1060,19 +1060,19 @@ namespace slskd
                 /// <summary>
                 ///     Gets the limit for number of files.
                 /// </summary>
-                [Range(1, int.MaxValue)]
+                [Range(-1, int.MaxValue)]
                 public int? Files { get; init; } = null;
 
                 /// <summary>
                 ///     Gets the limit for number of megabytes.
                 /// </summary>
-                [Range(1, int.MaxValue)]
+                [Range(-1, int.MaxValue)]
                 public int? Megabytes { get; init; } = null;
 
                 /// <summary>
                 ///     Gets the limit for number of failures.
                 /// </summary>
-                [Range(1, int.MaxValue)]
+                [Range(-1, int.MaxValue)]
                 public int? Failures { get; init; } = null;
             }
         }
