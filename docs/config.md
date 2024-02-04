@@ -274,9 +274,9 @@ relay:
 
 # Limits and User Groups
 
-## Global
+## Global Slot and Speed Limits
 
-Global limits behave as a hard limit, additive across all groups. These values should be set as high as practical for the application's environment; more granular controls should be defined at the group level.
+Global slot and speed behave as a hard limit, additive across all groups. These values should be set as high as practical for the application's environment; more granular controls should be defined at the group level.
 
 A change to slot limits requires an application restart to take effect, while speed limits can be adjusted at runtime.
 
@@ -293,9 +293,50 @@ global:
   upload:
     slots: 20
     speed_limit: 1000
+  limits:
+    queued:
+      files: 500
+      megabytes: 5000
+    daily:
+      files: 1000
+      megabytes: 10000
+      failures: 200
+    weekly:
+      files: 5000
+      megabytes: 50000
+      failures: 1000
   download:
     slots: 500
     speed_limit: 1000
+```
+
+## Global Upload Limits
+
+Global upload limits define the number of queued, daily, and weekly uploads on a _per user_ basis.  These limits behave as defaults and are applied if limits for a user's group have not been set.
+
+Limits are evaluated when a user attempts to enqueue a file.  Queued limits behave exactly as those in other clients; if a limit would be exceeded if the requested file were accepted the request is rejected with the standard messages `Too many files` or `Too many megabytes`, depending on which limit was hit.  These messages are used by other clients to determine whether to retry the transfer later.
+
+If a daily or weekly limit would be exceeded, the request is rejected with a message like `Too many files this week` or `Too many failures today`, depending on which limit is hit.  Transfers rejected with one of these messages should not be retried by other clients (at least, that's the goal!).
+
+The transfers database for the application is used to calculate the statistics used to make limit decisions.  If this database is deleted, moved, cleared, or if the 'volatile' option is set (preventing the database from being persisted to disk), these limits won't work reliably.  Because of the asynchronous nature of the application it's possible for limits to be exceeded if the requests are 'in flight' while data is being persisted, but the number of excess transfers should never be significant.
+
+Note that while it's possible to set the `failures` option for `queued`, it has no effect.
+
+#### **YAML**
+```yaml
+global:
+  limits:
+    queued:
+      files: 500
+      megabytes: 5000
+    daily:
+      files: 1000
+      megabytes: 10000
+      failures: 200
+    weekly:
+      files: 5000
+      megabytes: 50000
+      failures: 1000
 ```
 
 ## Groups
@@ -306,17 +347,31 @@ Each group has a priority, starting from 1, determining the order in which group
 
 Groups have a queue strategy, either `FirstInFirstOut` or `RoundRobin`. This setting determines how uploads from multiple users in the same group are processed; `FirstInFirstOut` processes uploads in the order in which they were enqueued, while `RoundRobin` processes uploads in the order in which the user was ready to receive the upload.
 
-Upload slots and speed limits configured at the group level can be used to create constraints in addition to global settings. If group-level limits exceed global settings, global settings become the constraint. Slots and speed limit settings default to `int.MaxValue`, effectively deferring to the global limits.
+[Upload slots and speed limits](#global-slot-and-speed-limits) configured at the group level can be used to create constraints in addition to global settings. If group-level limits exceed global settings, global settings become the constraint. Slots and speed limit settings default to `int.MaxValue`, effectively deferring to the global limits.
+
+[Upload limits](#global-upload-limits) can be configured at the group level to override the global defaults.  If neither global defaults nor group limits are set, uploads are unlimited.  If global defaults are set and unlimited uploads for a group are desired, set values to `int.MaxValue` or `2147483647`.  While not technically unlimited, this number translates to over 2 petabytes, which would be an impressive amount of data to move peer to peer in a week.
 
 The general configuration for a group is as follows:
 
 #### **YAML**
 ```yaml
 upload:
-  priority: 500 # 1 to int.MaxValue
+  priority: 500 # 1 to 2147483647
   strategy: roundrobin # roundrobin or firstinfirstout
-  slots: 10 # 1 to int.MaxValue
-  speed_limit: 100 # in KiB/s, 1 to int.MaxValue
+  slots: 10 # 1 to 2147483647
+  speed_limit: 100 # in KiB/s, 1 to 2147483647
+limits:
+  queued:
+    files: 500 # 1 to 2147483647
+    megabytes: 5000 # 1 to 2147483647
+  daily:
+    files: 1000
+    megabytes: 10000
+    failures: 200 # 1 to 2147483647
+  weekly:
+    files: 5000
+    megabytes: 50000
+    failures: 1000
 ```
 
 ## Built-In Groups
@@ -325,7 +380,7 @@ The `default` built-in group contains all users who have not been explicitly add
 
 The `leechers` built-in group contains users that have not been explicitly added to a user-defined group, are not privileged, and have shared file and/or directory counts less than the configured `thresholds` for the group. By default, users must share at least one directory with one file to avoid being identified as leechers.
 
-The `privileged` built-in is used to prioritize users who have purchased privileges on the Soulseek network. This groups is not configurable, has a priority of 0 (the highest), a strategy of `FirstInFirstOut`, and can use any number of slots up to the global limit.
+The `privileged` built-in is used to prioritize users who have purchased privileges on the Soulseek network. This groups is not configurable, has a priority of 0 (the highest), a strategy of `FirstInFirstOut`, and can use any number of slots up to the global limit.  Users in this group are also not subject to any limits; they can enqueue any number of files they wish.
 
 It is impossible to explicitly assign users to these built-in groups, but the priority, number of slots, speed, and queue strategy can be adjusted (excluding `privileged`).
 
@@ -338,6 +393,17 @@ groups:
       strategy: roundrobin
       slots: 10
       speed_limit: 50000
+  limits:
+    queued:
+      files: 150
+      megabytes: 1500
+    daily:
+      files: 2147483647 # effectively unlimited, weekly still applies
+      megabytes: 2147483647
+    weekly:
+      files: 1500
+      megabytes: 15000
+      failures: 150
   leechers:
     thresholds:
       files: 1
@@ -347,6 +413,18 @@ groups:
       strategy: roundrobin
       slots: 1
       speed_limit: 100
+    limits:
+      queued:
+        files: 15
+        megabytes: 150
+      daily:
+        files: 30
+        megabytes: 300
+        failures: 10
+      weekly:
+        files: 150
+        megabytes: 1500
+        failures: 30
 ```
 
 ## Blacklist
@@ -391,6 +469,9 @@ groups:
         strategy: roundrobin
         slots: 10
         speed_limit: 100
+      limits:
+        queued:
+          files: 1000 # override global default
       members:
         - bob
         - alice
