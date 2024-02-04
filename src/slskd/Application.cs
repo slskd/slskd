@@ -1,4 +1,4 @@
-﻿// <copyright file="Application.cs" company="slskd Team">
+// <copyright file="Application.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -545,16 +545,14 @@ namespace slskd
              * 2) that were started within the time period
              * 3) that did not end due to an error (state includes errored, exception column is set)
             */
-            (bool Files, bool Megabytes, bool Failures) OverLimits(
-                (int Files, long Bytes, int Failures) stats,
+            (bool Files, bool Megabytes) OverLimits(
+                (int Files, long Bytes) stats,
                 Options.GroupsOptions.LimitsExtendedOptions options,
                 Options.GroupsOptions.LimitsExtendedOptions defaults,
                 long size)
             {
                 var files = false;
                 var megabytes = false;
-                var failures = false;
-
                 var byteLimit = options?.Megabytes ?? defaults?.Megabytes;
 
                 if (byteLimit is not null && byteLimit >= 0 && (stats.Bytes + size) > (byteLimit * 1000 * 1000))
@@ -571,15 +569,7 @@ namespace slskd
                     files = true;
                 }
 
-                var failureLimit = options?.Failures ?? defaults?.Failures;
-
-                if (failureLimit is not null && failureLimit >= 0 && stats.Failures > failureLimit)
-                {
-                    Log.Debug("Number of failed transfers exceeds limit of {Limit}", failureLimit);
-                    failures = true;
-                }
-
-                return (files, megabytes, failures);
+                return (files, megabytes);
             }
 
             // start with the queue, since that should contain the fewest files and should be the least expensive to check
