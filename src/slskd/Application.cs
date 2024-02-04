@@ -1,4 +1,4 @@
-// <copyright file="Application.cs" company="slskd Team">
+﻿// <copyright file="Application.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -575,7 +575,7 @@ namespace slskd
             // start with the queue, since that should contain the fewest files and should be the least expensive to check
             // "queued" includes both queued and in progress; records with a null EndedAt property, which is guaranteed to be set
             // for terminal transfers.
-            if (!IsNull(limits.Queued, defaults.Queued) && !IsUnlimited(limits.Queued, defaults.Queued))
+            if (!IsNull(limits?.Queued, defaults?.Queued) && !IsUnlimited(limits?.Queued, defaults?.Queued))
             {
                 var queued = Transfers.Uploads.Summarize(
                     expression: t => t.Username == username && t.EndedAt == null);
@@ -599,7 +599,7 @@ namespace slskd
             // * started within the last week
             // * which have or have not ended (assuming queued files will complete)
             // * that were not errored
-            if (!IsNull(limits.Weekly, defaults.Weekly) && !IsUnlimited(limits.Weekly, defaults.Weekly))
+            if (!IsNull(limits?.Weekly, defaults?.Weekly) && !IsUnlimited(limits?.Weekly, defaults?.Weekly))
             {
                 var erroredState = TransferStates.Completed | TransferStates.Errored;
                 var cutoffDateTime = DateTime.UtcNow.AddDays(-7);
@@ -612,7 +612,9 @@ namespace slskd
 
                 Log.Debug("Fetched weekly failures: {Failures} ({Time}ms)", failures.Files, sw.ElapsedMilliseconds);
 
-                if (failures.Files >= limits.Weekly.Failures)
+                var failureLimit = limits?.Weekly?.Failures ?? defaults?.Weekly?.Failures;
+
+                if (failureLimit is not null && failures.Files >= failureLimit)
                 {
                     Log.Information("Rejected enqueue request for user {Username}: Weekly failure limit met or exceeded", username);
                     throw new DownloadEnqueueException("Too many failed transfers this week");
@@ -627,7 +629,7 @@ namespace slskd
 
                 Log.Debug("Fetched weekly stats: files: {Files}, bytes: {Bytes} ({Time}ms)", weekly.Files, weekly.Bytes, sw.ElapsedMilliseconds);
 
-                var over = OverLimits(weekly, limits!.Weekly, resolved.Size);
+                var over = OverLimits(weekly, limits?.Weekly, defaults?.Weekly, resolved.Size);
 
                 if (over.Files || over.Megabytes)
                 {
@@ -638,7 +640,7 @@ namespace slskd
 
             // lastly, check daily limits. the criteria for this is the same as weekly, just looking over the previous day instead
             // of the previous 7.
-            if (!IsNull(limits.Daily))
+            if (!IsNull(limits?.Daily, defaults?.Daily) && !IsUnlimited(limits?.Daily, defaults?.Daily))
             {
                 var erroredState = TransferStates.Completed | TransferStates.Errored;
                 var cutoffDateTime = DateTime.UtcNow.AddDays(-1);
@@ -651,7 +653,9 @@ namespace slskd
 
                 Log.Debug("Fetched daily failures: {Failures} ({Time}ms)", failures.Files, sw.ElapsedMilliseconds);
 
-                if (failures.Files >= limits.Daily.Failures)
+                var failureLimit = limits?.Daily?.Failures ?? defaults?.Daily?.Failures;
+
+                if (failureLimit is not null && failures.Files >= failureLimit)
                 {
                     Log.Information("Rejected enqueue request for user {Username}: Daily failure limit met or exceeded", username);
                     throw new DownloadEnqueueException("Too many failed transfers today");
@@ -666,7 +670,7 @@ namespace slskd
 
                 Log.Debug("Fetched daily stats: files: {Files}, bytes: {Bytes} ({Time}ms)", daily.Files, daily.Bytes, sw.ElapsedMilliseconds);
 
-                var over = OverLimits(daily, limits!.Daily, resolved.Size);
+                var over = OverLimits(daily, limits?.Daily, defaults?.Daily, resolved.Size);
 
                 if (over.Files || over.Megabytes)
                 {
