@@ -52,6 +52,18 @@
 #   upload:
 #     slots: 20
 #     speed_limit: 1000
+#   limits:
+#     queued:
+#       files: 500
+#       megabytes: 5000
+#     daily:
+#       files: 1000
+#       megabytes: 10000
+#       failures: 200
+#     weekly:
+#       files: 5000
+#       megabytes: 50000
+#       failures: 1000
 #   download:
 #     slots: 500
 #     speed_limit: 1000
@@ -97,26 +109,14 @@
 #     cidrs:
 #       - <CIDR to blacklist, e.g. 255.255.255.255/32>
 #   user_defined:
-#     unlimited_buddies:
-#       upload:
-#         priority: 1
-#         strategy: roundrobin
-#         slots: 10
-#         speed_limit: ~ # unlimited
-#       limits: # because default limits are set, we must set these to -1 to override the defaults to unlimited
-#         queued:
-#           files: -1
-#           megabytes: -1
-#         weekly:
-#           files: -1
-#           megabytes: -1
-#           failures: -1
 #     my_buddies:
 #       upload:
 #         priority: 250
 #         strategy: firstinfirstout
 #         slots: 10
-#       limits: ~ # use defaults
+#       limits:
+#         queued:
+#           files: 1000 # override global default
 #       members:
 #         - alice
 #         - bob
