@@ -511,9 +511,11 @@ namespace slskd
                 return;
             }
 
+            // we'll fall back to global limits for any limit that isn't set at the group level
+            var global = Options.Global.Limits;
+
             // resolve the limits for this user's group.
-            Options.GroupsOptions.LimitsOptions limits;
-            var defaults = Options.Groups.Default.Limits;
+            Options.LimitsOptions limits;
 
             if (Options.Groups.UserDefined.TryGetValue(group, out var userDefinedOptions))
             {
@@ -523,20 +525,14 @@ namespace slskd
             {
                 limits = group switch
                 {
-                    DefaultGroup => defaults,
+                    DefaultGroup => Options.Groups.Default.Limits,
                     LeecherGroup => Options.Groups.Leechers.Limits,
-                    _ => Options.Groups.Default.Limits,
+                    _ => Options.Groups.Default.Limits, // that's weird! we'll just go with defaults..
                 };
             }
 
-            var sw = new Stopwatch();
-            sw.Start();
-
-            bool IsNull(Options.GroupsOptions.LimitsExtendedOptions lim, Options.GroupsOptions.LimitsExtendedOptions def)
-                => (lim is null && def is null) || ((lim?.Files ?? def?.Files ?? lim?.Megabytes ?? def?.Megabytes ?? lim.Failures ?? def.Failures) is null);
-
-            bool IsUnlimited(Options.GroupsOptions.LimitsExtendedOptions lim, Options.GroupsOptions.LimitsExtendedOptions def)
-                => IsNull(lim, def) || (lim?.Files == -1 && def?.Files == -1 && lim?.Megabytes == -1 && def.Megabytes == -1 && lim?.Failures == -1 && def?.Failures == -1);
+            bool IsNull(Options.LimitsOptions.Limits lim, Options.LimitsOptions.Limits global)
+                => (lim is null && global is null) || ((lim?.Files ?? global?.Files ?? lim?.Megabytes ?? global?.Megabytes ?? lim.Failures ?? global.Failures) is null);
 
             /*
              * we have limits set, so now we have to fetch the data and compare to see if any would be hit if we allow this transfer to be enqueued.
@@ -547,15 +543,15 @@ namespace slskd
             */
             (bool Files, bool Megabytes) OverLimits(
                 (int Files, long Bytes) stats,
-                Options.GroupsOptions.LimitsExtendedOptions options,
-                Options.GroupsOptions.LimitsExtendedOptions defaults,
+                Options.LimitsOptions.Limits options,
+                Options.LimitsOptions.Limits defaults,
                 long size)
             {
                 var files = false;
                 var megabytes = false;
                 var byteLimit = options?.Megabytes ?? defaults?.Megabytes;
 
-                if (byteLimit is not null && byteLimit >= 0 && (stats.Bytes + size) > (byteLimit * 1000 * 1000))
+                if (byteLimit is not null && (stats.Bytes + size) > (byteLimit * 1000 * 1000))
                 {
                     Log.Debug("Projected bytes {Bytes} exceeds limit {Limit}", stats.Bytes + size, byteLimit * 1000 * 1000);
                     megabytes = true;
@@ -563,7 +559,7 @@ namespace slskd
 
                 var fileLimit = options?.Files ?? defaults?.Files;
 
-                if (fileLimit is not null && fileLimit >= 0 && (stats.Files + 1) > fileLimit)
+                if (fileLimit is not null && (stats.Files + 1) > fileLimit)
                 {
                     Log.Debug("Projected file count {Files} exceeds limit {Limit}", stats.Files + 1, fileLimit);
                     files = true;
@@ -572,17 +568,20 @@ namespace slskd
                 return (files, megabytes);
             }
 
+            var sw = new Stopwatch();
+            sw.Start();
+
             // start with the queue, since that should contain the fewest files and should be the least expensive to check
             // "queued" includes both queued and in progress; records with a null EndedAt property, which is guaranteed to be set
             // for terminal transfers.
-            if (!IsNull(limits?.Queued, defaults?.Queued) && !IsUnlimited(limits?.Queued, defaults?.Queued))
+            if (!IsNull(limits?.Queued, global?.Queued))
             {
                 var queued = Transfers.Uploads.Summarize(
                     expression: t => t.Username == username && t.EndedAt == null);
 
                 Log.Debug("Fetched queue stats: files: {Files}, bytes: {Bytes} ({Time}ms)", queued.Files, queued.Bytes, sw.ElapsedMilliseconds);
 
-                var over = OverLimits(queued, limits?.Queued, defaults?.Queued, resolved.Size);
+                var over = OverLimits(queued, limits?.Queued, global?.Queued, resolved.Size);
 
                 if (over.Files || over.Megabytes)
                 {
@@ -599,7 +598,7 @@ namespace slskd
             // * started within the last week
             // * which have or have not ended (assuming queued files will complete)
             // * that were not errored
-            if (!IsNull(limits?.Weekly, defaults?.Weekly) && !IsUnlimited(limits?.Weekly, defaults?.Weekly))
+            if (!IsNull(limits?.Weekly, global?.Weekly))
             {
                 var erroredState = TransferStates.Completed | TransferStates.Errored;
                 var cutoffDateTime = DateTime.UtcNow.AddDays(-7);
@@ -612,7 +611,7 @@ namespace slskd
 
                 Log.Debug("Fetched weekly failures: {Failures} ({Time}ms)", failures.Files, sw.ElapsedMilliseconds);
 
-                var failureLimit = limits?.Weekly?.Failures ?? defaults?.Weekly?.Failures;
+                var failureLimit = limits?.Weekly?.Failures ?? global?.Weekly?.Failures;
 
                 if (failureLimit is not null && failures.Files >= failureLimit)
                 {
@@ -629,7 +628,7 @@ namespace slskd
 
                 Log.Debug("Fetched weekly stats: files: {Files}, bytes: {Bytes} ({Time}ms)", weekly.Files, weekly.Bytes, sw.ElapsedMilliseconds);
 
-                var over = OverLimits(weekly, limits?.Weekly, defaults?.Weekly, resolved.Size);
+                var over = OverLimits(weekly, limits?.Weekly, global?.Weekly, resolved.Size);
 
                 if (over.Files || over.Megabytes)
                 {
@@ -640,7 +639,7 @@ namespace slskd
 
             // lastly, check daily limits. the criteria for this is the same as weekly, just looking over the previous day instead
             // of the previous 7.
-            if (!IsNull(limits?.Daily, defaults?.Daily) && !IsUnlimited(limits?.Daily, defaults?.Daily))
+            if (!IsNull(limits?.Daily, global?.Daily))
             {
                 var erroredState = TransferStates.Completed | TransferStates.Errored;
                 var cutoffDateTime = DateTime.UtcNow.AddDays(-1);
@@ -653,7 +652,7 @@ namespace slskd
 
                 Log.Debug("Fetched daily failures: {Failures} ({Time}ms)", failures.Files, sw.ElapsedMilliseconds);
 
-                var failureLimit = limits?.Daily?.Failures ?? defaults?.Daily?.Failures;
+                var failureLimit = limits?.Daily?.Failures ?? global?.Daily?.Failures;
 
                 if (failureLimit is not null && failures.Files >= failureLimit)
                 {
@@ -670,7 +669,7 @@ namespace slskd
 
                 Log.Debug("Fetched daily stats: files: {Files}, bytes: {Bytes} ({Time}ms)", daily.Files, daily.Bytes, sw.ElapsedMilliseconds);
 
-                var over = OverLimits(daily, limits?.Daily, defaults?.Daily, resolved.Size);
+                var over = OverLimits(daily, limits?.Daily, global?.Daily, resolved.Size);
 
                 if (over.Files || over.Megabytes)
                 {
