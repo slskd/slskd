@@ -511,9 +511,9 @@ namespace slskd
                 return;
             }
 
-            // resolve the limits for this user's group.  there's no 'fallthrough' here, if limits for a group
-            // are unset, then that group is unlimited.
+            // resolve the limits for this user's group.
             Options.GroupsOptions.LimitsOptions limits;
+            var defaults = Options.Groups.Default.Limits;
 
             if (Options.Groups.UserDefined.TryGetValue(group, out var userDefinedOptions))
             {
@@ -523,24 +523,20 @@ namespace slskd
             {
                 limits = group switch
                 {
-                    DefaultGroup => Options.Groups.Default.Limits,
+                    DefaultGroup => defaults,
                     LeecherGroup => Options.Groups.Leechers.Limits,
                     _ => Options.Groups.Default.Limits,
                 };
             }
 
-            bool IsNull(Options.GroupsOptions.LimitsExtendedOptions l) => l is null || (l?.Files is null && l?.Megabytes is null);
-
-            // if no limits are set, we're good to go; just enqueue the file.
-            if (limits is null || (IsNull(limits.Daily) && IsNull(limits.Weekly) && IsNull(limits.Queued)))
-            {
-                Log.Debug("Limits bypassed for {Username} and {File}; no limits are set", username, filename);
-                await Transfers.Uploads.EnqueueAsync(username, filename);
-                return;
-            }
-
             var sw = new Stopwatch();
             sw.Start();
+
+            bool IsNull(Options.GroupsOptions.LimitsExtendedOptions lim, Options.GroupsOptions.LimitsExtendedOptions def)
+                => (lim is null && def is null) || ((lim?.Files ?? def?.Files ?? lim?.Megabytes ?? def?.Megabytes ?? lim.Failures ?? def.Failures) is null);
+
+            bool IsUnlimited(Options.GroupsOptions.LimitsExtendedOptions lim, Options.GroupsOptions.LimitsExtendedOptions def)
+                => IsNull(lim, def) || (lim?.Files == -1 && def?.Files == -1 && lim?.Megabytes == -1 && def.Megabytes == -1 && lim?.Failures == -1 && def?.Failures == -1);
 
             /*
              * we have limits set, so now we have to fetch the data and compare to see if any would be hit if we allow this transfer to be enqueued.
@@ -549,46 +545,62 @@ namespace slskd
              * 2) that were started within the time period
              * 3) that did not end due to an error (state includes errored, exception column is set)
             */
-            (bool Files, bool Megabytes) OverLimits((int Files, long Bytes) stats, Options.GroupsOptions.LimitsExtendedOptions options, long size)
+            (bool Files, bool Megabytes, bool Failures) OverLimits(
+                (int Files, long Bytes, int Failures) stats,
+                Options.GroupsOptions.LimitsExtendedOptions options,
+                Options.GroupsOptions.LimitsExtendedOptions defaults,
+                long size)
             {
                 var files = false;
                 var megabytes = false;
-                var byteLimit = (options?.Megabytes ?? 0) * 1000 * 1000;
+                var failures = false;
 
-                if (options?.Megabytes is not null && (stats.Bytes + size) > byteLimit)
+                var byteLimit = options?.Megabytes ?? defaults?.Megabytes;
+
+                if (byteLimit is not null && byteLimit >= 0 && (stats.Bytes + size) > (byteLimit * 1000 * 1000))
                 {
-                    Log.Debug("Projected bytes {Bytes} exceeds limit {Limit}", stats.Bytes + size, byteLimit);
+                    Log.Debug("Projected bytes {Bytes} exceeds limit {Limit}", stats.Bytes + size, byteLimit * 1000 * 1000);
                     megabytes = true;
                 }
 
-                if (options?.Files is not null && (stats.Files + 1) > options.Files)
+                var fileLimit = options?.Files ?? defaults?.Files;
+
+                if (fileLimit is not null && fileLimit >= 0 && (stats.Files + 1) > fileLimit)
                 {
-                    Log.Debug("Projected file count {Files} exceeds limit {Limit}", stats.Files + 1, options.Files);
+                    Log.Debug("Projected file count {Files} exceeds limit {Limit}", stats.Files + 1, fileLimit);
                     files = true;
                 }
 
-                return (files, megabytes);
+                var failureLimit = options?.Failures ?? defaults?.Failures;
+
+                if (failureLimit is not null && failureLimit >= 0 && stats.Failures > failureLimit)
+                {
+                    Log.Debug("Number of failed transfers exceeds limit of {Limit}", failureLimit);
+                    failures = true;
+                }
+
+                return (files, megabytes, failures);
             }
 
             // start with the queue, since that should contain the fewest files and should be the least expensive to check
             // "queued" includes both queued and in progress; records with a null EndedAt property, which is guaranteed to be set
             // for terminal transfers.
-            if (!IsNull(limits.Queued))
+            if (!IsNull(limits.Queued, defaults.Queued) && !IsUnlimited(limits.Queued, defaults.Queued))
             {
                 var queued = Transfers.Uploads.Summarize(
                     expression: t => t.Username == username && t.EndedAt == null);
 
                 Log.Debug("Fetched queue stats: files: {Files}, bytes: {Bytes} ({Time}ms)", queued.Files, queued.Bytes, sw.ElapsedMilliseconds);
 
-                var over = OverLimits(queued, limits!.Queued, resolved.Size);
+                var over = OverLimits(queued, limits?.Queued, defaults?.Queued, resolved.Size);
 
-                if (over.Files || over.Megabytes)
+                if (over.Files || over.Megabytes || over.Failures)
                 {
                     Log.Information("Rejected enqueue request for user {Username}: Queued limits exceeded", username);
 
                     // note: return exactly 'Too many files' or 'Too many megabytes' to ensure interop with other clients.
                     // these messages are retryable, while anything else is not
-                    throw new DownloadEnqueueException($"Too many {(over.Files ? "files" : "megabytes")}");
+                    throw new DownloadEnqueueException($"Too many {(over.Megabytes ? "megabytes" : "files")}");
                 }
             }
 
@@ -597,7 +609,7 @@ namespace slskd
             // * started within the last week
             // * which have or have not ended (assuming queued files will complete)
             // * that were not errored
-            if (!IsNull(limits.Weekly))
+            if (!IsNull(limits.Weekly, defaults.Weekly) && !IsUnlimited(limits.Weekly, defaults.Weekly))
             {
                 var erroredState = TransferStates.Completed | TransferStates.Errored;
                 var cutoffDateTime = DateTime.UtcNow.AddDays(-7);
