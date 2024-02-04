@@ -787,6 +787,12 @@ namespace slskd
             public GlobalUploadOptions Upload { get; init; } = new GlobalUploadOptions();
 
             /// <summary>
+            ///     Gets global limits.
+            /// </summary>
+            [Validate]
+            public LimitsOptions Limits { get; init; } = new LimitsOptions();
+
+            /// <summary>
             ///     Gets global download options.
             /// </summary>
             [Validate]
@@ -840,6 +846,54 @@ namespace slskd
                 [Description("the total download speed limit")]
                 [Range(1, int.MaxValue)]
                 public int SpeedLimit { get; init; } = int.MaxValue;
+            }
+        }
+
+        /// <summary>
+        ///     Limit options.
+        /// </summary>
+        public class LimitsOptions
+        {
+            /// <summary>
+            ///     Gets limits for queued transfers.
+            /// </summary>
+            [Validate]
+            public Limits Queued { get; init; } = new Limits();
+
+            /// <summary>
+            ///     Gets daily limits for transfers.
+            /// </summary>
+            [Validate]
+            public Limits Daily { get; init; } = new Limits();
+
+            /// <summary>
+            ///     Gets weekly limits for transfers.
+            /// </summary>
+            [Validate]
+            public Limits Weekly { get; init; } = new Limits();
+
+            /// <summary>
+            ///     Limits.
+            /// </summary>
+            public class Limits
+            {
+                /// <summary>
+                ///     Gets the limit for number of files.
+                /// </summary>
+                [Range(1, int.MaxValue)]
+                public int? Files { get; init; } = null;
+
+                /// <summary>
+                ///     Gets the limit for number of megabytes.
+                /// </summary>
+                [Range(1, int.MaxValue)]
+                public int? Megabytes { get; init; } = null;
+
+                /// <summary>
+                ///     Gets the limit for number of failures.
+                /// </summary>
+                [Range(1, int.MaxValue)]
+                public int? Failures { get; init; } = null;
             }
         }
 
@@ -1026,54 +1080,6 @@ namespace slskd
                 /// </summary>
                 [Range(1, int.MaxValue)]
                 public int SpeedLimit { get; init; } = int.MaxValue;
-            }
-
-            /// <summary>
-            ///     Upload limit options.
-            /// </summary>
-            public class LimitsOptions
-            {
-                /// <summary>
-                ///     Gets limits for queued transfers.
-                /// </summary>
-                [Validate]
-                public LimitsExtendedOptions Queued { get; init; } = new LimitsExtendedOptions();
-
-                /// <summary>
-                ///     Gets daily limits for transfers.
-                /// </summary>
-                [Validate]
-                public LimitsExtendedOptions Daily { get; init; } = new LimitsExtendedOptions();
-
-                /// <summary>
-                ///     Gets weekly limits for transfers.
-                /// </summary>
-                [Validate]
-                public LimitsExtendedOptions Weekly { get; init; } = new LimitsExtendedOptions();
-            }
-
-            /// <summary>
-            ///     Extended limit options.
-            /// </summary>
-            public class LimitsExtendedOptions
-            {
-                /// <summary>
-                ///     Gets the limit for number of files.
-                /// </summary>
-                [Range(-1, int.MaxValue)]
-                public int? Files { get; init; } = null;
-
-                /// <summary>
-                ///     Gets the limit for number of megabytes.
-                /// </summary>
-                [Range(-1, int.MaxValue)]
-                public int? Megabytes { get; init; } = null;
-
-                /// <summary>
-                ///     Gets the limit for number of failures.
-                /// </summary>
-                [Range(-1, int.MaxValue)]
-                public int? Failures { get; init; } = null;
             }
         }
 
