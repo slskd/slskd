@@ -584,7 +584,7 @@ namespace slskd
 
                 var over = OverLimits(queued, limits?.Queued, defaults?.Queued, resolved.Size);
 
-                if (over.Files || over.Megabytes || over.Failures)
+                if (over.Files || over.Megabytes)
                 {
                     Log.Information("Rejected enqueue request for user {Username}: Queued limits exceeded", username);
 
