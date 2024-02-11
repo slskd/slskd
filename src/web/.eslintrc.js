@@ -1,3 +1,11 @@
+const overrides = {
+  'id-length': 'off', // noisy
+  'no-console': 'off', // noisy
+  'react/forbid-component-props': 'off', // noisy
+  'react/prop-types': 'off', // noisy
+  'unicorn/no-array-reduce': 'off', // noisy
+};
+
 /** @type {import('eslint').Linter.Config} */
 module.exports = {
   extends: ['canonical/auto', 'canonical/browser', 'canonical/node'],
@@ -20,6 +28,10 @@ module.exports = {
           },
         },
       },
+      rules: {
+        ...overrides,
+        'react/no-set-state': 'off', // only useful when using state libs
+      },
     },
     {
       extends: ['canonical/jest'],
@@ -27,4 +39,14 @@ module.exports = {
     },
   ],
   root: true,
+  rules: {
+    ...overrides,
+
+    'import/no-unassigned-import': [
+      'error',
+      {
+        allow: ['semantic-ui-less/semantic.less', '**/*.css'],
+      },
+    ],
+  },
 };
