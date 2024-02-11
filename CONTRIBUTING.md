@@ -30,7 +30,7 @@ into your local branch, then `git push` to update your branch.
 
 ## Environment Setup
 
-You'll need [.NET 6.0](https://dotnet.microsoft.com/en-us/download) to build and run the back end (slskd), and you'll 
+You'll need [.NET 8.0](https://dotnet.microsoft.com/en-us/download) to build and run the back end (slskd), and you'll 
 need [Nodejs](https://nodejs.org/en/) to build and debug the front end (web).
 
 You're free to use whichever development tools you prefer.  If you don't yet have a preference, we recommend the following:
