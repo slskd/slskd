@@ -1,6 +1,8 @@
 const overrides = {
+  eqeqeq: ['error', 'always', { null: 'ignore' }], // noisy
   'id-length': 'off', // noisy
   'no-console': 'off', // noisy
+  'no-eq-null': 'off', // noisy
   'react/forbid-component-props': 'off', // noisy
   'react/prop-types': 'off', // noisy
   'unicorn/no-array-reduce': 'off', // noisy
