@@ -83,7 +83,7 @@ namespace slskd
         ///     Initializes a new instance of the <see cref="TokenBucket"/> class.
         /// </summary>
         /// <param name="capacity">The bucket capacity.</param>
-        /// <param name="interval">The interval at which tokens are replenished.</param>
+        /// <param name="interval">The interval at which tokens are replenished, in milliseconds.</param>
         public TokenBucket(long capacity, int interval)
         {
             if (capacity < 1)
