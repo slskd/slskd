@@ -1,5 +1,5 @@
 import { hubBaseUrl } from '../config';
-import * as session from './session';
+import { getToken, isPassthroughEnabled } from './token';
 import {
   HubConnectionBuilder,
   JsonHubProtocol,
@@ -9,9 +9,7 @@ import {
 export const createHubConnection = ({ url }) =>
   new HubConnectionBuilder()
     .withUrl(url, {
-      accessTokenFactory: session.isPassthroughEnabled()
-        ? undefined
-        : session.getToken,
+      accessTokenFactory: isPassthroughEnabled() ? undefined : getToken,
       withCredentials: true,
     })
     .withAutomaticReconnect([

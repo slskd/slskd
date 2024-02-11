@@ -5,6 +5,7 @@ import { createApplicationHubConnection } from '../lib/hubFactory';
 import * as relayAPI from '../lib/relay';
 import { connect, disconnect } from '../lib/server';
 import * as session from '../lib/session';
+import { isPassthroughEnabled } from '../lib/token';
 import AppContext from './AppContext';
 import Browse from './Browse/Browse';
 import Chat from './Chat/Chat';
@@ -282,7 +283,7 @@ class App extends Component {
       );
     }
 
-    if (!session.isLoggedIn() && !session.isPassthroughEnabled()) {
+    if (!session.isLoggedIn() && !isPassthroughEnabled()) {
       return (
         <LoginForm
           error={login.error}
