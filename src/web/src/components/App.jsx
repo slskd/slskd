@@ -486,6 +486,7 @@ class App extends Component {
           </Sidebar>
           <Sidebar.Pusher className="app-content">
             <AppContext.Provider
+              // eslint-disable-next-line no-warning-comments
               // TODO: needs useMemo, but class component. yolo for now.
               // eslint-disable-next-line react/jsx-no-constructed-context-values
               value={{ options: applicationOptions, state: applicationState }}
