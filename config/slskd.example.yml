@@ -51,7 +51,7 @@
 # global:
 #   upload:
 #     slots: 20
-#     speed_limit: 1000
+#     speed_limit: 1000 # in kibibytes
 #   limits:
 #     queued:
 #       files: 500
