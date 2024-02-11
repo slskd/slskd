@@ -33,14 +33,11 @@ const FreeUploadSlot = ({ hasFreeUploadSlot }) => (
 const User = ({
   address,
   description,
-  hasFreeUploadSlot,
   hasPicture,
-  isPrivileged,
   picture,
   port,
   presence,
   queueLength,
-  updatedAt,
   uploadSlots,
   username,
 }) => (

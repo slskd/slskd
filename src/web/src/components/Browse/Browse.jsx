@@ -1,3 +1,4 @@
+/* eslint-disable promise/prefer-await-to-then */
 import './Browse.css';
 import * as users from '../../lib/users';
 import PlaceholderSegment from '../Shared/PlaceholderSegment';
@@ -26,7 +27,30 @@ const initialState = {
 };
 
 class Browse extends Component {
-  state = initialState;
+  constructor(props) {
+    super(props);
+
+    this.state = initialState;
+  }
+
+  componentDidMount() {
+    this.fetchStatus();
+    this.loadState();
+    this.setState(
+      {
+        interval: window.setInterval(this.fetchStatus, 500),
+      },
+      () => this.saveState(),
+    );
+
+    document.addEventListener('keyup', this.keyUp, false);
+  }
+
+  componentWillUnmount() {
+    clearInterval(this.state.interval);
+    this.setState({ interval: undefined });
+    document.removeEventListener('keyup', this.keyUp, false);
+  }
 
   browse = () => {
     const username = this.inputtext.inputRef.current.value;
@@ -37,25 +61,26 @@ class Browse extends Component {
         users
           .browse({ username })
           .then((response) => {
-            let { directories, lockedDirectories } = response;
+            let { directories } = response;
+            const { lockedDirectories } = response;
 
             // we need to know the directory separator. assume it is \ to start
             let separator;
 
             const directoryCount = directories.length;
-            const fileCount = directories.reduce((accumulator, dir) => {
+            const fileCount = directories.reduce((accumulator, directory) => {
               // examine each directory as we process it to see if it contains \ or /, and set separator accordingly
               if (!separator) {
-                if (dir.name.includes('\\')) separator = '\\';
-                else if (dir.name.includes('/')) separator = '/';
+                if (directory.name.includes('\\')) separator = '\\';
+                else if (directory.name.includes('/')) separator = '/';
               }
 
-              return (accumulator += dir.fileCount);
+              return accumulator + directory.fileCount;
             }, 0);
 
             const lockedDirectoryCount = lockedDirectories.length;
             const lockedFileCount = lockedDirectories.reduce(
-              (accumulator, dir) => (accumulator += dir.fileCount),
+              (accumulator, directory) => accumulator + directory.fileCount,
               0,
             );
 
@@ -98,10 +123,6 @@ class Browse extends Component {
 
   keyUp = (event) => (event.key === 'Escape' ? this.clear() : '');
 
-  onUsernameChange = (event, data) => {
-    this.setState({ username: data.value });
-  };
-
   saveState = () => {
     this.inputtext.inputRef.current.value = this.state.username;
     this.inputtext.inputRef.current.disabled =
@@ -137,25 +158,6 @@ class Browse extends Component {
     );
   };
 
-  componentDidMount() {
-    this.fetchStatus();
-    this.loadState();
-    this.setState(
-      {
-        interval: window.setInterval(this.fetchStatus, 500),
-      },
-      () => this.saveState(),
-    );
-
-    document.addEventListener('keyup', this.keyUp, false);
-  }
-
-  componentWillUnmount() {
-    clearInterval(this.state.interval);
-    this.setState({ interval: undefined });
-    document.removeEventListener('keyup', this.keyUp, false);
-  }
-
   fetchStatus = () => {
     const { browseState, username } = this.state;
     if (browseState === 'pending') {
@@ -178,15 +180,15 @@ class Browse extends Component {
     // - future look ups are done from the Map
     const depthMap = new Map();
     for (const d of directories) {
-      const depth = d.name.split(separator).length;
-      if (!depthMap.has(depth)) {
-        depthMap.set(depth, []);
+      const directoryDepth = d.name.split(separator).length;
+      if (!depthMap.has(directoryDepth)) {
+        depthMap.set(directoryDepth, []);
       }
 
-      depthMap.get(depth).push(d);
+      depthMap.get(directoryDepth).push(d);
     }
 
-    const depth = Math.min.apply(Math, Array.from(depthMap.keys()));
+    const depth = Math.min(...Array.from(depthMap.keys()));
 
     return depthMap
       .get(depth)
@@ -218,7 +220,7 @@ class Browse extends Component {
     );
   };
 
-  deselectDirectory = () => {
+  handleDeselectDirectory = () => {
     this.setState({ selectedDirectory: initialState.selectedDirectory }, () =>
       this.saveState(),
     );
@@ -274,7 +276,7 @@ class Browse extends Component {
               />
             }
             loading={pending}
-            onKeyUp={(e) => (e.key === 'Enter' ? this.browse() : '')}
+            onKeyUp={(event) => (event.key === 'Enter' ? this.browse() : '')}
             placeholder="Username"
             ref={(input) => (this.inputtext = input)}
             size="big"
@@ -336,7 +338,7 @@ class Browse extends Component {
                     locked={locked}
                     marginTop={-20}
                     name={name}
-                    onClose={this.deselectDirectory}
+                    onClose={this.handleDeselectDirectory}
                     username={username}
                   />
                 )}

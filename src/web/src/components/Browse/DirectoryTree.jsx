@@ -2,14 +2,14 @@ import React from 'react';
 import { List } from 'semantic-ui-react';
 
 const subtree = (root, selectedDirectoryName, onSelect) => {
-  return (root || []).map((d, index) => {
+  return (root || []).map((d) => {
     const selected = d.name === selectedDirectoryName;
     // const dimIfLocked = { opacity: d.locked ? 0.5 : 1 };
 
     return (
       <List
         className="browse-folderlist-list"
-        key={index}
+        key={d.name}
       >
         <List.Item>
           <List.Icon

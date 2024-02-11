@@ -4,18 +4,27 @@ import React, { Component } from 'react';
 import { Button, Card, Icon } from 'semantic-ui-react';
 
 class TransferGroup extends Component {
-  state = {
-    isFolded: false,
-    selections: new Set(),
-  };
+  constructor(props) {
+    super(props);
 
-  onSelectionChange = (directoryName, file, selected) => {
+    this.state = {
+      isFolded: false,
+      selections: new Set(),
+    };
+  }
+
+  handleSelectionChange = (directoryName, file, selected) => {
     const { selections } = this.state;
     const object = JSON.stringify({
       directory: directoryName,
       filename: file.filename,
     });
-    selected ? selections.add(object) : selections.delete(object);
+
+    if (selected) {
+      selections.add(object);
+    } else {
+      selections.delete(object);
+    }
 
     this.setState({ selections });
   };
@@ -52,7 +61,7 @@ class TransferGroup extends Component {
   };
 
   retryAll = async (selected) => {
-    await Promise.all(selected.map((file) => this.retry(file)));
+    await Promise.all(selected.map((file) => this.handleRetry(file)));
   };
 
   cancelAll = async (direction, username, selected) => {
@@ -73,7 +82,7 @@ class TransferGroup extends Component {
     );
   };
 
-  retry = async (file) => {
+  handleRetry = async (file) => {
     const { filename, size, username } = file;
 
     try {
@@ -83,7 +92,7 @@ class TransferGroup extends Component {
     }
   };
 
-  fetchPlaceInQueue = async (file) => {
+  handleFetchPlaceInQueue = async (file) => {
     const { id, username } = file;
 
     try {
@@ -94,7 +103,7 @@ class TransferGroup extends Component {
   };
 
   toggleFolded = () => {
-    this.setState({ isFolded: !this.state.isFolded });
+    this.setState((previousState) => ({ isFolded: !previousState.isFolded }));
   };
 
   render() {
@@ -131,18 +140,18 @@ class TransferGroup extends Component {
           </Card.Header>
           {user.directories &&
             !isFolded &&
-            user.directories.map((dir, index) => (
+            user.directories.map((directory) => (
               <TransferList
                 direction={this.props.direction}
-                directoryName={dir.directory}
-                files={(dir.files || []).map((f) => ({
+                directoryName={directory.directory}
+                files={(directory.files || []).map((f) => ({
                   ...f,
-                  selected: this.isSelected(dir.directory, f),
+                  selected: this.isSelected(directory.directory, f),
                 }))}
-                key={index}
-                onPlaceInQueueRequested={this.fetchPlaceInQueue}
-                onRetryRequested={this.retry}
-                onSelectionChange={this.onSelectionChange}
+                key={directory.directory}
+                onPlaceInQueueRequested={this.handleFetchPlaceInQueue}
+                onRetryRequested={this.handleRetry}
+                onSelectionChange={this.handleSelectionChange}
                 username={user.username}
               />
             ))}

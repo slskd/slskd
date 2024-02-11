@@ -14,9 +14,9 @@ const ContentsModal = ({ onClose, share, theme }) => {
     const fetch = async () => {
       setLoading(true);
 
-      const contents = await browse({ id });
+      const result = await browse({ id });
 
-      const directories = contents.map((directory) => {
+      const directories = result.map((directory) => {
         const lines = [directory.name.replace(remotePath, localPath)];
 
         for (const file of orderBy(directory.files, 'filename')) {

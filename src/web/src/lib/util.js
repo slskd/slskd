@@ -1,15 +1,15 @@
 export const formatSeconds = (seconds) => {
-  if (isNaN(seconds)) return '';
+  if (Number.isNaN(seconds)) return '';
   const date = new Date(1_970, 0, 1);
   date.setSeconds(seconds);
   if (seconds >= 3_600) {
-    return date.toTimeString().replace(/.*(\d{2}:\d{2}:\d{2}).*/, '$1');
+    return date.toTimeString().replace(/.*(\d{2}:\d{2}:\d{2}).*/u, '$1');
   }
 
-  return date.toTimeString().replace(/.*(\d{2}:\d{2}).*/, '$1');
+  return date.toTimeString().replace(/.*(\d{2}:\d{2}).*/u, '$1');
 };
 
-export const formatBytesAsUnit = (bytes, decimals = 2, unit) => {
+export const formatBytesAsUnit = (bytes, unit, decimals = 2) => {
   if (unit === 'B') return bytes + ' ' + unit;
 
   const k = 1_024;
@@ -75,7 +75,9 @@ export const formatAttributes = ({
 };
 
 export const sleep = (milliseconds) => {
-  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+  return new Promise((resolve) => {
+    setTimeout(resolve, milliseconds);
+  });
 };
 
 /* https://www.npmjs.com/package/js-file-download
@@ -98,6 +100,7 @@ export const sleep = (milliseconds) => {
  */
 export const downloadFile = (data, filename, mime) => {
   const blob = new Blob([data], { type: mime || 'application/octet-stream' });
+  // eslint-disable-next-line no-negated-condition
   if (typeof window.navigator.msSaveBlob !== 'undefined') {
     // IE workaround for "HTML7007: One or more blob URLs were
     // revoked by closing the blob for which they were created.

@@ -3,16 +3,16 @@ import React, { useState } from 'react';
 import { toast } from 'react-toastify';
 import { Button, Divider, Header, Icon } from 'semantic-ui-react';
 
+const clear = async ({ direction, setState }) => {
+  setState(true);
+  await clearCompleted({ direction });
+  setState(false);
+  toast.success(`Completed ${direction}s cleared!`);
+};
+
 const Data = () => {
   const [up, setUp] = useState(false);
   const [down, setDown] = useState(false);
-
-  const clear = async ({ direction, setState }) => {
-    setState(true);
-    await clearCompleted({ direction });
-    setState(false);
-    toast.success(`Completed ${direction}s cleared!`);
-  };
 
   return (
     <div>

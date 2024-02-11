@@ -28,8 +28,8 @@ const ExclusionTable = ({ exclusions = [] } = {}) => {
             )
           }
         >
-          {exclusions.map((share, index) => (
-            <Table.Row key={index}>
+          {exclusions.map((share) => (
+            <Table.Row key={share.localPath}>
               <Table.Cell>
                 <Icon
                   color="red"

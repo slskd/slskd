@@ -1,4 +1,4 @@
-const Logos = [
+const Logo = [
   `
       ▄▄▄▄     ▄▄▄▄     ▄▄▄▄
 ▄▄▄▄▄▄█  █▄▄▄▄▄█  █▄▄▄▄▄█  █
@@ -13,4 +13,4 @@ const Logos = [
 `,
 ];
 
-export default Logos;
+export default Logo;

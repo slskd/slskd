@@ -7,7 +7,33 @@ import React, { useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
 import { Divider } from 'semantic-ui-react';
 
-const Index = ({ state = {} } = {}) => {
+const ScanButton = ({ rescan, scanPending, working }) => (
+  <ShrinkableButton
+    color={scanPending ? 'yellow' : undefined}
+    disabled={working}
+    icon="refresh"
+    loading={working}
+    mediaQuery="(max-width: 516px)"
+    onClick={() => rescan()}
+    primary={!scanPending}
+  >
+    Rescan Shares
+  </ShrinkableButton>
+);
+
+const CancelButton = ({ cancel, working }) => (
+  <ShrinkableButton
+    color="red"
+    disabled={working}
+    icon="x"
+    mediaQuery="(max-width: 516px)"
+    onClick={() => cancel()}
+  >
+    Cancel Scan
+  </ShrinkableButton>
+);
+
+const Shares = ({ state = {} } = {}) => {
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState(false);
   const [shares, setShares] = useState([]);
@@ -15,30 +41,15 @@ const Index = ({ state = {} } = {}) => {
 
   const { directories, files, scanPending, scanProgress, scanning } = state;
 
-  useEffect(() => {
-    getAll();
-  }, []);
-
-  useEffect(() => {
-    getAll({ quiet: true });
-
-    if (!scanning) {
-      // the state change out of scanning can fire before
-      // shares are updated, which leaves them stale. wait a second
-      // and fetch again.
-      setTimeout(() => getAll({ quiet: true }), 1_000);
-    }
-  }, [scanPending, scanning]);
-
-  const getAll = async ({ quiet } = { quiet: false }) => {
+  const getAll = async (quiet = false) => {
     try {
       if (!quiet) setLoading(true);
 
       const sharesByHost = await sharesLibrary.getAll();
       const flattened = Object.entries(sharesByHost).reduce(
-        (accumulator, [host, shares]) => {
+        (accumulator, [host, sharesForHost]) => {
           return accumulator.concat(
-            shares.map((share) => ({ host, ...share })),
+            sharesForHost.map((share) => ({ host, ...share })),
           );
         },
         [],
@@ -52,6 +63,21 @@ const Index = ({ state = {} } = {}) => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    getAll();
+  }, []);
+
+  useEffect(() => {
+    getAll(true);
+
+    if (!scanning) {
+      // the state change out of scanning can fire before
+      // shares are updated, which leaves them stale. wait a second
+      // and fetch again.
+      setTimeout(() => getAll(true), 1_000);
+    }
+  }, [scanPending, scanning]);
 
   const rescan = async () => {
     try {
@@ -82,40 +108,27 @@ const Index = ({ state = {} } = {}) => {
     }
   };
 
-  const ScanButton = () => (
-    <ShrinkableButton
-      color={scanPending ? 'yellow' : undefined}
-      disabled={working}
-      icon="refresh"
-      loading={working}
-      mediaQuery="(max-width: 516px)"
-      onClick={() => rescan()}
-      primary={!scanPending}
-    >
-      Rescan Shares
-    </ShrinkableButton>
-  );
-
-  const CancelButton = () => (
-    <ShrinkableButton
-      color="red"
-      disabled={working}
-      icon="x"
-      mediaQuery="(max-width: 516px)"
-      onClick={() => cancel()}
-    >
-      Cancel Scan
-    </ShrinkableButton>
-  );
-
   const shared = shares.filter((share) => !share.isExcluded);
   const excluded = shares.filter((share) => share.isExcluded);
 
   return (
     <Switch loading={loading && <LoaderSegment />}>
       <div className="header-buttons">
-        <Switch scanning={scanning && <CancelButton />}>
-          <ScanButton />
+        <Switch
+          scanning={
+            scanning && (
+              <CancelButton
+                cancel={cancel}
+                working={working}
+              />
+            )
+          }
+        >
+          <ScanButton
+            rescan={rescan}
+            scanPending={scanPending}
+            working={working}
+          />
         </Switch>
       </div>
       <Divider />
@@ -147,4 +160,4 @@ const Index = ({ state = {} } = {}) => {
   );
 };
 
-export default Index;
+export default Shares;

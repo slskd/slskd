@@ -24,8 +24,8 @@ const RoomJoinModal = ({ joinRoom: parentJoinRoom, ...modalOptions }) => {
   useEffect(() => {
     const getAvailableRooms = async () => {
       setLoading(true);
-      const available = await rooms.getAvailable();
-      setAvailable(available);
+      const availableResult = await rooms.getAvailable();
+      setAvailable(availableResult);
       setLoading(false);
     };
 
@@ -54,13 +54,6 @@ const RoomJoinModal = ({ joinRoom: parentJoinRoom, ...modalOptions }) => {
     return sorted;
   }, [available, filter, sortBy, sortOrder]);
 
-  const joinRoom = async () => {
-    await parentJoinRoom(selected);
-    close();
-  };
-
-  const isSelected = (room) => selected === room.name;
-
   const close = () => {
     setAvailable([]);
     setSelected(undefined);
@@ -69,6 +62,13 @@ const RoomJoinModal = ({ joinRoom: parentJoinRoom, ...modalOptions }) => {
     setFilter('');
     setOpen(false);
   };
+
+  const joinRoom = async () => {
+    await parentJoinRoom(selected);
+    close();
+  };
+
+  const isSelected = (room) => selected === room.name;
 
   return (
     <Modal
@@ -98,7 +98,7 @@ const RoomJoinModal = ({ joinRoom: parentJoinRoom, ...modalOptions }) => {
             <Input
               fluid
               icon="filter"
-              onChange={(_, e) => setFilter(e.value)}
+              onChange={(_, event) => setFilter(event.value)}
               placeholder="Room Filter"
             />
             <Table
@@ -136,9 +136,9 @@ const RoomJoinModal = ({ joinRoom: parentJoinRoom, ...modalOptions }) => {
                 </Table.Row>
               </Table.Header>
               <Table.Body>
-                {sortedAvailable.map((room, index) => (
+                {sortedAvailable.map((room) => (
                   <Table.Row
-                    key={index}
+                    key={room.name}
                     onClick={() => setSelected(room.name)}
                     style={isSelected(room) ? { fontWeight: 'bold' } : {}}
                   >

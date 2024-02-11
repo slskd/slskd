@@ -19,7 +19,11 @@ const levels = {
 const maxLogs = 500;
 
 class Logs extends Component {
-  state = initialState;
+  constructor(props) {
+    super(props);
+
+    this.state = initialState;
+  }
 
   componentDidMount() {
     const logsHub = createLogsHubConnection();
@@ -32,10 +36,10 @@ class Logs extends Component {
     });
 
     logsHub.on('log', (log) => {
-      this.setState({
+      this.setState((previousState) => ({
         connected: true,
-        logs: [log].concat(this.state.logs).slice(0, maxLogs),
-      });
+        logs: [log].concat(previousState.logs).slice(0, maxLogs),
+      }));
     });
 
     logsHub.onreconnecting(() => this.setState({ connected: false }));
@@ -69,10 +73,10 @@ class Logs extends Component {
               </Table.Row>
             </Table.Header>
             <Table.Body className="logs-table-body">
-              {logs.map((log, index) => (
+              {logs.map((log) => (
                 <Table.Row
                   disabled={log.level === 'Debug'}
-                  key={index}
+                  key={log.timestamp}
                   negative={log.level === 'Error'}
                   warning={log.level === 'Warning'}
                 >

@@ -33,15 +33,19 @@ const isQueuedState = (state) => state.includes('Queued');
 
 const formatBytesTransferred = ({ size, transferred }) => {
   const [s, sExtension] = formatBytes(size, 1).split(' ');
-  const t = formatBytesAsUnit(transferred, 1, sExtension);
+  const t = formatBytesAsUnit(transferred, sExtension, 1);
 
   return `${t}/${s} ${sExtension}`;
 };
 
 class TransferList extends Component {
-  state = {
-    isFolded: false,
-  };
+  constructor(props) {
+    super(props);
+
+    this.state = {
+      isFolded: false,
+    };
+  }
 
   handleClick = (file) => {
     const { direction, state } = file;
@@ -55,10 +59,12 @@ class TransferList extends Component {
         return this.props.onPlaceInQueueRequested(file);
       }
     }
+
+    return undefined;
   };
 
   toggleFolded = () => {
-    this.setState({ isFolded: !this.state.isFolded });
+    this.setState((previousState) => ({ isFolded: !previousState.isFolded }));
   };
 
   render() {
@@ -78,7 +84,7 @@ class TransferList extends Component {
           />
           {directoryName}
         </Header>
-        {!isFolded ? (
+        {isFolded === false ? (
           <List>
             <List.Item>
               <Table>
@@ -117,8 +123,8 @@ class TransferList extends Component {
                         getFileName(b.filename),
                       ),
                     )
-                    .map((f, index) => (
-                      <Table.Row key={index}>
+                    .map((f) => (
+                      <Table.Row key={f.filename}>
                         <Table.Cell className="transferlist-selector">
                           <Checkbox
                             checked={f.selected}

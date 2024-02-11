@@ -137,8 +137,8 @@ const System = ({ options = {}, state = {}, theme }) => {
 
   const activeIndex = panes.findIndex((pane) => pane.route === tab);
 
-  const onTabChange = (e, { activeIndex }) => {
-    history.push(panes[activeIndex].route);
+  const onTabChange = (_event, { activeIndex: newActiveIndex }) => {
+    history.push(panes[newActiveIndex].route);
   };
 
   if (tab === undefined) {

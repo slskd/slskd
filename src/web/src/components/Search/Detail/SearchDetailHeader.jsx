@@ -3,6 +3,52 @@ import React from 'react';
 import { useMediaQuery } from 'react-responsive';
 import { Button, Header, Icon, Segment } from 'semantic-ui-react';
 
+const RefreshButton = ({
+  creating,
+  disabled,
+  isSmallScreen,
+  isTinyScreen,
+  loaded,
+  onCreate,
+  searchText,
+  working,
+}) =>
+  loaded && (
+    <Button
+      disabled={disabled || working}
+      icon={isSmallScreen && !isTinyScreen}
+      loading={creating}
+      onClick={() => onCreate({ navigate: true, search: searchText })}
+    >
+      <Icon name="refresh" />
+      {(!isSmallScreen || isTinyScreen) && 'Search Again'}
+    </Button>
+  );
+
+const StopOrDeleteButton = ({
+  isComplete,
+  isSmallScreen,
+  isTinyScreen,
+  loaded,
+  removing,
+  stopOrRemove,
+  stopping,
+  working,
+}) => (
+  <Button
+    disabled={working}
+    floated={isTinyScreen ? 'right' : undefined}
+    icon={isSmallScreen && !isTinyScreen}
+    loading={removing || stopping}
+    negative
+    onClick={stopOrRemove}
+  >
+    <Icon name={isComplete ? 'trash alternate' : 'stop circle'} />
+    {(!isSmallScreen || isTinyScreen) &&
+      (loaded && isComplete ? 'Delete' : 'Stop')}
+  </Button>
+);
+
 const SearchDetailHeader = ({
   creating,
   disabled,
@@ -29,34 +75,6 @@ const SearchDetailHeader = ({
     }
   };
 
-  const RefreshButton = () =>
-    loaded && (
-      <Button
-        disabled={disabled || working}
-        icon={isSmallScreen && !isTinyScreen}
-        loading={creating}
-        onClick={() => onCreate({ navigate: true, search: searchText })}
-      >
-        <Icon name="refresh" />
-        {(!isSmallScreen || isTinyScreen) && 'Search Again'}
-      </Button>
-    );
-
-  const StopOrDeleteButton = () => (
-    <Button
-      disabled={working}
-      floated={isTinyScreen ? 'right' : undefined}
-      icon={isSmallScreen && !isTinyScreen}
-      loading={removing || stopping}
-      negative
-      onClick={stopOrRemove}
-    >
-      <Icon name={isComplete ? 'trash alternate' : 'stop circle'} />
-      {(!isSmallScreen || isTinyScreen) &&
-        (loaded && isComplete ? 'Delete' : 'Stop')}
-    </Button>
-  );
-
   // if the screen is full width, display the header and action buttons in the same segment, with full
   // button text.  if the screen is between 684 and 899 pixels, display the buttons with no text.
   // if the screen is less than 684 pixels, display the action buttons in a new segment, with full text.
@@ -72,15 +90,51 @@ const SearchDetailHeader = ({
         </Header>
         {!isTinyScreen && (
           <div className="search-detail-header-buttons">
-            <RefreshButton />
-            <StopOrDeleteButton />
+            <RefreshButton
+              creating={creating}
+              disabled={disabled}
+              isSmallScreen={isSmallScreen}
+              isTinyScreen={isTinyScreen}
+              loaded={loaded}
+              onCreate={onCreate}
+              searchText={searchText}
+              working={working}
+            />
+            <StopOrDeleteButton
+              isComplete={isComplete}
+              isSmallScreen={isSmallScreen}
+              isTinyScreen={isTinyScreen}
+              loaded={loaded}
+              removing={removing}
+              stopOrRemove={stopOrRemove}
+              stopping={stopping}
+              working={working}
+            />
           </div>
         )}
       </Segment>
       {isTinyScreen && (
         <Segment>
-          <RefreshButton />
-          <StopOrDeleteButton />
+          <RefreshButton
+            creating={creating}
+            disabled={disabled}
+            isSmallScreen={isSmallScreen}
+            isTinyScreen={isTinyScreen}
+            loaded={loaded}
+            onCreate={onCreate}
+            searchText={searchText}
+            working={working}
+          />
+          <StopOrDeleteButton
+            isComplete={isComplete}
+            isSmallScreen={isSmallScreen}
+            isTinyScreen={isTinyScreen}
+            loaded={loaded}
+            removing={removing}
+            stopOrRemove={stopOrRemove}
+            stopping={stopping}
+            working={working}
+          />
         </Segment>
       )}
     </>

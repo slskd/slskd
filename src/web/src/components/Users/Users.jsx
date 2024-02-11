@@ -6,15 +6,38 @@ import User from './User';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Icon, Input, Item, Loader, Segment } from 'semantic-ui-react';
 
-const Users = (props) => {
+const Users = () => {
   const inputRef = useRef();
   const [user, setUser] = useState();
   const [usernameInput, setUsernameInput] = useState();
   const [selectedUsername, setSelectedUsername] = useState(undefined);
+  // eslint-disable-next-line react/hook-use-state
   const [{ error, fetching }, setStatus] = useState({
     error: undefined,
     fetching: false,
   });
+
+  const setInputText = (text) => {
+    inputRef.current.inputRef.current.value = text;
+  };
+
+  const setInputFocus = () => {
+    inputRef.current.focus();
+  };
+
+  const clear = () => {
+    localStorage.removeItem(activeUserInfoKey);
+    setSelectedUsername(undefined);
+    setUser(undefined);
+    setInputText('');
+    setInputFocus();
+  };
+
+  const keyUp = (event) => (event.key === 'Escape' ? clear() : '');
+
+  useLayoutEffect(() => {
+    document.removeEventListener('keyup', keyUp, false);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     document.addEventListener('keyup', keyUp, false);
@@ -25,10 +48,6 @@ const Users = (props) => {
       setSelectedUsername(storedUsername);
       setInputText(storedUsername);
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useLayoutEffect(() => {
-    document.removeEventListener('keyup', keyUp, false);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -49,31 +68,13 @@ const Users = (props) => {
         localStorage.setItem(activeUserInfoKey, selectedUsername);
         setUser({ ...info.data, ...status.data, ...endpoint.data });
         setStatus({ error: undefined, fetching: false });
-      } catch (error) {
-        setStatus({ error, fetching: false });
+      } catch (fetchError) {
+        setStatus({ error: fetchError, fetching: false });
       }
     };
 
     fetchUser();
   }, [selectedUsername]);
-
-  const clear = () => {
-    localStorage.removeItem(activeUserInfoKey);
-    setSelectedUsername(undefined);
-    setUser(undefined);
-    setInputText('');
-    setInputFocus();
-  };
-
-  const setInputText = (text) => {
-    inputRef.current.inputRef.current.value = text;
-  };
-
-  const setInputFocus = () => {
-    inputRef.current.focus();
-  };
-
-  const keyUp = (e) => (e.key === 'Escape' ? clear() : '');
 
   return (
     <div className="users-container">
@@ -90,7 +91,7 @@ const Users = (props) => {
         <Input
           action={
             !fetching &&
-            (!user
+            (user == null
               ? {
                   icon: 'search',
                   onClick: () => setSelectedUsername(usernameInput),
@@ -108,9 +109,9 @@ const Users = (props) => {
             />
           }
           loading={fetching}
-          onChange={(e) => setUsernameInput(e.target.value)}
-          onKeyUp={(e) =>
-            e.key === 'Enter' ? setSelectedUsername(usernameInput) : ''
+          onChange={(event) => setUsernameInput(event.target.value)}
+          onKeyUp={(event) =>
+            event.key === 'Enter' ? setSelectedUsername(usernameInput) : ''
           }
           placeholder="Username"
           ref={inputRef}
@@ -128,7 +129,7 @@ const Users = (props) => {
         <div>
           {error ? (
             <span>Failed to retrieve information for {selectedUsername}</span>
-          ) : !user ? (
+          ) : user == null ? (
             <PlaceholderSegment
               caption="No user info to display"
               icon="users"

@@ -15,6 +15,10 @@ const SendMessageModal = ({ initiateConversation, ...rest }) => {
     }
   }, [open]);
 
+  const validInput = () => {
+    return username.length > 0 && message.length > 0;
+  };
+
   const sendMessage = async () => {
     if (!validInput()) {
       usernameRef.current.focus();
@@ -23,10 +27,6 @@ const SendMessageModal = ({ initiateConversation, ...rest }) => {
 
     await initiateConversation(username, message);
     setOpen(false);
-  };
-
-  const validInput = () => {
-    return username.length > 0 && message.length > 0;
   };
 
   return (
@@ -44,14 +44,14 @@ const SendMessageModal = ({ initiateConversation, ...rest }) => {
         <Form>
           <Form.Field>
             <Input
-              onChange={(e, data) => setUsername(data.value)}
+              onChange={(_event, data) => setUsername(data.value)}
               placeholder="Username"
               ref={usernameRef}
             />
           </Form.Field>
           <Form.Field>
             <Input
-              onChange={(e, data) => setMessage(data.value)}
+              onChange={(_event, data) => setMessage(data.value)}
               placeholder="Message"
             />
           </Form.Field>

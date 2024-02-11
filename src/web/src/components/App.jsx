@@ -41,21 +41,111 @@ const initialState = {
   retriesExhausted: false,
 };
 
+const ModeSpecificConnectButton = ({
+  controller = {},
+  mode,
+  pendingReconnect,
+  server,
+  user,
+}) => {
+  if (mode === 'Agent') {
+    const isConnected = controller?.state === 'Connected';
+    const isTransitioning = ['Connecting', 'Reconnecting'].includes(
+      controller?.state,
+    );
+
+    return (
+      <Menu.Item
+        onClick={() =>
+          isConnected ? relayAPI.disconnect() : relayAPI.connect()
+        }
+      >
+        <Icon.Group className="menu-icon-group">
+          <Icon
+            color={
+              controller?.state === 'Connected'
+                ? 'green'
+                : isTransitioning
+                  ? 'yellow'
+                  : 'grey'
+            }
+            name="plug"
+          />
+          {!isConnected && (
+            <Icon
+              className="menu-icon-no-shadow"
+              color="red"
+              corner="bottom right"
+              name="close"
+            />
+          )}
+        </Icon.Group>
+        Controller {controller?.state}
+      </Menu.Item>
+    );
+  } else {
+    return (
+      <>
+        {server?.isConnected && (
+          <Menu.Item onClick={() => disconnect()}>
+            <Icon.Group className="menu-icon-group">
+              <Icon
+                color={pendingReconnect ? 'yellow' : 'green'}
+                name="plug"
+              />
+              {user?.privileges?.isPrivileged && (
+                <Icon
+                  className="menu-icon-no-shadow"
+                  color="yellow"
+                  corner
+                  name="star"
+                />
+              )}
+            </Icon.Group>
+            Connected
+          </Menu.Item>
+        )}
+        {!server?.isConnected && (
+          <Menu.Item onClick={() => connect()}>
+            <Icon.Group className="menu-icon-group">
+              <Icon
+                color="grey"
+                name="plug"
+              />
+              <Icon
+                className="menu-icon-no-shadow"
+                color="red"
+                corner="bottom right"
+                name="close"
+              />
+            </Icon.Group>
+            Disconnected
+          </Menu.Item>
+        )}
+      </>
+    );
+  }
+};
+
 class App extends Component {
-  state = initialState;
+  constructor(props) {
+    super(props);
+
+    this.state = initialState;
+  }
 
   componentDidMount() {
     window
       .matchMedia('(prefers-color-scheme: dark)')
       .addEventListener(
         'change',
-        (e) => e.matches && this.setState({ theme: 'dark' }),
+        (event) => event.matches && this.setState({ theme: 'dark' }),
       );
     window
       .matchMedia('(prefers-color-scheme: light)')
       .addEventListener(
         'change',
-        (e) => e.matches && this.setState({ theme: 'light' }),
+        (event) => event.matches && this.setState({ theme: 'light' }),
       );
     this.init();
   }
@@ -106,20 +196,24 @@ class App extends Component {
     });
   };
 
-  login = (username, password, rememberMe) => {
+  handleLogin = (username, password, rememberMe) => {
     this.setState(
-      { login: { ...this.state.login, error: undefined, pending: true } },
+      (previousState) => ({
+        login: { ...previousState.login, error: undefined, pending: true },
+      }),
       async () => {
         try {
           await session.login({ password, rememberMe, username });
           this.setState(
-            { login: { ...this.state.login, error: false, pending: false } },
+            (previousState) => ({
+              login: { ...previousState.login, error: false, pending: false },
+            }),
             () => this.init(),
           );
         } catch (error) {
-          this.setState({
-            login: { ...this.state.login, error, pending: false },
-          });
+          this.setState((previousState) => ({
+            login: { ...previousState.login, error, pending: false },
+          }));
         }
       },
     );
@@ -194,90 +288,10 @@ class App extends Component {
           error={login.error}
           initialized={login.initialized}
           loading={login.pending}
-          onLoginAttempt={this.login}
+          onLoginAttempt={this.handleLogin}
         />
       );
     }
-
-    const ModeSpecificConnectButton = ({ controller = {}, mode, server }) => {
-      if (mode === 'Agent') {
-        const isConnected = controller?.state === 'Connected';
-        const isTransitioning = ['Connecting', 'Reconnecting'].includes(
-          controller?.state,
-        );
-
-        return (
-          <Menu.Item
-            onClick={() =>
-              isConnected ? relayAPI.disconnect() : relayAPI.connect()
-            }
-          >
-            <Icon.Group className="menu-icon-group">
-              <Icon
-                color={
-                  controller?.state === 'Connected'
-                    ? 'green'
-                    : isTransitioning
-                      ? 'yellow'
-                      : 'grey'
-                }
-                name="plug"
-              />
-              {!isConnected && (
-                <Icon
-                  className="menu-icon-no-shadow"
-                  color="red"
-                  corner="bottom right"
-                  name="close"
-                />
-              )}
-            </Icon.Group>
-            Controller {controller?.state}
-          </Menu.Item>
-        );
-      } else {
-        return (
-          <>
-            {server?.isConnected && (
-              <Menu.Item onClick={() => disconnect()}>
-                <Icon.Group className="menu-icon-group">
-                  <Icon
-                    color={pendingReconnect ? 'yellow' : 'green'}
-                    name="plug"
-                  />
-                  {user?.privileges?.isPrivileged && (
-                    <Icon
-                      className="menu-icon-no-shadow"
-                      color="yellow"
-                      corner
-                      name="star"
-                    />
-                  )}
-                </Icon.Group>
-                Connected
-              </Menu.Item>
-            )}
-            {!server?.isConnected && (
-              <Menu.Item onClick={() => connect()}>
-                <Icon.Group className="menu-icon-group">
-                  <Icon
-                    color="grey"
-                    name="plug"
-                  />
-                  <Icon
-                    className="menu-icon-no-shadow"
-                    color="red"
-                    corner="bottom right"
-                    name="close"
-                  />
-                </Icon.Group>
-                Disconnected
-              </Menu.Item>
-            )}
-          </>
-        );
-      }
-    };
 
     const isAgent = mode === 'Agent';
 
@@ -379,7 +393,9 @@ class App extends Component {
               <ModeSpecificConnectButton
                 controller={controller}
                 mode={mode}
+                pendingReconnect={pendingReconnect}
                 server={server}
+                user={user}
               />
               {(pendingReconnect || pendingRestart || pendingShareRescan) && (
                 <Menu.Item position="right">
@@ -469,6 +485,8 @@ class App extends Component {
           </Sidebar>
           <Sidebar.Pusher className="app-content">
             <AppContext.Provider
+              // TODO: needs useMemo, but class component. yolo for now.
+              // eslint-disable-next-line react/jsx-no-constructed-context-values
               value={{ options: applicationOptions, state: applicationState }}
             >
               {isAgent ? (

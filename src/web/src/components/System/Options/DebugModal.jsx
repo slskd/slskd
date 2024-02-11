@@ -8,12 +8,6 @@ const DebugModal = ({ onClose, open, theme }) => {
   const [loading, setLoading] = useState(true);
   const [debugView, setDebugView] = useState();
 
-  useEffect(() => {
-    if (open) {
-      get();
-    }
-  }, [open]);
-
   const get = async () => {
     setLoading(true);
 
@@ -26,6 +20,12 @@ const DebugModal = ({ onClose, open, theme }) => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (open) {
+      get();
+    }
+  }, [open]);
 
   return (
     <Modal

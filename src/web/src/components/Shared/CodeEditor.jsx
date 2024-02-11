@@ -16,7 +16,7 @@ const CodeEditor = ({ onChange = () => {}, theme, value, ...rest }) => {
         StreamLanguage.define(yaml),
         syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
       ]}
-      onChange={(value, _) => onChange(value)}
+      onChange={(newValue) => onChange(newValue)}
       theme={theme}
       value={value}
       {...rest}

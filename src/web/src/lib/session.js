@@ -1,9 +1,6 @@
-import { tokenKey, tokenPassthroughValue } from '../config';
+import { tokenPassthroughValue } from '../config';
 import api from './api';
-
-export const getToken = () =>
-  sessionStorage.getItem(tokenKey) || localStorage.getItem(tokenKey);
-const setToken = (storage, token) => storage.setItem(tokenKey, token);
+import { clearToken, getToken, setToken } from './token';
 
 export const getSecurityEnabled = async () => {
   return (await api.get('/session/enabled')).data;
@@ -15,8 +12,6 @@ export const enablePassthrough = () => {
   );
   setToken(sessionStorage, tokenPassthroughValue);
 };
-
-export const isPassthroughEnabled = () => getToken() === tokenPassthroughValue;
 
 export const isLoggedIn = () => {
   const token = getToken();
@@ -33,8 +28,7 @@ export const login = async ({ username, password, rememberMe = false }) => {
 
 export const logout = () => {
   console.debug('removing token from local and session storage');
-  localStorage.removeItem(tokenKey);
-  sessionStorage.removeItem(tokenKey);
+  clearToken();
 };
 
 export const check = async () => {

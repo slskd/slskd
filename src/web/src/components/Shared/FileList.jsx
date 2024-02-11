@@ -77,8 +77,8 @@ const FileList = ({
               <Table.Body>
                 {files
                   .sort((a, b) => (a.filename > b.filename ? 1 : -1))
-                  .map((f, index) => (
-                    <Table.Row key={index}>
+                  .map((f) => (
+                    <Table.Row key={f.filename}>
                       <Table.Cell className="filelist-selector">
                         <Checkbox
                           checked={f.selected}

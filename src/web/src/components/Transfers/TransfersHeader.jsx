@@ -75,20 +75,18 @@ const TransfersHeader = ({
   const [retryOption, setRetryOption] = useState('Errored');
 
   const files = useMemo(() => {
-    const files = transfers.reduce((accumulator, username) => {
-      const allUserFiles = username.directories.reduce(
-        (accumulator_, directory) => {
-          accumulator_ = accumulator_.concat(directory.files);
-          return accumulator_;
-        },
-        [],
-      );
+    return transfers
+      .reduce((accumulator, username) => {
+        const allUserFiles = username.directories.reduce(
+          (directoryAccumulator, directory) => {
+            return directoryAccumulator.concat(directory.files);
+          },
+          [],
+        );
 
-      accumulator = accumulator.concat(allUserFiles);
-      return accumulator;
-    }, []);
-
-    return files.filter((file) => file.direction.toLowerCase() === direction);
+        return accumulator.concat(allUserFiles);
+      }, [])
+      .filter((file) => file.direction.toLowerCase() === direction);
   }, [direction, transfers]);
 
   const empty = files.length === 0;

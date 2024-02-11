@@ -39,8 +39,8 @@ const ShareTable = ({ onClick, shares }) => {
             )
           }
         >
-          {shares.map((share, index) => (
-            <Table.Row key={index}>
+          {shares.map((share) => (
+            <Table.Row key={`${share.host}+${share.localPath}`}>
               <Table.Cell>{share.host}</Table.Cell>
               <Table.Cell onClick={() => onClick(share)}>
                 <Icon name="folder" />

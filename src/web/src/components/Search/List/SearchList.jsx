@@ -60,9 +60,9 @@ const SearchList = ({
               <Table.Body>
                 {Object.values(searches)
                   .sort((a, b) => new Date(b.startedAt) - new Date(a.startedAt))
-                  .map((search, index) => (
+                  .map((search) => (
                     <SearchListRow
-                      key={index}
+                      key={search.id}
                       onRemove={onRemove}
                       onStop={onStop}
                       search={search}

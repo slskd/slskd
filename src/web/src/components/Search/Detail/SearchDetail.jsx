@@ -66,8 +66,8 @@ const SearchDetail = ({
         const responses = await getResponses({ id });
         setResults(responses);
         setLoading(false);
-      } catch (error) {
-        setError(error);
+      } catch (getError) {
+        setError(getError);
         setLoading(false);
       }
     };
@@ -127,9 +127,9 @@ const SearchDetail = ({
     setDisplayCount(5);
   };
 
-  const create = async ({ navigate, search }) => {
+  const create = async ({ navigate, search: searchForCreate }) => {
     reset();
-    onCreate({ navigate, search });
+    onCreate({ navigate, searchForCreate });
   };
 
   const remove = async () => {
@@ -186,7 +186,7 @@ const SearchDetail = ({
               floating
               icon="sort"
               labeled
-              onChange={(e, { value }) => setResultSort(value)}
+              onChange={(_event, { value }) => setResultSort(value)}
               options={sortDropdownOptions}
               text={
                 sortDropdownOptions.find((o) => o.value === resultSort).text
@@ -225,7 +225,7 @@ const SearchDetail = ({
               }
               className="search-filter"
               label={{ content: 'Filter', icon: 'filter' }}
-              onChange={(e, data) => setResultFilters(data.value)}
+              onChange={(_event, data) => setResultFilters(data.value)}
               placeholder="
                 lackluster container -bothersome iscbr|isvbr islossless|islossy 
                 minbitrate:320 minbitdepth:24 minfilesize:10 minfilesinfolder:8 minlength:5000
@@ -235,11 +235,11 @@ const SearchDetail = ({
           </Segment>
         )}
         {loaded &&
-          sortedAndFilteredResults.slice(0, displayCount).map((r, index) => (
+          sortedAndFilteredResults.slice(0, displayCount).map((r) => (
             <Response
               disabled={disabled}
               isInitiallyFolded={foldResults}
-              key={index}
+              key={r.username}
               onHide={() => setHiddenResults([...hiddenResults, r.username])}
               response={r}
             />

@@ -14,6 +14,16 @@ const Transfers = ({ direction, server }) => {
   const [cancelling, setCancelling] = useState(false);
   const [removing, setRemoving] = useState(false);
 
+  const fetch = async () => {
+    try {
+      const response = await transfersLibrary.getAll({ direction });
+      setTransfers(response);
+    } catch (error) {
+      console.error(error);
+      toast.error(error?.response?.data ?? error?.message ?? error);
+    }
+  };
+
   useEffect(() => {
     setConnecting(true);
 
@@ -40,16 +50,6 @@ const Transfers = ({ direction, server }) => {
     setConnecting(true);
   }, [direction]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const fetch = async () => {
-    try {
-      const response = await transfersLibrary.getAll({ direction });
-      setTransfers(response);
-    } catch (error) {
-      console.error(error);
-      toast.error(error?.response?.data ?? error?.message ?? error);
-    }
-  };
-
   const retry = async ({ file, suppressStateChange = false }) => {
     const { filename, size, username } = file;
 
@@ -67,10 +67,12 @@ const Transfers = ({ direction, server }) => {
     }
   };
 
-  const retryAll = async (transfers) => {
+  const retryAll = async (transfersToRetry) => {
     setRetrying(true);
     await Promise.all(
-      transfers.map((file) => retry({ file, suppressStateChange: true })),
+      transfersToRetry.map((file) =>
+        retry({ file, suppressStateChange: true }),
+      ),
     );
     setRetrying(false);
   };
@@ -89,10 +91,12 @@ const Transfers = ({ direction, server }) => {
     }
   };
 
-  const cancelAll = async (transfers) => {
+  const cancelAll = async (transfersToCancel) => {
     setCancelling(true);
     await Promise.all(
-      transfers.map((file) => cancel({ file, suppressStateChange: true })),
+      transfersToCancel.map((file) =>
+        cancel({ file, suppressStateChange: true }),
+      ),
     );
     setCancelling(false);
   };
@@ -111,10 +115,12 @@ const Transfers = ({ direction, server }) => {
     }
   };
 
-  const removeAll = async (transfers) => {
+  const removeAll = async (transfersToRemove) => {
     setRemoving(true);
     await Promise.all(
-      transfers.map((file) => remove({ file, suppressStateChange: true })),
+      transfersToRemove.map((file) =>
+        remove({ file, suppressStateChange: true }),
+      ),
     );
     setRemoving(false);
   };
@@ -142,12 +148,12 @@ const Transfers = ({ direction, server }) => {
           icon={direction}
         />
       ) : (
-        transfers.map((user, index) => (
+        transfers.map((user) => (
           <TransferGroup
             cancel={cancel}
             cancelAll={cancelAll}
             direction={direction}
-            key={index}
+            key={user.username}
             remove={remove}
             removeAll={removeAll}
             retry={retry}

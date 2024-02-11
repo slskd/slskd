@@ -23,11 +23,11 @@ const initialState = {
 };
 
 class Chat extends Component {
-  state = initialState;
+  constructor(props) {
+    super(props);
 
-  messageRef = undefined;
-
-  listRef = createRef();
+    this.state = initialState;
+  }
 
   componentDidMount() {
     this.setState(
@@ -48,6 +48,10 @@ class Chat extends Component {
     clearInterval(this.state.interval);
     this.setState({ interval: undefined });
   }
+
+  listRef = createRef();
+
+  messageRef = undefined;
 
   getFirstConversation = () => {
     const names = Object.keys(this.state.conversations);
@@ -218,7 +222,7 @@ class Chat extends Component {
             onConversationChange={(name) => this.selectConversation(name)}
           />
         </Segment>
-        {!active ? (
+        {Boolean(active) === false ? (
           <PlaceholderSegment
             caption="No chats to display"
             icon="comment"
@@ -256,10 +260,10 @@ class Chat extends Component {
                     <Segment className="chat-history">
                       <Ref innerRef={this.listRef}>
                         <List>
-                          {messages.map((message, index) => (
+                          {messages.map((message) => (
                             <List.Content
                               className={`chat-message ${message.direction === 'Out' ? 'chat-message-self' : ''}`}
-                              key={index}
+                              key={`${message.timestamp}+${message.message}`}
                             >
                               <span className="chat-message-time">
                                 {this.formatTimestamp(message.timestamp)}
@@ -301,8 +305,8 @@ class Chat extends Component {
                             type="text"
                           />
                         }
-                        onKeyUp={(e) =>
-                          e.key === 'Enter' ? this.sendReply() : ''
+                        onKeyUp={(event) =>
+                          event.key === 'Enter' ? this.sendReply() : ''
                         }
                         ref={(input) =>
                           (this.messageRef = input && input.inputRef)

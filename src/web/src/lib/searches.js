@@ -37,6 +37,16 @@ export const getResponses = async ({ id }) => {
   return response;
 };
 
+const getNthMatch = (string, regex, n) => {
+  const match = string.match(regex);
+
+  if (match) {
+    return Number.parseInt(match[n], 10);
+  }
+
+  return undefined;
+};
+
 export const parseFiltersFromString = (string) => {
   const filters = {
     exclude: [],
@@ -52,30 +62,24 @@ export const parseFiltersFromString = (string) => {
     minLength: 0,
   };
 
-  const getNthMatch = (string, regex, n) => {
-    const match = string.match(regex);
-
-    if (match) {
-      return Number.parseInt(match[n], 10);
-    }
-  };
-
   filters.minBitRate =
-    getNthMatch(string, /(minbr|minbitrate):(\d+)/i, 2) || filters.minBitRate;
+    getNthMatch(string, /(minbr|minbitrate):(\d+)/iu, 2) || filters.minBitRate;
   filters.minBitDepth =
-    getNthMatch(string, /(minbd|minbitdepth):(\d+)/i, 2) || filters.minBitDepth;
+    getNthMatch(string, /(minbd|minbitdepth):(\d+)/iu, 2) ||
+    filters.minBitDepth;
   filters.minFileSize =
-    getNthMatch(string, /(minfs|minfilesize):(\d+)/i, 2) || filters.minFileSize;
+    getNthMatch(string, /(minfs|minfilesize):(\d+)/iu, 2) ||
+    filters.minFileSize;
   filters.minLength =
-    getNthMatch(string, /(minlen|minlength):(\d+)/i, 2) || filters.minLength;
+    getNthMatch(string, /(minlen|minlength):(\d+)/iu, 2) || filters.minLength;
   filters.minFilesInFolder =
-    getNthMatch(string, /(minfif|minfilesinfolder):(\d+)/i, 2) ||
+    getNthMatch(string, /(minfif|minfilesinfolder):(\d+)/iu, 2) ||
     filters.minFilesInFolder;
 
-  filters.isVBR = Boolean(/isvbr/i.test(string));
-  filters.isCBR = Boolean(/iscbr/i.test(string));
-  filters.isLossless = Boolean(/islossless/i.test(string));
-  filters.isLossy = Boolean(/islossy/i.test(string));
+  filters.isVBR = Boolean(/isvbr/iu.test(string));
+  filters.isCBR = Boolean(/iscbr/iu.test(string));
+  filters.isLossless = Boolean(/islossless/iu.test(string));
+  filters.isLossy = Boolean(/islossy/iu.test(string));
 
   const terms = string
     .toLowerCase()
@@ -124,8 +128,8 @@ export const filterResponse = ({
     return { ...response, files: [] };
   }
 
-  const filterFiles = (files) =>
-    files.filter((file) => {
+  const filterFiles = (filesToFilter) =>
+    filesToFilter.filter((file) => {
       const {
         bitRate,
         size,

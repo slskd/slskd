@@ -2,7 +2,7 @@ import React from 'react';
 
 const Div = ({ children, hidden, ...rest }) => {
   if (hidden) {
-    return <></>;
+    return null;
   }
 
   return <div {...rest}>{children}</div>;

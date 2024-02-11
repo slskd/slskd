@@ -36,9 +36,9 @@ const Searches = ({ server } = {}) => {
     setError(undefined);
   };
 
-  const onConnectionError = (error) => {
+  const onConnectionError = (connectionError) => {
     setConnecting(false);
-    setError(error);
+    setError(connectionError);
   };
 
   const onUpdate = (update) => {
@@ -51,9 +51,9 @@ const Searches = ({ server } = {}) => {
 
     const searchHub = createSearchHubConnection();
 
-    searchHub.on('list', (searches) => {
+    searchHub.on('list', (searchesEvent) => {
       onUpdate(
-        searches.reduce((accumulator, search) => {
+        searchesEvent.reduce((accumulator, search) => {
           accumulator[search.id] = search;
           return accumulator;
         }, {}),
@@ -74,21 +74,21 @@ const Searches = ({ server } = {}) => {
 
     searchHub.on('create', () => {});
 
-    searchHub.onreconnecting((error) =>
-      onConnectionError(error?.message ?? 'Disconnected'),
+    searchHub.onreconnecting((connectionError) =>
+      onConnectionError(connectionError?.message ?? 'Disconnected'),
     );
     searchHub.onreconnected(() => onConnected());
-    searchHub.onclose((error) =>
-      onConnectionError(error?.message ?? 'Disconnected'),
+    searchHub.onclose((connectionError) =>
+      onConnectionError(connectionError?.message ?? 'Disconnected'),
     );
 
     const connect = async () => {
       try {
         onConnecting();
         await searchHub.start();
-      } catch (error) {
-        toast.error(error?.message ?? 'Failed to connect');
-        onConnectionError(error?.message ?? 'Failed to connect');
+      } catch (connectionError) {
+        toast.error(connectionError?.message ?? 'Failed to connect');
+        onConnectionError(connectionError?.message ?? 'Failed to connect');
       }
     };
 
@@ -122,9 +122,11 @@ const Searches = ({ server } = {}) => {
       if (navigate) {
         history.push(`${match.url.replace(`/${searchId}`, '')}/${id}`);
       }
-    } catch (error) {
-      console.error(error);
-      toast.error(error?.response?.data ?? error?.message ?? error);
+    } catch (createError) {
+      console.error(createError);
+      toast.error(
+        createError?.response?.data ?? createError?.message ?? createError,
+      );
       setCreating(false);
     }
   };
@@ -154,9 +156,13 @@ const Searches = ({ server } = {}) => {
       setStopping(true);
       await library.stop({ id: search.id });
       setStopping(false);
-    } catch (error) {
-      console.error(error);
-      toast.error(error?.response?.data ?? error?.message ?? error);
+    } catch (stoppingError) {
+      console.error(stoppingError);
+      toast.error(
+        stoppingError?.response?.data ??
+          stoppingError?.message ??
+          stoppingError,
+      );
       setStopping(false);
     }
   };
@@ -235,7 +241,7 @@ const Searches = ({ server } = {}) => {
             />
           }
           loading={creating}
-          onKeyUp={(e) => (e.key === 'Enter' ? create() : '')}
+          onKeyUp={(keyUpEvent) => (keyUpEvent.key === 'Enter' ? create() : '')}
           placeholder="Search phrase"
           ref={inputRef}
           size="big"

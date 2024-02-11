@@ -7,26 +7,33 @@ import { toast } from 'react-toastify';
 import { Button, Card, Icon, Label } from 'semantic-ui-react';
 
 const buildTree = (response) => {
-  let { files = [], lockedFiles = [] } = response;
+  let { files = [] } = response;
+  const { lockedFiles = [] } = response;
   files = files.concat(lockedFiles.map((file) => ({ ...file, locked: true })));
 
   return files.reduce((dict, file) => {
-    const dir = getDirectoryName(file.filename);
+    const directory = getDirectoryName(file.filename);
     const selectable = { selected: false, ...file };
-    dict[dir] =
-      dict[dir] === undefined ? [selectable] : dict[dir].concat(selectable);
+    dict[directory] =
+      dict[directory] === undefined
+        ? [selectable]
+        : dict[directory].concat(selectable);
     return dict;
   }, {});
 };
 
 class Response extends Component {
-  state = {
-    downloadError: '',
-    downloadRequest: undefined,
-    fetchingDirectoryContents: false,
-    isFolded: this.props.isInitiallyFolded,
-    tree: buildTree(this.props.response),
-  };
+  constructor(props) {
+    super(props);
+
+    this.state = {
+      downloadError: '',
+      downloadRequest: undefined,
+      fetchingDirectoryContents: false,
+      isFolded: this.props.isInitiallyFolded,
+      tree: buildTree(this.props.response),
+    };
+  }
 
   componentDidUpdate(previousProps) {
     if (
@@ -41,13 +48,13 @@ class Response extends Component {
     }
   }
 
-  onFileSelectionChange = (file, state) => {
+  handleFileSelectionChange = (file, state) => {
     file.selected = state;
-    this.setState({
+    this.setState((previousState) => ({
       downloadError: '',
       downloadRequest: undefined,
-      tree: this.state.tree,
-    });
+      tree: previousState.tree,
+    }));
   };
 
   download = (username, files) => {
@@ -102,8 +109,8 @@ class Response extends Component {
     }
   };
 
-  toggleFolded = () => {
-    this.setState({ isFolded: !this.state.isFolded });
+  handleToggleFolded = () => {
+    this.setState((previousState) => ({ isFolded: !previousState.isFolded }));
   };
 
   render() {
@@ -136,7 +143,7 @@ class Response extends Component {
             <Icon
               link
               name={isFolded ? 'chevron right' : 'chevron down'}
-              onClick={this.toggleFolded}
+              onClick={this.handleToggleFolded}
             />
             <Icon
               color={free ? 'green' : 'yellow'}
@@ -157,21 +164,24 @@ class Response extends Component {
               Slot: {free ? 'YES' : 'NO'}, Queue Length: {response.queueLength}
             </span>
           </Card.Meta>
-          {((!isFolded && Object.keys(tree)) || []).map((dir, index) => (
+          {((!isFolded && Object.keys(tree)) || []).map((directory) => (
             <FileList
-              directoryName={dir}
+              directoryName={directory}
               disabled={downloadRequest === 'inProgress'}
-              files={tree[dir]}
+              files={tree[directory]}
               footer={
                 <button
                   disabled={fetchingDirectoryContents}
-                  onClick={() => this.getFullDirectory(response.username, dir)}
+                  onClick={() =>
+                    this.getFullDirectory(response.username, directory)
+                  }
                   style={{
                     backgroundColor: 'transparent',
                     border: 'none',
                     cursor: 'pointer',
                     width: '100%',
                   }}
+                  type="button"
                 >
                   <Icon
                     loading={fetchingDirectoryContents}
@@ -180,9 +190,9 @@ class Response extends Component {
                   Get Full Directory Contents
                 </button>
               }
-              key={index}
-              locked={tree[dir].find((file) => file.locked)}
-              onSelectionChange={this.onFileSelectionChange}
+              key={directory}
+              locked={tree[directory].find((file) => file.locked)}
+              onSelectionChange={this.handleFileSelectionChange}
             />
           ))}
         </Card.Content>

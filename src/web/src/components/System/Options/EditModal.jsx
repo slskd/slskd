@@ -10,10 +10,12 @@ import React, { useEffect, useState } from 'react';
 import { Button, Icon, Message, Modal } from 'semantic-ui-react';
 
 const EditModal = ({ onClose, open, theme }) => {
+  // eslint-disable-next-line react/hook-use-state
   const [{ error, loading }, setLoading] = useState({
     error: false,
     loading: true,
   });
+  // eslint-disable-next-line react/hook-use-state
   const [{ isDirty, location, yaml }, setYaml] = useState({
     isDirty: false,
     location: undefined,
@@ -22,50 +24,50 @@ const EditModal = ({ onClose, open, theme }) => {
   const [yamlError, setYamlError] = useState();
   const [updateError, setUpdateError] = useState();
 
+  const get = async () => {
+    setLoading({ error: false, loading: true });
+
+    try {
+      const [locationResult, yamlResult] = await Promise.all([
+        getYamlLocation(),
+        getYaml(),
+      ]);
+
+      setYaml({ isDirty: false, location: locationResult, yaml: yamlResult });
+      setLoading({ error: false, loading: false });
+    } catch (getError) {
+      setLoading({ error: getError.message, loading: false });
+    }
+  };
+
+  const validate = async (newYaml) => {
+    const response = await validateYaml({ yaml: newYaml });
+    setYamlError(response);
+  };
+
+  const update = async (newYaml) => {
+    setYaml({ isDirty: true, location, yaml: newYaml });
+    validate(newYaml);
+  };
+
+  const save = async (newYaml) => {
+    await validate(newYaml);
+
+    if (!yamlError) {
+      try {
+        await updateYaml({ yaml: newYaml });
+        onClose();
+      } catch (nextUpdateError) {
+        setUpdateError(nextUpdateError.response.data);
+      }
+    }
+  };
+
   useEffect(() => {
     if (open) {
       get();
     }
   }, [open]);
-
-  const get = async () => {
-    setLoading({ error: false, loading: true });
-
-    try {
-      const [location, yaml] = await Promise.all([
-        getYamlLocation(),
-        getYaml(),
-      ]);
-
-      setYaml({ isDirty: false, location, yaml });
-      setLoading({ error: false, loading: false });
-    } catch (error) {
-      setLoading({ error: error.message, loading: false });
-    }
-  };
-
-  const update = async (yaml) => {
-    setYaml({ isDirty: true, location, yaml });
-    validate(yaml);
-  };
-
-  const validate = async (yaml) => {
-    const response = await validateYaml({ yaml });
-    setYamlError(response);
-  };
-
-  const save = async (yaml) => {
-    await validate(yaml);
-
-    if (!yamlError) {
-      try {
-        await updateYaml({ yaml });
-        onClose();
-      } catch (error) {
-        setUpdateError(error.response.data);
-      }
-    }
-  };
 
   return (
     <Modal

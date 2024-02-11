@@ -2,6 +2,10 @@ import './Rooms.css';
 import React, { useMemo } from 'react';
 import { Flag, Icon, List, Popup } from 'semantic-ui-react';
 
+const getDetails = (user) => {
+  return user.countryCode ?? '?';
+};
+
 const RoomUserList = ({ users }) => {
   const getFlag = (user) => {
     if (!(user || {}).countryCode)
@@ -13,10 +17,6 @@ const RoomUserList = ({ users }) => {
       );
 
     return <Flag name={user.countryCode.toLowerCase()} />;
-  };
-
-  const getDetails = (user) => {
-    return user.countryCode || '?';
   };
 
   const sortedUsers = useMemo(() => {
@@ -38,10 +38,10 @@ const RoomUserList = ({ users }) => {
 
   return (
     <List>
-      {sortedUsers.map((user, index) => (
+      {sortedUsers.map((user) => (
         <List.Item
           className={user.self ? 'room-user-self' : ''}
-          key={index}
+          key={user.username}
         >
           <List.Content style={{ opacity: user.status === 'Online' ? 1 : 0.5 }}>
             <Popup

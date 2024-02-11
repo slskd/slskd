@@ -30,11 +30,11 @@ const initialState = {
 };
 
 class Rooms extends Component {
-  state = initialState;
+  constructor(props) {
+    super(props);
 
-  messageRef = undefined;
-
-  listRef = createRef();
+    this.state = initialState;
+  }
 
   componentDidMount() {
     this.setState(
@@ -53,13 +53,18 @@ class Rooms extends Component {
   }
 
   componentWillUnmount() {
-    const { messages, rooms } = this.state.intervals;
+    const { messages: messagesInterval, rooms: roomsInterval } =
+      this.state.intervals;
 
-    clearInterval(rooms);
-    clearInterval(messages);
+    clearInterval(roomsInterval);
+    clearInterval(messagesInterval);
 
     this.setState({ intervals: initialState.intervals });
   }
+
+  listRef = createRef();
+
+  messageRef = undefined;
 
   getFirstRoom = () => {
     return this.state.joined.length > 0 ? this.state.joined[0] : '';
@@ -190,7 +195,7 @@ class Rooms extends Component {
             onRoomChange={(name) => this.selectRoom(name)}
           />
         </Segment>
-        {!active ? (
+        {active == null ? (
           <PlaceholderSegment
             caption="No rooms to display"
             icon="comments"
@@ -229,10 +234,10 @@ class Rooms extends Component {
                       <Segment className="room-history">
                         <Ref innerRef={this.listRef}>
                           <List>
-                            {room.messages.map((message, index) => (
+                            {room.messages.map((message) => (
                               <List.Content
                                 className={`room-message ${message.self ? 'room-message-self' : ''}`}
-                                key={index}
+                                key={`${message.timestamp}+${message.message}`}
                               >
                                 <span className="room-message-time">
                                   {this.formatTimestamp(message.timestamp)}
@@ -271,8 +276,8 @@ class Rooms extends Component {
                               type="text"
                             />
                           }
-                          onKeyUp={(e) =>
-                            e.key === 'Enter' ? this.sendMessage() : ''
+                          onKeyUp={(event) =>
+                            event.key === 'Enter' ? this.sendMessage() : ''
                           }
                           ref={(input) =>
                             (this.messageRef = input && input.inputRef)

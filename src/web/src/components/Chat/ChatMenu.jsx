@@ -12,11 +12,11 @@ const ChatMenu = ({ active, conversations, onConversationChange, ...rest }) => {
       className="conversation-menu"
       size="large"
     >
-      {names.map((name, index) => (
+      {names.map((name) => (
         <Menu.Item
           active={isActive(name)}
           className={`menu-item ${isActive(name) ? 'menu-active' : ''}`}
-          key={index}
+          key={name}
           name={name}
           onClick={() => onConversationChange(name)}
         >

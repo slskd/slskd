@@ -1,5 +1,5 @@
 import { apiBaseUrl } from '../config';
-import * as session from './session';
+import { clearToken, getToken, isPassthroughEnabled } from './token';
 import axios from 'axios';
 
 axios.defaults.baseURL = apiBaseUrl;
@@ -9,11 +9,11 @@ const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  const token = session.getToken();
+  const token = getToken();
 
   config.headers['Content-Type'] = 'application/json';
 
-  if (!session.isPassthroughEnabled() && token) {
+  if (!isPassthroughEnabled() && token) {
     config.headers.Authorization = 'Bearer ' + token;
   }
 
@@ -32,7 +32,7 @@ api.interceptors.response.use(
       )
     ) {
       console.debug('received 401 from api route, logging out');
-      session.logout();
+      clearToken();
       window.location.reload(true);
 
       return Promise.reject(error);

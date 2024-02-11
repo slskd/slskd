@@ -1,6 +1,7 @@
 const urlBase = (window.urlBase === '/' ? '' : window.urlBase) || '';
 const developmentPort = window.port ?? 5_030;
 const rootUrl =
+  // eslint-disable-next-line n/no-process-env
   process.env.NODE_ENV === 'production'
     ? urlBase
     : `http://localhost:${developmentPort}${urlBase}`;

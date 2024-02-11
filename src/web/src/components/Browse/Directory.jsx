@@ -10,18 +10,30 @@ const initialState = {
 };
 
 class Directory extends Component {
-  state = {
-    ...initialState,
-    files: this.props.files.map((f) => ({ selected: false, ...f })),
-  };
+  constructor(props) {
+    super(props);
 
-  onFileSelectionChange = (file, state) => {
+    this.state = {
+      ...initialState,
+      files: this.props.files.map((f) => ({ selected: false, ...f })),
+    };
+  }
+
+  componentDidUpdate(previousProps) {
+    if (this.props.name !== previousProps.name) {
+      this.setState({
+        files: this.props.files.map((f) => ({ selected: false, ...f })),
+      });
+    }
+  }
+
+  handleFileSelectionChange = (file, state) => {
     file.selected = state;
-    this.setState({
+    this.setState((previousState) => ({
       downloadError: '',
       downloadRequest: undefined,
-      tree: this.state.tree,
-    });
+      tree: previousState.tree,
+    }));
   };
 
   download = (username, files) => {
@@ -42,14 +54,6 @@ class Directory extends Component {
       }
     });
   };
-
-  componentDidUpdate(previousProps) {
-    if (this.props.name !== previousProps.name) {
-      this.setState({
-        files: this.props.files.map((f) => ({ selected: false, ...f })),
-      });
-    }
-  }
 
   render() {
     const { locked, marginTop, name, onClose, username } = this.props;
@@ -74,7 +78,7 @@ class Directory extends Component {
               files={files}
               locked={locked}
               onClose={onClose}
-              onSelectionChange={this.onFileSelectionChange}
+              onSelectionChange={this.handleFileSelectionChange}
             />
           </div>
         </Card.Content>

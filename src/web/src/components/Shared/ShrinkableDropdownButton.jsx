@@ -15,7 +15,7 @@ const ShrinkableDropdownButton = ({
   options,
 }) => {
   if (hidden) {
-    return <></>;
+    return null;
   }
 
   return (
@@ -34,7 +34,7 @@ const ShrinkableDropdownButton = ({
         disabled={disabled}
         onChange={onChange}
         options={options}
-        trigger={<></>}
+        trigger={null}
       />
     </Button.Group>
   );
