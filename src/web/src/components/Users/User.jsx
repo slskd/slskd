@@ -1,10 +1,13 @@
-import { 
-  Item,
-  Icon,
-} from 'semantic-ui-react';
+import { Icon, Item } from 'semantic-ui-react';
 
-const ImagePlaceholder = () => 
-  (<div className='users-picture-placeholder ui small image'><Icon name='camera' size='big'/></div>);
+const ImagePlaceholder = () => (
+  <div className="users-picture-placeholder ui small image">
+    <Icon
+      name="camera"
+      size="big"
+    />
+  </div>
+);
 
 const Presence = ({ presence }) => {
   const colors = {
@@ -12,48 +15,58 @@ const Presence = ({ presence }) => {
     Online: 'green',
   };
 
-  return <Icon name='circle' color={colors[presence] || 'grey'}/>;
+  return (
+    <Icon
+      color={colors[presence] || 'grey'}
+      name="circle"
+    />
+  );
 };
 
 const FreeUploadSlot = ({ hasFreeUploadSlot }) => (
-  <Icon 
-    name={hasFreeUploadSlot ? 'check' : 'close'}
+  <Icon
     color={hasFreeUploadSlot ? 'green' : 'red'}
+    name={hasFreeUploadSlot ? 'check' : 'close'}
   />
 );
 
-const User = ({ 
-  username, 
-  description, 
-  hasFreeUploadSlot, 
-  hasPicture, 
-  picture, 
-  queueLength, 
-  uploadSlots, 
-  updatedAt,
-  isPrivileged,
-  presence,
+const User = ({
   address,
+  description,
+  hasFreeUploadSlot,
+  hasPicture,
+  isPrivileged,
+  picture,
   port,
+  presence,
+  queueLength,
+  updatedAt,
+  uploadSlots,
+  username,
 }) => (
-  <>
-    <Item>
-      {hasPicture ? 
-        <Item.Image size='small' src={`data:image;base64,${picture}`} />
-        : <ImagePlaceholder/>}
+  <Item>
+    {hasPicture ? (
+      <Item.Image
+        size="small"
+        src={`data:image;base64,${picture}`}
+      />
+    ) : (
+      <ImagePlaceholder />
+    )}
 
-      <Item.Content>
-        <Item.Header as='a'><Presence presence={presence}/>{username}</Item.Header>
-        <Item.Meta>
-          Free Upload Slot: <FreeUploadSlot hasFreeUploadSlot />,
-          Total Upload Slots: {uploadSlots}, Queue Length: {queueLength}, IP Address: {address}, Port: {port}
-        </Item.Meta>
-        <Item.Description>
-          {description || 'No user info.'}
-        </Item.Description>
-      </Item.Content>
-    </Item>
-  </>
+    <Item.Content>
+      <Item.Header as="a">
+        <Presence presence={presence} />
+        {username}
+      </Item.Header>
+      <Item.Meta>
+        Free Upload Slot: <FreeUploadSlot hasFreeUploadSlot />, Total Upload
+        Slots: {uploadSlots}, Queue Length: {queueLength}, IP Address: {address}
+        , Port: {port}
+      </Item.Meta>
+      <Item.Description>{description || 'No user info.'}</Item.Description>
+    </Item.Content>
+  </Item>
 );
 
 export default User;

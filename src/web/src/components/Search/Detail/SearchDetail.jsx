@@ -1,28 +1,42 @@
-import React, { useEffect, useState, useMemo } from 'react';
-
 import {
-  Checkbox,
-  Input,
-  Segment,
-  Dropdown,
-  Button,
-} from 'semantic-ui-react';
-
+  filterResponse,
+  getResponses,
+  parseFiltersFromString,
+} from '../../../lib/searches';
 import { sleep } from '../../../lib/util';
-import Switch from '../../Shared/Switch';
 import ErrorSegment from '../../Shared/ErrorSegment';
-import Response from '../Response';
-import { getResponses, parseFiltersFromString, filterResponse } from '../../../lib/searches';
 import LoaderSegment from '../../Shared/LoaderSegment';
+import Switch from '../../Shared/Switch';
+import Response from '../Response';
 import SearchDetailHeader from './SearchDetailHeader';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Button, Checkbox, Dropdown, Input, Segment } from 'semantic-ui-react';
 
 const sortDropdownOptions = [
-  { key: 'uploadSpeed', text: 'Upload Speed (Fastest to Slowest)', value: 'uploadSpeed' },
-  { key: 'queueLength', text: 'Queue Depth (Least to Most)', value: 'queueLength' },
+  {
+    key: 'uploadSpeed',
+    text: 'Upload Speed (Fastest to Slowest)',
+    value: 'uploadSpeed',
+  },
+  {
+    key: 'queueLength',
+    text: 'Queue Depth (Least to Most)',
+    value: 'queueLength',
+  },
 ];
 
-const SearchDetail = ({ search, creating, stopping, removing, disabled, onCreate, onStop, onRemove }) => {
-  const { id, state, isComplete, fileCount, lockedFileCount, responseCount } = search;
+const SearchDetail = ({
+  creating,
+  disabled,
+  onCreate,
+  onRemove,
+  onStop,
+  removing,
+  search,
+  stopping,
+}) => {
+  const { fileCount, id, isComplete, lockedFileCount, responseCount, state } =
+    search;
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(undefined);
@@ -48,7 +62,7 @@ const SearchDetail = ({ search, creating, stopping, removing, disabled, onCreate
         // the results may not be ready yet.  this is very rare, but
         // if it happens the search will complete with no results.
         await sleep(500);
-        
+
         const responses = await getResponses({ id });
         setResults(responses);
         setLoading(false);
@@ -67,8 +81,8 @@ const SearchDetail = ({ search, creating, stopping, removing, disabled, onCreate
   // sets, so memoize it.
   const sortedAndFilteredResults = useMemo(() => {
     const sortOptions = {
-      uploadSpeed: { field: 'uploadSpeed', order: 'desc' },
       queueLength: { field: 'queueLength', order: 'asc' },
+      uploadSpeed: { field: 'uploadSpeed', order: 'desc' },
     };
 
     const { field, order } = sortOptions[resultSort];
@@ -76,16 +90,17 @@ const SearchDetail = ({ search, creating, stopping, removing, disabled, onCreate
     const filters = parseFiltersFromString(resultFilters);
 
     return results
-      .filter(r => !hiddenResults.includes(r.username))
-      .map(r => {
+      .filter((r) => !hiddenResults.includes(r.username))
+      .map((r) => {
         if (hideLocked) {
           return { ...r, lockedFileCount: 0, lockedFiles: [] };
         }
+
         return r;
       })
-      .map(response => filterResponse({ response, filters }))
-      .filter(r => r.fileCount + r.lockedFileCount > 0)
-      .filter(r => !(hideNoFreeSlots && !r.hasFreeUploadSlot))
+      .map((response) => filterResponse({ filters, response }))
+      .filter((r) => r.fileCount + r.lockedFileCount > 0)
+      .filter((r) => !(hideNoFreeSlots && !r.hasFreeUploadSlot))
       .sort((a, b) => {
         if (order === 'asc') {
           return a[field] - b[field];
@@ -93,8 +108,14 @@ const SearchDetail = ({ search, creating, stopping, removing, disabled, onCreate
 
         return b[field] - a[field];
       });
-
-  }, [results, hideLocked, hideNoFreeSlots, resultFilters, resultSort, hiddenResults]);
+  }, [
+    hiddenResults,
+    hideLocked,
+    hideNoFreeSlots,
+    resultFilters,
+    resultSort,
+    results,
+  ]);
 
   // when a user uses the action buttons, we will *probably* re-use this component,
   // but with a new search ID.  clear everything to prepare for the transition
@@ -106,9 +127,9 @@ const SearchDetail = ({ search, creating, stopping, removing, disabled, onCreate
     setDisplayCount(5);
   };
 
-  const create = async ({ search, navigate }) => {
-    reset();  
-    onCreate({ search, navigate });
+  const create = async ({ navigate, search }) => {
+    reset();
+    onCreate({ navigate, search });
   };
 
   const remove = async () => {
@@ -118,106 +139,133 @@ const SearchDetail = ({ search, creating, stopping, removing, disabled, onCreate
 
   const filteredCount = results?.length - sortedAndFilteredResults.length;
   const remainingCount = sortedAndFilteredResults.length - displayCount;
-  const loaded = (!removing && !creating && !loading && results);
+  const loaded = !removing && !creating && !loading && results;
 
   if (error) {
-    return (<ErrorSegment caption={error?.message ?? error}/>);
+    return <ErrorSegment caption={error?.message ?? error} />;
   }
 
   return (
     <>
       <SearchDetailHeader
-        loading={loading}
-        loaded={loaded}
-        removing={removing}
-        stopping={stopping}
         creating={creating}
         disabled={disabled}
-        search={search}
+        loaded={loaded}
+        loading={loading}
         onCreate={create}
-        onStop={onStop} 
         onRemove={remove}
+        onStop={onStop}
+        removing={removing}
+        search={search}
+        stopping={stopping}
       />
-      <Switch 
-        searching={!isComplete && 
-          <LoaderSegment>
-            {state === 'InProgress'
-              ? `Found ${fileCount} files ${lockedFileCount > 0
-                ? `(plus ${lockedFileCount} locked) `
-                : ''}from ${responseCount} users`
-              : 'Loading results...'}
-          </LoaderSegment>
+      <Switch
+        loading={loading && <LoaderSegment />}
+        searching={
+          !isComplete && (
+            <LoaderSegment>
+              {state === 'InProgress'
+                ? `Found ${fileCount} files ${
+                    lockedFileCount > 0
+                      ? `(plus ${lockedFileCount} locked) `
+                      : ''
+                  }from ${responseCount} users`
+                : 'Loading results...'}
+            </LoaderSegment>
+          )
         }
-        loading={loading && <LoaderSegment/>}
       >
-        {loaded && 
-          <Segment className='search-options' raised>
+        {loaded && (
+          <Segment
+            className="search-options"
+            raised
+          >
             <Dropdown
               button
-              className='search-options-sort icon'
+              className="search-options-sort icon"
               floating
+              icon="sort"
               labeled
-              icon='sort'
-              options={sortDropdownOptions}
               onChange={(e, { value }) => setResultSort(value)}
-              text={sortDropdownOptions.find(o => o.value === resultSort).text}
+              options={sortDropdownOptions}
+              text={
+                sortDropdownOptions.find((o) => o.value === resultSort).text
+              }
             />
-            <div className='search-option-toggles'>
+            <div className="search-option-toggles">
               <Checkbox
-                className='search-options-hide-locked'
-                toggle
-                onChange={() => setHideLocked(!hideLocked)}
                 checked={hideLocked}
-                label='Hide Locked Results'
+                className="search-options-hide-locked"
+                label="Hide Locked Results"
+                onChange={() => setHideLocked(!hideLocked)}
+                toggle
               />
               <Checkbox
-                className='search-options-hide-no-slots'
-                toggle
-                onChange={() => setHideNoFreeSlots(!hideNoFreeSlots)}
                 checked={hideNoFreeSlots}
-                label='Hide Results with No Free Slots'
+                className="search-options-hide-no-slots"
+                label="Hide Results with No Free Slots"
+                onChange={() => setHideNoFreeSlots(!hideNoFreeSlots)}
+                toggle
               />
               <Checkbox
-                className='search-options-fold-results'
-                toggle
-                onChange={() => setFoldResults(!foldResults)}
                 checked={foldResults}
-                label='Fold Results'
+                className="search-options-fold-results"
+                label="Fold Results"
+                onChange={() => setFoldResults(!foldResults)}
+                toggle
               />
             </div>
-            <Input 
-              className='search-filter'
-              placeholder='
+            <Input
+              action={
+                Boolean(resultFilters) && {
+                  color: 'red',
+                  icon: 'x',
+                  onClick: () => setResultFilters(''),
+                }
+              }
+              className="search-filter"
+              label={{ content: 'Filter', icon: 'filter' }}
+              onChange={(e, data) => setResultFilters(data.value)}
+              placeholder="
                 lackluster container -bothersome iscbr|isvbr islossless|islossy 
                 minbitrate:320 minbitdepth:24 minfilesize:10 minfilesinfolder:8 minlength:5000
-              '
-              label={{ icon: 'filter', content: 'Filter' }}
+              "
               value={resultFilters}
-              onChange={(e, data) => setResultFilters(data.value)}
-              action={!!resultFilters && { icon: 'x', color: 'red', onClick: () => setResultFilters('')}}
             />
           </Segment>
-        }
-        {loaded && sortedAndFilteredResults.slice(0, displayCount).map((r, i) =>
-          <Response
-            key={i}
-            response={r}
-            disabled={disabled}
-            onHide={() => setHiddenResults([...hiddenResults, r.username])}
-            isInitiallyFolded={foldResults}
-          />
         )}
-        {loaded && (remainingCount > 0 ?
-          <Button className='showmore-button' size='large' fluid primary
-            onClick={() => setDisplayCount(displayCount + 5)}>
-            Show {remainingCount > 5
-              ? 5
-              : remainingCount} More Results {`(${remainingCount} remaining, ${filteredCount} hidden by filter(s))`}
-          </Button>
-          : filteredCount > 0 ? 
-            <Button className='showmore-button' size='large' fluid disabled>{
-              `All results shown. ${filteredCount} results hidden by filter(s)`
-            }</Button> : '')}
+        {loaded &&
+          sortedAndFilteredResults.slice(0, displayCount).map((r, index) => (
+            <Response
+              disabled={disabled}
+              isInitiallyFolded={foldResults}
+              key={index}
+              onHide={() => setHiddenResults([...hiddenResults, r.username])}
+              response={r}
+            />
+          ))}
+        {loaded &&
+          (remainingCount > 0 ? (
+            <Button
+              className="showmore-button"
+              fluid
+              onClick={() => setDisplayCount(displayCount + 5)}
+              primary
+              size="large"
+            >
+              Show {remainingCount > 5 ? 5 : remainingCount} More Results{' '}
+              {`(${remainingCount} remaining, ${filteredCount} hidden by filter(s))`}
+            </Button>
+          ) : filteredCount > 0 ? (
+            <Button
+              className="showmore-button"
+              disabled
+              fluid
+              size="large"
+            >{`All results shown. ${filteredCount} results hidden by filter(s)`}</Button>
+          ) : (
+            ''
+          ))}
       </Switch>
     </>
   );

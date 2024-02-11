@@ -1,26 +1,16 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { v4 as uuidv4 } from 'uuid';
-import { useParams, useHistory, useRouteMatch } from 'react-router-dom';
-import { toast } from 'react-toastify';
-
-import * as lib from '../../lib/searches';
-import { createSearchHubConnection } from '../../lib/hubFactory';
-
-import LoaderSegment from '../Shared/LoaderSegment';
-import SearchList from './List/SearchList';
-
 import './Search.css';
-
-import {
-  Input,
-  Segment,
-  Button,
-  Icon,
-} from 'semantic-ui-react';
-
-import SearchDetail from './Detail/SearchDetail';
+import { createSearchHubConnection } from '../../lib/hubFactory';
+import * as library from '../../lib/searches';
 import ErrorSegment from '../Shared/ErrorSegment';
+import LoaderSegment from '../Shared/LoaderSegment';
 import PlaceholderSegment from '../Shared/PlaceholderSegment';
+import SearchDetail from './Detail/SearchDetail';
+import SearchList from './List/SearchList';
+import React, { useEffect, useRef, useState } from 'react';
+import { useHistory, useParams, useRouteMatch } from 'react-router-dom';
+import { toast } from 'react-toastify';
+import { Button, Icon, Input, Segment } from 'semantic-ui-react';
+import { v4 as uuidv4 } from 'uuid';
 
 const Searches = ({ server } = {}) => {
   const [connecting, setConnecting] = useState(true);
@@ -37,9 +27,19 @@ const Searches = ({ server } = {}) => {
   const history = useHistory();
   const match = useRouteMatch();
 
-  const onConnecting = () => { setConnecting(true); };
-  const onConnected = () => { setConnecting(false); setError(undefined); };
-  const onConnectionError = (error) => { setConnecting(false); setError(error); };
+  const onConnecting = () => {
+    setConnecting(true);
+  };
+
+  const onConnected = () => {
+    setConnecting(false);
+    setError(undefined);
+  };
+
+  const onConnectionError = (error) => {
+    setConnecting(false);
+    setError(error);
+  };
 
   const onUpdate = (update) => {
     setSearches(update);
@@ -48,23 +48,25 @@ const Searches = ({ server } = {}) => {
 
   useEffect(() => {
     onConnecting();
-    
+
     const searchHub = createSearchHubConnection();
 
-    searchHub.on('list', searches => {
-      onUpdate(searches.reduce((acc, search) => {
-        acc[search.id] = search;
-        return acc;
-      }, {}));
+    searchHub.on('list', (searches) => {
+      onUpdate(
+        searches.reduce((accumulator, search) => {
+          accumulator[search.id] = search;
+          return accumulator;
+        }, {}),
+      );
       onConnected();
     });
 
-    searchHub.on('update', search => {
-      onUpdate(old => ({ ...old, [search.id]: search }));
+    searchHub.on('update', (search) => {
+      onUpdate((old) => ({ ...old, [search.id]: search }));
     });
 
-    searchHub.on('delete', search => {
-      onUpdate(old => {
+    searchHub.on('delete', (search) => {
+      onUpdate((old) => {
         delete old[search.id];
         return { ...old };
       });
@@ -72,9 +74,13 @@ const Searches = ({ server } = {}) => {
 
     searchHub.on('create', () => {});
 
-    searchHub.onreconnecting((error) => onConnectionError(error?.message ?? 'Disconnected'));
+    searchHub.onreconnecting((error) =>
+      onConnectionError(error?.message ?? 'Disconnected'),
+    );
     searchHub.onreconnected(() => onConnected());
-    searchHub.onclose((error) => onConnectionError(error?.message ?? 'Disconnected'));
+    searchHub.onclose((error) =>
+      onConnectionError(error?.message ?? 'Disconnected'),
+    );
 
     const connect = async () => {
       try {
@@ -95,29 +101,29 @@ const Searches = ({ server } = {}) => {
 
   // create a new search, and optionally navigate to it to display the details
   // we do this if the user clicks the search icon, or repeats an existing search
-  const create = async ({ search, navigate = false } = {}) => {
+  const create = async ({ navigate = false, search } = {}) => {
     const ref = inputRef?.current?.inputRef?.current;
     const searchText = search || ref.value;
     const id = uuidv4();
-    
+
     try {
       setCreating(true);
-      await lib.create({ id, searchText });
-      
+      await library.create({ id, searchText });
+
       try {
         ref.value = '';
         ref.focus();
       } catch {
         // we are probably repeating an existing search; the input isn't mounted.  no-op.
       }
-      
+
       setCreating(false);
 
       if (navigate) {
         history.push(`${match.url.replace(`/${searchId}`, '')}/${id}`);
       }
     } catch (error) {
-      console.error(error);      
+      console.error(error);
       toast.error(error?.response?.data ?? error?.message ?? error);
       setCreating(false);
     }
@@ -128,15 +134,15 @@ const Searches = ({ server } = {}) => {
     try {
       setRemoving(true);
 
-      await lib.remove({ id: search.id });
-      setSearches(old => {
+      await library.remove({ id: search.id });
+      setSearches((old) => {
         delete old[search.id];
         return { ...old };
       });
 
       setRemoving(false);
-    } catch (err) {
-      console.error(err);
+    } catch (error_) {
+      console.error(error_);
       toast.error(error?.response?.data ?? error?.message ?? error);
       setRemoving(false);
     }
@@ -146,7 +152,7 @@ const Searches = ({ server } = {}) => {
   const stop = async (search) => {
     try {
       setStopping(true);
-      await lib.stop({ id: search.id });
+      await library.stop({ id: search.id });
       setStopping(false);
     } catch (error) {
       console.error(error);
@@ -156,11 +162,11 @@ const Searches = ({ server } = {}) => {
   };
 
   if (connecting) {
-    return <LoaderSegment/>;
+    return <LoaderSegment />;
   }
 
   if (error) {
-    return <ErrorSegment caption={error?.message ?? error}/>;
+    return <ErrorSegment caption={error?.message ?? error} />;
   }
 
   // if searchId is not null, there's an id in the route.
@@ -169,14 +175,14 @@ const Searches = ({ server } = {}) => {
     if (searches[searchId]) {
       return (
         <SearchDetail
-          search={searches[searchId]}
           creating={creating}
-          stopping={stopping}
-          removing={removing}
           disabled={!server?.isConnected}
           onCreate={create}
-          onStop={stop}
           onRemove={remove}
+          onStop={stop}
+          removing={removing}
+          search={searches[searchId]}
+          stopping={stopping}
         />
       );
     }
@@ -190,42 +196,65 @@ const Searches = ({ server } = {}) => {
 
   return (
     <>
-      <Segment className='search-segment' raised>
-        <div className="search-segment-icon"><Icon name="search" size="big"/></div>
+      <Segment
+        className="search-segment"
+        raised
+      >
+        <div className="search-segment-icon">
+          <Icon
+            name="search"
+            size="big"
+          />
+        </div>
         <Input
+          action={
+            <>
+              <Button
+                disabled={creating || !server.isConnected}
+                icon="plus"
+                onClick={create}
+              />
+              <Button
+                disabled={creating || !server.isConnected}
+                icon="search"
+                onClick={() => create({ navigate: true })}
+              />
+            </>
+          }
+          className="search-input"
+          disabled={creating || !server.isConnected}
           input={
             <input
-              placeholder={server.isConnected ? 'Search phrase' : 'Connect to server to perform a search'}
-              type="search"
               data-lpignore="true"
-            ></input>}
-          size='big'
-          ref={inputRef}
-          loading={creating}
-          disabled={creating || !server.isConnected}
-          className='search-input'
-          placeholder="Search phrase"
-          action={<>
-            <Button icon='plus' disabled={creating || !server.isConnected} onClick={create}/>
-            <Button
-              icon='search'
-              disabled={creating || !server.isConnected}
-              onClick={() => create({ navigate: true })}
+              placeholder={
+                server.isConnected
+                  ? 'Search phrase'
+                  : 'Connect to server to perform a search'
+              }
+              type="search"
             />
-          </>}
-          onKeyUp={(e) => e.key === 'Enter' ? create() : ''}
+          }
+          loading={creating}
+          onKeyUp={(e) => (e.key === 'Enter' ? create() : '')}
+          placeholder="Search phrase"
+          ref={inputRef}
+          size="big"
         />
       </Segment>
-      {Object.keys(searches).length === 0 
-        ? <PlaceholderSegment icon="search" caption="No searches to display"/>
-        : <SearchList
+      {Object.keys(searches).length === 0 ? (
+        <PlaceholderSegment
+          caption="No searches to display"
+          icon="search"
+        />
+      ) : (
+        <SearchList
           connecting={connecting}
           error={error}
-          searches={searches}
           onRemove={remove}
           onStop={stop}
+          searches={searches}
         />
-      }
+      )}
     </>
   );
 };

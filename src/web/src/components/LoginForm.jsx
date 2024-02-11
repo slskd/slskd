@@ -1,19 +1,31 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Button, Form, Input, Grid, Header, Icon, Segment, Checkbox, Message } from 'semantic-ui-react';
-
 import Logos from './Shared/Logo';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Button,
+  Checkbox,
+  Form,
+  Grid,
+  Header,
+  Icon,
+  Input,
+  Message,
+  Segment,
+} from 'semantic-ui-react';
 
 const initialState = {
-  username: '',
   password: '',
   rememberMe: true,
+  username: '',
 };
 
-const LoginForm = ({ onLoginAttempt, loading, error }) => {
+const LoginForm = ({ error, loading, onLoginAttempt }) => {
   const usernameInput = useRef();
   const [state, setState] = useState(initialState);
   const [ready, setReady] = useState(false);
-  const logo = useMemo(() => Logos[Math.floor(Math.random() * Logos.length)], []);
+  const logo = useMemo(
+    () => Logos[Math.floor(Math.random() * Logos.length)],
+    [],
+  );
 
   useEffect(() => {
     if (state.username !== '' && state.password !== '') {
@@ -34,67 +46,80 @@ const LoginForm = ({ onLoginAttempt, loading, error }) => {
     });
   };
 
-  const { username, password, rememberMe } = state;
+  const { password, rememberMe, username } = state;
 
   return (
-    <>
-      <Grid textAlign='center' style={{ height: '100vh' }} verticalAlign='middle'>
-        <Grid.Column style={{ maxWidth: 372 }}>
-          <Header as='h2' textAlign='center' style={{
-            whiteSpace: 'pre',
+    <Grid
+      style={{ height: '100vh' }}
+      textAlign="center"
+      verticalAlign="middle"
+    >
+      <Grid.Column style={{ maxWidth: 372 }}>
+        <Header
+          as="h2"
+          style={{
             fontFamily: 'monospace',
-            lineHeight: 1.1,
             fontSize: 'inherit',
             letterSpacing: -1,
-          }}>
-            {logo}
-          </Header>
-          <Form size='large'>
-            <Segment raised>
-              <Input 
-                fluid icon='user' 
-                iconPosition='left' 
-                placeholder='Username' 
-                onChange={(event) => handleChange('username', event.target.value)}
-                disabled={loading}
-                ref={usernameInput}
-              />
-              <Form.Input
-                fluid
-                icon='lock'
-                iconPosition='left'
-                placeholder='Password'
-                type='password'
-                onChange={(event) => handleChange('password', event.target.value)}
-                disabled={loading}
-              />
-              <Checkbox
-                label='Remember Me'
-                onChange={() => handleChange('rememberMe', !rememberMe)}
-                checked={rememberMe}
-                disabled={loading}
-              />
-            </Segment>
-            <Button 
-              primary 
-              fluid 
-              size='large'
-              className='login-button'
-              loading={loading}
-              disabled={!ready || loading}
-              onClick={() => onLoginAttempt(username, password, rememberMe)}
+            lineHeight: 1.1,
+            whiteSpace: 'pre',
+          }}
+          textAlign="center"
+        >
+          {logo}
+        </Header>
+        <Form size="large">
+          <Segment raised>
+            <Input
+              disabled={loading}
+              fluid
+              icon="user"
+              iconPosition="left"
+              onChange={(event) => handleChange('username', event.target.value)}
+              placeholder="Username"
+              ref={usernameInput}
+            />
+            <Form.Input
+              disabled={loading}
+              fluid
+              icon="lock"
+              iconPosition="left"
+              onChange={(event) => handleChange('password', event.target.value)}
+              placeholder="Password"
+              type="password"
+            />
+            <Checkbox
+              checked={rememberMe}
+              disabled={loading}
+              label="Remember Me"
+              onChange={() => handleChange('rememberMe', !rememberMe)}
+            />
+          </Segment>
+          <Button
+            className="login-button"
+            disabled={!ready || loading}
+            fluid
+            loading={loading}
+            onClick={() => onLoginAttempt(username, password, rememberMe)}
+            primary
+            size="large"
+          >
+            <Icon name="sign in" />
+            Login
+          </Button>
+          {error && (
+            <Message
+              className="login-failure"
+              floating
+              negative
             >
-              <Icon name='sign in'/>
-              Login
-            </Button>
-            {error && <Message className='login-failure' negative floating>
-              <Icon name='x' />
+              <Icon name="x" />
               {error.message}
-            </Message>}
-          </Form>
-        </Grid.Column>
-      </Grid>
-    </>
+            </Message>
+          )}
+        </Form>
+      </Grid.Column>
+    </Grid>
   );
 };
 

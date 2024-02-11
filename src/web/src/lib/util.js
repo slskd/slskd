@@ -1,34 +1,36 @@
-export const formatSeconds = (seconds) =>
-{
+export const formatSeconds = (seconds) => {
   if (isNaN(seconds)) return '';
-  var date = new Date(1970,0,1);
+  const date = new Date(1_970, 0, 1);
   date.setSeconds(seconds);
-  if (seconds >= 3600) {
+  if (seconds >= 3_600) {
     return date.toTimeString().replace(/.*(\d{2}:\d{2}:\d{2}).*/, '$1');
   }
+
   return date.toTimeString().replace(/.*(\d{2}:\d{2}).*/, '$1');
 };
 
 export const formatBytesAsUnit = (bytes, decimals = 2, unit) => {
   if (unit === 'B') return bytes + ' ' + unit;
 
-  const k = 1024;
+  const k = 1_024;
   const dm = decimals < 0 ? 0 : decimals;
-  const sizes = {'KB': 1, 'MB': 2, 'GB': 3, 'TB': 4, 'PB': 5, 'EB': 6, 'ZB': 7, 'YB': 8};
+  const sizes = { EB: 6, GB: 3, KB: 1, MB: 2, PB: 5, TB: 4, YB: 8, ZB: 7 };
 
-  return parseFloat((bytes / Math.pow(k, sizes[unit])).toFixed(dm));
+  return Number.parseFloat((bytes / k ** sizes[unit]).toFixed(dm));
 };
 
 export const formatBytes = (bytes, decimals = 2) => {
   if (bytes === 0) return '0 B';
 
-  const k = 1024;
+  const k = 1_024;
   const dm = decimals < 0 ? 0 : decimals;
   const sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
 
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  const index = Math.floor(Math.log(bytes) / Math.log(k));
 
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+  return (
+    Number.parseFloat((bytes / k ** index).toFixed(dm)) + ' ' + sizes[index]
+  );
 };
 
 export const formatDate = (date) => {
@@ -42,20 +44,27 @@ export const getFileName = (fullPath) => {
 export const getDirectoryName = (fullPath) => {
   let path = fullPath;
 
-  if (path.lastIndexOf('\\') > 0)
-  {path = path.substring(0, path.lastIndexOf('\\'));}
+  if (path.lastIndexOf('\\') > 0) {
+    path = path.slice(0, Math.max(0, path.lastIndexOf('\\')));
+  }
 
-  if (path.lastIndexOf('/') > 0)
-  {path = path.substring(0, path.lastIndexOf('/'));}
+  if (path.lastIndexOf('/') > 0) {
+    path = path.slice(0, Math.max(0, path.lastIndexOf('/')));
+  }
 
   return path;
 };
 
-export const formatAttributes = ({ bitRate, isVariableBitRate, bitDepth, sampleRate }) => {
-  const isLossless = !!sampleRate && !!bitDepth;
+export const formatAttributes = ({
+  bitRate,
+  isVariableBitRate,
+  bitDepth,
+  sampleRate,
+}) => {
+  const isLossless = Boolean(sampleRate) && Boolean(bitDepth);
 
   if (isLossless) {
-    return `${bitDepth}/${sampleRate/1000}kHz`;
+    return `${bitDepth}/${sampleRate / 1_000}kHz`;
   }
 
   if (isVariableBitRate) {
@@ -66,54 +75,53 @@ export const formatAttributes = ({ bitRate, isVariableBitRate, bitDepth, sampleR
 };
 
 export const sleep = (milliseconds) => {
-  return new Promise(resolve => setTimeout(resolve, milliseconds));
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
 };
 
 /* https://www.npmjs.com/package/js-file-download
- * 
+ *
  * Copyright 2017 Kenneth Jiang
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated 
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, 
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
  * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all copies or substantial portions 
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions
  * of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
  * TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
- * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER 
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE
  */
 export const downloadFile = (data, filename, mime) => {
-  var blob = new Blob([data], {type: mime || 'application/octet-stream'});
+  const blob = new Blob([data], { type: mime || 'application/octet-stream' });
   if (typeof window.navigator.msSaveBlob !== 'undefined') {
-    // IE workaround for "HTML7007: One or more blob URLs were 
-    // revoked by closing the blob for which they were created. 
-    // These URLs will no longer resolve as the data backing 
+    // IE workaround for "HTML7007: One or more blob URLs were
+    // revoked by closing the blob for which they were created.
+    // These URLs will no longer resolve as the data backing
     // the URL has been freed."
     window.navigator.msSaveBlob(blob, filename);
-  }
-  else {
-    var blobURL = window.URL.createObjectURL(blob);
-    var tempLink = document.createElement('a');
-    tempLink.style.display = 'none';
-    tempLink.href = blobURL;
-    tempLink.setAttribute('download', filename); 
-        
+  } else {
+    const blobURL = window.URL.createObjectURL(blob);
+    const temporaryLink = document.createElement('a');
+    temporaryLink.style.display = 'none';
+    temporaryLink.href = blobURL;
+    temporaryLink.setAttribute('download', filename);
+
     // Safari thinks _blank anchor are pop ups. We only want to set _blank
     // target if the browser does not support the HTML5 download attribute.
-    // This allows you to download files in desktop safari if pop up blocking 
+    // This allows you to download files in desktop safari if pop up blocking
     // is enabled.
-    if (typeof tempLink.download === 'undefined') {
-      tempLink.setAttribute('target', '_blank');
+    if (typeof temporaryLink.download === 'undefined') {
+      temporaryLink.setAttribute('target', '_blank');
     }
-        
-    document.body.appendChild(tempLink);
-    tempLink.click();
-    document.body.removeChild(tempLink);
+
+    document.body.append(temporaryLink);
+    temporaryLink.click();
+    temporaryLink.remove();
     window.URL.revokeObjectURL(blobURL);
   }
 };

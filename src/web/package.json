@@ -1,17 +1,17 @@
 {
-  "name": "web",
-  "version": "0.1.0",
-  "private": true,
-  "homepage": ".",
-  "scripts": {
-    "start": "craco start",
-    "build": "craco build",
-    "test": "craco test",
-    "test-unattended": "craco test --watchAll false --passWithNoTests",
-    "eject": "craco eject",
-    "postinstall": "semantic-ui-css-patch",
-    "lint": "eslint .",
-    "lint:fix": "eslint --fix ."
+  "browserslist": {
+    "development": [
+      ">0.3%",
+      "not ie 11",
+      "not dead",
+      "not op_mini all"
+    ],
+    "production": [
+      ">0.3%",
+      "not ie 11",
+      "not dead",
+      "not op_mini all"
+    ]
   },
   "dependencies": {
     "@codemirror/language": "^6.0.0",
@@ -40,23 +40,23 @@
     "eslint-config-canonical": "^42.8.1",
     "react-scripts": "^5.0.0"
   },
+  "homepage": ".",
+  "name": "web",
   "overrides": {
     "@craco/craco": "^7.0.0",
     "css-select": "^3.1.0",
     "css-what": "^5.0.1"
   },
-  "browserslist": {
-    "production": [
-      ">0.3%",
-      "not ie 11",
-      "not dead",
-      "not op_mini all"
-    ],
-    "development": [
-      ">0.3%",
-      "not ie 11",
-      "not dead",
-      "not op_mini all"
-    ]
-  }
+  "private": true,
+  "scripts": {
+    "build": "craco build",
+    "eject": "craco eject",
+    "lint": "eslint .",
+    "lint:fix": "eslint --fix .",
+    "postinstall": "semantic-ui-css-patch",
+    "start": "craco start",
+    "test": "craco test",
+    "test-unattended": "craco test --watchAll false --passWithNoTests"
+  },
+  "version": "0.1.0"
 }

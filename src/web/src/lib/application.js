@@ -13,5 +13,6 @@ export const shutdown = async () => {
 };
 
 export const getVersion = async ({ forceCheck = false }) => {
-  return (await api.get(`/application/version/latest?forceCheck=${forceCheck}`)).data;
+  return (await api.get(`/application/version/latest?forceCheck=${forceCheck}`))
+    .data;
 };

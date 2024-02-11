@@ -1,86 +1,92 @@
-import React, { Component } from 'react';
-import * as lzString from 'lz-string';
-import * as users from '../../lib/users';
-
 import './Browse.css';
-
-import DirectoryTree from './DirectoryTree';
-
-import { 
-  Segment, 
-  Input, 
-  Loader,
-  Card,
-  Icon,
-} from 'semantic-ui-react';
-
-import Directory from './Directory';
+import * as users from '../../lib/users';
 import PlaceholderSegment from '../Shared/PlaceholderSegment';
+import Directory from './Directory';
+import DirectoryTree from './DirectoryTree';
+import * as lzString from 'lz-string';
+import React, { Component } from 'react';
+import { Card, Icon, Input, Loader, Segment } from 'semantic-ui-react';
 
-const initialState = { 
-  username: '', 
-  browseState: 'idle', 
-  browseStatus: 0,
+const initialState = {
   browseError: undefined,
-  interval: undefined,
-  selectedDirectory: {},
-  selectedFiles: [],
-  tree: [],
-  separator: '\\',
+  browseState: 'idle',
+  browseStatus: 0,
   info: {
     directories: 0,
     files: 0,
     lockedDirectories: 0,
     lockedFiles: 0,
   },
+  interval: undefined,
+  selectedDirectory: {},
+  selectedFiles: [],
+  separator: '\\',
+  tree: [],
+  username: '',
 };
 
 class Browse extends Component {
   state = initialState;
 
   browse = () => {
-    let username = this.inputtext.inputRef.current.value;
+    const username = this.inputtext.inputRef.current.value;
 
-    this.setState({ username , browseState: 'pending', browseError: undefined }, () => {
-      users.browse({ username })
-        .then(response => {
-          let { directories, lockedDirectories } = response;
-          
-          // we need to know the directory separator. assume it is \ to start
-          let separator = undefined;
+    this.setState(
+      { browseError: undefined, browseState: 'pending', username },
+      () => {
+        users
+          .browse({ username })
+          .then((response) => {
+            let { directories, lockedDirectories } = response;
 
-          const directoryCount = directories.length;
-          const fileCount = directories.reduce((acc, dir) => {
-            // examine each directory as we process it to see if it contains \ or /, and set separator accordingly
-            if (!separator) {
-              if (dir.name.includes('\\')) separator = '\\';
-              else if (dir.name.includes('/')) separator = '/';
-            }
+            // we need to know the directory separator. assume it is \ to start
+            let separator;
 
-            return acc += dir.fileCount;
-          }, 0);
+            const directoryCount = directories.length;
+            const fileCount = directories.reduce((accumulator, dir) => {
+              // examine each directory as we process it to see if it contains \ or /, and set separator accordingly
+              if (!separator) {
+                if (dir.name.includes('\\')) separator = '\\';
+                else if (dir.name.includes('/')) separator = '/';
+              }
 
-          const lockedDirectoryCount = lockedDirectories.length;
-          const lockedFileCount = lockedDirectories.reduce((acc, dir) => acc += dir.fileCount, 0);
-          
-          directories = directories.concat(lockedDirectories.map(d => ({ ...d, locked: true })));
-          
-          this.setState({ 
-            tree: this.getDirectoryTree({ directories, separator }),
-            separator,
-            info: {
-              directories: directoryCount,
-              files: fileCount,
-              lockedDirectories: lockedDirectoryCount,
-              lockedFiles: lockedFileCount,
-            },
-          });
-        })
-        .then(() => this.setState({ browseState: 'complete', browseError: undefined }, () => {
-          this.saveState();
-        }))
-        .catch(err => this.setState({ browseState: 'error', browseError: err }));
-    });
+              return (accumulator += dir.fileCount);
+            }, 0);
+
+            const lockedDirectoryCount = lockedDirectories.length;
+            const lockedFileCount = lockedDirectories.reduce(
+              (accumulator, dir) => (accumulator += dir.fileCount),
+              0,
+            );
+
+            directories = directories.concat(
+              lockedDirectories.map((d) => ({ ...d, locked: true })),
+            );
+
+            this.setState({
+              info: {
+                directories: directoryCount,
+                files: fileCount,
+                lockedDirectories: lockedDirectoryCount,
+                lockedFiles: lockedFileCount,
+              },
+              separator,
+              tree: this.getDirectoryTree({ directories, separator }),
+            });
+          })
+          .then(() =>
+            this.setState(
+              { browseError: undefined, browseState: 'complete' },
+              () => {
+                this.saveState();
+              },
+            ),
+          )
+          .catch((error) =>
+            this.setState({ browseError: error, browseState: 'error' }),
+          );
+      },
+    );
   };
 
   clear = () => {
@@ -90,7 +96,7 @@ class Browse extends Component {
     });
   };
 
-  keyUp = (event) => event.key === 'Escape' ? this.clear() : '';
+  keyUp = (event) => (event.key === 'Escape' ? this.clear() : '');
 
   onUsernameChange = (event, data) => {
     this.setState({ username: data.value });
@@ -98,15 +104,20 @@ class Browse extends Component {
 
   saveState = () => {
     this.inputtext.inputRef.current.value = this.state.username;
-    this.inputtext.inputRef.current.disabled = this.state.browseState !== 'idle';
+    this.inputtext.inputRef.current.disabled =
+      this.state.browseState !== 'idle';
 
     const storeToLocalStorage = () => {
       try {
-        localStorage.setItem('soulseek-example-browse-state', lzString.compress(JSON.stringify(this.state)));
+        localStorage.setItem(
+          'soulseek-example-browse-state',
+          lzString.compress(JSON.stringify(this.state)),
+        );
       } catch (error) {
         console.error(error);
       }
     };
+
     // Shifting the compression and safe out of the current render loop to speed up responsiveness
     // requestIdleCallback is not supported in Safari hence we push to next tick using Promise.resolve
     if (window.requestIdleCallback) {
@@ -118,36 +129,45 @@ class Browse extends Component {
 
   loadState = () => {
     this.setState(
-      JSON.parse(lzString.decompress(localStorage.getItem('soulseek-example-browse-state') || '')) || initialState);
+      JSON.parse(
+        lzString.decompress(
+          localStorage.getItem('soulseek-example-browse-state') || '',
+        ),
+      ) || initialState,
+    );
   };
 
-  componentDidMount = () => {
+  componentDidMount() {
     this.fetchStatus();
     this.loadState();
-    this.setState({ 
-      interval: window.setInterval(this.fetchStatus, 500),
-    }, () => this.saveState());
-    
+    this.setState(
+      {
+        interval: window.setInterval(this.fetchStatus, 500),
+      },
+      () => this.saveState(),
+    );
+
     document.addEventListener('keyup', this.keyUp, false);
-  };
-  
-  componentWillUnmount = () => {
+  }
+
+  componentWillUnmount() {
     clearInterval(this.state.interval);
     this.setState({ interval: undefined });
     document.removeEventListener('keyup', this.keyUp, false);
-  };
+  }
 
   fetchStatus = () => {
     const { browseState, username } = this.state;
     if (browseState === 'pending') {
-      users.getBrowseStatus({ username })
-        .then(response => this.setState({
+      users.getBrowseStatus({ username }).then((response) =>
+        this.setState({
           browseStatus: response.data,
-        }));
+        }),
+      );
     }
   };
 
-  getDirectoryTree = ({directories, separator}) => {
+  getDirectoryTree = ({ directories, separator }) => {
     if (directories.length === 0 || directories[0].name === undefined) {
       return [];
     }
@@ -157,114 +177,176 @@ class Browse extends Component {
     // - do the split once
     // - future look ups are done from the Map
     const depthMap = new Map();
-    directories.forEach(d => {
+    for (const d of directories) {
       const depth = d.name.split(separator).length;
       if (!depthMap.has(depth)) {
         depthMap.set(depth, []);
       }
+
       depthMap.get(depth).push(d);
-    });
+    }
 
     const depth = Math.min.apply(Math, Array.from(depthMap.keys()));
 
-    return depthMap.get(depth).map(directory => this.getChildDirectories(depthMap, directory, separator, depth + 1));
+    return depthMap
+      .get(depth)
+      .map((directory) =>
+        this.getChildDirectories(depthMap, directory, separator, depth + 1),
+      );
   };
 
   getChildDirectories = (depthMap, root, separator, depth) => {
     if (!depthMap.has(depth)) {
-      return { ...root, children: []};
+      return { ...root, children: [] };
     }
-    const children = depthMap.get(depth).filter(d => d.name.startsWith(root.name));
 
-    return { ...root, children: children.map(c => this.getChildDirectories(depthMap, c, separator, depth + 1)) };
+    const children = depthMap
+      .get(depth)
+      .filter((d) => d.name.startsWith(root.name));
+
+    return {
+      ...root,
+      children: children.map((c) =>
+        this.getChildDirectories(depthMap, c, separator, depth + 1),
+      ),
+    };
   };
 
   selectDirectory = (directory) => {
-    this.setState({ selectedDirectory: { ...directory, children: [] }}, () => this.saveState());
+    this.setState({ selectedDirectory: { ...directory, children: [] } }, () =>
+      this.saveState(),
+    );
   };
 
   deselectDirectory = () => {
-    this.setState({ selectedDirectory: initialState.selectedDirectory }, () => this.saveState());
+    this.setState({ selectedDirectory: initialState.selectedDirectory }, () =>
+      this.saveState(),
+    );
   };
 
-  render = () => {
-    const { browseState, browseStatus, browseError, tree, separator, selectedDirectory, username, info } = this.state;
-    const { name, locked } = selectedDirectory;
+  render() {
+    const {
+      browseError,
+      browseState,
+      browseStatus,
+      info,
+      selectedDirectory,
+      separator,
+      tree,
+      username,
+    } = this.state;
+    const { locked, name } = selectedDirectory;
     const pending = browseState === 'pending';
 
     const emptyTree = !(tree && tree.length > 0);
 
-    const files = (selectedDirectory.files || [])
-      .map(f => ({ ...f, filename: `${name}${separator}${f.filename}` }));
+    const files = (selectedDirectory.files || []).map((f) => ({
+      ...f,
+      filename: `${name}${separator}${f.filename}`,
+    }));
 
     return (
-      <div className='search-container'>
-        <Segment className='browse-segment' raised>
-          <div className="browse-segment-icon"><Icon name="folder open" size="big"/></div>
+      <div className="search-container">
+        <Segment
+          className="browse-segment"
+          raised
+        >
+          <div className="browse-segment-icon">
+            <Icon
+              name="folder open"
+              size="big"
+            />
+          </div>
           <Input
-            input={<input placeholder="Username" type="search" data-lpignore="true"></input>}
-            size='big'
-            ref={input => this.inputtext = input}
-            loading={pending}
+            action={
+              !pending &&
+              (browseState === 'idle'
+                ? { icon: 'search', onClick: this.browse }
+                : { color: 'red', icon: 'x', onClick: this.clear })
+            }
+            className="search-input"
             disabled={pending}
-            className='search-input'
+            input={
+              <input
+                data-lpignore="true"
+                placeholder="Username"
+                type="search"
+              />
+            }
+            loading={pending}
+            onKeyUp={(e) => (e.key === 'Enter' ? this.browse() : '')}
             placeholder="Username"
-            action={!pending && (browseState === 'idle'
-              ? { icon: 'search', onClick: this.browse }
-              : { icon: 'x', color: 'red', onClick: this.clear })}
-            onKeyUp={(e) => e.key === 'Enter' ? this.browse() : ''}
+            ref={(input) => (this.inputtext = input)}
+            size="big"
           />
         </Segment>
-        {pending ? 
-          <Loader 
-            className='search-loader'
-            active 
-            inline='centered' 
-            size='big'
+        {pending ? (
+          <Loader
+            active
+            className="search-loader"
+            inline="centered"
+            size="big"
           >
-            Downloaded {Math.round(browseStatus.percentComplete || 0)}% of Response
+            Downloaded {Math.round(browseStatus.percentComplete || 0)}% of
+            Response
           </Loader>
-          : 
+        ) : (
           <div>
-            {browseError ? 
-              <span className='browse-error'>Failed to browse {username}</span> :
-              <div className='browse-container'>
-                {emptyTree ? 
-                  <PlaceholderSegment icon='folder open' caption='No user share to display'/> : 
-                  <Card className='browse-tree-card' raised>
+            {browseError ? (
+              <span className="browse-error">Failed to browse {username}</span>
+            ) : (
+              <div className="browse-container">
+                {emptyTree ? (
+                  <PlaceholderSegment
+                    caption="No user share to display"
+                    icon="folder open"
+                  />
+                ) : (
+                  <Card
+                    className="browse-tree-card"
+                    raised
+                  >
                     <Card.Content>
                       <Card.Header>
-                        <Icon name='circle' color='green'/>
+                        <Icon
+                          color="green"
+                          name="circle"
+                        />
                         {username}
                       </Card.Header>
-                      <Card.Meta className='browse-meta'>
+                      <Card.Meta className="browse-meta">
                         <span>
-                          {`${info.files + info.lockedFiles} files in ${info.directories + info.lockedDirectories} directories (including ${info.lockedFiles} files in ${info.lockedDirectories} locked directories)`} {/* eslint-disable-line max-len */}
+                          {`${info.files + info.lockedFiles} files in ${info.directories + info.lockedDirectories} directories (including ${info.lockedFiles} files in ${info.lockedDirectories} locked directories)`}{' '}
+                          {/* eslint-disable-line max-len */}
                         </span>
                       </Card.Meta>
-                      <Segment className='browse-folderlist'>
-                        <DirectoryTree 
-                          tree={tree} 
-                          selectedDirectoryName={name}
+                      <Segment className="browse-folderlist">
+                        <DirectoryTree
                           onSelect={(_, value) => this.selectDirectory(value)}
+                          selectedDirectoryName={name}
+                          tree={tree}
                         />
                       </Segment>
                     </Card.Content>
-                  </Card>}
-                {name && <Directory
-                  marginTop={-20}
-                  name={name}
-                  locked={locked}
-                  files={files}
-                  username={username}
-                  onClose={this.deselectDirectory}
-                />}
+                  </Card>
+                )}
+                {name && (
+                  <Directory
+                    files={files}
+                    locked={locked}
+                    marginTop={-20}
+                    name={name}
+                    onClose={this.deselectDirectory}
+                    username={username}
+                  />
+                )}
               </div>
-            }
-          </div>}
+            )}
+          </div>
+        )}
       </div>
     );
-  };
+  }
 }
 
 export default Browse;

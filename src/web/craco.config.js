@@ -1,3 +1,5 @@
+const CracoLessPlugin = require('@semantic-ui-react/craco-less');
+
 module.exports = {
-  plugins: [{ plugin: require('@semantic-ui-react/craco-less') }],
-}
+  plugins: [{ plugin: CracoLessPlugin }],
+};

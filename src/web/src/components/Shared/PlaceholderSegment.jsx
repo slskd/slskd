@@ -1,17 +1,23 @@
 import React from 'react';
+import { Header, Icon, Segment } from 'semantic-ui-react';
 
-import { Segment, Header, Icon } from 'semantic-ui-react';
-
-const PlaceholderSegment = ({ icon, caption, size, ...rest }) => {
-  const className = size === 'small' ? 'placeholder-segment-small' : 'placeholder-segment';
+const PlaceholderSegment = ({ caption, icon, size, ...rest }) => {
+  const className =
+    size === 'small' ? 'placeholder-segment-small' : 'placeholder-segment';
 
   return (
-    <Segment className={className} placeholder basic {...rest}>
+    <Segment
+      basic
+      className={className}
+      placeholder
+      {...rest}
+    >
       <Header icon>
-        <Icon name={icon}/>
+        <Icon name={icon} />
         {caption}
       </Header>
-    </Segment>);
+    </Segment>
+  );
 };
 
 export default PlaceholderSegment;

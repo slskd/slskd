@@ -13,7 +13,10 @@ export const acknowledge = ({ username }) => {
 };
 
 export const send = ({ username, message }) => {
-  return api.post(`/conversations/${encodeURIComponent(username)}`, JSON.stringify(message));
+  return api.post(
+    `/conversations/${encodeURIComponent(username)}`,
+    JSON.stringify(message),
+  );
 };
 
 export const remove = ({ username }) => {

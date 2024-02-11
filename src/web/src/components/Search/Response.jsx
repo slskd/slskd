@@ -1,63 +1,70 @@
-import React, { Component } from 'react';
 import * as transfers from '../../lib/transfers';
-import { toast } from 'react-toastify';
-
-import { formatBytes, getDirectoryName } from '../../lib/util';
-
-import FileList from '../Shared/FileList';
-
-import { 
-  Button, 
-  Card, 
-  Icon,
-  Label,
-} from 'semantic-ui-react';
 import { getDirectoryContents } from '../../lib/users';
+import { formatBytes, getDirectoryName } from '../../lib/util';
+import FileList from '../Shared/FileList';
+import React, { Component } from 'react';
+import { toast } from 'react-toastify';
+import { Button, Card, Icon, Label } from 'semantic-ui-react';
 
 const buildTree = (response) => {
   let { files = [], lockedFiles = [] } = response;
-  files = files.concat(lockedFiles.map(file => ({ ...file, locked: true })));
+  files = files.concat(lockedFiles.map((file) => ({ ...file, locked: true })));
 
   return files.reduce((dict, file) => {
-    let dir = getDirectoryName(file.filename);
-    let selectable = { selected: false, ...file };
-    dict[dir] = dict[dir] === undefined ? [ selectable ] : dict[dir].concat(selectable);
+    const dir = getDirectoryName(file.filename);
+    const selectable = { selected: false, ...file };
+    dict[dir] =
+      dict[dir] === undefined ? [selectable] : dict[dir].concat(selectable);
     return dict;
   }, {});
 };
 
 class Response extends Component {
-  state = { 
-    tree: buildTree(this.props.response), 
-    downloadRequest: undefined, 
+  state = {
     downloadError: '',
+    downloadRequest: undefined,
     fetchingDirectoryContents: false,
     isFolded: this.props.isInitiallyFolded,
+    tree: buildTree(this.props.response),
   };
 
-  componentDidUpdate = (prevProps) => {
-    if (JSON.stringify(this.props.response) !== JSON.stringify(prevProps.response)) {
+  componentDidUpdate(previousProps) {
+    if (
+      JSON.stringify(this.props.response) !==
+      JSON.stringify(previousProps.response)
+    ) {
       this.setState({ tree: buildTree(this.props.response) });
     }
-    if (this.props.isInitiallyFolded !== prevProps.isInitiallyFolded) {
+
+    if (this.props.isInitiallyFolded !== previousProps.isInitiallyFolded) {
       this.setState({ isFolded: this.props.isInitiallyFolded });
     }
-  };
+  }
 
   onFileSelectionChange = (file, state) => {
     file.selected = state;
-    this.setState({ tree: this.state.tree, downloadRequest: undefined, downloadError: '' });
+    this.setState({
+      downloadError: '',
+      downloadRequest: undefined,
+      tree: this.state.tree,
+    });
   };
 
   download = (username, files) => {
     this.setState({ downloadRequest: 'inProgress' }, async () => {
       try {
-        const requests = (files || []).map(({ filename, size }) => ({ filename, size }));
-        await transfers.download({ username, files: requests });
+        const requests = (files || []).map(({ filename, size }) => ({
+          filename,
+          size,
+        }));
+        await transfers.download({ files: requests, username });
 
         this.setState({ downloadRequest: 'complete' });
-      } catch (err) {
-        this.setState({ downloadRequest: 'error', downloadError: err.response });
+      } catch (error) {
+        this.setState({
+          downloadError: error.response,
+          downloadRequest: 'error',
+        });
       }
     });
   };
@@ -69,15 +76,20 @@ class Response extends Component {
       const oldTree = { ...this.state.tree };
       const oldFiles = oldTree[directory];
 
-      const { name, files } = await getDirectoryContents({ username, directory });
+      const { files, name } = await getDirectoryContents({
+        directory,
+        username,
+      });
 
       // the api returns file names only, so we need to prepend the directory
       // to make it look like a search result.  we also need to preserve
       // any file selections, so check the old files and assign accordingly
-      const fixedFiles = files.map(file => ({
+      const fixedFiles = files.map((file) => ({
         ...file,
         filename: `${directory}\\${file.filename}`,
-        selected: oldFiles.find(f => f.filename === `${directory}\\${file.filename}`)?.selected ?? false,
+        selected:
+          oldFiles.find((f) => f.filename === `${directory}\\${file.filename}`)
+            ?.selected ?? false,
       }));
 
       oldTree[name] = fixedFiles;
@@ -94,20 +106,31 @@ class Response extends Component {
     this.setState({ isFolded: !this.state.isFolded });
   };
 
-  render = () => {
-    let {response} = this.props;
-    let free = response.hasFreeUploadSlot;
+  render() {
+    const { response } = this.props;
+    const free = response.hasFreeUploadSlot;
 
-    let { tree, downloadRequest, downloadError, isFolded, fetchingDirectoryContents } = this.state;
+    const {
+      downloadError,
+      downloadRequest,
+      fetchingDirectoryContents,
+      isFolded,
+      tree,
+    } = this.state;
 
-    let selectedFiles = Object.keys(tree)
+    const selectedFiles = Object.keys(tree)
       .reduce((list, dict) => list.concat(tree[dict]), [])
-      .filter(f => f.selected);
+      .filter((f) => f.selected);
 
-    let selectedSize = formatBytes(selectedFiles.reduce((total, f) => total + f.size, 0));
+    const selectedSize = formatBytes(
+      selectedFiles.reduce((total, f) => total + f.size, 0),
+    );
 
     return (
-      <Card className='result-card' raised>
+      <Card
+        className="result-card"
+        raised
+      >
         <Card.Content>
           <Card.Header>
             <Icon
@@ -115,66 +138,105 @@ class Response extends Component {
               name={isFolded ? 'chevron right' : 'chevron down'}
               onClick={this.toggleFolded}
             />
-            <Icon name='circle' color={free ? 'green' : 'yellow'}/>
+            <Icon
+              color={free ? 'green' : 'yellow'}
+              name="circle"
+            />
             {response.username}
-            <Icon 
-              className='close-button' 
-              name='close' 
-              color='red' 
+            <Icon
+              className="close-button"
+              color="red"
               link
+              name="close"
               onClick={() => this.props.onHide()}
             />
           </Card.Header>
-          <Card.Meta className='result-meta'>
+          <Card.Meta className="result-meta">
             <span>
-              Upload Speed: {formatBytes(response.uploadSpeed)}/s,
-              Free Upload Slot: {free ? 'YES' : 'NO'}, Queue Length: {response.queueLength}</span>
+              Upload Speed: {formatBytes(response.uploadSpeed)}/s, Free Upload
+              Slot: {free ? 'YES' : 'NO'}, Queue Length: {response.queueLength}
+            </span>
           </Card.Meta>
-          {((!isFolded && Object.keys(tree)) || []).map((dir, i) => 
-            <FileList 
-              key={i}
+          {((!isFolded && Object.keys(tree)) || []).map((dir, index) => (
+            <FileList
               directoryName={dir}
-              locked={tree[dir].find(file => file.locked)}
-              files={tree[dir]}
               disabled={downloadRequest === 'inProgress'}
+              files={tree[dir]}
+              footer={
+                <button
+                  disabled={fetchingDirectoryContents}
+                  onClick={() => this.getFullDirectory(response.username, dir)}
+                  style={{
+                    backgroundColor: 'transparent',
+                    border: 'none',
+                    cursor: 'pointer',
+                    width: '100%',
+                  }}
+                >
+                  <Icon
+                    loading={fetchingDirectoryContents}
+                    name={fetchingDirectoryContents ? 'circle notch' : 'folder'}
+                  />
+                  Get Full Directory Contents
+                </button>
+              }
+              key={index}
+              locked={tree[dir].find((file) => file.locked)}
               onSelectionChange={this.onFileSelectionChange}
-              footer={<button
-                disabled={fetchingDirectoryContents}
-                onClick={() => this.getFullDirectory(response.username, dir)} 
-                style={{ cursor: 'pointer', width: '100%', backgroundColor: 'transparent', border: 'none' }}>
-                <Icon
-                  name={fetchingDirectoryContents ? 'circle notch' : 'folder'}
-                  loading={fetchingDirectoryContents}/>Get Full Directory Contents
-              </button>}
             />
-          )}
+          ))}
         </Card.Content>
-        {selectedFiles.length > 0 && <Card.Content extra>
-          <span>
-            <Button 
-              color='green' 
-              content='Download'
-              icon='download' 
-              label={{ 
-                as: 'a', 
-                basic: false, 
-                content: `${selectedFiles.length} file${selectedFiles.length === 1 ? '' : 's'}, ${selectedSize}`,
-              }}
-              labelPosition='right'
-              onClick={() => this.download(response.username, selectedFiles)}
-              disabled={this.props.disabled || downloadRequest === 'inProgress'}
-            />
-            {downloadRequest === 'inProgress' && <Icon loading name='circle notch' size='large'/>}
-            {downloadRequest === 'complete' && <Icon name='checkmark' color='green' size='large'/>}
-            {downloadRequest === 'error' && <span>
-              <Icon name='x' color='red' size='large'/>
-              <Label>{downloadError.data + ` (HTTP ${downloadError.status} ${downloadError.statusText})`}</Label>
-            </span>}
-          </span>
-        </Card.Content>}
+        {selectedFiles.length > 0 && (
+          <Card.Content extra>
+            <span>
+              <Button
+                color="green"
+                content="Download"
+                disabled={
+                  this.props.disabled || downloadRequest === 'inProgress'
+                }
+                icon="download"
+                label={{
+                  as: 'a',
+                  basic: false,
+                  content: `${selectedFiles.length} file${selectedFiles.length === 1 ? '' : 's'}, ${selectedSize}`,
+                }}
+                labelPosition="right"
+                onClick={() => this.download(response.username, selectedFiles)}
+              />
+              {downloadRequest === 'inProgress' && (
+                <Icon
+                  loading
+                  name="circle notch"
+                  size="large"
+                />
+              )}
+              {downloadRequest === 'complete' && (
+                <Icon
+                  color="green"
+                  name="checkmark"
+                  size="large"
+                />
+              )}
+              {downloadRequest === 'error' && (
+                <span>
+                  <Icon
+                    color="red"
+                    name="x"
+                    size="large"
+                  />
+                  <Label>
+                    {downloadError.data +
+                      ` (HTTP ${downloadError.status} ${downloadError.statusText})`}
+                  </Label>
+                </span>
+              )}
+            </span>
+          </Card.Content>
+        )}
       </Card>
     );
-  };
+  }
 }
 
 export default Response;

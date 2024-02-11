@@ -1,23 +1,18 @@
-import React from 'react';
-
-import {
-  Button,
-  Dropdown,
-} from 'semantic-ui-react';
-
 import ShrinkableButton from './ShrinkableButton';
+import React from 'react';
+import { Button, Dropdown } from 'semantic-ui-react';
 
-const ShrinkableDropdownButton = ({ 
-  color, 
-  icon,
-  mediaQuery, 
-  disabled,
-  loading, 
-  options, 
-  onClick, 
-  onChange, 
-  hidden, 
+const ShrinkableDropdownButton = ({
   children,
+  color,
+  disabled,
+  hidden,
+  icon,
+  loading,
+  mediaQuery,
+  onChange,
+  onClick,
+  options,
 }) => {
   if (hidden) {
     return <></>;
@@ -26,17 +21,19 @@ const ShrinkableDropdownButton = ({
   return (
     <Button.Group color={color}>
       <ShrinkableButton
+        disabled={disabled}
         icon={icon}
-        onClick={onClick}
-        mediaQuery={mediaQuery}
-        disabled={disabled}
         loading={loading}
-      >{children}</ShrinkableButton>
+        mediaQuery={mediaQuery}
+        onClick={onClick}
+      >
+        {children}
+      </ShrinkableButton>
       <Dropdown
+        className="button icon"
         disabled={disabled}
-        className='button icon'
-        options={options}
         onChange={onChange}
+        options={options}
         trigger={<></>}
       />
     </Button.Group>

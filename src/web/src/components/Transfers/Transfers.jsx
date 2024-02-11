@@ -1,16 +1,10 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import * as transfersLib from '../../lib/transfers';
-import { toast } from 'react-toastify';
-
-import { 
-  LoaderSegment,
-  PlaceholderSegment,
-} from '../Shared';
-
+import './Transfers.css';
+import * as transfersLibrary from '../../lib/transfers';
+import { LoaderSegment, PlaceholderSegment } from '../Shared';
 import TransferGroup from './TransferGroup';
 import TransfersHeader from './TransfersHeader';
-
-import './Transfers.css';
+import React, { useEffect, useMemo, useState } from 'react';
+import { toast } from 'react-toastify';
 
 const Transfers = ({ direction, server }) => {
   const [connecting, setConnecting] = useState(true);
@@ -29,8 +23,8 @@ const Transfers = ({ direction, server }) => {
     };
 
     init();
-    const interval = window.setInterval(fetch, 1000);
-    
+    const interval = window.setInterval(fetch, 1_000);
+
     return () => {
       clearInterval(interval);
     };
@@ -39,7 +33,7 @@ const Transfers = ({ direction, server }) => {
   useMemo(() => {
     // this is used to prevent weird update issues if switching
     // between uploads and downloads.  useEffect fires _after_ the
-    // prop 'direction' updates, meaning there's a flash where the 
+    // prop 'direction' updates, meaning there's a flash where the
     // screen contents switch to the new direction for a brief moment
     // before the connecting animation shows.  this memo fires the instant
     // the direction prop changes, preventing this flash.
@@ -48,7 +42,7 @@ const Transfers = ({ direction, server }) => {
 
   const fetch = async () => {
     try {
-      const response = await transfersLib.getAll({ direction });
+      const response = await transfersLibrary.getAll({ direction });
       setTransfers(response);
     } catch (error) {
       console.error(error);
@@ -57,11 +51,14 @@ const Transfers = ({ direction, server }) => {
   };
 
   const retry = async ({ file, suppressStateChange = false }) => {
-    const { username, filename, size } = file;
-        
+    const { filename, size, username } = file;
+
     try {
       if (!suppressStateChange) setRetrying(true);
-      await transfersLib.download({username, files: [{filename, size }] });
+      await transfersLibrary.download({
+        files: [{ filename, size }],
+        username,
+      });
       if (!suppressStateChange) setRetrying(false);
     } catch (error) {
       console.error(error);
@@ -72,16 +69,18 @@ const Transfers = ({ direction, server }) => {
 
   const retryAll = async (transfers) => {
     setRetrying(true);
-    await Promise.all(transfers.map(file => retry({ file, suppressStateChange: true })));
+    await Promise.all(
+      transfers.map((file) => retry({ file, suppressStateChange: true })),
+    );
     setRetrying(false);
   };
 
   const cancel = async ({ file, suppressStateChange = false }) => {
-    const { username, id } = file;
-    
+    const { id, username } = file;
+
     try {
       if (!suppressStateChange) setCancelling(true);
-      await transfersLib.cancel({ direction, username, id });
+      await transfersLibrary.cancel({ direction, id, username });
       if (!suppressStateChange) setCancelling(false);
     } catch (error) {
       console.error(error);
@@ -92,16 +91,18 @@ const Transfers = ({ direction, server }) => {
 
   const cancelAll = async (transfers) => {
     setCancelling(true);
-    await Promise.all(transfers.map(file => cancel({ file, suppressStateChange: true })));
+    await Promise.all(
+      transfers.map((file) => cancel({ file, suppressStateChange: true })),
+    );
     setCancelling(false);
   };
 
   const remove = async ({ file, suppressStateChange = false }) => {
-    const { username, id } = file;
+    const { id, username } = file;
 
     try {
       if (!suppressStateChange) setRemoving(true);
-      await transfersLib.cancel({ direction, username, id, remove: true });
+      await transfersLibrary.cancel({ direction, id, remove: true, username });
       if (!suppressStateChange) setRemoving(false);
     } catch (error) {
       console.error(error);
@@ -112,42 +113,49 @@ const Transfers = ({ direction, server }) => {
 
   const removeAll = async (transfers) => {
     setRemoving(true);
-    await Promise.all(transfers.map(file => remove({ file, suppressStateChange: true })));
+    await Promise.all(
+      transfers.map((file) => remove({ file, suppressStateChange: true })),
+    );
     setRemoving(false);
   };
 
   if (connecting) {
-    return <LoaderSegment/>;
+    return <LoaderSegment />;
   }
 
   return (
     <>
-      <TransfersHeader 
-        direction={direction} 
-        transfers={transfers} 
-        server={server}
-        onRetryAll={retryAll}
-        retrying={retrying}
-        onCancelAll={cancelAll}
+      <TransfersHeader
         cancelling={cancelling}
+        direction={direction}
+        onCancelAll={cancelAll}
         onRemoveAll={removeAll}
+        onRetryAll={retryAll}
         removing={removing}
+        retrying={retrying}
+        server={server}
+        transfers={transfers}
       />
-      {transfers.length === 0 
-        ? <PlaceholderSegment icon={direction} caption={`No ${direction}s to display`}/>
-        : transfers.map((user, index) => 
-          <TransferGroup 
-            key={index} 
-            direction={direction} 
-            user={user}
-            retry={retry}
-            retryAll={retryAll}
+      {transfers.length === 0 ? (
+        <PlaceholderSegment
+          caption={`No ${direction}s to display`}
+          icon={direction}
+        />
+      ) : (
+        transfers.map((user, index) => (
+          <TransferGroup
             cancel={cancel}
             cancelAll={cancelAll}
+            direction={direction}
+            key={index}
             remove={remove}
             removeAll={removeAll}
+            retry={retry}
+            retryAll={retryAll}
+            user={user}
           />
-        )}
+        ))
+      )}
     </>
   );
 };

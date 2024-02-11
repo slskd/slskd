@@ -1,21 +1,25 @@
+import {
+  defaultHighlightStyle,
+  StreamLanguage,
+  syntaxHighlighting,
+} from '@codemirror/language';
+import { yaml } from '@codemirror/legacy-modes/mode/yaml';
+import CodeMirror from '@uiw/react-codemirror';
 import React from 'react';
 
-import CodeMirror from '@uiw/react-codemirror';
-import { StreamLanguage, syntaxHighlighting, defaultHighlightStyle  } from '@codemirror/language';
-import { yaml } from '@codemirror/legacy-modes/mode/yaml';
-
-const CodeEditor = ({ value, theme, onChange = () => {}, ...rest}) => {
+const CodeEditor = ({ onChange = () => {}, theme, value, ...rest }) => {
   console.log(defaultHighlightStyle);
 
   return (
     <CodeMirror
-      value={value}
       extensions={[
-        StreamLanguage.define(yaml),  
-        syntaxHighlighting(defaultHighlightStyle, {fallback: true})]}
+        StreamLanguage.define(yaml),
+        syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+      ]}
       onChange={(value, _) => onChange(value)}
       theme={theme}
-      { ...rest}
+      value={value}
+      {...rest}
     />
   );
 };

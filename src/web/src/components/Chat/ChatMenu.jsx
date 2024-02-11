@@ -1,39 +1,53 @@
-import React from 'react';
 import './Chat.css';
-
-import {
-  Icon, Button, Label, Menu,
-} from 'semantic-ui-react';
 import SendMessageModal from './SendMessageModal';
+import React from 'react';
+import { Button, Icon, Label, Menu } from 'semantic-ui-react';
 
-const ChatMenu = ({ conversations, active, onConversationChange, ...rest }) => {
+const ChatMenu = ({ active, conversations, onConversationChange, ...rest }) => {
   const names = Object.keys(conversations);
   const isActive = (name) => active === name;
 
   return (
-    <Menu className='conversation-menu' size='large'>
-      {names.map((name, index) => 
+    <Menu
+      className="conversation-menu"
+      size="large"
+    >
+      {names.map((name, index) => (
         <Menu.Item
+          active={isActive(name)}
           className={`menu-item ${isActive(name) ? 'menu-active' : ''}`}
           key={index}
           name={name}
-          active={isActive(name)}
           onClick={() => onConversationChange(name)}
         >
-          <Icon name='circle' size='tiny' color='green'/>
+          <Icon
+            color="green"
+            name="circle"
+            size="tiny"
+          />
           {name}
-          {conversations[name].hasUnAcknowledgedMessages && 
-            <Label size='tiny' color='red'>{conversations[name].unAcknowledgedMessageCount}</Label>
-          }
+          {conversations[name].hasUnAcknowledgedMessages && (
+            <Label
+              color="red"
+              size="tiny"
+            >
+              {conversations[name].unAcknowledgedMessageCount}
+            </Label>
+          )}
         </Menu.Item>
-      )}
-      <Menu.Menu position='right'>
+      ))}
+      <Menu.Menu position="right">
         <SendMessageModal
-          trigger={
-            <Button icon className='add-button'><Icon name='plus'/></Button>
-          }
           centered
-          size='small'
+          size="small"
+          trigger={
+            <Button
+              className="add-button"
+              icon
+            >
+              <Icon name="plus" />
+            </Button>
+          }
           {...rest}
         />
       </Menu.Menu>

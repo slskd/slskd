@@ -1,9 +1,6 @@
-import React, { useEffect } from 'react';
 import './Chat.css';
-
-import {
-  Icon, Button, Modal, Form, Header, Input,
-} from 'semantic-ui-react';
+import React, { useEffect } from 'react';
+import { Button, Form, Header, Icon, Input, Modal } from 'semantic-ui-react';
 
 const usernameRef = React.createRef();
 
@@ -34,39 +31,41 @@ const SendMessageModal = ({ initiateConversation, ...rest }) => {
 
   return (
     <Modal
-      open={open}
       onClose={() => setOpen(false)}
       onOpen={() => setOpen(true)}
+      open={open}
       {...rest}
     >
       <Header>
-        <Icon name='send'/>
+        <Icon name="send" />
         <Modal.Content>Send Private Message</Modal.Content>
       </Header>
       <Modal.Content>
         <Form>
           <Form.Field>
             <Input
-              ref={usernameRef}
-              placeholder='Username' 
               onChange={(e, data) => setUsername(data.value)}
+              placeholder="Username"
+              ref={usernameRef}
             />
           </Form.Field>
           <Form.Field>
             <Input
-              placeholder='Message'
               onChange={(e, data) => setMessage(data.value)}
+              placeholder="Message"
             />
           </Form.Field>
         </Form>
       </Modal.Content>
       <Modal.Actions>
         <Button onClick={() => setOpen(false)}>Cancel</Button>
-        <Button 
-          positive 
-          onClick={() => sendMessage()}
+        <Button
           disabled={!validInput()}
-        >Send</Button>
+          onClick={() => sendMessage()}
+          positive
+        >
+          Send
+        </Button>
       </Modal.Actions>
     </Modal>
   );

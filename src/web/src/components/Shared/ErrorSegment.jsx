@@ -1,12 +1,19 @@
 import React from 'react';
+import { Header, Icon, Segment } from 'semantic-ui-react';
 
-import { Segment, Header, Icon } from 'semantic-ui-react';
-
-const ErrorSegment = ({ icon = 'x', caption, suppressPrefix = false }) => (
-  <Segment className='error-segment' placeholder basic>
+const ErrorSegment = ({ caption, icon = 'x', suppressPrefix = false }) => (
+  <Segment
+    basic
+    className="error-segment"
+    placeholder
+  >
     <Header icon>
-      <Icon name={icon} color='red'/>
-      {!suppressPrefix && 'Error: '}{caption}
+      <Icon
+        color="red"
+        name={icon}
+      />
+      {!suppressPrefix && 'Error: '}
+      {caption}
     </Header>
   </Segment>
 );

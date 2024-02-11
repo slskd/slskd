@@ -1,10 +1,19 @@
 import React from 'react';
+import { Loader, Segment } from 'semantic-ui-react';
 
-import { Segment, Loader } from 'semantic-ui-react';
-
-const LoaderSegment = ({ size = 'big', children, ...props }) => (
-  <Segment className='loader-segment' placeholder basic>
-    <Loader active size={size} {...props}>{children}</Loader>
+const LoaderSegment = ({ children, size = 'big', ...props }) => (
+  <Segment
+    basic
+    className="loader-segment"
+    placeholder
+  >
+    <Loader
+      active
+      size={size}
+      {...props}
+    >
+      {children}
+    </Loader>
   </Segment>
 );
 

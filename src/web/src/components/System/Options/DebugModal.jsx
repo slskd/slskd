@@ -1,16 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { toast } from 'react-toastify';
-
-import { 
-  Modal, 
-  Button,
-  Icon, 
-} from 'semantic-ui-react';
-
 import { getCurrentDebugView } from '../../../lib/options';
 import { CodeEditor, PlaceholderSegment, Switch } from '../../Shared';
+import React, { useEffect, useState } from 'react';
+import { toast } from 'react-toastify';
+import { Button, Icon, Modal } from 'semantic-ui-react';
 
-const DebugModal = ({ open, theme, onClose }) => {
+const DebugModal = ({ onClose, open, theme }) => {
   const [loading, setLoading] = useState(true);
   const [debugView, setDebugView] = useState();
 
@@ -32,36 +26,36 @@ const DebugModal = ({ open, theme, onClose }) => {
       setLoading(false);
     }
   };
-  
-  return (      
+
+  return (
     <Modal
-      size='large'
-      open={open}
       onClose={onClose}
+      open={open}
+      size="large"
     >
       <Modal.Header>
-        <Icon name='bug'/>
+        <Icon name="bug" />
         Options (Debug View)
       </Modal.Header>
-      <Modal.Content className='debug-view-content' scrolling>
-        <Switch
-          loading={loading && <PlaceholderSegment loading={true} />}
-        >
+      <Modal.Content
+        className="debug-view-content"
+        scrolling
+      >
+        <Switch loading={loading && <PlaceholderSegment loading />}>
           <CodeEditor
-            style={{minHeight: 500}}
-            value={debugView}
             basicSetup={false}
             editable={false}
+            style={{ minHeight: 500 }}
             theme={theme}
+            value={debugView}
           />
         </Switch>
       </Modal.Content>
       <Modal.Actions>
-        <Button onClick={onClose}>
-          Close
-        </Button>
+        <Button onClick={onClose}>Close</Button>
       </Modal.Actions>
-    </Modal>);
+    </Modal>
+  );
 };
 
 export default DebugModal;

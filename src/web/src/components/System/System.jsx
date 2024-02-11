@@ -1,103 +1,157 @@
-import React from 'react';
-import { useRouteMatch, useHistory, Redirect } from 'react-router-dom';
-
-import { Segment, Tab, Menu, Icon } from 'semantic-ui-react';
-
 import './System.css';
-
 import { Switch } from '../Shared';
+import Data from './Data';
+import Files from './Files';
 import Info from './Info';
 import Logs from './Logs';
 import Options from './Options';
 import Shares from './Shares';
-import Files from './Files';
-import Data from './Data';
+import React from 'react';
+import { Redirect, useHistory, useRouteMatch } from 'react-router-dom';
+import { Icon, Menu, Segment, Tab } from 'semantic-ui-react';
 
-const System = ({ state = {}, theme, options = {} }) => {
-  const { params: { tab }, ...route } = useRouteMatch();
+const System = ({ options = {}, state = {}, theme }) => {
+  const {
+    params: { tab },
+    ...route
+  } = useRouteMatch();
   const history = useHistory();
 
   const panes = [
-    { 
+    {
+      menuItem: (
+        <Menu.Item key="info">
+          <Switch
+            pending={
+              ((state?.pendingRestart ?? false) ||
+                (state?.pendingReconnect ?? false)) && (
+                <Icon
+                  color="yellow"
+                  name="exclamation circle"
+                />
+              )
+            }
+          >
+            <Icon name="info circle" />
+          </Switch>
+          Info
+        </Menu.Item>
+      ),
+      render: () => (
+        <Tab.Pane>
+          <Info
+            state={state}
+            theme={theme}
+          />
+        </Tab.Pane>
+      ),
       route: 'info',
-      menuItem: (<Menu.Item key='info'>
-        <Switch
-          pending={((state?.pendingRestart ?? false) || (state?.pendingReconnect ?? false)) 
-            && <Icon name='exclamation circle' color='yellow'/>}
-        >
-          <Icon name='info circle'/>
-        </Switch>
-        Info
-      </Menu.Item>), 
-      render: () => <Tab.Pane><Info state={state} theme={theme}/></Tab.Pane>, 
     },
     {
-      route: 'options', 
-      menuItem: { 
-        key: 'options', 
-        icon: 'options', 
-        content: 'Options', 
-      }, 
-      render: () => <Tab.Pane className='full-height'><Options options={options} theme={theme}/></Tab.Pane>,
-    },
-    {
-      route: 'shares', 
-      menuItem: (<Menu.Item key='shares'>
-        <Switch
-          scanPending={(state?.shares?.scanPending ?? false) && <Icon name='exclamation circle' color='yellow'/>}
-        >
-          <Icon name='share external'/>
-        </Switch>
-        Shares
-      </Menu.Item>),
-      render: () => <Tab.Pane><Shares state={state.shares} theme={theme}/></Tab.Pane>,
-    },
-    {
-      route: 'files',
       menuItem: {
-        key: 'files',
-        icon: 'folder open',
+        content: 'Options',
+        icon: 'options',
+        key: 'options',
+      },
+      render: () => (
+        <Tab.Pane className="full-height">
+          <Options
+            options={options}
+            theme={theme}
+          />
+        </Tab.Pane>
+      ),
+      route: 'options',
+    },
+    {
+      menuItem: (
+        <Menu.Item key="shares">
+          <Switch
+            scanPending={
+              (state?.shares?.scanPending ?? false) && (
+                <Icon
+                  color="yellow"
+                  name="exclamation circle"
+                />
+              )
+            }
+          >
+            <Icon name="share external" />
+          </Switch>
+          Shares
+        </Menu.Item>
+      ),
+      render: () => (
+        <Tab.Pane>
+          <Shares
+            state={state.shares}
+            theme={theme}
+          />
+        </Tab.Pane>
+      ),
+      route: 'shares',
+    },
+    {
+      menuItem: {
         content: 'Files',
+        icon: 'folder open',
+        key: 'files',
       },
-      render: () => <Tab.Pane className='full-height'><Files options={options} theme={theme}/></Tab.Pane>,
+      render: () => (
+        <Tab.Pane className="full-height">
+          <Files
+            options={options}
+            theme={theme}
+          />
+        </Tab.Pane>
+      ),
+      route: 'files',
     },
     {
-      route: 'data',
       menuItem: {
-        key: 'data',
-        icon: 'database',
         content: 'Data',
+        icon: 'database',
+        key: 'data',
       },
-      render: () => <Tab.Pane className='full-height'><Data theme={theme}/></Tab.Pane>,
+      render: () => (
+        <Tab.Pane className="full-height">
+          <Data theme={theme} />
+        </Tab.Pane>
+      ),
+      route: 'data',
     },
-    { 
-      route: 'logs', 
-      menuItem: { 
-        key: 'logs', 
-        icon: 'file outline', 
-        content: 'Logs', 
-      }, 
-      render: () => <Tab.Pane><Logs/></Tab.Pane>, 
+    {
+      menuItem: {
+        content: 'Logs',
+        icon: 'file outline',
+        key: 'logs',
+      },
+      render: () => (
+        <Tab.Pane>
+          <Logs />
+        </Tab.Pane>
+      ),
+      route: 'logs',
     },
   ];
 
-  const activeIndex = panes.findIndex(pane => pane.route === tab);
+  const activeIndex = panes.findIndex((pane) => pane.route === tab);
 
   const onTabChange = (e, { activeIndex }) => {
     history.push(panes[activeIndex].route);
   };
 
   if (tab === undefined) {
-    return <Redirect to={`${route.url}/${panes[0].route}`}/>;
+    return <Redirect to={`${route.url}/${panes[0].route}`} />;
   }
 
   return (
-    <div className='system'>
+    <div className="system">
       <Segment raised>
         <Tab
-          activeIndex={activeIndex > -1 ? activeIndex : 0} 
-          panes={panes}
+          activeIndex={activeIndex > -1 ? activeIndex : 0}
           onTabChange={onTabChange}
+          panes={panes}
         />
       </Segment>
     </div>

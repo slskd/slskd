@@ -1,19 +1,10 @@
-import React, { useEffect, useState } from 'react';
-import { orderBy } from 'lodash';
-
 import { browse } from '../../../lib/shares';
+import { CodeEditor, LoaderSegment, Switch } from '../../Shared';
+import { orderBy } from 'lodash';
+import React, { useEffect, useState } from 'react';
+import { Button, Icon, Modal } from 'semantic-ui-react';
 
-import {
-  Modal,
-  Button,
-  Icon,
-} from 'semantic-ui-react';
-
-import {
-  CodeEditor, LoaderSegment, Switch,
-} from '../../Shared';
-
-const ContentsModal = ({ share, onClose, theme }) => {
+const ContentsModal = ({ onClose, share, theme }) => {
   const [loading, setLoading] = useState(true);
   const [contents, setContents] = useState();
 
@@ -22,21 +13,21 @@ const ContentsModal = ({ share, onClose, theme }) => {
   useEffect(() => {
     const fetch = async () => {
       setLoading(true);
-      
+
       const contents = await browse({ id });
-  
-      var directories = contents.map(directory => {
+
+      const directories = contents.map((directory) => {
         const lines = [directory.name.replace(remotePath, localPath)];
-    
-        orderBy(directory.files, 'filename').forEach(file => {
+
+        for (const file of orderBy(directory.files, 'filename')) {
           lines.push('\t' + file.filename.replace(remotePath, ''));
-        });
-    
+        }
+
         lines.push('');
-    
+
         return lines.join('\n');
       });
-    
+
       setContents(directories.join('\n'));
       setLoading(false);
     };
@@ -51,28 +42,30 @@ const ContentsModal = ({ share, onClose, theme }) => {
 
   return (
     <Modal
-      size='large'
-      open={share}
       onClose={onClose}
+      open={share}
+      size="large"
     >
-      <Modal.Header><Icon name='folder'/>{localPath}</Modal.Header>
-      <Modal.Content scrolling className='share-ls-content'>
-        <Switch
-          loading={loading && <LoaderSegment className="modal-loader"/>}
-        >
+      <Modal.Header>
+        <Icon name="folder" />
+        {localPath}
+      </Modal.Header>
+      <Modal.Content
+        className="share-ls-content"
+        scrolling
+      >
+        <Switch loading={loading && <LoaderSegment className="modal-loader" />}>
           <CodeEditor
-            style={{minHeight: 500}}
-            value={contents || ''}
             basicSetup={false}
             editable={false}
+            style={{ minHeight: 500 }}
             theme={theme}
+            value={contents || ''}
           />
         </Switch>
       </Modal.Content>
       <Modal.Actions>
-        <Button onClick={onClose}>
-          Close
-        </Button>
+        <Button onClick={onClose}>Close</Button>
       </Modal.Actions>
     </Modal>
   );

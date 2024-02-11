@@ -1,18 +1,24 @@
-import React, { useState, useEffect } from 'react';
-
-import { Button, Icon, Message, Modal } from 'semantic-ui-react';
-import CodeEditor from '../../Shared/CodeEditor';
-
-import { getYamlLocation, getYaml, validateYaml, updateYaml } from '../../../lib/options';
 import {
-  PlaceholderSegment,
-  Switch,
-  Div,
-} from '../../Shared';
+  getYaml,
+  getYamlLocation,
+  updateYaml,
+  validateYaml,
+} from '../../../lib/options';
+import { Div, PlaceholderSegment, Switch } from '../../Shared';
+import CodeEditor from '../../Shared/CodeEditor';
+import React, { useEffect, useState } from 'react';
+import { Button, Icon, Message, Modal } from 'semantic-ui-react';
 
-const EditModal = ({ open, theme, onClose }) => {
-  const [{ loading, error }, setLoading] = useState({ loading: true, error: false });
-  const [{ location, yaml, isDirty }, setYaml] = useState({ location: undefined, yaml: undefined, isDirty: false });
+const EditModal = ({ onClose, open, theme }) => {
+  const [{ error, loading }, setLoading] = useState({
+    error: false,
+    loading: true,
+  });
+  const [{ isDirty, location, yaml }, setYaml] = useState({
+    isDirty: false,
+    location: undefined,
+    yaml: undefined,
+  });
   const [yamlError, setYamlError] = useState();
   const [updateError, setUpdateError] = useState();
 
@@ -23,20 +29,23 @@ const EditModal = ({ open, theme, onClose }) => {
   }, [open]);
 
   const get = async () => {
-    setLoading({ loading: true, error: false });
+    setLoading({ error: false, loading: true });
 
     try {
-      const [location, yaml] = await Promise.all([getYamlLocation(), getYaml()]);
+      const [location, yaml] = await Promise.all([
+        getYamlLocation(),
+        getYaml(),
+      ]);
 
-      setYaml({ location, yaml, isDirty: false });
-      setLoading({ loading: false, error: false });
+      setYaml({ isDirty: false, location, yaml });
+      setLoading({ error: false, loading: false });
     } catch (error) {
-      setLoading({ loading: false, error: error.message });
+      setLoading({ error: error.message, loading: false });
     }
   };
 
   const update = async (yaml) => {
-    setYaml({ location, yaml, isDirty: true });
+    setYaml({ isDirty: true, location, yaml });
     validate(yaml);
   };
 
@@ -52,8 +61,7 @@ const EditModal = ({ open, theme, onClose }) => {
       try {
         await updateYaml({ yaml });
         onClose();
-      }
-      catch (error) {
+      } catch (error) {
         setUpdateError(error.response.data);
       }
     }
@@ -61,43 +69,73 @@ const EditModal = ({ open, theme, onClose }) => {
 
   return (
     <Modal
-      size='large'
-      open={open}
       onClose={onClose}
+      open={open}
+      size="large"
     >
       <Modal.Header>
-        <Icon name='edit'/>
+        <Icon name="edit" />
         Edit Options
         <Div hidden={loading}>
-          <Message className='no-grow edit-code-header' warning>
-            <Icon name='warning sign'/>Editing {location}
+          <Message
+            className="no-grow edit-code-header"
+            warning
+          >
+            <Icon name="warning sign" />
+            Editing {location}
           </Message>
         </Div>
       </Modal.Header>
-      <Modal.Content className='edit-code-content' scrolling>
+      <Modal.Content
+        className="edit-code-content"
+        scrolling
+      >
         <Switch
-          loading={loading && <PlaceholderSegment loading={true}/>}
-          error={error && <PlaceholderSegment icon='close'/>}
+          error={error && <PlaceholderSegment icon="close" />}
+          loading={loading && <PlaceholderSegment loading />}
         >
-          <div 
-            {...{ className: (yamlError || updateError) ? 'edit-code-container-error' : 'edit-code-container' }} 
+          <div
+            {...{
+              className:
+                yamlError || updateError
+                  ? 'edit-code-container-error'
+                  : 'edit-code-container',
+            }}
           >
             <CodeEditor
-              style={{minHeight: 500}}
-              value={yaml}
               onChange={(value) => update(value)}
+              style={{ minHeight: 500 }}
               theme={theme}
+              value={yaml}
             />
           </div>
         </Switch>
       </Modal.Content>
       <Modal.Actions>
-        {(yamlError || updateError) &&
-            <Message className='no-grow left-align' negative>
-              <Icon name='x' />{(yamlError ?? '') + (updateError ?? '')}
-            </Message>}
-        <Button primary disabled={!isDirty} onClick={() => save(yaml)}><Icon name='save'/>Save</Button>
-        <Button negative onClick={onClose}><Icon name='close'/>Cancel</Button>
+        {(yamlError || updateError) && (
+          <Message
+            className="no-grow left-align"
+            negative
+          >
+            <Icon name="x" />
+            {(yamlError ?? '') + (updateError ?? '')}
+          </Message>
+        )}
+        <Button
+          disabled={!isDirty}
+          onClick={() => save(yaml)}
+          primary
+        >
+          <Icon name="save" />
+          Save
+        </Button>
+        <Button
+          negative
+          onClick={onClose}
+        >
+          <Icon name="close" />
+          Cancel
+        </Button>
       </Modal.Actions>
     </Modal>
   );

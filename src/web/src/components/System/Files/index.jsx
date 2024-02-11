@@ -1,30 +1,41 @@
-import React from 'react';
-import { Tab } from 'semantic-ui-react';
-
 import './Files.css';
 import Explorer from './Explorer';
+import React from 'react';
+import { Tab } from 'semantic-ui-react';
 
 const Files = ({ options } = {}) => {
   const { remoteFileManagement } = options;
 
   const panes = [
-    { 
-      route: 'downloads',
+    {
       menuItem: 'Downloads',
-      render: () => <Tab.Pane><Explorer root={'downloads'} remoteFileManagement={remoteFileManagement}/></Tab.Pane>,
+      render: () => (
+        <Tab.Pane>
+          <Explorer
+            remoteFileManagement={remoteFileManagement}
+            root="downloads"
+          />
+        </Tab.Pane>
+      ),
+      route: 'downloads',
     },
-    { 
-      route: 'incomplete',
+    {
       menuItem: 'Incomplete',
-      render: () => <Tab.Pane><Explorer root={'incomplete'} remoteFileManagement={remoteFileManagement}/></Tab.Pane>,
+      render: () => (
+        <Tab.Pane>
+          <Explorer
+            remoteFileManagement={remoteFileManagement}
+            root="incomplete"
+          />
+        </Tab.Pane>
+      ),
+      route: 'incomplete',
     },
   ];
 
   return (
     <div>
-      <Tab
-        panes={panes}
-      />
+      <Tab panes={panes} />
     </div>
   );
 };

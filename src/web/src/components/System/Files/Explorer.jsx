@@ -1,25 +1,18 @@
-import React, { useState, useEffect } from 'react';
-
-import {
-  Table,
-  Icon,
-  Modal,
-  Header,
-} from 'semantic-ui-react';
-
-import { list, deleteDirectory, deleteFile } from '../../../lib/files';
+import { deleteDirectory, deleteFile, list } from '../../../lib/files';
 import { formatBytes, formatDate } from '../../../lib/util';
 import { LoaderSegment } from '../../Shared';
+import React, { useEffect, useState } from 'react';
+import { Header, Icon, Modal, Table } from 'semantic-ui-react';
 
-const Explorer = ({ root, remoteFileManagement }) => {
-  const [directory, setDirectory] = useState({ files: [], directories: [] });
+const Explorer = ({ remoteFileManagement, root }) => {
+  const [directory, setDirectory] = useState({ directories: [], files: [] });
   const [subdirectory, setSubdirectory] = useState([]);
   const [loading, setLoading] = useState(false);
- 
+
   useEffect(() => {
     fetch();
   }, [subdirectory]); // eslint-disable-line react-hooks/exhaustive-deps
-  
+
   useEffect(() => {
     setSubdirectory([]);
   }, [root]);
@@ -41,111 +34,184 @@ const Explorer = ({ root, remoteFileManagement }) => {
     setSubdirectory(copy);
   };
 
-  const FileRow = ({ name, fullName, modifiedAt, length }) => <Table.Row key={fullName}>
-    <Table.Cell><Icon name='file outline'/>{name}</Table.Cell>
-    <Table.Cell>{modifiedAt ? formatDate(modifiedAt) : ''}</Table.Cell>
-    <Table.Cell>{length ? formatBytes(length) : ''}</Table.Cell>
-    <Table.Cell>
-      {remoteFileManagement 
-        ? <Modal
-          trigger={
-            <Icon name="trash alternate" color="red" style={{ cursor: 'pointer' }}/>
-          }
-          centered
-          size='small'
-          header={<Header icon='trash alternate' content='Confirm File Delete' />}
-          content={`Are you sure you want to delete file '${fullName}'?`}
-          actions={[
-            'Cancel',
-            {
-              key: 'done',
-              content: 'Delete',
-              negative: true,
-              onClick: async () => {
-                await deleteFile({ root, path: `${subdirectory.join('/')}/${fullName}`});
-                fetch();
+  const FileRow = ({ fullName, length, modifiedAt, name }) => (
+    <Table.Row key={fullName}>
+      <Table.Cell>
+        <Icon name="file outline" />
+        {name}
+      </Table.Cell>
+      <Table.Cell>{modifiedAt ? formatDate(modifiedAt) : ''}</Table.Cell>
+      <Table.Cell>{length ? formatBytes(length) : ''}</Table.Cell>
+      <Table.Cell>
+        {remoteFileManagement ? (
+          <Modal
+            actions={[
+              'Cancel',
+              {
+                content: 'Delete',
+                key: 'done',
+                negative: true,
+                onClick: async () => {
+                  await deleteFile({
+                    path: `${subdirectory.join('/')}/${fullName}`,
+                    root,
+                  });
+                  fetch();
+                },
               },
-            },
-          ]}/>
-        : <></>}
-    </Table.Cell>
-  </Table.Row>;
+            ]}
+            centered
+            content={`Are you sure you want to delete file '${fullName}'?`}
+            header={
+              <Header
+                content="Confirm File Delete"
+                icon="trash alternate"
+              />
+            }
+            size="small"
+            trigger={
+              <Icon
+                color="red"
+                name="trash alternate"
+                style={{ cursor: 'pointer' }}
+              />
+            }
+          />
+        ) : (
+          <></>
+        )}
+      </Table.Cell>
+    </Table.Row>
+  );
 
   const DirectoryRow = ({
-    name,
+    deletable = true,
     fullName,
     modifiedAt,
+    name,
     onClick = () => {},
-    deletable = true,
-  }) => <Table.Row key={name}>
-    <Table.Cell
-      style={{ cursor: 'pointer' }}
-      onClick={onClick}
-    ><Icon name='folder'/>{name}</Table.Cell>
-    <Table.Cell>{modifiedAt ? formatDate(modifiedAt) : ''}</Table.Cell>
-    <Table.Cell></Table.Cell>
-    <Table.Cell>
-      {remoteFileManagement && deletable
-        ? <Modal
-          trigger={
-            <Icon name="trash alternate" color="red" style={{ cursor: 'pointer' }}/>
-          }
-          centered
-          size='small'
-          header={<Header icon='trash alternate' content='Confirm Directory Delete' />}
-          content={`Are you sure you want to delete directory '${fullName}'?`}
-          actions={[
-            'Cancel',
-            {
-              key: 'done',
-              content: 'Delete',
-              negative: true,
-              onClick: async () => {
-                await deleteDirectory({ root, path: `${subdirectory.join('/')}/${fullName}`});
-                fetch();
+  }) => (
+    <Table.Row key={name}>
+      <Table.Cell
+        onClick={onClick}
+        style={{ cursor: 'pointer' }}
+      >
+        <Icon name="folder" />
+        {name}
+      </Table.Cell>
+      <Table.Cell>{modifiedAt ? formatDate(modifiedAt) : ''}</Table.Cell>
+      <Table.Cell />
+      <Table.Cell>
+        {remoteFileManagement && deletable ? (
+          <Modal
+            actions={[
+              'Cancel',
+              {
+                content: 'Delete',
+                key: 'done',
+                negative: true,
+                onClick: async () => {
+                  await deleteDirectory({
+                    path: `${subdirectory.join('/')}/${fullName}`,
+                    root,
+                  });
+                  fetch();
+                },
               },
-            },
-          ]}
-        />
-        : ''}
-    </Table.Cell>  
-  </Table.Row>;
+            ]}
+            centered
+            content={`Are you sure you want to delete directory '${fullName}'?`}
+            header={
+              <Header
+                content="Confirm Directory Delete"
+                icon="trash alternate"
+              />
+            }
+            size="small"
+            trigger={
+              <Icon
+                color="red"
+                name="trash alternate"
+                style={{ cursor: 'pointer' }}
+              />
+            }
+          />
+        ) : (
+          ''
+        )}
+      </Table.Cell>
+    </Table.Row>
+  );
 
   if (loading) {
-    return <LoaderSegment/>;
+    return <LoaderSegment />;
   }
 
   const total = directory?.directories?.length + directory?.files?.length ?? 0;
 
   return (
     <>
-      <Header size='small' className='explorer-working-directory'>
-        <Icon name='folder open'/>{'/' + root + '/' + subdirectory.join('/')}
+      <Header
+        className="explorer-working-directory"
+        size="small"
+      >
+        <Icon name="folder open" />
+        {'/' + root + '/' + subdirectory.join('/')}
       </Header>
-      <Table size='large' className='unstackable'>
+      <Table
+        className="unstackable"
+        size="large"
+      >
         <Table.Header>
           <Table.Row>
-            <Table.HeaderCell className="explorer-list-name">Name</Table.HeaderCell>
-            <Table.HeaderCell className="explorer-list-date">Date Modified</Table.HeaderCell>
-            <Table.HeaderCell className="explorer-list-size">Size</Table.HeaderCell>
-            <Table.HeaderCell className="explorer-list-action"></Table.HeaderCell>
+            <Table.HeaderCell className="explorer-list-name">
+              Name
+            </Table.HeaderCell>
+            <Table.HeaderCell className="explorer-list-date">
+              Date Modified
+            </Table.HeaderCell>
+            <Table.HeaderCell className="explorer-list-size">
+              Size
+            </Table.HeaderCell>
+            <Table.HeaderCell className="explorer-list-action" />
           </Table.Row>
         </Table.Header>
         <Table.Body>
-          {total === 0
-            ? <Table.Row>
-              <Table.Cell colSpan={99} style={{ opacity: .5, padding: '10px !important', textAlign: 'center' }}>
+          {total === 0 ? (
+            <Table.Row>
+              <Table.Cell
+                colSpan={99}
+                style={{
+                  opacity: 0.5,
+                  padding: '10px !important',
+                  textAlign: 'center',
+                }}
+              >
                 No files or directories
               </Table.Cell>
             </Table.Row>
-            : <>
-              {subdirectory.length > 0 
-                && <DirectoryRow name=".." fullName=".." onClick={upOneSubdirectory} deletable={false}/>}
-              {directory?.directories?.map(d => <DirectoryRow
-                key={d.name} onClick={() => select({ path: d.name })} {...d}/>)}
-              {directory?.files?.map(f => <FileRow {...f}/>)}
+          ) : (
+            <>
+              {subdirectory.length > 0 && (
+                <DirectoryRow
+                  deletable={false}
+                  fullName=".."
+                  name=".."
+                  onClick={upOneSubdirectory}
+                />
+              )}
+              {directory?.directories?.map((d) => (
+                <DirectoryRow
+                  key={d.name}
+                  onClick={() => select({ path: d.name })}
+                  {...d}
+                />
+              ))}
+              {directory?.files?.map((f) => (
+                <FileRow {...f} />
+              ))}
             </>
-          }
+          )}
         </Table.Body>
       </Table>
     </>
