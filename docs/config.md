@@ -283,16 +283,16 @@ A change to slot limits requires an application restart to take effect, while sp
 | Command-Line             | Environment Variable         | Description                                      |
 | ------------------------ | ---------------------------- | ------------------------------------------------ |
 | `--upload-slots`         | `SLSKD_UPLOAD_SLOTS`         | The limit for the total number of upload slots   |
-| `--upload-speed-limit`   | `SLSKD_UPLOAD_SPEED_LIMIT`   | The total upload speed limit                     |
+| `--upload-speed-limit`   | `SLSKD_UPLOAD_SPEED_LIMIT`   | The total upload speed limit, in kibibytes       |
 | `--download-slots`       | `SLSKD_DOWNLOAD_SLOTS`       | The limit for the total number of download slots |
-| `--download-speed-limit` | `SLSKD_DOWNLOAD_SPEED_LIMIT` | The total download speed limit                   |
+| `--download-speed-limit` | `SLSKD_DOWNLOAD_SPEED_LIMIT` | The total download speed limit, in kibibytes     |
 
 #### **YAML**
 ```yaml
 global:
   upload:
     slots: 20
-    speed_limit: 1000
+    speed_limit: 1000 # kibibytes
   limits:
     queued:
       files: 500
@@ -392,7 +392,7 @@ groups:
       priority: 1
       strategy: roundrobin
       slots: 10
-      speed_limit: 50000
+      speed_limit: 50000 # kibibytes
   limits:
     queued:
       files: 150
