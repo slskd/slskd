@@ -129,11 +129,15 @@ namespace slskd.Transfers
 
         private void Configure(Options options)
         {
-            static long ComputeBucketCapacity(int speed)
-                => speed * 1024L / 10;
+            static TokenBucket CreateBucket(int speedInKiB)
+            {
+                var speedInBytes = speedInKiB * 1024L;
+                var intervalInMs = 100;
+                var bucketRefreshesPerSecond = 1000 / intervalInMs;
+                var capacity = speedInBytes / bucketRefreshesPerSecond;
 
-            static TokenBucket CreateBucket(int speed)
-                => new(ComputeBucketCapacity(speed), 100);
+                return new(capacity, interval: intervalInMs);
+            }
 
             var optionsHash = Compute.Sha1Hash(options.Groups.ToJson());
 
@@ -149,9 +153,9 @@ namespace slskd.Transfers
             // also, so transfers in progress will briefly exceed the intended speeds.
             var tokenBuckets = new Dictionary<string, ITokenBucket>()
             {
-                { Application.PrivilegedGroup, CreateBucket(options.Global.Upload.SpeedLimit) },
-                { Application.DefaultGroup, CreateBucket(options.Groups.Default.Upload.SpeedLimit) },
-                { Application.LeecherGroup, CreateBucket(options.Groups.Leechers.Upload.SpeedLimit) },
+                { Application.PrivilegedGroup, CreateBucket(speedInKiB: options.Global.Upload.SpeedLimit) },
+                { Application.DefaultGroup, CreateBucket(speedInKiB: options.Groups.Default.Upload.SpeedLimit) },
+                { Application.LeecherGroup, CreateBucket(speedInKiB: options.Groups.Leechers.Upload.SpeedLimit) },
             };
 
             foreach (var group in options.Groups.UserDefined)

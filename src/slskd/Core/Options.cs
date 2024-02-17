@@ -814,7 +814,7 @@ namespace slskd
                 public int Slots { get; init; } = 10;
 
                 /// <summary>
-                ///     Gets the total upload speed limit.
+                ///     Gets the total upload speed limit, in kibibytes.
                 /// </summary>
                 [Argument(default, "upload-speed-limit")]
                 [EnvironmentVariable("UPLOAD_SPEED_LIMIT")]
@@ -839,7 +839,7 @@ namespace slskd
                 public int Slots { get; init; } = int.MaxValue;
 
                 /// <summary>
-                ///     Gets the total download speed limit.
+                ///     Gets the total download speed limit, in kibibytes.
                 /// </summary>
                 [Argument(default, "download-speed-limit")]
                 [EnvironmentVariable("DOWNLOAD_SPEED_LIMIT")]
@@ -1076,7 +1076,7 @@ namespace slskd
                 public int Slots { get; init; } = int.MaxValue;
 
                 /// <summary>
-                ///     Gets the total upload speed limit for the group.
+                ///     Gets the total upload speed limit for the group, in kibibytes.
                 /// </summary>
                 [Range(1, int.MaxValue)]
                 public int SpeedLimit { get; init; } = int.MaxValue;
