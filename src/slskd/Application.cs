@@ -181,7 +181,7 @@ namespace slskd
             Client.DownloadDenied += (e, args) => Log.Information("Download of {Filename} from {Username} was denied: {Message}", args.Filename, args.Username, args.Message);
             Client.DownloadFailed += (e, args) => Log.Information("Download of {Filename} from {Username} failed", args.Filename, args.Username);
 
-            Client.ExcludedSearchPhrasesReceived += (e, args) => ExcludedSearchPhrases = args;
+            Client.ExcludedSearchPhrasesReceived += Client_ExcludedSearchPhrasesReceived;
 
             ConnectionWatchdog = connectionWatchdog;
 
@@ -1096,6 +1096,12 @@ namespace slskd
             }
         }
 
+        private void Client_ExcludedSearchPhrasesReceived(object sender, IReadOnlyCollection<string> e)
+        {
+            Log.Debug("Excluded search phrases: {Phrases}", string.Join(", ", e));
+            ExcludedSearchPhrases = e;
+        }
+
         private void Client_TransferProgressUpdated(object sender, TransferProgressUpdatedEventArgs args)
         {
             // no-op. this is really verbose, use for troubleshooting.
@@ -1369,7 +1375,7 @@ namespace slskd
 
             // sometimes clients send search queries consisting only of exclusions; drop them.
             // no other clients send search results for these, even though it is technically possible.
-            if (!query.Terms.Any())
+            if (query.Terms.Count == 0)
             {
                 return null;
             }
