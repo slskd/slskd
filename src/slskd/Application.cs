@@ -181,6 +181,8 @@ namespace slskd
             Client.DownloadDenied += (e, args) => Log.Information("Download of {Filename} from {Username} was denied: {Message}", args.Filename, args.Username, args.Message);
             Client.DownloadFailed += (e, args) => Log.Information("Download of {Filename} from {Username} failed", args.Filename, args.Username);
 
+            Client.ExcludedSearchPhrasesReceived += (e, args) => ExcludedSearchPhrases = args;
+
             ConnectionWatchdog = connectionWatchdog;
 
             Clock.EveryMinute += Clock_EveryMinute;
@@ -221,6 +223,7 @@ namespace slskd
         private IEnumerable<Regex> CompiledSearchResponseFilters { get; set; }
         private IEnumerable<Guid> ActiveDownloadIdsAtPreviousShutdown { get; set; } = Enumerable.Empty<Guid>();
         private Options.FlagsOptions Flags { get; set; }
+        private IReadOnlyCollection<string> ExcludedSearchPhrases { get; set; } = Enumerable.Empty<string>().ToList();
 
         public void CollectGarbage()
         {
