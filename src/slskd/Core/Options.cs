@@ -1725,7 +1725,7 @@ namespace slskd
                     [Argument(default, "jwt-key")]
                     [EnvironmentVariable("JWT_KEY")]
                     [Description("JWT signing key")]
-                    [StringLength(255, MinimumLength = 16)]
+                    [StringLength(255, MinimumLength = 32)]
                     [Secret]
                     [RequiresRestart]
                     public string Key { get; init; } = Cryptography.Random.GetBytes(32).ToBase62();
