@@ -293,18 +293,6 @@ global:
   upload:
     slots: 20
     speed_limit: 1000 # kibibytes
-  limits:
-    queued:
-      files: 500
-      megabytes: 5000
-    daily:
-      files: 1000
-      megabytes: 10000
-      failures: 200
-    weekly:
-      files: 5000
-      megabytes: 50000
-      failures: 1000
   download:
     slots: 500
     speed_limit: 1000
