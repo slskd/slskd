@@ -634,16 +634,7 @@ namespace slskd
             services.AddDataProtection()
                 .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(DataDirectory, "misc", ".DataProtection-Keys")));
 
-            var adjustedJwtKey = OptionsAtStartup.Web.Authentication.Jwt.Key;
-
-            // the JWT key must be at least 256 bits in length, due to the HMACSHA256 algorithm being used for signing.
-            if (adjustedJwtKey.Length < 32)
-            {
-                adjustedJwtKey = adjustedJwtKey.PadRight(32, ' ');
-                Log.Warning("The configured JWT signing key is less than the required 32 characters and has been padded with spaces to make up the difference. The minimum length will be raised from 16 to 32 in a future release, and this will become an error.");
-            }
-
-            var jwtSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(adjustedJwtKey));
+            var jwtSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(OptionsAtStartup.Web.Authentication.Jwt.Key));
 
             services.AddSingleton(jwtSigningKey);
             services.AddSingleton<ISecurityService, SecurityService>();
