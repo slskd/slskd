@@ -34,7 +34,13 @@ namespace slskd.Search
         public Guid Id { get; init; }
 
         [NotMapped]
-        public bool IsComplete => State.HasFlag(SearchStates.Completed);
+        public bool IsComplete =>
+            State.HasFlag(SearchStates.Completed)
+            || State.HasFlag(SearchStates.Cancelled)
+            || State.HasFlag(SearchStates.TimedOut)
+            || State.HasFlag(SearchStates.ResponseLimitReached)
+            || State.HasFlag(SearchStates.FileLimitReached)
+            || State.HasFlag(SearchStates.Errored);
 
         public int LockedFileCount { get; set; }
         public int ResponseCount { get; set; }

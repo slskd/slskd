@@ -170,13 +170,6 @@ namespace slskd.Search
 
             List<SearchResponse> responses = new();
 
-            void UpdateAndSaveChanges(Search search)
-            {
-                using var context = ContextFactory.CreateDbContext();
-                context.Update(search);
-                context.SaveChanges();
-            }
-
             options ??= new SearchOptions();
             options = options.WithActions(
                 stateChanged: (args) =>
@@ -198,13 +191,25 @@ namespace slskd.Search
                     UpdateAndSaveChanges(search);
                 }));
 
-            var soulseekSearchTask = Client.SearchAsync(
+            Task<Soulseek.Search> soulseekSearchTask;
+            try
+            {
+                soulseekSearchTask = Client.SearchAsync(
                 query,
                 responseHandler: (response) => responses.Add(response),
                 scope,
                 token,
                 options,
                 cancellationToken: cancellationTokenSource.Token);
+            }
+            catch (Exception)
+            {
+                search.EndedAt = DateTime.UtcNow;
+                search.State = SearchStates.Errored;
+                UpdateAndSaveChanges(search);
+                await SearchHub.BroadcastUpdateAsync(search);
+                throw;
+            }
 
             _ = Task.Run(async () =>
             {
@@ -255,6 +260,31 @@ namespace slskd.Search
             }
 
             return false;
+        }
+
+        /// <summary>
+        ///     Forces a cancel on the specified search.
+        /// </summary>
+        /// <param name="search">The search to force cancel.</param>
+        /// <returns>The operation context.</returns>
+        public async Task ForceCancel(Search search)
+        {
+            if (search == default)
+            {
+                throw new ArgumentNullException(nameof(search));
+            }
+
+            search.EndedAt = DateTime.UtcNow;
+            search.State = SearchStates.Cancelled;
+            UpdateAndSaveChanges(search);
+            await SearchHub.BroadcastUpdateAsync(search);
+        }
+
+        private void UpdateAndSaveChanges(Search search)
+        {
+            using var context = ContextFactory.CreateDbContext();
+            context.Update(search);
+            context.SaveChanges();
         }
     }
 }

@@ -67,5 +67,12 @@ namespace slskd.Search
         /// <param name="id">The unique identifier for the search.</param>
         /// <returns>A value indicating whether the search was sucessfully cancelled.</returns>
         bool TryCancel(Guid id);
+
+        /// <summary>
+        ///     Forces a cancel on the specified search.
+        /// </summary>
+        /// <param name="search">The search to force cancel.</param>
+        /// <returns>The operation context.</returns>
+        Task ForceCancel(Search search);
     }
 }

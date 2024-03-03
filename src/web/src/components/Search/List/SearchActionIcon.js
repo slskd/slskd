@@ -7,7 +7,12 @@ const SearchActionIcon = ({ search, loading, onRemove, onStop,...props }) => {
     return (<Icon name='spinner' loading {...props}/>);
   }
 
-  if (search.state.includes('Completed')) {
+  if (search.state.includes('Completed')
+    || search.state.includes('Cancelled')
+    || search.state.includes('TimedOut')
+    || search.state.includes('ResponseLimitReached')
+    || search.state.includes('FileLimitReached')
+    || search.state.includes('Errored')) {
     return (<Icon
       name="trash alternate"
       color='red' 

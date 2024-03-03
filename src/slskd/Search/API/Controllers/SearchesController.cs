@@ -188,7 +188,14 @@ namespace slskd.Search.API
                 return NotFound();
             }
 
-            Searches.TryCancel(id);
+            var tokenCancellation = Searches.TryCancel(id);
+
+            if (!tokenCancellation && search.State == Soulseek.SearchStates.Requested
+                && DateTime.Now.Subtract(search.StartedAt).TotalMilliseconds > OptionsSnapshot.Value.Soulseek.Connection.Timeout.Inactivity)
+            {
+                Searches.ForceCancel(search);
+            }
+
             return Ok();
         }
 
