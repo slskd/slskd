@@ -787,6 +787,12 @@ namespace slskd
             public GlobalUploadOptions Upload { get; init; } = new GlobalUploadOptions();
 
             /// <summary>
+            ///     Gets global limits.
+            /// </summary>
+            [Validate]
+            public LimitsOptions Limits { get; init; } = new LimitsOptions();
+
+            /// <summary>
             ///     Gets global download options.
             /// </summary>
             [Validate]
@@ -808,7 +814,7 @@ namespace slskd
                 public int Slots { get; init; } = 10;
 
                 /// <summary>
-                ///     Gets the total upload speed limit.
+                ///     Gets the total upload speed limit, in kibibytes.
                 /// </summary>
                 [Argument(default, "upload-speed-limit")]
                 [EnvironmentVariable("UPLOAD_SPEED_LIMIT")]
@@ -833,13 +839,61 @@ namespace slskd
                 public int Slots { get; init; } = int.MaxValue;
 
                 /// <summary>
-                ///     Gets the total download speed limit.
+                ///     Gets the total download speed limit, in kibibytes.
                 /// </summary>
                 [Argument(default, "download-speed-limit")]
                 [EnvironmentVariable("DOWNLOAD_SPEED_LIMIT")]
                 [Description("the total download speed limit")]
                 [Range(1, int.MaxValue)]
                 public int SpeedLimit { get; init; } = int.MaxValue;
+            }
+        }
+
+        /// <summary>
+        ///     Limit options.
+        /// </summary>
+        public class LimitsOptions
+        {
+            /// <summary>
+            ///     Gets limits for queued transfers.
+            /// </summary>
+            [Validate]
+            public Limits Queued { get; init; } = new Limits();
+
+            /// <summary>
+            ///     Gets daily limits for transfers.
+            /// </summary>
+            [Validate]
+            public Limits Daily { get; init; } = new Limits();
+
+            /// <summary>
+            ///     Gets weekly limits for transfers.
+            /// </summary>
+            [Validate]
+            public Limits Weekly { get; init; } = new Limits();
+
+            /// <summary>
+            ///     Limits.
+            /// </summary>
+            public class Limits
+            {
+                /// <summary>
+                ///     Gets the limit for number of files.
+                /// </summary>
+                [Range(1, int.MaxValue)]
+                public int? Files { get; init; } = null;
+
+                /// <summary>
+                ///     Gets the limit for number of megabytes.
+                /// </summary>
+                [Range(1, int.MaxValue)]
+                public int? Megabytes { get; init; } = null;
+
+                /// <summary>
+                ///     Gets the limit for number of failures.
+                /// </summary>
+                [Range(1, int.MaxValue)]
+                public int? Failures { get; init; } = null;
             }
         }
 
@@ -1022,58 +1076,10 @@ namespace slskd
                 public int Slots { get; init; } = int.MaxValue;
 
                 /// <summary>
-                ///     Gets the total upload speed limit for the group.
+                ///     Gets the total upload speed limit for the group, in kibibytes.
                 /// </summary>
                 [Range(1, int.MaxValue)]
                 public int SpeedLimit { get; init; } = int.MaxValue;
-            }
-
-            /// <summary>
-            ///     Upload limit options.
-            /// </summary>
-            public class LimitsOptions
-            {
-                /// <summary>
-                ///     Gets limits for queued transfers.
-                /// </summary>
-                [Validate]
-                public LimitsExtendedOptions Queued { get; init; } = new LimitsExtendedOptions();
-
-                /// <summary>
-                ///     Gets daily limits for transfers.
-                /// </summary>
-                [Validate]
-                public LimitsExtendedOptions Daily { get; init; } = new LimitsExtendedOptions();
-
-                /// <summary>
-                ///     Gets weekly limits for transfers.
-                /// </summary>
-                [Validate]
-                public LimitsExtendedOptions Weekly { get; init; } = new LimitsExtendedOptions();
-            }
-
-            /// <summary>
-            ///     Extended limit options.
-            /// </summary>
-            public class LimitsExtendedOptions
-            {
-                /// <summary>
-                ///     Gets the limit for number of files.
-                /// </summary>
-                [Range(1, int.MaxValue)]
-                public int? Files { get; init; } = null;
-
-                /// <summary>
-                ///     Gets the limit for number of megabytes.
-                /// </summary>
-                [Range(1, int.MaxValue)]
-                public int? Megabytes { get; init; } = null;
-
-                /// <summary>
-                ///     Gets the limit for number of failures.
-                /// </summary>
-                [Range(1, int.MaxValue)]
-                public int? Failures { get; init; } = null;
             }
         }
 
@@ -1719,7 +1725,7 @@ namespace slskd
                     [Argument(default, "jwt-key")]
                     [EnvironmentVariable("JWT_KEY")]
                     [Description("JWT signing key")]
-                    [StringLength(255, MinimumLength = 16)]
+                    [StringLength(255, MinimumLength = 32)]
                     [Secret]
                     [RequiresRestart]
                     public string Key { get; init; } = Cryptography.Random.GetBytes(32).ToBase62();

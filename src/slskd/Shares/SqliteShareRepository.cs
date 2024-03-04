@@ -539,6 +539,17 @@ namespace slskd.Shares
                 while (reader.Read())
                 {
                     var filename = reader.GetString(0);
+
+                    // SQLite takes care of matching on tokens, but unfortunately doesn't work in cases where an exclusion appears as a substring.
+                    // example: the token matching works to exclude the result "foo bar baz" given a "bar" exclusion, but does not exclude "foo xbarx baz"
+                    // for this reason we must iterate over the exclusion list and ensure none appear as substrings
+                    // **CAUTION** performance of this will degrade exponentially as the list of exclusions grows
+                    if (query.Exclusions.Any(x => filename.Contains(x, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        Log.Debug("Dropping excluded filename {File}", filename);
+                        continue;
+                    }
+
                     var code = reader.GetInt32(1);
                     var size = reader.GetInt64(2);
                     var extension = reader.GetString(3);
