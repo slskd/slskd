@@ -23,7 +23,9 @@ export const getJoined = async () => {
 };
 
 export const getMessages = async ({ roomName }) => {
-  const response = (await api.get(`/rooms/joined/${encodeURIComponent(roomName)}/messages`)).data;
+  const response = (
+    await api.get(`/rooms/joined/${encodeURIComponent(roomName)}/messages`)
+  ).data;
 
   if (!Array.isArray(response)) {
     console.warn('got non-array response from rooms API', response);
@@ -34,7 +36,9 @@ export const getMessages = async ({ roomName }) => {
 };
 
 export const getUsers = async ({ roomName }) => {
-  const response = (await api.get(`/rooms/joined/${encodeURIComponent(roomName)}/users`)).data;
+  const response = (
+    await api.get(`/rooms/joined/${encodeURIComponent(roomName)}/users`)
+  ).data;
 
   if (!Array.isArray(response)) {
     console.warn('got non-array response from rooms API', response);
@@ -53,5 +57,8 @@ export const leave = async ({ roomName }) => {
 };
 
 export const sendMessage = async ({ roomName, message }) => {
-  return api.post(`/rooms/joined/${encodeURIComponent(roomName)}/messages`, JSON.stringify(message));
+  return api.post(
+    `/rooms/joined/${encodeURIComponent(roomName)}/messages`,
+    JSON.stringify(message),
+  );
 };
