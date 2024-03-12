@@ -108,6 +108,7 @@
 #       - <username to blacklist>
 #     cidrs:
 #       - <CIDR to blacklist, e.g. 255.255.255.255/32>
+#     blacklistfile: <path to file containing CIDRs to blacklist>
 #   user_defined:
 #     my_buddies:
 #       upload:
