@@ -1380,16 +1380,16 @@ namespace slskd
                 return null;
             }
 
-            // append the list of excluded search phrases supplied by the server
-            // see https://github.com/jpdillingham/Soulseek.NET/issues/803
-            query = new SearchQuery(terms: query.Terms, exclusions: query.Exclusions.Concat(ExcludedSearchPhrases).Distinct());
-
             try
             {
                 var sw = new Stopwatch();
                 sw.Start();
 
-                var results = await Shares.SearchAsync(query);
+                // append the list of excluded search phrases supplied by the server
+                // see https://github.com/jpdillingham/Soulseek.NET/issues/803
+                var queryWithExclusionsApplied = new SearchQuery(terms: query.Terms, exclusions: query.Exclusions.Concat(ExcludedSearchPhrases).Distinct());
+
+                var results = await Shares.SearchAsync(queryWithExclusionsApplied);
 
                 sw.Stop();
 
