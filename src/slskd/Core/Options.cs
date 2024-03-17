@@ -994,16 +994,8 @@ namespace slskd
                 /// <summary>
                 ///     Gets the CIDR blacklist file path.
                 /// </summary>
-                public string BlacklistFile { get; init; } = string.Empty;
-
-                /// <summary>
-                ///     Gets address ranges for all blacklisted CIDRs defined by the configuration file and the blacklist file.
-                /// </summary>
-                /// <returns>An IEnumerable of IPAddressRange objects describing the blacklisted CIDRs.</returns>
-                public IEnumerable<IPAddressRange> GetBlacklistedCIDRs()
-                {
-                    return BlacklistedCIDRs;
-                }
+                [FileExists(FileAccess.Read)]
+                public string File { get; init; }
 
                 /// <summary>
                 ///     Extended validation.
