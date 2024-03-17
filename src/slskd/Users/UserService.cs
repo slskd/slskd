@@ -273,7 +273,8 @@ namespace slskd.Users
                 return true;
             }
 
-            if (ipAddress is not null && blacklist.GetBlacklistedCIDRs().Any(range => range.Contains(ipAddress)))
+            // todo: substitute this with a call to the managed blacklist
+            if (ipAddress is not null && blacklist.Cidrs.Select(c => IPAddressRange.Parse(c)).Any(range => range.Contains(ipAddress)))
             {
                 return true;
             }
