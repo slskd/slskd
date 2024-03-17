@@ -24,6 +24,7 @@ namespace slskd
     using System.ComponentModel;
     using System.ComponentModel.DataAnnotations;
     using System.Diagnostics;
+    using System.IO;
     using System.Linq;
     using System.Text.Json.Serialization;
     using System.Text.RegularExpressions;
@@ -982,11 +983,6 @@ namespace slskd
                 public string[] Members { get; init; } = Array.Empty<string>();
 
                 /// <summary>
-                ///     A pre-parsed cache of IPAddressRange objects describing all blacklisted ranges.
-                /// </summary>
-                private List<IPAddressRange> BlacklistedCIDRs = new List<IPAddressRange>();
-
-                /// <summary>
                 ///     Gets the list of group CIDRs.
                 /// </summary>
                 public string[] Cidrs { get; init; } = Array.Empty<string>();
@@ -1018,32 +1014,6 @@ namespace slskd
                             results.Add(new ValidationResult($"CIDR {cidr} is invalid: {ex.Message}"));
                         }
                     }
-
-                    // if a blacklist file is specified, process it too.
-                    if (!string.IsNullOrEmpty(BlacklistFile))
-                    {
-                        try
-                        {
-                            var lines = System.IO.File.ReadAllLines(BlacklistFile).Where(line => !string.IsNullOrWhiteSpace(line) && !line.StartsWith("#"));
-                            foreach (var cidr in lines)
-                            {
-                                try
-                                {
-                                    cache.Add(IPAddressRange.Parse(cidr));
-                                }
-                                catch (Exception ex)
-                                {
-                                    results.Add(new ValidationResult($"CIDR {cidr} in blacklist file is invalid: {ex.Message}"));
-                                }
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            results.Add(new ValidationResult($"CIDR blacklist file {BlacklistFile} could not be loaded: {ex.Message}"));
-                        }
-                    }
-
-                    BlacklistedCIDRs = cache.Distinct().ToList();
 
                     return results;
                 }
@@ -1883,7 +1853,7 @@ namespace slskd
                     [Argument(default, "https-cert-pfx")]
                     [EnvironmentVariable("HTTPS_CERT_PFX")]
                     [Description("path to X509 certificate .pfx")]
-                    [FileExists]
+                    [FileExists(FileAccess.Read)]
                     [RequiresRestart]
                     public string Pfx { get; init; }
 
