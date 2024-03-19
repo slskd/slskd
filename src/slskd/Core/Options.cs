@@ -24,6 +24,7 @@ namespace slskd
     using System.ComponentModel;
     using System.ComponentModel.DataAnnotations;
     using System.Diagnostics;
+    using System.IO;
     using System.Linq;
     using System.Text.Json.Serialization;
     using System.Text.RegularExpressions;
@@ -987,6 +988,12 @@ namespace slskd
                 public string[] Cidrs { get; init; } = Array.Empty<string>();
 
                 /// <summary>
+                ///     Gets the CIDR blacklist file path.
+                /// </summary>
+                [FileExists(FileAccess.Read)]
+                public string File { get; init; }
+
+                /// <summary>
                 ///     Extended validation.
                 /// </summary>
                 /// <param name="validationContext"></param>
@@ -994,12 +1001,13 @@ namespace slskd
                 public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
                 {
                     var results = new List<ValidationResult>();
+                    var cache = new List<IPAddressRange>();
 
                     foreach (var cidr in Cidrs ?? Array.Empty<string>())
                     {
                         try
                         {
-                            _ = IPAddressRange.Parse(cidr);
+                            cache.Add(IPAddressRange.Parse(cidr));
                         }
                         catch (Exception ex)
                         {
@@ -1845,7 +1853,7 @@ namespace slskd
                     [Argument(default, "https-cert-pfx")]
                     [EnvironmentVariable("HTTPS_CERT_PFX")]
                     [Description("path to X509 certificate .pfx")]
-                    [FileExists]
+                    [FileExists(FileAccess.Read)]
                     [RequiresRestart]
                     public string Pfx { get; init; }
 

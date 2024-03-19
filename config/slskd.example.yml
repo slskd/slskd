@@ -120,6 +120,9 @@
 #       members:
 #         - alice
 #         - bob
+# blacklist:
+#   enabled: true
+#   file: <path to file containing CIDRs to blacklist>
 # filters:
 #   search:
 #     request:
