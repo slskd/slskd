@@ -19,7 +19,6 @@
     "@microsoft/signalr": "^7.0.7",
     "@uiw/react-codemirror": "^4.2.4",
     "axios": "^0.25.0",
-    "lodash": "^4.17.21",
     "lz-string": "^1.4.4",
     "react": "^16.8.6",
     "react-dom": "^16.8.6",
