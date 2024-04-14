@@ -133,20 +133,27 @@ public class Blacklist
                 note: we should never get this far without format being one of CIDR, P2P, DAT
             */
 
-            // CIDR format: 1.2.4.0/24
-            if (format == BlacklistFormat.CIDR && !IPAddressRange.TryParse(line, out cidr))
+            try
             {
-                throw new FormatException($"Failed to parse blacklist line {lineNumber} '{line}' (expected {format} format)");
-            }
+                // CIDR format: 1.2.4.0/24
+                if (format == BlacklistFormat.CIDR && !IPAddressRange.TryParse(line, out cidr))
+                {
+                    throw new Exception();
+                }
 
-            // P2P format: China Internet Information Center (CNNIC):1.2.4.0-1.2.4.255
-            else if (format == BlacklistFormat.P2P && !IPAddressRange.TryParse(line.Split(':')[1], out cidr))
-            {
-                throw new FormatException($"Failed to parse blacklist line {lineNumber} '{line}' (expected {format} format)");
-            }
+                // P2P format: China Internet Information Center (CNNIC):1.2.4.0-1.2.4.255
+                else if (format == BlacklistFormat.P2P && !IPAddressRange.TryParse(line.Split(':')[1], out cidr))
+                {
+                    throw new Exception();
+                }
 
-            // DAT format: 001.002.004.000 - 001.002.004.255 , 000 , China Internet Information Center (CNNIC)
-            else if (format == BlacklistFormat.DAT && !IPAddressRange.TryParse(line.Split(",")[0], out cidr))
+                // DAT format: 001.002.004.000 - 001.002.004.255 , 000 , China Internet Information Center (CNNIC)
+                else if (format == BlacklistFormat.DAT && !IPAddressRange.TryParse(line.Split(",")[0], out cidr))
+                {
+                    throw new Exception();
+                }
+            }
+            catch
             {
                 throw new FormatException($"Failed to parse blacklist line {lineNumber} '{line}' (expected {format} format)");
             }
