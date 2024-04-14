@@ -21,6 +21,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using NetTools;
@@ -178,15 +179,14 @@ public class Blacklist
             }
         }
 
-        // copy working dictionary to a temporary cache, converting List<> to array to increase access speed
+        // copy working dictionary to a temporary cache to:
+        //   * convert List<> to array to increase access speed
+        //   * sort arrays by first IP to enable binary search
         var tempCache = new ConcurrentDictionary<int, (uint First, uint Last)[]>();
 
         foreach (var key in dict.Keys)
         {
-            tempCache.AddOrUpdate(
-                key,
-                addValueFactory: (_) => dict[key].ToArray(),
-                updateValueFactory: (_, _) => dict[key].ToArray());
+            tempCache[key] = dict[key].OrderBy(x => x.First).ToArray();
         }
 
         // swap the temporary cache for the "real" cache, enabling a bumpless update
