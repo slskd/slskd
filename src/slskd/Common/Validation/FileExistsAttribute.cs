@@ -25,15 +25,41 @@ namespace slskd.Validation
     /// </summary>
     public class FileExistsAttribute : ValidationAttribute
     {
+        public FileExistsAttribute()
+        {
+        }
+
+        public FileExistsAttribute(FileAccess fileAccess)
+        {
+            FileAccess = fileAccess;
+        }
+
+        private FileAccess? FileAccess { get; } = null;
+
         protected override ValidationResult IsValid(object value, ValidationContext validationContext)
         {
             if (value != null)
             {
                 var file = Path.GetFullPath(value?.ToString());
 
-                if (!string.IsNullOrEmpty(file) && !File.Exists(file))
+                if (!string.IsNullOrEmpty(file))
                 {
-                    return new ValidationResult($"The {validationContext.DisplayName} field specifies a non-existent file '{file}'.");
+                    if (!File.Exists(file))
+                    {
+                        return new ValidationResult($"The {validationContext.DisplayName} field specifies a non-existent file '{file}'.");
+                    }
+
+                    if (FileAccess is not null)
+                    {
+                        try
+                        {
+                            File.Open(file, FileMode.Open, FileAccess.Value).Dispose();
+                        }
+                        catch (IOException)
+                        {
+                            return new ValidationResult($"The {validationContext.DisplayName} field specifies a file '{file}' that cannot be opened for required access '{FileAccess}'");
+                        }
+                    }
                 }
             }
 
