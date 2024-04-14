@@ -79,7 +79,7 @@ public enum BlacklistFormat
 public class Blacklist
 {
     private ILogger Log { get; set; } = Serilog.Log.ForContext<Blacklist>();
-    private ConcurrentDictionary<int, (uint First, uint Last)[]> Cache { get; } = new();
+    private ConcurrentDictionary<int, (uint First, uint Last)[]> Cache { get; set; } = new();
 
     /// <summary>
     ///     Loads the contents of the specified <paramref name="filename"/> into the Blacklist.
@@ -101,7 +101,7 @@ public class Blacklist
         if (format == BlacklistFormat.AutoDetect)
         {
             Log.Debug("Attempting to auto-detect blacklist fomat from contents...");
-            format = await AutoDetectBlacklistFormat(filename); // FormatException
+            format = await AutoDetectBlacklistFormat(filename); // FormatException if unsuccessful
             Log.Debug("Detected blacklist format {Format}", format);
         }
 
@@ -110,7 +110,7 @@ public class Blacklist
             Access = FileAccess.Read,
             Mode = FileMode.Open,
             Share = FileShare.Read,
-            BufferSize = 8192,
+            BufferSize = 262144, // 256kib, assumes most blacklists will be > 1mb
         });
 
         var dict = new ConcurrentDictionary<int, List<(uint First, uint Last)>>();
@@ -178,14 +178,19 @@ public class Blacklist
             }
         }
 
-        // copy working dictionary to cache, converting List<> to array to increase access speed
+        // copy working dictionary to a temporary cache, converting List<> to array to increase access speed
+        var tempCache = new ConcurrentDictionary<int, (uint First, uint Last)[]>();
+
         foreach (var key in dict.Keys)
         {
-            Cache.AddOrUpdate(
+            tempCache.AddOrUpdate(
                 key,
                 addValueFactory: (_) => dict[key].ToArray(),
                 updateValueFactory: (_, _) => dict[key].ToArray());
         }
+
+        // swap the temporary cache for the "real" cache, enabling a bumpless update
+        Cache = tempCache;
     }
 
     /// <summary>
@@ -229,11 +234,11 @@ public class Blacklist
             Access = FileAccess.Read,
             Mode = FileMode.Open,
             Share = FileShare.Read,
-            BufferSize = 512,
         });
 
         string line = default;
 
+        // read the first non-empty, non-commented line from the file
         while ((line = await reader.ReadLineAsync()) != null)
         {
             if (string.IsNullOrWhiteSpace(line) || line.StartsWith('#'))
