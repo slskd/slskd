@@ -79,6 +79,11 @@ public enum BlacklistFormat
 /// </summary>
 public class Blacklist
 {
+    /// <summary>
+    ///     Gets the total number of loaded CIDRs.
+    /// </summary>
+    public long Count => Cache.Sum(kvp => kvp.Value.Length);
+
     private ILogger Log { get; set; } = Serilog.Log.ForContext<Blacklist>();
     private ConcurrentDictionary<int, (uint First, uint Last)[]> Cache { get; set; } = new();
 
