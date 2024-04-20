@@ -162,6 +162,7 @@ public class Blacklist
     /// <param name="filename">The fully qualified path to the file to load.</param>
     /// <param name="format">The optional blacklist file format.</param>
     /// <returns>The operation context.</returns>
+    /// <exception cref="IOException">Thrown if the specified filename can't be accessed.</exception>
     /// <exception cref="FormatException">
     ///     Thrown if any of the lines in the file do not match the specified or auto-detected <paramref name="format"/>.
     /// </exception>
@@ -173,7 +174,7 @@ public class Blacklist
         if (format == BlacklistFormat.AutoDetect)
         {
             Log.Debug("Attempting to auto-detect blacklist fomat from contents...");
-            format = await AutoDetectBlacklistFormat(filename); // FormatException if unsuccessful
+            format = await DetectFormat(filename); // FormatException if unsuccessful
             Log.Debug("Detected blacklist format {Format}", format);
         }
 
@@ -267,7 +268,7 @@ public class Blacklist
 
         // copy working dictionary to a temporary cache to:
         //   * convert List<> to array to increase access speed
-        //   * sort arrays by first IP to enable binary search
+        //   * sort arrays by first IP to enable binary search (future?)
         var tempCache = new ConcurrentDictionary<int, (uint First, uint Last)[]>();
 
         foreach (var key in dict.Keys)
