@@ -83,6 +83,72 @@ public class Blacklist
     private ConcurrentDictionary<int, (uint First, uint Last)[]> Cache { get; set; } = new();
 
     /// <summary>
+    ///     Examines the contents of the specified <paramref name="filename"/> and attempts to determine the format.
+    /// </summary>
+    /// <param name="filename">The fully qualified path to the file to examine.</param>
+    /// <returns>The detected format.</returns>
+    /// <exception cref="IOException">Thrown if the specified filename can't be accessed.</exception>
+    /// <exception cref="FormatException">Thrown if the format can't be determined.</exception>
+    public static async Task<BlacklistFormat> DetectFormat(string filename)
+    {
+        using var reader = new StreamReader(filename, options: new FileStreamOptions
+        {
+            Access = FileAccess.Read,
+            Mode = FileMode.Open,
+            Share = FileShare.Read,
+        });
+
+        string line = default;
+
+        // read the first non-empty, non-commented line from the file
+        while ((line = await reader.ReadLineAsync()) != null)
+        {
+            if (string.IsNullOrWhiteSpace(line) || line.StartsWith('#'))
+            {
+                continue;
+            }
+
+            try
+            {
+                // CIDR format: 1.2.4.0/24
+                if (IPAddressRange.TryParse(line, out _))
+                {
+                    return BlacklistFormat.CIDR;
+                }
+            }
+            catch
+            {
+            }
+
+            try
+            {
+                // P2P format: China Internet Information Center (CNNIC):1.2.4.0-1.2.4.255
+                if (IPAddressRange.TryParse(line.Split(':')[1], out _))
+                {
+                    return BlacklistFormat.P2P;
+                }
+            }
+            catch
+            {
+            }
+
+            try
+            {
+                // DAT format: 001.002.004.000 - 001.002.004.255 , 000 , China Internet Information Center (CNNIC)
+                if (IPAddressRange.TryParse(line.Split(",")[0], out _))
+                {
+                    return BlacklistFormat.DAT;
+                }
+            }
+            catch
+            {
+            }
+        }
+
+        throw new FormatException($"Failed to auto-detect blacklist format. Only CIDR, P2P and DAT formats are supported");
+    }
+
+    /// <summary>
     ///     Loads the contents of the specified <paramref name="filename"/> into the Blacklist.
     /// </summary>
     /// <remarks>
@@ -225,47 +291,6 @@ public class Blacklist
         // not in the list
         // worst case scenario for performance, O(n) where n = list length
         return false;
-    }
-
-    private async Task<BlacklistFormat> AutoDetectBlacklistFormat(string filename)
-    {
-        using var reader = new StreamReader(filename, options: new FileStreamOptions
-        {
-            Access = FileAccess.Read,
-            Mode = FileMode.Open,
-            Share = FileShare.Read,
-        });
-
-        string line = default;
-
-        // read the first non-empty, non-commented line from the file
-        while ((line = await reader.ReadLineAsync()) != null)
-        {
-            if (string.IsNullOrWhiteSpace(line) || line.StartsWith('#'))
-            {
-                continue;
-            }
-
-            // CIDR format: 1.2.4.0/24
-            if (IPAddressRange.TryParse(line, out _))
-            {
-                return BlacklistFormat.CIDR;
-            }
-
-            // P2P format: China Internet Information Center (CNNIC):1.2.4.0-1.2.4.255
-            if (IPAddressRange.TryParse(line.Split(':')[1], out _))
-            {
-                return BlacklistFormat.P2P;
-            }
-
-            // DAT format: 001.002.004.000 - 001.002.004.255 , 000 , China Internet Information Center (CNNIC)
-            if (IPAddressRange.TryParse(line.Split(",")[0], out _))
-            {
-                return BlacklistFormat.DAT;
-            }
-        }
-
-        throw new FormatException($"Failed to auto-detect blacklist format. Only CIDR, P2P and DAT formats are supported");
     }
 
     private uint ToUint32(IPAddress ip)
