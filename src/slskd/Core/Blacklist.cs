@@ -215,9 +215,24 @@ public class Blacklist
                 }
 
                 // DAT format: 001.002.004.000 - 001.002.004.255 , 000 , China Internet Information Center (CNNIC)
-                else if (format == BlacklistFormat.DAT && !IPAddressRange.TryParse(line.Split(",")[0], out cidr))
+                else if (format == BlacklistFormat.DAT)
                 {
-                    throw new Exception();
+                    // the IPAddressRange library doesn't like leading zeros, so we have to remove them
+                    static string TrimLeadingZerosFromEachOctet(string ip)
+                        => string.Join('.', ip.Split('.').Select(octet => octet == "000" ? "0" : octet.TrimStart('0')));
+
+                    // 001.002.004.000-001.002.004.255
+                    var range = line.Split(",")[0]
+                        .Replace(" ", string.Empty);
+
+                    // [1.2.4.0, 1.2.4.255]
+                    var ips = range.Split("-")
+                        .Select(TrimLeadingZerosFromEachOctet);
+
+                    if (!IPAddressRange.TryParse(string.Join('-', ips), out cidr))
+                    {
+                        throw new Exception();
+                    }
                 }
             }
             catch (Exception ex)
