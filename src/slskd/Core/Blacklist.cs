@@ -220,9 +220,9 @@ public class Blacklist
                     throw new Exception();
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                throw new FormatException($"Failed to parse blacklist line {lineNumber} '{line}' (expected {format} format)");
+                throw new FormatException($"Failed to parse {format} blacklist line {lineNumber} '{line}': {ex.Message}");
             }
 
             // grab the first octet of the first and last addresses in the range
