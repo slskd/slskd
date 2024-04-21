@@ -235,6 +235,12 @@ namespace slskd
         public GroupsOptions Groups { get; init; } = new GroupsOptions();
 
         /// <summary>
+        ///     Gets blacklist options.
+        /// </summary>
+        [Validate]
+        public BlacklistOptions Blacklist { get; init; } = new BlacklistOptions();
+
+        /// <summary>
         ///     Gets filter options.
         /// </summary>
         [Validate]
@@ -988,12 +994,6 @@ namespace slskd
                 public string[] Cidrs { get; init; } = Array.Empty<string>();
 
                 /// <summary>
-                ///     Gets the CIDR blacklist file path.
-                /// </summary>
-                [FileExists(FileAccess.Read)]
-                public string File { get; init; }
-
-                /// <summary>
                 ///     Extended validation.
                 /// </summary>
                 /// <param name="validationContext"></param>
@@ -1104,6 +1104,27 @@ namespace slskd
             [Description("enable swagger documentation and UI")]
             [RequiresRestart]
             public bool Swagger { get; init; } = false;
+        }
+
+        public class BlacklistOptions
+        {
+            /// <summary>
+            ///     Gets a value indicating whether blacklist file support should be enabled.
+            /// </summary>
+            [Argument(default, "enable-blacklist")]
+            [EnvironmentVariable("BLACKLIST")]
+            [Description("enable blacklist file support")]
+            [RequiresRestart]
+            public bool Enabled { get; init; }
+
+            /// <summary>
+            ///     Gets the path to the blacklist file.
+            /// </summary>
+            [Argument(default, "blacklist-file")]
+            [EnvironmentVariable("BLACKLIST_FILE")]
+            [Description("path to blacklist file")]
+            [FileExists(FileAccess.Read)]
+            public string File { get; init; }
         }
 
         /// <summary>
