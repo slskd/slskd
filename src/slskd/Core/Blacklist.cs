@@ -154,6 +154,11 @@ public class Blacklist
     }
 
     /// <summary>
+    ///     Clears the contents of the Blacklist.
+    /// </summary>
+    public virtual void Clear() => Cache.Clear();
+
+    /// <summary>
     ///     Loads the contents of the specified <paramref name="filename"/> into the Blacklist.
     /// </summary>
     /// <remarks>
