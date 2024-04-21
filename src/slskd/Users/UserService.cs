@@ -1,4 +1,4 @@
-// <copyright file="UserService.cs" company="slskd Team">
+﻿// <copyright file="UserService.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -118,8 +118,10 @@ namespace slskd.Users
 
         private ISoulseekClient Client { get; }
         private string LastOptionsHash { get; set; }
+        private string LastBlacklistOptionsHash { get; set; }
         private ILogger Log { get; set; } = Serilog.Log.ForContext<UserService>();
         private IOptionsMonitor<Options> OptionsMonitor { get; }
+        private Blacklist Blacklist { get; } = new Blacklist();
 
         /// <summary>
         ///     Gets or sets the internal cache of User data.
@@ -400,6 +402,47 @@ namespace slskd.Users
                 }
 
                 LastOptionsHash = optionsHash;
+            }
+
+            var blacklistOptionsHash = Compute.Sha1Hash(options.Blacklist.ToJson());
+
+            // there's no forced re-config of the blacklist; either the config changed or it didn't.
+            // if the underlying file changed, users can toggle the blacklist off and on or restart
+            // the application. these sorts of blacklists should be relatively static (i think)
+            if (blacklistOptionsHash != LastBlacklistOptionsHash)
+            {
+                Log.Debug("Blacklist options changed: {JSON}", options.Blacklist.ToJson());
+
+                if (!options.Blacklist.Enabled)
+                {
+                    Log.Debug("Blacklist disabled; clearing contents");
+                    Blacklist.Clear();
+                    Log.Information("Blacklist disabled");
+                }
+                else
+                {
+                    // the option validation logic should have ensured the file format could be auto-detected and that the file
+                    // contained no formatting errors. this should only fail on transient I/O errors.
+                    _ = Task.Run(() => Blacklist.Load(options.Blacklist.File, BlacklistFormat.AutoDetect))
+                        .ContinueWith(task =>
+                        {
+                            // if the task faulted, the load of the file failed, and the user isn't getting the
+                            // intended protection from the blacklist. in this case we can:
+                            //   1) log an error and continue, potentially against the desires of the user
+                            //   2) kill the application and force the user to deal with the cause
+                            // a user taking advantage of the blacklist feature would absolutely want to know if it wasn't working,
+                            // so we're taking door #2.
+                            if (task.IsFaulted)
+                            {
+                                Log.Fatal(task.Exception, "Fatal error loading blacklist from file {File}: {Message}", options.Blacklist.File, task.Exception?.Message);
+                                Program.Exit(1);
+                            }
+                            else
+                            {
+                                Log.Information("Blacklist updated with {Count} CIDRs from file {File}", Blacklist.Count, options.Blacklist.File);
+                            }
+                        });
+                }
             }
         }
 
