@@ -364,45 +364,43 @@ namespace slskd.Users
         {
             var optionsHash = Compute.Sha1Hash(options.Groups.UserDefined.ToJson());
 
-            if (optionsHash == LastOptionsHash && !force)
+            if (optionsHash != LastOptionsHash || force)
             {
-                return;
-            }
+                // get a list of tracked names that haven't been explicitly added to any group, including those that were previlously
+                // configured but have now been removed
+                var usernamesBeforeUpdate = UserDictionary.Keys.ToList();
+                var usernamesAfterUpdate = options.Groups.UserDefined.SelectMany(g => g.Value.Members);
+                var usernamesRemoved = usernamesBeforeUpdate.Except(usernamesAfterUpdate);
 
-            // get a list of tracked names that haven't been explicitly added to any group, including those that were previlously
-            // configured but have now been removed
-            var usernamesBeforeUpdate = UserDictionary.Keys.ToList();
-            var usernamesAfterUpdate = options.Groups.UserDefined.SelectMany(g => g.Value.Members);
-            var usernamesRemoved = usernamesBeforeUpdate.Except(usernamesAfterUpdate);
-
-            // clear the configured group for anyone that was removed from config, or that was added transiently
-            foreach (var username in usernamesRemoved)
-            {
-                UserDictionary.AddOrUpdate(
-                    key: username,
-                    addValue: new User() { Username = username },
-                    updateValueFactory: (key, user) => user with { Username = username, Group = null });
-            }
-
-            // sort by priority, descending. this will cause the highest priority group for the user to be persisted when the
-            // operation is complete.
-            foreach (var group in options.Groups.UserDefined.OrderByDescending(kvp => kvp.Value.Upload.Priority))
-            {
-                foreach (var username in group.Value.Members)
+                // clear the configured group for anyone that was removed from config, or that was added transiently
+                foreach (var username in usernamesRemoved)
                 {
                     UserDictionary.AddOrUpdate(
                         key: username,
-                        addValue: new User() { Username = username, Group = group.Key },
-                        updateValueFactory: (key, user) => user with { Username = username, Group = group.Key });
+                        addValue: new User() { Username = username },
+                        updateValueFactory: (key, user) => user with { Username = username, Group = null });
+                }
 
-                    if (Client.State.HasFlag(SoulseekClientStates.Connected) && Client.State.HasFlag(SoulseekClientStates.LoggedIn))
+                // sort by priority, descending. this will cause the highest priority group for the user to be persisted when the
+                // operation is complete.
+                foreach (var group in options.Groups.UserDefined.OrderByDescending(kvp => kvp.Value.Upload.Priority))
+                {
+                    foreach (var username in group.Value.Members)
                     {
-                        _ = WatchAsync(username);
+                        UserDictionary.AddOrUpdate(
+                            key: username,
+                            addValue: new User() { Username = username, Group = group.Key },
+                            updateValueFactory: (key, user) => user with { Username = username, Group = group.Key });
+
+                        if (Client.State.HasFlag(SoulseekClientStates.Connected) && Client.State.HasFlag(SoulseekClientStates.LoggedIn))
+                        {
+                            _ = WatchAsync(username);
+                        }
                     }
                 }
-            }
 
-            LastOptionsHash = optionsHash;
+                LastOptionsHash = optionsHash;
+            }
         }
 
         private void Reset()
