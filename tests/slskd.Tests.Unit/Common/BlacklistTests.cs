@@ -79,6 +79,23 @@ public class BlacklistTests
     }
 
     [Theory]
+    [InlineData("Data/Blacklist/cidr.txt", BlacklistFormat.CIDR)]
+    public async Task Load_Then_Clear(string filename, BlacklistFormat format)
+    {
+        var bl = new Blacklist();
+        var ex = await Record.ExceptionAsync(() => bl.Load(filename, format));
+
+        Assert.Null(ex);
+
+        // the test files are assumed to all contain 5 entries
+        Assert.Equal(5, bl.Count);
+
+        bl.Clear();
+
+        Assert.Equal(0, bl.Count);
+    }
+
+    [Theory]
     [InlineData("Data/Blacklist/cidr.txt")]
     [InlineData("Data/Blacklist/dat.txt")]
     [InlineData("Data/Blacklist/p2p.txt")]
