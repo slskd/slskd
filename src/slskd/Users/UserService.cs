@@ -1,4 +1,4 @@
-﻿// <copyright file="UserService.cs" company="slskd Team">
+// <copyright file="UserService.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -91,8 +91,16 @@ namespace slskd.Users
                 _ = GetStatisticsAsync(userStatus.Username);
             };
 
-            Client.Connected += (_, _) => Reset();
+            // it's important for us to force a reconfig at login to discard any users that were previously tracked
+            // specific scenario being; up and running for some time, offline for some time (days?), reconnect, are users still online? have stats changed?
+            // to avoid needing to go through and exhaustively check each user in the tracking dictionary, just delete it and let it be built back up
+            // any user we are downloading from will be tracked again when pending downloads are re-requested
             Client.LoggedIn += (_, _) => Configure(OptionsMonitor.CurrentValue, force: true);
+
+            // working hand-in-hand with the forced reconfig on login, reset clears everything upon connect; clearing the way
+            // for the reconfig at login to rebuild it. i think. yeah, that sounds right. we don't ever want Configure() to reset anything
+            // so the connect is distinctly different from reconfig at login.
+            Client.Connected += (_, _) => Reset();
             Client.PrivilegedUserListReceived += (_, list) => Client_PrivilegedUserListReceived(list);
 
             Configure(OptionsMonitor.CurrentValue);
