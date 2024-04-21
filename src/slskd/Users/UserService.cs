@@ -281,8 +281,16 @@ namespace slskd.Users
                 return true;
             }
 
-            // todo: substitute this with a call to the managed blacklist
+            // check the user-curated list of blacklisted CIDRs that exists along with the list of
+            // blacklisted usernames.  these CIDRs should be one-offs and would not be expected to appear in a
+            // blacklist supplied by a third party (but might?)
             if (ipAddress is not null && blacklist.Cidrs.Select(c => IPAddressRange.Parse(c)).Any(range => range.Contains(ipAddress)))
+            {
+                return true;
+            }
+
+            // check the managed blacklist loaded from a third party blacklist file
+            if (ipAddress is not null && Blacklist.Contains(ipAddress))
             {
                 return true;
             }
