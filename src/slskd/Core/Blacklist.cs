@@ -214,13 +214,13 @@ public class Blacklist
             try
             {
                 // CIDR format: 1.2.4.0/24
-                if (format == BlacklistFormat.CIDR && !IPAddressRange.TryParse(line, out cidr))
+                if (format == BlacklistFormat.CIDR)
                 {
-                    throw new Exception();
+                    cidr = IPAddressRange.Parse(line);
                 }
 
                 // P2P format: China Internet Information Center (CNNIC):1.2.4.0-1.2.4.255
-                else if (format == BlacklistFormat.P2P && !IPAddressRange.TryParse(line.Split(':')[1], out cidr))
+                else if (format == BlacklistFormat.P2P)
                 {
                     cidr = IPAddressRange.Parse(line.Split(':').Last());
                 }
@@ -239,10 +239,7 @@ public class Blacklist
                     var ips = range.Split("-")
                         .Select(TrimLeadingZerosFromEachOctet);
 
-                    if (!IPAddressRange.TryParse(string.Join('-', ips), out cidr))
-                    {
-                        throw new Exception();
-                    }
+                    cidr = IPAddressRange.Parse(string.Join('-', ips));
                 }
             }
             catch (Exception ex)
