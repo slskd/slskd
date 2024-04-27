@@ -20,6 +20,7 @@ namespace slskd;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -183,6 +184,10 @@ public class Blacklist
             Log.Debug("Detected blacklist format {Format}", format);
         }
 
+        var sw = new Stopwatch();
+        sw.Start();
+        Log.Debug("Loading blacklist");
+
         using var reader = new StreamReader(filename, options: new FileStreamOptions
         {
             Access = FileAccess.Read,
@@ -283,6 +288,9 @@ public class Blacklist
 
         // swap the temporary cache for the "real" cache, enabling a bumpless update
         Cache = tempCache;
+
+        sw.Stop();
+        Log.Debug("Blacklist loaded in {Duration}ms", sw.ElapsedMilliseconds);
     }
 
     /// <summary>
