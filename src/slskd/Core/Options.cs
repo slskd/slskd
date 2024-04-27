@@ -1106,7 +1106,10 @@ namespace slskd
             public bool Swagger { get; init; } = false;
         }
 
-        public class BlacklistOptions
+        /// <summary>
+        ///     Blacklist options.
+        /// </summary>
+        public class BlacklistOptions : IValidatableObject
         {
             /// <summary>
             ///     Gets a value indicating whether blacklist file support should be enabled.
@@ -1125,6 +1128,36 @@ namespace slskd
             [Description("path to blacklist file")]
             [FileExists(FileAccess.Read)]
             public string File { get; init; }
+
+            /// <summary>
+            ///     Extended validation.
+            /// </summary>
+            /// <param name="validationContext"></param>
+            /// <returns></returns>
+            public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+            {
+                var results = new List<ValidationResult>();
+
+                if (!Enabled)
+                {
+                    return results;
+                }
+
+                // loading/validating the entire list will be costly on low spec systems
+                // just make sure that we can detect a valid format and leave it at that
+                // if there's a problem with any of the entries, the load will fail and
+                // kill the application
+                try
+                {
+                    _ = slskd.Blacklist.DetectFormat(File);
+                }
+                catch (FormatException ex)
+                {
+                    results.Add(new ValidationResult(ex.Message));
+                }
+
+                return results;
+            }
         }
 
         /// <summary>
