@@ -268,13 +268,17 @@ public class Blacklist
         }
 
         // copy working dictionary to a temporary cache to:
-        //   * convert List<> to array to increase access speed
+        //   * deduplicate entries
         //   * sort arrays by first IP to enable binary search (future?)
+        //   * convert List<> to array to increase access speed
         var tempCache = new ConcurrentDictionary<int, (uint First, uint Last)[]>();
 
         foreach (var key in dict.Keys)
         {
-            tempCache[key] = dict[key].OrderBy(x => x.First).ToArray();
+            tempCache[key] = dict[key]
+                .Distinct()
+                .OrderBy(x => x.First)
+                .ToArray();
         }
 
         // swap the temporary cache for the "real" cache, enabling a bumpless update
