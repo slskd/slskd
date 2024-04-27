@@ -150,7 +150,7 @@ public class Blacklist
             }
         }
 
-        throw new FormatException($"Failed to auto-detect blacklist format. Only CIDR, P2P and DAT formats are supported");
+        throw new FormatException($"Failed to detect blacklist format. Only CIDR, P2P and DAT formats are supported");
     }
 
     /// <summary>
