@@ -222,7 +222,7 @@ public class Blacklist
                 // P2P format: China Internet Information Center (CNNIC):1.2.4.0-1.2.4.255
                 else if (format == BlacklistFormat.P2P && !IPAddressRange.TryParse(line.Split(':')[1], out cidr))
                 {
-                    throw new Exception();
+                    cidr = IPAddressRange.Parse(line.Split(':').Last());
                 }
 
                 // DAT format: 001.002.004.000 - 001.002.004.255 , 000 , China Internet Information Center (CNNIC)
@@ -233,8 +233,7 @@ public class Blacklist
                         => string.Join('.', ip.Split('.').Select(octet => octet == "000" ? "0" : octet.TrimStart('0')));
 
                     // 001.002.004.000-001.002.004.255
-                    var range = line.Split(",")[0]
-                        .Replace(" ", string.Empty);
+                    var range = line.Split(",").First().Replace(" ", string.Empty);
 
                     // [1.2.4.0, 1.2.4.255]
                     var ips = range.Split("-")
