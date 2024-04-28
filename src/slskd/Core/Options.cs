@@ -1001,13 +1001,12 @@ namespace slskd
                 public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
                 {
                     var results = new List<ValidationResult>();
-                    var cache = new List<IPAddressRange>();
 
                     foreach (var cidr in Cidrs ?? Array.Empty<string>())
                     {
                         try
                         {
-                            cache.Add(IPAddressRange.Parse(cidr));
+                            _ = IPAddressRange.Parse(cidr);
                         }
                         catch (Exception ex)
                         {
