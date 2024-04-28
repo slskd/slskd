@@ -1148,11 +1148,12 @@ namespace slskd
                 // kill the application
                 try
                 {
-                    _ = slskd.Blacklist.DetectFormat(File);
+                    // async not supported here, .Result is all we have
+                    _ = slskd.Blacklist.DetectFormat(File).Result;
                 }
-                catch (FormatException ex)
+                catch
                 {
-                    results.Add(new ValidationResult(ex.Message));
+                    results.Add(new ValidationResult("Failed to detect blacklist format. Only CIDR, P2P and DAT formats are supported"));
                 }
 
                 return results;
