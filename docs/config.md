@@ -415,7 +415,7 @@ groups:
         failures: 30
 ```
 
-## Blacklist
+## User Blacklist
 
 A fourth built-in group, `blacklisted`, is used to disallow other users from various activities.
 
@@ -425,9 +425,11 @@ Blacklisted users are prevented from:
 - Retrieving directory contents
 - Enqueueing downloads
 
-Users can be blacklisted by adding their username to the `members` list.  Users can also be blacklisted by IP address, or range of addresses by adding a CIDR entry to the `cidrs` list. In addition, an external blacklist file containing CIDRs can be specified using `blacklistfile`, with each CIDR on its own line. Empty lines and lines starting with `#` are ignored.
+Users can be blacklisted by adding their username to the `members` list. Additionally, users can be blacklisted by IP address, or range of addresses by adding a CIDR entry to the `cidrs` list.
 
 Users added to the blacklist will be blocked from enqueueing any new files.  Any existing active or queued transfers will need to be cancelled manually.
+
+A managed blacklist file may also be used to achieve the same effects.  Read more about this in the [Managed Blacklist](#managed-blacklist) section below.
 
 **YAML**
 ```yaml
@@ -437,7 +439,6 @@ groups:
       - <username to blacklist>
     cidrs:
       - <CIDR to blacklist, e.g. 255.255.255.255/32>
-    blacklistfile: 'D:\blacklist.txt'
 ```
 
 ## User Defined Groups
@@ -505,6 +506,27 @@ groups:
         - bob
 ```
 
+## Managed Blacklist
+
+A managed blacklist (also called a blocklist) can be specified to disallow interaction with known undesireable actors.  Users whose IP address metches an entry on this list are functionally the same as users added to the [User Blacklist](#user-blacklist) described above and are disallowed any interactions with shares or files.
+
+Blacklists/blocklists designed for use with other P2P applications (such as BitTorrent) are supported; specifically the P2P, DAT, and CIDR formats.
+
+When enabled, the specified file is validated by reading the first few lines of the file to automatically detect the format.  If the file doesn't exist, can't be read, the format can't be detected, or if it contains any lines that don't match the format, the application will exit.  Similarly, if the file changes while the application is running and there's an issue, the application will exit.
+
+Note that the contents of the blacklist are stored in memory to ensure performance, and this will increase the amount of memory used, potentially significantly if the blacklist is large.
+
+| Command-Line         | Environment Variable | Description                    |
+| -------------------- | -------------------- | ------------------------------ |
+| `--enable-blacklist` | `BLACKLIST`          | Enable the managed blacklist   |
+| `--blacklist-file`   | `BLACKLIST_FILE`     | The path to the blacklist file |
+
+```yaml
+blacklist:
+  enabled: true
+  file: <path to file containing CIDRs to blacklist>
+```
+
 # Chat Rooms and Private Messaging
 
 ## Auto-Joining Rooms
@@ -514,7 +536,6 @@ A configured list of chat rooms will now be automatically joined on connect.
 The list can be specified via command line (e.g. --rooms <room1> --rooms <room2>), with the SLSKD_ROOMS environment variable (rooms separated by a semicolon).
 
 Additionally, when the client is disconnected, any rooms that were joined at the time of the disconnect are rejoined upon reconnect, as long as the app hasn't been restarted in between.
-
 
 | Command-Line  | Environment Variable | Description                             |
 | ------------- | ---------------------| ----------------------------------------|
