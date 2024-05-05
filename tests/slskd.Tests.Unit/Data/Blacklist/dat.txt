@@ -1,0 +1,7 @@
+# here's a comment
+
+001.002.004.000 - 001.002.004.255 , 000 , China Internet Information Center (CNNIC)
+001.002.008.000 - 001.002.008.255 , 000 , China Internet Information Center (CNNIC)
+001.009.096.105 - 001.009.096.105 , 000 , Botnet on Telekom Malaysia
+001.009.102.251 - 001.009.102.251 , 000 , Botnet on Telekom Malaysia
+001.009.106.186 - 001.009.106.186 , 000 , Botnet on Telekom Malaysia
