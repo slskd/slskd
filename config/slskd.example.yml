@@ -35,6 +35,8 @@
 # directories:
 #   incomplete: ~
 #   downloads: ~
+# files:
+#   permissions: 655
 # shares:
 #   directories:
 #     - ~
