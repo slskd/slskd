@@ -210,6 +210,12 @@ namespace slskd
         public RelayOptions Relay { get; init; } = new RelayOptions();
 
         /// <summary>
+        ///     Gets file options.
+        /// </summary>
+        [Validate]
+        public FilesOptions Files { get; init; } = new FilesOptions();
+
+        /// <summary>
         ///     Gets directory options.
         /// </summary>
         [Validate]
@@ -599,6 +605,33 @@ namespace slskd
 
                     return results;
                 }
+            }
+        }
+
+        /// <summary>
+        ///     File options.
+        /// </summary>
+        public class FilesOptions : IValidatableObject
+        {
+            public string Permissions { get; init; }
+            public string Umask { get; init; }
+
+            public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+            {
+                var regEx = new Regex("[0-7]{3}", RegexOptions.Compiled);
+                var results = new List<ValidationResult>();
+
+                if (!string.IsNullOrEmpty(Permissions) && !regEx.IsMatch(Permissions))
+                {
+                    results.Add(new ValidationResult($"Field {nameof(Permissions)} is invalid. Specify a three-character string consisting of only 0-7 (000-777, inclusive)"));
+                }
+
+                if (!string.IsNullOrEmpty(Umask) && !regEx.IsMatch(Umask))
+                {
+                    results.Add(new ValidationResult($"Field {nameof(Umask)} is invalid. Specify a three-character string consisting of only 0-7 (000-777, inclusive)"));
+                }
+
+                return results;
             }
         }
 
