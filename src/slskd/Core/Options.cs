@@ -613,22 +613,30 @@ namespace slskd
         /// </summary>
         public class FilesOptions : IValidatableObject
         {
-            public string Permissions { get; init; }
-            public string Umask { get; init; }
+            /// <summary>
+            ///     Gets the permissions to apply to newly created files.
+            /// </summary>
+            /// <remarks>
+            ///     Applicable to non-Windows operating systems, only.
+            /// </remarks>
+            [Argument(default, "file-permissions")]
+            [EnvironmentVariable("FILE_PERMISSIONS")]
+            [Description("the permissions to apply to newly created files (chmod syntax, non-Windows only)")]
+            public string Permissions { get; init; } = "644";
 
+            /// <summary>
+            ///     Extended validation.
+            /// </summary>
+            /// <param name="validationContext"></param>
+            /// <returns></returns>
             public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
             {
                 var regEx = new Regex("[0-7]{3}", RegexOptions.Compiled);
                 var results = new List<ValidationResult>();
 
-                if (!string.IsNullOrEmpty(Permissions) && !regEx.IsMatch(Permissions))
+                if (!regEx.IsMatch(Permissions))
                 {
-                    results.Add(new ValidationResult($"Field {nameof(Permissions)} is invalid. Specify a three-character string consisting of only 0-7 (000-777, inclusive)"));
-                }
-
-                if (!string.IsNullOrEmpty(Umask) && !regEx.IsMatch(Umask))
-                {
-                    results.Add(new ValidationResult($"Field {nameof(Umask)} is invalid. Specify a three-character string consisting of only 0-7 (000-777, inclusive)"));
+                    results.Add(new ValidationResult($"Field {nameof(Permissions)} is invalid. Specify a three-character string consisting of only 0-7 (chmod syntax, 000-777, inclusive)"));
                 }
 
                 return results;
