@@ -598,7 +598,18 @@ namespace slskd.Transfers.Downloads
                 Directory.CreateDirectory(path);
             }
 
-            return new FileStream(localFilename, FileMode.Create);
+            var options = new FileStreamOptions
+            {
+                Mode = FileMode.Create,
+                Access = FileAccess.Write,
+            };
+
+            if (!OperatingSystem.IsWindows())
+            {
+                options.UnixCreateMode = UnixFileMode.GroupExecute | UnixFileMode.GroupRead | UnixFileMode.UserRead | UnixFileMode.UserExecute;
+            }
+
+            return new FileStream(localFilename, options);
         }
 
         private static string MoveFile(string filename, string sourceDirectory, string destinationDirectory)
