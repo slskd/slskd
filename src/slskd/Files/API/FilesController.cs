@@ -39,14 +39,14 @@ namespace slskd.Files.API
     public class FilesController : ControllerBase
     {
         public FilesController(
-            IFileService fileService,
+            FileService fileService,
             IOptionsSnapshot<Options> optionsSnapshot)
         {
             Files = fileService;
             OptionsSnapshot = optionsSnapshot;
         }
 
-        private IFileService Files { get; }
+        private FileService Files { get; }
         private IOptionsSnapshot<Options> OptionsSnapshot { get; }
         private ILogger Log { get; set; } = Serilog.Log.ForContext<FilesController>();
 
