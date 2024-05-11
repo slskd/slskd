@@ -23,7 +23,6 @@ namespace slskd.Files
     using System.Collections.Generic;
     using System.IO;
     using System.Linq;
-    using System.Security;
     using System.Threading.Tasks;
     using OneOf;
     using Serilog;
@@ -31,7 +30,7 @@ namespace slskd.Files
     /// <summary>
     ///     Manages files on disk.
     /// </summary>
-    public class FileService : IFileService
+    public class FileService
     {
         /// <summary>
         ///     Initializes a new instance of the <see cref="FileService"/> class.
@@ -66,7 +65,7 @@ namespace slskd.Files
         /// </exception>
         /// <exception cref="NotFoundException">Thrown if a specified directory does not exist.</exception>
         /// <exception cref="UnauthorizedException">Thrown if a specified directory is restricted.</exception>
-        public async Task<Dictionary<string, OneOf<bool, Exception>>> DeleteDirectoriesAsync(params string[] directories)
+        public virtual async Task<Dictionary<string, OneOf<bool, Exception>>> DeleteDirectoriesAsync(params string[] directories)
         {
             if (directories.Any(directory => Path.GetFullPath(directory) != directory))
             {
@@ -129,7 +128,7 @@ namespace slskd.Files
         /// <exception cref="ArgumentException">Thrown if any of the specified files have a relative path.</exception>
         /// <exception cref="NotFoundException">Thrown if a specified file does not exist.</exception>
         /// <exception cref="UnauthorizedException">Thrown if a specified file is restricted.</exception>
-        public async Task<Dictionary<string, OneOf<bool, Exception>>> DeleteFilesAsync(params string[] files)
+        public virtual async Task<Dictionary<string, OneOf<bool, Exception>>> DeleteFilesAsync(params string[] files)
         {
             if (files.Any(file => Path.GetFullPath(file) != file))
             {
@@ -182,7 +181,7 @@ namespace slskd.Files
         /// <exception cref="ArgumentException">Thrown if the specified directory has a relative path.</exception>
         /// <exception cref="NotFoundException">Thrown if the specified directory does not exist.</exception>
         /// <exception cref="UnauthorizedException">Thrown if the specified root directory is restricted.</exception>
-        public async Task<FilesystemDirectory> ListContentsAsync(string directory, EnumerationOptions enumerationOptions = null)
+        public virtual async Task<FilesystemDirectory> ListContentsAsync(string directory, EnumerationOptions enumerationOptions = null)
         {
             if (Path.GetFullPath(directory) != directory)
             {
