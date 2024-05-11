@@ -29,7 +29,7 @@ namespace slskd.Tests.Unit.Files
 
         private Mock<IOptionsSnapshot<Options>> OptionsSnapshotMock { get; init; }
         private string Temp { get; init; }
-        private IFileService FileService { get; init; }
+        private FileService FileService { get; init; }
 
         [Fact]
         public async Task ListContentsAsync_Throws_ArgumentException_Given_Relative_Path()
