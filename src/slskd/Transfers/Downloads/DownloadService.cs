@@ -1,4 +1,4 @@
-﻿// <copyright file="DownloadService.cs" company="slskd Team">
+// <copyright file="DownloadService.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -318,9 +318,9 @@ namespace slskd.Transfers.Downloads
                                 // argue both ways for that being the correct behavior. revisit this later.
                                 var finalFilename = Files.MoveFile(
                                     sourceFilename: file.Filename.ToLocalFilename(baseDirectory: OptionsMonitor.CurrentValue.Directories.Incomplete),
-                                    destinationDirectory: OptionsMonitor.CurrentValue.Directories.Downloads,
+                                    destinationDirectory: System.IO.Path.GetDirectoryName(file.Filename.ToLocalFilename(baseDirectory: OptionsMonitor.CurrentValue.Directories.Downloads)),
                                     overwrite: false,
-                                    deleteEmptiedParentDirectory: true);
+                                    deleteSourceDirectoryIfEmptyAfterMove: true);
 
                                 Log.Debug("Moved file to {Destination}", finalFilename);
 

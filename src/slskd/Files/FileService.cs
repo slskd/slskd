@@ -301,14 +301,14 @@ namespace slskd.Files
         /// <param name="sourceFilename">The fully qualified filename of the file to move.</param>
         /// <param name="destinationDirectory">The fully qualified directory to which to move the source file.</param>
         /// <param name="overwrite">An optional value indicating whether the destination file should be overwritten if it already exists.</param>
-        /// <param name="deleteEmptiedParentDirectory">
+        /// <param name="deleteSourceDirectoryIfEmptyAfterMove">
         ///     An optional value indicating whether the parent directory of the source file should be deleted if it is empty after the move.
         /// </param>
         /// <returns>The fully qualified filename of the resulting file.</returns>
         /// <exception cref="ArgumentNullException">Thrown if either of the specified file or directories are null or contain only whitespace.</exception>
         /// <exception cref="FileNotFoundException">Thrown if the specified <paramref name="sourceFilename"/> does not exist.</exception>
-        /// <exception cref="IOException">Thrown if the file can't be moved, or the <paramref name="deleteEmptiedParentDirectory"/> option is set and the operation fails.</exception>
-        public virtual string MoveFile(string sourceFilename, string destinationDirectory, bool overwrite = false, bool deleteEmptiedParentDirectory = false)
+        /// <exception cref="IOException">Thrown if the file can't be moved, or the <paramref name="deleteSourceDirectoryIfEmptyAfterMove"/> option is set and the operation fails.</exception>
+        public virtual string MoveFile(string sourceFilename, string destinationDirectory, bool overwrite = false, bool deleteSourceDirectoryIfEmptyAfterMove = false)
         {
             ArgumentNullException.ThrowIfNullOrWhiteSpace(sourceFilename, nameof(sourceFilename));
             ArgumentNullException.ThrowIfNullOrWhiteSpace(destinationDirectory, nameof(destinationDirectory));
@@ -323,18 +323,20 @@ namespace slskd.Files
                 Directory.CreateDirectory(destinationDirectory);
             }
 
-            var filename = Path.GetFileName(sourceFilename); // without directory
-            var destinationFilename = Path.Combine(destinationDirectory, filename);
+            var destinationFilename = Path.Combine(destinationDirectory, Path.GetFileName(sourceFilename));
+
+            Log.Debug("Attempting to move {Source} to {Destination}", sourceFilename, destinationFilename);
 
             if (!overwrite && File.Exists(destinationFilename))
             {
-                string extensionlessFilename = Path.Combine(Path.GetDirectoryName(filename), Path.GetFileNameWithoutExtension(filename));
-                string extension = Path.GetExtension(filename);
+                Log.Debug("Destination file {Destination} exists, and overwite option is not set; attempting to generate new filename", destinationFilename);
+
+                string extensionlessFilename = Path.Combine(Path.GetDirectoryName(destinationFilename), Path.GetFileNameWithoutExtension(sourceFilename));
+                string extension = Path.GetExtension(sourceFilename);
 
                 while (File.Exists(destinationFilename))
                 {
-                    string filenameUTC = $"{extensionlessFilename}_{DateTime.UtcNow.Ticks}{extension}";
-                    destinationFilename = filenameUTC.ToLocalFilename(destinationDirectory);
+                    destinationFilename = $"{extensionlessFilename}_{DateTime.UtcNow.Ticks}{extension}";
                 }
             }
 
@@ -342,8 +344,10 @@ namespace slskd.Files
             {
                 File.Move(sourceFilename, destinationFilename, overwrite: overwrite);
 
+                Log.Debug("Successfully moved {Source} to {Destination}", sourceFilename, destinationFilename);
+
                 // if the parent directory is empty after the move, delete it
-                if (deleteEmptiedParentDirectory && !Directory.EnumerateFileSystemEntries(Path.GetDirectoryName(sourceFilename)).Any())
+                if (deleteSourceDirectoryIfEmptyAfterMove && !Directory.EnumerateFileSystemEntries(Path.GetDirectoryName(sourceFilename)).Any())
                 {
                     Directory.Delete(Path.GetDirectoryName(sourceFilename));
                 }
@@ -354,7 +358,7 @@ namespace slskd.Files
             {
                 // the operation above can throw quite a few exceptions, all granular variations of
                 // IOException. to make handling downstream easier, wrap them all up and re-throw.
-                throw new IOException($"Failed to move file {Path.GetFileName(filename)}: {ex.Message}", ex);
+                throw new IOException($"Failed to move file {Path.GetFileName(sourceFilename)}: {ex.Message}", ex);
             }
         }
     }
