@@ -36,19 +36,19 @@ namespace slskd.Files
         ///     Initializes a new instance of the <see cref="FileService"/> class.
         /// </summary>
         public FileService(
-            IOptionsSnapshot<Options> optionsSnapshot)
+            IOptionsMonitor<Options> optionsMonitor)
         {
-            OptionsSnapshot = optionsSnapshot;
+            OptionsMonitor = optionsMonitor;
         }
 
         private IEnumerable<string> AllowedDirectories => new[]
         {
-            Path.GetFullPath(OptionsSnapshot.Value.Directories.Downloads),
-            Path.GetFullPath(OptionsSnapshot.Value.Directories.Incomplete),
+            Path.GetFullPath(OptionsMonitor.CurrentValue.Directories.Downloads),
+            Path.GetFullPath(OptionsMonitor.CurrentValue.Directories.Incomplete),
         };
 
         private ILogger Log { get; } = Serilog.Log.ForContext<FileService>();
-        private IOptionsSnapshot<Options> OptionsSnapshot { get; }
+        private IOptionsMonitor<Options> OptionsMonitor { get; }
 
         /// <summary>
         ///     Deletes the specified <paramref name="directories"/>.
