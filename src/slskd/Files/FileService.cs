@@ -236,5 +236,125 @@ namespace slskd.Files
                 }
             });
         }
+
+        /// <summary>
+        ///     Creates a new file with the specified fully qualified <paramref name="filename"/> and the optional <paramref name="options"/>,
+        ///     returning a <see cref="Stream"/> with which the contents of the file can be written.
+        /// </summary>
+        /// <remarks>
+        ///     Reasonable defaults, including the Unix permissions from app configuration, have been applied. Be sure to review the defaults
+        ///     for each new use case and ensure they are appropriate.
+        /// </remarks>
+        /// <param name="filename">The fully qualified filename.</param>
+        /// <param name="options">An optional patch for the underlying <see cref="FileStreamOptions"/>.</param>
+        /// <returns>A Stream with which the contents of the file can be written.</returns>
+        /// <exception cref="ArgumentNullException">Thrown if the specified filename is null or contains only whitespace.</exception>
+        /// <exception cref="IOException">Thrown if the underlying file or Stream can't be created for some reason.</exception>
+        public virtual Stream CreateFile(string filename, CreateFileOptions options = null)
+        {
+            ArgumentNullException.ThrowIfNullOrWhiteSpace(filename, nameof(filename));
+
+            var path = Path.GetDirectoryName(filename);
+
+            if (!Directory.Exists(path))
+            {
+                Directory.CreateDirectory(path);
+            }
+
+            var streamOptions = new FileStreamOptions
+            {
+                Access = options?.Access ?? FileAccess.Write,
+                BufferSize = options?.BufferSize ?? 4096, // framework default
+                Mode = options?.Mode ?? FileMode.Create, // overwrite
+                Options = options?.Options ?? FileOptions.None, // synchronous I/O
+                PreallocationSize = options?.PreallocationSize ?? 0,
+                Share = options?.Share ?? FileShare.None, // exclusive access
+            };
+
+            // attempting to use UnixCreateMode on Windows raises an Exception
+            // we *MUST* check the OS and skip this on Windows
+            if (!OperatingSystem.IsWindows())
+            {
+                streamOptions.UnixCreateMode = options?.UnixCreateMode ?? UnixFileMode.None; // todo: substitute default from options
+            }
+
+            try
+            {
+                return new FileStream(filename, streamOptions);
+            }
+            catch (Exception ex)
+            {
+                // the operation above can throw quite a few exceptions, all granular variations of
+                // IOException. to make handling downstream easier, wrap them all up and re-throw.
+                throw new IOException($"Failed to create file {Path.GetFileName(filename)}: {ex.Message}", ex);
+            }
+        }
+
+        /// <summary>
+        ///     Moves the specified fully qualified, localized, <paramref name="sourceFilename"/> to the specified fully qualified, localized,
+        ///     <paramref name="destinationDirectory"/>.
+        /// </summary>
+        /// <remarks>
+        ///     If the destination file already exists and the <paramref name="overwrite"/> option is not set, the destination filename will
+        ///     be modified to include the current time to avoid the collision while preserving both files.
+        /// </remarks>
+        /// <param name="sourceFilename">The fully qualified filename of the file to move.</param>
+        /// <param name="destinationDirectory">The fully qualified directory to which to move the source file.</param>
+        /// <param name="overwrite">An optional value indicating whether the destination file should be overwritten if it already exists.</param>
+        /// <param name="deleteEmptiedParentDirectory">
+        ///     An optional value indicating whether the parent directory of the source file should be deleted if it is empty after the move.
+        /// </param>
+        /// <returns>The fully qualified filename of the resulting file.</returns>
+        /// <exception cref="ArgumentNullException">Thrown if either of the specified file or directories are null or contain only whitespace.</exception>
+        /// <exception cref="FileNotFoundException">Thrown if the specified <paramref name="sourceFilename"/> does not exist.</exception>
+        public virtual string MoveFile(string sourceFilename, string destinationDirectory, bool overwrite = false, bool deleteEmptiedParentDirectory = true)
+        {
+            ArgumentNullException.ThrowIfNullOrWhiteSpace(sourceFilename, nameof(sourceFilename));
+            ArgumentNullException.ThrowIfNullOrWhiteSpace(destinationDirectory, nameof(destinationDirectory));
+
+            if (!File.Exists(sourceFilename))
+            {
+                throw new FileNotFoundException($"The specified source file does not exist", fileName: sourceFilename);
+            }
+
+            if (!Directory.Exists(destinationDirectory))
+            {
+                Directory.CreateDirectory(destinationDirectory);
+            }
+
+            var filename = Path.GetFileName(sourceFilename); // without directory
+            var destinationFilename = Path.Combine(destinationDirectory, filename);
+
+            if (!overwrite && File.Exists(destinationFilename))
+            {
+                string extensionlessFilename = Path.Combine(Path.GetDirectoryName(filename), Path.GetFileNameWithoutExtension(filename));
+                string extension = Path.GetExtension(filename);
+
+                while (File.Exists(destinationFilename))
+                {
+                    string filenameUTC = $"{extensionlessFilename}_{DateTime.UtcNow.Ticks}{extension}";
+                    destinationFilename = filenameUTC.ToLocalFilename(destinationDirectory);
+                }
+            }
+
+            try
+            {
+                File.Move(sourceFilename, destinationFilename, overwrite: overwrite);
+
+                // if the parent directory is empty after the move, delete it
+                if (deleteEmptiedParentDirectory && !Directory.EnumerateFileSystemEntries(Path.GetDirectoryName(sourceFilename)).Any())
+                {
+                    Directory.Delete(Path.GetDirectoryName(sourceFilename));
+                }
+
+                return destinationFilename;
+            }
+            catch (Exception ex)
+            {
+                // the operation above can throw quite a few exceptions, all granular variations of
+                // IOException. to make handling downstream easier, wrap them all up and re-throw.
+                throw new IOException($"Failed to move file {Path.GetFileName(filename)}: {ex.Message}", ex);
+            }
+        }
     }
 }
