@@ -13,13 +13,13 @@ namespace slskd.Tests.Unit.Files
     {
         public FileServiceTests()
         {
-            OptionsSnapshotMock = new Mock<IOptionsSnapshot<Options>>();
+            OptionsMonitorMock = new Mock<IOptionsMonitor<Options>>();
 
             Temp = Path.Combine(Path.GetTempPath(), $"slskd.test.{Guid.NewGuid()}");
             Directory.CreateDirectory(Temp);
 
             FileService = new FileService(
-                optionsSnapshot: OptionsSnapshotMock.Object);
+                optionsMonitor: OptionsMonitorMock.Object);
         }
 
         public void Dispose()
@@ -27,7 +27,7 @@ namespace slskd.Tests.Unit.Files
             Directory.Delete(Temp, recursive: true);
         }
 
-        private Mock<IOptionsSnapshot<Options>> OptionsSnapshotMock { get; init; }
+        private Mock<IOptionsMonitor<Options>> OptionsMonitorMock { get; init; }
         private string Temp { get; init; }
         private FileService FileService { get; init; }
 
@@ -44,7 +44,7 @@ namespace slskd.Tests.Unit.Files
         [Fact]
         public async Task ListContentsAsync_Throws_UnauthorizedException_Given_Disallowed_Directory()
         {
-            OptionsSnapshotMock.Setup(o => o.Value).Returns(new Options
+            OptionsMonitorMock.Setup(o => o.CurrentValue).Returns(new Options
             {
                 Directories = new Options.DirectoriesOptions
                 {
@@ -62,7 +62,7 @@ namespace slskd.Tests.Unit.Files
         [Fact]
         public async Task ListContentsAsync_Throws_NotFoundException_Given_NonExistent_Directory()
         {
-            OptionsSnapshotMock.Setup(o => o.Value).Returns(new Options
+            OptionsMonitorMock.Setup(o => o.CurrentValue).Returns(new Options
             {
                 Directories = new Options.DirectoriesOptions
                 {
@@ -90,7 +90,7 @@ namespace slskd.Tests.Unit.Files
         [Fact]
         public async Task DeleteDirectoriesAsync_Throws_ArgumentException_Given_Disallowed_Path()
         {
-            OptionsSnapshotMock.Setup(o => o.Value).Returns(new Options
+            OptionsMonitorMock.Setup(o => o.CurrentValue).Returns(new Options
             {
                 Directories = new Options.DirectoriesOptions
                 {
@@ -118,7 +118,7 @@ namespace slskd.Tests.Unit.Files
         [Fact]
         public async Task DeleteFilesAsync_Throws_ArgumentException_Given_Disallowed_Path()
         {
-            OptionsSnapshotMock.Setup(o => o.Value).Returns(new Options
+            OptionsMonitorMock.Setup(o => o.CurrentValue).Returns(new Options
             {
                 Directories = new Options.DirectoriesOptions
                 {
