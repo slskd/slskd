@@ -120,12 +120,14 @@ namespace slskd.Transfers.Downloads
             IOptionsMonitor<Options> optionsMonitor,
             ISoulseekClient soulseekClient,
             IDbContextFactory<TransfersDbContext> contextFactory,
+            FileService fileService,
             IRelayService relayService,
             IFTPService ftpClient)
         {
             Client = soulseekClient;
             OptionsMonitor = optionsMonitor;
             ContextFactory = contextFactory;
+            Files = fileService;
             FTP = ftpClient;
             Relay = relayService;
         }
@@ -134,6 +136,7 @@ namespace slskd.Transfers.Downloads
         private ISoulseekClient Client { get; }
         private IDbContextFactory<TransfersDbContext> ContextFactory { get; }
         private IFTPService FTP { get; }
+        private FileService Files { get; }
         private IRelayService Relay { get; }
         private ILogger Log { get; } = Serilog.Log.ForContext<DownloadService>();
         private IOptionsMonitor<Options> OptionsMonitor { get; }
