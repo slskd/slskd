@@ -1,4 +1,4 @@
-// <copyright file="DownloadService.cs" company="slskd Team">
+﻿// <copyright file="DownloadService.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -23,13 +23,13 @@ namespace slskd.Transfers.Downloads
     using System;
     using System.Collections.Concurrent;
     using System.Collections.Generic;
-    using System.IO;
     using System.Linq;
     using System.Linq.Expressions;
     using System.Threading;
     using System.Threading.Tasks;
     using Microsoft.EntityFrameworkCore;
     using Serilog;
+    using slskd.Files;
     using slskd.Integrations.FTP;
     using slskd.Relay;
 
@@ -288,7 +288,16 @@ namespace slskd.Transfers.Downloads
                                 var completedTransfer = await Client.DownloadAsync(
                                     username: username,
                                     remoteFilename: file.Filename,
-                                    outputStreamFactory: () => Task.FromResult(GetLocalFileStream(file.Filename, OptionsMonitor.CurrentValue.Directories.Incomplete)),
+                                    outputStreamFactory: () => Task.FromResult(
+                                        Files.CreateFile(
+                                            filename: file.Filename.ToLocalFilename(baseDirectory: OptionsMonitor.CurrentValue.Directories.Incomplete),
+                                            options: new CreateFileOptions
+                                            {
+                                                Access = System.IO.FileAccess.Write,
+                                                Mode = System.IO.FileMode.Create, // overwrites file if it exists
+                                                Share = System.IO.FileShare.None, // exclusive access for the duration of the download
+                                                UnixCreateMode = System.IO.UnixFileMode.None, // todo: replace with options
+                                            })),
                                     size: file.Size,
                                     startOffset: 0,
                                     token: null,
@@ -307,7 +316,11 @@ namespace slskd.Transfers.Downloads
                                 // this would be the ideal place to hook in a generic post-download task processor for now, we'll
                                 // just carry out hard coded behavior. these carry the risk of failing the transfer, and i could
                                 // argue both ways for that being the correct behavior. revisit this later.
-                                var finalFilename = MoveFile(file.Filename, OptionsMonitor.CurrentValue.Directories.Incomplete, OptionsMonitor.CurrentValue.Directories.Downloads);
+                                var finalFilename = Files.MoveFile(
+                                    sourceFilename: file.Filename.ToLocalFilename(baseDirectory: OptionsMonitor.CurrentValue.Directories.Incomplete),
+                                    destinationDirectory: OptionsMonitor.CurrentValue.Directories.Downloads,
+                                    overwrite: false,
+                                    deleteEmptiedParentDirectory: true);
 
                                 Log.Debug("Moved file to {Destination}", finalFilename);
 
