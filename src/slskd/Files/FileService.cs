@@ -275,7 +275,9 @@ namespace slskd.Files
             // we *MUST* check the OS and skip this on Windows
             if (!OperatingSystem.IsWindows())
             {
-                streamOptions.UnixCreateMode = options?.UnixCreateMode ?? UnixFileMode.None; // todo: substitute default from options
+                streamOptions.UnixCreateMode = options?.UnixCreateMode
+                    ?? OptionsMonitor.CurrentValue.Files.Permissions?.ToUnixFileMode()
+                    ?? UnixFileMode.None;
             }
 
             try
