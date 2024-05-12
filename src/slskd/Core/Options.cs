@@ -631,7 +631,7 @@ namespace slskd
             /// <returns></returns>
             public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
             {
-                var regEx = new Regex("[0-7]{3}", RegexOptions.Compiled);
+                var regEx = new Regex("^[0-7]{3,4}$", RegexOptions.Compiled);
                 var results = new List<ValidationResult>();
 
                 if (!regEx.IsMatch(Permissions))
