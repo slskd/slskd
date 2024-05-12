@@ -1,4 +1,4 @@
-// <copyright file="DownloadService.cs" company="slskd Team">
+﻿// <copyright file="DownloadService.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -603,63 +603,5 @@ namespace slskd.Transfers.Downloads
             context.Update(transfer);
             context.SaveChanges();
         }
-
-        // private static Stream GetLocalFileStream(string remoteFilename, string saveDirectory)
-        // {
-        //     var localFilename = remoteFilename.ToLocalFilename(baseDirectory: saveDirectory);
-        //     var path = Path.GetDirectoryName(localFilename);
-
-        //     if (!Directory.Exists(path))
-        //     {
-        //         Directory.CreateDirectory(path);
-        //     }
-
-        //     var options = new FileStreamOptions
-        //     {
-        //         Mode = FileMode.Create,
-        //         Access = FileAccess.Write,
-        //     };
-
-        //     if (!OperatingSystem.IsWindows())
-        //     {
-        //         options.UnixCreateMode = UnixFileMode.GroupExecute | UnixFileMode.GroupRead | UnixFileMode.UserRead | UnixFileMode.UserExecute;
-        //     }
-
-        //     return new FileStream(localFilename, options);
-        // }
-
-        // private static string MoveFile(string filename, string sourceDirectory, string destinationDirectory)
-        // {
-        //     var sourceFilename = filename.ToLocalFilename(baseDirectory: sourceDirectory);
-        //     var destinationFilename = filename.ToLocalFilename(baseDirectory: destinationDirectory);
-
-        //     var destinationPath = Path.GetDirectoryName(destinationFilename);
-
-        //     if (!Directory.Exists(destinationPath))
-        //     {
-        //         Directory.CreateDirectory(destinationPath);
-        //     }
-
-        //     if (File.Exists(destinationFilename))
-        //     {
-        //         string extensionlessFilename = Path.Combine(Path.GetDirectoryName(filename), Path.GetFileNameWithoutExtension(filename));
-        //         string extension = Path.GetExtension(filename);
-
-        //         while (File.Exists(destinationFilename))
-        //         {
-        //             string filenameUTC = $"{extensionlessFilename}_{DateTime.UtcNow.Ticks}{extension}";
-        //             destinationFilename = filenameUTC.ToLocalFilename(destinationDirectory);
-        //         }
-        //     }
-
-        //     File.Move(sourceFilename, destinationFilename, overwrite: true);
-
-        //     if (!Directory.EnumerateFileSystemEntries(Path.GetDirectoryName(sourceFilename)).Any())
-        //     {
-        //         Directory.Delete(Path.GetDirectoryName(sourceFilename));
-        //     }
-
-        //     return destinationFilename;
-        // }
     }
 }
