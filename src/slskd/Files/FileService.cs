@@ -307,7 +307,8 @@ namespace slskd.Files
         /// <returns>The fully qualified filename of the resulting file.</returns>
         /// <exception cref="ArgumentNullException">Thrown if either of the specified file or directories are null or contain only whitespace.</exception>
         /// <exception cref="FileNotFoundException">Thrown if the specified <paramref name="sourceFilename"/> does not exist.</exception>
-        public virtual string MoveFile(string sourceFilename, string destinationDirectory, bool overwrite = false, bool deleteEmptiedParentDirectory = true)
+        /// <exception cref="IOException">Thrown if the file can't be moved, or the <paramref name="deleteEmptiedParentDirectory"/> option is set and the operation fails.</exception>
+        public virtual string MoveFile(string sourceFilename, string destinationDirectory, bool overwrite = false, bool deleteEmptiedParentDirectory = false)
         {
             ArgumentNullException.ThrowIfNullOrWhiteSpace(sourceFilename, nameof(sourceFilename));
             ArgumentNullException.ThrowIfNullOrWhiteSpace(destinationDirectory, nameof(destinationDirectory));
