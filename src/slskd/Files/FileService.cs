@@ -278,6 +278,8 @@ namespace slskd.Files
                 streamOptions.UnixCreateMode = options?.UnixCreateMode
                     ?? OptionsMonitor.CurrentValue.Files.Permissions?.ToUnixFileMode()
                     ?? UnixFileMode.None;
+
+                Log.Debug("Setting Unix file mode to {Mode}", streamOptions.UnixCreateMode);
             }
 
             try
