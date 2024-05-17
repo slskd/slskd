@@ -272,11 +272,39 @@ relay:
     downloads: false
 ```
 
-# Limits and User Groups
+# Upload/Download Configuration, Limits and User Groups
 
-## Global Slot and Speed Limits
+## Downloads
 
-Global slot and speed behave as a hard limit, additive across all groups. These values should be set as high as practical for the application's environment; more granular controls should be defined at the group level.
+A hard limit for download slots can be set to limit the number of concurrent downloads.  Upon reaching the limit, additional downloads will be queued locally (and thus a remote queue position will not be obtained).  There is no slot limit by default.
+
+A download speed limit can be set to limit the total amount of network bandwidth consumed by downloads.  When configured, this bandwidth is split among all active downloads.  There is no speed limit by default.
+
+A change to slot limits requires an application restart to take effect, while speed limits can be adjusted at runtime.
+
+Unix file permissions can be configured and applied to newly downloaded files.  The permission syntax is the same as the syntax used by the [chmod](https://en.wikipedia.org/wiki/Chmod) utility, accepting a numeric string of 3 or 4 numbers, each from 0 to 7.  Unix file permissions are only applied when the application is running on a unix-like operating system (effectively, everything except Windows).  The default permissions are 644, translating to read/write permissions for the owner (the user under which the application runs), read only for the owner's group, and read only for all other users.
+
+| Command-Line                    | Environment Variable                | Description                                                 |
+| ------------------------------- | ------------------------------------| ----------------------------------------------------------- |
+| `--download-slots`              | `SLSKD_DOWNLOAD_SLOTS`              | The limit for the total number of download slots            |
+| `--download-speed-limit`        | `SLSKD_DOWNLOAD_SPEED_LIMIT`        | The total download speed limit, in kibibytes                |
+| `--downloaded-file-permissions` | `SLSKD_DOWNLOADED_FILE_PERMISSIONS` | The Unix file permissions to be applied to downloaded files |
+
+#### **YAML**
+```yaml
+global:
+  download:
+    slots: 500
+    speed_limit: 1000 # kibibytes
+    file:
+      permissions: 644
+```
+
+## Uploads
+
+### Global Slot and Speed Limits
+
+Global upload slot and speed limits behave as hard limits, additive across all groups. These values should be set as high as practical for the application's environment; more granular controls should be defined at the group level.
 
 A change to slot limits requires an application restart to take effect, while speed limits can be adjusted at runtime.
 
@@ -284,8 +312,6 @@ A change to slot limits requires an application restart to take effect, while sp
 | ------------------------ | ---------------------------- | ------------------------------------------------ |
 | `--upload-slots`         | `SLSKD_UPLOAD_SLOTS`         | The limit for the total number of upload slots   |
 | `--upload-speed-limit`   | `SLSKD_UPLOAD_SPEED_LIMIT`   | The total upload speed limit, in kibibytes       |
-| `--download-slots`       | `SLSKD_DOWNLOAD_SLOTS`       | The limit for the total number of download slots |
-| `--download-speed-limit` | `SLSKD_DOWNLOAD_SPEED_LIMIT` | The total download speed limit, in kibibytes     |
 
 #### **YAML**
 ```yaml
@@ -293,12 +319,9 @@ global:
   upload:
     slots: 20
     speed_limit: 1000 # kibibytes
-  download:
-    slots: 500
-    speed_limit: 1000
 ```
 
-## Global Upload Limits
+### Global Upload Limits
 
 Global upload limits define the number of queued, daily, and weekly uploads on a _per user_ basis.  These limits behave as defaults and are applied if limits for a user's group have not been set.
 
@@ -327,7 +350,7 @@ global:
       failures: 1000
 ```
 
-## Groups
+### Groups
 
 User groups are used to control upload slots, speed limits, and queue behavior on a per-user basis.
 
@@ -362,7 +385,7 @@ limits:
     failures: 1000
 ```
 
-## Built-In Groups
+### Built-In Groups
 
 The `default` built-in group contains all users who have not been explicitly added to a user-defined group, are not privileged, and haven't been identified as leechers.
 
@@ -415,7 +438,7 @@ groups:
         failures: 30
 ```
 
-## User Blacklist
+### User Blacklist
 
 A fourth built-in group, `blacklisted`, is used to disallow other users from various activities.
 
@@ -441,7 +464,7 @@ groups:
       - <CIDR to blacklist, e.g. 255.255.255.255/32>
 ```
 
-## User Defined Groups
+### User Defined Groups
 
 In the group configuration, any number of user-defined groups can be added under the `user_defined` key.
 
@@ -467,7 +490,7 @@ groups:
         - alice
 ```
 
-## Example
+### Example
 
 In the following example:
 
@@ -506,7 +529,7 @@ groups:
         - bob
 ```
 
-## Managed Blacklist
+# Managed Blacklist
 
 A managed blacklist (also called a blocklist) can be specified to disallow interaction with known undesireable actors.  Users whose IP address metches an entry on this list are functionally the same as users added to the [User Blacklist](#user-blacklist) described above and are disallowed any interactions with shares or files.
 
