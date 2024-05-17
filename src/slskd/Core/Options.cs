@@ -210,12 +210,6 @@ namespace slskd
         public RelayOptions Relay { get; init; } = new RelayOptions();
 
         /// <summary>
-        ///     Gets file options.
-        /// </summary>
-        [Validate]
-        public FilesOptions Files { get; init; } = new FilesOptions();
-
-        /// <summary>
         ///     Gets directory options.
         /// </summary>
         [Validate]
@@ -609,41 +603,6 @@ namespace slskd
         }
 
         /// <summary>
-        ///     File options.
-        /// </summary>
-        public class FilesOptions : IValidatableObject
-        {
-            /// <summary>
-            ///     Gets the permissions to apply to newly created files.
-            /// </summary>
-            /// <remarks>
-            ///     Applicable to non-Windows operating systems, only.
-            /// </remarks>
-            [Argument(default, "file-permissions")]
-            [EnvironmentVariable("FILE_PERMISSIONS")]
-            [Description("the permissions to apply to newly created files (chmod syntax, non-Windows only)")]
-            public string Permissions { get; init; } = "644";
-
-            /// <summary>
-            ///     Extended validation.
-            /// </summary>
-            /// <param name="validationContext"></param>
-            /// <returns></returns>
-            public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
-            {
-                var regEx = new Regex("^[0-7]{3,4}$", RegexOptions.Compiled);
-                var results = new List<ValidationResult>();
-
-                if (!regEx.IsMatch(Permissions))
-                {
-                    results.Add(new ValidationResult($"Field {nameof(Permissions)} is invalid. Specify a three-character string consisting of only 0-7 (chmod syntax, 000-777, inclusive)"));
-                }
-
-                return results;
-            }
-        }
-
-        /// <summary>
         ///     Directory options.
         /// </summary>
         public class DirectoriesOptions
@@ -894,6 +853,47 @@ namespace slskd
                 [Description("the total download speed limit")]
                 [Range(1, int.MaxValue)]
                 public int SpeedLimit { get; init; } = int.MaxValue;
+
+                /// <summary>
+                ///     Gets downloaded file options.
+                /// </summary>
+                [Validate]
+                public GlobalDownloadFileOptions File { get; init; } = new GlobalDownloadFileOptions();
+            }
+
+            /// <summary>
+            ///     File options.
+            /// </summary>
+            public class GlobalDownloadFileOptions : IValidatableObject
+            {
+                /// <summary>
+                ///     Gets the permissions to apply to newly downloaded files.
+                /// </summary>
+                /// <remarks>
+                ///     Applicable to non-Windows operating systems, only.
+                /// </remarks>
+                [Argument(default, "downloaded-file-permissions")]
+                [EnvironmentVariable("DOWNLOADED_FILE_PERMISSIONS")]
+                [Description("the permissions to apply to newly downloaded files (chmod syntax, non-Windows only)")]
+                public string Permissions { get; init; } = "644";
+
+                /// <summary>
+                ///     Extended validation.
+                /// </summary>
+                /// <param name="validationContext"></param>
+                /// <returns></returns>
+                public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+                {
+                    var regEx = new Regex("^[0-7]{3,4}$", RegexOptions.Compiled);
+                    var results = new List<ValidationResult>();
+
+                    if (!regEx.IsMatch(Permissions))
+                    {
+                        results.Add(new ValidationResult($"Field {nameof(Permissions)} is invalid. Specify a three- or four-character string consisting of only 0-7 (chmod syntax, [0]000-[7]777, inclusive)"));
+                    }
+
+                    return results;
+                }
             }
         }
 

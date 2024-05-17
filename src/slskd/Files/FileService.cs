@@ -276,7 +276,7 @@ namespace slskd.Files
             if (!OperatingSystem.IsWindows())
             {
                 streamOptions.UnixCreateMode = options?.UnixCreateMode
-                    ?? OptionsMonitor.CurrentValue.Files.Permissions?.ToUnixFileMode()
+                    ?? OptionsMonitor.CurrentValue.Global.Download.File.Permissions?.ToUnixFileMode()
                     ?? UnixFileMode.None;
 
                 Log.Debug("Setting Unix file mode to {Mode}", streamOptions.UnixCreateMode);
