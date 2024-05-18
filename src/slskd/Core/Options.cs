@@ -875,7 +875,7 @@ namespace slskd
                 [Argument(default, "downloaded-file-permissions")]
                 [EnvironmentVariable("DOWNLOADED_FILE_PERMISSIONS")]
                 [Description("the permissions to apply to newly downloaded files (chmod syntax, non-Windows only)")]
-                public string Permissions { get; init; } = "644";
+                public string Permissions { get; init; }
 
                 /// <summary>
                 ///     Extended validation.
@@ -884,12 +884,16 @@ namespace slskd
                 /// <returns></returns>
                 public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
                 {
-                    var regEx = new Regex("^[0-7]{3,4}$", RegexOptions.Compiled);
                     var results = new List<ValidationResult>();
 
-                    if (!regEx.IsMatch(Permissions))
+                    if (!string.IsNullOrEmpty(Permissions))
                     {
-                        results.Add(new ValidationResult($"Field {nameof(Permissions)} is invalid. Specify a three- or four-character string consisting of only 0-7 (chmod syntax, [0]000-[7]777, inclusive)"));
+                        var regEx = new Regex("^[0-7]{3,4}$", RegexOptions.Compiled);
+
+                        if (!regEx.IsMatch(Permissions))
+                        {
+                            results.Add(new ValidationResult($"Field {nameof(Permissions)} is invalid. Specify a three- or four-character string consisting of only 0-7 (chmod syntax, [0]000-[7]777, inclusive)"));
+                        }
                     }
 
                     return results;

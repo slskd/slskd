@@ -296,7 +296,9 @@ namespace slskd.Transfers.Downloads
                                                 Access = System.IO.FileAccess.Write,
                                                 Mode = System.IO.FileMode.Create, // overwrites file if it exists
                                                 Share = System.IO.FileShare.None, // exclusive access for the duration of the download
-                                                UnixCreateMode = OptionsMonitor.CurrentValue.Global.Download.File.Permissions.ToUnixFileMode(),
+                                                UnixCreateMode = !string.IsNullOrEmpty(OptionsMonitor.CurrentValue.Global.Download.File.Permissions)
+                                                    ? OptionsMonitor.CurrentValue.Global.Download.File.Permissions.ToUnixFileMode()
+                                                    : null,
                                             })),
                                     size: file.Size,
                                     startOffset: 0,

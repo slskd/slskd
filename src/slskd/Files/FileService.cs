@@ -275,11 +275,15 @@ namespace slskd.Files
             // we *MUST* check the OS and skip this on Windows
             if (!OperatingSystem.IsWindows())
             {
-                streamOptions.UnixCreateMode = options?.UnixCreateMode
-                    ?? OptionsMonitor.CurrentValue.Global.Download.File.Permissions?.ToUnixFileMode()
-                    ?? UnixFileMode.None;
+                var appOption = OptionsMonitor.CurrentValue.Global.Download.File.Permissions;
 
-                Log.Debug("Setting Unix file mode to {Mode}", streamOptions.UnixCreateMode);
+                // if options haven't been passed in and none have been set in app config, omit this
+                // so that the application's umask will be applied, saving users the hassle of setting it twice.
+                if (options?.UnixCreateMode != null || !string.IsNullOrWhiteSpace(appOption))
+                {
+                    streamOptions.UnixCreateMode = options?.UnixCreateMode ?? appOption?.ToUnixFileMode();
+                    Log.Debug("Setting Unix file mode to {Mode}", streamOptions.UnixCreateMode);
+                }
             }
 
             try
