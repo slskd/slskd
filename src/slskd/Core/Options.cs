@@ -210,6 +210,12 @@ namespace slskd
         public RelayOptions Relay { get; init; } = new RelayOptions();
 
         /// <summary>
+        ///     Gets permission options.
+        /// </summary>
+        [Validate]
+        public PermissionsOptions Permissions { get; init; } = new PermissionsOptions();
+
+        /// <summary>
         ///     Gets directory options.
         /// </summary>
         [Validate]
@@ -603,6 +609,57 @@ namespace slskd
         }
 
         /// <summary>
+        ///     Permission options.
+        /// </summary>
+        public class PermissionsOptions
+        {
+            /// <summary>
+            ///     Gets file permission options.
+            /// </summary>
+            [Validate]
+            public FileOptions File { get; init; } = new FileOptions();
+
+            /// <summary>
+            ///     File permission options.
+            /// </summary>
+            public class FileOptions : IValidatableObject
+            {
+                /// <summary>
+                ///     Gets the permissions to apply to newly created files.
+                /// </summary>
+                /// <remarks>
+                ///     Applicable to non-Windows operating systems, only.
+                /// </remarks>
+                [Argument(default, "file-permission-mode")]
+                [EnvironmentVariable("FILE_PERMISSION_MODE")]
+                [Description("the permissions to apply to newly created files (chmod syntax, non-Windows only)")]
+                public string Mode { get; init; }
+
+                /// <summary>
+                ///     Extended validation.
+                /// </summary>
+                /// <param name="validationContext"></param>
+                /// <returns></returns>
+                public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+                {
+                    var results = new List<ValidationResult>();
+
+                    if (!string.IsNullOrEmpty(Mode))
+                    {
+                        var regEx = new Regex("^[0-7]{3,4}$", RegexOptions.Compiled);
+
+                        if (!regEx.IsMatch(Mode))
+                        {
+                            results.Add(new ValidationResult($"Field {nameof(Mode)} is invalid. Specify a three- or four-character string consisting of only 0-7 (chmod syntax, [0]000-[7]777, inclusive)"));
+                        }
+                    }
+
+                    return results;
+                }
+            }
+        }
+
+        /// <summary>
         ///     Directory options.
         /// </summary>
         public class DirectoriesOptions
@@ -853,51 +910,6 @@ namespace slskd
                 [Description("the total download speed limit")]
                 [Range(1, int.MaxValue)]
                 public int SpeedLimit { get; init; } = int.MaxValue;
-
-                /// <summary>
-                ///     Gets downloaded file options.
-                /// </summary>
-                [Validate]
-                public GlobalDownloadFileOptions File { get; init; } = new GlobalDownloadFileOptions();
-            }
-
-            /// <summary>
-            ///     File options.
-            /// </summary>
-            public class GlobalDownloadFileOptions : IValidatableObject
-            {
-                /// <summary>
-                ///     Gets the permissions to apply to newly downloaded files.
-                /// </summary>
-                /// <remarks>
-                ///     Applicable to non-Windows operating systems, only.
-                /// </remarks>
-                [Argument(default, "downloaded-file-permissions")]
-                [EnvironmentVariable("DOWNLOADED_FILE_PERMISSIONS")]
-                [Description("the permissions to apply to newly downloaded files (chmod syntax, non-Windows only)")]
-                public string Permissions { get; init; }
-
-                /// <summary>
-                ///     Extended validation.
-                /// </summary>
-                /// <param name="validationContext"></param>
-                /// <returns></returns>
-                public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
-                {
-                    var results = new List<ValidationResult>();
-
-                    if (!string.IsNullOrEmpty(Permissions))
-                    {
-                        var regEx = new Regex("^[0-7]{3,4}$", RegexOptions.Compiled);
-
-                        if (!regEx.IsMatch(Permissions))
-                        {
-                            results.Add(new ValidationResult($"Field {nameof(Permissions)} is invalid. Specify a three- or four-character string consisting of only 0-7 (chmod syntax, [0]000-[7]777, inclusive)"));
-                        }
-                    }
-
-                    return results;
-                }
             }
         }
 

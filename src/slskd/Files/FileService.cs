@@ -275,7 +275,7 @@ namespace slskd.Files
             // we *MUST* check the OS and skip this on Windows
             if (!OperatingSystem.IsWindows())
             {
-                var appOption = OptionsMonitor.CurrentValue.Global.Download.File.Permissions;
+                var appOption = OptionsMonitor.CurrentValue.Permissions.File.Mode;
 
                 // if options haven't been passed in and none have been set in app config, omit this
                 // so that the application's umask will be applied, saving users the hassle of setting it twice.
