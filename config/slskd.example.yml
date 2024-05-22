@@ -32,6 +32,9 @@
 #       instance_name: my_agent # make sure the top-level instance_name of the agent matches!
 #       secret: <a 16-255 character string unique to this agent>
 #       cidr: 0.0.0.0/0,::/0
+# permissions:
+#   file:
+#     mode: ~ # not for Windows, chmod syntax, e.g. 644, 777. can't escalate beyond umask
 # directories:
 #   incomplete: ~
 #   downloads: ~
@@ -67,8 +70,6 @@
 #   download:
 #     slots: 500
 #     speed_limit: 1000
-#     file:
-#       permissions: 644
 # groups:
 #   default:
 #     upload:
