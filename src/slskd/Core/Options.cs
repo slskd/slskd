@@ -425,6 +425,15 @@ namespace slskd
             [Description("user-defined regular expressions are case sensitive")]
             [RequiresRestart]
             public bool CaseSensitiveRegEx { get; init; } = false;
+
+            /// <summary>
+            ///     Gets a value indicating whether to use legacy TCP keepalive options, for Windows
+            ///     versions prior to Windows 10, version 1709 (and associated Server SKUs).
+            /// </summary>
+            [Argument(default, "legacy-windows-tcp-keepalive")]
+            [EnvironmentVariable("LEGACY_WINDOWS_TCP_KEEPALIVE")]
+            [Description("use a legacy TCP keepalive strategy for older Windows versions")]
+            public bool LegacyWindowsTcpKeepalive { get; init; } = false;
         }
 
         /// <summary>
