@@ -483,7 +483,6 @@ namespace slskd
             try
             {
                 socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
-                socket.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveRetryCount, 3); // TCP_KEEPCNT
 
                 if (OperatingSystem.IsWindows() && OptionsAtStartup.Flags.LegacyWindowsTcpKeepalive)
                 {
@@ -492,6 +491,7 @@ namespace slskd
 
                 // the following will throw an exception on operating systems prior to Windows 10, version 1709 (and whatever Server SKU that corresponds to)
                 // see: https://learn.microsoft.com/en-us/windows/win32/winsock/ipproto-tcp-socket-options
+                socket.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveRetryCount, 3); // TCP_KEEPCNT
                 socket.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveTime, options.Timeout.Inactivity / 1000); // TCP_KEEPIDLE
                 socket.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveInterval, options.Timeout.Inactivity / 1000); // TCP_KEEPINTVL
             }
