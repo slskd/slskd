@@ -36,19 +36,19 @@ namespace slskd.Files
         ///     Initializes a new instance of the <see cref="FileService"/> class.
         /// </summary>
         public FileService(
-            IOptionsSnapshot<Options> optionsSnapshot)
+            IOptionsMonitor<Options> optionsMonitor)
         {
-            OptionsSnapshot = optionsSnapshot;
+            OptionsMonitor = optionsMonitor;
         }
 
         private IEnumerable<string> AllowedDirectories => new[]
         {
-            Path.GetFullPath(OptionsSnapshot.Value.Directories.Downloads),
-            Path.GetFullPath(OptionsSnapshot.Value.Directories.Incomplete),
+            Path.GetFullPath(OptionsMonitor.CurrentValue.Directories.Downloads),
+            Path.GetFullPath(OptionsMonitor.CurrentValue.Directories.Incomplete),
         };
 
         private ILogger Log { get; } = Serilog.Log.ForContext<FileService>();
-        private IOptionsSnapshot<Options> OptionsSnapshot { get; }
+        private IOptionsMonitor<Options> OptionsMonitor { get; }
 
         /// <summary>
         ///     Deletes the specified <paramref name="directories"/>.
@@ -235,6 +235,139 @@ namespace slskd.Files
                     throw new UnauthorizedException($"Access to directory '{directory}' was denied: {ex.Message}", ex);
                 }
             });
+        }
+
+        /// <summary>
+        ///     Creates a new file with the specified fully qualified <paramref name="filename"/> and the optional <paramref name="options"/>,
+        ///     returning a <see cref="Stream"/> with which the contents of the file can be written.
+        /// </summary>
+        /// <remarks>
+        ///     Reasonable defaults, including the Unix permissions from app configuration, have been applied. Be sure to review the defaults
+        ///     for each new use case and ensure they are appropriate.
+        /// </remarks>
+        /// <param name="filename">The fully qualified filename.</param>
+        /// <param name="options">An optional patch for the underlying <see cref="FileStreamOptions"/>.</param>
+        /// <returns>A Stream with which the contents of the file can be written.</returns>
+        /// <exception cref="ArgumentNullException">Thrown if the specified filename is null or contains only whitespace.</exception>
+        /// <exception cref="IOException">Thrown if the underlying file or Stream can't be created for some reason.</exception>
+        public virtual Stream CreateFile(string filename, CreateFileOptions options = null)
+        {
+            ArgumentNullException.ThrowIfNullOrWhiteSpace(filename, nameof(filename));
+
+            var path = Path.GetDirectoryName(filename);
+
+            if (!Directory.Exists(path))
+            {
+                Directory.CreateDirectory(path);
+            }
+
+            var streamOptions = new FileStreamOptions
+            {
+                Access = options?.Access ?? FileAccess.Write,
+                BufferSize = options?.BufferSize ?? 4096, // framework default
+                Mode = options?.Mode ?? FileMode.Create, // overwrite
+                Options = options?.Options ?? FileOptions.None, // synchronous I/O
+                PreallocationSize = options?.PreallocationSize ?? 0,
+                Share = options?.Share ?? FileShare.None, // exclusive access
+            };
+
+            // attempting to use UnixCreateMode on Windows raises an Exception
+            // we *MUST* check the OS and skip this on Windows
+            if (!OperatingSystem.IsWindows())
+            {
+                var appOption = OptionsMonitor.CurrentValue.Permissions.File.Mode;
+
+                // if options haven't been passed in and none have been set in app config, omit this
+                // so that the application's umask will be applied, saving users the hassle of setting it twice.
+                if (options?.UnixCreateMode != null || !string.IsNullOrWhiteSpace(appOption))
+                {
+                    streamOptions.UnixCreateMode = options?.UnixCreateMode ?? appOption?.ToUnixFileMode();
+                    Log.Debug("Setting Unix file mode to {Mode}", streamOptions.UnixCreateMode);
+                }
+            }
+
+            try
+            {
+                return new FileStream(filename, streamOptions);
+            }
+            catch (Exception ex)
+            {
+                // the operation above can throw quite a few exceptions, all granular variations of
+                // IOException. to make handling downstream easier, wrap them all up and re-throw.
+                throw new IOException($"Failed to create file {Path.GetFileName(filename)}: {ex.Message}", ex);
+            }
+        }
+
+        /// <summary>
+        ///     Moves the specified fully qualified, localized, <paramref name="sourceFilename"/> to the specified fully qualified, localized,
+        ///     <paramref name="destinationDirectory"/>.
+        /// </summary>
+        /// <remarks>
+        ///     If the destination file already exists and the <paramref name="overwrite"/> option is not set, the destination filename will
+        ///     be modified to include the current time to avoid the collision while preserving both files.
+        /// </remarks>
+        /// <param name="sourceFilename">The fully qualified filename of the file to move.</param>
+        /// <param name="destinationDirectory">The fully qualified directory to which to move the source file.</param>
+        /// <param name="overwrite">An optional value indicating whether the destination file should be overwritten if it already exists.</param>
+        /// <param name="deleteSourceDirectoryIfEmptyAfterMove">
+        ///     An optional value indicating whether the parent directory of the source file should be deleted if it is empty after the move.
+        /// </param>
+        /// <returns>The fully qualified filename of the resulting file.</returns>
+        /// <exception cref="ArgumentNullException">Thrown if either of the specified file or directories are null or contain only whitespace.</exception>
+        /// <exception cref="FileNotFoundException">Thrown if the specified <paramref name="sourceFilename"/> does not exist.</exception>
+        /// <exception cref="IOException">Thrown if the file can't be moved, or the <paramref name="deleteSourceDirectoryIfEmptyAfterMove"/> option is set and the operation fails.</exception>
+        public virtual string MoveFile(string sourceFilename, string destinationDirectory, bool overwrite = false, bool deleteSourceDirectoryIfEmptyAfterMove = false)
+        {
+            ArgumentNullException.ThrowIfNullOrWhiteSpace(sourceFilename, nameof(sourceFilename));
+            ArgumentNullException.ThrowIfNullOrWhiteSpace(destinationDirectory, nameof(destinationDirectory));
+
+            if (!File.Exists(sourceFilename))
+            {
+                throw new FileNotFoundException($"The specified source file does not exist", fileName: sourceFilename);
+            }
+
+            if (!Directory.Exists(destinationDirectory))
+            {
+                Directory.CreateDirectory(destinationDirectory);
+            }
+
+            var destinationFilename = Path.Combine(destinationDirectory, Path.GetFileName(sourceFilename));
+
+            Log.Debug("Attempting to move {Source} to {Destination}", sourceFilename, destinationFilename);
+
+            if (!overwrite && File.Exists(destinationFilename))
+            {
+                Log.Debug("Destination file {Destination} exists, and overwite option is not set; attempting to generate new filename", destinationFilename);
+
+                string extensionlessFilename = Path.Combine(Path.GetDirectoryName(destinationFilename), Path.GetFileNameWithoutExtension(sourceFilename));
+                string extension = Path.GetExtension(sourceFilename);
+
+                while (File.Exists(destinationFilename))
+                {
+                    destinationFilename = $"{extensionlessFilename}_{DateTime.UtcNow.Ticks}{extension}";
+                }
+            }
+
+            try
+            {
+                File.Move(sourceFilename, destinationFilename, overwrite: overwrite);
+
+                Log.Debug("Successfully moved {Source} to {Destination}", sourceFilename, destinationFilename);
+
+                // if the parent directory is empty after the move, delete it
+                if (deleteSourceDirectoryIfEmptyAfterMove && !Directory.EnumerateFileSystemEntries(Path.GetDirectoryName(sourceFilename)).Any())
+                {
+                    Directory.Delete(Path.GetDirectoryName(sourceFilename));
+                }
+
+                return destinationFilename;
+            }
+            catch (Exception ex)
+            {
+                // the operation above can throw quite a few exceptions, all granular variations of
+                // IOException. to make handling downstream easier, wrap them all up and re-throw.
+                throw new IOException($"Failed to move file {Path.GetFileName(sourceFilename)}: {ex.Message}", ex);
+            }
         }
     }
 }

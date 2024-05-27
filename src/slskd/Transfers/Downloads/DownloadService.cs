@@ -23,13 +23,13 @@ namespace slskd.Transfers.Downloads
     using System;
     using System.Collections.Concurrent;
     using System.Collections.Generic;
-    using System.IO;
     using System.Linq;
     using System.Linq.Expressions;
     using System.Threading;
     using System.Threading.Tasks;
     using Microsoft.EntityFrameworkCore;
     using Serilog;
+    using slskd.Files;
     using slskd.Integrations.FTP;
     using slskd.Relay;
 
@@ -120,12 +120,14 @@ namespace slskd.Transfers.Downloads
             IOptionsMonitor<Options> optionsMonitor,
             ISoulseekClient soulseekClient,
             IDbContextFactory<TransfersDbContext> contextFactory,
+            FileService fileService,
             IRelayService relayService,
             IFTPService ftpClient)
         {
             Client = soulseekClient;
             OptionsMonitor = optionsMonitor;
             ContextFactory = contextFactory;
+            Files = fileService;
             FTP = ftpClient;
             Relay = relayService;
         }
@@ -134,6 +136,7 @@ namespace slskd.Transfers.Downloads
         private ISoulseekClient Client { get; }
         private IDbContextFactory<TransfersDbContext> ContextFactory { get; }
         private IFTPService FTP { get; }
+        private FileService Files { get; }
         private IRelayService Relay { get; }
         private ILogger Log { get; } = Serilog.Log.ForContext<DownloadService>();
         private IOptionsMonitor<Options> OptionsMonitor { get; }
@@ -285,7 +288,18 @@ namespace slskd.Transfers.Downloads
                                 var completedTransfer = await Client.DownloadAsync(
                                     username: username,
                                     remoteFilename: file.Filename,
-                                    outputStreamFactory: () => Task.FromResult(GetLocalFileStream(file.Filename, OptionsMonitor.CurrentValue.Directories.Incomplete)),
+                                    outputStreamFactory: () => Task.FromResult(
+                                        Files.CreateFile(
+                                            filename: file.Filename.ToLocalFilename(baseDirectory: OptionsMonitor.CurrentValue.Directories.Incomplete),
+                                            options: new CreateFileOptions
+                                            {
+                                                Access = System.IO.FileAccess.Write,
+                                                Mode = System.IO.FileMode.Create, // overwrites file if it exists
+                                                Share = System.IO.FileShare.None, // exclusive access for the duration of the download
+                                                UnixCreateMode = !string.IsNullOrEmpty(OptionsMonitor.CurrentValue.Permissions.File.Mode)
+                                                    ? OptionsMonitor.CurrentValue.Permissions.File.Mode.ToUnixFileMode()
+                                                    : null,
+                                            })),
                                     size: file.Size,
                                     startOffset: 0,
                                     token: null,
@@ -304,7 +318,11 @@ namespace slskd.Transfers.Downloads
                                 // this would be the ideal place to hook in a generic post-download task processor for now, we'll
                                 // just carry out hard coded behavior. these carry the risk of failing the transfer, and i could
                                 // argue both ways for that being the correct behavior. revisit this later.
-                                var finalFilename = MoveFile(file.Filename, OptionsMonitor.CurrentValue.Directories.Incomplete, OptionsMonitor.CurrentValue.Directories.Downloads);
+                                var finalFilename = Files.MoveFile(
+                                    sourceFilename: file.Filename.ToLocalFilename(baseDirectory: OptionsMonitor.CurrentValue.Directories.Incomplete),
+                                    destinationDirectory: System.IO.Path.GetDirectoryName(file.Filename.ToLocalFilename(baseDirectory: OptionsMonitor.CurrentValue.Directories.Downloads)),
+                                    overwrite: false,
+                                    deleteSourceDirectoryIfEmptyAfterMove: true);
 
                                 Log.Debug("Moved file to {Destination}", finalFilename);
 
@@ -586,53 +604,6 @@ namespace slskd.Transfers.Downloads
 
             context.Update(transfer);
             context.SaveChanges();
-        }
-
-        private static Stream GetLocalFileStream(string remoteFilename, string saveDirectory)
-        {
-            var localFilename = remoteFilename.ToLocalFilename(baseDirectory: saveDirectory);
-            var path = Path.GetDirectoryName(localFilename);
-
-            if (!Directory.Exists(path))
-            {
-                Directory.CreateDirectory(path);
-            }
-
-            return new FileStream(localFilename, FileMode.Create);
-        }
-
-        private static string MoveFile(string filename, string sourceDirectory, string destinationDirectory)
-        {
-            var sourceFilename = filename.ToLocalFilename(sourceDirectory);
-            var destinationFilename = filename.ToLocalFilename(destinationDirectory);
-
-            var destinationPath = Path.GetDirectoryName(destinationFilename);
-
-            if (!Directory.Exists(destinationPath))
-            {
-                Directory.CreateDirectory(destinationPath);
-            }
-
-            if (File.Exists(destinationFilename))
-            {
-                string extensionlessFilename = Path.Combine(Path.GetDirectoryName(filename), Path.GetFileNameWithoutExtension(filename));
-                string extension = Path.GetExtension(filename);
-
-                while (File.Exists(destinationFilename))
-                {
-                    string filenameUTC = $"{extensionlessFilename}_{DateTime.UtcNow.Ticks}{extension}";
-                    destinationFilename = filenameUTC.ToLocalFilename(destinationDirectory);
-                }
-            }
-
-            File.Move(sourceFilename, destinationFilename, overwrite: true);
-
-            if (!Directory.EnumerateFileSystemEntries(Path.GetDirectoryName(sourceFilename)).Any())
-            {
-                Directory.Delete(Path.GetDirectoryName(sourceFilename));
-            }
-
-            return destinationFilename;
         }
     }
 }

@@ -73,6 +73,30 @@ If an attacker were to gain access to the application and retrieve the YAML file
 remote_configuration: false
 ```
 
+# Permissions
+
+On [Unix-like](https://en.wikipedia.org/wiki/Unix-like) operating systems, slskd creates downloaded files with permissions dictated by the [umask](https://en.wikipedia.org/wiki/Umask) of the process, usually 022, which translates to a file mode of 644; read/write for the owner and read for the group and all others.
+
+Users wishing to create files with different permissions can change the umask value before launching the application (e.g. `umask 000 & ./slskd`), and the file mode will be changed accordingly.
+
+When running within a docker container the environment variable `SLSKD_UMASK` can be used to change the umask for the process within the container, and this will in turn change the resulting file mode on a mounted volume.
+
+Users can optionally configure alternative permissions for files by setting the file permission mode option.  It's not possible to supersede the configured umask value; setting a mode of 777, for example, will have no effect with a umask of 022.
+
+These options have no effect on Windows.
+
+| Command-Line             | Environment Variable         | Description                                                                      |
+| ------------------------ | -----------------------------| -------------------------------------------------------------------------------- |
+| n/a                      | `SLSKD_UMASK`                | When running within the slskd Docker container, the umask for the process        |
+| `--file-permission-mode` | `SLSKD_FILE_PERMISSION_MODE` | The permissions to apply to newly created files (chmod syntax, non-Windows only) |
+
+#### **YAML**
+```yaml
+permissions:
+  file:
+    mode: 644 # not for Windows, chmod syntax, e.g. 644, 777. can't escalate beyond umask
+```
+
 # Application Directory Configuration
 
 The application directory configuration option determines the location of the YAML file, the default locations of the download and incomplete directories, and the location of application working data, such as logs and SQLite databases.
