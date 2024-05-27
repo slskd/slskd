@@ -348,16 +348,9 @@ namespace slskd
                 inactivityTimeout: OptionsAtStartup.Soulseek.Connection.Timeout.Inactivity,
                 proxyOptions: proxyOptions);
 
-            var configureKeepAlive = new Action<Socket>(socket =>
-            {
-                socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
-                socket.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveTime, OptionsAtStartup.Soulseek.Connection.Timeout.Inactivity / 1000);
-                socket.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveInterval, OptionsAtStartup.Soulseek.Connection.Timeout.Inactivity / 1000);
-                socket.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveRetryCount, 3);
-            });
-
-            var serverOptions = connectionOptions.With(configureSocketAction: configureKeepAlive);
-            var distributedOptions = connectionOptions.With(configureSocketAction: configureKeepAlive);
+            // os-specific keepalive is configured for long-lived connections for the server and distributed parent/children
+            var serverOptions = connectionOptions.With(configureSocketAction: socket => ConfigureSocketKeepAlive(socket, OptionsAtStartup.Soulseek.Connection));
+            var distributedOptions = connectionOptions.With(configureSocketAction: socket => ConfigureSocketKeepAlive(socket, OptionsAtStartup.Soulseek.Connection));
 
             var transferOptions = connectionOptions.With(
                 readBufferSize: OptionsAtStartup.Soulseek.Connection.Buffer.Transfer,
@@ -475,6 +468,37 @@ namespace slskd
             Client.Dispose();
             Log.Information("Client stopped");
             return Task.CompletedTask;
+        }
+
+        private void ConfigureSocketKeepAlive(Socket socket, Options.SoulseekOptions.ConnectionOptions options)
+        {
+            /*
+                os-specific keepalive is configured for long-lived connections for the server and distributed parent/children
+                there may be legitimate reasons for these connections to go idle, and for that reason we can't use an inactivity watchdog
+                to determine when they are dead.
+
+                the intent, assuming the inactivity option is set to 15 seconds, is to send a keepalive probe after 15 seconds of inactivity,
+                and then again every 15 seconds until a total of 3 unanswered probes are sent, after which the socket will disconnect.
+            */
+            try
+            {
+                socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
+                socket.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveRetryCount, 3); // TCP_KEEPCNT
+
+                if (OperatingSystem.IsWindows() && OptionsAtStartup.Flags.LegacyWindowsTcpKeepalive)
+                {
+                    return;
+                }
+
+                // the following will throw an exception on operating systems prior to Windows 10, version 1709 (and whatever Server SKU that corresponds to)
+                // see: https://learn.microsoft.com/en-us/windows/win32/winsock/ipproto-tcp-socket-options
+                socket.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveTime, options.Timeout.Inactivity / 1000); // TCP_KEEPIDLE
+                socket.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveInterval, options.Timeout.Inactivity / 1000); // TCP_KEEPINTVL
+            }
+            catch (SocketException ex)
+            {
+                Log.Warning("Failed to configure connection keepalive settings: \"{Message}\". Performance is degraded. Set the configuration flag \"Legacy Windows TCP Keepalive\" to avoid this.", ex.Message);
+            }
         }
 
         // todo: consider moving this somewhere else; it's pretty long and complicated
@@ -1290,16 +1314,8 @@ namespace slskd
                             inactivityTimeout: connection.Timeout.Inactivity,
                             proxyOptions: proxyPatch);
 
-                        var configureKeepAlive = new Action<Socket>(socket =>
-                        {
-                            socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
-                            socket.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveTime, connection.Timeout.Inactivity / 1000);
-                            socket.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveInterval, connection.Timeout.Inactivity / 1000);
-                            socket.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveRetryCount, 3);
-                        });
-
-                        serverPatch = connectionPatch.With(configureSocketAction: configureKeepAlive);
-                        distributedPatch = connectionPatch.With(configureSocketAction: configureKeepAlive);
+                        serverPatch = connectionPatch.With(configureSocketAction: socket => ConfigureSocketKeepAlive(socket, options: connection));
+                        distributedPatch = connectionPatch.With(configureSocketAction: socket => ConfigureSocketKeepAlive(socket, options: connection));
 
                         transferPatch = connectionPatch.With(
                             readBufferSize: OptionsAtStartup.Soulseek.Connection.Buffer.Transfer,
