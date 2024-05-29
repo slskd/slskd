@@ -446,13 +446,7 @@ namespace slskd
                 }
                 else
                 {
-                    var opt = OptionsAtStartup.Soulseek;
-
-                    await Client.ConnectAsync(
-                        address: opt.Address,
-                        port: opt.Port,
-                        username: opt.Username,
-                        password: opt.Password).ConfigureAwait(false);
+                    ConnectionWatchdog.Start();
                 }
             }
         }
@@ -825,7 +819,7 @@ namespace slskd
             else
             {
                 Log.Error("Disconnected from the Soulseek server: {Message}", args.Exception?.Message ?? args.Message);
-                ConnectionWatchdog.Start();
+                ConnectionWatchdog.Restart();
             }
         }
 

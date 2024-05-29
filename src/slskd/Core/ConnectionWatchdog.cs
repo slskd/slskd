@@ -36,10 +36,16 @@ namespace slskd
         bool IsEnabled { get; }
 
         /// <summary>
-        ///     Starts monitoring the server connection.
+        ///     Initializes the watchdog and makes the initial connection to the server.
+        /// </summary>
+        /// <remarks>This should be called at application startup.</remarks>
+        void Start();
+
+        /// <summary>
+        ///     Starts monitoring the server connection following a disconnect.
         /// </summary>
         /// <remarks>This should be called when the connection is disconnected.</remarks>
-        void Start();
+        void Restart();
 
         /// <summary>
         ///     Stops monitoring the server connection.
@@ -103,13 +109,23 @@ namespace slskd
         }
 
         /// <summary>
-        ///     Starts monitoring the server connection.
+        ///     Initializes the watchdog and makes the initial connection to the server.
         /// </summary>
-        /// <remarks>This should be called when the connection is disconnected.</remarks>
+        /// <remarks>This should be called at application startup.</remarks>
         public void Start()
         {
             WatchdogTimer.Enabled = true;
-            _ = AttemptReconnect();
+            _ = AttemptReconnect(attempts: 0);
+        }
+
+        /// <summary>
+        ///     Starts monitoring the server connection.
+        /// </summary>
+        /// <remarks>This should be called when the connection is disconnected.</remarks>
+        public void Restart()
+        {
+            WatchdogTimer.Enabled = true;
+            _ = AttemptReconnect(attempts: 1);
         }
 
         /// <summary>
@@ -135,7 +151,7 @@ namespace slskd
             }
         }
 
-        private async Task AttemptReconnect()
+        private async Task AttemptReconnect(int attempts = 1)
         {
             if (await SyncRoot.WaitAsync(0))
             {
@@ -146,19 +162,24 @@ namespace slskd
                         return;
                     }
 
-                    var attempts = 1;
-
                     while (true)
                     {
-                        var (delay, jitter) = Compute.ExponentialBackoffDelay(
-                            iteration: attempts,
-                            maxDelayInMilliseconds: ReconnectMaxDelayMilliseconds);
+                        if (attempts > 0)
+                        {
+                            var (delay, jitter) = Compute.ExponentialBackoffDelay(
+                                iteration: attempts,
+                                maxDelayInMilliseconds: ReconnectMaxDelayMilliseconds);
 
-                        var approximateDelay = (int)Math.Ceiling((double)(delay + jitter) / 1000);
-                        Log.Information($"Waiting about {(approximateDelay == 1 ? "a second" : $"{approximateDelay} seconds")} before reconnecting");
-                        await Task.Delay(delay + jitter);
+                            var approximateDelay = (int)Math.Ceiling((double)(delay + jitter) / 1000);
+                            Log.Information($"Waiting about {(approximateDelay == 1 ? "a second" : $"{approximateDelay} seconds")} before attempting to reconnect");
+                            await Task.Delay(delay + jitter);
 
-                        Log.Information("Attempting to reconnect (#{Attempts})...", attempts);
+                            Log.Information("Attempting to reconnect to the Soulseek server (#{Attempts})...", attempts);
+                        }
+                        else
+                        {
+                            Log.Information("Attempting to connect to the Soulseek server...");
+                        }
 
                         try
                         {
