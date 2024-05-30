@@ -242,6 +242,12 @@ namespace slskd
         private static bool ShowVersion { get; set; }
 
         /// <summary>
+        ///     Panic.
+        /// </summary>
+        /// <param name="code">An optional exit code.</param>
+        public static void Exit(int code = 1) => Environment.Exit(code);
+
+        /// <summary>
         ///     Entrypoint.
         /// </summary>
         /// <param name="args">Command line arguments.</param>
@@ -576,13 +582,15 @@ namespace slskd
             services.AddTransient<IShareRepositoryFactory, SqliteShareRepositoryFactory>();
 
             services.AddSingleton<ISearchService, SearchService>();
+
             services.AddSingleton<IUserService, UserService>();
+
             services.AddSingleton<IRoomService, RoomService>();
 
             services.AddSingleton<ITransferService, TransferService>();
             services.AddSingleton<IDownloadService, DownloadService>();
             services.AddSingleton<IUploadService, UploadService>();
-            services.AddTransient<IFileService, FileService>();
+            services.AddSingleton<FileService>();
 
             services.AddSingleton<IRelayService, RelayService>();
 

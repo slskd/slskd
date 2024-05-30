@@ -14,6 +14,7 @@
 #   experimental: false
 #   volatile: false
 #   case_sensitive_reg_ex: false
+#   legacy_windows_tcp_keepalive: false
 # relay:
 #   enabled: false
 #   mode: controller # controller (default), agent, or debug (for local development)
@@ -32,6 +33,9 @@
 #       instance_name: my_agent # make sure the top-level instance_name of the agent matches!
 #       secret: <a 16-255 character string unique to this agent>
 #       cidr: 0.0.0.0/0,::/0
+# permissions:
+#   file:
+#     mode: ~ # not for Windows, chmod syntax, e.g. 644, 777. can't escalate beyond umask
 # directories:
 #   incomplete: ~
 #   downloads: ~
@@ -120,6 +124,9 @@
 #       members:
 #         - alice
 #         - bob
+# blacklist:
+#   enabled: true
+#   file: <path to file containing CIDRs to blacklist>
 # filters:
 #   search:
 #     request:

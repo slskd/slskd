@@ -1,4 +1,4 @@
-﻿// <copyright file="UserService.cs" company="slskd Team">
+// <copyright file="UserService.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -91,8 +91,16 @@ namespace slskd.Users
                 _ = GetStatisticsAsync(userStatus.Username);
             };
 
-            Client.Connected += (_, _) => Reset();
+            // it's important for us to force a reconfig at login to discard any users that were previously tracked
+            // specific scenario being; up and running for some time, offline for some time (days?), reconnect, are users still online? have stats changed?
+            // to avoid needing to go through and exhaustively check each user in the tracking dictionary, just delete it and let it be built back up
+            // any user we are downloading from will be tracked again when pending downloads are re-requested
             Client.LoggedIn += (_, _) => Configure(OptionsMonitor.CurrentValue, force: true);
+
+            // working hand-in-hand with the forced reconfig on login, reset clears everything upon connect; clearing the way
+            // for the reconfig at login to rebuild it. i think. yeah, that sounds right. we don't ever want Configure() to reset anything
+            // so the connect is distinctly different from reconfig at login.
+            Client.Connected += (_, _) => Reset();
             Client.PrivilegedUserListReceived += (_, list) => Client_PrivilegedUserListReceived(list);
 
             Configure(OptionsMonitor.CurrentValue);
@@ -110,8 +118,10 @@ namespace slskd.Users
 
         private ISoulseekClient Client { get; }
         private string LastOptionsHash { get; set; }
+        private string LastBlacklistOptionsHash { get; set; }
         private ILogger Log { get; set; } = Serilog.Log.ForContext<UserService>();
         private IOptionsMonitor<Options> OptionsMonitor { get; }
+        private Blacklist Blacklist { get; } = new Blacklist();
 
         /// <summary>
         ///     Gets or sets the internal cache of User data.
@@ -273,7 +283,16 @@ namespace slskd.Users
                 return true;
             }
 
+            // check the user-curated list of blacklisted CIDRs that exists along with the list of
+            // blacklisted usernames.  these CIDRs should be one-offs and would not be expected to appear in a
+            // blacklist supplied by a third party (but might?)
             if (ipAddress is not null && blacklist.Cidrs.Select(c => IPAddressRange.Parse(c)).Any(range => range.Contains(ipAddress)))
+            {
+                return true;
+            }
+
+            // check the managed blacklist loaded from a third party blacklist file
+            if (ipAddress is not null && Blacklist.Contains(ipAddress))
             {
                 return true;
             }
@@ -347,45 +366,86 @@ namespace slskd.Users
         {
             var optionsHash = Compute.Sha1Hash(options.Groups.UserDefined.ToJson());
 
-            if (optionsHash == LastOptionsHash && !force)
+            if (optionsHash != LastOptionsHash || force)
             {
-                return;
-            }
+                // get a list of tracked names that haven't been explicitly added to any group, including those that were previlously
+                // configured but have now been removed
+                var usernamesBeforeUpdate = UserDictionary.Keys.ToList();
+                var usernamesAfterUpdate = options.Groups.UserDefined.SelectMany(g => g.Value.Members);
+                var usernamesRemoved = usernamesBeforeUpdate.Except(usernamesAfterUpdate);
 
-            // get a list of tracked names that haven't been explicitly added to any group, including those that were previlously
-            // configured but have now been removed
-            var usernamesBeforeUpdate = UserDictionary.Keys.ToList();
-            var usernamesAfterUpdate = options.Groups.UserDefined.SelectMany(g => g.Value.Members);
-            var usernamesRemoved = usernamesBeforeUpdate.Except(usernamesAfterUpdate);
-
-            // clear the configured group for anyone that was removed from config, or that was added transiently
-            foreach (var username in usernamesRemoved)
-            {
-                UserDictionary.AddOrUpdate(
-                    key: username,
-                    addValue: new User() { Username = username },
-                    updateValueFactory: (key, user) => user with { Username = username, Group = null });
-            }
-
-            // sort by priority, descending. this will cause the highest priority group for the user to be persisted when the
-            // operation is complete.
-            foreach (var group in options.Groups.UserDefined.OrderByDescending(kvp => kvp.Value.Upload.Priority))
-            {
-                foreach (var username in group.Value.Members)
+                // clear the configured group for anyone that was removed from config, or that was added transiently
+                foreach (var username in usernamesRemoved)
                 {
                     UserDictionary.AddOrUpdate(
                         key: username,
-                        addValue: new User() { Username = username, Group = group.Key },
-                        updateValueFactory: (key, user) => user with { Username = username, Group = group.Key });
+                        addValue: new User() { Username = username },
+                        updateValueFactory: (key, user) => user with { Username = username, Group = null });
+                }
 
-                    if (Client.State.HasFlag(SoulseekClientStates.Connected) && Client.State.HasFlag(SoulseekClientStates.LoggedIn))
+                // sort by priority, descending. this will cause the highest priority group for the user to be persisted when the
+                // operation is complete.
+                foreach (var group in options.Groups.UserDefined.OrderByDescending(kvp => kvp.Value.Upload.Priority))
+                {
+                    foreach (var username in group.Value.Members)
                     {
-                        _ = WatchAsync(username);
+                        UserDictionary.AddOrUpdate(
+                            key: username,
+                            addValue: new User() { Username = username, Group = group.Key },
+                            updateValueFactory: (key, user) => user with { Username = username, Group = group.Key });
+
+                        if (Client.State.HasFlag(SoulseekClientStates.Connected) && Client.State.HasFlag(SoulseekClientStates.LoggedIn))
+                        {
+                            _ = WatchAsync(username);
+                        }
                     }
                 }
+
+                LastOptionsHash = optionsHash;
             }
 
-            LastOptionsHash = optionsHash;
+            var blacklistOptionsHash = Compute.Sha1Hash(options.Blacklist.ToJson());
+
+            // there's no forced re-config of the blacklist; either the config changed or it didn't.
+            // if the underlying file changed, users can toggle the blacklist off and on or restart
+            // the application. these sorts of blacklists should be relatively static (i think)
+            if (blacklistOptionsHash != LastBlacklistOptionsHash)
+            {
+                Log.Debug("Blacklist options changed: {JSON}", options.Blacklist.ToJson());
+
+                if (!options.Blacklist.Enabled)
+                {
+                    Log.Debug("Blacklist disabled; clearing contents");
+                    Blacklist.Clear();
+                    Log.Information("Blacklist disabled");
+                }
+                else
+                {
+                    // the option validation logic should have ensured the file format could be auto-detected and that the file
+                    // contained no formatting errors. this should only fail on transient I/O errors.
+                    _ = Task.Run(() => Blacklist.Load(options.Blacklist.File, BlacklistFormat.AutoDetect))
+                        .ContinueWith(task =>
+                        {
+                            // if the task faulted, the load of the file failed, and the user isn't getting the
+                            // intended protection from the blacklist. in this case we can:
+                            //   1) log an error and continue, potentially against the desires of the user
+                            //   2) kill the application and force the user to deal with the cause
+                            // a user taking advantage of the blacklist feature would absolutely want to know if it wasn't working,
+                            // so we're taking door #2.
+                            if (task.IsFaulted)
+                            {
+                                Log.Fatal(task.Exception, "Fatal error loading blacklist from file {File}: {Message}", options.Blacklist.File, task.Exception?.Message);
+                                Program.Exit(1);
+                            }
+                            else
+                            {
+                                Log.Information("Blacklist updated with {Count} CIDRs from file {File}", Blacklist.Count, options.Blacklist.File);
+                            }
+                        });
+                }
+
+                LastBlacklistOptionsHash = blacklistOptionsHash;
+            }
         }
 
         private void Reset()

@@ -24,6 +24,7 @@ namespace slskd
     using System.ComponentModel;
     using System.ComponentModel.DataAnnotations;
     using System.Diagnostics;
+    using System.IO;
     using System.Linq;
     using System.Text.Json.Serialization;
     using System.Text.RegularExpressions;
@@ -209,6 +210,12 @@ namespace slskd
         public RelayOptions Relay { get; init; } = new RelayOptions();
 
         /// <summary>
+        ///     Gets permission options.
+        /// </summary>
+        [Validate]
+        public PermissionsOptions Permissions { get; init; } = new PermissionsOptions();
+
+        /// <summary>
         ///     Gets directory options.
         /// </summary>
         [Validate]
@@ -232,6 +239,12 @@ namespace slskd
         /// </summary>
         [Validate]
         public GroupsOptions Groups { get; init; } = new GroupsOptions();
+
+        /// <summary>
+        ///     Gets blacklist options.
+        /// </summary>
+        [Validate]
+        public BlacklistOptions Blacklist { get; init; } = new BlacklistOptions();
 
         /// <summary>
         ///     Gets filter options.
@@ -412,6 +425,15 @@ namespace slskd
             [Description("user-defined regular expressions are case sensitive")]
             [RequiresRestart]
             public bool CaseSensitiveRegEx { get; init; } = false;
+
+            /// <summary>
+            ///     Gets a value indicating whether to use legacy TCP keepalive options, for Windows
+            ///     versions prior to Windows 10, version 1709 (and associated Server SKUs).
+            /// </summary>
+            [Argument(default, "legacy-windows-tcp-keepalive")]
+            [EnvironmentVariable("LEGACY_WINDOWS_TCP_KEEPALIVE")]
+            [Description("use a legacy TCP keepalive strategy for older Windows versions")]
+            public bool LegacyWindowsTcpKeepalive { get; init; } = false;
         }
 
         /// <summary>
@@ -587,6 +609,57 @@ namespace slskd
                         catch (Exception ex)
                         {
                             results.Add(new ValidationResult($"CIDR {cidr} is invalid: {ex.Message}"));
+                        }
+                    }
+
+                    return results;
+                }
+            }
+        }
+
+        /// <summary>
+        ///     Permission options.
+        /// </summary>
+        public class PermissionsOptions
+        {
+            /// <summary>
+            ///     Gets file permission options.
+            /// </summary>
+            [Validate]
+            public FileOptions File { get; init; } = new FileOptions();
+
+            /// <summary>
+            ///     File permission options.
+            /// </summary>
+            public class FileOptions : IValidatableObject
+            {
+                /// <summary>
+                ///     Gets the permissions to apply to newly created files.
+                /// </summary>
+                /// <remarks>
+                ///     Applicable to non-Windows operating systems, only.
+                /// </remarks>
+                [Argument(default, "file-permission-mode")]
+                [EnvironmentVariable("FILE_PERMISSION_MODE")]
+                [Description("the permissions to apply to newly created files (chmod syntax, non-Windows only)")]
+                public string Mode { get; init; }
+
+                /// <summary>
+                ///     Extended validation.
+                /// </summary>
+                /// <param name="validationContext"></param>
+                /// <returns></returns>
+                public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+                {
+                    var results = new List<ValidationResult>();
+
+                    if (!string.IsNullOrEmpty(Mode))
+                    {
+                        var regEx = new Regex("^[0-7]{3,4}$", RegexOptions.Compiled);
+
+                        if (!regEx.IsMatch(Mode))
+                        {
+                            results.Add(new ValidationResult($"Field {nameof(Mode)} is invalid. Specify a three- or four-character string consisting of only 0-7 (chmod syntax, [0]000-[7]777, inclusive)"));
                         }
                     }
 
@@ -1096,6 +1169,61 @@ namespace slskd
             [Description("enable swagger documentation and UI")]
             [RequiresRestart]
             public bool Swagger { get; init; } = false;
+        }
+
+        /// <summary>
+        ///     Blacklist options.
+        /// </summary>
+        public class BlacklistOptions : IValidatableObject
+        {
+            /// <summary>
+            ///     Gets a value indicating whether blacklist file support should be enabled.
+            /// </summary>
+            [Argument(default, "enable-blacklist")]
+            [EnvironmentVariable("BLACKLIST")]
+            [Description("enable blacklist file support")]
+            [RequiresRestart]
+            public bool Enabled { get; init; }
+
+            /// <summary>
+            ///     Gets the path to the blacklist file.
+            /// </summary>
+            [Argument(default, "blacklist-file")]
+            [EnvironmentVariable("BLACKLIST_FILE")]
+            [Description("path to blacklist file")]
+            [FileExists(FileAccess.Read)]
+            public string File { get; init; }
+
+            /// <summary>
+            ///     Extended validation.
+            /// </summary>
+            /// <param name="validationContext"></param>
+            /// <returns></returns>
+            public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+            {
+                var results = new List<ValidationResult>();
+
+                if (!Enabled)
+                {
+                    return results;
+                }
+
+                // loading/validating the entire list will be costly on low spec systems
+                // just make sure that we can detect a valid format and leave it at that
+                // if there's a problem with any of the entries, the load will fail and
+                // kill the application
+                try
+                {
+                    // async not supported here, .Result is all we have
+                    _ = slskd.Blacklist.DetectFormat(File).Result;
+                }
+                catch
+                {
+                    results.Add(new ValidationResult("Failed to detect blacklist format. Only CIDR, P2P and DAT formats are supported"));
+                }
+
+                return results;
+            }
         }
 
         /// <summary>
@@ -1845,7 +1973,7 @@ namespace slskd
                     [Argument(default, "https-cert-pfx")]
                     [EnvironmentVariable("HTTPS_CERT_PFX")]
                     [Description("path to X509 certificate .pfx")]
-                    [FileExists]
+                    [FileExists(FileAccess.Read)]
                     [RequiresRestart]
                     public string Pfx { get; init; }
 

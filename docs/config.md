@@ -73,6 +73,30 @@ If an attacker were to gain access to the application and retrieve the YAML file
 remote_configuration: false
 ```
 
+# Permissions
+
+On [Unix-like](https://en.wikipedia.org/wiki/Unix-like) operating systems, slskd creates downloaded files with permissions dictated by the [umask](https://en.wikipedia.org/wiki/Umask) of the process, usually 022, which translates to a file mode of 644; read/write for the owner and read for the group and all others.
+
+Users wishing to create files with different permissions can change the umask value before launching the application (e.g. `umask 000 & ./slskd`), and the file mode will be changed accordingly.
+
+When running within a docker container the environment variable `SLSKD_UMASK` can be used to change the umask for the process within the container, and this will in turn change the resulting file mode on a mounted volume.
+
+Users can optionally configure alternative permissions for files by setting the file permission mode option.  It's not possible to supersede the configured umask value; setting a mode of 777, for example, will have no effect with a umask of 022.
+
+These options have no effect on Windows.
+
+| Command-Line             | Environment Variable         | Description                                                                      |
+| ------------------------ | -----------------------------| -------------------------------------------------------------------------------- |
+| n/a                      | `SLSKD_UMASK`                | When running within the slskd Docker container, the umask for the process        |
+| `--file-permission-mode` | `SLSKD_FILE_PERMISSION_MODE` | The permissions to apply to newly created files (chmod syntax, non-Windows only) |
+
+#### **YAML**
+```yaml
+permissions:
+  file:
+    mode: 644 # not for Windows, chmod syntax, e.g. 644, 777. can't escalate beyond umask
+```
+
 # Application Directory Configuration
 
 The application directory configuration option determines the location of the YAML file, the default locations of the download and incomplete directories, and the location of application working data, such as logs and SQLite databases.
@@ -415,7 +439,7 @@ groups:
         failures: 30
 ```
 
-## Blacklist
+## User Blacklist
 
 A fourth built-in group, `blacklisted`, is used to disallow other users from various activities.
 
@@ -425,9 +449,11 @@ Blacklisted users are prevented from:
 - Retrieving directory contents
 - Enqueueing downloads
 
-Users can be blacklisted by adding their username to the `members` list.  Additionally, users can be blacklisted by IP address, or range of addresses by adding a CIDR entry to the `cidrs` list.
+Users can be blacklisted by adding their username to the `members` list. Additionally, users can be blacklisted by IP address, or range of addresses by adding a CIDR entry to the `cidrs` list.
 
 Users added to the blacklist will be blocked from enqueueing any new files.  Any existing active or queued transfers will need to be cancelled manually.
+
+A managed blacklist file may also be used to achieve the same effects.  Read more about this in the [Managed Blacklist](#managed-blacklist) section below.
 
 **YAML**
 ```yaml
@@ -504,6 +530,27 @@ groups:
         - bob
 ```
 
+## Managed Blacklist
+
+A managed blacklist (also called a blocklist) can be specified to disallow interaction with known undesireable actors.  Users whose IP address metches an entry on this list are functionally the same as users added to the [User Blacklist](#user-blacklist) described above and are disallowed any interactions with shares or files.
+
+Blacklists/blocklists designed for use with other P2P applications (such as BitTorrent) are supported; specifically the P2P, DAT, and CIDR formats.
+
+When enabled, the specified file is validated by reading the first few lines of the file to automatically detect the format.  If the file doesn't exist, can't be read, the format can't be detected, or if it contains any lines that don't match the format, the application will exit.  Similarly, if the file changes while the application is running and there's an issue, the application will exit.
+
+Note that the contents of the blacklist are stored in memory to ensure performance, and this will increase the amount of memory used, potentially significantly if the blacklist is large.
+
+| Command-Line         | Environment Variable | Description                    |
+| -------------------- | -------------------- | ------------------------------ |
+| `--enable-blacklist` | `BLACKLIST`          | Enable the managed blacklist   |
+| `--blacklist-file`   | `BLACKLIST_FILE`     | The path to the blacklist file |
+
+```yaml
+blacklist:
+  enabled: true
+  file: <path to file containing CIDRs to blacklist>
+```
+
 # Chat Rooms and Private Messaging
 
 ## Auto-Joining Rooms
@@ -513,7 +560,6 @@ A configured list of chat rooms will now be automatically joined on connect.
 The list can be specified via command line (e.g. --rooms <room1> --rooms <room2>), with the SLSKD_ROOMS environment variable (rooms separated by a semicolon).
 
 Additionally, when the client is disconnected, any rooms that were joined at the time of the disconnect are rejoined upon reconnect, as long as the app hasn't been restarted in between.
-
 
 | Command-Line  | Environment Variable | Description                             |
 | ------------- | ---------------------| ----------------------------------------|
@@ -1026,20 +1072,21 @@ feature:
 
 Several additional feature flags are provided to change the application's runtime behavior, which is helpful during development. Available feature flags are:
 
-| Flag                     | Environment Variable         | Description                                                      |
-| ------------------------ | ---------------------------- | ---------------------------------------------------------------- |
-| `-d\|--debug`            | `SLSKD_DEBUG`                | Run the application in debug mode.  Produces verbose log output. |
-| `--experimental`         | `SLSKD_EXPERIMENTAL`         | Run the application in experimental mode.  YMMV.                 |
-| `-n\|--no-logo`          | `SLSKD_NO_LOGO`              | Don't show the application logo on startup                       |
-| `-x\|--no-start`         | `SLSKD_NO_START`             | Bootstrap the application, but don't start                       |
-| `--no-config-watch`      | `SLSKD_NO_CONFIG_WATCH`      | Don't watch the configuration file for changes                   |
-| `--no-connect`           | `SLSKD_NO_CONNECT`           | Start the application, but don't connect to the server           |
-| `--no-share-scan`        | `SLSKD_NO_SHARE_SCAN`        | Don't perform a scan of shared directories on startup            |
-| `--force-share-scan`     | `SLSKD_FORCE_SHARE_SCAN`     | Force a scan of shared directories on startup                    |
-| `--no-version-check`     | `SLSKD_NO_VERSION_CHECK`     | Don't perform a version check on startup                         |
-| `--log-sql`              | `SLSKD_LOG_SQL`              | Log SQL queries generated by Entity Framework                    |
-| `--volatile`             | `SLSKD_VOLATILE`             | Use volatile data storage (all data will be lost at shutdown)    |
-| `--case-sensitive-regex` | `SLSKD_CASE_SENSITIVE_REGEX` | User-defined regular expressions are case sensitive              |
+| Flag                             | Environment Variable                 | Description                                                      |
+| -------------------------------- | ------------------------------------ | ---------------------------------------------------------------- |
+| `-d\|--debug`                    | `SLSKD_DEBUG`                        | Run the application in debug mode.  Produces verbose log output. |
+| `--experimental`                 | `SLSKD_EXPERIMENTAL`                 | Run the application in experimental mode.  YMMV.                 |
+| `-n\|--no-logo`                  | `SLSKD_NO_LOGO`                      | Don't show the application logo on startup                       |
+| `-x\|--no-start`                 | `SLSKD_NO_START`                     | Bootstrap the application, but don't start                       |
+| `--no-config-watch`              | `SLSKD_NO_CONFIG_WATCH`              | Don't watch the configuration file for changes                   |
+| `--no-connect`                   | `SLSKD_NO_CONNECT`                   | Start the application, but don't connect to the server           |
+| `--no-share-scan`                | `SLSKD_NO_SHARE_SCAN`                | Don't perform a scan of shared directories on startup            |
+| `--force-share-scan`             | `SLSKD_FORCE_SHARE_SCAN`             | Force a scan of shared directories on startup                    |
+| `--no-version-check`             | `SLSKD_NO_VERSION_CHECK`             | Don't perform a version check on startup                         |
+| `--log-sql`                      | `SLSKD_LOG_SQL`                      | Log SQL queries generated by Entity Framework                    |
+| `--volatile`                     | `SLSKD_VOLATILE`                     | Use volatile data storage (all data will be lost at shutdown)    |
+| `--case-sensitive-regex`         | `SLSKD_CASE_SENSITIVE_REGEX`         | User-defined regular expressions are case sensitive              |
+| `--legacy-windows-tcp-keepalive` | `SLSKD_LEGACY_WINDOWS_TCP_KEEPALIVE` | Use a legacy TCP keepalive strategy for older Windows versions   |
 
 #### **YAML**
 ```yaml
@@ -1056,6 +1103,7 @@ flags:
   experimental: false
   volatile: false
   case_sensitive_reg_ex: false
+  legacy_windows_tcp_keepalive: false
 ```
 
 # Commands
