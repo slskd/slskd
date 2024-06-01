@@ -430,10 +430,6 @@ namespace slskd
             {
                 Log.Information("Saving application logs to {LogDirectory}", LogDirectory);
             }
-            else
-            {
-                Log.Information("Logging to disk is disabled");
-            }
 
             RecreateConfigurationFileIfMissing(ConfigurationFile);
 
