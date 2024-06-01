@@ -1289,11 +1289,11 @@ namespace slskd
             /// <summary>
             ///     Gets a value indicating whether to write logs to disk.
             /// </summary>
-            [Argument(default, "no-disk-logger")]
-            [EnvironmentVariable("NO_DISK_LOGGER")]
-            [Description("disable logging to disk")]
+            [Argument(default, "disk-logger")]
+            [EnvironmentVariable("DISK_LOGGER")]
+            [Description("ensable logging to disk")]
             [RequiresRestart]
-            public bool Disk { get; init; } = true;
+            public bool Disk { get; init; } = false;
         }
 
         /// <summary>
