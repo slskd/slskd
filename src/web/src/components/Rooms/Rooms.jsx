@@ -195,7 +195,7 @@ class Rooms extends Component {
             onRoomChange={(name) => this.selectRoom(name)}
           />
         </Segment>
-        {active == null ? (
+        {active?.length === 0 ? (
           <PlaceholderSegment
             caption="No rooms to display"
             icon="comments"
