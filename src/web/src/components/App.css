@@ -121,6 +121,7 @@ body {
 }
 
 .pushable > .pusher.app-content {
+    min-height: calc(100% - 71px);
     background: var(--background-color);
 }
 
