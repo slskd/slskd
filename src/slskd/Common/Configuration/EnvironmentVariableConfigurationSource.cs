@@ -55,7 +55,7 @@ namespace slskd.Configuration
         }
 
         /// <summary>
-        ///     Adds an enviroment variable configuration source to <paramref name="builder"/>.
+        ///     Adds an environment variable configuration source to <paramref name="builder"/>.
         /// </summary>
         /// <param name="builder">The <see cref="IConfigurationBuilder"/> to which to add.</param>
         /// <param name="configureSource">Configures the source.</param>
@@ -65,7 +65,7 @@ namespace slskd.Configuration
     }
 
     /// <summary>
-    ///     An enviroment variable <see cref="ConfigurationProvider"/>.
+    ///     An environment variable <see cref="ConfigurationProvider"/>.
     /// </summary>
     public class EnvironmentVariableConfigurationProvider : ConfigurationProvider
     {

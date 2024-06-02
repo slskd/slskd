@@ -13,7 +13,7 @@ The application supports several different configuration sources to make it easy
 The configuration options used by the application derive from the values specified by each of the sources, with sources higher in the hierarchy overwriting or expanding the configuration set earlier. The hierarchy is:
 
 ```
-Default Values < Environment Variables < YAML Configuraiton File < Command Line Arguments
+Default Values < Environment Variables < YAML Configuration File < Command Line Arguments
 ```
 
 Some options can be specified as lists. In these cases, when combining configurations from multiple sources, care should be taken. .NET framework not only appends but also overwrites values. If a list of `one;two;three` is defined in an environment variable for an option, and the YAML configuration specifies a list of `foo` and `bar`, the resulting configuration will be a list containing `foo, bar, three`.
@@ -532,7 +532,7 @@ groups:
 
 ## Managed Blacklist
 
-A managed blacklist (also called a blocklist) can be specified to disallow interaction with known undesireable actors.  Users whose IP address metches an entry on this list are functionally the same as users added to the [User Blacklist](#user-blacklist) described above and are disallowed any interactions with shares or files.
+A managed blacklist (also called a blocklist) can be specified to disallow interaction with known undesirable actors.  Users whose IP address matches an entry on this list are functionally the same as users added to the [User Blacklist](#user-blacklist) described above and are disallowed any interactions with shares or files.
 
 Blacklists/blocklists designed for use with other P2P applications (such as BitTorrent) are supported; specifically the P2P, DAT, and CIDR formats.
 
@@ -641,7 +641,7 @@ soulseek:
 
 ## Listen IP Address Port
 
-The locak IP address and port on which the application listens for incoming connections.
+The local IP address and port on which the application listens for incoming connections.
 
 As with any other Soulseek client, configuring the listen port and port forwarding ensures full connectivity with other clients, including those without a correctly configured a listening port.  
 
@@ -1023,7 +1023,7 @@ logger:
 
 ## Metrics
 
-The application captures metrics internally and can optionally expose these metrics to be consumed by an instance of Prometheus.  This is a good option for those wanting to tune performance characterisics of the application.
+The application captures metrics internally and can optionally expose these metrics to be consumed by an instance of Prometheus.  This is a good option for those wanting to tune performance characteristics of the application.
 
 Metrics are disabled by default, and enabling them will make them available at `/metrics`.  Authentication is enabled by default, and the credentials are the same defaults as the web UI (`slskd`:`slskd`).
 

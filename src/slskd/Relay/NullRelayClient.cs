@@ -21,7 +21,7 @@ namespace slskd.Relay
     using System.Threading.Tasks;
 
     /// <summary>
-    ///     A non-operarable Relay client.
+    ///     A non-operable Relay client.
     /// </summary>
     public class NullRelayClient : IRelayClient
     {

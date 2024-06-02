@@ -30,7 +30,7 @@ namespace slskd.Configuration
     public static class CommandLineConfigurationExtensions
     {
         /// <summary>
-        ///     Adds a command line argument configuration soruce to <paramref name="builder"/>.
+        ///     Adds a command line argument configuration source to <paramref name="builder"/>.
         /// </summary>
         /// <param name="builder">The <see cref="IConfigurationBuilder"/> to which to add.</param>
         /// <param name="targetType">The type from which to map properties.</param>

@@ -348,7 +348,7 @@ namespace slskd
                         // enqueueing a new wait.
                         if (queue.IsEmpty)
                         {
-                            // enter the write lock to prevent Wait() (which obtains a read lock) from enqueing any more waits
+                            // enter the write lock to prevent Wait() (which obtains a read lock) from enqueuing any more waits
                             // before we can delete the dictionary record. it's ok and expected that Wait() might add this record
                             // back to the dictionary as soon as this unblocks; we're preventing new waits from being discarded if
                             // they are added by another thread just prior to the TryRemove() operation below.
@@ -357,7 +357,7 @@ namespace slskd
                             try
                             {
                                 // check the queue again to ensure Wait() didn't enqueue anything between the last check and when
-                                // we entered the write lock. this is guarateed to be safe since we now have exclusive access to
+                                // we entered the write lock. this is guaranteed to be safe since we now have exclusive access to
                                 // the record and it should be impossible to remove a record containing a non-empty queue
                                 if (queue.IsEmpty)
                                 {

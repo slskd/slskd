@@ -21,7 +21,7 @@ namespace slskd
     using System.Diagnostics.CodeAnalysis;
 
     /// <summary>
-    ///     Represents erorrs that originate while attempting to execute retry logic.
+    ///     Represents errors that originate while attempting to execute retry logic.
     /// </summary>
     [ExcludeFromCodeCoverage]
     public class RetryException : Exception

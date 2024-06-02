@@ -179,7 +179,7 @@ public class Blacklist
     {
         if (format == BlacklistFormat.AutoDetect)
         {
-            Log.Debug("Attempting to auto-detect blacklist fomat from contents...");
+            Log.Debug("Attempting to auto-detect blacklist format from contents...");
             format = await DetectFormat(filename); // FormatException if unsuccessful
             Log.Debug("Detected blacklist format {Format}", format);
         }
@@ -294,7 +294,7 @@ public class Blacklist
     }
 
     /// <summary>
-    ///     Returns a value indicating whether the specified <paramref name="ip"/> is contained witin the blacklist.
+    ///     Returns a value indicating whether the specified <paramref name="ip"/> is contained within the blacklist.
     /// </summary>
     /// <param name="ip">The IP address to check.</param>
     /// <returns>A value indicating whether the specified IP is contained within the blacklist.</returns>
@@ -310,7 +310,7 @@ public class Blacklist
             return false;
         }
 
-        // conver the entire IP to a uint
+        // convert the entire IP to a uint
         var ipAsUint32 = ToUint32(ip);
 
         // check the list for this octet sequentially until the first match

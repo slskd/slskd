@@ -22,7 +22,7 @@ namespace slskd.Validation
     using System.Linq;
 
     /// <summary>
-    ///     Extension methods for types involved with validaiton.
+    ///     Extension methods for types involved with validation.
     /// </summary>
     public static class ValidationExtensions
     {

@@ -29,7 +29,7 @@ namespace slskd.Search
     public interface ISearchService
     {
         /// <summary>
-        ///     Deletes the specified ssearch.
+        ///     Deletes the specified search.
         /// </summary>
         /// <param name="search">The search to delete.</param>
         /// <returns>The operation context.</returns>
@@ -65,7 +65,7 @@ namespace slskd.Search
         ///     Cancels the search matching the specified <paramref name="id"/>, if it is in progress.
         /// </summary>
         /// <param name="id">The unique identifier for the search.</param>
-        /// <returns>A value indicating whether the search was sucessfully cancelled.</returns>
+        /// <returns>A value indicating whether the search was successfully cancelled.</returns>
         bool TryCancel(Guid id);
     }
 }

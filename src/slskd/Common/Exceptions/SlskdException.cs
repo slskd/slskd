@@ -21,7 +21,7 @@ namespace slskd
     using System.Diagnostics.CodeAnalysis;
 
     /// <summary>
-    ///     Represents erorrs that originate from slskd logic.
+    ///     Represents errors that originate from slskd logic.
     /// </summary>
     [ExcludeFromCodeCoverage]
     public class SlskdException : Exception

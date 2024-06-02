@@ -744,7 +744,7 @@ namespace slskd
 
                 bool IsBlankPath(string share) => Regex.IsMatch(share.LocalizePath(), @"^(!|-){0,1}(\[.*\])$");
                 directories?.Where(share => IsBlankPath(share)).ToList()
-                    .ForEach(blank => results.Add(new ValidationResult($"Share {blank} doees not specify a path")));
+                    .ForEach(blank => results.Add(new ValidationResult($"Share {blank} does not specify a path")));
 
                 bool IsRootMount(string share) => Regex.IsMatch(share.LocalizePath(), @"^(!|-){0,1}(\[.*\])/$");
                 directories?.Where(share => IsRootMount(share)).ToList()
@@ -1289,11 +1289,11 @@ namespace slskd
             /// <summary>
             ///     Gets a value indicating whether to write logs to disk.
             /// </summary>
-            [Argument(default, "no-disk-logger")]
-            [EnvironmentVariable("NO_DISK_LOGGER")]
-            [Description("disable logging to disk")]
+            [Argument(default, "disk-logger")]
+            [EnvironmentVariable("DISK_LOGGER")]
+            [Description("enable logging to disk")]
             [RequiresRestart]
-            public bool Disk { get; init; } = true;
+            public bool Disk { get; init; } = false;
         }
 
         /// <summary>

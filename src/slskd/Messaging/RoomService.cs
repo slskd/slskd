@@ -32,7 +32,7 @@ namespace slskd.Messaging
     public interface IRoomService
     {
         /// <summary>
-        ///     Joins the specfied <paramref name="roomName"/>.
+        ///     Joins the specified <paramref name="roomName"/>.
         /// </summary>
         /// <param name="roomName">The name of the room to join.</param>
         /// <returns>The operation context, including information about the room.</returns>
@@ -95,7 +95,7 @@ namespace slskd.Messaging
         private IRoomTracker RoomTracker { get; set; }
 
         /// <summary>
-        ///     Joins the specfied <paramref name="roomName"/>.
+        ///     Joins the specified <paramref name="roomName"/>.
         /// </summary>
         /// <param name="roomName">The name of the room to join.</param>
         /// <returns>The operation context, including information about the room.</returns>

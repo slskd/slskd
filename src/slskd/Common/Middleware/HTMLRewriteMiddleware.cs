@@ -66,7 +66,7 @@ namespace slskd
         private RequestDelegate Next { get; }
 
         /// <summary>
-        ///     Executes this middleware, returning the contents of the requested HTML file with the specified replacesments made.
+        ///     Executes this middleware, returning the contents of the requested HTML file with the specified replacements made.
         /// </summary>
         /// <param name="context"></param>
         /// <returns></returns>
