@@ -337,7 +337,7 @@ namespace slskd.Files
 
             if (!overwrite && File.Exists(destinationFilename))
             {
-                Log.Debug("Destination file {Destination} exists, and overwite option is not set; attempting to generate new filename", destinationFilename);
+                Log.Debug("Destination file {Destination} exists, and overwrite option is not set; attempting to generate new filename", destinationFilename);
 
                 string extensionlessFilename = Path.Combine(Path.GetDirectoryName(destinationFilename), Path.GetFileNameWithoutExtension(sourceFilename));
                 string extension = Path.GetExtension(sourceFilename);

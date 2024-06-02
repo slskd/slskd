@@ -35,7 +35,7 @@ namespace slskd
         /// <summary>
         ///     Registers a listener to be called whenever the tracked state changes.
         /// </summary>
-        /// <param name="listener">Registers a listener to be called whenver state changes.</param>
+        /// <param name="listener">Registers a listener to be called whenever state changes.</param>
         /// <returns>An <see cref="IDisposable"/> which should be disposed to stop listening for changes.</returns>
         IDisposable OnChange(Action<(T Previous, T Current)> listener);
     }
@@ -164,9 +164,9 @@ namespace slskd
         private object Lock { get; } = new object();
 
         /// <summary>
-        ///     Registers a listener to be called whenever the stracked state changes.
+        ///     Registers a listener to be called whenever the tracked state changes.
         /// </summary>
-        /// <param name="listener">Registers a listener to be called whenver state changes.</param>
+        /// <param name="listener">Registers a listener to be called whenever state changes.</param>
         /// <returns>An <see cref="IDisposable"/> which should be disposed to stop listening for changes.</returns>
         public IDisposable OnChange(Action<(T Previous, T Current)> listener)
         {

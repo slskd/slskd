@@ -123,7 +123,7 @@ namespace slskd
             public static Gauge BranchLevel { get; } = Prometheus.Metrics.CreateGauge("slskd_dnet_branch_level", "Current distributed branch level");
 
             /// <summary>
-            ///     Gets a gauge representing the most recent average time tekn to broadcast incoming search requests to connected children.
+            ///     Gets a gauge representing the most recent average time taken to broadcast incoming search requests to connected children.
             /// </summary>
             public static Gauge CurrentBroadcastLatency { get; } = Prometheus.Metrics.CreateGauge("slskd_dnet_broadcast_latency_current", "The average time taken to broadcast incoming search requests to connected children");
 

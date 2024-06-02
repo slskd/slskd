@@ -486,7 +486,7 @@ namespace slskd.Shares
                 ComputeShareStatistics();
                 Log.Debug("Share statistics updated");
 
-                // one of several thigns happened above before we got here:
+                // one of several things happened above before we got here:
                 //   this method was called with forceRescan = true
                 //   the storage mode is memory, and we loaded the in-memory db from a valid backup
                 //   the storage mode is disk, and the file is there and valid
@@ -510,7 +510,7 @@ namespace slskd.Shares
 
                 if (!forceRescan)
                 {
-                    Log.Warning("Re-attempting initializtion");
+                    Log.Warning("Re-attempting initialization");
                     await InitializeAsync(forceRescan: true);
                 }
                 else

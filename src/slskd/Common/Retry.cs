@@ -53,7 +53,7 @@ namespace slskd
         /// <param name="isRetryable">A function returning a value indicating whether the last Exception is retryable.</param>
         /// <param name="onFailure">An action to execute on failure.</param>
         /// <param name="maxAttempts">The maximum number of retry attempts.</param>
-        /// <param name="maxDelayInMilliseconds">The maximum delay in miliseconds.</param>
+        /// <param name="maxDelayInMilliseconds">The maximum delay in milliseconds.</param>
         /// <param name="cancellationToken">The token to monitor for cancellation requests.</param>
         /// <typeparam name="T">The Type of the logic return value.</typeparam>
         /// <returns>The execution context.</returns>

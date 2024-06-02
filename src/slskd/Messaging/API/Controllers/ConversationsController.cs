@@ -39,15 +39,15 @@ namespace slskd.Messaging.API
         /// <summary>
         ///     Initializes a new instance of the <see cref="ConversationsController"/> class.
         /// </summary>
-        /// <param name="applicationStateMonotor"></param>
+        /// <param name="applicationStateMonitor"></param>
         /// <param name="messagingService"></param>
         /// <param name="optionsSnapshot"></param>
         public ConversationsController(
-            IStateMonitor<State> applicationStateMonotor,
+            IStateMonitor<State> applicationStateMonitor,
             IMessagingService messagingService,
             IOptionsSnapshot<Options> optionsSnapshot)
         {
-            ApplicationStateMonitor = applicationStateMonotor;
+            ApplicationStateMonitor = applicationStateMonitor;
             Messages = messagingService;
             OptionsSnapshot = optionsSnapshot;
         }
@@ -70,7 +70,7 @@ namespace slskd.Messaging.API
         [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(200)]
         [ProducesResponseType(404)]
-        public async Task<IActionResult> Acknowledge([FromRoute]string username, [FromRoute]int id)
+        public async Task<IActionResult> Acknowledge([FromRoute] string username, [FromRoute] int id)
         {
             if (Program.IsRelayAgent)
             {
@@ -100,7 +100,7 @@ namespace slskd.Messaging.API
         [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(200)]
         [ProducesResponseType(404)]
-        public async Task<IActionResult> AcknowledgeAll([FromRoute]string username)
+        public async Task<IActionResult> AcknowledgeAll([FromRoute] string username)
         {
             if (Program.IsRelayAgent)
             {
@@ -129,7 +129,7 @@ namespace slskd.Messaging.API
         [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(404)]
         [ProducesResponseType(204)]
-        public async Task<IActionResult> Close([FromRoute]string username)
+        public async Task<IActionResult> Close([FromRoute] string username)
         {
             if (Program.IsRelayAgent)
             {
@@ -156,7 +156,7 @@ namespace slskd.Messaging.API
         [HttpGet("")]
         [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(typeof(List<Conversation>), 200)]
-        public async Task<IActionResult> GetAll([FromQuery] bool includeInactive = false, [FromQuery]bool unAcknowledgedOnly = false)
+        public async Task<IActionResult> GetAll([FromQuery] bool includeInactive = false, [FromQuery] bool unAcknowledgedOnly = false)
         {
             if (Program.IsRelayAgent)
             {
@@ -185,7 +185,7 @@ namespace slskd.Messaging.API
         [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(typeof(Conversation), 200)]
         [ProducesResponseType(404)]
-        public async Task<IActionResult> GetByUsername([FromRoute]string username, [FromQuery]bool includeMessages = true)
+        public async Task<IActionResult> GetByUsername([FromRoute] string username, [FromQuery] bool includeMessages = true)
         {
             if (Program.IsRelayAgent)
             {
@@ -206,7 +206,7 @@ namespace slskd.Messaging.API
         [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(typeof(List<PrivateMessage>), 200)]
         [ProducesResponseType(404)]
-        public async Task<IActionResult> GetMessagesByUsername([FromRoute]string username, [FromQuery]bool unAcknowledgedOnly = false)
+        public async Task<IActionResult> GetMessagesByUsername([FromRoute] string username, [FromQuery] bool unAcknowledgedOnly = false)
         {
             if (Program.IsRelayAgent)
             {
@@ -242,7 +242,7 @@ namespace slskd.Messaging.API
         [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(201)]
         [ProducesResponseType(400)]
-        public async Task<IActionResult> Send([FromRoute]string username, [FromBody]string message)
+        public async Task<IActionResult> Send([FromRoute] string username, [FromBody] string message)
         {
             if (Program.IsRelayAgent)
             {
