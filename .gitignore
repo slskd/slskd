@@ -1,4 +1,5 @@
 .vs
+.vscode
 .DS_Store
 /src/slskd/bin/
 /src/slskd/obj/
