@@ -164,7 +164,7 @@ namespace slskd
 
             Client.BrowseProgressUpdated += Client_BrowseProgressUpdated;
             Client.UserStatusChanged += Client_UserStatusChanged;
-            Client.PrivateMessageReceived += Client_PrivateMessageRecieved;
+            Client.PrivateMessageReceived += Client_PrivateMessageReceived;
 
             Client.PrivateRoomMembershipAdded += (e, room) => Log.Information("Added to private room {Room}", room);
             Client.PrivateRoomMembershipRemoved += (e, room) => Log.Information("Removed from private room {Room}", room);
@@ -863,13 +863,13 @@ namespace slskd
                 // we previously saved a list of all of the download ids that were active at the previous shutdown; fetch the latest
                 // record for those transfers from the db and ensure they haven't been removed from the UI while the application was offline
                 // the user doesn't want those transfers anymore and we don't want to add them back.
-                var resumeableDownloads = Transfers.Downloads.List(t => !t.Removed && ActiveDownloadIdsAtPreviousShutdown.Contains(t.Id));
+                var resumableDownloads = Transfers.Downloads.List(t => !t.Removed && ActiveDownloadIdsAtPreviousShutdown.Contains(t.Id));
 
-                if (resumeableDownloads.Any())
+                if (resumableDownloads.Any())
                 {
                     Log.Information("Attempting to re-enqueue previously active downloads...");
 
-                    var groups = resumeableDownloads.GroupBy(d => d.Username);
+                    var groups = resumableDownloads.GroupBy(d => d.Username);
 
                     // re-request downloads. we use a try/catch here because there's a very good chance that the other user is offline.
                     foreach (var group in groups)
@@ -897,7 +897,7 @@ namespace slskd
             }
         }
 
-        private void Client_PrivateMessageRecieved(object sender, PrivateMessageReceivedEventArgs args)
+        private void Client_PrivateMessageReceived(object sender, PrivateMessageReceivedEventArgs args)
         {
             Messaging.Conversations.HandleMessageAsync(args.Username, PrivateMessage.FromEventArgs(args));
 

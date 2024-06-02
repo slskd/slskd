@@ -87,7 +87,7 @@ namespace slskd.Shares
         Scan FindLatestScan();
 
         /// <summary>
-        ///     Flags the latest scan as suspect, indicating that the cached contents may have divered from physical storage.
+        ///     Flags the latest scan as suspect, indicating that the cached contents may have diverged from physical storage.
         /// </summary>
         void FlagLatestScanAsSuspect();
 

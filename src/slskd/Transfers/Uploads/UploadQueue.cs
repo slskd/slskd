@@ -296,7 +296,7 @@ namespace slskd.Transfers
                 // ddddddd
                 //     ^
                 //
-                // if we want the postion of the file over the carat above, first find the position of it
+                // if we want the position of the file over the carat above, first find the position of it
                 // within its own queue (= 5). assume uploads will process top down, left to right until reaching
                 // this one.  that's 5 files from a, 2 from b, 5 from c, and the other 4 from d, putting the file over
                 // the carat at position 16. the actual number will vary due to many factors, including where in the

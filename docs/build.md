@@ -29,7 +29,7 @@ options:
 
 The `runtime` parameter is required, and must be a valid .NET [RID](https://docs.microsoft.com/en-us/dotnet/core/rid-catalog).  For most users this will be either `linux-x64` or `win-x64`, which will produce a 64 bit executable for Linux or Windows, respectively.
 
-The `platform` parameter is designed to support multiarchitecture Docker builds; if you'd like to author your own Dockerfile, refer to the one in the root of this repo for usage.
+The `platform` parameter is designed to support multi-architecture Docker builds; if you'd like to author your own Dockerfile, refer to the one in the root of this repo for usage.
 
 Output files will go to the `/dist` directory unless you specify a different location.
 

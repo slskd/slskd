@@ -21,7 +21,7 @@ namespace slskd.Validation
     using System.ComponentModel.DataAnnotations;
 
     /// <summary>
-    ///     Validates that the value is a valid nember of the specified <see cref="Enum"/>.
+    ///     Validates that the value is a valid member of the specified <see cref="Enum"/>.
     /// </summary>
     public class EnumAttribute : ValidationAttribute
     {
