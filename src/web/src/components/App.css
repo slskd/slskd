@@ -140,7 +140,7 @@ body {
 }
 
 .result-card:last-child, .transfer-card:last-child, .search-list-card:last-child {
-    margin-bottom: 17px !important;
+    margin-bottom: 16px !important;
 }
 
 .result-meta {
@@ -187,7 +187,7 @@ body {
 .showmore-button {
     padding: 20px !important;
     max-width: 1200px !important;
-    margin-bottom: 17px !important;
+    margin-bottom: 16px !important;
 }
 
 .login-button {
@@ -246,7 +246,7 @@ body {
 }
   
 .view:last-child {
-  margin-bottom: 17px;
+  margin-bottom: 16px;
 }
 
 /* https://github.com/Semantic-Org/Semantic-UI-React/issues/3133#issuecomment-418766748 */
