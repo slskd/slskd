@@ -1,6 +1,5 @@
 import { browse } from '../../../lib/shares';
 import { CodeEditor, LoaderSegment, Switch } from '../../Shared';
-import { orderBy } from 'lodash';
 import React, { useEffect, useState } from 'react';
 import { Button, Icon, Modal } from 'semantic-ui-react';
 
@@ -18,8 +17,11 @@ const ContentsModal = ({ onClose, share, theme }) => {
 
       const directories = result.map((directory) => {
         const lines = [directory.name.replace(remotePath, localPath)];
+        const directoryFilesOrderedByFilename = directory.files.sort(
+          (file1, file2) => file1.filename.localeCompare(file2.filename),
+        );
 
-        for (const file of orderBy(directory.files, 'filename')) {
+        for (const file of directoryFilesOrderedByFilename) {
           lines.push('\t' + file.filename.replace(remotePath, ''));
         }
 
