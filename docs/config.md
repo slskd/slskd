@@ -1013,12 +1013,14 @@ The current list of available targets is:
 | ------------------ | -------------------------- | ---------------------------------- |
 | `--loki`           | `SLSKD_LOKI`               | The URL to a Grafana Loki instance |
 | `--no-disk-logger` | `SLSKD_NO_DISK_LOGGER`     | Disable logging to disk            |
+| `--no-color`       | `SLSKD_NO_COLOR`           | Disable console log colors         |
 
 #### **YAML**
 ```yaml
 logger:
   loki: ~
   disk: true
+  color: true
 ```
 
 ## Metrics

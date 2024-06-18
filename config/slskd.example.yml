@@ -171,6 +171,7 @@
 #   logs: 259200 # 180 days
 # logger:
 #   disk: true
+#   color: true
 #   loki: ~
 # metrics:
 #   enabled: false
