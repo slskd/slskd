@@ -87,7 +87,7 @@ namespace slskd.Relay
         ///     Retrieves information about the specified <paramref name="filename"/> from the specified <paramref name="agentName"/>.
         /// </summary>
         /// <remarks>
-        ///     <para>This is the first step in a mult-step workflow. The entire sequence is:</para>
+        ///     <para>This is the first step in a multi-step workflow. The entire sequence is:</para>
         ///     <list type="number">
         ///         <item>
         ///             Upload service calls and awaits <see cref="GetFileInfoAsync"/>, which requests the file info from the
@@ -389,7 +389,7 @@ namespace slskd.Relay
         ///     Retrieves information about the specified <paramref name="filename"/> from the specified <paramref name="agentName"/>.
         /// </summary>
         /// <remarks>
-        ///     <para>This is the first step in a mult-step workflow. The entire sequence is:</para>
+        ///     <para>This is the first step in a multi-step workflow. The entire sequence is:</para>
         ///     <list type="number">
         ///         <item>
         ///             Upload service calls and awaits <see cref="GetFileInfoAsync"/>, which requests the file info from the

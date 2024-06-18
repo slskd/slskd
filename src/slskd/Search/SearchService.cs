@@ -70,7 +70,7 @@ namespace slskd.Search
         private IHubContext<SearchHub> SearchHub { get; set; }
 
         /// <summary>
-        ///     Deletes the specified ssearch.
+        ///     Deletes the specified search.
         /// </summary>
         /// <param name="search">The search to delete.</param>
         /// <returns>The operation context.</returns>
@@ -245,7 +245,7 @@ namespace slskd.Search
         ///     Cancels the search matching the specified <paramref name="id"/>, if it is in progress.
         /// </summary>
         /// <param name="id">The unique identifier for the search.</param>
-        /// <returns>A value indicating whether the search was sucessfully cancelled.</returns>
+        /// <returns>A value indicating whether the search was successfully cancelled.</returns>
         public bool TryCancel(Guid id)
         {
             if (CancellationTokens.TryGetValue(id, out var cts))

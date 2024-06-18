@@ -334,7 +334,7 @@ namespace slskd
             DefaultDownloadsDirectory = Path.Combine(AppDirectory, "downloads");
             DefaultIncompleteDirectory = Path.Combine(AppDirectory, "incomplete");
 
-            // the location of the configuration file might have been overriden by command line or envar.
+            // the location of the configuration file might have been overridden by command line or envar.
             // if not, set it to the default.
             ConfigurationFile ??= DefaultConfigurationFile;
 
@@ -431,10 +431,6 @@ namespace slskd
             {
                 Log.Information("Saving application logs to {LogDirectory}", LogDirectory);
             }
-            else
-            {
-                Log.Information("Logging to disk is disabled");
-            }
 
             RecreateConfigurationFileIfMissing(ConfigurationFile);
 
@@ -492,7 +488,7 @@ namespace slskd
 
                 if (OptionsAtStartup.Flags.NoStart)
                 {
-                    Log.Information("Qutting because 'no-start' option is enabled");
+                    Log.Information("Quitting because 'no-start' option is enabled");
                     return;
                 }
 

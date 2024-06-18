@@ -209,7 +209,7 @@ namespace slskd
         }
 
         /// <summary>
-        ///     Replaces the first occurance of <paramref name="phrase"/> in the string with <paramref name="replacement"/>.
+        ///     Replaces the first occurrence of <paramref name="phrase"/> in the string with <paramref name="replacement"/>.
         /// </summary>
         /// <param name="str">The string on which to perform the replacement.</param>
         /// <param name="phrase">The phrase or substring to replace.</param>
@@ -307,7 +307,7 @@ namespace slskd
         /// </summary>
         /// <typeparam name="T">The type to which to deserialize the string.</typeparam>
         /// <param name="str">The string to deserialize.</param>
-        /// <returns>The new object deserialzied from the string.</returns>
+        /// <returns>The new object deserialized from the string.</returns>
         public static T FromYaml<T>(this string str) => new DeserializerBuilder()
             .WithNamingConvention(UnderscoredNamingConvention.Instance)
             .Build()
@@ -401,7 +401,7 @@ namespace slskd
         }
 
         /// <summary>
-        ///     Replaces any occurance of an invalid filename character with the specified <see paramref="replacement"/>.
+        ///     Replaces any occurrence of an invalid filename character with the specified <see paramref="replacement"/>.
         /// </summary>
         /// <param name="path">The path to sanitize.</param>
         /// <param name="replacement">The character with which to replace invalid characters.</param>
@@ -451,7 +451,7 @@ namespace slskd
         /// </summary>
         /// <typeparam name="T">The type to which to deserialize the string.</typeparam>
         /// <param name="str">The string to deserialize.</param>
-        /// <returns>The new object deserialzied from the string.</returns>
+        /// <returns>The new object deserialized from the string.</returns>
         public static T FromJson<T>(this string str) => JsonSerializer.Deserialize<T>(str, GetJsonSerializerOptions());
 
         private static JsonSerializerOptions GetJsonSerializerOptions()

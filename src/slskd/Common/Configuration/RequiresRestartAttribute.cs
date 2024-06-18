@@ -19,6 +19,9 @@ namespace slskd.Configuration
 {
     using System;
 
+    /// <summary>
+    ///     Indicates that the application must be restarted for any changes to take effect.
+    /// </summary>
     [AttributeUsage(AttributeTargets.Property)]
     public class RequiresRestartAttribute : Attribute
     {

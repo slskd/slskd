@@ -345,7 +345,7 @@ namespace slskd.Users
             await GetStatisticsAsync(username);
 
             // delay the add until last, so that IsWatched won't return true until stats and status are populated. this may result
-            // in several unecessary calls to WatchAsync (if someone is checking IsWatched() and WatchAsync()ing if false), but we
+            // in several unnecessary calls to WatchAsync (if someone is checking IsWatched() and WatchAsync()ing if false), but we
             // can be sure that if IsWatched() is true, we have valid stats and status. if we can't ensure this, the application
             // will have non-deterministic behavior when it makes decisions about user groups, limits, governance etc.
             WatchedUsernamesDictionary.TryAdd(username, true);
@@ -368,7 +368,7 @@ namespace slskd.Users
 
             if (optionsHash != LastOptionsHash || force)
             {
-                // get a list of tracked names that haven't been explicitly added to any group, including those that were previlously
+                // get a list of tracked names that haven't been explicitly added to any group, including those that were previously
                 // configured but have now been removed
                 var usernamesBeforeUpdate = UserDictionary.Keys.ToList();
                 var usernamesAfterUpdate = options.Groups.UserDefined.SelectMany(g => g.Value.Members);

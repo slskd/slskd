@@ -178,7 +178,7 @@ namespace slskd.Shares
         }
 
         /// <summary>
-        ///     Diposes this object.
+        ///     Disposes this object.
         /// </summary>
         public void Dispose()
         {
@@ -258,7 +258,7 @@ namespace slskd.Shares
         }
 
         /// <summary>
-        ///     Flags the latest scan as suspect, indicating that the cached contents may have divered from physical storage.
+        ///     Flags the latest scan as suspect, indicating that the cached contents may have diverged from physical storage.
         /// </summary>
         public void FlagLatestScanAsSuspect()
         {

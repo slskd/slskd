@@ -72,7 +72,7 @@ namespace slskd.Shares
                 {
                     file = TagLib.File.Create(filename, TagLib.ReadStyle.Average | TagLib.ReadStyle.PictureLazy);
 
-                    // try to mimick the behavior of existing clients by providing attributes selectively and in a specific order,
+                    // try to mimic the behavior of existing clients by providing attributes selectively and in a specific order,
                     // depending on whether files use a lossless or lossy codec. lossless files should have BitsPerSample, while lossy
                     // will not. this may not be the best way to determine this.
                     bool isLossless = file.Properties.BitsPerSample > 0;

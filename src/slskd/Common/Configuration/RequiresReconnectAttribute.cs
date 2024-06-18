@@ -19,6 +19,9 @@ namespace slskd.Configuration
 {
     using System;
 
+    /// <summary>
+    ///     Indicates that the application must disconnect and reconnect to the Soulseek server for changes to take effect.
+    /// </summary>
     [AttributeUsage(AttributeTargets.Property)]
     public class RequiresReconnectAttribute : Attribute
     {
