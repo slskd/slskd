@@ -170,8 +170,8 @@
 #     incomplete: 43200 # 30 days
 #   logs: 259200 # 180 days
 # logger:
-#   disk: true
-#   color: true
+#   no_disk: false
+#   no_color: true
 #   loki: ~
 # metrics:
 #   enabled: false
