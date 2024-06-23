@@ -974,7 +974,7 @@ namespace slskd
                 .Enrich.WithProperty("ProcessId", ProcessId)
                 .Enrich.FromLogContext()
                 .WriteTo.Console(
-                    theme: OptionsAtStartup.Logger.NoColor ? ConsoleTheme.None : SystemConsoleTheme.Literate,
+                    theme: (OptionsAtStartup.Logger.NoColor || !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("NO_COLOR"))) ? ConsoleTheme.None : SystemConsoleTheme.Literate,
                     outputTemplate: (OptionsAtStartup.Debug ? "[{SourceContext}] " : string.Empty) + "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
                 .WriteTo.Async(config =>
                     config.Conditional(
