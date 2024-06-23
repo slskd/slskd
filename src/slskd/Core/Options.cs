@@ -1294,6 +1294,15 @@ namespace slskd
             [Description("enable logging to disk")]
             [RequiresRestart]
             public bool Disk { get; init; } = false;
+
+            /// <summary>
+            ///     Gets a value indicating whether to suppress colorization of console logs.
+            /// </summary>
+            [Argument(default, "no-color")]
+            [EnvironmentVariable("NO_COLOR")]
+            [Description("disable console log colors")]
+            [RequiresRestart]
+            public bool NoColor { get; init; } = false;
         }
 
         /// <summary>

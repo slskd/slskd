@@ -52,6 +52,7 @@ namespace slskd
     using Serilog;
     using Serilog.Events;
     using Serilog.Sinks.Grafana.Loki;
+    using Serilog.Sinks.SystemConsole.Themes;
     using slskd.Authentication;
     using slskd.Configuration;
     using slskd.Core.API;
@@ -973,6 +974,7 @@ namespace slskd
                 .Enrich.WithProperty("ProcessId", ProcessId)
                 .Enrich.FromLogContext()
                 .WriteTo.Console(
+                    theme: (OptionsAtStartup.Logger.NoColor || !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("NO_COLOR"))) ? ConsoleTheme.None : SystemConsoleTheme.Literate,
                     outputTemplate: (OptionsAtStartup.Debug ? "[{SourceContext}] " : string.Empty) + "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
                 .WriteTo.Async(config =>
                     config.Conditional(

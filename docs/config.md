@@ -1001,9 +1001,16 @@ The instance name uniquely identifies the running instance of the application. I
 instance_name: default
 ```
 
-## Loggers
+## Logging Options and Configurable Loggers
 
-By default, the application logs to console and to disk (`/logs` in the application directory); disk logging can be disabled.
+By default, the application logs to console with colors enabled.  Logging to disk is optional, and if enabled, logs will be written to `/logs` in the application directory.
+
+Console colors can be disabled via typical application configuration described below, or by setting the environment variable `NO_COLOR` in accordance with https://no-color.org/.
+
+| Command Line       | Environment Variable           | Description                        |
+| ------------------ | ------------------------------ | ---------------------------------- |
+| `--disk-logger`    | `SLSKD_DISK_LOGGER`            | Enable logging to disk             |
+| `--no-color`       | `SLSKD_NO_COLOR` or `NO_COLOR` | Disable console log colors         |
 
 Logs can optionally be forwarded to external services, and the targets can be expanded to any service supported by a [Serilog Sink](https://github.com/serilog/serilog/wiki/Provided-Sinks). Support for targets is added on an as-needed basis and within reason.
 
@@ -1012,13 +1019,13 @@ The current list of available targets is:
 | Command Line       | Environment Variable       | Description                        |
 | ------------------ | -------------------------- | ---------------------------------- |
 | `--loki`           | `SLSKD_LOKI`               | The URL to a Grafana Loki instance |
-| `--no-disk-logger` | `SLSKD_NO_DISK_LOGGER`     | Disable logging to disk            |
 
 #### **YAML**
 ```yaml
 logger:
   loki: ~
-  disk: true
+  disk: false
+  no_color: false
 ```
 
 ## Metrics
