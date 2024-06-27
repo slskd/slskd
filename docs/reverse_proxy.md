@@ -19,7 +19,10 @@ server {
                 proxy_set_header Upgrade $http_upgrade;
                 proxy_set_header Connection "Upgrade";
                 proxy_set_header Host $host;
+                proxy_request_buffering off;
         }
+
+        client_max_body_size 0;
 }
 ```
 
@@ -36,7 +39,10 @@ server {
                 proxy_set_header Upgrade $http_upgrade;
                 proxy_set_header Connection "Upgrade";
                 proxy_set_header Host $host;
+                proxy_request_buffering off;
         }
+
+        client_max_body_size 0;
 }
 ```
 
