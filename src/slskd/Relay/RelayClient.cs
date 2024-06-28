@@ -16,6 +16,7 @@
 // </copyright>
 
 using Microsoft.Extensions.Options;
+using slskd.Files;
 
 namespace slskd.Relay
 {
@@ -360,7 +361,7 @@ namespace slskd.Relay
             {
                 var (_, localFilename, _) = await Shares.ResolveFileAsync(filename);
 
-                var localFileInfo = new FileInfo(localFilename);
+                var localFileInfo = new FileInfo(localFilename).FollowSymlink();
 
                 await HubConnection.InvokeAsync(nameof(RelayHub.ReturnFileInfo), id, localFileInfo.Exists, localFileInfo.Length);
             }
