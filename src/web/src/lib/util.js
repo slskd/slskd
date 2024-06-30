@@ -1,5 +1,5 @@
 export const formatSeconds = (seconds) => {
-  if (Number.isNaN(seconds)) return '';
+  if (seconds === undefined) return '';
   const date = new Date(1_970, 0, 1);
   date.setSeconds(seconds);
   if (seconds >= 3_600) {
