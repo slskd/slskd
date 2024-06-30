@@ -16,6 +16,7 @@
 // </copyright>
 
 using System.IO;
+using slskd.Files;
 
 namespace slskd.Shares
 {
@@ -59,7 +60,7 @@ namespace slskd.Shares
         public File Create(string filename, string maskedFilename)
         {
             var code = 1;
-            var size = new FileInfo(filename).Length;
+            var size = new FileInfo(filename).FollowSymlink().Length;
             var extension = Path.GetExtension(filename).TrimStart('.').ToLowerInvariant();
             List<FileAttribute> attributeList = default;
 
