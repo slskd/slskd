@@ -104,7 +104,7 @@ namespace slskd.Files
             }
             catch (Exception ex) when (ex is UnauthorizedAccessException || ex is SecurityException)
             {
-                throw new UnauthorizedException($"Access to the linked file target '{info.LinkTarget}' was denied: {ex.Message}", ex);
+                throw new UnauthorizedException($"Access to the linked file '{filename}->{info.LinkTarget}' was denied: {ex.Message}", ex);
             }
             catch (Exception ex)
             {
