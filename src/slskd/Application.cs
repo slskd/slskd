@@ -40,6 +40,7 @@ namespace slskd
     using Serilog.Events;
     using slskd.Configuration;
     using slskd.Core.API;
+    using slskd.Files;
     using slskd.Integrations.Pushbullet;
     using slskd.Messaging;
     using slskd.Relay;
@@ -85,6 +86,7 @@ namespace slskd
             IOptionsMonitor<Options> optionsMonitor,
             IManagedState<State> state,
             ISoulseekClient soulseekClient,
+            FileService fileService,
             IConnectionWatchdog connectionWatchdog,
             ITransferService transferService,
             IBrowseTracker browseTracker,
@@ -136,6 +138,8 @@ namespace slskd
 
             State = state;
             State.OnChange(state => State_OnChange(state));
+
+            Files = fileService;
 
             Shares = shareService;
             Shares.StateMonitor.OnChange(state => ShareState_OnChange(state));
@@ -199,6 +203,7 @@ namespace slskd
         private static bool ShuttingDown { get; set; } = false;
 
         private ISoulseekClient Client { get; set; }
+        private FileService Files { get; }
         private IRoomService RoomService { get; set; }
         private IBrowseTracker BrowseTracker { get; set; }
         private IConnectionWatchdog ConnectionWatchdog { get; }
@@ -729,7 +734,7 @@ namespace slskd
                 BrowseResponse response = default;
 
                 var cacheFilename = Path.Combine(Program.DataDirectory, "browse.cache");
-                var cacheFileInfo = new FileInfo(cacheFilename);
+                var cacheFileInfo = Files.ResolveFileInfo(cacheFilename);
 
                 if (!cacheFileInfo.Exists)
                 {
@@ -1046,7 +1051,7 @@ namespace slskd
                     };
 
                     var files = System.IO.Directory.GetFiles(directory, "*", options)
-                        .Select(filename => new FileInfo(filename))
+                        .Select(filename => Files.ResolveFileInfo(filename))
                         .Where(file => file.LastAccessTimeUtc <= DateTime.UtcNow.AddMinutes(-age.Value));
 
                     Log.Debug("Found {Count} files of need of pruning", files.Count());

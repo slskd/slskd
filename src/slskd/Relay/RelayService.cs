@@ -32,6 +32,7 @@ namespace slskd.Relay
     using Microsoft.Extensions.Caching.Memory;
     using Serilog;
     using slskd.Cryptography;
+    using slskd.Files;
     using slskd.Shares;
 
     /// <summary>
@@ -272,6 +273,7 @@ namespace slskd.Relay
         ///     Initializes a new instance of the <see cref="RelayService"/> class.
         /// </summary>
         /// <param name="waiter"></param>
+        /// <param name="fileService"></param>
         /// <param name="shareService"></param>
         /// <param name="shareRepositoryFactory"></param>
         /// <param name="optionsMonitor"></param>
@@ -280,6 +282,7 @@ namespace slskd.Relay
         /// <param name="relayClient"></param>
         public RelayService(
             IWaiter waiter,
+            FileService fileService,
             IShareService shareService,
             IShareRepositoryFactory shareRepositoryFactory,
             IOptionsMonitor<Options> optionsMonitor,
@@ -287,6 +290,7 @@ namespace slskd.Relay
             IHttpClientFactory httpClientFactory,
             IRelayClient relayClient = null)
         {
+            Files = fileService;
             Shares = shareService;
             ShareRepositoryFactory = shareRepositoryFactory;
             Waiter = waiter;
@@ -319,6 +323,7 @@ namespace slskd.Relay
         /// </summary>
         public IStateMonitor<RelayState> StateMonitor { get; }
 
+        private FileService Files { get; }
         private IHttpClientFactory HttpClientFactory { get; }
         private string LastControllerOptionsHash { get; set; }
         private string LastOptionsHash { get; set; }
@@ -831,7 +836,12 @@ namespace slskd.Relay
                     else
                     {
                         // the controller changed. disconnect and throw away the client and create a new one
-                        Client = new RelayClient(Shares, OptionsMonitor, HttpClientFactory);
+                        Client = new RelayClient(
+                            shareService: Shares,
+                            fileService: Files,
+                            optionsMonitor: OptionsMonitor,
+                            httpClientFactory: HttpClientFactory);
+
                         Client.StateMonitor.OnChange(clientState
                             => State.SetValue(state => state with { Controller = state.Controller with { State = clientState.Current } }));
 

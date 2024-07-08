@@ -26,6 +26,7 @@ namespace slskd.Shares
     using System.Threading;
     using System.Threading.Tasks;
     using Serilog;
+    using slskd.Files;
     using slskd.Relay;
     using Soulseek;
 
@@ -37,10 +38,12 @@ namespace slskd.Shares
         /// <summary>
         ///     Initializes a new instance of the <see cref="ShareService"/> class.
         /// </summary>
+        /// <param name="fileService"></param>
         /// <param name="shareRepositoryFactory"></param>
         /// <param name="optionsMonitor"></param>
         /// <param name="scanner"></param>
         public ShareService(
+            FileService fileService,
             IShareRepositoryFactory shareRepositoryFactory,
             IOptionsMonitor<Options> optionsMonitor,
             IShareScanner scanner = null)
@@ -58,7 +61,9 @@ namespace slskd.Shares
 
             AllRepositories = new List<IShareRepository>(new[] { repository });
 
-            Scanner = scanner ?? new ShareScanner(workerCount: options.Shares.Cache.Workers);
+            Scanner = scanner ?? new ShareScanner(
+                workerCount: options.Shares.Cache.Workers,
+                fileService: fileService);
 
             Scanner.StateMonitor.OnChange(cacheState =>
             {

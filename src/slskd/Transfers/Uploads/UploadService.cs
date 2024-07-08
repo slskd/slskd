@@ -16,6 +16,7 @@
 // </copyright>
 
 using Microsoft.Extensions.Options;
+using slskd.Files;
 using Soulseek;
 
 namespace slskd.Transfers.Uploads
@@ -124,6 +125,7 @@ namespace slskd.Transfers.Uploads
     public class UploadService : IUploadService
     {
         public UploadService(
+            FileService fileService,
             IUserService userService,
             ISoulseekClient soulseekClient,
             IOptionsMonitor<Options> optionsMonitor,
@@ -131,6 +133,7 @@ namespace slskd.Transfers.Uploads
             IRelayService relayService,
             IDbContextFactory<TransfersDbContext> contextFactory)
         {
+            Files = fileService;
             Users = userService;
             Client = soulseekClient;
             Shares = shareService;
@@ -152,6 +155,7 @@ namespace slskd.Transfers.Uploads
         /// </summary>
         public IUploadQueue Queue { get; init; }
 
+        private FileService Files { get; }
         private ConcurrentDictionary<Guid, CancellationTokenSource> CancellationTokens { get; } = new ConcurrentDictionary<Guid, CancellationTokenSource>();
         private ISoulseekClient Client { get; set; }
         private IDbContextFactory<TransfersDbContext> ContextFactory { get; }
@@ -212,7 +216,7 @@ namespace slskd.Transfers.Uploads
                 {
                     // if it's local, do a quick check to see if it exists to spare the caller from queueing up if the transfer is
                     // doomed to fail. for remote files, take a leap of faith.
-                    var info = new FileInfo(localFilename);
+                    var info = Files.ResolveFileInfo(localFilename);
 
                     if (!info.Exists)
                     {

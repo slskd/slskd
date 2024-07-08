@@ -23,6 +23,7 @@ namespace slskd.Files
     using System.Collections.Generic;
     using System.IO;
     using System.Linq;
+    using System.Security;
     using System.Threading.Tasks;
     using OneOf;
     using Serilog;
@@ -49,6 +50,76 @@ namespace slskd.Files
 
         private ILogger Log { get; } = Serilog.Log.ForContext<FileService>();
         private IOptionsMonitor<Options> OptionsMonitor { get; }
+
+        /// <summary>
+        ///     Resolves an instance of <see cref="FileInfo"/> for the specified <paramref name="filename"/>, following
+        ///     any symlinks that may be present to their final target. A non-null return value is guaranteed.
+        /// </summary>
+        /// <param name="filename">The fully qualified filename for which to resolve the FileInfo instance.</param>
+        /// <returns>The resolved FileInfo instance.</returns>
+        /// <exception cref="ArgumentException">Thrown if the specified filename is null or contains only whitespace.</exception>
+        /// <exception cref="UnauthorizedException">Thrown if the specified or linked file is restricted.</exception>
+        /// <exception cref="IOException">Thrown if the specified or linked file can't be resolved for some reason.</exception>
+        public virtual FileInfo ResolveFileInfo(string filename)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(filename, nameof(filename));
+
+            FileInfo info;
+
+            try
+            {
+                info = new FileInfo(filename);
+            }
+            catch (Exception ex) when (ex is UnauthorizedAccessException || ex is SecurityException)
+            {
+                throw new UnauthorizedException($"Access to the file '{filename}' was denied: {ex.Message}", ex);
+            }
+            catch (Exception ex)
+            {
+                throw new IOException($"Failed to access file '{filename}': {ex.Message}", ex);
+            }
+
+            // if the above didn't throw we are guaranteed a valid instance of FileInfo regardless of whether
+            // the file exists or if it is a symlink. if it doesn't exist it can't be a symlink, so just return it
+            if (!info.Exists)
+            {
+                return info;
+            }
+
+            // LinkTarget is guaranteed to be null if the file isn't a symlink. docs:
+            //  > Gets the target path of the link located in FullName, or null if this FileSystemInfo instance doesn't represent a link.
+            if (info.LinkTarget is null)
+            {
+                return info;
+            }
+
+            // ResolveLinkTarget returns an instance of FileSystemInfo (which is being cast to FileInfo here) as long as
+            // the link itself exists (which we've checked), and regardless of whether the link target itself exists.
+            // we should only get this far if:
+            //   1) the given file exists and
+            //   2) it is a symlink, meaning this line _SHOULD_ be guaranteed to return an instance of FileInfo.
+            try
+            {
+                info = (FileInfo)info.ResolveLinkTarget(returnFinalTarget: true);
+            }
+            catch (Exception ex) when (ex is UnauthorizedAccessException || ex is SecurityException)
+            {
+                throw new UnauthorizedException($"Access to the linked file '{filename}->{info.LinkTarget}' was denied: {ex.Message}", ex);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to resolve FileInfo for linked file '{File}->{Link}': {Message}", filename, info.LinkTarget, ex.Message);
+                throw new IOException($"Failed to resolve FileInfo for linked file '{filename}->{info.LinkTarget}': {ex.Message}", ex);
+            }
+
+            if (info is null)
+            {
+                Log.Error("Resolved FileInfo for linked file '{File}->{Link}' was unexpectedly null", filename, info.LinkTarget);
+                throw new IOException($"An unexpected error was encountered while resolving FileInfo for linked file '{filename}->{info.LinkTarget}'");
+            }
+
+            return info;
+        }
 
         /// <summary>
         ///     Deletes the specified <paramref name="directories"/>.

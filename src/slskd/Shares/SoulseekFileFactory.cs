@@ -16,6 +16,7 @@
 // </copyright>
 
 using System.IO;
+using slskd.Files;
 
 namespace slskd.Shares
 {
@@ -48,6 +49,16 @@ namespace slskd.Shares
         private static readonly string[] VideoExtensions = { "mkv", "ogv", "avi", "wmv", "asf", "mp4", "m4p", "m4v", "mpg", "mpe", "mpv", "mpg", "m2v" };
         private static readonly HashSet<string> SupportedExtensions = AudioExtensions.Concat(VideoExtensions).ToHashSet();
 
+        /// <summary>
+        ///     Initializes a new instance of the <see cref="SoulseekFileFactory"/> class.
+        /// </summary>
+        /// <param name="fileService"></param>
+        public SoulseekFileFactory(FileService fileService)
+        {
+            Files = fileService;
+        }
+
+        private FileService Files { get; }
         private ILogger Log { get; } = Serilog.Log.ForContext<SoulseekFileFactory>();
 
         /// <summary>
@@ -59,7 +70,7 @@ namespace slskd.Shares
         public File Create(string filename, string maskedFilename)
         {
             var code = 1;
-            var size = new FileInfo(filename).Length;
+            var size = Files.ResolveFileInfo(filename).Length;
             var extension = Path.GetExtension(filename).TrimStart('.').ToLowerInvariant();
             List<FileAttribute> attributeList = default;
 
