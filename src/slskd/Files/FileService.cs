@@ -102,16 +102,20 @@ namespace slskd.Files
             {
                 info = (FileInfo)info.ResolveLinkTarget(returnFinalTarget: true);
             }
+            catch (Exception ex) when (ex is UnauthorizedAccessException || ex is SecurityException)
+            {
+                throw new UnauthorizedException($"Access to the linked file target '{info.LinkTarget}' was denied: {ex.Message}", ex);
+            }
             catch (Exception ex)
             {
-                Log.Error(ex, "Failed to resolve FileInfo for file '{File}': {Message}", filename, ex.Message);
-                throw new IOException($"Failed to resolve FileInfo for file '{filename}': {ex.Message}", ex);
+                Log.Error(ex, "Failed to resolve FileInfo for linked file '{File}->{Link}': {Message}", filename, info.LinkTarget, ex.Message);
+                throw new IOException($"Failed to resolve FileInfo for linked file '{filename}->{info.LinkTarget}': {ex.Message}", ex);
             }
 
             if (info is null)
             {
-                Log.Error("Resolved FileInfo for file '{File}' was unexpectedly null", filename);
-                throw new IOException($"An unexpected error was encountered while resolving FileInfo for '{filename}'");
+                Log.Error("Resolved FileInfo for linked file '{File}->{Link}' was unexpectedly null", filename, info.LinkTarget);
+                throw new IOException($"An unexpected error was encountered while resolving FileInfo for linked file '{filename}->{info.LinkTarget}'");
             }
 
             return info;
