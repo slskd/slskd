@@ -97,8 +97,7 @@ namespace slskd.Files
             // the link itself exists (which we've checked), and regardless of whether the link target itself exists.
             // we should only get this far if:
             //   1) the given file exists and
-            //   2) it is a symlink, meaning
-            // this line _SHOULD_ be guaranteed to return an instance of FileInfo.
+            //   2) it is a symlink, meaning this line _SHOULD_ be guaranteed to return an instance of FileInfo.
             try
             {
                 info = (FileInfo)info.ResolveLinkTarget(returnFinalTarget: true);

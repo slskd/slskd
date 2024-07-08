@@ -59,25 +59,4 @@ public static class FileExtensions
 
         return (UnixFileMode)mode;
     }
-
-#nullable enable
-    public static FileInfo? TryFollowSymlink(this FileInfo fileInfo)
-    {
-        try
-        {
-            return fileInfo.FollowSymlink();
-        }
-        catch (IOException)
-        {
-            return null;
-        }
-    }
-
-    public static FileInfo FollowSymlink(this FileInfo fileInfo)
-    {
-        FileSystemInfo fileSystemInfo = fileInfo;
-        fileSystemInfo = fileSystemInfo.ResolveLinkTarget(returnFinalTarget: true) ?? fileSystemInfo;
-        return (FileInfo)fileSystemInfo;
-    }
-#nullable restore
 }

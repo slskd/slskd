@@ -273,6 +273,7 @@ namespace slskd.Relay
         ///     Initializes a new instance of the <see cref="RelayService"/> class.
         /// </summary>
         /// <param name="waiter"></param>
+        /// <param name="fileService"></param>
         /// <param name="shareService"></param>
         /// <param name="shareRepositoryFactory"></param>
         /// <param name="optionsMonitor"></param>
