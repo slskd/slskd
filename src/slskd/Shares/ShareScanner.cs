@@ -29,6 +29,7 @@ namespace slskd.Shares
     using System.Threading.Channels;
     using System.Threading.Tasks;
     using Serilog;
+    using slskd.Files;
 
     /// <summary>
     ///     Shared file cache.
@@ -65,13 +66,16 @@ namespace slskd.Shares
         ///     Initializes a new instance of the <see cref="ShareScanner"/> class.
         /// </summary>
         /// <param name="workerCount"></param>
+        /// <param name="fileService"></param>
         /// <param name="soulseekFileFactory"></param>
         public ShareScanner(
             int workerCount,
+            FileService fileService,
             ISoulseekFileFactory soulseekFileFactory = null)
         {
             WorkerCount = workerCount;
-            SoulseekFileFactory = soulseekFileFactory ?? new SoulseekFileFactory();
+            Files = fileService;
+            SoulseekFileFactory = soulseekFileFactory ?? new SoulseekFileFactory(fileService: Files);
 
             Flags = Program.Flags;
         }
@@ -81,6 +85,7 @@ namespace slskd.Shares
         /// </summary>
         public IStateMonitor<SharedFileCacheState> StateMonitor => State;
 
+        private FileService Files { get; }
         private int WorkerCount { get; }
         private ILogger Log { get; } = Serilog.Log.ForContext<ShareScanner>();
         private List<Share> Shares { get; set; }
@@ -261,7 +266,7 @@ namespace slskd.Shares
                                 // qualified name the only time this *should* cause problems is if one of the shares is a subdirectory of another.
                                 foreach (var originalFilename in newFiles)
                                 {
-                                    var info = new FileInfo(originalFilename);
+                                    var info = Files.ResolveFileInfo(originalFilename);
                                     var file = SoulseekFileFactory.Create(originalFilename, maskedFilename: originalFilename.ReplaceFirst(share.LocalPath, share.RemotePath).NormalizePathForSoulseek());
 
                                     if (filters.Any(filter => filter.IsMatch(originalFilename)))
