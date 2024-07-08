@@ -40,14 +40,17 @@ namespace slskd.Relay
         ///     Initializes a new instance of the <see cref="RelayClient"/> class.
         /// </summary>
         /// <param name="shareService"></param>
+        /// <param name="fileService"></param>
         /// <param name="optionsMonitor"></param>
         /// <param name="httpClientFactory"></param>
         public RelayClient(
             IShareService shareService,
+            FileService fileService,
             IOptionsMonitor<Options> optionsMonitor,
             IHttpClientFactory httpClientFactory)
         {
             Shares = shareService;
+            Files = fileService;
 
             HttpClientFactory = httpClientFactory;
 
@@ -64,6 +67,7 @@ namespace slskd.Relay
         /// </summary>
         public IStateMonitor<RelayClientState> StateMonitor { get; }
 
+        private FileService Files { get; }
         private SemaphoreSlim ConfigurationSyncRoot { get; } = new SemaphoreSlim(1, 1);
         private bool Disposed { get; set; }
         private IHttpClientFactory HttpClientFactory { get; }
@@ -361,7 +365,7 @@ namespace slskd.Relay
             {
                 var (_, localFilename, _) = await Shares.ResolveFileAsync(filename);
 
-                var localFileInfo = new FileInfo(localFilename).FollowSymlink();
+                var localFileInfo = Files.ResolveFileInfo(localFilename);
 
                 await HubConnection.InvokeAsync(nameof(RelayHub.ReturnFileInfo), id, localFileInfo.Exists, localFileInfo.Length);
             }
@@ -382,7 +386,7 @@ namespace slskd.Relay
                 {
                     var (_, localFilename, _) = await Shares.ResolveFileAsync(filename);
 
-                    var localFileInfo = new FileInfo(localFilename);
+                    var localFileInfo = Files.ResolveFileInfo(localFilename);
 
                     if (!localFileInfo.Exists)
                     {
