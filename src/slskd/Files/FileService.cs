@@ -53,13 +53,13 @@ namespace slskd.Files
 
         /// <summary>
         ///     Resolves an instance of <see cref="FileInfo"/> for the specified <paramref name="filename"/>, following
-        ///     any symlinks that may be present to their final target.
+        ///     any symlinks that may be present to their final target. A non-null return value is guaranteed.
         /// </summary>
         /// <param name="filename">The fully qualified filename for which to resolve the FileInfo instance.</param>
         /// <returns>The resolved FileInfo instance.</returns>
         /// <exception cref="ArgumentException">Thrown if the specified filename is null or contains only whitespace.</exception>
         /// <exception cref="UnauthorizedException">Thrown if the specified or linked file is restricted.</exception>
-        /// <exception cref="IOException">Thrown if the specified or linked file can't be accessed for some reason.</exception>
+        /// <exception cref="IOException">Thrown if the specified or linked file can't be resolved for some reason.</exception>
         public virtual FileInfo ResolveFileInfo(string filename)
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(filename, nameof(filename));
@@ -99,7 +99,23 @@ namespace slskd.Files
             //   1) the given file exists and
             //   2) it is a symlink, meaning
             // this line _SHOULD_ be guaranteed to return an instance of FileInfo.
-            return (FileInfo)info.ResolveLinkTarget(returnFinalTarget: true);
+            try
+            {
+                info = (FileInfo)info.ResolveLinkTarget(returnFinalTarget: true);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to resolve FileInfo for file '{File}': {Message}", filename, ex.Message);
+                throw new IOException($"Failed to resolve FileInfo for file '{filename}': {ex.Message}", ex);
+            }
+
+            if (info is null)
+            {
+                Log.Error("Resolved FileInfo for file '{File}' was unexpectedly null", filename);
+                throw new IOException($"An unexpected error was encountered while resolving FileInfo for '{filename}'");
+            }
+
+            return info;
         }
 
         /// <summary>
