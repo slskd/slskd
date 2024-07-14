@@ -33,7 +33,7 @@ const CancelButton = ({ cancel, working }) => (
   </ShrinkableButton>
 );
 
-const Shares = ({ state = {} } = {}) => {
+const Shares = ({ state = {}, theme } = {}) => {
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState(false);
   const [shares, setShares] = useState([]);
@@ -155,6 +155,7 @@ const Shares = ({ state = {} } = {}) => {
       <ContentsModal
         onClose={() => setModal(false)}
         share={modal}
+        theme={theme}
       />
     </Switch>
   );
