@@ -575,11 +575,11 @@ namespace slskd
             {
                 var files = false;
                 var megabytes = false;
-                var byteLimit = options?.Megabytes ?? defaults?.Megabytes;
+                var byteLimitInMegabytes = options?.Megabytes ?? defaults?.Megabytes;
 
-                if (byteLimit is not null && (stats.Bytes + size) > (byteLimit * 1000 * 1000))
+                if (byteLimitInMegabytes is not null && (stats.Bytes + size) > (byteLimitInMegabytes * 1000L * 1000L))
                 {
-                    Log.Debug("Projected bytes {Bytes} exceeds limit {Limit}", stats.Bytes + size, byteLimit * 1000 * 1000);
+                    Log.Debug("Projected bytes {Bytes} exceeds limit {Limit}", stats.Bytes + size, byteLimitInMegabytes * 1000L * 1000L);
                     megabytes = true;
                 }
 
