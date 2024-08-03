@@ -904,6 +904,12 @@ namespace slskd
 
         private void Client_PrivateMessageReceived(object sender, PrivateMessageReceivedEventArgs args)
         {
+            if (Users.IsBlacklisted(args.Username))
+            {
+                Log.Debug("Ignored private message from blacklisted user {Username}: {Message}", args.Username, args.Message);
+                return;
+            }
+
             Messaging.Conversations.HandleMessageAsync(args.Username, PrivateMessage.FromEventArgs(args));
 
             if (Options.Integration.Pushbullet.Enabled && !args.Replayed)
@@ -914,6 +920,12 @@ namespace slskd
 
         private void Client_PublicChatMessageReceived(object sender, PublicChatMessageReceivedEventArgs args)
         {
+            if (Users.IsBlacklisted(args.Username))
+            {
+                Log.Debug("Ignored public chat message from blacklisted user {Username}: {Message}", args.Username, args.Message);
+                return;
+            }
+
             Log.Information("[Public Chat/{Room}] [{Username}]: {Message}", args.RoomName, args.Username, args.Message);
 
             if (Options.Integration.Pushbullet.Enabled && args.Message.Contains(Client.Username))
@@ -924,6 +936,12 @@ namespace slskd
 
         private void Client_RoomMessageReceived(object sender, RoomMessageReceivedEventArgs args)
         {
+            if (Users.IsBlacklisted(args.Username))
+            {
+                Log.Debug("Ignored message from blacklisted user {Username} in {Room}: {Message}", args.Username, args.RoomName, args.Message);
+                return;
+            }
+
             var message = RoomMessage.FromEventArgs(args, DateTime.UtcNow);
 
             if (Options.Integration.Pushbullet.Enabled && message.Message.Contains(Client.Username))
