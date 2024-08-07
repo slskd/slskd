@@ -331,6 +331,9 @@ namespace slskd.Transfers.Downloads
                                     _ = Relay.NotifyFileDownloadCompleteAsync(finalFilename);
                                 }
 
+                                // todo: raise DOWNLOAD_FILE_COMPLETE
+                                // todo: determine if there are any pending transfers in this same directory, and if not raise DOWNLOAD_DIRECTORY_COMPLETE
+
                                 if (OptionsMonitor.CurrentValue.Integration.Ftp.Enabled)
                                 {
                                     _ = FTP.UploadAsync(finalFilename);
