@@ -24,6 +24,8 @@ namespace slskd.Messaging
     using System.Linq;
     using System.Threading.Tasks;
     using Serilog;
+    using slskd.Users;
+
     using Soulseek;
 
     /// <summary>
@@ -68,11 +70,13 @@ namespace slskd.Messaging
         /// <param name="optionsMonitor"></param>
         /// <param name="stateMutator"></param>
         /// <param name="roomTracker"></param>
+        /// <param name="userService"></param> 
         public RoomService(
             ISoulseekClient soulseekClient,
             IOptionsMonitor<Options> optionsMonitor,
             IStateMutator<State> stateMutator,
-            IRoomTracker roomTracker)
+            IRoomTracker roomTracker,
+            IUserService userService)
         {
             Client = soulseekClient;
 
@@ -80,6 +84,8 @@ namespace slskd.Messaging
             OptionsMonitor = optionsMonitor;
 
             RoomTracker = roomTracker;
+
+            Users = userService;
 
             Client.LoggedIn += Client_LoggedIn;
 
@@ -93,6 +99,7 @@ namespace slskd.Messaging
         private IStateMutator<State> StateMutator { get; }
         private IOptionsMonitor<Options> OptionsMonitor { get; }
         private IRoomTracker RoomTracker { get; set; }
+        private IUserService Users { get; set; }
 
         /// <summary>
         ///     Joins the specified <paramref name="roomName"/>.
@@ -213,6 +220,12 @@ namespace slskd.Messaging
 
         private void Client_RoomMessageReceived(object sender, RoomMessageReceivedEventArgs args)
         {
+            if (Users.IsBlacklisted(args.Username))
+            {
+                Logger.Debug("Ignored message from blacklisted user {Username} in {Room}: {Message}", args.Username, args.RoomName, args.Message);
+                return;
+            }
+
             var message = RoomMessage.FromEventArgs(args, DateTime.UtcNow);
             RoomTracker.AddOrUpdateMessage(args.RoomName, message);
         }
