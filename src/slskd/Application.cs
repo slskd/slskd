@@ -936,17 +936,15 @@ namespace slskd
 
         private void Client_RoomMessageReceived(object sender, RoomMessageReceivedEventArgs args)
         {
-            if (Users.IsBlacklisted(args.Username))
+            // note: this event is also subscribed in the RoomService class
+            if (!Users.IsBlacklisted(args.Username))
             {
-                Log.Debug("Ignored message from blacklisted user {Username} in {Room}: {Message}", args.Username, args.RoomName, args.Message);
-                return;
-            }
+                var message = RoomMessage.FromEventArgs(args, DateTime.UtcNow);
 
-            var message = RoomMessage.FromEventArgs(args, DateTime.UtcNow);
-
-            if (Options.Integration.Pushbullet.Enabled && message.Message.Contains(Client.Username))
-            {
-                _ = Pushbullet.PushAsync($"Room Mention by {message.Username} in {message.RoomName}", message.RoomName, message.Message);
+                if (Options.Integration.Pushbullet.Enabled && message.Message.Contains(Client.Username))
+                {
+                    _ = Pushbullet.PushAsync($"Room Mention by {message.Username} in {message.RoomName}", message.RoomName, message.Message);
+                }
             }
         }
 
