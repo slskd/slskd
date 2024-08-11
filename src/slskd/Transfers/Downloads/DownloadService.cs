@@ -335,7 +335,14 @@ namespace slskd.Transfers.Downloads
                                 }
 
                                 // todo: raise DOWNLOAD_FILE_COMPLETE
-                                Events.Downloads.FileComplete?.Invoke()
+                                Events.Raise(new DownloadFileCompleteEvent
+                                {
+                                    LocalFilename = finalFilename,
+                                    RemoteFilename = transfer.Filename,
+                                    Username = transfer.Username,
+                                    Transfer = transfer,
+                                });
+
                                 // todo: determine if there are any pending transfers in this same directory, and if not raise DOWNLOAD_DIRECTORY_COMPLETE
 
                                 if (OptionsMonitor.CurrentValue.Integration.Ftp.Enabled)
