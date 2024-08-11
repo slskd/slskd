@@ -29,6 +29,10 @@ namespace slskd.Transfers
         public Guid Id { get; init; }
         public string Username { get; init; }
         public TransferDirection Direction { get; init; }
+
+        /// <summary>
+        ///     Gets the remote filename.
+        /// </summary>
         public string Filename { get; init; }
         public long Size { get; set; }
         public long StartOffset { get; init; }

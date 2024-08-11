@@ -122,7 +122,8 @@ namespace slskd.Transfers.Downloads
             IDbContextFactory<TransfersDbContext> contextFactory,
             FileService fileService,
             IRelayService relayService,
-            IFTPService ftpClient)
+            IFTPService ftpClient,
+            EventBus eventBus)
         {
             Client = soulseekClient;
             OptionsMonitor = optionsMonitor;
@@ -130,6 +131,7 @@ namespace slskd.Transfers.Downloads
             Files = fileService;
             FTP = ftpClient;
             Relay = relayService;
+            Events = eventBus;
         }
 
         private ConcurrentDictionary<Guid, CancellationTokenSource> CancellationTokens { get; } = new ConcurrentDictionary<Guid, CancellationTokenSource>();
@@ -140,6 +142,7 @@ namespace slskd.Transfers.Downloads
         private IRelayService Relay { get; }
         private ILogger Log { get; } = Serilog.Log.ForContext<DownloadService>();
         private IOptionsMonitor<Options> OptionsMonitor { get; }
+        private EventBus Events { get; }
 
         /// <summary>
         ///     Adds the specified <paramref name="transfer"/>. Supersedes any existing record for the same file and username.
@@ -332,6 +335,7 @@ namespace slskd.Transfers.Downloads
                                 }
 
                                 // todo: raise DOWNLOAD_FILE_COMPLETE
+                                Events.Downloads.FileComplete?.Invoke()
                                 // todo: determine if there are any pending transfers in this same directory, and if not raise DOWNLOAD_DIRECTORY_COMPLETE
 
                                 if (OptionsMonitor.CurrentValue.Integration.Ftp.Enabled)
