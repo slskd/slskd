@@ -553,6 +553,7 @@ namespace slskd
             services.AddHostedService(p => p.GetRequiredService<IApplication>());
 
             services.AddSingleton<IWaiter, Waiter>();
+            services.AddSingleton<EventBus>();
 
             services.AddSingleton<IConnectionWatchdog, ConnectionWatchdog>();
 
