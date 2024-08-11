@@ -40,6 +40,11 @@ using Serilog;
 /// </remarks>
 public class EventBus
 {
+    public EventBus()
+    {
+        Log.Debug("EventBus initialized");
+    }
+
     private ILogger Log { get; } = Serilog.Log.ForContext<EventBus>();
 
     /// <summary>
@@ -49,7 +54,7 @@ public class EventBus
     ///     Note that the value is a dictionary to prevent multiple subscriptions from the same subscriber, and to
     ///     support unsubscribing.
     /// </remarks>
-    private ConcurrentDictionary<Type, ConcurrentDictionary<string, Func<Event, Task>>> Subscriptions { get; } = new();
+    private ConcurrentDictionary<Type, ConcurrentDictionary<string, Func<object, Task>>> Subscriptions { get; } = new();
 
     /// <summary>
     ///     Raises an event.
@@ -64,6 +69,7 @@ public class EventBus
         if (!Subscriptions.TryGetValue(typeof(T), out var subscribers))
         {
             Log.Debug("No subscribers for {Type}", typeof(T));
+            return;
         }
 
         // we don't care about any of these tasks; contractually we are only obligated to invoke them
@@ -94,13 +100,13 @@ public class EventBus
 
         Subscriptions.AddOrUpdate(
             key: typeof(T),
-            addValue: new ConcurrentDictionary<string, Func<Event, Task>>(
-                new Dictionary<string, Func<Event, Task>> { [subscriber] = (Func<Event, Task>)callback }),
+            addValue: new ConcurrentDictionary<string, Func<object, Task>>(
+                new Dictionary<string, Func<object, Task>> { [subscriber] = (Func<object, Task>)callback }),
             updateValueFactory: (_, subscribers) =>
             {
                 subscribers.AddOrUpdate(
                     key: subscriber,
-                    addValue: (Func<Event, Task>)callback,
+                    addValue: (Func<object, Task>)callback,
                     updateValueFactory: (_, existingSubscription) =>
                     {
                         if (existingSubscription is not null)
@@ -108,11 +114,13 @@ public class EventBus
                             Log.Debug("Warning! {Type} subscriber {Name} attempted to create a redundant subscription.  The existing subscription was overwritten.", typeof(T), subscriber);
                         }
 
-                        return (Func<Event, Task>)callback;
+                        return (Func<object, Task>)callback;
                     });
 
                 return subscribers;
             });
+
+        Log.Debug("Subscribed {Name} to {Type}", subscriber, typeof(T));
     }
 
     /// <summary>

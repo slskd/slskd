@@ -39,7 +39,6 @@ namespace slskd
     using Microsoft.AspNetCore.Diagnostics;
     using Microsoft.AspNetCore.Hosting;
     using Microsoft.AspNetCore.Http;
-    using Microsoft.AspNetCore.Mvc.ApiExplorer;
     using Microsoft.EntityFrameworkCore;
     using Microsoft.Extensions.Configuration;
     using Microsoft.Extensions.DependencyInjection;
@@ -60,6 +59,8 @@ namespace slskd
     using slskd.Files;
     using slskd.Integrations.FTP;
     using slskd.Integrations.Pushbullet;
+    using slskd.Integrations.Shell;
+
     using slskd.Messaging;
     using slskd.Relay;
     using slskd.Search;
@@ -484,6 +485,9 @@ namespace slskd
 
                 var app = builder.Build();
 
+                // hack: nothing depends on ShellService but we need to initialize it
+                _ = app.Services.GetService<ShellService>();
+
                 app.ConfigureAspDotNetPipeline();
 
                 if (OptionsAtStartup.Flags.NoStart)
@@ -591,6 +595,8 @@ namespace slskd
             services.AddSingleton<FileService>();
 
             services.AddSingleton<IRelayService, RelayService>();
+
+            services.AddSingleton<ShellService>();
 
             services.AddSingleton<IFTPClientFactory, FTPClientFactory>();
             services.AddSingleton<IFTPService, FTPService>();
