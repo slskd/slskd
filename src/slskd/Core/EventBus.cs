@@ -72,7 +72,7 @@ public class EventBus
             return;
         }
 
-        Log.Debug("{Count} subscribers for {Type}", subscribers.Count, typeof(T));
+        Log.Debug("{Count} subscriber(s) for {Type}: {Names}", subscribers.Count, typeof(T), string.Join(", ", subscribers.Keys));
 
         // we don't care about any of these tasks; contractually we are only obligated to invoke them
         _ = Task.WhenAll(subscribers.Select(subscriber =>
