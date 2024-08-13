@@ -54,7 +54,7 @@ public class EventBus
     ///     Note that the value is a dictionary to prevent multiple subscriptions from the same subscriber, and to
     ///     support unsubscribing.
     /// </remarks>
-    private ConcurrentDictionary<Type, ConcurrentDictionary<string, Func<object, Task>>> Subscriptions { get; } = new();
+    private ConcurrentDictionary<Type, ConcurrentDictionary<string, object>> Subscriptions { get; } = new();
 
     /// <summary>
     ///     Raises an event.
@@ -72,12 +72,15 @@ public class EventBus
             return;
         }
 
+        Log.Debug("{Count} subscribers for {Type}", subscribers.Count, typeof(T));
+
         // we don't care about any of these tasks; contractually we are only obligated to invoke them
-        _ = subscribers.Select(subscriber =>
-            Task.Run(() => subscriber.Value(data)).ContinueWith(task =>
-            {
-                Log.Error(task.Exception, "Subscriber {Name} for {Type} encountered an error: {Message}", subscriber.Key, typeof(T), task.Exception.Message);
-            }, continuationOptions: TaskContinuationOptions.OnlyOnFaulted));
+        _ = Task.WhenAll(subscribers.Select(subscriber =>
+                Task.Run(() => (subscriber.Value as Func<T, Task>)(data))
+                    .ContinueWith(task =>
+                    {
+                        Log.Error(task.Exception, "Subscriber {Name} for {Type} encountered an error: {Message}", subscriber.Key, typeof(T), task.Exception.Message);
+                    })));
     }
 
     /// <summary>
@@ -100,13 +103,13 @@ public class EventBus
 
         Subscriptions.AddOrUpdate(
             key: typeof(T),
-            addValue: new ConcurrentDictionary<string, Func<object, Task>>(
-                new Dictionary<string, Func<object, Task>> { [subscriber] = (Func<object, Task>)callback }),
+            addValue: new ConcurrentDictionary<string, object>(
+                new Dictionary<string, object> { [subscriber] = callback }),
             updateValueFactory: (_, subscribers) =>
             {
                 subscribers.AddOrUpdate(
                     key: subscriber,
-                    addValue: (Func<object, Task>)callback,
+                    addValue: callback,
                     updateValueFactory: (_, existingSubscription) =>
                     {
                         if (existingSubscription is not null)
@@ -114,7 +117,7 @@ public class EventBus
                             Log.Debug("Warning! {Type} subscriber {Name} attempted to create a redundant subscription.  The existing subscription was overwritten.", typeof(T), subscriber);
                         }
 
-                        return (Func<object, Task>)callback;
+                        return callback;
                     });
 
                 return subscribers;
