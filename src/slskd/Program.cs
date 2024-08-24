@@ -56,11 +56,12 @@ namespace slskd
     using slskd.Configuration;
     using slskd.Core.API;
     using slskd.Cryptography;
+    using slskd.Events;
+
     using slskd.Files;
     using slskd.Integrations.FTP;
     using slskd.Integrations.Pushbullet;
     using slskd.Integrations.Shell;
-
     using slskd.Messaging;
     using slskd.Relay;
     using slskd.Search;
@@ -563,15 +564,21 @@ namespace slskd
 
             if (OptionsAtStartup.Flags.Volatile)
             {
-                services.AddDbContext<SearchDbContext>($"Data Source=file:search?mode=memory;Cache=shared;Pooling=True;");
-                services.AddDbContext<TransfersDbContext>($"Data Source=file:transfers?mode=memory;Cache=shared;Pooling=True;");
-                services.AddDbContext<MessagingDbContext>($"Data Source=file:messaging?mode=memory;Cache=shared;Pooling=True;");
+                static string MemoryConnectionString(string name) => $"Data Source=file:{name}?mode=memory;Cache=shared;Pooling=True;";
+
+                services.AddDbContext<SearchDbContext>(MemoryConnectionString("search"));
+                services.AddDbContext<TransfersDbContext>(MemoryConnectionString("transfers"));
+                services.AddDbContext<MessagingDbContext>(MemoryConnectionString("messaging"));
+                services.AddDbContext<EventsDbContext>(MemoryConnectionString("events"));
             }
             else
             {
-                services.AddDbContext<SearchDbContext>($"Data Source={Path.Combine(DataDirectory, "search.db")};Cache=shared;Pooling=True;");
-                services.AddDbContext<TransfersDbContext>($"Data Source={Path.Combine(DataDirectory, "transfers.db")};Cache=shared;Pooling=True;");
-                services.AddDbContext<MessagingDbContext>($"Data Source={Path.Combine(DataDirectory, "messaging.db")};Cache=shared;Pooling=True;");
+                static string DiskConnectionString(string name) => $"Data Source={Path.Combine(DataDirectory, $"{name}.db")};Cache=shared;Pooling=True;";
+
+                services.AddDbContext<SearchDbContext>(DiskConnectionString("search"));
+                services.AddDbContext<TransfersDbContext>(DiskConnectionString("transfers"));
+                services.AddDbContext<MessagingDbContext>(DiskConnectionString("messaging"));
+                services.AddDbContext<EventsDbContext>(DiskConnectionString("events"));
             }
 
             services.AddSingleton<IBrowseTracker, BrowseTracker>();
