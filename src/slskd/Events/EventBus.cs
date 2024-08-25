@@ -15,7 +15,7 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-namespace slskd;
+namespace slskd.Events;
 
 using System;
 using System.Collections.Concurrent;
@@ -24,7 +24,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
-using slskd.Events;
 
 /// <summary>
 ///     The event bus supporting interoperability and ancillary functions.

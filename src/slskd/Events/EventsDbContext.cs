@@ -15,27 +15,26 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
+namespace slskd.Events;
+
 using System;
 using Microsoft.EntityFrameworkCore;
 
-namespace slskd.Events
+public class EventsDbContext : DbContext
 {
-    public class EventsDbContext : DbContext
+    public EventsDbContext(DbContextOptions<EventsDbContext> options)
+        : base(options)
     {
-        public EventsDbContext(DbContextOptions<EventsDbContext> options)
-            : base(options)
-        {
-            Database.EnsureCreated();
-        }
+        Database.EnsureCreated();
+    }
 
-        public DbSet<EventRecord> Events { get; set; }
+    public DbSet<EventRecord> Events { get; set; }
 
-        protected override void OnModelCreating(ModelBuilder modelBuilder)
-        {
-            modelBuilder
-                .Entity<EventRecord>()
-                .Property(e => e.Timestamp)
-                .HasConversion(v => v, v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
-        }
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        modelBuilder
+            .Entity<EventRecord>()
+            .Property(e => e.Timestamp)
+            .HasConversion(v => v, v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
     }
 }
