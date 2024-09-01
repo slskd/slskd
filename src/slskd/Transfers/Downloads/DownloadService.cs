@@ -285,7 +285,7 @@ namespace slskd.Transfers.Downloads
                                     {
                                         transfer = transfer.WithSoulseekTransfer(args.Transfer);
 
-                                        // todo: broadcast
+                                        // todo: broadcast to signalr hub
                                         SynchronizedUpdate(transfer);
                                     }));
 
@@ -316,7 +316,7 @@ namespace slskd.Transfers.Downloads
 
                                 transfer = transfer.WithSoulseekTransfer(completedTransfer);
 
-                                // todo: broadcast
+                                // todo: broadcast to signalr hub
                                 SynchronizedUpdate(transfer, cancellable: false);
 
                                 // this would be the ideal place to hook in a generic post-download task processor for now, we'll
@@ -357,7 +357,7 @@ namespace slskd.Transfers.Downloads
                                 transfer.Exception = ex.Message;
                                 transfer.State = TransferStates.Completed | TransferStates.Cancelled;
 
-                                // todo: broadcast
+                                // todo: broadcast to signalr hub
                                 SynchronizedUpdate(transfer, cancellable: false);
 
                                 throw;
@@ -370,7 +370,7 @@ namespace slskd.Transfers.Downloads
                                 transfer.Exception = ex.Message;
                                 transfer.State = TransferStates.Completed | TransferStates.Errored;
 
-                                // todo: broadcast
+                                // todo: broadcast to signalr hub
                                 SynchronizedUpdate(transfer, cancellable: false);
 
                                 throw;
