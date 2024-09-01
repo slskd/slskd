@@ -319,12 +319,11 @@ namespace slskd.Transfers.Downloads
                                 // todo: broadcast to signalr hub
                                 SynchronizedUpdate(transfer, cancellable: false);
 
-                                // this would be the ideal place to hook in a generic post-download task processor for now, we'll
-                                // just carry out hard coded behavior. these carry the risk of failing the transfer, and i could
-                                // argue both ways for that being the correct behavior. revisit this later.
+                                var destinationDirectory = System.IO.Path.GetDirectoryName(file.Filename.ToLocalFilename(baseDirectory: OptionsMonitor.CurrentValue.Directories.Downloads));
+
                                 var finalFilename = Files.MoveFile(
                                     sourceFilename: file.Filename.ToLocalFilename(baseDirectory: OptionsMonitor.CurrentValue.Directories.Incomplete),
-                                    destinationDirectory: System.IO.Path.GetDirectoryName(file.Filename.ToLocalFilename(baseDirectory: OptionsMonitor.CurrentValue.Directories.Downloads)),
+                                    destinationDirectory: destinationDirectory,
                                     overwrite: false,
                                     deleteSourceDirectoryIfEmptyAfterMove: true);
 
