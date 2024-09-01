@@ -1,4 +1,4 @@
-// <copyright file="DownloadService.cs" company="slskd Team">
+﻿// <copyright file="DownloadService.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -329,13 +329,14 @@ namespace slskd.Transfers.Downloads
 
                                 Log.Debug("Moved file to {Destination}", finalFilename);
 
+                                // begin post-processing tasks; the file is downloaded, it has been removed from the client's download dictionary,
+                                // and the file has been moved from the incomplete directory to the downloads directory
                                 if (OptionsMonitor.CurrentValue.Relay.Enabled)
                                 {
                                     _ = Relay.NotifyFileDownloadCompleteAsync(finalFilename);
                                 }
 
-                                // todo: raise DOWNLOAD_FILE_COMPLETE
-                                Events.Raise(new DownloadFileCompleteEvent
+                                EventBus.Raise(new DownloadFileCompleteEvent
                                 {
                                     LocalFilename = finalFilename,
                                     RemoteFilename = transfer.Filename,
@@ -343,7 +344,24 @@ namespace slskd.Transfers.Downloads
                                     Transfer = transfer,
                                 });
 
-                                // todo: determine if there are any pending transfers in this same directory, and if not raise DOWNLOAD_DIRECTORY_COMPLETE
+                                // try to figure out if this file is the last of a directory, and if so, raise the associated
+                                // event. this can be tricky because we want to be sure that this is the last file in this specific
+                                // directory, excluding any pending downloads in a subdirectory.
+                                var remoteDirectorySeparator = transfer.Filename.GuessDirectorySeparator();
+                                var remoteDirectoryName = transfer.Filename.GetDirectoryName(directorySeparator: remoteDirectorySeparator);
+                                var pendingDownloadsInDirectory = Client.Downloads
+                                    .Where(t => t.Username == transfer.Username)
+                                    .Where(t => t.Filename.GetDirectoryName(directorySeparator: remoteDirectorySeparator) == remoteDirectoryName);
+
+                                if (!pendingDownloadsInDirectory.Any())
+                                {
+                                    EventBus.Raise(new DownloadDirectoryCompleteEvent
+                                    {
+                                        LocalDirectoryName = destinationDirectory,
+                                        RemoteDirectoryName = remoteDirectoryName,
+                                        Username = transfer.Username,
+                                    });
+                                }
 
                                 if (OptionsMonitor.CurrentValue.Integration.Ftp.Enabled)
                                 {
