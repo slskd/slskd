@@ -1,4 +1,4 @@
-﻿// <copyright file="DownloadService.cs" company="slskd Team">
+// <copyright file="DownloadService.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -29,6 +29,7 @@ namespace slskd.Transfers.Downloads
     using System.Threading.Tasks;
     using Microsoft.EntityFrameworkCore;
     using Serilog;
+    using slskd.Events;
     using slskd.Files;
     using slskd.Integrations.FTP;
     using slskd.Relay;
@@ -131,7 +132,7 @@ namespace slskd.Transfers.Downloads
             Files = fileService;
             FTP = ftpClient;
             Relay = relayService;
-            Events = eventBus;
+            EventBus = eventBus;
         }
 
         private ConcurrentDictionary<Guid, CancellationTokenSource> CancellationTokens { get; } = new ConcurrentDictionary<Guid, CancellationTokenSource>();
@@ -142,7 +143,7 @@ namespace slskd.Transfers.Downloads
         private IRelayService Relay { get; }
         private ILogger Log { get; } = Serilog.Log.ForContext<DownloadService>();
         private IOptionsMonitor<Options> OptionsMonitor { get; }
-        private EventBus Events { get; }
+        private EventBus EventBus { get; }
 
         /// <summary>
         ///     Adds the specified <paramref name="transfer"/>. Supersedes any existing record for the same file and username.
