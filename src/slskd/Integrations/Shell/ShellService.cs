@@ -20,6 +20,7 @@ namespace slskd.Integrations.Shell;
 using System;
 using System.Threading.Tasks;
 using Serilog;
+using slskd.Events;
 
 public class ShellService
 {
@@ -28,6 +29,7 @@ public class ShellService
         Events = eventBus;
 
         Events.Subscribe<DownloadFileCompleteEvent>(nameof(ShellService), HandleDownloadFileCompleteEvent);
+        Events.Subscribe<DownloadDirectoryCompleteEvent>(nameof(ShellService), HandleDownloadDirectoryCompleteEvent);
 
         Log.Debug("Shell service initialized");
     }
@@ -38,5 +40,10 @@ public class ShellService
     private async Task HandleDownloadFileCompleteEvent(DownloadFileCompleteEvent data)
     {
         Console.WriteLine("here is where we would call an external application!");
+    }
+
+    private async Task HandleDownloadDirectoryCompleteEvent(DownloadDirectoryCompleteEvent data)
+    {
+        Console.WriteLine("wow we downloaded a whole directory");
     }
 }
