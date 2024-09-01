@@ -93,6 +93,10 @@ public class EventBus
                     Task.Run(() => (subscriber.Value as Func<T, Task>)(data))
                         .ContinueWith(task => Log.Error(task.Exception, "Subscriber {Name} for {Type} encountered an error: {Message}", subscriber.Key, typeof(T), task.Exception.Message))));
         }
+        else
+        {
+            Log.Debug("No subscribers for {Type}", typeof(T));
+        }
     }
 
     /// <summary>
