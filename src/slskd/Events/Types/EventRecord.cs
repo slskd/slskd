@@ -24,7 +24,10 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
+using Microsoft.EntityFrameworkCore;
 
+[Index(nameof(Timestamp))]
+[Index(nameof(Type))]
 public record EventRecord
 {
     public DateTime Timestamp { get; init; } = DateTime.UtcNow;
