@@ -1323,6 +1323,12 @@ namespace slskd
             public FileRetentionOptions Files { get; init; } = new FileRetentionOptions();
 
             /// <summary>
+            ///     Gets the time to retain events, in days.
+            /// </summary>
+            [Range(1, maximum: int.MaxValue)]
+            public int Events { get; init; } = 30;
+
+            /// <summary>
             ///     Gets the time to retain logs, in days.
             /// </summary>
             [Range(1, maximum: int.MaxValue)]
