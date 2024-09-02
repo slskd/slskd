@@ -1,4 +1,4 @@
-// <copyright file="Application.cs" company="slskd Team">
+﻿// <copyright file="Application.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -40,6 +40,7 @@ namespace slskd
     using Serilog.Events;
     using slskd.Configuration;
     using slskd.Core.API;
+    using slskd.Events;
     using slskd.Files;
     using slskd.Integrations.Pushbullet;
     using slskd.Messaging;
@@ -97,6 +98,7 @@ namespace slskd
             IShareService shareService,
             IPushbulletService pushbulletService,
             IRelayService relayService,
+            EventService eventService,
             IHubContext<ApplicationHub> applicationHub,
             IHubContext<LogsHub> logHub)
         {
@@ -143,6 +145,8 @@ namespace slskd
 
             Shares = shareService;
             Shares.StateMonitor.OnChange(state => ShareState_OnChange(state));
+
+            Events = eventService;
 
             Transfers = transferService;
             BrowseTracker = browseTracker;
@@ -223,6 +227,7 @@ namespace slskd
         private IHubContext<LogsHub> LogHub { get; set; }
         private IUserService Users { get; set; }
         private IShareService Shares { get; set; }
+        private EventService Events { get; }
         private IRelayService Relay { get; set; }
         private IMemoryCache Cache { get; set; } = new MemoryCache(new MemoryCacheOptions());
         private IEnumerable<Regex> CompiledSearchResponseFilters { get; set; }
@@ -1008,6 +1013,7 @@ namespace slskd
 
         private void Clock_EveryHour(object sender, ClockEventArgs e)
         {
+            _ = Task.Run(() => Events.Prune(ageInDays: Options.Retention.Events));
             _ = Task.Run(() => MaybeRescanShares());
         }
 
