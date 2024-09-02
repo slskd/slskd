@@ -338,9 +338,9 @@ namespace slskd.Transfers.Downloads
 
                                 EventBus.Raise(new DownloadFileCompleteEvent
                                 {
+                                    Timestamp = transfer.EndedAt.Value,
                                     LocalFilename = finalFilename,
                                     RemoteFilename = transfer.Filename,
-                                    Username = transfer.Username,
                                     Transfer = transfer,
                                 });
 
@@ -357,9 +357,10 @@ namespace slskd.Transfers.Downloads
                                 {
                                     EventBus.Raise(new DownloadDirectoryCompleteEvent
                                     {
+                                        Timestamp = transfer.EndedAt.Value,
+                                        Username = transfer.Username,
                                         LocalDirectoryName = destinationDirectory,
                                         RemoteDirectoryName = remoteDirectoryName,
-                                        Username = transfer.Username,
                                     });
                                 }
 
