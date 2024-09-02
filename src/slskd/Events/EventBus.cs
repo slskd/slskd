@@ -22,7 +22,6 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore;
 using Serilog;
 
 /// <summary>
@@ -48,14 +47,14 @@ public class EventBus
     /// <summary>
     ///     Initializes a new instance of the <see cref="EventBus"/> class.
     /// </summary>
-    /// <param name="contextFactory"/>
-    public EventBus(IDbContextFactory<EventsDbContext> contextFactory)
+    /// <param name="eventService"/>
+    public EventBus(EventService eventService)
     {
-        ContextFactory = contextFactory;
+        Events = eventService;
     }
 
     private ILogger Log { get; } = Serilog.Log.ForContext<EventBus>();
-    private IDbContextFactory<EventsDbContext> ContextFactory { get; }
+    private EventService Events { get; }
 
     /// <summary>
     ///     Gets the internal list of event subscriptions.
@@ -77,9 +76,7 @@ public class EventBus
         Log.Debug("Handling {Type}: {Data}", typeof(T), data);
 
         // save the event to the database before broadcasting to consumers
-        var ctx = ContextFactory.CreateDbContext();
-        ctx.Add(EventRecord.From<T>(data));
-        ctx.SaveChanges();
+        Events.Add(EventRecord.From<T>(data));
 
         // broadcast the event in a fire-and-forget fashion
         // we don't need to wait for anything, just need to kick off the tasks
