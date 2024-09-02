@@ -28,7 +28,7 @@ using Microsoft.EntityFrameworkCore;
 
 [Index(nameof(Timestamp))]
 [Index(nameof(Type))]
-public record Event
+public record EventRecord
 {
     public DateTime Timestamp { get; init; } = DateTime.UtcNow;
     public string Type { get; private set; }
@@ -46,7 +46,7 @@ public record Event
     };
 
     /// <summary>
-    ///     Converts the specified event <paramref name="e"/> into an instance of <see cref="Event"/>
+    ///     Converts the specified event <paramref name="e"/> into an instance of <see cref="EventRecord"/>
     ///     for the purpose of database storage.
     /// </summary>
     /// <remarks>
@@ -58,8 +58,8 @@ public record Event
     /// <param name="e">The Event to convert.</param>
     /// <typeparam name="T">The specific type of the Event.</typeparam>
     /// <returns>The converted EventRecord.</returns>
-    public static Event From<T>(BaseEvent e)
-        where T : BaseEvent
+    public static EventRecord From<T>(Event e)
+        where T : Event
     {
         // this will be 'slskd.NameOfEvent'; we want to chop off 'slskd.' and 'Event' = 'NameOf'
         var type = e.GetType().Name.Split('.').TakeLast(1).First();
@@ -73,7 +73,7 @@ public record Event
         data.Remove(nameof(Id).ToLower());
         data.Remove(nameof(Data).ToLower());
 
-        return new Event
+        return new EventRecord
         {
             Timestamp = e.Timestamp,
             Type = type,
