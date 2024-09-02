@@ -20,20 +20,20 @@ namespace slskd.Events;
 using System;
 using slskd.Transfers;
 
-public record Event
+public abstract record BaseEvent
 {
     public Guid Id { get; } = Guid.NewGuid();
     public DateTime Timestamp { get; init; } = DateTime.UtcNow;
 }
 
-public sealed record DownloadFileCompleteEvent : Event
+public sealed record DownloadFileCompleteEvent : BaseEvent
 {
     public string LocalFilename { get; init; }
     public string RemoteFilename { get; init; }
     public Transfer Transfer { get; init; }
 }
 
-public sealed record DownloadDirectoryCompleteEvent : Event
+public sealed record DownloadDirectoryCompleteEvent : BaseEvent
 {
     public string LocalDirectoryName { get; init; }
     public string RemoteDirectoryName { get; init; }

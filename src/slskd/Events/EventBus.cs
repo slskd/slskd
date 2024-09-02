@@ -71,12 +71,12 @@ public class EventBus
     /// <param name="data">The event data.</param>
     /// <typeparam name="T">The Type of the event.</typeparam>
     public virtual void Raise<T>(T data)
-        where T : Event
+        where T : BaseEvent
     {
         Log.Debug("Handling {Type}: {Data}", typeof(T), data);
 
         // save the event to the database before broadcasting to consumers
-        Events.Add(EventRecord.From<T>(data));
+        Events.Add(Event.From<T>(data));
 
         // broadcast the event in a fire-and-forget fashion
         // we don't need to wait for anything, just need to kick off the tasks

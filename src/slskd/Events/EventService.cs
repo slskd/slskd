@@ -40,21 +40,21 @@ public class EventService
     private ILogger Log { get; } = Serilog.Log.ForContext<EventService>();
 
     /// <summary>
-    ///     Adds the specified event <paramref name="record"/>.
+    ///     Adds the specified event <paramref name="event"/>.
     /// </summary>
-    /// <param name="record">The record to add.</param>
+    /// <param name="event">The record to add.</param>
     /// <exception cref="ArgumentNullException">Thrown when the specified record is null.</exception>
-    public virtual void Add(EventRecord record)
+    public virtual void Add(Event @event)
     {
-        if (record is null)
+        if (@event is null)
         {
-            throw new ArgumentNullException(nameof(record));
+            throw new ArgumentNullException(nameof(@event));
         }
 
         try
         {
             using var context = ContextFactory.CreateDbContext();
-            context.Add(record);
+            context.Add(@event);
             context.SaveChanges();
         }
         catch (Exception ex)

@@ -1,4 +1,4 @@
-// <copyright file="EventRecord.cs" company="slskd Team">
+// <copyright file="Event.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -28,7 +28,7 @@ using Microsoft.EntityFrameworkCore;
 
 [Index(nameof(Timestamp))]
 [Index(nameof(Type))]
-public record EventRecord
+public record Event
 {
     public DateTime Timestamp { get; init; } = DateTime.UtcNow;
     public string Type { get; private set; }
@@ -46,7 +46,7 @@ public record EventRecord
     };
 
     /// <summary>
-    ///     Converts the specified event <paramref name="e"/> into an instance of <see cref="EventRecord"/>
+    ///     Converts the specified event <paramref name="e"/> into an instance of <see cref="Event"/>
     ///     for the purpose of database storage.
     /// </summary>
     /// <remarks>
@@ -58,12 +58,12 @@ public record EventRecord
     /// <param name="e">The Event to convert.</param>
     /// <typeparam name="T">The specific type of the Event.</typeparam>
     /// <returns>The converted EventRecord.</returns>
-    public static EventRecord From<T>(Event e)
-        where T : Event
+    public static Event From<T>(BaseEvent e)
+        where T : BaseEvent
     {
         // this will be 'slskd.NameOfEvent'; we want to chop off 'slskd.' and 'Event' = 'NameOf'
         var type = e.GetType().Name.Split('.').TakeLast(1).First();
-        type = type.Substring(0, type.Length - nameof(Event).Length);
+        type = type.Substring(0, type.Length - "Event".Length); // chop off "Event" suffix
 
         // construct the data for the record by serializing the event and removing redundant properties
         var json = JsonSerializer.Serialize(e as T, JsonSerializerOptions);
@@ -73,7 +73,7 @@ public record EventRecord
         data.Remove(nameof(Id).ToLower());
         data.Remove(nameof(Data).ToLower());
 
-        return new EventRecord
+        return new Event
         {
             Timestamp = e.Timestamp,
             Type = type,
