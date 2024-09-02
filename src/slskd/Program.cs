@@ -558,7 +558,6 @@ namespace slskd
             services.AddHostedService(p => p.GetRequiredService<IApplication>());
 
             services.AddSingleton<IWaiter, Waiter>();
-            services.AddSingleton<EventBus>();
 
             services.AddSingleton<IConnectionWatchdog, ConnectionWatchdog>();
 
@@ -580,6 +579,9 @@ namespace slskd
                 services.AddDbContext<MessagingDbContext>(DiskConnectionString("messaging"));
                 services.AddDbContext<EventsDbContext>(DiskConnectionString("events"));
             }
+
+            services.AddSingleton<EventService>();
+            services.AddSingleton<EventBus>();
 
             services.AddSingleton<IBrowseTracker, BrowseTracker>();
             services.AddSingleton<IRoomTracker, RoomTracker>(_ => new RoomTracker(messageLimit: 250));
