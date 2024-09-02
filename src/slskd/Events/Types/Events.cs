@@ -15,7 +15,7 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-namespace slskd;
+namespace slskd.Events;
 
 using System;
 using slskd.Transfers;
@@ -23,14 +23,13 @@ using slskd.Transfers;
 public record Event
 {
     public Guid Id { get; } = Guid.NewGuid();
-    public DateTime Timestamp { get; } = DateTime.UtcNow;
+    public DateTime Timestamp { get; init; } = DateTime.UtcNow;
 }
 
 public sealed record DownloadFileCompleteEvent : Event
 {
     public string LocalFilename { get; init; }
     public string RemoteFilename { get; init; }
-    public string Username { get; init; }
     public Transfer Transfer { get; init; }
 }
 
