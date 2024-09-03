@@ -76,7 +76,7 @@ jobs:
           echo "VERSION=$(git describe --tags --abbrev=0).$([[ $GITHUB_REF = refs/tags/* ]] && echo 0 || echo 65534)+$(git rev-parse --short HEAD)" >> $GITHUB_ENV
 
       - name: Download Static Web Content
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4.1.7
         with:
           name: web-${{ env.VERSION }}
           path: src/slskd/wwwroot
@@ -199,7 +199,7 @@ jobs:
           echo "TAG=$(git describe --tags --abbrev=0)" >> $GITHUB_ENV
           echo "VERSION=$(git describe --tags --abbrev=0).$([[ $GITHUB_REF = refs/tags/* ]] && echo 0 || echo 65534)+$(git rev-parse --short HEAD)" >> $GITHUB_ENV
       - name: Download ${{ matrix.runtime }} Binaries
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4.1.7
         with:
           name: slskd-${{ env.VERSION }}-${{ matrix.runtime }}
           path: dist/${{ matrix.runtime }}
