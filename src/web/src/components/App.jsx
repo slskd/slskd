@@ -136,18 +136,21 @@ class App extends Component {
   }
 
   componentDidMount() {
-    window
-      .matchMedia('(prefers-color-scheme: dark)')
-      .addEventListener(
-        'change',
-        (event) => event.matches && this.setState({ theme: 'dark' }),
-      );
-    window
-      .matchMedia('(prefers-color-scheme: light)')
-      .addEventListener(
-        'change',
-        (event) => event.matches && this.setState({ theme: 'light' }),
-      );
+    if (this.getSavedTheme() == null) {
+      window
+        .matchMedia('(prefers-color-scheme: dark)')
+        .addEventListener(
+          'change',
+          (event) => event.matches && this.setState({ theme: 'dark' }),
+        );
+      window
+        .matchMedia('(prefers-color-scheme: light)')
+        .addEventListener(
+          'change',
+          (event) => event.matches && this.setState({ theme: 'light' }),
+        );
+
+    }
     this.init();
   }
 
@@ -185,6 +188,11 @@ class App extends Component {
           await appHub.start();
         }
 
+        let savedTheme = this.getSavedTheme();
+        if (savedTheme != null) {
+          this.setState({theme: savedTheme});
+        }
+
         this.setState({
           error: false,
         });
@@ -195,6 +203,18 @@ class App extends Component {
         this.setState({ initialized: true });
       }
     });
+  };
+
+  getSavedTheme = () => {
+    return localStorage.getItem("slskd-theme");
+  };
+
+  toggleTheme = () => {
+    this.setState((state) => {
+      let newTheme = state.theme === 'dark' ? 'light' : 'dark';
+      localStorage.setItem("slskd-theme", newTheme);
+      return {theme: newTheme}
+    })
   };
 
   handleLogin = (username, password, rememberMe) => {
@@ -238,9 +258,9 @@ class App extends Component {
       initialized,
       login,
       retriesExhausted,
-      theme = window.matchMedia('(prefers-color-scheme: dark)').matches
+      theme = this.getSavedTheme() || (window.matchMedia('(prefers-color-scheme: dark)').matches
         ? 'dark'
-        : 'light',
+        : 'light'),
     } = this.state;
     const {
       pendingReconnect,
@@ -384,9 +404,7 @@ class App extends Component {
               inverted
             >
               <Menu.Item
-                onClick={() =>
-                  this.setState({ theme: theme === 'dark' ? 'light' : 'dark' })
-                }
+                onClick={() => this.toggleTheme()}
               >
                 <Icon name="theme" />
                 Theme
