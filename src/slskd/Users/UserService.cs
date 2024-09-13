@@ -334,7 +334,7 @@ namespace slskd.Users
         public async Task WatchAsync(string username)
         {
             // watch the user, server side
-            await Client.AddUserAsync(username);
+            await Client.WatchUserAsync(username);
             UserDictionary.TryAdd(username, new User { Username = username });
 
             Log.Information("Added user {Username} to watch list", username);
