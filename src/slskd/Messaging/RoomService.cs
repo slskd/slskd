@@ -70,7 +70,7 @@ namespace slskd.Messaging
         /// <param name="optionsMonitor"></param>
         /// <param name="stateMutator"></param>
         /// <param name="roomTracker"></param>
-        /// <param name="userService"></param> 
+        /// <param name="userService"></param>
         public RoomService(
             ISoulseekClient soulseekClient,
             IOptionsMonitor<Options> optionsMonitor,
