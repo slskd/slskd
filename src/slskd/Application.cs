@@ -941,9 +941,9 @@ namespace slskd
 
         private void Client_RoomMessageReceived(object sender, RoomMessageReceivedEventArgs args)
         {
+            // note: this event is also subscribed in the RoomService class
             if (Users.IsBlacklisted(args.Username))
             {
-                Log.Debug("Ignored message from blacklisted user {Username} in {Room}: {Message}", args.Username, args.RoomName, args.Message);
                 return;
             }
 
