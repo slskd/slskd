@@ -1013,7 +1013,6 @@ namespace slskd
 
         private void Clock_EveryHour(object sender, ClockEventArgs e)
         {
-            _ = Task.Run(() => Events.Prune(ageInDays: Options.Retention.Events));
             _ = Task.Run(() => MaybeRescanShares());
         }
 

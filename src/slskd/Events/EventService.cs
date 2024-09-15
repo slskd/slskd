@@ -66,33 +66,4 @@ public class EventService
             throw;
         }
     }
-
-    /// <summary>
-    ///     Removes event records older than the specified <paramref name="ageInDays"/>.
-    /// </summary>
-    /// <param name="ageInDays">The age after which event records are eligible for pruning, in days.</param>
-    /// <returns>The number of pruned event records.</returns>
-    public virtual int Prune(int ageInDays)
-    {
-        try
-        {
-            using var context = ContextFactory.CreateDbContext();
-
-            var cutoffDateTime = DateTime.UtcNow.AddDays(-ageInDays);
-
-            var pruned = context.Events.Where(e => e.Timestamp < cutoffDateTime).ExecuteDelete();
-
-            if (pruned > 0)
-            {
-                Log.Debug("Pruned {Count} expired events", pruned);
-            }
-
-            return pruned;
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "Failed to prune events: {Message}", ex.Message);
-            throw;
-        }
-    }
 }
