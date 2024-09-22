@@ -41,14 +41,14 @@ public class EventService
     private ILogger Log { get; } = Serilog.Log.ForContext<EventService>();
 
     /// <summary>
-    ///     Gets a paginated list of events.
+    ///     Gets list of events, optionally applying the specified <paramref name="offset"/> and <paramref name="limit"/>.
     /// </summary>
     /// <param name="offset">The beginning offset for the page.</param>
     /// <param name="limit">The page size limit.</param>
     /// <returns>The retrieved list.</returns>
     /// <exception cref="ArgumentOutOfRangeException">Thrown when the specified <paramref name="offset"/> is less than zero.</exception>
     /// <exception cref="ArgumentOutOfRangeException">Thrown when the specified <paramref name="limit"/> is zero.</exception>
-    public virtual IReadOnlyCollection<EventRecord> GetPage(int offset = 0, int limit = 100)
+    public virtual IReadOnlyCollection<EventRecord> Get(int offset = 0, int limit = int.MaxValue)
     {
         if (offset < 0)
         {
