@@ -15,12 +15,14 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
+namespace slskd.Events;
+
 using System;
+using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
-
-namespace slskd.Events;
 
 /// <summary>
 ///     Manages events.
@@ -38,6 +40,39 @@ public class EventService
 
     private IDbContextFactory<EventsDbContext> ContextFactory { get; }
     private ILogger Log { get; } = Serilog.Log.ForContext<EventService>();
+
+    /// <summary>
+    ///     Gets a paginated list of events.
+    /// </summary>
+    /// <param name="offset">The beginning offset for the page.</param>
+    /// <param name="limit">The page size limit.</param>
+    /// <returns>The retrieved list.</returns>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when the specified <paramref name="offset"/> is less than zero.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when the specified <paramref name="limit"/> is zero.</exception>
+    public virtual async Task<IReadOnlyCollection<EventRecord>> Get(int offset = 0, int limit = 100)
+    {
+        if (offset < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(offset), "Offset must be greater than or equal to zero");
+        }
+
+        if (limit <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(limit), "Limit must be greater than zero");
+        }
+
+        try
+        {
+            using var context = ContextFactory.CreateDbContext();
+            var events = context.Events.Skip(offset).Take(limit).ToList();
+            return events;
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to get event records with options {Options}: {Message}", new { offset, limit }, ex.Message);
+            throw;
+        }
+    }
 
     /// <summary>
     ///     Adds the specified event <paramref name="eventRecord"/>.
