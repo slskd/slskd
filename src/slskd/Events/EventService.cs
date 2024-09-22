@@ -20,7 +20,6 @@ namespace slskd.Events;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 
@@ -49,7 +48,7 @@ public class EventService
     /// <returns>The retrieved list.</returns>
     /// <exception cref="ArgumentOutOfRangeException">Thrown when the specified <paramref name="offset"/> is less than zero.</exception>
     /// <exception cref="ArgumentOutOfRangeException">Thrown when the specified <paramref name="limit"/> is zero.</exception>
-    public virtual async Task<IReadOnlyCollection<EventRecord>> Get(int offset = 0, int limit = 100)
+    public virtual IReadOnlyCollection<EventRecord> GetPage(int offset = 0, int limit = 100)
     {
         if (offset < 0)
         {
