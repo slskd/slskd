@@ -57,11 +57,9 @@ namespace slskd
     using slskd.Core.API;
     using slskd.Cryptography;
     using slskd.Events;
-
     using slskd.Files;
     using slskd.Integrations.FTP;
     using slskd.Integrations.Pushbullet;
-    using slskd.Integrations.Shell;
     using slskd.Messaging;
     using slskd.Relay;
     using slskd.Search;
@@ -486,9 +484,6 @@ namespace slskd
 
                 var app = builder.Build();
 
-                // hack: nothing depends on ShellService but we need to initialize it
-                _ = app.Services.GetService<ShellService>();
-
                 app.ConfigureAspDotNetPipeline();
 
                 if (OptionsAtStartup.Flags.NoStart)
@@ -604,8 +599,6 @@ namespace slskd
             services.AddSingleton<FileService>();
 
             services.AddSingleton<IRelayService, RelayService>();
-
-            services.AddSingleton<ShellService>();
 
             services.AddSingleton<IFTPClientFactory, FTPClientFactory>();
             services.AddSingleton<IFTPService, FTPService>();
