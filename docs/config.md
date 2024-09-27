@@ -815,6 +815,7 @@ The application can produce a self-signed `.pfx` file and random password using 
 ```yaml
 web:
   https:
+    disabled: false
     port: 5031
     force: false
     certificate:
