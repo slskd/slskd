@@ -40,15 +40,19 @@ const Events = () => {
   return (
     <>
       <Table
-        className="events-table"
+        className="events-table, unstackable"
         compact="very"
       >
         <Table.Header>
           <Table.Row>
-            <Table.HeaderCell classname="">Id</Table.HeaderCell>
-            <Table.HeaderCell classname="">Timestamp</Table.HeaderCell>
+            <Table.HeaderCell className="events-list-id">Id</Table.HeaderCell>
+            <Table.HeaderCell className="events-list-timestamp">
+              Timestamp
+            </Table.HeaderCell>
             <Table.HeaderCell classname="">Type</Table.HeaderCell>
-            <Table.HeaderCell classname="">Data</Table.HeaderCell>
+            <Table.HeaderCell className="events-list-data">
+              Data
+            </Table.HeaderCell>
           </Table.Row>
         </Table.Header>
         <Table.Body className="events-table-body">
@@ -80,7 +84,7 @@ const Events = () => {
                 <Table.Cell>{event.timestamp}</Table.Cell>
                 <Table.Cell>{event.type}</Table.Cell>
                 <Table.Cell className="events-table-data">
-                  {event.data}
+                  {event.data.slice(0, 10)}
                 </Table.Cell>
               </Table.Row>
             ))

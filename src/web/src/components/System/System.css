@@ -24,6 +24,18 @@
   white-space: pre;
 }
 
+.events-list-id {
+  width: 0px; /* small as possible */
+}
+
+.events-list-timestamp {
+  width: 233px;
+}
+
+.events-list-data {
+  width: 200px;
+}
+
 .logs {
   min-height: 100px;
 }
