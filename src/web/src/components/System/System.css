@@ -8,16 +8,20 @@
   margin-bottom: 16px;
 }
 
-.logs-table {
+.logs-table, .events-table {
   font-size: smaller;
 }
 
-.logs-table-body {
+.logs-table-body, .events-table-body {
   font-family: monospace;
 }
 
 .logs-table-message {
   word-break: break-all;
+}
+
+.events-table-data {
+  white-space: pre;
 }
 
 .logs {
