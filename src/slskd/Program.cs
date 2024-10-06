@@ -640,7 +640,7 @@ namespace slskd
                 .AllowAnyHeader()
                 .AllowAnyMethod()
                 .AllowCredentials()
-                .WithExposedHeaders("X-URL-Base")));
+                .WithExposedHeaders("X-URL-Base", "X-Total-Count")));
 
             services.AddSystemMetrics();
             using var runtimeMetrics = DotNetRuntimeStatsBuilder.Default().StartCollecting();
