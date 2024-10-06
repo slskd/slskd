@@ -29,6 +29,7 @@ namespace slskd.Transfers.Downloads
     using System.Threading.Tasks;
     using Microsoft.EntityFrameworkCore;
     using Serilog;
+    using slskd.Events;
     using slskd.Files;
     using slskd.Integrations.FTP;
     using slskd.Relay;
@@ -122,7 +123,8 @@ namespace slskd.Transfers.Downloads
             IDbContextFactory<TransfersDbContext> contextFactory,
             FileService fileService,
             IRelayService relayService,
-            IFTPService ftpClient)
+            IFTPService ftpClient,
+            EventBus eventBus)
         {
             Client = soulseekClient;
             OptionsMonitor = optionsMonitor;
@@ -130,6 +132,7 @@ namespace slskd.Transfers.Downloads
             Files = fileService;
             FTP = ftpClient;
             Relay = relayService;
+            EventBus = eventBus;
         }
 
         private ConcurrentDictionary<Guid, CancellationTokenSource> CancellationTokens { get; } = new ConcurrentDictionary<Guid, CancellationTokenSource>();
@@ -140,6 +143,7 @@ namespace slskd.Transfers.Downloads
         private IRelayService Relay { get; }
         private ILogger Log { get; } = Serilog.Log.ForContext<DownloadService>();
         private IOptionsMonitor<Options> OptionsMonitor { get; }
+        private EventBus EventBus { get; }
 
         /// <summary>
         ///     Adds the specified <paramref name="transfer"/>. Supersedes any existing record for the same file and username.
@@ -281,7 +285,7 @@ namespace slskd.Transfers.Downloads
                                     {
                                         transfer = transfer.WithSoulseekTransfer(args.Transfer);
 
-                                        // todo: broadcast
+                                        // todo: broadcast to signalr hub
                                         SynchronizedUpdate(transfer);
                                     }));
 
@@ -312,23 +316,52 @@ namespace slskd.Transfers.Downloads
 
                                 transfer = transfer.WithSoulseekTransfer(completedTransfer);
 
-                                // todo: broadcast
+                                // todo: broadcast to signalr hub
                                 SynchronizedUpdate(transfer, cancellable: false);
 
-                                // this would be the ideal place to hook in a generic post-download task processor for now, we'll
-                                // just carry out hard coded behavior. these carry the risk of failing the transfer, and i could
-                                // argue both ways for that being the correct behavior. revisit this later.
+                                var destinationDirectory = System.IO.Path.GetDirectoryName(file.Filename.ToLocalFilename(baseDirectory: OptionsMonitor.CurrentValue.Directories.Downloads));
+
                                 var finalFilename = Files.MoveFile(
                                     sourceFilename: file.Filename.ToLocalFilename(baseDirectory: OptionsMonitor.CurrentValue.Directories.Incomplete),
-                                    destinationDirectory: System.IO.Path.GetDirectoryName(file.Filename.ToLocalFilename(baseDirectory: OptionsMonitor.CurrentValue.Directories.Downloads)),
+                                    destinationDirectory: destinationDirectory,
                                     overwrite: false,
                                     deleteSourceDirectoryIfEmptyAfterMove: true);
 
                                 Log.Debug("Moved file to {Destination}", finalFilename);
 
+                                // begin post-processing tasks; the file is downloaded, it has been removed from the client's download dictionary,
+                                // and the file has been moved from the incomplete directory to the downloads directory
                                 if (OptionsMonitor.CurrentValue.Relay.Enabled)
                                 {
                                     _ = Relay.NotifyFileDownloadCompleteAsync(finalFilename);
+                                }
+
+                                EventBus.Raise(new DownloadFileCompleteEvent
+                                {
+                                    Timestamp = transfer.EndedAt.Value,
+                                    LocalFilename = finalFilename,
+                                    RemoteFilename = transfer.Filename,
+                                    Transfer = transfer,
+                                });
+
+                                // try to figure out if this file is the last of a directory, and if so, raise the associated
+                                // event. this can be tricky because we want to be sure that this is the last file in this specific
+                                // directory, excluding any pending downloads in a subdirectory.
+                                var remoteDirectorySeparator = transfer.Filename.GuessDirectorySeparator();
+                                var remoteDirectoryName = transfer.Filename.GetDirectoryName(directorySeparator: remoteDirectorySeparator);
+                                var pendingDownloadsInDirectory = Client.Downloads
+                                    .Where(t => t.Username == transfer.Username)
+                                    .Where(t => t.Filename.GetDirectoryName(directorySeparator: remoteDirectorySeparator) == remoteDirectoryName);
+
+                                if (!pendingDownloadsInDirectory.Any())
+                                {
+                                    EventBus.Raise(new DownloadDirectoryCompleteEvent
+                                    {
+                                        Timestamp = transfer.EndedAt.Value,
+                                        Username = transfer.Username,
+                                        LocalDirectoryName = destinationDirectory,
+                                        RemoteDirectoryName = remoteDirectoryName,
+                                    });
                                 }
 
                                 if (OptionsMonitor.CurrentValue.Integration.Ftp.Enabled)
@@ -342,7 +375,7 @@ namespace slskd.Transfers.Downloads
                                 transfer.Exception = ex.Message;
                                 transfer.State = TransferStates.Completed | TransferStates.Cancelled;
 
-                                // todo: broadcast
+                                // todo: broadcast to signalr hub
                                 SynchronizedUpdate(transfer, cancellable: false);
 
                                 throw;
@@ -355,7 +388,7 @@ namespace slskd.Transfers.Downloads
                                 transfer.Exception = ex.Message;
                                 transfer.State = TransferStates.Completed | TransferStates.Errored;
 
-                                // todo: broadcast
+                                // todo: broadcast to signalr hub
                                 SynchronizedUpdate(transfer, cancellable: false);
 
                                 throw;

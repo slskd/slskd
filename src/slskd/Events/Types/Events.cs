@@ -1,4 +1,4 @@
-﻿// <copyright file="Upload.cs" company="slskd Team">
+// <copyright file="Events.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -15,19 +15,27 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-namespace slskd.Transfers
-{
-    using System;
-    using System.Threading.Tasks;
+namespace slskd.Events;
 
-    public sealed class Upload
-    {
-        public DateTime Enqueued { get; set; } = DateTime.UtcNow;
-        public string Filename { get; set; }
-        public string Group { get; set; }
-        public DateTime? Ready { get; set; } = null;
-        public DateTime? Started { get; set; } = null;
-        public TaskCompletionSource TaskCompletionSource { get; set; } = new TaskCompletionSource();
-        public string Username { get; set; }
-    }
+using System;
+using slskd.Transfers;
+
+public abstract record Event
+{
+    public Guid Id { get; } = Guid.NewGuid();
+    public DateTime Timestamp { get; init; } = DateTime.UtcNow;
+}
+
+public sealed record DownloadFileCompleteEvent : Event
+{
+    public string LocalFilename { get; init; }
+    public string RemoteFilename { get; init; }
+    public Transfer Transfer { get; init; }
+}
+
+public sealed record DownloadDirectoryCompleteEvent : Event
+{
+    public string LocalDirectoryName { get; init; }
+    public string RemoteDirectoryName { get; init; }
+    public string Username { get; init; }
 }

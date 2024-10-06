@@ -1,4 +1,4 @@
-﻿// <copyright file="Upload.cs" company="slskd Team">
+// <copyright file="EventsDbContext.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -15,19 +15,26 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-namespace slskd.Transfers
-{
-    using System;
-    using System.Threading.Tasks;
+namespace slskd.Events;
 
-    public sealed class Upload
+using System;
+using Microsoft.EntityFrameworkCore;
+
+public class EventsDbContext : DbContext
+{
+    public EventsDbContext(DbContextOptions<EventsDbContext> options)
+        : base(options)
     {
-        public DateTime Enqueued { get; set; } = DateTime.UtcNow;
-        public string Filename { get; set; }
-        public string Group { get; set; }
-        public DateTime? Ready { get; set; } = null;
-        public DateTime? Started { get; set; } = null;
-        public TaskCompletionSource TaskCompletionSource { get; set; } = new TaskCompletionSource();
-        public string Username { get; set; }
+        Database.EnsureCreated();
+    }
+
+    public DbSet<EventRecord> Events { get; set; }
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        modelBuilder
+            .Entity<EventRecord>()
+            .Property(e => e.Timestamp)
+            .HasConversion(v => v, v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
     }
 }

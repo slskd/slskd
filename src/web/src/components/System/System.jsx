@@ -1,6 +1,7 @@
 import './System.css';
 import { Switch } from '../Shared';
 import Data from './Data';
+import Events from './Events';
 import Files from './Files';
 import Info from './Info';
 import Logs from './Logs';
@@ -119,6 +120,19 @@ const System = ({ options = {}, state = {}, theme }) => {
         </Tab.Pane>
       ),
       route: 'data',
+    },
+    {
+      menuItem: {
+        content: 'Events',
+        icon: 'calendar check',
+        key: 'events',
+      },
+      render: () => (
+        <Tab.Pane className="full-height">
+          <Events />
+        </Tab.Pane>
+      ),
+      route: 'events',
     },
     {
       menuItem: {
