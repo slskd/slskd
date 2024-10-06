@@ -63,7 +63,13 @@ public class EventService
         try
         {
             using var context = ContextFactory.CreateDbContext();
-            var events = context.Events.Skip(offset).Take(limit).ToList();
+
+            var events = context.Events
+                .OrderByDescending(e => e.Timestamp)
+                .Skip(offset)
+                .Take(limit)
+                .ToList();
+
             return events;
         }
         catch (Exception ex)
