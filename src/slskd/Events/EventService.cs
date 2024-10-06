@@ -74,6 +74,25 @@ public class EventService
     }
 
     /// <summary>
+    ///     Gets the total number of events.
+    /// </summary>
+    /// <returns>The total number of events.</returns>
+    public virtual int Count()
+    {
+        try
+        {
+            using var context = ContextFactory.CreateDbContext();
+            var count = context.Events.Count();
+            return count;
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to count event records: {Message}", ex.Message);
+            throw;
+        }
+    }
+
+    /// <summary>
     ///     Adds the specified event <paramref name="eventRecord"/>.
     /// </summary>
     /// <remarks>

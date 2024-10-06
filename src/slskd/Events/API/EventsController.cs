@@ -19,6 +19,7 @@ namespace slskd.Events.API;
 
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Serilog;
 
@@ -56,6 +57,10 @@ public class EventsController : ControllerBase
         }
 
         var events = Events.Get(offset, limit);
+        var count = Events.Count();
+
+        Response.Headers.Append("X-Total-Count", count.ToString());
+
         return Ok(events);
     }
 }
