@@ -3,30 +3,38 @@ import { LoaderSegment } from '../../Shared';
 import React, { useEffect, useState } from 'react';
 import { Icon, Pagination, Popup, Table } from 'semantic-ui-react';
 
-const PER_PAGE = 50;
+const PER_PAGE = 10;
+
+const replaceHyphensWithNonBreakingEquivalent = (string) =>
+  string?.replaceAll('-', '‑');
 
 const Events = () => {
   const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
   const [loading, setLoading] = useState(false);
   const [events, setEvents] = useState([]);
 
   const fetch = async () => {
     setLoading(true);
 
-    const eventResult = await list({
+    const { events: items, totalCount } = await list({
       limit: PER_PAGE,
       offset: (page - 1) * PER_PAGE,
     });
 
-    setEvents(eventResult);
+    const tp = Math.ceil(totalCount / PER_PAGE);
+
+    setEvents(items);
+    setTotalPages(Number.isNaN(tp) ? 0 : tp);
     setLoading(false);
 
-    return eventResult;
+    return items;
   };
 
   const paginationChanged = ({ activePage }) => {
-    console.log(activePage);
-    setPage(activePage);
+    if (activePage >= 1) {
+      setPage(activePage);
+    }
   };
 
   useEffect(() => {
@@ -39,6 +47,14 @@ const Events = () => {
 
   return (
     <>
+      <div className="header-buttons">
+        <Pagination
+          activePage={page}
+          className="header-buttons"
+          onPageChange={(event, data) => paginationChanged({ ...data })}
+          totalPages={totalPages}
+        />
+      </div>
       <Table
         className="events-table, unstackable"
         compact="very"
@@ -49,7 +65,9 @@ const Events = () => {
             <Table.HeaderCell className="events-list-timestamp">
               Timestamp
             </Table.HeaderCell>
-            <Table.HeaderCell classname="">Type</Table.HeaderCell>
+            <Table.HeaderCell className="events-list-type">
+              Type
+            </Table.HeaderCell>
             <Table.HeaderCell className="events-list-data">
               Data
             </Table.HeaderCell>
@@ -81,21 +99,18 @@ const Events = () => {
                     wide="very"
                   />
                 </Table.Cell>
-                <Table.Cell>{event.timestamp}</Table.Cell>
+                <Table.Cell>
+                  {replaceHyphensWithNonBreakingEquivalent(event.timestamp)}
+                </Table.Cell>
                 <Table.Cell>{event.type}</Table.Cell>
                 <Table.Cell className="events-table-data">
-                  {event.data.slice(0, 10)}
+                  {JSON.stringify(JSON.parse(event.data), null, 2)}
                 </Table.Cell>
               </Table.Row>
             ))
           )}
         </Table.Body>
       </Table>
-      <Pagination
-        activePage={page}
-        onPageChange={(event, data) => paginationChanged({ ...data })}
-        totalPages={100}
-      />
     </>
   );
 };

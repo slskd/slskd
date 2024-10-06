@@ -20,20 +20,16 @@
   word-break: break-all;
 }
 
-.events-table-data {
-  white-space: pre;
-}
-
 .events-list-id {
-  width: 0px; /* small as possible */
+  width: 0px; /* shrink to fit */
 }
 
 .events-list-timestamp {
-  width: 233px;
+  width: 0px; /* shrink to fit */
 }
 
-.events-list-data {
-  width: 200px;
+.events-list-type {
+  width: 0px; /* shrink to fit */
 }
 
 .logs {

@@ -124,7 +124,7 @@ const System = ({ options = {}, state = {}, theme }) => {
     {
       menuItem: {
         content: 'Events',
-        icon: 'history',
+        icon: 'calendar check',
         key: 'events',
       },
       render: () => (
