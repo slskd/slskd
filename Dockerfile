@@ -58,7 +58,7 @@ VOLUME /app
 
 HEALTHCHECK --interval=60s --timeout=3s --start-period=5s --retries=3 CMD wget -q -O - http://localhost:${SLSKD_HTTP_PORT}/health
 
-ENV COMPlus_EnableDiagnostics=0 \
+ENV DOTNET_EnableDiagnostics=0 \
   DOTNET_BUNDLE_EXTRACT_BASE_DIR=/.net \
   DOTNET_gcServer=0 \
   DOTNET_gcConcurrent=1 \
