@@ -233,3 +233,13 @@
 #     notify_on_room_mention: true
 #     retry_attempts: 3
 #     cooldown_time: 900000
+# scripts:
+#   my_post_download_script:
+#     on:
+#       - DownloadFileComplete
+#       - DownloadDirectoryComplete
+#     run: data/my_script.sh --json-to-process $EVENT
+#   my_logging_script:
+#     on:
+#      - All
+#     run: data/log_slskd_events.sh $EVENT
