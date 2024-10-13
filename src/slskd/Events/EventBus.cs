@@ -78,7 +78,7 @@ public class EventBus
         // save the event to the database before broadcasting to consumers
         Events.Add(EventRecord.From<T>(data));
 
-        // broadcast the event in a fire-and-forget fashion
+        // broadcast the event to granular subscribers in a fire-and-forget fashion
         // we don't need to wait for anything, just need to kick off the tasks
         // if something throws it will be logged and the consumer can figure it out
         if (Subscriptions.TryGetValue(typeof(T), out var subscribers))
@@ -93,6 +93,17 @@ public class EventBus
         else
         {
             Log.Debug("No subscribers for {Type}", typeof(T));
+        }
+
+        // broadcast the event to catch-all subscribers of type Event; listening for all types
+        if (Subscriptions.TryGetValue(typeof(Event), out subscribers))
+        {
+            Log.Debug("{Count} catch-all subscriber(s) for {Type}: {Names}", subscribers.Count, typeof(Event), string.Join(", ", subscribers.Keys));
+
+            // we don't care about any of these tasks; contractually we are only obligated to invoke them
+            _ = Task.WhenAll(subscribers.Select(subscriber =>
+                    Task.Run(() => (subscriber.Value as Func<Event, Task>)(data))
+                        .ContinueWith(task => Log.Error(task.Exception, "Catch-All Subscriber {Name} for {Type} encountered an error: {Message}", subscriber.Key, typeof(Event), task.Exception.Message))));
         }
     }
 
