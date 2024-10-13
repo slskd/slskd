@@ -30,7 +30,7 @@ public abstract record Event
 public enum EventType
 {
     None = 0,
-    All = 1,
+    Any = 1,
     DownloadFileComplete = 2,
     DownloadDirectoryComplete = 3,
 }

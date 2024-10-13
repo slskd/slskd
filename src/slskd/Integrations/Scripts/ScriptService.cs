@@ -20,6 +20,7 @@ using Microsoft.Extensions.Options;
 namespace slskd.Integrations.Scripts;
 
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 using Serilog;
 using slskd.Events;
@@ -45,6 +46,18 @@ public class ScriptService
 
     private async Task HandleEvent(Event data)
     {
-        Console.WriteLine($"--------------------{nameof(HandleEvent)}");
+        Log.Debug("Handling event {Event}", data);
+
+        bool EqualsThisEvent(string type) => type.Equals(data.Type.ToString(), StringComparison.OrdinalIgnoreCase);
+        bool EqualsLiterallyAnyEvent(string type) => type.Equals(EventType.Any.ToString(), StringComparison.OrdinalIgnoreCase);
+
+        var options = OptionsMonitor.CurrentValue;
+        var scriptsTriggeredByThisEventType = options.Integration.Scripts
+            .Where(kvp => kvp.Value.On.Any(EqualsThisEvent) || kvp.Value.On.Any(EqualsLiterallyAnyEvent));
+
+        foreach (var script in scriptsTriggeredByThisEventType)
+        {
+            Console.WriteLine($"--------------------{script.Key}");
+        }
     }
 }
