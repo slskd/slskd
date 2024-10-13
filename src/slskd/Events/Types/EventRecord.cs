@@ -19,7 +19,6 @@ namespace slskd.Events;
 
 using System;
 using System.ComponentModel.DataAnnotations;
-using System.Linq;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -31,7 +30,7 @@ using Microsoft.EntityFrameworkCore;
 public record EventRecord
 {
     public DateTime Timestamp { get; init; } = DateTime.UtcNow;
-    public string Type { get; private set; }
+    public EventType Type { get; private set; }
     public string Data { get; init; }
     [Key]
     public Guid Id { get; private set; }
@@ -61,10 +60,6 @@ public record EventRecord
     public static EventRecord From<T>(Event e)
         where T : Event
     {
-        // this will be 'slskd.NameOfEvent'; we want to chop off 'slskd.' and 'Event' = 'NameOf'
-        var type = e.GetType().Name.Split('.').TakeLast(1).First();
-        type = type.Substring(0, type.Length - "Event".Length); // chop off "Event" suffix
-
         // construct the data for the record by serializing the event and removing redundant properties
         var json = JsonSerializer.Serialize(e as T, JsonSerializerOptions);
         var data = JsonNode.Parse(json).AsObject();
@@ -76,7 +71,7 @@ public record EventRecord
         return new EventRecord
         {
             Timestamp = e.Timestamp,
-            Type = type,
+            Type = e.Type,
             Id = e.Id,
             Data = data.ToJsonString(JsonSerializerOptions),
         };

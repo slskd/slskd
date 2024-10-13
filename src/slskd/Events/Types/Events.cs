@@ -24,10 +24,20 @@ public abstract record Event
 {
     public Guid Id { get; } = Guid.NewGuid();
     public DateTime Timestamp { get; init; } = DateTime.UtcNow;
+    public abstract EventType Type { get; }
+}
+
+public enum EventType
+{
+    None = 0,
+    All = 1,
+    DownloadFileComplete = 2,
+    DownloadDirectoryComplete = 3,
 }
 
 public sealed record DownloadFileCompleteEvent : Event
 {
+    public override EventType Type => EventType.DownloadFileComplete;
     public string LocalFilename { get; init; }
     public string RemoteFilename { get; init; }
     public Transfer Transfer { get; init; }
@@ -35,6 +45,7 @@ public sealed record DownloadFileCompleteEvent : Event
 
 public sealed record DownloadDirectoryCompleteEvent : Event
 {
+    public override EventType Type => EventType.DownloadDirectoryComplete;
     public string LocalDirectoryName { get; init; }
     public string RemoteDirectoryName { get; init; }
     public string Username { get; init; }
