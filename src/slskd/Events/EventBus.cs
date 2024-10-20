@@ -83,7 +83,7 @@ public class EventBus
         // if something throws it will be logged and the consumer can figure it out
         if (Subscriptions.TryGetValue(typeof(T), out var subscribers))
         {
-            Log.Debug("{Count} subscriber(s) for {Type}: {Names}", subscribers.Count, typeof(T), string.Join(", ", subscribers.Keys));
+            Log.Debug("{Count} subscriber(s) for {Type}: {Names}", subscribers.Count, data.Type, string.Join(", ", subscribers.Keys));
 
             // we don't care about any of these tasks; contractually we are only obligated to invoke them
             _ = Task.WhenAll(subscribers.Select(subscriber =>
@@ -98,7 +98,7 @@ public class EventBus
         // broadcast the event to catch-all subscribers of type Event; listening for all types
         if (Subscriptions.TryGetValue(typeof(Event), out subscribers))
         {
-            Log.Debug("{Count} catch-all subscriber(s) for {Type}: {Names}", subscribers.Count, typeof(Event), string.Join(", ", subscribers.Keys));
+            Log.Debug("{Count} catch-all subscriber(s): {Names}", subscribers.Count, string.Join(", ", subscribers.Keys));
 
             // we don't care about any of these tasks; contractually we are only obligated to invoke them
             _ = Task.WhenAll(subscribers.Select(subscriber =>
