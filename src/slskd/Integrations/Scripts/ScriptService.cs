@@ -67,6 +67,7 @@ public class ScriptService
 
                 try
                 {
+                    // todo: update options validation to ensure run strings have at least 2 words
                     var run = script.Value.Run;
                     var executable = run.Split(" ", 2)[0];
                     var args = run.Split(" ", 2)[1].Replace("$DATA", data.ToJson());
