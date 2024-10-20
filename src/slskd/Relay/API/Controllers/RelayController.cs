@@ -42,6 +42,8 @@ namespace slskd.Relay
     [ApiController]
     public class RelayController : ControllerBase
     {
+        private const long TEN_GIGABYTES = 10L * 1024L * 1024L * 1024L;
+
         /// <summary>
         ///     Initializes a new instance of the <see cref="RelayController"/> class.
         /// </summary>
@@ -105,7 +107,7 @@ namespace slskd.Relay
         /// <returns></returns>
         [HttpGet("controller/downloads/{token}")]
         [Authorize(Policy = AuthPolicy.ApiKeyOnly, Roles = AuthRole.Any)]
-        public IActionResult DownloadFile([FromRoute]string token)
+        public IActionResult DownloadFile([FromRoute] string token)
         {
             if (!OptionsAtStartup.Relay.Enabled || !new[] { RelayMode.Controller, RelayMode.Debug }.Contains(OperationMode))
             {
@@ -155,8 +157,8 @@ namespace slskd.Relay
         /// <param name="token">The unique identifier for the request.</param>
         /// <returns></returns>
         [HttpPost("controller/files/{token}")]
-        [RequestSizeLimit(10L * 1024L * 1024L * 1024L)]
-        [RequestFormLimits(MultipartBodyLengthLimit = 10L * 1024L * 1024L * 1024L)]
+        [RequestSizeLimit(TEN_GIGABYTES)]
+        [RequestFormLimits(MultipartBodyLengthLimit = TEN_GIGABYTES)]
         [DisableFormValueModelBinding]
         [Authorize(Policy = AuthPolicy.ApiKeyOnly, Roles = AuthRole.ReadWriteOrAdministrator)]
         public async Task<IActionResult> UploadFile(string token)
@@ -253,6 +255,8 @@ namespace slskd.Relay
         /// <param name="token">The unique identifier for the request.</param>
         /// <returns></returns>
         [HttpPost("controller/shares/{token}")]
+        [RequestSizeLimit(TEN_GIGABYTES)]
+        [RequestFormLimits(MultipartBodyLengthLimit = TEN_GIGABYTES)]
         [Authorize(Policy = AuthPolicy.ApiKeyOnly, Roles = AuthRole.ReadWriteOrAdministrator)]
         public async Task<IActionResult> UploadShares(string token)
         {
