@@ -20,7 +20,9 @@ using Microsoft.Extensions.Options;
 namespace slskd.Integrations.Scripts;
 
 using System;
+using System.Diagnostics;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Serilog;
 using slskd.Events;
@@ -46,6 +48,8 @@ public class ScriptService
 
     private async Task HandleEvent(Event data)
     {
+        await Task.Yield();
+
         Log.Debug("Handling event {Event}", data);
 
         bool EqualsThisEvent(string type) => type.Equals(data.Type.ToString(), StringComparison.OrdinalIgnoreCase);
@@ -57,7 +61,65 @@ public class ScriptService
 
         foreach (var script in scriptsTriggeredByThisEventType)
         {
-            Console.WriteLine($"--------------------{script.Key}");
+            _ = Task.Run(() =>
+            {
+                Process process = default;
+
+                try
+                {
+                    var run = script.Value.Run;
+                    var executable = run.Split(" ", 2)[0];
+                    var args = run.Split(" ", 2)[1].Replace("$DATA", data.ToJson());
+
+                    Log.Debug("Running script '{Script}': {Run}", script.Key, run);
+                    var sw = Stopwatch.StartNew();
+
+                    process = new Process()
+                    {
+                        StartInfo = new ProcessStartInfo(fileName: executable)
+                        {
+                            UseShellExecute = false,
+                            RedirectStandardOutput = true,
+                            RedirectStandardError = true,
+                            RedirectStandardInput = true,
+                        },
+                    };
+
+                    process.Start();
+                    process.StandardInput.WriteLine($"{args}");
+                    process.StandardInput.WriteLine("exit");
+
+                    process.WaitForExit();
+                    sw.Stop();
+
+                    var error = process.StandardError.ReadToEnd();
+
+                    if (!string.IsNullOrEmpty(error))
+                    {
+                        throw new Exception($"STDERR: {Regex.Replace(error, @"\r\n?|\n", " ", RegexOptions.Compiled)}");
+                    }
+
+                    var result = process.StandardOutput.ReadToEnd();
+                    var resultAsLines = result.Split(["\r\n", "\r", "\n"], StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+
+                    Log.Debug("Script '{Script}' ran successfully in {Duration}ms; output: {Output}", script.Key, sw.ElapsedMilliseconds, resultAsLines);
+                }
+                catch (Exception ex)
+                {
+                    Log.Warning(ex, "Failed to run script '{Script}': {Message}", script.Key, ex.Message);
+                }
+                finally
+                {
+                    try
+                    {
+                        process?.Close();
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Warning(ex, "Failed to clean up process started from script '{Script}': {Message}", script.Key, ex.Message);
+                    }
+                }
+            });
         }
     }
 }
