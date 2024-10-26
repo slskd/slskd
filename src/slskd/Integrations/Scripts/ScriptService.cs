@@ -67,10 +67,18 @@ public class ScriptService
 
                 try
                 {
-                    // todo: update options validation to ensure run strings have at least 2 words
                     var run = script.Value.Run;
-                    var executable = run.Split(" ", 2)[0];
-                    var args = run.Split(" ", 2)[1].Replace("$DATA", data.ToJson());
+
+                    // split the string into at most 2 parts, leaving part [0] the executable and part [1] the rest of the string, but possibly null
+                    var parts = run.Split(" ", count: 2, options: StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.RemoveEmptyEntries);
+
+                    var executable = parts[0];
+                    string args = default;
+
+                    if (parts.Length > 1)
+                    {
+                        args = parts[1].Replace("$DATA", data.ToJson());
+                    }
 
                     Log.Debug("Running script '{Script}': {Run}", script.Key, run);
                     var sw = Stopwatch.StartNew();
@@ -87,7 +95,12 @@ public class ScriptService
                     };
 
                     process.Start();
-                    process.StandardInput.WriteLine($"{args}");
+
+                    if (args is not null)
+                    {
+                        process.StandardInput.WriteLine(args);
+                    }
+
                     process.StandardInput.WriteLine("exit");
 
                     process.WaitForExit();

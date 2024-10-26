@@ -923,7 +923,7 @@ retention:
 
 User-defined scripts can be configured to run when application events are raised.  Scripts are given a name (useful for troubleshooting!), a list of triggering events, and a `run` command that's used to execute the script.
 
-The `run` command must be at least two words, with the first word identifying the executable to run and the rest of the string being the command and arguments that will be passed to the executable when the script is run.  The executable needs to be on the system's PATH, otherwise it must be the fully qualified path to the file on disk.
+The `run` command must be at least one word, with the first word identifying the executable to run and the rest of the string being the command and arguments that will be passed to the executable when the script is run.  The executable needs to be on the system's PATH, otherwise it must be the fully qualified path to the file on disk.
 
 A reserved placeholder value `$DATA` is replaced with the stringified JSON data associated with the event that caused the script to run.  It's the responsibility of the script to parse and handle this JSON.
 
