@@ -32,6 +32,7 @@ namespace slskd
     using NetTools;
     using slskd.Authentication;
     using slskd.Configuration;
+    using slskd.Events;
     using slskd.Relay;
     using slskd.Shares;
     using slskd.Validation;
@@ -2005,6 +2006,12 @@ namespace slskd
         public class IntegrationOptions
         {
             /// <summary>
+            ///     Gets script configuration.
+            /// </summary>
+            [Validate]
+            public Dictionary<string, ScriptOptions> Scripts { get; init; } = [];
+
+            /// <summary>
             ///     Gets FTP options.
             /// </summary>
             [Validate]
@@ -2015,6 +2022,25 @@ namespace slskd
             /// </summary>
             [Validate]
             public PushbulletOptions Pushbullet { get; init; } = new PushbulletOptions();
+
+            /// <summary>
+            ///     Script configuration.
+            /// </summary>
+            public class ScriptOptions
+            {
+                /// <summary>
+                ///     Gets the list of Event types that trigger the script.
+                /// </summary>
+                [Enum(typeof(EventType))]
+                public string[] On { get; init; } = Array.Empty<string>();
+
+                /// <summary>
+                ///     Gets the shell script to invoke.
+                /// </summary>
+                [StringLength(int.MaxValue, MinimumLength = 1)]
+                [NotNullOrWhiteSpace]
+                public string Run { get; init; }
+            }
 
             /// <summary>
             ///     FTP options.

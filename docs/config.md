@@ -919,6 +919,29 @@ retention:
 
 # Integrations
 
+## User-Defined Scripts
+
+User-defined scripts can be configured to run when application events are raised.  Scripts are given a name (useful for troubleshooting!), a list of triggering events, and a `run` command that's used to execute the script.
+
+The `run` command must be at least one word, with the first word identifying the executable to run and the rest of the string being the command and arguments that will be passed to the executable when the script is run.  The executable needs to be on the system's PATH, otherwise it must be the fully qualified path to the file on disk.
+
+A reserved placeholder value `$DATA` is replaced with the stringified JSON data associated with the event that caused the script to run.  It's the responsibility of the script to parse and handle this JSON.
+
+#### **YAML**
+```yaml
+integration:
+  scripts:
+    my_post_download_script:
+      on:
+        - DownloadFileComplete
+        - DownloadDirectoryComplete
+      run: /bin/sh data/my_script.sh --json-to-process "$DATA" # Linux/macOS
+    my_logging_script:
+      on:
+       - All
+      run: cmd.exe echo $DATA >> event_log.txt # Windows
+```
+
 ## FTP
 
 Files can be uploaded to a remote FTP server upon completion. Files are uploaded to the server and remote path specified using the directory and filename with which they were downloaded; the FTP will match the layout of the local disk.

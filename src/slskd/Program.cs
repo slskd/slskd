@@ -60,6 +60,7 @@ namespace slskd
     using slskd.Files;
     using slskd.Integrations.FTP;
     using slskd.Integrations.Pushbullet;
+    using slskd.Integrations.Scripts;
     using slskd.Messaging;
     using slskd.Relay;
     using slskd.Search;
@@ -484,6 +485,10 @@ namespace slskd
 
                 var app = builder.Build();
 
+                // hack: services that exist only to subscribe to the event bus are not referenced by anything else
+                //       and are thus never instantiated.  force a reference here so they are created.
+                _ = app.Services.GetService<ScriptService>();
+
                 app.ConfigureAspDotNetPipeline();
 
                 if (OptionsAtStartup.Flags.NoStart)
@@ -553,7 +558,6 @@ namespace slskd
             services.AddHostedService(p => p.GetRequiredService<IApplication>());
 
             services.AddSingleton<IWaiter, Waiter>();
-
             services.AddSingleton<IConnectionWatchdog, ConnectionWatchdog>();
 
             if (OptionsAtStartup.Flags.Volatile)
@@ -577,6 +581,8 @@ namespace slskd
 
             services.AddSingleton<EventService>();
             services.AddSingleton<EventBus>();
+
+            services.AddSingleton<ScriptService>();
 
             services.AddSingleton<IBrowseTracker, BrowseTracker>();
             services.AddSingleton<IRoomTracker, RoomTracker>(_ => new RoomTracker(messageLimit: 250));

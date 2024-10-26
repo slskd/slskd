@@ -34,6 +34,11 @@ public class EventsDbContext : DbContext
     {
         modelBuilder
             .Entity<EventRecord>()
+            .Property(e => e.Type)
+            .HasConversion<string>();
+
+        modelBuilder
+            .Entity<EventRecord>()
             .Property(e => e.Timestamp)
             .HasConversion(v => v, v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
     }

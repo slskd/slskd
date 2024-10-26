@@ -18,7 +18,9 @@
 namespace slskd.Validation
 {
     using System;
+    using System.Collections.Generic;
     using System.ComponentModel.DataAnnotations;
+    using System.Linq;
 
     /// <summary>
     ///     Validates that the value is a valid member of the specified <see cref="Enum"/>.
@@ -36,9 +38,24 @@ namespace slskd.Validation
 
         protected override ValidationResult IsValid(object value, ValidationContext validationContext)
         {
-            if (value != null && !Enum.TryParse(TargetType, value.ToString(), IgnoreCase, out _))
+            if (value is IList<string> array)
             {
-                return new ValidationResult($"The {validationContext.DisplayName} field must be one of: {string.Join(", ", Enum.GetNames(TargetType))}. Case {(IgnoreCase ? "insensitive" : "sensitive")}.");
+                if (array.Any(x => string.IsNullOrEmpty(x)))
+                {
+                    return new ValidationResult($"The {validationContext.DisplayName} field contains one or more null or empty values");
+                }
+
+                if (array.Any(x => !Enum.TryParse(TargetType, x, IgnoreCase, out _)))
+                {
+                    return new ValidationResult($"The elements in the {validationContext.DisplayName} field must all be one of: {string.Join(", ", Enum.GetNames(TargetType))}. Case {(IgnoreCase ? "insensitive" : "sensitive")}.");
+                }
+            }
+            else
+            {
+                if (value != null && !Enum.TryParse(TargetType, value.ToString(), IgnoreCase, out _))
+                {
+                    return new ValidationResult($"The {validationContext.DisplayName} field must be one of: {string.Join(", ", Enum.GetNames(TargetType))}. Case {(IgnoreCase ? "insensitive" : "sensitive")}.");
+                }
             }
 
             return ValidationResult.Success;

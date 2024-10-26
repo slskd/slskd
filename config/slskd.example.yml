@@ -213,6 +213,16 @@
 #       username: ~
 #       password: ~
 # integration:
+#   scripts:
+#     my_post_download_script:
+#       on:
+#         - DownloadFileComplete
+#         - DownloadDirectoryComplete
+#       run: data/my_script.sh --json-to-process $EVENT
+#     my_logging_script:
+#       on:
+#        - All
+#       run: data/log_slskd_events.sh $EVENT
 #   ftp:
 #     enabled: false
 #     address: ~
