@@ -867,7 +867,9 @@ web:
         cidr: 0.0.0.0/0,::/0
 ```
 
-# Search Filters
+# Filters
+
+## Search Filters
 
 Search filters can be used to prevent certain types of search requests from being performed against your shares.  This option is an array that can take any number of filters.  Filters must be a valid regular expression; a few examples are included below and in the example configuration included with the application, but the list is empty by default.
 
@@ -882,7 +884,7 @@ Filter expressions are case insensitive by default.
 filters:
   search:
     request:
-      - ^.{1,2}$
+      - ^.{1,2}$ # discard any requests shorter than 3 characters
 ```
 
 # Data Retention
