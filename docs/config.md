@@ -887,6 +887,7 @@ filters:
   search:
     request:
       - ^.{1,2}$ # discard any requests shorter than 3 characters
+      - ^(\.?pdf|\.?docx|\.?xlsx)$ # discard any requests that might be looking for sensitive documents
 ```
 
 # Data Retention
