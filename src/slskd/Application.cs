@@ -1456,7 +1456,7 @@ namespace slskd
                     // and we don't want to incur the massive penalties that would caching data for each request.
                     var forecastedPosition = Transfers.Uploads.Queue.ForecastPosition(username);
 
-                    Log.Information("[{Context}]: Sending {Count} records to {Username} for query '{Query}'", "SEARCH RESULT SENT", results.Count(), username, query.SearchText);
+                    Log.Debug("Sending search response with {Count} files to {Username} for query '{Query}'", results.Count(), username, query.SearchText);
 
                     Metrics.Search.ResponsesSent.Inc(1);
 
