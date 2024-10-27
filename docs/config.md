@@ -869,6 +869,8 @@ web:
 
 # Filters
 
+A number of filters can be configured to control various aspects of how the application interacts with the Soulseek network.
+
 ## Search Filters
 
 Search filters can be used to prevent certain types of search requests from being performed against your shares.  This option is an array that can take any number of filters.  Filters must be a valid regular expression; a few examples are included below and in the example configuration included with the application, but the list is empty by default.
