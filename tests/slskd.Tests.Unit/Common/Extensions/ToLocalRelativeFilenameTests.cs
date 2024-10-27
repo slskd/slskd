@@ -1,7 +1,7 @@
 ﻿namespace slskd.Tests.Unit.Common.Extensions
 {
     using System;
-    using Xunit; 
+    using Xunit;
 
     public class ToLocalRelativeFilenameTests
     {
@@ -30,7 +30,7 @@
             }
 
         }
-        
+
         [Fact]
         public void Returns_Just_File_If_Only_File_Given()
         {

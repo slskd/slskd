@@ -37,8 +37,8 @@
                     {
                         UserDefined = new Dictionary<string, Options.GroupsOptions.UserDefinedOptions>()
                     {
-                        { 
-                            group, 
+                        {
+                            group,
                             new Options.GroupsOptions.UserDefinedOptions()
                             {
                                 Members = new[] { username },
@@ -86,7 +86,7 @@
             }
 
             [Theory, AutoData]
-            public void Gives_Lowest_Priority_Group_To_Users_Appearing_In_Multiple_Groups(string group0, string  group100, string user)
+            public void Gives_Lowest_Priority_Group_To_Users_Appearing_In_Multiple_Groups(string group0, string group100, string user)
             {
                 var options = new Options()
                 {
@@ -102,8 +102,8 @@
                                     Members = new[] { user },
                                 }
                             },
-                            { 
-                                group0, 
+                            {
+                                group0,
                                 new Options.GroupsOptions.UserDefinedOptions()
                                 {
                                     Upload = new Options.GroupsOptions.UploadOptions() { Priority = 0 },

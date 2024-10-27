@@ -1,0 +1,30 @@
+#!/bin/bash
+set -e
+
+fix=false
+
+while test $# -gt 0; do
+  case "$1" in
+    -h|--help)
+      echo 'options:'
+      echo '-h, --help  show help'
+      echo '--fix       attempt to fix violations'
+      exit 0
+      ;;
+    --fix)
+      fix=true
+      shift
+      ;;
+    *)
+      break
+      ;;
+  esac
+done
+
+if [ "$fix" == false ]; then
+  echo $'\n🛠️  dotnet format --verbosity normal --verify-no-changes\n'
+  dotnet format --verbosity normal --verify-no-changes
+else
+  echo $'\n🛠️  dotnet format --verbosity normal\n'
+  dotnet format --verbosity normal
+fi

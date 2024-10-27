@@ -49,7 +49,7 @@
         {
             var (queue, _) = GetFixture(new Options()
             {
-                Global = new Options.GlobalOptions 
+                Global = new Options.GlobalOptions
                 {
                     Upload = new Options.GlobalOptions.GlobalUploadOptions
                     {
@@ -369,7 +369,7 @@
             public void Enqueue_Enqueues_If_Nothing_Is_Enqueued_Already(string username, string filename)
             {
                 var (queue, _) = GetFixture();
-                
+
                 Assert.Empty(queue.GetProperty<ConcurrentDictionary<string, List<Upload>>>("Uploads"));
 
                 queue.Enqueue(username, filename);
@@ -386,7 +386,7 @@
             public void Enqueue_Enqueues_If_Something_Is_Enqueued_Already(string username, string filename, string filename2)
             {
                 var (queue, _) = GetFixture();
-                
+
                 queue.Enqueue(username, filename);
                 queue.Enqueue(username, filename2);
 
@@ -522,7 +522,7 @@
             public async Task Throws_If_No_Such_Username(string username, string filename)
             {
                 var (queue, _) = GetFixture();
-                
+
                 var ex = await Record.ExceptionAsync(() => queue.AwaitStartAsync(username, filename));
 
                 Assert.NotNull(ex);
@@ -534,7 +534,7 @@
             public async Task Throws_If_No_Such_Filename(string username, string filename)
             {
                 var (queue, _) = GetFixture();
-                
+
                 queue.Enqueue(username, filename);
 
                 var ex = await Record.ExceptionAsync(() => queue.AwaitStartAsync(username, "foo"));
@@ -548,7 +548,7 @@
             public void Returns_Task_Associated_With_Upload(string username, string filename)
             {
                 var (queue, _) = GetFixture();
-                
+
                 queue.Enqueue(username, filename);
 
                 var uploads = queue.GetProperty<ConcurrentDictionary<string, List<Upload>>>("Uploads");
