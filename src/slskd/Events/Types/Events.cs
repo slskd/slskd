@@ -20,19 +20,19 @@ namespace slskd.Events;
 using System;
 using slskd.Transfers;
 
-public abstract record Event
-{
-    public Guid Id { get; } = Guid.NewGuid();
-    public DateTime Timestamp { get; init; } = DateTime.UtcNow;
-    public abstract EventType Type { get; }
-}
-
 public enum EventType
 {
     None = 0,
     Any = 1,
     DownloadFileComplete = 2,
     DownloadDirectoryComplete = 3,
+}
+
+public abstract record Event
+{
+    public Guid Id { get; } = Guid.NewGuid();
+    public DateTime Timestamp { get; init; } = DateTime.UtcNow;
+    public abstract EventType Type { get; }
 }
 
 public sealed record DownloadFileCompleteEvent : Event
