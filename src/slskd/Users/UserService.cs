@@ -411,7 +411,10 @@ namespace slskd.Users
             // the application. these sorts of blacklists should be relatively static (i think)
             if (blacklistOptionsHash != LastBlacklistOptionsHash)
             {
-                Log.Debug("Blacklist options changed: {JSON}", options.Blacklist.ToJson());
+                if (!string.IsNullOrEmpty(LastBlacklistOptionsHash))
+                {
+                    Log.Debug("Blacklist options changed: {JSON}", options.Blacklist.ToJson());
+                }
 
                 if (!options.Blacklist.Enabled)
                 {
