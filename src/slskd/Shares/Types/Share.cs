@@ -38,7 +38,7 @@ namespace slskd.Shares
         /// <param name="directories"></param>
         /// <param name="files"></param>
         [JsonConstructor]
-        public Share (string id, string alias, bool isExcluded, string localPath, string raw, string remotePath, int? directories, int? files)
+        public Share(string id, string alias, bool isExcluded, string localPath, string raw, string remotePath, int? directories, int? files)
         {
             Id = id;
             Alias = alias;

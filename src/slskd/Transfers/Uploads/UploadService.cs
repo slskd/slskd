@@ -358,10 +358,10 @@ namespace slskd.Transfers.Uploads
                             size: localFileLength,
                             inputStreamFactory: (startOffset) =>
                             {
-                                #pragma warning disable S2930 // "IDisposables" should be disposed
+#pragma warning disable S2930 // "IDisposables" should be disposed
                                 // disposeInputStreamOnCompletion takes care of this
                                 var stream = new FileStream(localFilename, FileMode.Open, FileAccess.Read);
-                                #pragma warning restore S2930 // "IDisposables" should be disposed
+#pragma warning restore S2930 // "IDisposables" should be disposed
 
                                 stream.Seek(startOffset, SeekOrigin.Begin);
                                 return Task.FromResult((Stream)stream);

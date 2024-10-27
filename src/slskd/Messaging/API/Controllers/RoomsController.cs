@@ -88,7 +88,7 @@ namespace slskd.Messaging.API
         [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(typeof(Room), 200)]
         [ProducesResponseType(404)]
-        public IActionResult GetByRoomName([FromRoute]string roomName)
+        public IActionResult GetByRoomName([FromRoute] string roomName)
         {
             if (Program.IsRelayAgent)
             {
@@ -115,7 +115,7 @@ namespace slskd.Messaging.API
         [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(201)]
         [ProducesResponseType(404)]
-        public async Task<IActionResult> SendMessage([FromRoute]string roomName, [FromBody]string message)
+        public async Task<IActionResult> SendMessage([FromRoute] string roomName, [FromBody] string message)
         {
             if (Program.IsRelayAgent)
             {
@@ -171,7 +171,7 @@ namespace slskd.Messaging.API
         [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(201)]
         [ProducesResponseType(404)]
-        public async Task<IActionResult> AddRoomMember([FromRoute]string roomName, [FromBody]string username)
+        public async Task<IActionResult> AddRoomMember([FromRoute] string roomName, [FromBody] string username)
         {
             if (Program.IsRelayAgent)
             {
@@ -198,7 +198,7 @@ namespace slskd.Messaging.API
         [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(typeof(IList<UserData>), 200)]
         [ProducesResponseType(404)]
-        public IActionResult GetUsersByRoomName([FromRoute]string roomName)
+        public IActionResult GetUsersByRoomName([FromRoute] string roomName)
         {
             if (Program.IsRelayAgent)
             {
@@ -227,7 +227,7 @@ namespace slskd.Messaging.API
         [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(typeof(IList<RoomMessage>), 200)]
         [ProducesResponseType(404)]
-        public IActionResult GetMessagesByRoomName([FromRoute]string roomName)
+        public IActionResult GetMessagesByRoomName([FromRoute] string roomName)
         {
             if (Program.IsRelayAgent)
             {
@@ -286,7 +286,7 @@ namespace slskd.Messaging.API
         [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(typeof(Room), 201)]
         [ProducesResponseType(304)]
-        public async Task<IActionResult> JoinRoom([FromBody]string roomName)
+        public async Task<IActionResult> JoinRoom([FromBody] string roomName)
         {
             if (Program.IsRelayAgent)
             {
@@ -327,7 +327,7 @@ namespace slskd.Messaging.API
         [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(204)]
         [ProducesResponseType(404)]
-        public async Task<IActionResult> LeaveRoom([FromRoute]string roomName)
+        public async Task<IActionResult> LeaveRoom([FromRoute] string roomName)
         {
             if (Program.IsRelayAgent)
             {
