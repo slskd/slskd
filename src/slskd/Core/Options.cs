@@ -2062,7 +2062,7 @@ namespace slskd
                 ///     Gets the HTTP headers to include with the webhook.
                 /// </summary>
                 [Validate]
-                public IEnumerable<WebhookDetailHeader> Headers { get; init; } = [];
+                public WebhookDetailHeader[] Headers { get; init; } = [];
 
                 /// <summary>
                 ///     Gets a value indicating whether HTTPS certificate errors should be ignored.
