@@ -2044,13 +2044,25 @@ namespace slskd
                 ///     Gets details about the webhook call.
                 /// </summary>
                 [Validate]
-                public WebhookDetails Call { get; init; } = new WebhookDetails();
+                public WebhookHttpOptions Call { get; init; } = new WebhookHttpOptions();
+
+                /// <summary>
+                ///     Gets the time to wait before timing out, in milliseconds.
+                /// </summary>
+                [Range(500, int.MaxValue)]
+                public int Timeout { get; init; } = 5000;
+
+                /// <summary>
+                ///     Gets the retry configuration.
+                /// </summary>
+                [Validate]
+                public RetryOptions Retry { get; init; } = new RetryOptions();
             }
 
             /// <summary>
-            ///     Webhook details.
+            ///     Webhook HTTP options.
             /// </summary>
-            public class WebhookDetails : IValidatableObject
+            public class WebhookHttpOptions : IValidatableObject
             {
                 /// <summary>
                 ///     Gets the fully qualified URL for the webhook.
@@ -2062,7 +2074,7 @@ namespace slskd
                 ///     Gets the HTTP headers to include with the webhook.
                 /// </summary>
                 [Validate]
-                public WebhookDetailHeader[] Headers { get; init; } = [];
+                public WebhookHttpHeader[] Headers { get; init; } = [];
 
                 /// <summary>
                 ///     Gets a value indicating whether HTTPS certificate errors should be ignored.
@@ -2082,11 +2094,33 @@ namespace slskd
                 }
             }
 
-            public class WebhookDetailHeader
+            /// <summary>
+            ///     Webhook HTTP header configuration.
+            /// </summary>
+            public class WebhookHttpHeader
             {
+                /// <summary>
+                ///     Gets the name of the header.
+                /// </summary>
                 [NotNullOrWhiteSpace]
                 public string Name { get; init; }
+
+                /// <summary>
+                ///     Gets the header's value.
+                /// </summary>
                 public string Value { get; init; }
+            }
+
+            /// <summary>
+            ///     Retry configuration.
+            /// </summary>
+            public class RetryOptions
+            {
+                /// <summary>
+                ///     Gets the number of attempts to make before failing.
+                /// </summary>
+                [Range(1, int.MaxValue)]
+                public int Attempts { get; init; } = 1;
             }
 
             /// <summary>
