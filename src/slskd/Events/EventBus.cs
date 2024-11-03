@@ -88,7 +88,9 @@ public class EventBus
             // we don't care about any of these tasks; contractually we are only obligated to invoke them
             _ = Task.WhenAll(subscribers.Select(subscriber =>
                     Task.Run(() => (subscriber.Value as Func<T, Task>)(data))
-                        .ContinueWith(task => Log.Error(task.Exception, "Subscriber {Name} for {Type} encountered an error: {Message}", subscriber.Key, typeof(T), task.Exception.Message))));
+                        .ContinueWith(
+                            task => Log.Error(task.Exception, "Subscriber {Name} for {Type} encountered an error: {Message}", subscriber.Key, typeof(T), task.Exception.Message),
+                            continuationOptions: TaskContinuationOptions.OnlyOnFaulted)));
         }
         else
         {
@@ -104,7 +106,8 @@ public class EventBus
             _ = Task.WhenAll(subscribers.Select(subscriber =>
                     Task.Run(() => (subscriber.Value as Func<Event, Task>)(data))
                         .ContinueWith(
-                            task => Log.Error(task.Exception, "Catch-All Subscriber {Name} for {Type} encountered an error: {Message}", subscriber.Key, typeof(Event), task.Exception.Message), TaskContinuationOptions.OnlyOnFaulted)));
+                            task => Log.Error(task.Exception, "Catch-All Subscriber {Name} for {Type} encountered an error: {Message}", subscriber.Key, typeof(Event), task.Exception.Message),
+                            continuationOptions: TaskContinuationOptions.OnlyOnFaulted)));
         }
     }
 
