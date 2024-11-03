@@ -922,6 +922,41 @@ retention:
 
 # Integrations
 
+## Webhooks
+
+Webhooks (outbound HTTP requests) can be configured to be called when application events are raised.  Webhooks are given a name (useful for troubleshooting!), a list of triggering events, a `call` configuration that defines the HTTP request to be made, and timeout and retry configuration.
+
+Webhook HTTP requests are always a `POST`, and will always include the event data in the body, serialized as JSON.  Users define a fully-qualified endpoint address, an optional collection of headers, and an optional flag to ignore HTTPS errors caused by invalid (e.g. self signed) certificates.
+
+If unconfigured, the default timeout for requests is 5 seconds, and each request will be attempted only once per event.
+
+#### **YAML**
+```yaml
+integration:
+  webhooks:
+    my_basic_webhook_using_defaults:
+      on:
+        - All
+      call:
+        url: http://localhost:4224
+    my_webhook_using_detailed_config:
+      on:
+        - DownloadFileComplete
+      call:
+        url: https://192.168.1.42:8080/slskd_webhook
+        headers:
+          - name: X-API-Key # if using API key style authentication
+            value: foobar1234
+          - name: Authorization # if using JWT authentication
+            value: Bearer eyJ...ssw5c
+          - name: User-Agent # can be useful!
+            value: slskd/0.0
+        ignore_certificate_errors: true # defaults to false
+      timeout: 5000 # in milliseconds
+      retry:
+        attempts: 3
+```
+
 ## User-Defined Scripts
 
 User-defined scripts can be configured to run when application events are raised.  Scripts are given a name (useful for troubleshooting!), a list of triggering events, and a `run` command that's used to execute the script.
