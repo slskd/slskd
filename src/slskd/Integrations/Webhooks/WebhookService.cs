@@ -68,7 +68,11 @@ public class WebhookService
             _ = Task.Run(async () =>
             {
                 var call = webhook.Value.Call;
-                using var http = HttpClientFactory.CreateClient();
+
+                using var http = call.IgnoreCertificateErrors
+                    ? HttpClientFactory.CreateClient(Constants.IgnoreCertificateErrors)
+                    : HttpClientFactory.CreateClient();
+
                 http.Timeout = TimeSpan.FromMilliseconds(webhook.Value.Timeout);
 
                 foreach (var header in call.Headers)
