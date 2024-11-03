@@ -26,7 +26,6 @@ using System.Net;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
-using Microsoft.Extensions.DependencyInjection;
 using Serilog;
 using slskd.Events;
 
@@ -35,7 +34,7 @@ public class WebhookService
     public WebhookService(
         EventBus eventBus,
         IOptionsMonitor<Options> optionsMonitor,
-        [FromKeyedServices(key: nameof(WebhookService))] IHttpClientFactory httpClientFactory)
+        IHttpClientFactory httpClientFactory)
     {
         Events = eventBus;
         OptionsMonitor = optionsMonitor;
