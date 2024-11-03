@@ -120,7 +120,7 @@ public class ScriptService
                 }
                 catch (Exception ex)
                 {
-                    Log.Warning(ex, "Failed to run script '{Script}': {Message}", script.Key, ex.Message);
+                    Log.Warning(ex, "Failed to run script '{Script}' for event type {Event}: {Message}", script.Key, data.Type, ex.Message);
                 }
                 finally
                 {
@@ -130,7 +130,7 @@ public class ScriptService
                     }
                     catch (Exception ex)
                     {
-                        Log.Warning(ex, "Failed to clean up process started from script '{Script}': {Message}", script.Key, ex.Message);
+                        Log.Warning(ex, "Failed to clean up process started from script '{Script}' for event type {Event}: {Message}", script.Key, data.Type, ex.Message);
                     }
                 }
             });
