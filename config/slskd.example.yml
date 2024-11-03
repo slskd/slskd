@@ -234,7 +234,7 @@
 #     my_logging_script:
 #       on:
 #        - All
-#       run: data/log_slskd_events.sh $EVENT
+#       run: data/log_slskd_events.sh $DATA
 #   ftp:
 #     enabled: false
 #     address: ~
