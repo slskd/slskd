@@ -26,6 +26,7 @@ namespace slskd
     using System.IO;
     using System.Linq;
     using System.Net;
+    using System.Net.Http;
     using System.Reflection;
     using System.Security.Cryptography.X509Certificates;
     using System.Text;
@@ -545,6 +546,15 @@ namespace slskd
             // use through 'using var http = HttpClientFactory.CreateClient()' wherever HTTP calls will be made
             // this is important to prevent memory leaks
             services.AddHttpClient();
+
+            // add a special HttpClientFactory to DI that disables SSL.  access it via:
+            // 'using var http = HttpClientFactory.CreateClient(Constants.IgnoreCertificateErrors)'
+            // thanks Microsoft, makes total sense and surely won't be easy to fuck up later!
+            services.AddHttpClient(Constants.IgnoreCertificateErrors)
+                .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+                {
+                    ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator,
+                });
 
             // add a partially configured instance of SoulseekClient. the Application instance will
             // complete configuration at startup.
