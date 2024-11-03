@@ -839,6 +839,7 @@ namespace slskd
 
         private static WebApplication ConfigureAspDotNetPipeline(this WebApplication app)
         {
+            // stop ASP.NET from sending a full stack trace and ProblemDetails for unhandled exceptions
             app.UseExceptionHandler(a => a.Run(async context =>
             {
                 await context.Response.WriteAsJsonAsync(context.Features.Get<IExceptionHandlerPathFeature>().Error.Message);
