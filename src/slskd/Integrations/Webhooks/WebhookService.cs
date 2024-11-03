@@ -20,27 +20,36 @@ using Microsoft.Extensions.Options;
 namespace slskd.Integrations.Webhooks;
 
 using System;
+using System.Diagnostics;
 using System.Linq;
+using System.Net;
+using System.Net.Http;
+using System.Text;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using Serilog;
 using slskd.Events;
 
 public class WebhookService
 {
-    public WebhookService(EventBus eventBus, IOptionsMonitor<Options> optionsMonitor)
+    public WebhookService(
+        EventBus eventBus,
+        IOptionsMonitor<Options> optionsMonitor,
+        [FromKeyedServices(key: nameof(WebhookService))] IHttpClientFactory httpClientFactory)
     {
         Events = eventBus;
         OptionsMonitor = optionsMonitor;
+        HttpClientFactory = httpClientFactory;
 
         Events.Subscribe<Event>(nameof(WebhookService), HandleEvent);
 
         Log.Debug("{Service} initialized", nameof(WebhookService));
-        Log.Warning("Webhook config: {Config}", OptionsMonitor.CurrentValue.Integration.Webhooks.ToJson());
     }
 
     private ILogger Log { get; } = Serilog.Log.ForContext<WebhookService>();
     private IOptionsMonitor<Options> OptionsMonitor { get; }
     private EventBus Events { get; }
+    private IHttpClientFactory HttpClientFactory { get; }
 
     private async Task HandleEvent(Event data)
     {
@@ -57,7 +66,54 @@ public class WebhookService
 
         foreach (var webhook in webhooksTriggeredByThisEventType)
         {
-            Log.Information("{Webhook}", webhook);
+            _ = Task.Run(async () =>
+            {
+                var call = webhook.Value.Call;
+                using var http = HttpClientFactory.CreateClient();
+                http.Timeout = TimeSpan.FromMilliseconds(webhook.Value.Timeout);
+
+                foreach (var header in call.Headers)
+                {
+                    http.DefaultRequestHeaders.TryAddWithoutValidation(header.Name, header.Value);
+                }
+
+                var content = new StringContent(data.ToJson(), Encoding.UTF8, "application/json");
+
+                HttpStatusCode? statusCode = null;
+
+                try
+                {
+                    Log.Debug("Calling webhook '{Name}': {Url}", webhook.Key, webhook.Value.Call.Url);
+
+                    var sw = Stopwatch.StartNew();
+
+                    await Retry.Do(
+                        task: async () =>
+                        {
+                            using var response = await http.PostAsync(call.Url, content);
+                            response.EnsureSuccessStatusCode();
+                            statusCode = response.StatusCode;
+                        },
+                        isRetryable: (attempts, ex) => true, // retry everything
+                        onFailure: (attempts, ex) =>
+                        {
+                            if (webhook.Value.Retry.Attempts > 1)
+                            {
+                                Log.Warning(ex, "Failed attempt #{Attempts} to send webhook '{Name}' for event type {Event}: {Message}", attempts, webhook.Key, data.Type, ex.Message);
+                            }
+                        },
+                        maxAttempts: webhook.Value.Retry.Attempts,
+                        maxDelayInMilliseconds: 30000);
+
+                    sw.Stop();
+
+                    Log.Debug("Webhook '{Name}' called successfully in {Duration}ms; status code: {StatusCode}", webhook.Key, sw.ElapsedMilliseconds, statusCode);
+                }
+                catch (Exception ex)
+                {
+                    Log.Warning(ex, "Failed to call webhook '{Name}' for event type {Event} after exhausting retries: {Message}", webhook.Key, data.Type, ex.Message);
+                }
+            });
         }
     }
 }
