@@ -218,13 +218,18 @@
 #       on:
 #         - DownloadFileComplete
 #       call:
-#         url: http://192.168.1.42:8080/slskd_webhook
+#         url: https://192.168.1.42:8080/slskd_webhook
 #         headers:
-#           - name: x-api-key
+#           - name: X-API-Key
 #             value: foobar1234
-#           - name: user-agent
-#             value: slskd/1.0
-#         ignore_certificate_errors: true
+#           - name: Authorization
+#             value: Bearer eyJ...ssw5c
+#           - name: User-Agent
+#             value: slskd/0.0
+#         ignore_certificate_errors: false
+#       timeout: 5000 # in milliseconds
+#       retry:
+#         attempts: 3
 #   scripts:
 #     my_post_download_script:
 #       on:
