@@ -17,6 +17,7 @@
 
 namespace slskd.Validation
 {
+    using System;
     using System.Collections;
     using System.Collections.Generic;
     using System.ComponentModel.DataAnnotations;
@@ -34,22 +35,43 @@ namespace slskd.Validation
                 return ValidationResult.Success;
             }
 
+            // note: here's a great place to log the type and value if there are issues:
+            // Console.WriteLine($"{value.GetType()}: {value.ToJson()}");
             var results = new List<ValidationResult>();
             var context = new ValidationContext(value, null, null);
 
-            if (value.IsDictionary())
+            // we should only be using dictionaries and arrays (e.g. []), not IEnumerable, because the YAML library
+            // somehow has nondeterministic behavior, sometimes turning YAML arrays into arrays, and sometimes List
+            // this could be handled by checking for List<T> but let's just keep it simple and remember to use arrays
+            if (value.IsDictionary() || value is Array)
             {
                 var compositeResults = new CompositeValidationResult(validationContext.DisplayName);
 
-                // given the context in this application, key type should never be anything but a string
-                foreach (string key in ((IDictionary)value).Keys)
+                if (value.IsDictionary())
                 {
-                    var val = ((IDictionary)value)[key];
-                    var result = IsValid(val, new ValidationContext(val, null, null));
-
-                    if (result != ValidationResult.Success)
+                    // given the context in this application, key type should never be anything but a string
+                    foreach (string key in ((IDictionary)value).Keys)
                     {
-                        compositeResults.AddResult(new CompositeValidationResult(key, new[] { result }.ToList()));
+                        var val = ((IDictionary)value)[key];
+                        var result = IsValid(val, new ValidationContext(val, null, null));
+
+                        if (result != ValidationResult.Success)
+                        {
+                            compositeResults.AddResult(new CompositeValidationResult(key, new[] { result }.ToList()));
+                        }
+                    }
+                }
+                else if (value is Array array)
+                {
+                    for (int i = 0; i < array.Length; i++)
+                    {
+                        var val = array.GetValue(i);
+                        var result = IsValid(val, new ValidationContext(val, null, null));
+
+                        if (result != ValidationResult.Success)
+                        {
+                            compositeResults.AddResult(new CompositeValidationResult(i.ToString(), new[] { result }.ToList()));
+                        }
                     }
                 }
 

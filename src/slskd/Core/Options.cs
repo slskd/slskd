@@ -2006,6 +2006,12 @@ namespace slskd
         public class IntegrationOptions
         {
             /// <summary>
+            ///     Gets webhook configuration.
+            /// </summary>
+            [Validate]
+            public Dictionary<string, WebhookOptions> Webhooks { get; init; } = [];
+
+            /// <summary>
             ///     Gets script configuration.
             /// </summary>
             [Validate]
@@ -2022,6 +2028,100 @@ namespace slskd
             /// </summary>
             [Validate]
             public PushbulletOptions Pushbullet { get; init; } = new PushbulletOptions();
+
+            /// <summary>
+            ///     Webhook configuration.
+            /// </summary>
+            public class WebhookOptions
+            {
+                /// <summary>
+                ///     Gets the list of Event types that trigger the webhook.
+                /// </summary>
+                [Enum(typeof(EventType))]
+                public string[] On { get; init; } = Array.Empty<string>();
+
+                /// <summary>
+                ///     Gets details about the webhook call.
+                /// </summary>
+                [Validate]
+                public WebhookHttpOptions Call { get; init; } = new WebhookHttpOptions();
+
+                /// <summary>
+                ///     Gets the time to wait before timing out, in milliseconds.
+                /// </summary>
+                [Range(500, int.MaxValue)]
+                public int Timeout { get; init; } = 5000;
+
+                /// <summary>
+                ///     Gets the retry configuration.
+                /// </summary>
+                [Validate]
+                public RetryOptions Retry { get; init; } = new RetryOptions();
+            }
+
+            /// <summary>
+            ///     Webhook HTTP options.
+            /// </summary>
+            public class WebhookHttpOptions : IValidatableObject
+            {
+                /// <summary>
+                ///     Gets the fully qualified URL for the webhook.
+                /// </summary>
+                [NotNullOrWhiteSpace]
+                public string Url { get; init; }
+
+                /// <summary>
+                ///     Gets the HTTP headers to include with the webhook.
+                /// </summary>
+                [Validate]
+                public WebhookHttpHeader[] Headers { get; init; } = [];
+
+                /// <summary>
+                ///     Gets a value indicating whether HTTPS certificate errors should be ignored.
+                /// </summary>
+                public bool IgnoreCertificateErrors { get; init; } = false;
+
+                public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+                {
+                    var results = new List<ValidationResult>();
+
+                    if (!Url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) && !Url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                    {
+                        results.Add(new ValidationResult($"The {nameof(Url)} field must contain a fully qualified URL, including protocol (e.g. http:// or https://)"));
+                    }
+
+                    return results;
+                }
+            }
+
+            /// <summary>
+            ///     Webhook HTTP header configuration.
+            /// </summary>
+            public class WebhookHttpHeader
+            {
+                /// <summary>
+                ///     Gets the name of the header.
+                /// </summary>
+                [NotNullOrWhiteSpace]
+                public string Name { get; init; }
+
+                /// <summary>
+                ///     Gets the header's value.
+                /// </summary>
+                public string Value { get; init; }
+            }
+
+            /// <summary>
+            ///     Retry configuration.
+            /// </summary>
+            public class RetryOptions
+            {
+                /// <summary>
+                ///     Gets the number of attempts to make before failing.
+                /// </summary>
+                [Range(1, int.MaxValue)]
+                public int Attempts { get; init; } = 1;
+            }
 
             /// <summary>
             ///     Script configuration.

@@ -26,6 +26,7 @@ namespace slskd.Core.API
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
     using Microsoft.Extensions.Hosting;
+    using Serilog;
 
     /// <summary>
     ///     Application.
@@ -53,6 +54,7 @@ namespace slskd.Core.API
         private IStateMonitor<State> ApplicationStateMonitor { get; }
         private IOptionsMonitor<Options> OptionsMonitor { get; }
         private IHostApplicationLifetime Lifetime { get; }
+        private ILogger Log { get; } = Serilog.Log.ForContext<ApplicationController>();
 
         /// <summary>
         ///     Gets the current state of the application.
@@ -148,6 +150,14 @@ namespace slskd.Core.API
             var file = await dumper.DumpAsync();
 
             return PhysicalFile(file, "application/octet-stream", "slskd.dmp");
+        }
+
+        [HttpPost("loopback")]
+        [Authorize(Policy = AuthPolicy.Any)]
+        public IActionResult Loopback([FromBody] object body)
+        {
+            Log.Information("Loopback POST: {Body}", body);
+            return Ok();
         }
     }
 }

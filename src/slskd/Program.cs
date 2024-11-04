@@ -26,6 +26,7 @@ namespace slskd
     using System.IO;
     using System.Linq;
     using System.Net;
+    using System.Net.Http;
     using System.Reflection;
     using System.Security.Cryptography.X509Certificates;
     using System.Text;
@@ -61,6 +62,7 @@ namespace slskd
     using slskd.Integrations.FTP;
     using slskd.Integrations.Pushbullet;
     using slskd.Integrations.Scripts;
+    using slskd.Integrations.Webhooks;
     using slskd.Messaging;
     using slskd.Relay;
     using slskd.Search;
@@ -488,6 +490,7 @@ namespace slskd
                 // hack: services that exist only to subscribe to the event bus are not referenced by anything else
                 //       and are thus never instantiated.  force a reference here so they are created.
                 _ = app.Services.GetService<ScriptService>();
+                _ = app.Services.GetService<WebhookService>();
 
                 app.ConfigureAspDotNetPipeline();
 
@@ -544,6 +547,15 @@ namespace slskd
             // this is important to prevent memory leaks
             services.AddHttpClient();
 
+            // add a special HttpClientFactory to DI that disables SSL.  access it via:
+            // 'using var http = HttpClientFactory.CreateClient(Constants.IgnoreCertificateErrors)'
+            // thanks Microsoft, makes total sense and surely won't be easy to fuck up later!
+            services.AddHttpClient(Constants.IgnoreCertificateErrors)
+                .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+                {
+                    ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator,
+                });
+
             // add a partially configured instance of SoulseekClient. the Application instance will
             // complete configuration at startup.
             services.AddSingleton<ISoulseekClient, SoulseekClient>(_ =>
@@ -583,6 +595,7 @@ namespace slskd
             services.AddSingleton<EventBus>();
 
             services.AddSingleton<ScriptService>();
+            services.AddSingleton<WebhookService>();
 
             services.AddSingleton<IBrowseTracker, BrowseTracker>();
             services.AddSingleton<IRoomTracker, RoomTracker>(_ => new RoomTracker(messageLimit: 250));
@@ -836,6 +849,7 @@ namespace slskd
 
         private static WebApplication ConfigureAspDotNetPipeline(this WebApplication app)
         {
+            // stop ASP.NET from sending a full stack trace and ProblemDetails for unhandled exceptions
             app.UseExceptionHandler(a => a.Run(async context =>
             {
                 await context.Response.WriteAsJsonAsync(context.Features.Get<IExceptionHandlerPathFeature>().Error.Message);
