@@ -26,6 +26,7 @@ public enum EventType
     Any = 1,
     DownloadFileComplete = 2,
     DownloadDirectoryComplete = 3,
+    Noop = int.MaxValue,
 }
 
 public abstract record Event
@@ -49,4 +50,9 @@ public sealed record DownloadDirectoryCompleteEvent : Event
     public string LocalDirectoryName { get; init; }
     public string RemoteDirectoryName { get; init; }
     public string Username { get; init; }
+}
+
+public sealed record NoopEvent : Event
+{
+    public override EventType Type => EventType.Noop;
 }
