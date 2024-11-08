@@ -17,6 +17,8 @@
 
 namespace slskd.Events.API;
 
+using System;
+using System.Collections.Generic;
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -42,13 +44,24 @@ public class EventsController : ControllerBase
     private EventService Events { get; }
     private ILogger Log { get; } = Serilog.Log.ForContext<EventsController>();
 
-    [HttpGet("")]
+    /// <summary>
+    ///     Retrieves a paginated list of past <see cref="Event"/> records.
+    /// </summary>
+    /// <param name="offset">The offset (number of records) at which to start the requested page.</param>
+    /// <param name="limit">The page size.</param>
+    /// <returns>The list of <see cref="Event"/> records.</returns>
+    [HttpGet("", Name = nameof(GetEvents))]
     [Authorize(Policy = AuthPolicy.Any)]
+    [ProducesResponseType(typeof(string), 400)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(403)]
+    [ProducesResponseType(typeof(IEnumerable<EventRecord>), 200)]
+    [ProducesResponseType(typeof(string), 500)]
     public IActionResult GetEvents([FromQuery] int offset = 0, [FromQuery] int limit = 100)
     {
         if (offset < 0)
         {
-            return BadRequest("Offset must be greater than or equal to zero.");
+            return BadRequest("Offset must be greater than or equal to zero");
         }
 
         if (limit <= 0)
@@ -56,11 +69,19 @@ public class EventsController : ControllerBase
             return BadRequest("Limit must be greater than zero");
         }
 
-        var events = Events.Get(offset, limit);
-        var count = Events.Count();
+        try
+        {
+            var eventRecords = Events.Get(offset, limit);
+            var count = Events.Count();
 
-        Response.Headers.Append("X-Total-Count", count.ToString());
+            Response.Headers.Append("X-Total-Count", count.ToString());
 
-        return Ok(events);
+            return Ok(eventRecords);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to list events: {Message}", ex.Message);
+            throw;
+        }
     }
 }

@@ -213,6 +213,23 @@
 #       username: ~
 #       password: ~
 # integration:
+#   webhooks:
+#     my_webhook:
+#       on:
+#         - DownloadFileComplete
+#       call:
+#         url: https://192.168.1.42:8080/slskd_webhook
+#         headers:
+#           - name: X-API-Key
+#             value: foobar1234
+#           - name: Authorization
+#             value: Bearer eyJ...ssw5c
+#           - name: User-Agent
+#             value: slskd/0.0
+#         ignore_certificate_errors: false
+#       timeout: 5000 # in milliseconds
+#       retry:
+#         attempts: 3
 #   scripts:
 #     my_post_download_script:
 #       on:
@@ -222,7 +239,7 @@
 #     my_logging_script:
 #       on:
 #        - All
-#       run: data/log_slskd_events.sh $EVENT
+#       run: data/log_slskd_events.sh $DATA
 #   ftp:
 #     enabled: false
 #     address: ~
