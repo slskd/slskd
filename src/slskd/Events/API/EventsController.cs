@@ -19,6 +19,7 @@ namespace slskd.Events.API;
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -29,34 +30,42 @@ using Serilog;
 ///     Events.
 /// </summary>
 [Route("api/v{version:apiVersion}/[controller]")]
-[ApiVersion("0")]
 [ApiController]
+[ApiVersion("0")]
 [Produces("application/json")]
 [Consumes("application/json")]
 public class EventsController : ControllerBase
 {
     public EventsController(
-        EventService eventService)
+        EventService eventService,
+        EventBus eventBus)
     {
         Events = eventService;
+        EventBus = eventBus;
     }
 
     private EventService Events { get; }
+    private EventBus EventBus { get; }
     private ILogger Log { get; } = Serilog.Log.ForContext<EventsController>();
 
     /// <summary>
-    ///     Retrieves a paginated list of past <see cref="Event"/> records.
+    ///     Retrieves a paginated list of past event records.
     /// </summary>
     /// <param name="offset">The offset (number of records) at which to start the requested page.</param>
     /// <param name="limit">The page size.</param>
     /// <returns>The list of <see cref="Event"/> records.</returns>
+    /// <response code="400">The offset is less than zero, or if the limit is less than or equal to zero.</response>
+    /// <response code="401">Authentication credentials are omitted.</response>
+    /// <response code="403">Authentication is valid but not sufficient to access this endpoint.</response>
+    /// <response code="500">An unexpected error is encountered.</response>
+    /// <response code="200">The request completed successfully.</response>
     [HttpGet("", Name = nameof(GetEvents))]
     [Authorize(Policy = AuthPolicy.Any)]
     [ProducesResponseType(typeof(string), 400)]
     [ProducesResponseType(401)]
     [ProducesResponseType(403)]
-    [ProducesResponseType(typeof(IEnumerable<EventRecord>), 200)]
     [ProducesResponseType(typeof(string), 500)]
+    [ProducesResponseType(typeof(IEnumerable<EventRecord>), 200)]
     public IActionResult GetEvents([FromQuery] int offset = 0, [FromQuery] int limit = 100)
     {
         if (offset < 0)
@@ -81,6 +90,60 @@ public class EventsController : ControllerBase
         catch (Exception ex)
         {
             Log.Error(ex, "Failed to list events: {Message}", ex.Message);
+            throw;
+        }
+    }
+
+    /// <summary>
+    ///     Raises a sample event of the specified <see cref="EventType"/>.
+    /// </summary>
+    /// <param name="type">The type of event to raise.</param>
+    /// <param name="disambiguator">A string used to disambiguate generated events.</param>
+    /// <returns>The randomly generated event that was raised.</returns>
+    /// <response code="400">If the offset is less than zero, or if the limit is less than or equal to zero.</response>
+    /// <response code="401">Authentication credentials are omitted.</response>
+    /// <response code="403">Authentication is valid but not sufficient to access this endpoint.</response>
+    /// <response code="500">An unexpected error is encountered.</response>
+    /// <response code="200">The request completed successfully.</response>
+    [HttpPost("", Name = nameof(RaiseEvent))]
+    [Authorize(Policy = AuthPolicy.Any)]
+    [ProducesResponseType(typeof(string), 400)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(403)]
+    [ProducesResponseType(typeof(string), 500)]
+    [ProducesResponseType(typeof(Event), 201)]
+    public IActionResult RaiseEvent([FromRoute] string type, [FromBody] string disambiguator)
+    {
+        if (!Enum.TryParse<EventType>(type, out var eventType))
+        {
+            var names = Enum.GetNames(typeof(EventType))
+                .Where(n => n != EventType.Any.ToString() && n != EventType.None.ToString());
+
+            return BadRequest($"Unknown event type '{type}'; must be one of {string.Join(", ", names)}");
+        }
+
+        if (eventType is EventType.None || eventType is EventType.Any)
+        {
+            return BadRequest($"Event type '{type}' can not be raised");
+        }
+
+        var d = disambiguator;
+
+        Event @event = eventType switch
+        {
+            EventType.DownloadFileComplete => new DownloadFileCompleteEvent { LocalFilename = $"{d}local.file", RemoteFilename = $"{d}remote.file", Transfer = null },
+            EventType.DownloadDirectoryComplete => new DownloadDirectoryCompleteEvent { LocalDirectoryName = $"{d}local.directory", RemoteDirectoryName = $"{d}remote.directory", Username = $"{d}username" },
+            _ => throw new SlskdException($"Event type {eventType} is an enum member but is not handled.  Please submit an issue on GitHub."),
+        };
+
+        try
+        {
+            EventBus.Raise(@event);
+            return StatusCode(201, @event);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to raise event {Type}: {Message}", eventType, ex.Message);
             throw;
         }
     }
