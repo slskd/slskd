@@ -813,7 +813,10 @@ namespace slskd
 
             services.AddHealthChecks();
 
-            services.AddApiVersioning(options => options.ReportApiVersions = true)
+            services.AddApiVersioning(options =>
+                {
+                    options.ReportApiVersions = true;
+                })
                 .AddApiExplorer(options =>
                 {
                     options.GroupNameFormat = "'v'VVV";
@@ -825,13 +828,22 @@ namespace slskd
                 services.AddSwaggerGen(options =>
                 {
                     options.DescribeAllParametersInCamelCase();
-                    options.SwaggerDoc(
-                        "v0",
-                        new OpenApiInfo
+                    options.SwaggerDoc("v0", new OpenApiInfo
+                    {
+                        Version = "v0",
+                        Title = AppName,
+                        Description = "A modern client-server application for the Soulseek file sharing network",
+                        Contact = new OpenApiContact
                         {
-                            Title = AppName,
-                            Version = "v0",
-                        });
+                            Name = "GitHub Issues",
+                            Url = new Uri("https://github.com/slskd/slskd/issues"),
+                        },
+                        License = new OpenApiLicense
+                        {
+                            Name = "AGPL-3.0 license",
+                            Url = new Uri("https://github.com/slskd/slskd/blob/master/LICENSE"),
+                        },
+                    });
 
                     if (IOFile.Exists(XmlDocumentationFile))
                     {
