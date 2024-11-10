@@ -799,6 +799,7 @@ namespace slskd
                     options.SuppressInferBindingSourcesForParameters = true;
                     options.SuppressMapClientErrors = true;
                     options.SuppressModelStateInvalidFilter = true;
+                    options.DisableImplicitFromServicesParameters = true;
                 })
                 .AddJsonOptions(options =>
                 {
