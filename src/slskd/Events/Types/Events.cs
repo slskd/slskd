@@ -22,10 +22,10 @@ using slskd.Transfers;
 
 public enum EventType
 {
-    None = 0,
-    Any = 1,
-    DownloadFileComplete = 2,
-    DownloadDirectoryComplete = 3,
+    None,
+    DownloadFileComplete,
+    DownloadDirectoryComplete,
+    Any,
 }
 
 public abstract record Event
@@ -33,20 +33,23 @@ public abstract record Event
     public Guid Id { get; } = Guid.NewGuid();
     public DateTime Timestamp { get; init; } = DateTime.UtcNow;
     public abstract EventType Type { get; }
+    public abstract int Version { get; }
 }
 
 public sealed record DownloadFileCompleteEvent : Event
 {
-    public override EventType Type => EventType.DownloadFileComplete;
-    public string LocalFilename { get; init; }
-    public string RemoteFilename { get; init; }
-    public Transfer Transfer { get; init; }
+    public override EventType Type { get; } = EventType.DownloadFileComplete;
+    public override int Version { get; } = 0;
+    public required string LocalFilename { get; init; }
+    public required string RemoteFilename { get; init; }
+    public required Transfer Transfer { get; init; }
 }
 
 public sealed record DownloadDirectoryCompleteEvent : Event
 {
-    public override EventType Type => EventType.DownloadDirectoryComplete;
-    public string LocalDirectoryName { get; init; }
-    public string RemoteDirectoryName { get; init; }
-    public string Username { get; init; }
+    public override EventType Type { get; } = EventType.DownloadDirectoryComplete;
+    public override int Version { get; } = 0;
+    public required string LocalDirectoryName { get; init; }
+    public required string RemoteDirectoryName { get; init; }
+    public required string Username { get; init; }
 }
