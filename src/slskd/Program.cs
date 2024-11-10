@@ -792,12 +792,20 @@ namespace slskd
             }
 
             services.AddRouting(options => options.LowercaseUrls = true);
-            services.AddControllers().AddJsonOptions(options =>
-            {
-                options.JsonSerializerOptions.Converters.Add(new IPAddressConverter());
-                options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
-                options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
-            });
+            services
+                .AddControllers()
+                .ConfigureApiBehaviorOptions(options =>
+                {
+                    options.SuppressInferBindingSourcesForParameters = true;
+                    options.SuppressMapClientErrors = true;
+                    options.SuppressModelStateInvalidFilter = true;
+                })
+                .AddJsonOptions(options =>
+                {
+                    options.JsonSerializerOptions.Converters.Add(new IPAddressConverter());
+                    options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+                    options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
+                });
 
             services
                 .AddSignalR(options =>
