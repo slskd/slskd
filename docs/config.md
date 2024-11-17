@@ -641,7 +641,7 @@ soulseek:
     child_limit: 25
 ```
 
-## Listen IP Address Port
+## Listen IP Address and Port
 
 The local IP address and port on which the application listens for incoming connections.
 
@@ -660,6 +660,7 @@ incoming traffic is properly routed.
 #### **YAML**
 ```yaml
 soulseek:
+  listen_ip_address: 0.0.0.0
   listen_port: 50300
 ```
 
