@@ -405,17 +405,17 @@ groups:
       strategy: roundrobin
       slots: 10
       speed_limit: 50000 # kibibytes
-  limits:
-    queued:
-      files: 150
-      megabytes: 1500
-    daily:
-      files: 2147483647 # effectively unlimited, weekly still applies
-      megabytes: 2147483647
-    weekly:
-      files: 1500
-      megabytes: 15000
-      failures: 150
+    limits:
+      queued:
+        files: 150
+        megabytes: 1500
+      daily:
+        files: 2147483647 # effectively unlimited, weekly still applies
+        megabytes: 2147483647
+      weekly:
+        files: 1500
+        megabytes: 15000
+        failures: 150
   leechers:
     thresholds:
       files: 1
@@ -641,7 +641,7 @@ soulseek:
     child_limit: 25
 ```
 
-## Listen IP Address Port
+## Listen IP Address and Port
 
 The local IP address and port on which the application listens for incoming connections.
 
@@ -660,6 +660,7 @@ incoming traffic is properly routed.
 #### **YAML**
 ```yaml
 soulseek:
+  listen_ip_address: 0.0.0.0
   listen_port: 50300
 ```
 

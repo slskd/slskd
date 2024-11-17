@@ -22,10 +22,11 @@ using slskd.Transfers;
 
 public enum EventType
 {
-    None,
-    DownloadFileComplete,
-    DownloadDirectoryComplete,
-    Any,
+    None = 0,
+    Any = 1,
+    DownloadFileComplete = 2,
+    DownloadDirectoryComplete = 3,
+    Noop = int.MaxValue,
 }
 
 public abstract record Event
@@ -47,9 +48,13 @@ public sealed record DownloadFileCompleteEvent : Event
 
 public sealed record DownloadDirectoryCompleteEvent : Event
 {
-    public override EventType Type { get; } = EventType.DownloadDirectoryComplete;
-    public override int Version { get; } = 0;
-    public required string LocalDirectoryName { get; init; }
-    public required string RemoteDirectoryName { get; init; }
-    public required string Username { get; init; }
+    public override EventType Type => EventType.DownloadDirectoryComplete;
+    public string LocalDirectoryName { get; init; }
+    public string RemoteDirectoryName { get; init; }
+    public string Username { get; init; }
+}
+
+public sealed record NoopEvent : Event
+{
+    public override EventType Type => EventType.Noop;
 }
