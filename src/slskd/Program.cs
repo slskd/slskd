@@ -792,8 +792,7 @@ namespace slskd
             }
 
             services.AddRouting(options => options.LowercaseUrls = true);
-            services
-                .AddControllers()
+            services.AddControllers()
                 .ConfigureApiBehaviorOptions(options =>
                 {
                     options.SuppressInferBindingSourcesForParameters = true;
