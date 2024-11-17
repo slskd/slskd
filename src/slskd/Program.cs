@@ -795,10 +795,10 @@ namespace slskd
             services.AddControllers()
                 .ConfigureApiBehaviorOptions(options =>
                 {
-                    options.SuppressInferBindingSourcesForParameters = true;
-                    options.SuppressMapClientErrors = true;
-                    options.SuppressModelStateInvalidFilter = true;
-                    options.DisableImplicitFromServicesParameters = true;
+                    options.SuppressInferBindingSourcesForParameters = true; // explicit [FromRoute], etc
+                    options.SuppressMapClientErrors = true; // disables automatic ProblemDetails for 4xx
+                    options.SuppressModelStateInvalidFilter = true; // disables automatic 400 for model errors
+                    options.DisableImplicitFromServicesParameters = true; // explicit [FromServices]
                 })
                 .AddJsonOptions(options =>
                 {
