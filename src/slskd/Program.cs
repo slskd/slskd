@@ -964,8 +964,10 @@ namespace slskd
                             }
                         }
 
-                        var response = await Metrics.BuildAsync();
-                        await context.Response.WriteAsync(response);
+                        var metricsAsText = await Metrics.BuildAsync();
+
+                        context.Response.Headers.Append("Content-Type", "text/plain; version=0.0.4; charset=utf-8");
+                        await context.Response.WriteAsync(metricsAsText);
                     });
                 }
             });
