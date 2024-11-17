@@ -949,6 +949,10 @@ namespace slskd
 
                     endpoints.MapGet(url, async context =>
                     {
+                        // at the time of writing, the prometheus library doesn't include a way to add authentication
+                        // to the UseMetricServer() middleware. this is most likely a consequence of me mixing
+                        // and matching minimal API stuff with controllers. if i ever straighten that out,
+                        // this should be revisited.
                         if (!options.Authentication.Disabled)
                         {
                             var auth = context.Request.Headers["Authorization"].FirstOrDefault();
@@ -964,8 +968,10 @@ namespace slskd
                             }
                         }
 
-                        var response = await Metrics.BuildAsync();
-                        await context.Response.WriteAsync(response);
+                        var metricsAsText = await Metrics.BuildAsync();
+
+                        context.Response.Headers.Append("Content-Type", "text/plain; version=0.0.4; charset=utf-8");
+                        await context.Response.WriteAsync(metricsAsText);
                     });
                 }
             });
