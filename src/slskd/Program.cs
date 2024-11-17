@@ -843,8 +843,8 @@ namespace slskd
                         Description = "A modern client-server application for the Soulseek file sharing network",
                         Contact = new OpenApiContact
                         {
-                            Name = "GitHub Issues",
-                            Url = new Uri("https://github.com/slskd/slskd/issues"),
+                            Name = "GitHub",
+                            Url = new Uri("https://github.com/slskd/slskd"),
                         },
                         License = new OpenApiLicense
                         {
