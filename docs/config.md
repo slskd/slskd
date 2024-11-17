@@ -405,17 +405,17 @@ groups:
       strategy: roundrobin
       slots: 10
       speed_limit: 50000 # kibibytes
-  limits:
-    queued:
-      files: 150
-      megabytes: 1500
-    daily:
-      files: 2147483647 # effectively unlimited, weekly still applies
-      megabytes: 2147483647
-    weekly:
-      files: 1500
-      megabytes: 15000
-      failures: 150
+    limits:
+      queued:
+        files: 150
+        megabytes: 1500
+      daily:
+        files: 2147483647 # effectively unlimited, weekly still applies
+        megabytes: 2147483647
+      weekly:
+        files: 1500
+        megabytes: 15000
+        failures: 150
   leechers:
     thresholds:
       files: 1
