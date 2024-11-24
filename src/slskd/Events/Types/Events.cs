@@ -49,6 +49,7 @@ public sealed record DownloadFileCompleteEvent : Event
 public sealed record DownloadDirectoryCompleteEvent : Event
 {
     public override EventType Type => EventType.DownloadDirectoryComplete;
+    public override int Version { get; } = 0;
     public string LocalDirectoryName { get; init; }
     public string RemoteDirectoryName { get; init; }
     public string Username { get; init; }
@@ -57,4 +58,5 @@ public sealed record DownloadDirectoryCompleteEvent : Event
 public sealed record NoopEvent : Event
 {
     public override EventType Type => EventType.Noop;
+    public override int Version { get; } = 0;
 }
