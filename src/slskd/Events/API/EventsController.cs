@@ -105,7 +105,7 @@ public class EventsController : ControllerBase
     /// <response code="403">Authentication is valid but not sufficient to access this endpoint.</response>
     /// <response code="500">An unexpected error is encountered.</response>
     /// <response code="200">The request completed successfully.</response>
-    [HttpPost("", Name = nameof(RaiseEvent))]
+    [HttpPost("{type}", Name = nameof(RaiseEvent))]
     [Authorize(Policy = AuthPolicy.Any)]
     [ProducesResponseType(typeof(string), 400)]
     [ProducesResponseType(401)]
