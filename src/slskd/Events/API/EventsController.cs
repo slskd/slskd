@@ -98,7 +98,7 @@ public class EventsController : ControllerBase
     ///     Raises a sample event of the specified <see cref="EventType"/>.
     /// </summary>
     /// <param name="type">The type of event to raise.</param>
-    /// <param name="disambiguator">A string used to disambiguate generated events.</param>
+    /// <param name="disambiguator">An optional string used to disambiguate generated events.</param>
     /// <returns>The randomly generated event that was raised.</returns>
     /// <response code="400">If the offset is less than zero, or if the limit is less than or equal to zero.</response>
     /// <response code="401">Authentication credentials are omitted.</response>
@@ -133,6 +133,7 @@ public class EventsController : ControllerBase
         {
             EventType.DownloadFileComplete => new DownloadFileCompleteEvent { LocalFilename = $"{d}local.file", RemoteFilename = $"{d}remote.file", Transfer = null },
             EventType.DownloadDirectoryComplete => new DownloadDirectoryCompleteEvent { LocalDirectoryName = $"{d}local.directory", RemoteDirectoryName = $"{d}remote.directory", Username = $"{d}username" },
+            EventType.Noop => new NoopEvent(),
             _ => throw new SlskdException($"Event type {eventType} is an enum member but is not handled.  Please submit an issue on GitHub."),
         };
 
