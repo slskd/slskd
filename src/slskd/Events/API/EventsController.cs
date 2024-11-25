@@ -114,7 +114,7 @@ public class EventsController : ControllerBase
     [ProducesResponseType(typeof(Event), 201)]
     public IActionResult RaiseEvent([FromRoute] string type, [FromBody] string disambiguator)
     {
-        if (!Enum.TryParse<EventType>(type, out var eventType))
+        if (!Enum.TryParse<EventType>(type, ignoreCase: true, out var eventType))
         {
             var names = Enum.GetNames(typeof(EventType))
                 .Where(n => n != EventType.Any.ToString() && n != EventType.None.ToString());
