@@ -95,16 +95,16 @@ public class EventsController : ControllerBase
     }
 
     /// <summary>
-    ///     Raises a sample event of the specified <see cref="EventType"/>.
+    ///     Raises a sample event of the specified type.
     /// </summary>
     /// <param name="type">The type of event to raise.</param>
     /// <param name="disambiguator">An optional string used to disambiguate generated events.</param>
     /// <returns>The randomly generated event that was raised.</returns>
-    /// <response code="400">If the offset is less than zero, or if the limit is less than or equal to zero.</response>
+    /// <response code="400">The specified type is not a valid event type.</response>
     /// <response code="401">Authentication credentials are omitted.</response>
     /// <response code="403">Authentication is valid but not sufficient to access this endpoint.</response>
     /// <response code="500">An unexpected error is encountered.</response>
-    /// <response code="200">The request completed successfully.</response>
+    /// <response code="201">The request completed successfully.</response>
     [HttpPost("{type}", Name = nameof(RaiseEvent))]
     [Authorize(Policy = AuthPolicy.Any)]
     [ProducesResponseType(typeof(string), 400)]
@@ -127,18 +127,18 @@ public class EventsController : ControllerBase
             return BadRequest($"Event type '{type}' can not be raised");
         }
 
-        var d = disambiguator;
-
-        Event @event = eventType switch
-        {
-            EventType.DownloadFileComplete => new DownloadFileCompleteEvent { LocalFilename = $"{d}local.file", RemoteFilename = $"{d}remote.file", Transfer = null },
-            EventType.DownloadDirectoryComplete => new DownloadDirectoryCompleteEvent { LocalDirectoryName = $"{d}local.directory", RemoteDirectoryName = $"{d}remote.directory", Username = $"{d}username" },
-            EventType.Noop => new NoopEvent(),
-            _ => throw new SlskdException($"Event type {eventType} is an enum member but is not handled.  Please submit an issue on GitHub."),
-        };
-
         try
         {
+            var d = disambiguator;
+
+            Event @event = eventType switch
+            {
+                EventType.DownloadFileComplete => new DownloadFileCompleteEvent { LocalFilename = $"{d}local.file", RemoteFilename = $"{d}remote.file", Transfer = null },
+                EventType.DownloadDirectoryComplete => new DownloadDirectoryCompleteEvent { LocalDirectoryName = $"{d}local.directory", RemoteDirectoryName = $"{d}remote.directory", Username = $"{d}username" },
+                EventType.Noop => new NoopEvent(),
+                _ => throw new SlskdException($"Event type {eventType} is an enum member but is not handled.  Please submit an issue on GitHub."),
+            };
+
             EventBus.Raise(@event);
             return StatusCode(201, @event);
         }
