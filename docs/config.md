@@ -923,7 +923,58 @@ retention:
 
 # Integrations
 
-## Webhooks
+## User-Defined
+
+User-defined integrations allow users to configure external applications to receive data from slskd as things happen internally.  slskd uses an internal [event bus](https://www.akamai.com/glossary/what-is-an-event-bus) over which event data is sent from application logic to whatever destination(s) users choose.
+
+The number and type of events will change as the application matures, but each event should have some minimal properties:
+
+|Name|Description|
+|-|-|
+|Id|The unique ID for the event.  Events may be delivered to external consumers more than once; use this property to de-duplicate them.|
+|Timestamp|The time (UTC) at which the event was raised.  Events can arrive out of chronological order; use this property to determine if that has taken place.|
+|Version|The event version, used to disambiguate event shapes if a breaking change is made to the data in the future.|
+|Type|The event type.  Use this to determine what other data will be included.  See: [Events.cs](https://github.com/slskd/slskd/blob/master/src/slskd/Events/Types/Events.cs).|
+
+Here's an example of what a `DownloadFileComplete` event (at the time of this writing; review Events.cs!) looks like:
+
+```json
+{
+    "type": "DownloadFileComplete",
+    "version": 0,
+    "localFilename": "asdfasfdasfdlocal.file",
+    "remoteFilename": "asdfasfdasfdremote.file",
+    "transfer": {
+        "id": "00000000-0000-0000-0000-000000000000",
+        "direction": "Download",
+        "size": 0,
+        "startOffset": 0,
+        "state": "None",
+        "requestedAt": "0001-01-01T00:00:00",
+        "bytesTransferred": 0,
+        "averageSpeed": 0,
+        "bytesRemaining": 0,
+        "percentComplete": 0
+    },
+    "id": "973bed18-8516-4b7d-ab24-e13888385237",
+    "timestamp": "2024-11-28T00:54:13.8939864Z"
+}
+```
+
+Users developing integrations can use the internal `RaiseEvent` HTTP endpoint to create sample events and put them on the bus.  This will help test integrations end to end without having to take action within the application.
+
+Here's an example cURL command for the endpoint:
+
+```bash
+curl --location 'localhost:5030/api/v0/events/downloadfilecomplete' \
+--header 'Content-Type: application/json' \
+--header 'X-API-Key: <an API key from your config>' \
+--data '"asdfasfdasfd"'
+```
+
+The data passed is a 'disambiguator' that's prepended to sample data.  This will help users differentiate between different event instances.
+
+### Webhooks
 
 Webhooks (outbound HTTP requests) can be configured to be called when application events are raised.  Webhooks are given a name (useful for troubleshooting!), a list of triggering events, a `call` configuration that defines the HTTP request to be made, and timeout and retry configuration.
 
@@ -958,7 +1009,7 @@ integration:
         attempts: 3
 ```
 
-## User-Defined Scripts
+### Scripts
 
 User-defined scripts can be configured to run when application events are raised.  Scripts are given a name (useful for troubleshooting!), a list of triggering events, and a `run` command that's used to execute the script.
 
@@ -981,7 +1032,11 @@ integration:
       run: cmd.exe echo $DATA >> event_log.txt # Windows
 ```
 
-## FTP
+## System-Defined
+
+System-defined integrations are part of the application logic.  Users can configure settings, but don't have any control over behavior.
+
+### FTP
 
 Files can be uploaded to a remote FTP server upon completion. Files are uploaded to the server and remote path specified using the directory and filename with which they were downloaded; the FTP will match the layout of the local disk.
 
@@ -1018,7 +1073,7 @@ integration:
     retry_attempts: 3
 ```
 
-## Pushbullet
+### Pushbullet
 
 Pushbullet notifications can be sent when a private message is sent, or the current user's username is mentioned in a chat room. Notifications are prefixed with a user-definable string to differentiate these notifications from others.  
 
