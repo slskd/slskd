@@ -46,6 +46,65 @@ server {
 }
 ```
 
+## SWAG
+
+### At a Subdomain
+
+Create a file named "slskd.subdomain.conf" in /PATH_TO_SWAG/nginx/proxy-confs/
+
+Here's an example, you may need to change the port.
+
+
+```
+# make sure that your slskd container is named slskd
+# make sure that your dns has a cname set for slskd
+
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+
+    server_name slskd.*;
+
+    include /config/nginx/ssl.conf;
+
+    client_max_body_size 0;
+
+    # enable for ldap auth (requires ldap-location.conf in the location block)
+    #include /config/nginx/ldap-server.conf;
+
+    # enable for Authelia (requires authelia-location.conf in the location block)
+    #include /config/nginx/authelia-server.conf;
+
+    # enable for Authentik (requires authentik-location.conf in the location block)
+    #include /config/nginx/authentik-server.conf;
+
+    location / {
+        # enable the next two lines for http auth
+        #auth_basic "Restricted";
+        #auth_basic_user_file /config/nginx/.htpasswd;
+
+        # enable for ldap auth (requires ldap-server.conf in the server block)
+        #include /config/nginx/ldap-location.conf;
+
+        # enable for Authelia (requires authelia-server.conf in the server block)
+        #include /config/nginx/authelia-location.conf;
+
+        # enable for Authentik (requires authentik-server.conf in the server block)
+        #include /config/nginx/authentik-location.conf;
+
+        include /config/nginx/proxy.conf;
+        include /config/nginx/resolver.conf;
+        set $upstream_app slskd;
+        set $upstream_port 5030;
+        set $upstream_proto http;
+        proxy_pass $upstream_proto://$upstream_app:$upstream_port;
+
+    }
+
+}
+```
+
+
 ## Apache
 
 With `URL_BASE` set to `/slskd`:
