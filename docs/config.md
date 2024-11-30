@@ -961,18 +961,18 @@ Here's an example of what a `DownloadFileComplete` event (at the time of this wr
 }
 ```
 
-Users developing integrations can use the internal `RaiseEvent` HTTP endpoint to create sample events and put them on the bus.  This will help test integrations end to end without having to take action within the application.
+Users developing integrations can use the internal `RaiseEvent` HTTP endpoint to create sample events and put them on the bus.  This will help test integrations end to end without having to take action within the application, but be aware; using this endpoint after testing is complete is not a good idea!
 
 Here's an example cURL command for the endpoint:
 
 ```bash
 curl --location 'localhost:5030/api/v0/events/downloadfilecomplete' \
---header 'Content-Type: application/json' \
---header 'X-API-Key: <an API key from your config>' \
---data '"asdfasfdasfd"'
+  --header 'Content-Type: application/json' \
+  --header 'X-API-Key: <an API key from your config>' \
+  --data '"asdfasfdasfd"'
 ```
 
-The data passed is a 'disambiguator' that's prepended to sample data.  This will help users differentiate between different event instances.
+The data passed is a 'disambiguator' that's prepended to sample data.  This helps differentiate between different event instances.
 
 ### Webhooks
 
