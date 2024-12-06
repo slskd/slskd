@@ -45,7 +45,7 @@ RUN set -eux; \
       apt-get update; \
       apt-get install --no-install-recommends -y \
         jq \
-        wget \
+        curl \
         gosu \
       ; \
       rm -rf \
@@ -107,4 +107,4 @@ HEALTHCHECK \
   --timeout=3s \
   --start-period=5s \
   --retries=3 \
-  CMD wget -q -O - http://localhost:${SLSKD_HTTP_PORT}/health
+  CMD curl -sfS http://localhost:${SLSKD_HTTP_PORT}/health || exit 1
