@@ -150,6 +150,7 @@ jobs:
             ghcr.io/slskd/slskd:canary
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          file: containers/Dockerfile
 
       - name: Build and push Release
         if: startsWith(github.ref, 'refs/tags/')
@@ -170,6 +171,7 @@ jobs:
             ghcr.io/slskd/slskd:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          file: containers/Dockerfile
 
   release:
     name: Create Release

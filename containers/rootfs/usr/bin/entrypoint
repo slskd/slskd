@@ -1,0 +1,10 @@
+#!/usr/bin/env sh
+
+set -eu
+
+main() {
+  umask "$SLSKD_UMASK"
+  exec /slskd/slskd
+}
+
+main "$@"
