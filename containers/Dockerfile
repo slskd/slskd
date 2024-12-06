@@ -46,12 +46,13 @@ RUN set -eux; \
       apt-get install --no-install-recommends -y \
         jq \
         wget \
-        tini \
       ; \
       rm -rf \
         /var/lib/apt/lists \
         /var/lib/dpkg/status-old \
       ;
+
+VOLUME /app
 
 RUN set -eux; \
       mkdir -p \
@@ -63,8 +64,6 @@ RUN set -eux; \
         /app \
         /.net \
       ;
-
-VOLUME /app
 
 ENV DOTNET_EnableDiagnostics=0 \
     DOTNET_BUNDLE_EXTRACT_BASE_DIR=/.net \
@@ -94,16 +93,11 @@ LABEL org.opencontainers.image.title=slskd \
       org.opencontainers.image.revision=$REVISION \
       org.opencontainers.image.created=$BUILD_DATE
 
+COPY containers/rootfs /
 WORKDIR /slskd
 COPY --from=publish /slskd/dist/${TARGETPLATFORM} .
 
-RUN set -eux; \
-      echo 'umask $SLSKD_UMASK && exec ./slskd' > start.sh; \
-      chmod +x start.sh;
-
-ENTRYPOINT ["/usr/bin/tini", "--"]
-
-CMD ["./start.sh"]
+ENTRYPOINT ["entrypoint"]
 
 HEALTHCHECK \
   --interval=60s \
