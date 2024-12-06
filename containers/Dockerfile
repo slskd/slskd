@@ -46,6 +46,7 @@ RUN set -eux; \
       apt-get install --no-install-recommends -y \
         jq \
         wget \
+        gosu \
       ; \
       rm -rf \
         /var/lib/apt/lists \
@@ -63,7 +64,8 @@ RUN set -eux; \
       chmod -R 0777 \
         /app \
         /.net \
-      ;
+      ; \
+      ln -s /slskd/slskd /usr/bin/;
 
 ENV DOTNET_EnableDiagnostics=0 \
     DOTNET_BUNDLE_EXTRACT_BASE_DIR=/.net \
@@ -98,6 +100,7 @@ WORKDIR /slskd
 COPY --from=publish /slskd/dist/${TARGETPLATFORM} .
 
 ENTRYPOINT ["entrypoint"]
+CMD ["slskd"]
 
 HEALTHCHECK \
   --interval=60s \
