@@ -31,6 +31,7 @@ namespace slskd.Transfers.Uploads
     using System.Threading.Tasks;
     using Microsoft.EntityFrameworkCore;
     using Serilog;
+    using slskd.Events;
     using slskd.Relay;
     using slskd.Shares;
     using slskd.Users;
@@ -131,7 +132,8 @@ namespace slskd.Transfers.Uploads
             IOptionsMonitor<Options> optionsMonitor,
             IShareService shareService,
             IRelayService relayService,
-            IDbContextFactory<TransfersDbContext> contextFactory)
+            IDbContextFactory<TransfersDbContext> contextFactory,
+            EventBus eventBus)
         {
             Files = fileService;
             Users = userService;
@@ -140,6 +142,7 @@ namespace slskd.Transfers.Uploads
             Relay = relayService;
             ContextFactory = contextFactory;
             OptionsMonitor = optionsMonitor;
+            EventBus = eventBus;
 
             Governor = new UploadGovernor(userService, optionsMonitor);
             Queue = new UploadQueue(userService, optionsMonitor);
@@ -164,6 +167,7 @@ namespace slskd.Transfers.Uploads
         private IRelayService Relay { get; }
         private IShareService Shares { get; set; }
         private IUserService Users { get; set; }
+        private EventBus EventBus { get; }
 
         /// <summary>
         ///     Adds the specified <paramref name="transfer"/>. Supersedes any existing record for the same file and username.
@@ -392,6 +396,14 @@ namespace slskd.Transfers.Uploads
 
                     // todo: broadcast
                     SynchronizedUpdate(transfer, cancellable: false);
+
+                    EventBus.Raise(new UploadFileCompleteEvent
+                    {
+                        Timestamp = transfer.EndedAt.Value,
+                        LocalFilename = localFilename,
+                        RemoteFilename = filename,
+                        Transfer = transfer,
+                    });
                 }
                 catch (OperationCanceledException ex)
                 {
