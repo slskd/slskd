@@ -1,4 +1,4 @@
-﻿// <copyright file="SearchService.cs" company="slskd Team">
+// <copyright file="SearchService.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -35,6 +35,60 @@ namespace slskd.Search
     using SearchQuery = Soulseek.SearchQuery;
     using SearchScope = Soulseek.SearchScope;
     using SearchStates = Soulseek.SearchStates;
+
+    /// <summary>
+    ///     Handles the lifecycle and persistence of searches.
+    /// </summary>
+    public interface ISearchService
+    {
+        /// <summary>
+        ///     Deletes the specified search.
+        /// </summary>
+        /// <param name="search">The search to delete.</param>
+        /// <returns>The operation context.</returns>
+        Task DeleteAsync(Search search);
+
+        /// <summary>
+        ///     Finds a single search matching the specified <paramref name="expression"/>.
+        /// </summary>
+        /// <param name="expression">The expression to use to match searches.</param>
+        /// <param name="includeResponses">A value indicating whether to include search responses in the result.</param>
+        /// <returns>The found search, or default if not found.</returns>
+        /// <exception cref="ArgumentException">Thrown when an expression is not supplied.</exception>
+        Task<Search> FindAsync(Expression<Func<Search, bool>> expression, bool includeResponses = false);
+
+        /// <summary>
+        ///     Returns a list of all completed and in-progress searches, with responses omitted, matching the optional <paramref name="expression"/>.
+        /// </summary>
+        /// <param name="expression">An optional expression used to match searches.</param>
+        /// <returns>The list of searches matching the specified expression, or all searches if no expression is specified.</returns>
+        Task<List<Search>> ListAsync(Expression<Func<Search, bool>> expression = null);
+
+        /// <summary>
+        ///     Performs a search for the specified <paramref name="query"/> and <paramref name="scope"/>.
+        /// </summary>
+        /// <param name="id">A unique identifier for the search.</param>
+        /// <param name="query">The search query.</param>
+        /// <param name="scope">The search scope.</param>
+        /// <param name="options">Search options.</param>
+        /// <returns>The completed search.</returns>
+        Task<Search> StartAsync(Guid id, SearchQuery query, SearchScope scope, SearchOptions options = null);
+
+        /// <summary>
+        ///     Cancels the search matching the specified <paramref name="id"/>, if it is in progress.
+        /// </summary>
+        /// <param name="id">The unique identifier for the search.</param>
+        /// <returns>A value indicating whether the search was successfully cancelled.</returns>
+        bool TryCancel(Guid id);
+
+        /// <summary>
+        ///     Removes <see cref="SearchStates.Completed"/> searches older than the specified <paramref name="age"/>.
+        /// </summary>
+        /// <param name="age">The age after which records are eligible for pruning, in minutes.</param>
+        /// <param name="state">An optional, additional state by which records are filtered for pruning.</param>
+        /// <returns>The number of pruned records.</returns>
+        int Prune(int age, SearchStates state = SearchStates.Completed);
+    }
 
     /// <summary>
     ///     Handles the lifecycle and persistence of searches.
