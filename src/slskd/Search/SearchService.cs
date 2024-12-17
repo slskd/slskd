@@ -1,4 +1,4 @@
-// <copyright file="SearchService.cs" company="slskd Team">
+﻿// <copyright file="SearchService.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -85,9 +85,8 @@ namespace slskd.Search
         ///     Removes <see cref="SearchStates.Completed"/> searches older than the specified <paramref name="age"/>.
         /// </summary>
         /// <param name="age">The age after which records are eligible for pruning, in minutes.</param>
-        /// <param name="state">An optional, additional state by which records are filtered for pruning.</param>
         /// <returns>The number of pruned records.</returns>
-        int Prune(int age, SearchStates state = SearchStates.Completed);
+        int Prune(int age);
     }
 
     /// <summary>
@@ -309,6 +308,40 @@ namespace slskd.Search
             }
 
             return false;
+        }
+
+        /// <summary>
+        ///     Removes <see cref="SearchStates.Completed"/> searches older than the specified <paramref name="age"/>.
+        /// </summary>
+        /// <param name="age">The age after which searches are eligible for pruning, in minutes.</param>
+        /// <returns>The number of pruned records.</returns>
+        public int Prune(int age)
+        {
+            try
+            {
+                using var context = ContextFactory.CreateDbContext();
+
+                var cutoffDateTime = DateTime.UtcNow.AddMinutes(-age);
+
+                // unlike other pruning operations, we don't care about state, since there's a 60 minute minimum
+                // and searches are guaranteed to be at least 60 minutes old by the time they can be pruned, they will
+                // be completed unless someone applied some rather dumb settings
+                var expired = context.Searches
+                    .Where(s => !s.EndedAt.HasValue && s.EndedAt.Value < cutoffDateTime)
+                    .ToList();
+
+                // also unlike other contexts, we don't soft delete searches
+                // there's no value in keeping them and because we store the responses inline, they take up a lot of space
+                context.Searches.RemoveRange(expired);
+                context.SaveChanges();
+
+                return expired.Count;
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to prune searches: {Message}", ex.Message);
+                throw;
+            }
         }
     }
 }
