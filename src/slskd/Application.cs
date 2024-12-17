@@ -1007,6 +1007,7 @@ namespace slskd
 
         private void Clock_EveryFiveMinutes(object sender, ClockEventArgs e)
         {
+            _ = Task.Run(() => PruneSearches());
             _ = Task.Run(() => PruneTransfers());
         }
 
@@ -1018,7 +1019,6 @@ namespace slskd
         private void Clock_EveryHour(object sender, ClockEventArgs e)
         {
             _ = Task.Run(() => MaybeRescanShares());
-            _ = Task.Run(() => PruneSearches());
         }
 
         private async Task MaybeRescanShares()
@@ -1147,7 +1147,7 @@ namespace slskd
             }
         }
 
-        private void PruneSearches()
+        private async Task PruneSearches()
         {
             var age = OptionsMonitor.CurrentValue.Retention.Search;
 
@@ -1155,7 +1155,7 @@ namespace slskd
             {
                 try
                 {
-                    var pruned = Search.Prune(age.Value);
+                    var pruned = await Search.PruneAsync(age.Value);
                     Log.Debug("Pruned {Count} search records", pruned);
                 }
                 catch
