@@ -86,7 +86,7 @@ namespace slskd.Search
         /// </summary>
         /// <param name="age">The age after which records are eligible for pruning, in minutes.</param>
         /// <returns>The number of pruned records.</returns>
-        int Prune(int age);
+        Task<int> PruneAsync(int age);
     }
 
     /// <summary>
@@ -247,6 +247,8 @@ namespace slskd.Search
                     search.FileCount = args.Search.FileCount;
                     search.LockedFileCount = args.Search.LockedFileCount;
 
+                    // note that we're not actually doing anything with the response here, that's happening in the
+                    // response handler. we're only updating counts here.
                     SearchHub.BroadcastUpdateAsync(search);
                     UpdateAndSaveChanges(search);
                 }));
@@ -278,9 +280,9 @@ namespace slskd.Search
 
                         UpdateAndSaveChanges(search);
 
-                        // zero responses before broadcasting
-                        search.Responses = Enumerable.Empty<Response>();
-                        await SearchHub.BroadcastUpdateAsync(search);
+                        // zero responses before broadcasting, as we don't want to blast this
+                        // data out over the SignalR socket
+                        await SearchHub.BroadcastUpdateAsync(search with { Responses = [] });
                     }
                     catch (Exception ex)
                     {
@@ -315,7 +317,7 @@ namespace slskd.Search
         /// </summary>
         /// <param name="age">The age after which searches are eligible for pruning, in minutes.</param>
         /// <returns>The number of pruned records.</returns>
-        public int Prune(int age)
+        public async Task<int> PruneAsync(int age)
         {
             try
             {
@@ -327,13 +329,16 @@ namespace slskd.Search
                 // and searches are guaranteed to be at least 60 minutes old by the time they can be pruned, they will
                 // be completed unless someone applied some rather dumb settings
                 var expired = context.Searches
-                    .Where(s => !s.EndedAt.HasValue && s.EndedAt.Value < cutoffDateTime)
+                    .Where(s => s.EndedAt.HasValue && s.EndedAt.Value < cutoffDateTime)
+                    .WithoutResponses()
                     .ToList();
 
-                // also unlike other contexts, we don't soft delete searches
-                // there's no value in keeping them and because we store the responses inline, they take up a lot of space
-                context.Searches.RemoveRange(expired);
-                context.SaveChanges();
+                // defer the deletion to DeleteAsync() so that SignalR broadcasting works properly and the UI
+                // is updated in real time
+                foreach (var search in expired)
+                {
+                    await DeleteAsync(search);
+                }
 
                 return expired.Count;
             }
