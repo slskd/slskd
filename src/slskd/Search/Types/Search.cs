@@ -25,7 +25,7 @@ namespace slskd.Search
     using System.Text.Json.Serialization;
     using Soulseek;
 
-    public class Search
+    public record Search
     {
         public DateTime? EndedAt { get; set; }
         public int FileCount { get; set; }
