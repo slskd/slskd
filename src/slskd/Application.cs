@@ -96,6 +96,7 @@ namespace slskd
             IUserService userService,
             IMessagingService messagingService,
             IShareService shareService,
+            ISearchService searchService,
             IPushbulletService pushbulletService,
             IRelayService relayService,
             EventService eventService,
@@ -145,6 +146,8 @@ namespace slskd
 
             Shares = shareService;
             Shares.StateMonitor.OnChange(state => ShareState_OnChange(state));
+
+            Search = searchService;
 
             Events = eventService;
 
@@ -227,6 +230,7 @@ namespace slskd
         private IHubContext<LogsHub> LogHub { get; set; }
         private IUserService Users { get; set; }
         private IShareService Shares { get; set; }
+        private ISearchService Search { get; set; }
         private EventService Events { get; }
         private IRelayService Relay { get; set; }
         private IMemoryCache Cache { get; set; } = new MemoryCache(new MemoryCacheOptions());
@@ -1014,6 +1018,7 @@ namespace slskd
         private void Clock_EveryHour(object sender, ClockEventArgs e)
         {
             _ = Task.Run(() => MaybeRescanShares());
+            _ = Task.Run(() => PruneSearches());
         }
 
         private async Task MaybeRescanShares()
@@ -1139,6 +1144,16 @@ namespace slskd
             catch
             {
                 Log.Error("Encountered one or more errors while pruning transfers");
+            }
+        }
+
+        private void PruneSearches()
+        {
+            var age = OptionsMonitor.CurrentValue.Retention.Search;
+
+            if (age.HasValue)
+            {
+                Search.Prune(age.Value);
             }
         }
 
