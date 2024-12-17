@@ -895,17 +895,20 @@ filters:
 
 By default, most things created by the application are retained indefinitely; they have to be removed manually by the user.  Users can optionally configure certain things to be removed or deleted automatically after a period of time.
 
+Completed searches can be configured to be removed from the UI and 'hard' deleted from the database.  It's a good idea to set this to something relatively short, as old searches have diminishing value as they age and the records contain a lot of data.
+
 Transfers can be configured to be removed from the UI after they are complete by specifying retention periods for uploads and downloads separately, and by transfer state; succeeded, errored, and cancelled.
 
 Files (on disk) can be configured to be deleted after the age of their last access time exceeds the configured time.  Completed and incomplete files can be configured separately.
 
 Application logs are removed after 180 days by default, but this can be configured as well.
 
-All retention periods are specified in minutes.
+All retention periods are specified in minutes, with the exception of `logs`, which is in days.
 
 #### **YAML**
 ```yaml
 retention:
+  search: 1440 # 1 day
   transfers:
     upload:
       succeeded: 1440 # 1 day
