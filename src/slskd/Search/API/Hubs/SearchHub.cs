@@ -51,7 +51,7 @@ namespace slskd.Search.API
         }
 
         /// <summary>
-        ///     Broadcast a newly recieved search response.
+        ///     Broadcast a newly received search response.
         /// </summary>
         /// <param name="hub">The hub.</param>
         /// <param name="searchId">The ID of the search associated with the response.</param>
