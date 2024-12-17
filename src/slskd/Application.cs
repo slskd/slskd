@@ -1156,6 +1156,7 @@ namespace slskd
                 try
                 {
                     var pruned = await Search.PruneAsync(age.Value);
+                }
                 catch
                 {
                     Log.Error("Encountered one or more errors while pruning searches");
