@@ -1314,7 +1314,7 @@ namespace slskd
             /// <summary>
             ///     Gets the time to retain searches, in minutes.
             /// </summary>
-            [Range(60, maximum: int.MaxValue)]
+            [Range(5, maximum: int.MaxValue)]
             public int? Search { get; init; } = null;
 
             /// <summary>
