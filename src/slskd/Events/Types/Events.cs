@@ -26,6 +26,7 @@ public enum EventType
     Any = 1,
     DownloadFileComplete = 2,
     DownloadDirectoryComplete = 3,
+    UploadFileComplete = 4,
     Noop = int.MaxValue,
 }
 
@@ -50,9 +51,18 @@ public sealed record DownloadDirectoryCompleteEvent : Event
 {
     public override EventType Type => EventType.DownloadDirectoryComplete;
     public override int Version { get; } = 0;
-    public string LocalDirectoryName { get; init; }
-    public string RemoteDirectoryName { get; init; }
+    public required string LocalDirectoryName { get; init; }
+    public required string RemoteDirectoryName { get; init; }
     public string Username { get; init; }
+}
+
+public sealed record UploadFileCompleteEvent : Event
+{
+    public override EventType Type { get; } = EventType.UploadFileComplete;
+    public override int Version { get; } = 0;
+    public required string LocalFilename { get; init; }
+    public required string RemoteFilename { get; init; }
+    public required Transfer Transfer { get; init; }
 }
 
 public sealed record NoopEvent : Event
