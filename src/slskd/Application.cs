@@ -1153,7 +1153,15 @@ namespace slskd
 
             if (age.HasValue)
             {
-                Search.Prune(age.Value);
+                try
+                {
+                    var pruned = Search.Prune(age.Value);
+                    Log.Debug("Pruned {Count} search records", pruned);
+                }
+                catch
+                {
+                    Log.Error("Encountered one or more errors while pruning searches");
+                }
             }
         }
 
