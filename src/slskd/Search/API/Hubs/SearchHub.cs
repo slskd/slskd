@@ -39,16 +39,19 @@ namespace slskd.Search.API
         /// <summary>
         ///     Broadcast an update for a search.
         /// </summary>
+        /// <remarks>
+        ///     Responses are removed prior to sending.
+        /// </remarks>
         /// <param name="hub">The hub.</param>
         /// <param name="search">The search to broadcast.</param>
         /// <returns>The operation context.</returns>
         public static Task BroadcastUpdateAsync(this IHubContext<SearchHub> hub, Search search)
         {
-            return hub.Clients.All.SendAsync(SearchHubMethods.Update, search);
+            return hub.Clients.All.SendAsync(SearchHubMethods.Update, search with { Responses = null });
         }
 
         /// <summary>
-        ///     Broadcast the present application options.
+        ///     Broadcast a newly received search response.
         /// </summary>
         /// <param name="hub">The hub.</param>
         /// <param name="searchId">The ID of the search associated with the response.</param>
@@ -59,14 +62,32 @@ namespace slskd.Search.API
             return hub.Clients.All.SendAsync(SearchHubMethods.Response, new { searchId, response });
         }
 
+        /// <summary>
+        ///     Broadcast the creation of a new search.
+        /// </summary>
+        /// <remarks>
+        ///     Responses are removed prior to sending.
+        /// </remarks>
+        /// <param name="hub">The hub.</param>
+        /// <param name="search">The search to broadcast.</param>
+        /// <returns>The operation context.</returns>
         public static Task BroadcastCreateAsync(this IHubContext<SearchHub> hub, Search search)
         {
-            return hub.Clients.All.SendAsync(SearchHubMethods.Create, search);
+            return hub.Clients.All.SendAsync(SearchHubMethods.Create, search with { Responses = null });
         }
 
+        /// <summary>
+        ///     Broadcast the deletion of a search.
+        /// </summary>
+        /// <remarks>
+        ///     Responses are removed prior to sending.
+        /// </remarks>
+        /// <param name="hub">The hub.</param>
+        /// <param name="search">The search to broadcast.</param>
+        /// <returns>The operation context.</returns>
         public static Task BroadcastDeleteAsync(this IHubContext<SearchHub> hub, Search search)
         {
-            return hub.Clients.All.SendAsync(SearchHubMethods.Delete, search);
+            return hub.Clients.All.SendAsync(SearchHubMethods.Delete, search with { Responses = null });
         }
     }
 

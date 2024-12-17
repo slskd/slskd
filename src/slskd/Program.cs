@@ -1024,6 +1024,7 @@ namespace slskd
                 .MinimumLevel.Override("System.Net.Http.HttpClient", OptionsAtStartup.Debug ? LogEventLevel.Warning : LogEventLevel.Fatal)
                 .MinimumLevel.Override("slskd.Authentication.PassthroughAuthenticationHandler", LogEventLevel.Warning)
                 .MinimumLevel.Override("slskd.Authentication.ApiKeyAuthenticationHandler", LogEventLevel.Warning)
+                .MinimumLevel.Override("Microsoft.EntityFrameworkCore.Database.Command", LogEventLevel.Warning) // bump this down to Information to show SQL
                 .Enrich.WithProperty("InstanceName", OptionsAtStartup.InstanceName)
                 .Enrich.WithProperty("InvocationId", InvocationId)
                 .Enrich.WithProperty("ProcessId", ProcessId)

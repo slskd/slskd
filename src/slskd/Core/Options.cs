@@ -1312,6 +1312,12 @@ namespace slskd
         public class RetentionOptions
         {
             /// <summary>
+            ///     Gets the time to retain searches, in minutes.
+            /// </summary>
+            [Range(5, maximum: int.MaxValue)]
+            public int? Search { get; init; } = null;
+
+            /// <summary>
             ///     Gets transfer retention options.
             /// </summary>
             [Validate]

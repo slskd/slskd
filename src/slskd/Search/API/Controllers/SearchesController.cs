@@ -210,7 +210,7 @@ namespace slskd.Search.API
                 return Forbid();
             }
 
-            var search = await Searches.FindAsync(search => search.Id == id, includeResponses: true);
+            var search = await Searches.FindAsync(search => search.Id == id, includeResponses: false);
 
             if (search == default)
             {

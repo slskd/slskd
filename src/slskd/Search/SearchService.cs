@@ -39,6 +39,59 @@ namespace slskd.Search
     /// <summary>
     ///     Handles the lifecycle and persistence of searches.
     /// </summary>
+    public interface ISearchService
+    {
+        /// <summary>
+        ///     Deletes the specified search.
+        /// </summary>
+        /// <param name="search">The search to delete.</param>
+        /// <returns>The operation context.</returns>
+        Task DeleteAsync(Search search);
+
+        /// <summary>
+        ///     Finds a single search matching the specified <paramref name="expression"/>.
+        /// </summary>
+        /// <param name="expression">The expression to use to match searches.</param>
+        /// <param name="includeResponses">A value indicating whether to include search responses in the result.</param>
+        /// <returns>The found search, or default if not found.</returns>
+        /// <exception cref="ArgumentException">Thrown when an expression is not supplied.</exception>
+        Task<Search> FindAsync(Expression<Func<Search, bool>> expression, bool includeResponses = false);
+
+        /// <summary>
+        ///     Returns a list of all completed and in-progress searches, with responses omitted, matching the optional <paramref name="expression"/>.
+        /// </summary>
+        /// <param name="expression">An optional expression used to match searches.</param>
+        /// <returns>The list of searches matching the specified expression, or all searches if no expression is specified.</returns>
+        Task<List<Search>> ListAsync(Expression<Func<Search, bool>> expression = null);
+
+        /// <summary>
+        ///     Performs a search for the specified <paramref name="query"/> and <paramref name="scope"/>.
+        /// </summary>
+        /// <param name="id">A unique identifier for the search.</param>
+        /// <param name="query">The search query.</param>
+        /// <param name="scope">The search scope.</param>
+        /// <param name="options">Search options.</param>
+        /// <returns>The completed search.</returns>
+        Task<Search> StartAsync(Guid id, SearchQuery query, SearchScope scope, SearchOptions options = null);
+
+        /// <summary>
+        ///     Cancels the search matching the specified <paramref name="id"/>, if it is in progress.
+        /// </summary>
+        /// <param name="id">The unique identifier for the search.</param>
+        /// <returns>A value indicating whether the search was successfully cancelled.</returns>
+        bool TryCancel(Guid id);
+
+        /// <summary>
+        ///     Removes <see cref="SearchStates.Completed"/> searches older than the specified <paramref name="age"/>.
+        /// </summary>
+        /// <param name="age">The age after which records are eligible for pruning, in minutes.</param>
+        /// <returns>The number of pruned records.</returns>
+        Task<int> PruneAsync(int age);
+    }
+
+    /// <summary>
+    ///     Handles the lifecycle and persistence of searches.
+    /// </summary>
     public class SearchService : ISearchService
     {
         /// <summary>
@@ -194,6 +247,8 @@ namespace slskd.Search
                     search.FileCount = args.Search.FileCount;
                     search.LockedFileCount = args.Search.LockedFileCount;
 
+                    // note that we're not actually doing anything with the response here, that's happening in the
+                    // response handler. we're only updating counts here.
                     SearchHub.BroadcastUpdateAsync(search);
                     UpdateAndSaveChanges(search);
                 }));
@@ -225,9 +280,9 @@ namespace slskd.Search
 
                         UpdateAndSaveChanges(search);
 
-                        // zero responses before broadcasting
-                        search.Responses = Enumerable.Empty<Response>();
-                        await SearchHub.BroadcastUpdateAsync(search);
+                        // zero responses before broadcasting, as we don't want to blast this
+                        // data out over the SignalR socket
+                        await SearchHub.BroadcastUpdateAsync(search with { Responses = [] });
                     }
                     catch (Exception ex)
                     {
@@ -255,6 +310,43 @@ namespace slskd.Search
             }
 
             return false;
+        }
+
+        /// <summary>
+        ///     Removes <see cref="SearchStates.Completed"/> searches older than the specified <paramref name="age"/>.
+        /// </summary>
+        /// <param name="age">The age after which searches are eligible for pruning, in minutes.</param>
+        /// <returns>The number of pruned records.</returns>
+        public async Task<int> PruneAsync(int age)
+        {
+            try
+            {
+                using var context = ContextFactory.CreateDbContext();
+
+                var cutoffDateTime = DateTime.UtcNow.AddMinutes(-age);
+
+                // unlike other pruning operations, we don't care about state, since there's a 60 minute minimum
+                // and searches are guaranteed to be at least 60 minutes old by the time they can be pruned, they will
+                // be completed unless someone applied some rather dumb settings
+                var expired = context.Searches
+                    .Where(s => s.EndedAt.HasValue && s.EndedAt.Value < cutoffDateTime)
+                    .WithoutResponses()
+                    .ToList();
+
+                // defer the deletion to DeleteAsync() so that SignalR broadcasting works properly and the UI
+                // is updated in real time
+                foreach (var search in expired)
+                {
+                    await DeleteAsync(search);
+                }
+
+                return expired.Count;
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to prune searches: {Message}", ex.Message);
+                throw;
+            }
         }
     }
 }
