@@ -541,7 +541,11 @@ namespace slskd.Transfers.Uploads
                     .Where(t => t.Direction == TransferDirection.Upload)
                     .Where(t => !t.Removed)
                     .Where(t => t.EndedAt.HasValue && t.EndedAt.Value < cutoffDateTime)
-                    .Where(t => t.State == state) // https://github.com/dotnet/efcore/issues/20094
+
+                    // note: don't try HasFlag() here: https://github.com/dotnet/efcore/issues/20094
+                    // this won't work because the state is stored as a comma separated string (which we've done deliberately)
+                    // and EF won't do the necessary work to generate the required SQL
+                    .Where(t => t.State == state)
                     .ToList();
 
                 foreach (var tx in expired)
