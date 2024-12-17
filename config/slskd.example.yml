@@ -156,18 +156,19 @@
 #         role: readonly # readonly, readwrite, administrator
 #         cidr: 0.0.0.0/0,::/0
 # retention:
+#   searches: 10080 # 7 days, in minutes
 #   transfers:
 #     upload:
-#       succeeded: 1440 # 1 day
+#       succeeded: 1440 # 1 day, in minutes
 #       errored: 30
 #       cancelled: 5
 #     download:
-#       succeeded: 1440 # 1 day
-#       errored: 20160 # 2 weeks 
+#       succeeded: 1440 # 1 day, in minutes
+#       errored: 20160 # 2 weeks, in minutes
 #       cancelled: 5
 #   files:
-#     complete: 20160 # 2 weeks
-#     incomplete: 43200 # 30 days
+#     complete: 20160 # 2 weeks, in minutes
+#     incomplete: 43200 # 30 days, in minutes
 #   logs: 180 # days
 # logger:
 #   disk: false
