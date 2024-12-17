@@ -93,7 +93,7 @@ namespace slskd.Transfers.Uploads
         /// <summary>
         ///     Removes <see cref="TransferStates.Completed"/> uploads older than the specified <paramref name="age"/>.
         /// </summary>
-        /// <param name="age">The age after which uploads are eligible for pruning, in hours.</param>
+        /// <param name="age">The age after which uploads are eligible for pruning, in minutes.</param>
         /// <param name="state">An optional, additional state by which uploads are filtered for pruning.</param>
         /// <returns>The number of pruned uploads.</returns>
         int Prune(int age, TransferStates state = TransferStates.Completed);
@@ -521,7 +521,7 @@ namespace slskd.Transfers.Uploads
         /// <summary>
         ///     Removes <see cref="TransferStates.Completed"/> uploads older than the specified <paramref name="age"/>.
         /// </summary>
-        /// <param name="age">The age after which uploads are eligible for pruning, in hours.</param>
+        /// <param name="age">The age after which uploads are eligible for pruning, in minutes.</param>
         /// <param name="state">An optional, additional state by which uploads are filtered for pruning.</param>
         /// <returns>The number of pruned uploads.</returns>
         public int Prune(int age, TransferStates state = TransferStates.Completed)
