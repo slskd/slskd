@@ -435,6 +435,15 @@ namespace slskd
             [EnvironmentVariable("LEGACY_WINDOWS_TCP_KEEPALIVE")]
             [Description("use a legacy TCP keepalive strategy for older Windows versions")]
             public bool LegacyWindowsTcpKeepalive { get; init; } = false;
+
+            /// <summary>
+            ///     Gets a value indicating whether to use the uploaded shares from Relay agents as the source of
+            ///     truth for file existence and size, instead of querying the agent prior to enqueueing the file.
+            /// </summary>
+            [Argument(default, "optimistic-relay-file-info")]
+            [EnvironmentVariable("OPTIMISTIC_RELAY_FILE_INFO")]
+            [Description("use uploaded relay shares as source of truth for file existence and size")]
+            public bool OptimisticRelayFileInfo { get; init; } = false;
         }
 
         /// <summary>

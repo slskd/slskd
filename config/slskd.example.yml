@@ -15,6 +15,7 @@
 #   volatile: false
 #   case_sensitive_reg_ex: false
 #   legacy_windows_tcp_keepalive: false
+#   optimistic_relay_file_info: false
 # relay:
 #   enabled: false
 #   mode: controller # controller (default), agent, or debug (for local development)

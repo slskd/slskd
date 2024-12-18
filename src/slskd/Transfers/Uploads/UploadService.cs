@@ -232,15 +232,22 @@ namespace slskd.Transfers.Uploads
                 }
                 else
                 {
-                    var (exists, length) = await Relay.GetFileInfoAsync(agentName: host, filename);
-
-                    if (!exists || length <= 0)
+                    if (OptionsMonitor.CurrentValue.Flags.OptimisticRelayFileInfo)
                     {
-                        // todo: force a remote scan
-                        throw new NotFoundException($"The file '{localFilename}' could not be located on Agent {host}. A share scan should be performed.");
+                        localFileLength = resolvedFileLength;
                     }
+                    else
+                    {
+                        var (exists, length) = await Relay.GetFileInfoAsync(agentName: host, filename);
 
-                    localFileLength = length;
+                        if (!exists || length <= 0)
+                        {
+                            // todo: force a remote scan
+                            throw new NotFoundException($"The file '{localFilename}' could not be located on Agent {host}. A share scan should be performed.");
+                        }
+
+                        localFileLength = length;
+                    }
                 }
             }
             catch (NotFoundException)
