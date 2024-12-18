@@ -42,7 +42,8 @@ namespace slskd.Relay
     [ApiController]
     public class RelayController : ControllerBase
     {
-        private const long TEN_GIGABYTES = 10L * 1024L * 1024L * 1024L;
+        private const long ONE_GIBIBYTE = 1L * 1024L * 1024L * 1024L; // 1073741824
+        private const long ONE_TEBIBYTE = 1024L * ONE_GIBIBYTE; // 1099511627776
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="RelayController"/> class.
@@ -157,8 +158,8 @@ namespace slskd.Relay
         /// <param name="token">The unique identifier for the request.</param>
         /// <returns></returns>
         [HttpPost("controller/files/{token}")]
-        [RequestSizeLimit(TEN_GIGABYTES)]
-        [RequestFormLimits(MultipartBodyLengthLimit = TEN_GIGABYTES)]
+        [RequestSizeLimit(10L * ONE_TEBIBYTE)]
+        [RequestFormLimits(MultipartBodyLengthLimit = 10L * ONE_TEBIBYTE)]
         [DisableFormValueModelBinding]
         [Authorize(Policy = AuthPolicy.ApiKeyOnly, Roles = AuthRole.ReadWriteOrAdministrator)]
         public async Task<IActionResult> UploadFile(string token)
@@ -255,8 +256,8 @@ namespace slskd.Relay
         /// <param name="token">The unique identifier for the request.</param>
         /// <returns></returns>
         [HttpPost("controller/shares/{token}")]
-        [RequestSizeLimit(TEN_GIGABYTES)]
-        [RequestFormLimits(MultipartBodyLengthLimit = TEN_GIGABYTES)]
+        [RequestSizeLimit(ONE_TEBIBYTE)]
+        [RequestFormLimits(MultipartBodyLengthLimit = ONE_TEBIBYTE)]
         [Authorize(Policy = AuthPolicy.ApiKeyOnly, Roles = AuthRole.ReadWriteOrAdministrator)]
         public async Task<IActionResult> UploadShares(string token)
         {
