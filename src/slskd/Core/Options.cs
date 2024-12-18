@@ -152,6 +152,15 @@ namespace slskd
         public bool Debug { get; init; } = Debugger.IsAttached;
 
         /// <summary>
+        ///     Gets a value indicating whether the application should run in headless (no web UI) mode.
+        /// </summary>
+        [Argument('H', "headless")]
+        [EnvironmentVariable("HEADLESS")]
+        [Description("run in headless (no web UI) mode")]
+        [RequiresRestart]
+        public bool Headless { get; init; } = false;
+
+        /// <summary>
         ///     Gets a value indicating whether remote configuration of options is allowed.
         /// </summary>
         [Argument(default, "remote-configuration")]

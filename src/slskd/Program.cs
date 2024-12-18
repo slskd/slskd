@@ -909,8 +909,15 @@ namespace slskd
                 EnableDefaultFiles = true,
             };
 
-            app.UseFileServer(fileServerOptions);
-            Log.Information("Serving static content from {ContentPath}", contentPath);
+            if (!OptionsAtStartup.Headless)
+            {
+                app.UseFileServer(fileServerOptions);
+                Log.Information("Serving static content from {ContentPath}", contentPath);
+            }
+            else
+            {
+                Log.Warning("Running in headless mode; web UI is DISABLED");
+            }
 
             if (OptionsAtStartup.Web.Logging)
             {
@@ -998,21 +1005,28 @@ namespace slskd
                 Log.Information("Publishing Swagger documentation to {URL}", "/swagger");
             }
 
-            // if we made it this far, the caller is either looking for a route that was synthesized with a SPA router, or is genuinely confused.
-            // if the request is for a directory, modify the request to redirect it to the index, otherwise leave it alone and let it 404 in the next
-            // middleware
-            app.Use(async (context, next) =>
+            /*
+                if we made it this far, the caller is either looking for a route that was synthesized with a SPA router, or is genuinely confused.
+                if the request is for a directory, modify the request to redirect it to the index, otherwise leave it alone and let it 404 in the next
+                middleware.
+
+                if we're running in headless mode, do nothing and let ASP.NET return a 404
+            */
+            if (!OptionsAtStartup.Headless)
             {
-                if (Path.GetExtension(context.Request.Path.ToString()) == string.Empty)
+                app.Use(async (context, next) =>
                 {
-                    context.Request.Path = "/";
-                }
+                    if (Path.GetExtension(context.Request.Path.ToString()) == string.Empty)
+                    {
+                        context.Request.Path = "/";
+                    }
 
-                await next();
-            });
+                    await next();
+                });
 
-            // either serve the index, or 404
-            app.UseFileServer(fileServerOptions);
+                // either serve the index, or 404
+                app.UseFileServer(fileServerOptions);
+            }
 
             return app;
         }
