@@ -73,6 +73,20 @@ If an attacker were to gain access to the application and retrieve the YAML file
 remote_configuration: false
 ```
 
+# Headless Mode
+
+Users that want extra security and don't intend to use the application's web UI can disable it.  This setting is ideal in
+situations where slskd will be controlled by another application via the API (like when run as a Relay agent).
+
+| Command-Line             | Environment Variable         | Description                                                   |
+| ------------------------ | -----------------------------| ------------------------------------------------------------- |
+| `--headless` | `SLSKD_HEADLESS` | Determines whether the application should run in headless (no web UI) mode |
+
+#### **YAML**
+```yaml
+headless: false
+```
+
 # Permissions
 
 On [Unix-like](https://en.wikipedia.org/wiki/Unix-like) operating systems, slskd creates downloaded files with permissions dictated by the [umask](https://en.wikipedia.org/wiki/Umask) of the process, usually 022, which translates to a file mode of 644; read/write for the owner and read for the group and all others.
