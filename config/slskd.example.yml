@@ -1,4 +1,5 @@
 # debug: false
+# headless: false
 # remote_configuration: false
 # remote_file_management: false
 # instance_name: default
