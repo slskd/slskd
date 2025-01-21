@@ -307,6 +307,8 @@ namespace slskd
         {
             Log.Information("Application started");
 
+            Log.Debug("Cleaning up any dangling records");
+
             // if the application shut down "uncleanly", transfers may need to be cleaned up. we deliberately don't allow these
             // records to be updated if the application has started to shut down so that we can do this cleanup and properly
             // disposition them as having failed due to an application shutdown, instead of some random exception thrown while
@@ -346,13 +348,15 @@ namespace slskd
 
             foreach (var search in activeSearches)
             {
-                Log.Debug("Cleaning up dangling search {Query}", search.SearchText);
+                Log.Debug("Cleaning up dangling search {Query} started {StartedAt}", search.SearchText, search.StartedAt);
                 search.Responses = [];
                 search.ResponseCount = 0;
                 search.FileCount = 0;
                 search.LockedFileCount = 0;
                 search.State = SearchStates.Completed | SearchStates.TimedOut;
                 search.EndedAt = DateTime.UtcNow;
+
+                Search.Update(search);
             }
 
             // save the ids of any downloads that were active, so we can re-enqueue them after we've connected and logged in.
