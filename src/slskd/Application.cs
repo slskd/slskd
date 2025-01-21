@@ -307,12 +307,14 @@ namespace slskd
         {
             Log.Information("Application started");
 
+            Log.Debug("Cleaning up any dangling records");
+
             // if the application shut down "uncleanly", transfers may need to be cleaned up. we deliberately don't allow these
             // records to be updated if the application has started to shut down so that we can do this cleanup and properly
             // disposition them as having failed due to an application shutdown, instead of some random exception thrown while
             // things are being disposed.
             var activeUploads = Transfers.Uploads.List(t => !t.State.HasFlag(TransferStates.Completed), includeRemoved: false)
-                .Where(t => !t.State.HasFlag(TransferStates.Completed)) // https://github.com/dotnet/efcore/issues/10434
+                .Where(t => !t.State.HasFlag(TransferStates.Completed)) // https://github.com/slskd/slskd/issues/1280
                 .ToList();
 
             foreach (var upload in activeUploads)
@@ -324,7 +326,7 @@ namespace slskd
             }
 
             var activeDownloads = Transfers.Downloads.List(t => !t.State.HasFlag(TransferStates.Completed) && !t.Removed)
-                .Where(t => !t.State.HasFlag(TransferStates.Completed)) // https://github.com/dotnet/efcore/issues/10434
+                .Where(t => !t.State.HasFlag(TransferStates.Completed)) // https://github.com/slskd/slskd/issues/1280
                 .ToList();
 
             foreach (var download in activeDownloads)
@@ -333,6 +335,28 @@ namespace slskd
                 download.State = TransferStates.Completed | TransferStates.Errored;
                 download.Exception = ApplicationShutdownTransferExceptionMessage;
                 Transfers.Downloads.Update(download);
+            }
+
+            /*
+                search records can be left 'dangling' as well. responses are held in memory and saved to the database
+                when the search is complete, so when a search 'dangles' all responses have been lost. to avoid discrepancies,
+                we need to zero the response and file counts as well as set the state and EndedAt.
+            */
+            var activeSearches = (await Search.ListAsync(s => s.EndedAt == null || !s.State.HasFlag(SearchStates.Completed)))
+                .Where(s => s.EndedAt == null || !s.State.HasFlag(SearchStates.Completed)) // https://github.com/slskd/slskd/issues/1280
+                .ToList();
+
+            foreach (var search in activeSearches)
+            {
+                Log.Debug("Cleaning up dangling search {Query} started {StartedAt}", search.SearchText, search.StartedAt);
+                search.Responses = [];
+                search.ResponseCount = 0;
+                search.FileCount = 0;
+                search.LockedFileCount = 0;
+                search.State = SearchStates.Completed | SearchStates.TimedOut;
+                search.EndedAt = DateTime.UtcNow;
+
+                Search.Update(search);
             }
 
             // save the ids of any downloads that were active, so we can re-enqueue them after we've connected and logged in.
