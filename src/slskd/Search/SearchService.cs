@@ -65,6 +65,15 @@ namespace slskd.Search
         Task<List<Search>> ListAsync(Expression<Func<Search, bool>> expression = null);
 
         /// <summary>
+        ///     Updates the specified <paramref name="search"/>.
+        /// </summary>
+        /// <remark>
+        ///     Round-trips the database; use accordingly.
+        /// </remark>
+        /// <param name="search">The search to update.</param>
+        void Update(Search search);
+
+        /// <summary>
         ///     Performs a search for the specified <paramref name="query"/> and <paramref name="scope"/>.
         /// </summary>
         /// <param name="id">A unique identifier for the search.</param>
@@ -192,6 +201,17 @@ namespace slskd.Search
         }
 
         /// <summary>
+        ///     Updates the specified <paramref name="search"/>.
+        /// </summary>
+        /// <param name="search">The search to update.</param>
+        public void Update(Search search)
+        {
+            using var context = ContextFactory.CreateDbContext();
+            context.Update(search);
+            context.SaveChanges();
+        }
+
+        /// <summary>
         ///     Performs a search for the specified <paramref name="query"/> and <paramref name="scope"/>.
         /// </summary>
         /// <param name="id">A unique identifier for the search.</param>
@@ -223,20 +243,13 @@ namespace slskd.Search
 
             List<SearchResponse> responses = new();
 
-            void UpdateAndSaveChanges(Search search)
-            {
-                using var context = ContextFactory.CreateDbContext();
-                context.Update(search);
-                context.SaveChanges();
-            }
-
             options ??= new SearchOptions();
             options = options.WithActions(
                 stateChanged: (args) =>
                 {
                     search = search.WithSoulseekSearch(args.Search);
                     SearchHub.BroadcastUpdateAsync(search);
-                    UpdateAndSaveChanges(search);
+                    Update(search);
                 },
                 responseReceived: (args) => rateLimiter.Invoke(() =>
                 {
@@ -250,7 +263,7 @@ namespace slskd.Search
                     // note that we're not actually doing anything with the response here, that's happening in the
                     // response handler. we're only updating counts here.
                     SearchHub.BroadcastUpdateAsync(search);
-                    UpdateAndSaveChanges(search);
+                    Update(search);
                 }));
 
             var soulseekSearchTask = Client.SearchAsync(
@@ -278,7 +291,7 @@ namespace slskd.Search
                         search.EndedAt = DateTime.UtcNow;
                         search.Responses = responses.Select(r => Response.FromSoulseekSearchResponse(r));
 
-                        UpdateAndSaveChanges(search);
+                        Update(search);
 
                         // zero responses before broadcasting, as we don't want to blast this
                         // data out over the SignalR socket
