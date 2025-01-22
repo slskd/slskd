@@ -321,6 +321,7 @@ namespace slskd
             {
                 Log.Debug("Cleaning up dangling upload {Filename} to {Username}", upload.Filename, upload.Username);
                 upload.State = TransferStates.Completed | TransferStates.Errored;
+                upload.EndedAt = DateTime.UtcNow;
                 upload.Exception = ApplicationShutdownTransferExceptionMessage;
                 Transfers.Uploads.Update(upload);
             }
@@ -333,6 +334,7 @@ namespace slskd
             {
                 Log.Debug("Cleaning up dangling download {Filename} from {Username}", download.Filename, download.Username);
                 download.State = TransferStates.Completed | TransferStates.Errored;
+                download.EndedAt = DateTime.UtcNow;
                 download.Exception = ApplicationShutdownTransferExceptionMessage;
                 Transfers.Downloads.Update(download);
             }
