@@ -308,6 +308,7 @@ namespace slskd.Search
                         }
                         catch (Exception ex)
                         {
+                            // record will be left 'hanging' and will need to be cleaned up at the next boot
                             Log.Error(ex, "Failed to persist search for {SearchQuery} ({Id})", query, id);
                         }
                     }
