@@ -266,7 +266,9 @@ namespace slskd.Search
                     Update(search);
                 }));
 
-            var soulseekSearchTask = Client.SearchAsync(
+            try
+            {
+                var soulseekSearchTask = Client.SearchAsync(
                 query,
                 responseHandler: (response) => responses.Add(response),
                 scope,
@@ -274,35 +276,47 @@ namespace slskd.Search
                 options,
                 cancellationToken: cancellationTokenSource.Token);
 
-            _ = Task.Run(async () =>
-            {
-                try
+                _ = Task.Run(async () =>
                 {
-                    var soulseekSearch = await soulseekSearchTask;
-                    search = search.WithSoulseekSearch(soulseekSearch);
-                }
-                finally
-                {
-                    rateLimiter.Dispose();
-                    CancellationTokens.TryRemove(id, out _);
-
                     try
                     {
-                        search.EndedAt = DateTime.UtcNow;
-                        search.Responses = responses.Select(r => Response.FromSoulseekSearchResponse(r));
-
-                        Update(search);
-
-                        // zero responses before broadcasting, as we don't want to blast this
-                        // data out over the SignalR socket
-                        await SearchHub.BroadcastUpdateAsync(search with { Responses = [] });
+                        var soulseekSearch = await soulseekSearchTask;
+                        search = search.WithSoulseekSearch(soulseekSearch);
                     }
-                    catch (Exception ex)
+                    finally
                     {
-                        Log.Error(ex, "Failed to persist search for {SearchQuery} ({Id})", query, id);
+                        rateLimiter.Dispose();
+                        CancellationTokens.TryRemove(id, out _);
+
+                        try
+                        {
+                            search.EndedAt = DateTime.UtcNow;
+                            search.Responses = responses.Select(r => Response.FromSoulseekSearchResponse(r));
+
+                            Update(search);
+
+                            // zero responses before broadcasting, as we don't want to blast this
+                            // data out over the SignalR socket
+                            await SearchHub.BroadcastUpdateAsync(search with { Responses = [] });
+                        }
+                        catch (Exception ex)
+                        {
+                            Log.Error(ex, "Failed to persist search for {SearchQuery} ({Id})", query, id);
+                        }
                     }
-                }
-            });
+                });
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to execute search {Search}: {Message}", new { query, scope, options }, ex.Message);
+
+                search.State = SearchStates.Completed | SearchStates.Errored;
+                search.EndedAt = search.StartedAt;
+                context.Update(search);
+                context.SaveChanges();
+
+                throw;
+            }
 
             await SearchHub.BroadcastCreateAsync(search);
 
