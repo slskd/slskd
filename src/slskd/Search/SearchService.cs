@@ -1,4 +1,4 @@
-﻿// <copyright file="SearchService.cs" company="slskd Team">
+// <copyright file="SearchService.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -240,6 +240,8 @@ namespace slskd.Search
             using var context = ContextFactory.CreateDbContext();
             context.Add(search);
             context.SaveChanges();
+
+            await SearchHub.BroadcastCreateAsync(search);
 
             List<SearchResponse> responses = new();
 
