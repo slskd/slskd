@@ -270,14 +270,19 @@ namespace slskd.Search
 
             try
             {
+                // initiate the search. this can throw at invocation if there's a problem with
+                // the client state (e.g. disconnected) or a problem with the search (e.g. no terms)
                 var soulseekSearchTask = Client.SearchAsync(
-                query,
-                responseHandler: (response) => responses.Add(response),
-                scope,
-                token,
-                options,
-                cancellationToken: cancellationTokenSource.Token);
+                    query,
+                    responseHandler: (response) => responses.Add(response),
+                    scope,
+                    token,
+                    options,
+                    cancellationToken: cancellationTokenSource.Token);
 
+                // seach looks ok so far; let the rest of the logic run asynchronously
+                // on a background thread. this logic needs to clean up after itself and
+                // update the search record to accurately reflect the final state
                 _ = Task.Run(async () =>
                 {
                     try
