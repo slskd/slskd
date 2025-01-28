@@ -1,4 +1,4 @@
-// <copyright file="SearchService.cs" company="slskd Team">
+﻿// <copyright file="SearchService.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -228,6 +228,8 @@ namespace slskd.Search
 
             var rateLimiter = new RateLimiter(250);
 
+            // initialize the search record, save it to the database, and broadcast the creation
+            // we do this so the UI has some feedback to show to the user that we've gotten their request
             var search = new Search()
             {
                 SearchText = query.SearchText,
@@ -243,6 +245,8 @@ namespace slskd.Search
 
             await SearchHub.BroadcastCreateAsync(search);
 
+            // initialize the list of responses that we'll use to accumulate them
+            // populated by the responseHandler we pass to SearchAsync
             List<SearchResponse> responses = new();
 
             options ??= new SearchOptions();
@@ -290,6 +294,11 @@ namespace slskd.Search
                         var soulseekSearch = await soulseekSearchTask;
                         search = search.WithSoulseekSearch(soulseekSearch);
                     }
+                    catch (Exception ex)
+                    {
+                        Log.Error(ex, "Failed to execute search {Search}: {Message}", new { query, scope, options }, ex.Message);
+                        search.State = SearchStates.Completed | SearchStates.Errored;
+                    }
                     finally
                     {
                         rateLimiter.Dispose();
@@ -308,27 +317,30 @@ namespace slskd.Search
                         }
                         catch (Exception ex)
                         {
-                            // record will be left 'hanging' and will need to be cleaned up at the next boot
+                            // record may be left 'hanging' and will need to be cleaned up at the next boot
                             Log.Error(ex, "Failed to persist search for {SearchQuery} ({Id})", query, id);
                         }
                     }
                 });
+
+                await SearchHub.BroadcastUpdateAsync(search);
+
+                return search;
             }
             catch (Exception ex)
             {
+                // we'll end up here if the initial call throws for an ArgumentException, InvalidOperationException if
+                // the app isn't connected, and a few other straightforward issues that arise before even requesting the search
                 Log.Error(ex, "Failed to execute search {Search}: {Message}", new { query, scope, options }, ex.Message);
 
                 search.State = SearchStates.Completed | SearchStates.Errored;
                 search.EndedAt = search.StartedAt;
-                context.Update(search);
-                context.SaveChanges();
+                Update(search);
+
+                await SearchHub.BroadcastUpdateAsync(search with { Responses = [] });
 
                 throw;
             }
-
-            await SearchHub.BroadcastCreateAsync(search);
-
-            return search;
         }
 
         /// <summary>
