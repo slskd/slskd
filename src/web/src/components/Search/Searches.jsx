@@ -73,7 +73,7 @@ const Searches = ({ server } = {}) => {
     });
 
     searchHub.on('create', (search) => {
-      console.log('search', search);
+      onUpdate((old) => ({ ...old, [search.id]: search }));
     });
 
     searchHub.onreconnecting((connectionError) =>
