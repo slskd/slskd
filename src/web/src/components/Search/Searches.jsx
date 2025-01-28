@@ -72,7 +72,9 @@ const Searches = ({ server } = {}) => {
       });
     });
 
-    searchHub.on('create', () => {});
+    searchHub.on('create', (search) => {
+      console.log('search', search);
+    });
 
     searchHub.onreconnecting((connectionError) =>
       onConnectionError(connectionError?.message ?? 'Disconnected'),
