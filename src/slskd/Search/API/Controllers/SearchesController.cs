@@ -24,6 +24,7 @@ namespace slskd.Search.API
     using Asp.Versioning;
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
+    using Serilog;
     using SearchQuery = Soulseek.SearchQuery;
     using SearchScope = Soulseek.SearchScope;
 
@@ -50,6 +51,7 @@ namespace slskd.Search.API
 
         private ISearchService Searches { get; }
         private IOptionsSnapshot<Options> OptionsSnapshot { get; }
+        private ILogger Log { get; set; } = Serilog.Log.ForContext<SearchesController>();
 
         /// <summary>
         ///     Performs a search for the specified <paramref name="request"/>.
@@ -83,11 +85,18 @@ namespace slskd.Search.API
             }
             catch (Exception ex) when (ex is ArgumentException || ex is Soulseek.DuplicateTokenException)
             {
+                Log.Error(ex, "Failed to execute search {Search}: {Message}", request, ex.Message);
                 return BadRequest(ex.Message);
             }
             catch (InvalidOperationException ex)
             {
+                Log.Error(ex, "Failed to execute search {Search}: {Message}", request, ex.Message);
                 return Conflict(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to execute search {Search}: {Message}", request, ex.Message);
+                return StatusCode(500, ex.Message);
             }
 
             return Ok(search);
