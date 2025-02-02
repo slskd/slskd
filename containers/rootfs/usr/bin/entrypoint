@@ -1,0 +1,14 @@
+#!/usr/bin/env sh
+
+set -eu
+
+main() {
+  if [ "$1" = 'slskd' ] && [ "$(id -u)" -eq '0' ]; then
+    umask "$SLSKD_UMASK"
+    exec gosu app "$0" "$@"
+  fi
+
+  exec "$@"
+}
+
+main "$@"
