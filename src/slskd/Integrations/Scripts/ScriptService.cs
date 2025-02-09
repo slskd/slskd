@@ -65,6 +65,7 @@ public class ScriptService
             _ = Task.Run(() =>
             {
                 Process process = default;
+                var processId = Guid.NewGuid();
 
                 try
                 {
@@ -93,7 +94,7 @@ public class ScriptService
                         args = parts.Length > 1 ? parts[1] : null;
                     }
 
-                    Log.Debug("Running script '{Script}': {Run}", script.Key, run);
+                    Log.Debug("Running script '{Script}': \"{Executable}\" {Args} (id: {ProcessId})", script.Key, executable, args, processId);
                     var sw = Stopwatch.StartNew();
 
                     process = new Process()
@@ -129,11 +130,11 @@ public class ScriptService
                     var result = process.StandardOutput.ReadToEnd();
                     var resultAsLines = result.Split(["\r\n", "\r", "\n"], StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
 
-                    Log.Debug("Script '{Script}' ran successfully in {Duration}ms; output: {Output}", script.Key, sw.ElapsedMilliseconds, resultAsLines);
+                    Log.Debug("Script '{Script}' ran successfully in {Duration}ms; output: {Output} (id: {ProcessId})", script.Key, sw.ElapsedMilliseconds, resultAsLines, processId);
                 }
                 catch (Exception ex)
                 {
-                    Log.Warning(ex, "Failed to run script '{Script}' for event type {Event}: {Message}", script.Key, data.Type, ex.Message);
+                    Log.Warning(ex, "Failed to run script '{Script}' for event type {Event}: {Message} (id: {ProcessId})", script.Key, data.Type, ex.Message, processId);
                 }
                 finally
                 {
@@ -144,7 +145,7 @@ public class ScriptService
                     }
                     catch (Exception ex)
                     {
-                        Log.Warning(ex, "Failed to clean up process started from script '{Script}' for event type {Event}: {Message}", script.Key, data.Type, ex.Message);
+                        Log.Warning(ex, "Failed to clean up process started from script '{Script}' for event type {Event}: {Message} (id: {ProcessId})", script.Key, data.Type, ex.Message, processId);
                     }
                 }
             });
