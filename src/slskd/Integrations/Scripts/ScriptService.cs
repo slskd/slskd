@@ -128,6 +128,7 @@ public class ScriptService
                     try
                     {
                         process?.Close();
+                        process?.Dispose();
                     }
                     catch (Exception ex)
                     {
