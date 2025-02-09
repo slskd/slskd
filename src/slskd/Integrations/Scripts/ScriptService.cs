@@ -102,20 +102,16 @@ public class ScriptService
                         StartInfo = new ProcessStartInfo(fileName: executable)
                         {
                             UseShellExecute = false,
+                            CreateNoWindow = true,
                             RedirectStandardOutput = true,
                             RedirectStandardError = true,
-                            RedirectStandardInput = true,
+                            Arguments = args,
                         },
                     };
 
+                    process.StartInfo.Environment.Clear();
+                    process.StartInfo.EnvironmentVariables["SLSKD_SCRIPT_DATA"] = data.ToJson();
                     process.Start();
-
-                    if (args is not null)
-                    {
-                        process.StandardInput.WriteLine(args);
-                    }
-
-                    process.StandardInput.WriteLine("exit");
 
                     process.WaitForExit();
                     sw.Stop();
