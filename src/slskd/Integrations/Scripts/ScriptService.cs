@@ -45,6 +45,7 @@ public class ScriptService
     private ILogger Log { get; } = Serilog.Log.ForContext<ScriptService>();
     private IOptionsMonitor<Options> OptionsMonitor { get; }
     private EventBus Events { get; }
+    private Regex LeadingQuotedString => new("(\"[^\"]*\"){0,1}(.*)", RegexOptions.Singleline | RegexOptions.Compiled);
 
     private async Task HandleEvent(Event data)
     {
