@@ -935,7 +935,7 @@ retention:
   files:
     complete: 20160 # 2 weeks
     incomplete: 43200 # 30 days
-  logs: 259200 # 180 days
+  logs: 180 # days
 ```
 
 # Integrations
