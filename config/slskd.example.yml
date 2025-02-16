@@ -238,11 +238,27 @@
 #       on:
 #         - DownloadFileComplete
 #         - DownloadDirectoryComplete
-#       run: data/my_script.sh --json-to-process $EVENT
-#     my_logging_script:
+#       run:
+#         executable: ~ # if omitted, defaults to your operating system's $SHELL, or cmd.exe on Windows
+#         command: data/my_script.sh # the script reads the data from the $SLSKD_SCRIPT_DATA envar
+#     run_with_sh:
 #       on:
-#        - All
-#       run: data/log_slskd_events.sh $DATA
+#         - DownloadFileComplete
+#       run:
+#         executable: /bin/sh
+#         command: '-c "echo $SLSKD_SCRIPT_DATA >> downloads.txt"'
+#     run_with_windows:
+#       on:
+#         - DownloadFileComplete
+#       run:
+#         executable: cmd.exe
+#         command: '/c "echo %SLSKD_SCRIPT_DATA% >> downloads.txt"'
+#     run_with_windows_git_bash:
+#       on:
+#         - DownloadFileComplete
+#       run:
+#         executable: C:\Program Files\Git\git-bash.exe
+#         command: '-c "echo $SLSKD_SCRIPT_DATA >> downloads.txt"'
 #   ftp:
 #     enabled: false
 #     address: ~
