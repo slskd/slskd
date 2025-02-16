@@ -2157,9 +2157,31 @@ namespace slskd
                 /// <summary>
                 ///     Gets the shell script to invoke.
                 /// </summary>
-                [StringLength(int.MaxValue, MinimumLength = 1)]
-                [NotNullOrWhiteSpace]
-                public string Run { get; init; }
+                public ScriptRunOptions Run { get; init; } = new ScriptRunOptions();
+            }
+
+            /// <summary>
+            ///     Script run options.
+            /// </summary>
+            public class ScriptRunOptions : IValidatableObject
+            {
+                /// <summary>
+                ///     Gets the executable to start.
+                /// </summary>
+                public string Executable { get; init; }
+
+                /// <summary>
+                ///     Gets the command to run.
+                /// </summary>
+                public string Command { get; init; }
+
+                public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+                {
+                    if (string.IsNullOrWhiteSpace(Executable) && string.IsNullOrWhiteSpace(Command))
+                    {
+                        yield return new ValidationResult($"At least one of the {nameof(Executable)} and {nameof(Command)} fields must be specified");
+                    }
+                }
             }
 
             /// <summary>
