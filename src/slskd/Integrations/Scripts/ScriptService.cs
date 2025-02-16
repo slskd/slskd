@@ -91,6 +91,7 @@ public class ScriptService
                     if (string.IsNullOrEmpty(executable))
                     {
                         Log.Warning("Script '{Script}' will not be run: unable to determine script executable. Update the script configuration, or set your operating system's SHELL envar.");
+                        return;
                     }
 
                     Log.Debug("Running script '{Script}': \"{Executable}\" {Args} (id: {ProcessId})", script.Key, executable, args, processId);
