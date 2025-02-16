@@ -39,13 +39,28 @@ public class ScriptService
 
         Events.Subscribe<Event>(nameof(ScriptService), HandleEvent);
 
+        if (OperatingSystem.IsWindows())
+        {
+            DefaultExecutable = "cmd.exe";
+        }
+        else
+        {
+            DefaultExecutable = Environment.GetEnvironmentVariable("SHELL");
+
+            if (string.IsNullOrEmpty(DefaultExecutable))
+            {
+                Log.Warning("Unable to determine default script executable ($SHELL is missing or blank); any user-defined scripts that do not specify an executable will fail");
+            }
+        }
+
+        Log.Information("Set default script executable to '{DefaultExecutable}'", DefaultExecutable);
         Log.Debug("{Service} initialized", nameof(ScriptService));
     }
 
     private ILogger Log { get; } = Serilog.Log.ForContext<ScriptService>();
     private IOptionsMonitor<Options> OptionsMonitor { get; }
     private EventBus Events { get; }
-    private Regex LeadingQuotedString => new("(\"[^\"]*\"){0,1}(.*)", RegexOptions.Singleline | RegexOptions.Compiled);
+    private string DefaultExecutable { get; }
 
     private async Task HandleEvent(Event data)
     {
