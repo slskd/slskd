@@ -85,28 +85,12 @@ public class ScriptService
                 try
                 {
                     var run = script.Value.Run;
-                    string executable = default;
-                    string args = default;
+                    string executable = run.Executable ?? DefaultExecutable;
+                    string args = run.Command;
 
-                    // determine whether the executable is wrapped in quotes, and if so, set the executable to the
-                    // text contained within. the regex contains two capturing groups; the initial quoted string, and
-                    // everything that comes after. if both groups capture something, we were given a quoted string to start
-                    // otherwise no quotes were used, and we should use the first word as the executable
-                    var matches = LeadingQuotedString.Matches(run);
-
-                    if (matches.Count == 2)
+                    if (string.IsNullOrEmpty(executable))
                     {
-                        executable = matches[0].Value;
-                        args = matches[1].Value;
-                    }
-                    else
-                    {
-                        // didn't start with a quoted string, so just split the string into at most 2 parts, leaving
-                        // part [0] the executable and part [1] the rest of the string (but possibly null)
-                        var parts = run.Split(" ", count: 2, options: StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.RemoveEmptyEntries);
-
-                        executable = parts[0];
-                        args = parts.Length > 1 ? parts[1] : null;
+                        Log.Warning("Script '{Script}' will not be run: unable to determine script executable. Update the script configuration, or set your operating system's SHELL envar.");
                     }
 
                     Log.Debug("Running script '{Script}': \"{Executable}\" {Args} (id: {ProcessId})", script.Key, executable, args, processId);
