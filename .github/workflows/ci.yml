@@ -1,14 +1,14 @@
 name: CI
 on:
   push:
-    branches: [ master ]
+    branches: [master]
     tags: "[0-9]+.[0-9]+.[0-9]+"
   pull_request:
-    branches: [ master ]
+    branches: [master]
   workflow_dispatch:
 
 env:
-  DOTNET_VERSION: '8'
+  DOTNET_VERSION: "8"
 
 jobs:
   build:
@@ -41,7 +41,7 @@ jobs:
         with:
           name: web-${{ env.VERSION }}
           path: src/web/build
-  
+
   publish:
     name: Publish
     runs-on: ubuntu-latest
@@ -89,7 +89,7 @@ jobs:
         with:
           name: slskd-${{ env.VERSION }}-${{ matrix.runtime }}
           path: dist/${{ matrix.runtime }}
-  
+
   docker:
     name: Build Docker Image
     runs-on: ubuntu-latest
@@ -150,6 +150,7 @@ jobs:
             ghcr.io/slskd/slskd:canary
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          file: containers/Dockerfile
 
       - name: Build and push Release
         if: startsWith(github.ref, 'refs/tags/')
@@ -170,6 +171,7 @@ jobs:
             ghcr.io/slskd/slskd:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          file: containers/Dockerfile
 
   release:
     name: Create Release
