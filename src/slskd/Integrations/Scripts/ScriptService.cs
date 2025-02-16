@@ -98,8 +98,9 @@ public class ScriptService
 
                     process = new Process()
                     {
-                        StartInfo = new ProcessStartInfo(fileName: executable)
+                        StartInfo = new ProcessStartInfo(executable ?? DefaultExecutable)
                         {
+                            WorkingDirectory = Program.ScriptDirectory,
                             UseShellExecute = false,
                             CreateNoWindow = true,
                             RedirectStandardOutput = true,
