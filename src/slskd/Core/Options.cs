@@ -2166,20 +2166,28 @@ namespace slskd
             public class ScriptRunOptions : IValidatableObject
             {
                 /// <summary>
+                ///     Gets the shell command to run.
+                /// </summary>
+                public string Command { get; init; }
+
+                /// <summary>
                 ///     Gets the executable to start.
                 /// </summary>
                 public string Executable { get; init; }
 
                 /// <summary>
-                ///     Gets the command to run.
+                ///     Gets the arguments to pass to the executable.
                 /// </summary>
-                public string Command { get; init; }
+                public string Args { get; init; }
 
                 public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
                 {
-                    if (string.IsNullOrWhiteSpace(Executable) && string.IsNullOrWhiteSpace(Command))
+                    var cmdIsSet = !string.IsNullOrWhiteSpace(Command);
+                    var exeIsSet = !string.IsNullOrWhiteSpace(Executable);
+
+                    if ((cmdIsSet && exeIsSet) || (!cmdIsSet && !exeIsSet))
                     {
-                        yield return new ValidationResult($"At least one of the {nameof(Executable)} and {nameof(Command)} fields must be specified");
+                        yield return new ValidationResult($"One and only one of the fields {nameof(Command)} or {nameof(Executable)} may be specified for a single script");
                     }
                 }
             }
