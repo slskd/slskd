@@ -234,20 +234,23 @@
 #       retry:
 #         attempts: 3
 #   scripts:
-#     my_post_download_script:
+#     run_command_with_linux_system_shell: # slskd uses the executable defined in $SHELL
 #       on:
 #         - DownloadFileComplete
-#         - DownloadDirectoryComplete
 #       run:
-#         executable: ~ # if omitted, defaults to your operating system's $SHELL, or cmd.exe on Windows
-#         command: data/my_script.sh # the script reads the data from the $SLSKD_SCRIPT_DATA envar
+#         command: '"echo '$SLSKD_SCRIPT_DATA' >> slskd_downloads.txt"'
+#     run_command_with_windows_system_shell: # slskd uses cmd.exe
+#       on:
+#         - DownloadFileComplete
+#       run:
+#         command: '"echo "%SLSKD_SCRIPT_DATA%" >> slskd_downloads.txt"'
 #     run_with_sh:
 #       on:
 #         - DownloadFileComplete
 #       run:
 #         executable: /bin/sh
-#         command: '-c "echo $SLSKD_SCRIPT_DATA >> downloads.txt"'
-#     run_with_windows:
+#         args: '-c "echo $SLSKD_SCRIPT_DATA >> downloads.txt"'
+#     run_with_windows_cmd:
 #       on:
 #         - DownloadFileComplete
 #       run:
