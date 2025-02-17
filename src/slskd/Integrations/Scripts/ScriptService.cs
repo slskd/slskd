@@ -42,10 +42,12 @@ public class ScriptService
         if (OperatingSystem.IsWindows())
         {
             DefaultExecutable = "cmd.exe";
+            DefaultCommandPrefix = "/c";
         }
         else
         {
             DefaultExecutable = Environment.GetEnvironmentVariable("SHELL");
+            DefaultCommandPrefix = "-c";
 
             if (string.IsNullOrEmpty(DefaultExecutable))
             {
@@ -61,6 +63,7 @@ public class ScriptService
     private IOptionsMonitor<Options> OptionsMonitor { get; }
     private EventBus Events { get; }
     private string DefaultExecutable { get; }
+    private string DefaultCommandPrefix { get; }
 
     private async Task HandleEvent(Event data)
     {
