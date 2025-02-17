@@ -88,8 +88,21 @@ public class ScriptService
                 try
                 {
                     var run = script.Value.Run;
-                    string executable = run.Executable ?? DefaultExecutable;
-                    string args = run.Command;
+                    string executable = default;
+                    string args = default;
+
+                    // 'command mode' takes precedence over 'executable' mode
+                    // run the system shell and ensure the specified command is prefixed with the correct flag
+                    if (!string.IsNullOrEmpty(run.Command))
+                    {
+                        executable = DefaultExecutable;
+                        args = run.Command.StartsWith(DefaultCommandPrefix) ? run.Command : $"{DefaultCommandPrefix} {run.Command}";
+                    }
+                    else
+                    {
+                        executable = run.Executable ?? DefaultExecutable;
+                        args = run.Args;
+                    }
 
                     if (string.IsNullOrEmpty(executable))
                     {
