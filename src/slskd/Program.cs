@@ -208,6 +208,11 @@ namespace slskd
         public static string LogDirectory { get; private set; } = null;
 
         /// <summary>
+        ///     Gets the path where user-defined scripts are stored.
+        /// </summary>
+        public static string ScriptDirectory { get; private set; } = null;
+
+        /// <summary>
         ///     Gets a buffer containing the last few log events.
         /// </summary>
         public static ConcurrentFixedSizeQueue<LogRecord> LogBuffer { get; } = new ConcurrentFixedSizeQueue<LogRecord>(size: 100);
@@ -332,6 +337,7 @@ namespace slskd
             AppDirectory ??= DefaultAppDirectory;
             DataDirectory = Path.Combine(AppDirectory, "data");
             LogDirectory = Path.Combine(AppDirectory, "logs");
+            ScriptDirectory = Path.Combine(AppDirectory, "scripts");
 
             DefaultConfigurationFile = Path.Combine(AppDirectory, $"{AppName}.yml");
             DefaultDownloadsDirectory = Path.Combine(AppDirectory, "downloads");
@@ -347,6 +353,7 @@ namespace slskd
             {
                 VerifyDirectory(AppDirectory, createIfMissing: true, verifyWriteable: true);
                 VerifyDirectory(DataDirectory, createIfMissing: true, verifyWriteable: true);
+                VerifyDirectory(ScriptDirectory, createIfMissing: true, verifyWriteable: false);
                 VerifyDirectory(DefaultDownloadsDirectory, createIfMissing: true, verifyWriteable: true);
                 VerifyDirectory(DefaultIncompleteDirectory, createIfMissing: true, verifyWriteable: true);
             }

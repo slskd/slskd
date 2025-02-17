@@ -234,15 +234,34 @@
 #       retry:
 #         attempts: 3
 #   scripts:
-#     my_post_download_script:
+#     run_command_with_linux_system_shell: # slskd uses the executable defined in $SHELL
 #       on:
 #         - DownloadFileComplete
-#         - DownloadDirectoryComplete
-#       run: data/my_script.sh --json-to-process $EVENT
-#     my_logging_script:
+#       run:
+#         command: '"echo '$SLSKD_SCRIPT_DATA' >> slskd_downloads.txt"'
+#     run_command_with_windows_system_shell: # slskd uses cmd.exe
 #       on:
-#        - All
-#       run: data/log_slskd_events.sh $DATA
+#         - DownloadFileComplete
+#       run:
+#         command: '"echo "%SLSKD_SCRIPT_DATA%" >> slskd_downloads.txt"'
+#     run_with_sh:
+#       on:
+#         - DownloadFileComplete
+#       run:
+#         executable: /bin/sh
+#         args: '-c "echo $SLSKD_SCRIPT_DATA >> downloads.txt"'
+#     run_with_windows_cmd:
+#       on:
+#         - DownloadFileComplete
+#       run:
+#         executable: cmd.exe
+#         command: '/c "echo %SLSKD_SCRIPT_DATA% >> downloads.txt"'
+#     run_with_windows_git_bash:
+#       on:
+#         - DownloadFileComplete
+#       run:
+#         executable: C:\Program Files\Git\git-bash.exe
+#         command: '-c "echo $SLSKD_SCRIPT_DATA >> downloads.txt"'
 #   ftp:
 #     enabled: false
 #     address: ~

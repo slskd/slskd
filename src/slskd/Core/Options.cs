@@ -2107,14 +2107,10 @@ namespace slskd
 
                 public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
                 {
-                    var results = new List<ValidationResult>();
-
                     if (!Url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) && !Url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
                     {
-                        results.Add(new ValidationResult($"The {nameof(Url)} field must contain a fully qualified URL, including protocol (e.g. http:// or https://)"));
+                        yield return new ValidationResult($"The {nameof(Url)} field must contain a fully qualified URL, including protocol (e.g. http:// or https://)");
                     }
-
-                    return results;
                 }
             }
 
@@ -2161,9 +2157,39 @@ namespace slskd
                 /// <summary>
                 ///     Gets the shell script to invoke.
                 /// </summary>
-                [StringLength(int.MaxValue, MinimumLength = 1)]
-                [NotNullOrWhiteSpace]
-                public string Run { get; init; }
+                public ScriptRunOptions Run { get; init; } = new ScriptRunOptions();
+            }
+
+            /// <summary>
+            ///     Script run options.
+            /// </summary>
+            public class ScriptRunOptions : IValidatableObject
+            {
+                /// <summary>
+                ///     Gets the shell command to run.
+                /// </summary>
+                public string Command { get; init; }
+
+                /// <summary>
+                ///     Gets the executable to start.
+                /// </summary>
+                public string Executable { get; init; }
+
+                /// <summary>
+                ///     Gets the arguments to pass to the executable.
+                /// </summary>
+                public string Args { get; init; }
+
+                public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+                {
+                    var cmdIsSet = !string.IsNullOrWhiteSpace(Command);
+                    var exeIsSet = !string.IsNullOrWhiteSpace(Executable);
+
+                    if ((cmdIsSet && exeIsSet) || (!cmdIsSet && !exeIsSet))
+                    {
+                        yield return new ValidationResult($"One and only one of the fields {nameof(Command)} or {nameof(Executable)} may be specified for a single script");
+                    }
+                }
             }
 
             /// <summary>

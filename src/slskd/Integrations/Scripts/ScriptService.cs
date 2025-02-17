@@ -39,12 +39,31 @@ public class ScriptService
 
         Events.Subscribe<Event>(nameof(ScriptService), HandleEvent);
 
+        if (OperatingSystem.IsWindows())
+        {
+            DefaultExecutable = "cmd.exe";
+            DefaultCommandPrefix = "/c";
+        }
+        else
+        {
+            DefaultExecutable = Environment.GetEnvironmentVariable("SHELL");
+            DefaultCommandPrefix = "-c";
+
+            if (string.IsNullOrEmpty(DefaultExecutable))
+            {
+                Log.Warning("Unable to determine default script executable ($SHELL is missing or blank); any user-defined scripts that do not specify an executable will fail");
+            }
+        }
+
+        Log.Information("Set default script executable to '{DefaultExecutable}'", DefaultExecutable);
         Log.Debug("{Service} initialized", nameof(ScriptService));
     }
 
     private ILogger Log { get; } = Serilog.Log.ForContext<ScriptService>();
     private IOptionsMonitor<Options> OptionsMonitor { get; }
     private EventBus Events { get; }
+    private string DefaultExecutable { get; }
+    private string DefaultCommandPrefix { get; }
 
     private async Task HandleEvent(Event data)
     {
@@ -64,44 +83,52 @@ public class ScriptService
             _ = Task.Run(() =>
             {
                 Process process = default;
+                var processId = Guid.NewGuid();
 
                 try
                 {
                     var run = script.Value.Run;
-
-                    // split the string into at most 2 parts, leaving part [0] the executable and part [1] the rest of the string, but possibly null
-                    var parts = run.Split(" ", count: 2, options: StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.RemoveEmptyEntries);
-
-                    var executable = parts[0];
+                    string executable = default;
                     string args = default;
 
-                    if (parts.Length > 1)
+                    // 'command mode' takes precedence over 'executable' mode
+                    // run the system shell and ensure the specified command is prefixed with the correct flag
+                    if (!string.IsNullOrEmpty(run.Command))
                     {
-                        args = parts[1].Replace("$DATA", data.ToJson());
+                        executable = DefaultExecutable;
+                        args = run.Command.StartsWith(DefaultCommandPrefix) ? run.Command : $"{DefaultCommandPrefix} {run.Command}";
+                    }
+                    else
+                    {
+                        executable = run.Executable ?? DefaultExecutable;
+                        args = run.Args;
                     }
 
-                    Log.Debug("Running script '{Script}': {Run}", script.Key, run);
+                    if (string.IsNullOrEmpty(executable))
+                    {
+                        Log.Warning("Script '{Script}' will not be run: unable to determine script executable. Update the script configuration, or set your operating system's SHELL envar.");
+                        return;
+                    }
+
+                    Log.Debug("Running script '{Script}': \"{Executable}\" {Args} (id: {ProcessId})", script.Key, executable, args, processId);
                     var sw = Stopwatch.StartNew();
 
                     process = new Process()
                     {
-                        StartInfo = new ProcessStartInfo(fileName: executable)
+                        StartInfo = new ProcessStartInfo(executable ?? DefaultExecutable)
                         {
+                            WorkingDirectory = Program.ScriptDirectory,
                             UseShellExecute = false,
+                            CreateNoWindow = true,
                             RedirectStandardOutput = true,
                             RedirectStandardError = true,
-                            RedirectStandardInput = true,
+                            Arguments = args,
                         },
                     };
 
+                    process.StartInfo.Environment.Clear();
+                    process.StartInfo.EnvironmentVariables["SLSKD_SCRIPT_DATA"] = data.ToJson();
                     process.Start();
-
-                    if (args is not null)
-                    {
-                        process.StandardInput.WriteLine(args);
-                    }
-
-                    process.StandardInput.WriteLine("exit");
 
                     process.WaitForExit();
                     sw.Stop();
@@ -116,21 +143,22 @@ public class ScriptService
                     var result = process.StandardOutput.ReadToEnd();
                     var resultAsLines = result.Split(["\r\n", "\r", "\n"], StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
 
-                    Log.Debug("Script '{Script}' ran successfully in {Duration}ms; output: {Output}", script.Key, sw.ElapsedMilliseconds, resultAsLines);
+                    Log.Debug("Script '{Script}' ran successfully in {Duration}ms; output: {Output} (id: {ProcessId})", script.Key, sw.ElapsedMilliseconds, resultAsLines, processId);
                 }
                 catch (Exception ex)
                 {
-                    Log.Warning(ex, "Failed to run script '{Script}' for event type {Event}: {Message}", script.Key, data.Type, ex.Message);
+                    Log.Warning(ex, "Failed to run script '{Script}' for event type {Event}: {Message} (id: {ProcessId})", script.Key, data.Type, ex.Message, processId);
                 }
                 finally
                 {
                     try
                     {
                         process?.Close();
+                        process?.Dispose();
                     }
                     catch (Exception ex)
                     {
-                        Log.Warning(ex, "Failed to clean up process started from script '{Script}' for event type {Event}: {Message}", script.Key, data.Type, ex.Message);
+                        Log.Warning(ex, "Failed to clean up process started from script '{Script}' for event type {Event}: {Message} (id: {ProcessId})", script.Key, data.Type, ex.Message, processId);
                     }
                 }
             });
