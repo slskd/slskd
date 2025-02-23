@@ -2178,7 +2178,18 @@ namespace slskd
                 /// <summary>
                 ///     Gets the arguments to pass to the executable.
                 /// </summary>
+                /// <remarks>
+                ///     Mutually exclusive with <see cref="ArgsList"/>.
+                /// </remarks>
                 public string Args { get; init; }
+
+                /// <summary>
+                ///     Gets the list of arguments to pass to the executable.
+                /// </summary>
+                /// <remarks>
+                ///     Mutually exclusive with <see cref="Args"/>.
+                /// </remarks>
+                public string[] ArgsList { get; init; } = null;
 
                 public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
                 {
@@ -2188,6 +2199,14 @@ namespace slskd
                     if ((cmdIsSet && exeIsSet) || (!cmdIsSet && !exeIsSet))
                     {
                         yield return new ValidationResult($"One and only one of the fields {nameof(Command)} or {nameof(Executable)} may be specified for a single script");
+                    }
+
+                    var argsIsSet = !string.IsNullOrWhiteSpace(Args);
+                    var argsListIsSet = ArgsList is not null;
+
+                    if (argsIsSet && argsListIsSet)
+                    {
+                        yield return new ValidationResult($"Only one of the fields {nameof(Args)} or {nameof(ArgsList)} may be specified for a single script");
                     }
                 }
             }
