@@ -85,24 +85,13 @@ public class ScriptService
                 Process process = default;
                 var processId = Guid.NewGuid();
 
+                // there are three 'modes' that we can use to execute a script, which are detailed below.
+                // the mode is negotiated based on the script config, and we rely on the validation in Options
+                // to enforce mututal exclusivity and prevent a user from supplying an invalid config
                 try
                 {
                     var run = script.Value.Run;
-                    string executable = default;
-                    string args = default;
-
-                    // 'command mode' takes precedence over 'executable' mode
-                    // run the system shell and ensure the specified command is prefixed with the correct flag
-                    if (!string.IsNullOrEmpty(run.Command))
-                    {
-                        executable = DefaultExecutable;
-                        args = run.Command.StartsWith(DefaultCommandPrefix) ? run.Command : $"{DefaultCommandPrefix} {run.Command}";
-                    }
-                    else
-                    {
-                        executable = run.Executable ?? DefaultExecutable;
-                        args = run.Args;
-                    }
+                    var executable = run.Executable ?? DefaultExecutable;
 
                     if (string.IsNullOrEmpty(executable))
                     {
@@ -110,23 +99,69 @@ public class ScriptService
                         return;
                     }
 
-                    Log.Debug("Running script '{Script}': \"{Executable}\" {Args} (id: {ProcessId})", script.Key, executable, args, processId);
+                    if (!string.IsNullOrEmpty(run.Command))
+                    {
+                        // 'command' mode takes precedence over 'executable' mode
+                        // run the system shell and ensure the specified command is prefixed with the correct flag
+                        // this is designed to be the 'pit of success' for this feature that will work for most users,
+                        // who most likely have not read the docs and expect this to work like a command line.
+                        // users are on the hook for properly (and safely) quoting arguments
+                        process = new Process()
+                        {
+                            StartInfo = new ProcessStartInfo(fileName: executable)
+                            {
+                                WorkingDirectory = Program.ScriptDirectory,
+                                UseShellExecute = false,
+                                CreateNoWindow = true,
+                                RedirectStandardOutput = true,
+                                RedirectStandardError = true,
+                                Arguments = run.Command.StartsWith(DefaultCommandPrefix) ? run.Command : $"{DefaultCommandPrefix} {run.Command}",
+                            },
+                        };
+                    }
+                    else if (run.ArgsList is not null)
+                    {
+                        // 'args list' mode takes precedence over 'args' mode
+                        // the supplied list of args will be passed to the constructor of ProcessStartInfo, which is
+                        // curiously the only way to pass a list of args (instead of a string). if no executable has been
+                        // specified, the system shell is used. this mode is for maximalists who know what they are doing
+                        // and want granular control
+                        process = new Process()
+                        {
+                            StartInfo = new ProcessStartInfo(
+                                fileName: executable,
+                                arguments: run.ArgsList)
+                            {
+                                WorkingDirectory = Program.ScriptDirectory,
+                                UseShellExecute = false,
+                                CreateNoWindow = true,
+                                RedirectStandardOutput = true,
+                                RedirectStandardError = true,
+                            },
+                        };
+                    }
+                    else
+                    {
+                        // 'args' mode is the default mode
+                        // run the specified executable, or if not specified, the system shell. pass the args string
+                        // (which may be empty or null) to ProcessStartInfo
+                        process = new Process()
+                        {
+                            StartInfo = new ProcessStartInfo(fileName: executable)
+                            {
+                                WorkingDirectory = Program.ScriptDirectory,
+                                UseShellExecute = false,
+                                CreateNoWindow = true,
+                                RedirectStandardOutput = true,
+                                RedirectStandardError = true,
+                                Arguments = run.Args,
+                            },
+                        };
+                    }
+
+                    Log.Debug("Running script '{Script}': \"{Executable}\" {Args} (id: {ProcessId})", script.Key, executable, run.Args ?? string.Join(' ', run.ArgsList), processId);
                     var sw = Stopwatch.StartNew();
 
-                    process = new Process()
-                    {
-                        StartInfo = new ProcessStartInfo(executable ?? DefaultExecutable)
-                        {
-                            WorkingDirectory = Program.ScriptDirectory,
-                            UseShellExecute = false,
-                            CreateNoWindow = true,
-                            RedirectStandardOutput = true,
-                            RedirectStandardError = true,
-                            Arguments = args,
-                        },
-                    };
-
-                    process.StartInfo.Environment.Clear();
                     process.StartInfo.EnvironmentVariables["SLSKD_SCRIPT_DATA"] = data.ToJson();
                     process.Start();
 
