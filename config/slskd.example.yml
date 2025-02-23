@@ -255,13 +255,29 @@
 #         - DownloadFileComplete
 #       run:
 #         executable: cmd.exe
-#         command: '/c "echo %SLSKD_SCRIPT_DATA% >> downloads.txt"'
+#         args: '/c "echo %SLSKD_SCRIPT_DATA% >> downloads.txt"'
 #     run_with_windows_git_bash:
 #       on:
 #         - DownloadFileComplete
 #       run:
 #         executable: C:\Program Files\Git\git-bash.exe
-#         command: '-c "echo $SLSKD_SCRIPT_DATA >> downloads.txt"'
+#         args: '-c "echo $SLSKD_SCRIPT_DATA >> downloads.txt"'
+#     run_with_sh_and_args_list:
+#       on:
+#         - DownloadFileComplete
+#       run:
+#         executable: /bin/sh
+#         args_list:
+#           - -c
+#           - echo $SLSKD_SCRIPT_DATA >> downloads.txt
+#     run_with_windows_cmd_and_args_list:
+#       on:
+#         - DownloadFileComplete
+#       run:
+#         executable: cmd.exe
+#         args_list:
+#           - /c
+#           - echo %SLSKD_SCRIPT_DATA% >> downloads.txt
 #   ftp:
 #     enabled: false
 #     address: ~
