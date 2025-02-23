@@ -2198,7 +2198,7 @@ namespace slskd
 
                     if ((cmdIsSet && exeIsSet) || (!cmdIsSet && !exeIsSet))
                     {
-                        yield return new ValidationResult($"One and only one of the fields {nameof(Command)} or {nameof(Executable)} may be specified for a single script");
+                        yield return new ValidationResult($"One and only one of the fields {nameof(Command)} or {nameof(Executable)} may be specified for a single script. If you intend to use the system shell, omit 'executable'. If you intend to use an executable other than the system shell, omit 'command' and specify either 'args' or 'args_list'.");
                     }
 
                     var argsIsSet = !string.IsNullOrWhiteSpace(Args);
@@ -2206,7 +2206,7 @@ namespace slskd
 
                     if (argsIsSet && argsListIsSet)
                     {
-                        yield return new ValidationResult($"Only one of the fields {nameof(Args)} or {nameof(ArgsList)} may be specified for a single script");
+                        yield return new ValidationResult($"Only one of the fields {nameof(Args)} or {nameof(ArgsList)} may be specified for a single script. Specify 'args' if you intend to construct a single quoted string yourself, and specify 'args_list' if you'd like slskd to handle quoting for you.");
                     }
                 }
             }
