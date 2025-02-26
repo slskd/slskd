@@ -159,7 +159,7 @@ public class ScriptService
                         };
                     }
 
-                    Log.Debug("Running script '{Script}': \"{Executable}\" {Args} (id: {ProcessId})", script.Key, executable, run.Args ?? string.Join(' ', run.ArgsList), processId);
+                    Log.Debug("Running script '{Script}': \"{Executable}\" {Args} (id: {ProcessId})", script.Key, executable, run.Args ?? string.Join(' ', run.ArgsList ?? []), processId);
                     var sw = Stopwatch.StartNew();
 
                     process.StartInfo.EnvironmentVariables["SLSKD_SCRIPT_DATA"] = data.ToJson();
