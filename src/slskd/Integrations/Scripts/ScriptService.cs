@@ -115,7 +115,7 @@ public class ScriptService
                                 CreateNoWindow = true,
                                 RedirectStandardOutput = true,
                                 RedirectStandardError = true,
-                                Arguments = run.Command.StartsWith(DefaultCommandPrefix) ? run.Command : $"{DefaultCommandPrefix} {run.Command}",
+                                Arguments = run.Command.StartsWith(DefaultCommandPrefix) ? run.Command : $"{DefaultCommandPrefix} \"{run.Command}\"",
                             },
                         };
                     }
