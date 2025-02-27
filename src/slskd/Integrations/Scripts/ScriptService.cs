@@ -106,6 +106,8 @@ public class ScriptService
                         // this is designed to be the 'pit of success' for this feature that will work for most users,
                         // who most likely have not read the docs and expect this to work like a command line.
                         // users are on the hook for properly (and safely) quoting arguments
+                        Log.Debug("Running script '{Script}' in 'command mode'", script.Key);
+
                         process = new Process()
                         {
                             StartInfo = new ProcessStartInfo(fileName: executable)
@@ -126,6 +128,8 @@ public class ScriptService
                         // curiously the only way to pass a list of args (instead of a string). if no executable has been
                         // specified, the system shell is used. this mode is for maximalists who know what they are doing
                         // and want granular control
+                        Log.Debug("Running script '{Script}' in 'args list mode'", script.Key);
+
                         process = new Process()
                         {
                             StartInfo = new ProcessStartInfo(
@@ -145,6 +149,7 @@ public class ScriptService
                         // 'args' mode is the default mode
                         // run the specified executable, or if not specified, the system shell. pass the args string
                         // (which may be empty or null) to ProcessStartInfo
+                        Log.Debug("Running script '{Script}' in 'args mode'", script.Key);
                         process = new Process()
                         {
                             StartInfo = new ProcessStartInfo(fileName: executable)
