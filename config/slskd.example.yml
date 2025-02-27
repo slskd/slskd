@@ -238,29 +238,12 @@
 #       on:
 #         - DownloadFileComplete
 #       run:
-#         command: '"echo '$SLSKD_SCRIPT_DATA' >> slskd_downloads.txt"'
-#     run_command_with_windows_system_shell: # slskd uses cmd.exe
-#       on:
-#         - DownloadFileComplete
-#       run:
-#         command: '"echo "%SLSKD_SCRIPT_DATA%" >> slskd_downloads.txt"'
+#         command: 'echo "$SLSKD_SCRIPT_DATA" >> slskd_downloads.txt'
 #     run_with_sh:
 #       on:
 #         - DownloadFileComplete
 #       run:
 #         executable: /bin/sh
-#         args: '-c "echo $SLSKD_SCRIPT_DATA >> downloads.txt"'
-#     run_with_windows_cmd:
-#       on:
-#         - DownloadFileComplete
-#       run:
-#         executable: cmd.exe
-#         args: '/c "echo %SLSKD_SCRIPT_DATA% >> downloads.txt"'
-#     run_with_windows_git_bash:
-#       on:
-#         - DownloadFileComplete
-#       run:
-#         executable: C:\Program Files\Git\git-bash.exe
 #         args: '-c "echo $SLSKD_SCRIPT_DATA >> downloads.txt"'
 #     run_with_sh_and_args_list:
 #       on:
@@ -270,6 +253,23 @@
 #         args_list:
 #           - -c
 #           - echo $SLSKD_SCRIPT_DATA >> downloads.txt
+#     run_command_with_windows_system_shell:
+#       on:
+#         - DownloadFileComplete
+#       run:
+#         command: 'echo "%SLSKD_SCRIPT_DATA%" >> windows_system_shell.txt'
+#     run_with_windows_cmd:
+#       on:
+#         - DownloadFileComplete
+#       run:
+#         executable: cmd.exe
+#         args: '/c "echo "%SLSKD_SCRIPT_DATA%" >> windows_cmd.txt"'
+#     run_with_windows_git_bash:
+#       on:
+#         - DownloadFileComplete
+#       run:
+#         executable: C:\Program Files\Git\bin\bash.exe
+#         args: '-c "echo "$SLSKD_SCRIPT_DATA" >> windows_git_bash.txt"'
 #     run_with_windows_cmd_and_args_list:
 #       on:
 #         - DownloadFileComplete
@@ -277,7 +277,7 @@
 #         executable: cmd.exe
 #         args_list:
 #           - /c
-#           - echo %SLSKD_SCRIPT_DATA% >> downloads.txt
+#           - 'echo "%SLSKD_SCRIPT_DATA%" >> windows_cmd_and_args_list.txt'
 #   ftp:
 #     enabled: false
 #     address: ~
