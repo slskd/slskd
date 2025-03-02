@@ -4,6 +4,7 @@
     using AutoFixture.Xunit2;
     using Microsoft.EntityFrameworkCore;
     using Moq;
+    using slskd.Files;
     using slskd.Users;
     using Soulseek;
     using Xunit;
@@ -125,7 +126,8 @@
             var mocks = new Mocks(options);
             var service = new UserService(
                 mocks.SoulseekClient.Object,
-                mocks.OptionsMonitor);
+                mocks.OptionsMonitor,
+                mocks.FileService);
 
             return (service, mocks);
         }
@@ -139,6 +141,7 @@
 
             public Mock<ISoulseekClient> SoulseekClient { get; } = new Mock<ISoulseekClient>();
             public TestOptionsMonitor<Options> OptionsMonitor { get; init; }
+            public FileService FileService { get; init; }
         }
     }
 }
