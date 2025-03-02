@@ -234,17 +234,17 @@
 #       retry:
 #         attempts: 3
 #   scripts:
-#     run_command_with_linux_system_shell: # slskd uses the executable defined in $SHELL
+#     run_command_with_linux_system_shell: # automatically uses the executable defined in $SHELL
 #       on:
 #         - DownloadFileComplete
 #       run:
-#         command: 'echo "$SLSKD_SCRIPT_DATA" >> slskd_downloads.txt'
+#         command: 'echo "$SLSKD_SCRIPT_DATA" >> linux_system_shell.txt'
 #     run_with_sh:
 #       on:
 #         - DownloadFileComplete
 #       run:
 #         executable: /bin/sh
-#         args: '-c "echo $SLSKD_SCRIPT_DATA >> downloads.txt"'
+#         args: '-c "echo $SLSKD_SCRIPT_DATA >> linux_sh.txt"'
 #     run_with_sh_and_args_list:
 #       on:
 #         - DownloadFileComplete
@@ -252,8 +252,8 @@
 #         executable: /bin/sh
 #         args_list:
 #           - -c
-#           - echo $SLSKD_SCRIPT_DATA >> downloads.txt
-#     run_command_with_windows_system_shell:
+#           - echo $SLSKD_SCRIPT_DATA >> linux_sh_and_args_list.txt
+#     run_command_with_windows_system_shell: # automatically uses cmd.exe (included with all Windows installs)
 #       on:
 #         - DownloadFileComplete
 #       run:
