@@ -250,7 +250,7 @@
 #         - DownloadFileComplete
 #       run:
 #         executable: /bin/sh
-#         args_list:
+#         arglist:
 #           - -c
 #           - echo $SLSKD_SCRIPT_DATA >> linux_sh_and_args_list.txt
 #     run_command_with_windows_system_shell: # automatically uses cmd.exe (included with all Windows installs)
@@ -275,7 +275,7 @@
 #         - DownloadFileComplete
 #       run:
 #         executable: cmd.exe
-#         args_list:
+#         arglist:
 #           - /c
 #           - 'echo "%SLSKD_SCRIPT_DATA%" >> windows_cmd_and_args_list.txt'
 #   ftp:
