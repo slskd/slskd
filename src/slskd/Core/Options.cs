@@ -2179,7 +2179,7 @@ namespace slskd
                 ///     Gets the arguments to pass to the executable.
                 /// </summary>
                 /// <remarks>
-                ///     Mutually exclusive with <see cref="ArgsList"/>.
+                ///     Mutually exclusive with <see cref="Arglist"/>.
                 /// </remarks>
                 public string Args { get; init; }
 
@@ -2189,7 +2189,7 @@ namespace slskd
                 /// <remarks>
                 ///     Mutually exclusive with <see cref="Args"/>.
                 /// </remarks>
-                public string[] ArgsList { get; init; } = null;
+                public string[] Arglist { get; init; } = null;
 
                 public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
                 {
@@ -2202,11 +2202,11 @@ namespace slskd
                     }
 
                     var argsIsSet = !string.IsNullOrWhiteSpace(Args);
-                    var argsListIsSet = ArgsList is not null;
+                    var argsListIsSet = Arglist is not null;
 
                     if (argsIsSet && argsListIsSet)
                     {
-                        yield return new ValidationResult($"Only one of the fields {nameof(Args)} or {nameof(ArgsList)} may be specified for a single script. Specify 'args' if you intend to construct a single quoted string yourself, and specify 'args_list' if you'd like slskd to handle quoting for you.");
+                        yield return new ValidationResult($"Only one of the fields {nameof(Args)} or {nameof(Arglist)} may be specified for a single script. Specify 'args' if you intend to construct a single quoted string yourself, and specify 'args_list' if you'd like slskd to handle quoting for you.");
                     }
                 }
             }

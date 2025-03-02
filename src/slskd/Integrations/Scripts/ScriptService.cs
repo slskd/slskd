@@ -121,7 +121,7 @@ public class ScriptService
                             },
                         };
                     }
-                    else if (run.ArgsList is not null)
+                    else if (run.Arglist is not null)
                     {
                         // 'args list' mode takes precedence over 'args' mode
                         // the supplied list of args will be passed to the constructor of ProcessStartInfo, which is
@@ -134,7 +134,7 @@ public class ScriptService
                         {
                             StartInfo = new ProcessStartInfo(
                                 fileName: executable,
-                                arguments: run.ArgsList)
+                                arguments: run.Arglist)
                             {
                                 WorkingDirectory = Program.ScriptDirectory,
                                 UseShellExecute = false,
@@ -164,7 +164,7 @@ public class ScriptService
                         };
                     }
 
-                    Log.Debug("Running script '{Script}': \"{Executable}\" {Args} (id: {ProcessId})", script.Key, executable, run.Args ?? string.Join(' ', run.ArgsList ?? []), processId);
+                    Log.Debug("Running script '{Script}': \"{Executable}\" {Args} (id: {ProcessId})", script.Key, executable, run.Args ?? string.Join(' ', run.Arglist ?? []), processId);
                     var sw = Stopwatch.StartNew();
 
                     process.StartInfo.EnvironmentVariables["SLSKD_SCRIPT_DATA"] = data.ToJson();
@@ -187,7 +187,8 @@ public class ScriptService
                 }
                 catch (Exception ex)
                 {
-                    Log.Warning(ex, "Failed to run script '{Script}' for event type {Event}: {Message} (id: {ProcessId})", script.Key, data.Type, ex.Message, processId);
+                    Log.Warning("Failed to run script '{Script}' for event type {Event}: {Message} (id: {ProcessId})", script.Key, data.Type, ex.Message, processId);
+                    Log.Debug(ex, "Failed to run script '{Script}' for event type {Event}: {Message} (id: {ProcessId})", script.Key, data.Type, ex.Message, processId);
                 }
                 finally
                 {
