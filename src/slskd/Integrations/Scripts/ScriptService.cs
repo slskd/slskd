@@ -39,12 +39,31 @@ public class ScriptService
 
         Events.Subscribe<Event>(nameof(ScriptService), HandleEvent);
 
+        if (OperatingSystem.IsWindows())
+        {
+            DefaultExecutable = "cmd.exe";
+            DefaultCommandPrefix = "/c";
+        }
+        else
+        {
+            DefaultExecutable = Environment.GetEnvironmentVariable("SHELL");
+            DefaultCommandPrefix = "-c";
+
+            if (string.IsNullOrEmpty(DefaultExecutable))
+            {
+                Log.Warning("Unable to determine default script executable ($SHELL is missing or blank); any user-defined scripts that do not specify an executable will fail");
+            }
+        }
+
+        Log.Information("Set default script executable to '{DefaultExecutable}'", DefaultExecutable);
         Log.Debug("{Service} initialized", nameof(ScriptService));
     }
 
     private ILogger Log { get; } = Serilog.Log.ForContext<ScriptService>();
     private IOptionsMonitor<Options> OptionsMonitor { get; }
     private EventBus Events { get; }
+    private string DefaultExecutable { get; }
+    private string DefaultCommandPrefix { get; }
 
     private async Task HandleEvent(Event data)
     {
@@ -64,44 +83,92 @@ public class ScriptService
             _ = Task.Run(() =>
             {
                 Process process = default;
+                var processId = Guid.NewGuid();
 
+                // there are three 'modes' that we can use to execute a script, which are detailed below.
+                // the mode is negotiated based on the script config, and we rely on the validation in Options
+                // to enforce mututal exclusivity and prevent a user from supplying an invalid config
                 try
                 {
                     var run = script.Value.Run;
+                    var executable = run.Executable ?? DefaultExecutable;
 
-                    // split the string into at most 2 parts, leaving part [0] the executable and part [1] the rest of the string, but possibly null
-                    var parts = run.Split(" ", count: 2, options: StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.RemoveEmptyEntries);
-
-                    var executable = parts[0];
-                    string args = default;
-
-                    if (parts.Length > 1)
+                    if (string.IsNullOrEmpty(executable))
                     {
-                        args = parts[1].Replace("$DATA", data.ToJson());
+                        Log.Warning("Script '{Script}' will not be run: unable to determine script executable. Update the script configuration, or set your operating system's SHELL envar.");
+                        return;
                     }
 
-                    Log.Debug("Running script '{Script}': {Run}", script.Key, run);
+                    if (!string.IsNullOrEmpty(run.Command))
+                    {
+                        // 'command' mode takes precedence over 'executable' mode
+                        // run the system shell and ensure the specified command is prefixed with the correct flag
+                        // this is designed to be the 'pit of success' for this feature that will work for most users,
+                        // who most likely have not read the docs and expect this to work like a command line.
+                        // users are on the hook for properly (and safely) quoting arguments
+                        Log.Debug("Running script '{Script}' in 'command mode'", script.Key);
+
+                        process = new Process()
+                        {
+                            StartInfo = new ProcessStartInfo(fileName: executable)
+                            {
+                                WorkingDirectory = Program.ScriptDirectory,
+                                UseShellExecute = false,
+                                CreateNoWindow = true,
+                                RedirectStandardOutput = true,
+                                RedirectStandardError = true,
+                                Arguments = run.Command.StartsWith(DefaultCommandPrefix) ? run.Command : $"{DefaultCommandPrefix} \"{run.Command.Trim('"')}\"",
+                            },
+                        };
+                    }
+                    else if (run.Arglist is not null)
+                    {
+                        // 'args list' mode takes precedence over 'args' mode
+                        // the supplied list of args will be passed to the constructor of ProcessStartInfo, which is
+                        // curiously the only way to pass a list of args (instead of a string). if no executable has been
+                        // specified, the system shell is used. this mode is for maximalists who know what they are doing
+                        // and want granular control
+                        Log.Debug("Running script '{Script}' in 'args list mode'", script.Key);
+
+                        process = new Process()
+                        {
+                            StartInfo = new ProcessStartInfo(
+                                fileName: executable,
+                                arguments: run.Arglist)
+                            {
+                                WorkingDirectory = Program.ScriptDirectory,
+                                UseShellExecute = false,
+                                CreateNoWindow = true,
+                                RedirectStandardOutput = true,
+                                RedirectStandardError = true,
+                            },
+                        };
+                    }
+                    else
+                    {
+                        // 'args' mode is the default mode
+                        // run the specified executable, or if not specified, the system shell. pass the args string
+                        // (which may be empty or null) to ProcessStartInfo
+                        Log.Debug("Running script '{Script}' in 'args mode'", script.Key);
+                        process = new Process()
+                        {
+                            StartInfo = new ProcessStartInfo(fileName: executable)
+                            {
+                                WorkingDirectory = Program.ScriptDirectory,
+                                UseShellExecute = false,
+                                CreateNoWindow = true,
+                                RedirectStandardOutput = true,
+                                RedirectStandardError = true,
+                                Arguments = run.Args,
+                            },
+                        };
+                    }
+
+                    Log.Debug("Running script '{Script}': \"{Executable}\" {Args} (id: {ProcessId})", script.Key, executable, run.Args ?? string.Join(' ', run.Arglist ?? []), processId);
                     var sw = Stopwatch.StartNew();
 
-                    process = new Process()
-                    {
-                        StartInfo = new ProcessStartInfo(fileName: executable)
-                        {
-                            UseShellExecute = false,
-                            RedirectStandardOutput = true,
-                            RedirectStandardError = true,
-                            RedirectStandardInput = true,
-                        },
-                    };
-
+                    process.StartInfo.EnvironmentVariables["SLSKD_SCRIPT_DATA"] = data.ToJson();
                     process.Start();
-
-                    if (args is not null)
-                    {
-                        process.StandardInput.WriteLine(args);
-                    }
-
-                    process.StandardInput.WriteLine("exit");
 
                     process.WaitForExit();
                     sw.Stop();
@@ -116,21 +183,23 @@ public class ScriptService
                     var result = process.StandardOutput.ReadToEnd();
                     var resultAsLines = result.Split(["\r\n", "\r", "\n"], StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
 
-                    Log.Debug("Script '{Script}' ran successfully in {Duration}ms; output: {Output}", script.Key, sw.ElapsedMilliseconds, resultAsLines);
+                    Log.Debug("Script '{Script}' ran successfully in {Duration}ms; output: {Output} (id: {ProcessId})", script.Key, sw.ElapsedMilliseconds, resultAsLines, processId);
                 }
                 catch (Exception ex)
                 {
-                    Log.Warning(ex, "Failed to run script '{Script}' for event type {Event}: {Message}", script.Key, data.Type, ex.Message);
+                    Log.Warning("Failed to run script '{Script}' for event type {Event}: {Message} (id: {ProcessId})", script.Key, data.Type, ex.Message, processId);
+                    Log.Debug(ex, "Failed to run script '{Script}' for event type {Event}: {Message} (id: {ProcessId})", script.Key, data.Type, ex.Message, processId);
                 }
                 finally
                 {
                     try
                     {
                         process?.Close();
+                        process?.Dispose();
                     }
                     catch (Exception ex)
                     {
-                        Log.Warning(ex, "Failed to clean up process started from script '{Script}' for event type {Event}: {Message}", script.Key, data.Type, ex.Message);
+                        Log.Warning(ex, "Failed to clean up process started from script '{Script}' for event type {Event}: {Message} (id: {ProcessId})", script.Key, data.Type, ex.Message, processId);
                     }
                 }
             });
