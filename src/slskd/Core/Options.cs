@@ -2107,14 +2107,10 @@ namespace slskd
 
                 public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
                 {
-                    var results = new List<ValidationResult>();
-
                     if (!Url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) && !Url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
                     {
-                        results.Add(new ValidationResult($"The {nameof(Url)} field must contain a fully qualified URL, including protocol (e.g. http:// or https://)"));
+                        yield return new ValidationResult($"The {nameof(Url)} field must contain a fully qualified URL, including protocol (e.g. http:// or https://)");
                     }
-
-                    return results;
                 }
             }
 
@@ -2161,9 +2157,58 @@ namespace slskd
                 /// <summary>
                 ///     Gets the shell script to invoke.
                 /// </summary>
-                [StringLength(int.MaxValue, MinimumLength = 1)]
-                [NotNullOrWhiteSpace]
-                public string Run { get; init; }
+                public ScriptRunOptions Run { get; init; } = new ScriptRunOptions();
+            }
+
+            /// <summary>
+            ///     Script run options.
+            /// </summary>
+            public class ScriptRunOptions : IValidatableObject
+            {
+                /// <summary>
+                ///     Gets the shell command to run.
+                /// </summary>
+                public string Command { get; init; }
+
+                /// <summary>
+                ///     Gets the executable to start.
+                /// </summary>
+                public string Executable { get; init; }
+
+                /// <summary>
+                ///     Gets the arguments to pass to the executable.
+                /// </summary>
+                /// <remarks>
+                ///     Mutually exclusive with <see cref="Arglist"/>.
+                /// </remarks>
+                public string Args { get; init; }
+
+                /// <summary>
+                ///     Gets the list of arguments to pass to the executable.
+                /// </summary>
+                /// <remarks>
+                ///     Mutually exclusive with <see cref="Args"/>.
+                /// </remarks>
+                public string[] Arglist { get; init; } = null;
+
+                public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+                {
+                    var cmdIsSet = !string.IsNullOrWhiteSpace(Command);
+                    var exeIsSet = !string.IsNullOrWhiteSpace(Executable);
+
+                    if ((cmdIsSet && exeIsSet) || (!cmdIsSet && !exeIsSet))
+                    {
+                        yield return new ValidationResult($"One and only one of the fields {nameof(Command)} or {nameof(Executable)} may be specified for a single script. If you intend to use the system shell, omit 'executable'. If you intend to use an executable other than the system shell, omit 'command' and specify either 'args' or 'args_list'.");
+                    }
+
+                    var argsIsSet = !string.IsNullOrWhiteSpace(Args);
+                    var argsListIsSet = Arglist is not null;
+
+                    if (argsIsSet && argsListIsSet)
+                    {
+                        yield return new ValidationResult($"Only one of the fields {nameof(Args)} or {nameof(Arglist)} may be specified for a single script. Specify 'args' if you intend to construct a single quoted string yourself, and specify 'args_list' if you'd like slskd to handle quoting for you.");
+                    }
+                }
             }
 
             /// <summary>
