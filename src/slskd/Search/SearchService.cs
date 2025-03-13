@@ -239,13 +239,20 @@ namespace slskd.Search
                 StartedAt = DateTime.UtcNow,
             };
 
+            bool searchCreated = false;
+            bool searchBroadcasted = false;
+
             try
             {
                 using var context = ContextFactory.CreateDbContext();
                 context.Add(search);
                 context.SaveChanges();
 
+                searchCreated = true;
+
                 await SearchHub.BroadcastCreateAsync(search);
+
+                searchBroadcasted = true;
 
                 // initialize the list of responses that we'll use to accumulate them
                 // populated by the responseHandler we pass to SearchAsync
@@ -333,11 +340,18 @@ namespace slskd.Search
                 // the app isn't connected, and a few other straightforward issues that arise before even requesting the search
                 Log.Error(ex, "Failed to execute search {Search}: {Message}", new { query, scope, options }, ex.Message);
 
-                search.State = SearchStates.Completed | SearchStates.Errored;
-                search.EndedAt = search.StartedAt;
-                Update(search);
+                // selectively 'undo' whatever actions we were able to take successfully
+                if (searchCreated)
+                {
+                    search.State = SearchStates.Completed | SearchStates.Errored;
+                    search.EndedAt = search.StartedAt;
+                    Update(search);
 
-                await SearchHub.BroadcastUpdateAsync(search with { Responses = [] });
+                    if (searchBroadcasted)
+                    {
+                        await SearchHub.BroadcastUpdateAsync(search with { Responses = [] });
+                    }
+                }
 
                 throw;
             }
