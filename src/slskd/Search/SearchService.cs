@@ -330,8 +330,8 @@ namespace slskd.Search
                     }
                 });
 
+                // broadcast and return the _newly created_ search; it will continue to be updated in the background
                 await SearchHub.BroadcastUpdateAsync(search);
-
                 return search;
             }
             catch (Exception ex)
