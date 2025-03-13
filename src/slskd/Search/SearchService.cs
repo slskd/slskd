@@ -1,4 +1,4 @@
-﻿// <copyright file="SearchService.cs" company="slskd Team">
+// <copyright file="SearchService.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -239,41 +239,41 @@ namespace slskd.Search
                 StartedAt = DateTime.UtcNow,
             };
 
-            using var context = ContextFactory.CreateDbContext();
-            context.Add(search);
-            context.SaveChanges();
-
-            await SearchHub.BroadcastCreateAsync(search);
-
-            // initialize the list of responses that we'll use to accumulate them
-            // populated by the responseHandler we pass to SearchAsync
-            List<SearchResponse> responses = new();
-
-            options ??= new SearchOptions();
-            options = options.WithActions(
-                stateChanged: (args) =>
-                {
-                    search = search.WithSoulseekSearch(args.Search);
-                    SearchHub.BroadcastUpdateAsync(search);
-                    Update(search);
-                },
-                responseReceived: (args) => rateLimiter.Invoke(() =>
-                {
-                    // note: this is rate limited, but has the potential to update the database every 250ms (or whatever the
-                    // interval is set to) for the duration of the search. any issues with disk i/o or performance while searches
-                    // are running should investigate this as a cause
-                    search.ResponseCount = args.Search.ResponseCount;
-                    search.FileCount = args.Search.FileCount;
-                    search.LockedFileCount = args.Search.LockedFileCount;
-
-                    // note that we're not actually doing anything with the response here, that's happening in the
-                    // response handler. we're only updating counts here.
-                    SearchHub.BroadcastUpdateAsync(search);
-                    Update(search);
-                }));
-
             try
             {
+                using var context = ContextFactory.CreateDbContext();
+                context.Add(search);
+                context.SaveChanges();
+
+                await SearchHub.BroadcastCreateAsync(search);
+
+                // initialize the list of responses that we'll use to accumulate them
+                // populated by the responseHandler we pass to SearchAsync
+                List<SearchResponse> responses = new();
+
+                options ??= new SearchOptions();
+                options = options.WithActions(
+                    stateChanged: (args) =>
+                    {
+                        search = search.WithSoulseekSearch(args.Search);
+                        SearchHub.BroadcastUpdateAsync(search);
+                        Update(search);
+                    },
+                    responseReceived: (args) => rateLimiter.Invoke(() =>
+                    {
+                        // note: this is rate limited, but has the potential to update the database every 250ms (or whatever the
+                        // interval is set to) for the duration of the search. any issues with disk i/o or performance while searches
+                        // are running should investigate this as a cause
+                        search.ResponseCount = args.Search.ResponseCount;
+                        search.FileCount = args.Search.FileCount;
+                        search.LockedFileCount = args.Search.LockedFileCount;
+
+                        // note that we're not actually doing anything with the response here, that's happening in the
+                        // response handler. we're only updating counts here.
+                        SearchHub.BroadcastUpdateAsync(search);
+                        Update(search);
+                    }));
+
                 // initiate the search. this can throw at invocation if there's a problem with
                 // the client state (e.g. disconnected) or a problem with the search (e.g. no terms)
                 var soulseekSearchTask = Client.SearchAsync(
