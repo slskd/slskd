@@ -158,7 +158,7 @@
 #         role: readonly # readonly, readwrite, administrator
 #         cidr: 0.0.0.0/0,::/0
 # retention:
-#   searches: 10080 # 7 days, in minutes
+#   search: 10080 # 7 days, in minutes
 #   transfers:
 #     upload:
 #       succeeded: 1440 # 1 day, in minutes
@@ -234,15 +234,50 @@
 #       retry:
 #         attempts: 3
 #   scripts:
-#     my_post_download_script:
+#     run_command_with_linux_system_shell: # automatically uses the executable defined in $SHELL
 #       on:
 #         - DownloadFileComplete
-#         - DownloadDirectoryComplete
-#       run: data/my_script.sh --json-to-process $EVENT
-#     my_logging_script:
+#       run:
+#         command: 'echo "$SLSKD_SCRIPT_DATA" >> linux_system_shell.txt'
+#     run_with_sh:
 #       on:
-#        - All
-#       run: data/log_slskd_events.sh $DATA
+#         - DownloadFileComplete
+#       run:
+#         executable: /bin/sh
+#         args: '-c "echo $SLSKD_SCRIPT_DATA >> linux_sh.txt"'
+#     run_with_sh_and_args_list:
+#       on:
+#         - DownloadFileComplete
+#       run:
+#         executable: /bin/sh
+#         arglist:
+#           - -c
+#           - echo $SLSKD_SCRIPT_DATA >> linux_sh_and_args_list.txt
+#     run_command_with_windows_system_shell: # automatically uses cmd.exe (included with all Windows installs)
+#       on:
+#         - DownloadFileComplete
+#       run:
+#         command: 'echo "%SLSKD_SCRIPT_DATA%" >> windows_system_shell.txt'
+#     run_with_windows_cmd:
+#       on:
+#         - DownloadFileComplete
+#       run:
+#         executable: cmd.exe
+#         args: '/c "echo "%SLSKD_SCRIPT_DATA%" >> windows_cmd.txt"'
+#     run_with_windows_git_bash:
+#       on:
+#         - DownloadFileComplete
+#       run:
+#         executable: C:\Program Files\Git\bin\bash.exe
+#         args: '-c "echo "$SLSKD_SCRIPT_DATA" >> windows_git_bash.txt"'
+#     run_with_windows_cmd_and_args_list:
+#       on:
+#         - DownloadFileComplete
+#       run:
+#         executable: cmd.exe
+#         arglist:
+#           - /c
+#           - 'echo "%SLSKD_SCRIPT_DATA%" >> windows_cmd_and_args_list.txt'
 #   ftp:
 #     enabled: false
 #     address: ~
