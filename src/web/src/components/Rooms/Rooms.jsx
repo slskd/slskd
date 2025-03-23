@@ -4,19 +4,28 @@ import PlaceholderSegment from '../Shared/PlaceholderSegment';
 import RoomMenu from './RoomMenu';
 import RoomUserList from './RoomUserList';
 import React, { Component, createRef } from 'react';
+import { withRouter } from 'react-router-dom';
 import {
+  Button,
   Card,
   Dimmer,
   Icon,
   Input,
   List,
   Loader,
+  Portal,
   Ref,
   Segment,
 } from 'semantic-ui-react';
 
 const initialState = {
   active: '',
+  contextMenu: {
+    message: null,
+    open: false,
+    x: 0,
+    y: 0,
+  },
   intervals: {
     messages: undefined,
     rooms: undefined,
@@ -48,6 +57,7 @@ class Rooms extends Component {
       async () => {
         await this.fetchJoinedRooms();
         this.selectRoom(this.state.active || this.getFirstRoom());
+        document.addEventListener('click', this.handleCloseContextMenu);
       },
     );
   }
@@ -58,6 +68,8 @@ class Rooms extends Component {
 
     clearInterval(roomsInterval);
     clearInterval(messagesInterval);
+
+    document.removeEventListener('click', this.handleCloseContextMenu);
 
     this.setState({ intervals: initialState.intervals });
   }
@@ -173,6 +185,79 @@ class Rooms extends Component {
     this.messageRef.current.value = '';
   };
 
+  handleContextMenu = (clickEvent, message) => {
+    clickEvent.preventDefault();
+    this.setState({
+      contextMenu: {
+        message,
+        open: true,
+        x: clickEvent.pageX,
+        y: clickEvent.pageY,
+      },
+    });
+  };
+
+  handleCloseContextMenu = () => {
+    this.setState((previousState) => ({
+      contextMenu: {
+        ...previousState.contextMenu,
+        open: false,
+      },
+    }));
+  };
+
+  handleReply = () => {
+    this.messageRef.current.value = `[${this.state.contextMenu.message.username}] ${this.state.contextMenu.message.message} --> `;
+    this.focusInput();
+  };
+
+  handleUserProfile = () => {
+    this.props.history.push('/users', {
+      user: this.state.contextMenu.message.username,
+    });
+  };
+
+  handleBrowseShares = () => {
+    this.props.history.push('/browse', {
+      user: this.state.contextMenu.message.username,
+    });
+  };
+
+  renderContextMenu() {
+    const { contextMenu } = this.state;
+    return (
+      <Portal open={contextMenu.open}>
+        <div
+          className="ui vertical buttons popup-menu"
+          style={{
+            left: contextMenu.x,
+            maxHeight: `calc(100vh - ${contextMenu.y}px)`,
+            top: contextMenu.y,
+          }}
+        >
+          <Button
+            className="ui compact button popup-option"
+            onClick={this.handleReply}
+          >
+            Reply
+          </Button>
+          <Button
+            className="ui compact button popup-option"
+            onClick={this.handleUserProfile}
+          >
+            User Profile
+          </Button>
+          <Button
+            className="ui compact button popup-option"
+            onClick={this.handleBrowseShares}
+          >
+            Browse Shares
+          </Button>
+        </div>
+      </Portal>
+    );
+  }
+
   render() {
     const { active = [], joined = [], loading, room } = this.state;
 
@@ -235,20 +320,26 @@ class Rooms extends Component {
                         <Ref innerRef={this.listRef}>
                           <List>
                             {room.messages.map((message) => (
-                              <List.Content
-                                className={`room-message ${message.self ? 'room-message-self' : ''}`}
+                              <div
                                 key={`${message.timestamp}+${message.message}`}
+                                onContextMenu={(clickEvent) =>
+                                  this.handleContextMenu(clickEvent, message)
+                                }
                               >
-                                <span className="room-message-time">
-                                  {this.formatTimestamp(message.timestamp)}
-                                </span>
-                                <span className="room-message-name">
-                                  {message.username}:{' '}
-                                </span>
-                                <span className="room-message-message">
-                                  {message.message}
-                                </span>
-                              </List.Content>
+                                <List.Content
+                                  className={`room-message ${message.self ? 'room-message-self' : ''}`}
+                                >
+                                  <span className="room-message-time">
+                                    {this.formatTimestamp(message.timestamp)}
+                                  </span>
+                                  <span className="room-message-name">
+                                    {message.username}:{' '}
+                                  </span>
+                                  <span className="room-message-message">
+                                    {message.message}
+                                  </span>
+                                </List.Content>
+                              </div>
                             ))}
                             <List.Content id="room-history-scroll-anchor" />
                           </List>
@@ -295,9 +386,10 @@ class Rooms extends Component {
             </Card.Content>
           </Card>
         )}
+        {this.renderContextMenu()}
       </div>
     );
   }
 }
 
-export default Rooms;
+export default withRouter(Rooms);
