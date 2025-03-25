@@ -1,4 +1,4 @@
-// <copyright file="SearchService.cs" company="slskd Team">
+﻿// <copyright file="SearchService.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -262,9 +262,15 @@ namespace slskd.Search
                 options = options.WithActions(
                     stateChanged: (args) =>
                     {
+                        // this logic is executed by Soulseek.NET upon each transition of the searcn, including the final
+                        // transition to Completed. if for some reason something goes wrong, we won't see the final Completed
+                        // transition, we should instead see the task below throw, in which case it will become
+                        // faulted and we'll set the Completed flag manually in the ContinueWith() block
                         search = search.WithSoulseekSearch(args.Search);
                         SearchHub.BroadcastUpdateAsync(search);
                         Update(search);
+
+                        Log.Debug("Search for '{Query}' state changed: {State} (id: {Id})", query, search.State, id);
                     },
                     responseReceived: (args) => rateLimiter.Invoke(() =>
                     {
@@ -291,42 +297,51 @@ namespace slskd.Search
                     options,
                     cancellationToken: cancellationTokenSource.Token);
 
-                // seach looks ok so far; let the rest of the logic run asynchronously
+                // search looks ok so far; let the rest of the logic run asynchronously
                 // on a background thread. this logic needs to clean up after itself and
                 // update the search record to accurately reflect the final state
                 _ = Task.Run(async () =>
                 {
+                    var soulseekSearch = await soulseekSearchTask;
+                    search = search.WithSoulseekSearch(soulseekSearch);
+
+                    Log.Debug("Search for '{Query}' ended normally (id: {Id})", query, id);
+                }, cancellationToken: cancellationTokenSource.Token)
+                .ContinueWith(async task =>
+                {
                     try
                     {
-                        var soulseekSearch = await soulseekSearchTask;
-                        search = search.WithSoulseekSearch(soulseekSearch);
+                        // the only way we should ever get to this point is if we encounter an error sending the search
+                        // request to the server (timeout, cancelled) or hit some highly improbable error within Soulseek.NET,
+                        // potentially OOM or something. in these cases the task will throw and we need to force the
+                        // search record into Errored state.
+                        if (task.IsFaulted)
+                        {
+                            Log.Error(task.Exception, "Failed to execute search for '{Query}' (id: {Id}): {Message}", query, id, task.Exception?.Message ?? "Task completed in Faulted state, but there is no Exception");
+                            search.State = SearchStates.Completed | SearchStates.Errored;
+                        }
+
+                        search.EndedAt = DateTime.UtcNow;
+                        search.Responses = responses.Select(r => Response.FromSoulseekSearchResponse(r));
+
+                        Update(search);
+
+                        // zero responses before broadcasting, as we don't want to blast this
+                        // data out over the SignalR socket
+                        await SearchHub.BroadcastUpdateAsync(search with { Responses = [] });
+
+                        Log.Debug("Search for '{Query}' finalized (id: {Id}): {Search}", query, id, search with { Responses = [] });
                     }
                     catch (Exception ex)
                     {
-                        Log.Error(ex, "Failed to execute search {Search}: {Message}", new { query, scope, options }, ex.Message);
-                        search.State = SearchStates.Completed | SearchStates.Errored;
+                        // record may be left 'hanging' and will need to be cleaned up at the next boot; we tried to update but failed
+                        Log.Error(ex, "Failed to finalize search for '{Query}' (id: {Id}): {Message}", query, id, ex.Message);
+                        throw;
                     }
                     finally
                     {
                         rateLimiter.Dispose();
                         CancellationTokens.TryRemove(id, out _);
-
-                        try
-                        {
-                            search.EndedAt = DateTime.UtcNow;
-                            search.Responses = responses.Select(r => Response.FromSoulseekSearchResponse(r));
-
-                            Update(search);
-
-                            // zero responses before broadcasting, as we don't want to blast this
-                            // data out over the SignalR socket
-                            await SearchHub.BroadcastUpdateAsync(search with { Responses = [] });
-                        }
-                        catch (Exception ex)
-                        {
-                            // record may be left 'hanging' and will need to be cleaned up at the next boot
-                            Log.Error(ex, "Failed to persist search for {SearchQuery} ({Id})", query, id);
-                        }
                     }
                 });
 
