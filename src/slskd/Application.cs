@@ -1258,18 +1258,18 @@ namespace slskd
         /// <param name="token">The unique token for the request, supplied by the requesting user.</param>
         /// <param name="directory">The requested directory.</param>
         /// <returns>A Task resolving an instance of Soulseek.Directory containing the contents of the requested directory.</returns>
-        private async Task<Soulseek.Directory> DirectoryContentsResponseResolver(string username, IPEndPoint endpoint, int token, string directory)
+        private async Task<IEnumerable<Soulseek.Directory>> DirectoryContentsResponseResolver(string username, IPEndPoint endpoint, int token, string directory)
         {
             if (Users.IsBlacklisted(username, endpoint.Address))
             {
                 Log.Information("Returned empty directory listing for blacklisted user {Username} ({IP})", username, endpoint.Address);
-                return new Soulseek.Directory(directory);
+                return [new Soulseek.Directory(directory)];
             }
 
             try
             {
                 var dir = await Shares.ListDirectoryAsync(directory);
-                return dir;
+                return [dir];
             }
             catch (Exception ex)
             {
