@@ -4,9 +4,11 @@ import * as users from '../../lib/users';
 import PlaceholderSegment from '../Shared/PlaceholderSegment';
 import User from './User';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Icon, Input, Item, Loader, Segment } from 'semantic-ui-react';
 
 const Users = () => {
+  const location = useLocation();
   const inputRef = useRef();
   const [user, setUser] = useState();
   const [usernameInput, setUsernameInput] = useState();
@@ -42,7 +44,8 @@ const Users = () => {
   useEffect(() => {
     document.addEventListener('keyup', keyUp, false);
 
-    const storedUsername = localStorage.getItem(activeUserInfoKey);
+    const storedUsername =
+      location.state?.user || localStorage.getItem(activeUserInfoKey);
 
     if (storedUsername !== undefined) {
       setSelectedUsername(storedUsername);
