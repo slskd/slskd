@@ -1,9 +1,9 @@
 import React from 'react';
 import { Icon, Popup } from 'semantic-ui-react';
 
-// as of 4.5.2, states are:
+// as of 3/26/25 states are:
 // transient:
-//   None, Requested, InProgress
+//   None, Queued, Requested, InProgress
 // terminal:
 //   good: Completed, [TimedOut | ResponseLimitReached | FileLimitReached]
 //   bad: Completed, [Errored | Cancelled]
@@ -11,6 +11,7 @@ import { Icon, Popup } from 'semantic-ui-react';
 const getIcon = ({ state, ...props }) => {
   switch (state) {
     case 'None':
+    case 'Queued':
     case 'Requested':
       return (
         <Icon
