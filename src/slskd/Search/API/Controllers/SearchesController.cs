@@ -82,6 +82,7 @@ namespace slskd.Search.API
             try
             {
                 search = await Searches.StartAsync(id, SearchQuery.FromText(request.SearchText), SearchScope.Network, request.ToSearchOptions());
+                return Ok(search);
             }
             catch (Exception ex) when (ex is ArgumentException || ex is Soulseek.DuplicateTokenException)
             {
@@ -98,8 +99,6 @@ namespace slskd.Search.API
                 Log.Error(ex, "Failed to execute search {Search}: {Message}", request, ex.Message);
                 return StatusCode(500, ex.Message);
             }
-
-            return Ok(search);
         }
 
         /// <summary>
