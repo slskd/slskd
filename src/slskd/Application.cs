@@ -1662,13 +1662,16 @@ namespace slskd
         /// <returns>A Task resolving the UserInfo instance.</returns>
         private async Task<UserInfo> UserInfoResolver(string username, IPEndPoint endpoint)
         {
+            var profilePicture = Users.GetProfilePicture(Options.Soulseek.ProfilePicture);
+
             if (Users.IsBlacklisted(username, endpoint.Address))
             {
                 return new UserInfo(
                     description: Options.Soulseek.Description,
                     uploadSlots: 0,
                     queueLength: int.MaxValue,
-                    hasFreeUploadSlot: false);
+                    hasFreeUploadSlot: false,
+                    picture: profilePicture);
             }
 
             try
@@ -1692,7 +1695,8 @@ namespace slskd
                     description: Options.Soulseek.Description,
                     uploadSlots: group.Slots,
                     queueLength: forecastedPosition,
-                    hasFreeUploadSlot: forecastedPosition == 0);
+                    hasFreeUploadSlot: forecastedPosition == 0,
+                    picture: profilePicture);
 
                 return info;
             }
