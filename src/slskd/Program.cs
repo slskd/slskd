@@ -596,6 +596,10 @@ namespace slskd
                 services.AddDbContext<TransfersDbContext>(DiskConnectionString("transfers"));
                 services.AddDbContext<MessagingDbContext>(DiskConnectionString("messaging"));
                 services.AddDbContext<EventsDbContext>(DiskConnectionString("events"));
+
+                // we're working with non-volatile database files, so register a Migrator to be used later in the
+                // bootup process. the presence of a Migrator instance in DI determines whether a migration is needed.
+                services.AddSingleton<Migrator>(_ => new Migrator());
             }
 
             services.AddSingleton<EventService>();
