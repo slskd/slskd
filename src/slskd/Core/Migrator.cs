@@ -39,7 +39,7 @@ public class Migrator
         { nameof(TransferStateMigration_04012025), new TransferStateMigration_04012025() },
     };
 
-    public void Migrate()
+    public void Migrate(bool force = false)
     {
         Dictionary<string, DateTime> history = new();
 

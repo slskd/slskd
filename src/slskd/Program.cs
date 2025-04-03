@@ -498,7 +498,7 @@ namespace slskd
 
                 if (migrator is not null)
                 {
-                    migrator.Migrate();
+                    migrator.Migrate(force: OptionsAtStartup.Flags.ForceMigrations);
                 }
 
                 // hack: services that exist only to subscribe to the event bus are not referenced by anything else

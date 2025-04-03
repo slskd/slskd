@@ -10,6 +10,7 @@
 #   no_connect: false
 #   no_share_scan: false
 #   force_share_scan: false
+#   force_migrations: false
 #   no_version_check: false
 #   log_sql: false
 #   experimental: false
