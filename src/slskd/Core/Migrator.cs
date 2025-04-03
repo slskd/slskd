@@ -20,6 +20,7 @@ namespace slskd;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using Serilog;
 using slskd.Migrations;
 
@@ -58,6 +59,13 @@ public class Migrator
                     Log.Warning("Failed to load migration history from {HistoryFile}: {Message}", HistoryFile, ex.Message);
                     Log.Warning("Migration history will be overwritten and all migrations will be applied");
                 }
+            }
+
+            var migrationsNotYetApplied = Migrations.Keys.Except(history.Keys);
+
+            if (!migrationsNotYetApplied.Any())
+            {
+                Log.Debug("No migrations need to be applied");
             }
 
             foreach (var migration in Migrations)

@@ -494,6 +494,13 @@ namespace slskd
 
                 var app = builder.Build();
 
+                var migrator = app.Services.GetService<Migrator>();
+
+                if (migrator is not null)
+                {
+                    migrator.Migrate();
+                }
+
                 // hack: services that exist only to subscribe to the event bus are not referenced by anything else
                 //       and are thus never instantiated.  force a reference here so they are created.
                 _ = app.Services.GetService<ScriptService>();
