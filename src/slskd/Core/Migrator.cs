@@ -19,83 +19,204 @@ namespace slskd;
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using Serilog;
 using slskd.Migrations;
 
+/// <summary>
+///     A database migration.
+/// </summary>
 public interface IMigration
 {
-    public void Apply();
+    /// <summary>
+    ///     Apply the database migration.
+    /// </summary>
+    /// <remarks>
+    ///     The database list is included to help ensure that we're backing up databases before we start. Migrations
+    ///     must check the supplied list to ensure the database(s) they are attempting to migrate are included; if
+    ///     they are missing they haven't been backed up.
+    /// </remarks>
+    /// <param name="databases">A list of known databases.</param>
+    public void Apply(IEnumerable<string> databases);
 }
 
+/// <summary>
+///     Applies database migrations.
+/// </summary>
 public class Migrator
 {
-    private string HistoryFile { get; } = Path.Combine(Program.DataDirectory, "misc", "migration.history");
+    /// <summary>
+    ///     Initializes a new instance of the <see cref="Migrator"/> class.
+    /// </summary>
+    /// <param name="databases">A list of known databases.</param>
+    public Migrator(params string[] databases)
+    {
+        Databases = databases;
+    }
+
+    private string HistoryFileName { get; } = Path.Combine(Program.DataDirectory, "migration.history");
+    private IEnumerable<string> Databases { get; }
     private ILogger Log { get; } = Serilog.Log.ForContext<Migrator>();
 
+    /// <summary>
+    ///     A map of all migrations, to be applied in the order they are specified (descending).
+    /// </summary>
     private Dictionary<string, IMigration> Migrations { get; } = new()
     {
         { nameof(TransferStateMigration_04012025), new TransferStateMigration_04012025() },
     };
 
+    /// <summary>
+    ///     Applies database migrations.
+    /// </summary>
+    /// <param name="force">Apply all migrations, regardless of whether there's evidence they have been applied already.</param>
     public void Migrate(bool force = false)
     {
-        Dictionary<string, DateTime> history = new();
+        Dictionary<string, DateTime> history = [];
 
-        try
+        Log.Information("Checking for outstanding database migrations...");
+
+        // load migration history from the history file in the root of the data directory. this file contains a key/value
+        // pair for each migration that's been applied, along with the migration date.
+        // if force=true, we don't care about the history and there's no reason to look at it.
+        if (!force)
         {
-            if (File.Exists(HistoryFile))
+            try
             {
-                try
+                if (File.Exists(HistoryFileName))
                 {
-                    var txt = File.ReadAllText(HistoryFile);
+                    var txt = File.ReadAllText(HistoryFileName);
                     history = txt.FromJson<Dictionary<string, DateTime>>();
 
-                    Log.Debug("Loaded migration history from {HistoryFile}: {History}", HistoryFile, history);
+                    Log.Debug("Loaded migration history from {HistoryFile}: {History}", HistoryFileName, history);
                 }
-                catch (Exception ex)
+                else
                 {
-                    Log.Warning("Failed to load migration history from {HistoryFile}: {Message}", HistoryFile, ex.Message);
-                    Log.Warning("Migration history will be overwritten and all migrations will be applied");
+                    Log.Debug("Migration history file {HistoryFile} was not found", HistoryFileName);
                 }
             }
-
-            var migrationsNotYetApplied = Migrations.Keys.Except(history.Keys);
-
-            if (!migrationsNotYetApplied.Any())
+            catch (Exception ex)
             {
-                Log.Debug("No migrations need to be applied");
+                // log a message but don't throw; migrations are (should be!) idempotent, so there's no harm in running them,
+                // it just takes unnecessary time.
+                Log.Warning("Failed to load migration history from {HistoryFile}: {Message}", HistoryFileName, ex.Message);
+                Log.Warning("Migration history will be overwritten and all migrations will be applied");
+            }
+        }
+
+        // figure out which migrations need to be applied by taking the set difference of the migration list and the history contents
+        var migrationsNotYetApplied = Migrations.Keys.Except(history.Keys);
+
+        if (!migrationsNotYetApplied.Any())
+        {
+            Log.Information("Databases are up to date");
+            return;
+        }
+
+        Log.Warning("{Count} outstanding database migration(s) to apply. This operation must be completed before the application can start.", migrationsNotYetApplied.Count());
+
+        // take some simple backups before we do anything. this gives users a way to get back to a working configuration
+        // if the migration is interrupted, fails, or if the user wants to revert to the previous version. these files
+        // must be left in place after the migration completes, and they'll be overwritten the next time a migration is applied
+        try
+        {
+            Log.Information("Backing up existing databases...");
+
+            foreach (var database in Databases)
+            {
+                var name = Path.Combine(Program.DataDirectory, database);
+                var src = $"{name}.db";
+                var dest = $"{name}.db.pre-migration";
+
+                File.Copy(src, dest, overwrite: true);
+
+                Log.Information("Backed database {Original} up to {Backup}", src, dest);
             }
 
-            foreach (var migration in Migrations)
+            Log.Information("Databases backed up successfully");
+        }
+        catch (Exception ex)
+        {
+            Log.Fatal(ex, "Failed to back up one or more database(s) prior to migration, operation cannot continue: {Message}", ex.Message);
+            Log.Fatal("Try again, revert the application to the previous version, or delete existing databases (warning: history will be lost!) to continue");
+            throw;
+        }
+
+        // we know which migrations to apply, and we've backed all of the databases up. let's go!
+        try
+        {
+            Log.Warning("Beginning migration(s)");
+            Log.Warning("This may take some time. Avoid stopping the application before the process is complete. If the process is interrupted it may be necessary to manually revert to backups.");
+
+            var overallSw = new Stopwatch();
+            overallSw.Start();
+
+            var current = 0;
+            var total = migrationsNotYetApplied.Count();
+
+            var currentSw = new Stopwatch();
+
+            foreach (var migration in migrationsNotYetApplied)
             {
-                if (history.TryGetValue(migration.Key, out var timestamp))
-                {
-                    Log.Debug("Migration {Name} was already applied {Date}", migration.Key, timestamp);
-                    continue;
-                }
+                current++;
+                currentSw.Restart();
+
+                Log.Warning("Applying migration {Name} ({Current} of {Total})", migration, current, total);
 
                 try
                 {
-                    migration.Value.Apply();
-                    history[migration.Key] = DateTime.UtcNow;
+                    Migrations[migration].Apply(Databases);
+                    history[migration] = DateTime.UtcNow;
 
-                    Log.Information("Migration {Name} was applied successfully", migration.Key);
+                    Log.Information("Migration {Name} was applied successfully (elapsed: {Duration}ms)", migration, currentSw.ElapsedMilliseconds);
                 }
                 catch (Exception ex)
                 {
-                    Log.Fatal(ex, "Failed to apply migration {Name}: {Message}", migration.Key, ex.Message);
+                    Log.Fatal(ex, "Failed to apply migration {Name}: {Message}", migration, ex.Message);
                     throw;
                 }
             }
 
-            File.WriteAllText(HistoryFile, history.ToJson());
+            Log.Information("{Count} migration(s) applied successfully (elapsed: {Duration}ms elapsed)", total, overallSw.ElapsedMilliseconds);
         }
         catch (Exception ex)
         {
-            Log.Fatal(ex, "Failed to apply migrations: {Message}", ex.Message);
+            Log.Fatal(ex, "Failed to apply one or more migration(s): {Message}", ex.Message);
+
+            try
+            {
+                Log.Information("Attempting to restore databases from backups...");
+
+                foreach (var database in Databases)
+                {
+                    var name = Path.Combine(Program.DataDirectory, database);
+                    var src = $"{name}.db.pre-migration";
+                    var dest = $"{name}.db";
+
+                    // note: leave the backup in place to give users peace of mind
+                    File.Copy(src, dest, overwrite: true);
+
+                    Log.Information("Restored {Original} from {Backup}", dest, src);
+                }
+
+                Log.Information("Databases restored successfully");
+            }
+            catch (Exception restoreEx)
+            {
+                Log.Fatal(restoreEx, "Failed to restore one or more databases from backup: {Message}", restoreEx.Message);
+                Log.Fatal("Restore manually by renaming '<database>.db.pre-migration' to '<database>.db' prior to starting the application again.");
+                throw;
+            }
+
             throw;
         }
+
+        var newHistory = history.ToJson();
+        File.WriteAllText(HistoryFileName, newHistory); // overwrites existing, if present
+        Log.Debug("Saved history to {Location}: {History}", HistoryFileName, newHistory);
+
+        Log.Information("Migration(s) complete");
     }
 }
