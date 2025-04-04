@@ -494,11 +494,10 @@ namespace slskd
 
                 var app = builder.Build();
 
-                var migrator = app.Services.GetService<Migrator>();
-
-                if (migrator is not null)
+                if (!OptionsAtStartup.Flags.Volatile)
                 {
-                    migrator.Migrate(force: OptionsAtStartup.Flags.ForceMigrations);
+                    // note: if this ever throws, we've forgotten to register a Migrator following database DI config
+                    app.Services.GetService<Migrator>().Migrate(force: OptionsAtStartup.Flags.ForceMigrations);
                 }
 
                 // hack: services that exist only to subscribe to the event bus are not referenced by anything else
@@ -606,7 +605,9 @@ namespace slskd
 
                 // we're working with non-volatile database files, so register a Migrator to be used later in the
                 // bootup process. the presence of a Migrator instance in DI determines whether a migration is needed.
-                services.AddSingleton<Migrator>(_ => new Migrator());
+                // it's important that we keep this list of databases in sync with those used by the application; anything
+                // not in this list will not be able to be migrated.
+                services.AddSingleton<Migrator>(_ => new Migrator(databases: ["search", "transfers", "messaging", "events"]));
             }
 
             services.AddSingleton<EventService>();
