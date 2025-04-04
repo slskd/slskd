@@ -18,14 +18,21 @@
 namespace slskd.Migrations;
 
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using Microsoft.Data.Sqlite;
 
 public class TransferStateMigration_04012025 : IMigration
 {
-    public void Apply()
-    {
+    private string DbName => "transfers";
 
+    public void Apply(IEnumerable<string> databases)
+    {
+        if (!databases.Contains(DbName))
+        {
+            throw new SlskdException($"Attempting to migrate database {DbName} but {DbName} is not in the list of known databases ({string.Join(",", databases)}). This is a precautionary check to ensure databases are properly backed up prior to migration, and the check has failed. Only an application update can fix this; please create an urgent issue: {Program.IssuesUrl}");
+        }
     }
 
     static void AddStateDescriptionColumn(string dbPath)
