@@ -24,6 +24,7 @@ using System.Linq;
 using System.Text.Json;
 using Microsoft.Data.Sqlite;
 using Serilog;
+using Soulseek;
 
 /// <summary>
 ///     Updates the Transfers table to:
@@ -44,7 +45,6 @@ public class TransferStateMigration_04012025 : Migration
     {
     }
 
-    private string DbName => "transfers";
     private ILogger Log { get; } = Serilog.Log.ForContext<TransferStateMigration_04012025>();
 
     public override void Apply()
@@ -60,35 +60,46 @@ public class TransferStateMigration_04012025 : Migration
             return;
         }
 
-        AddStateDescriptionColumn(Path.Combine(Program.DataDirectory, "transfers.db"));
+        using var connection = new SqliteConnection($"Data Source={Path.Combine(Program.DataDirectory, "transfers.db")}");
+        connection.Open();
+
+        // get a distinct list of states from the existing data and translate each into the corresponding integer
+        var stateMapping = GetStateMapping(connection);
+
+        AddStateDescriptionColumn(connection, stateMapping);
     }
 
-    static void AddStateDescriptionColumn(string dbPath)
+    private Dictionary<string, int> GetStateMapping(SqliteConnection connection)
     {
-        if (!File.Exists(dbPath))
+        Log.Debug("Fetching states and mapping to integers...");
+
+        using var command = new SqliteCommand("SELECT DISTINCT State FROM Transfers;", connection);
+        using var reader = command.ExecuteReader();
+
+        var dict = new Dictionary<string, int>();
+
+        while (reader.Read())
         {
-            Console.WriteLine("Database file not found.");
-            return;
+            var state = reader.GetString(0);
+            dict[state] = (int)Enum.Parse(typeof(TransferStates), state);
         }
 
-        string connectionString = $"Data Source={dbPath};";
+        Log.Debug("State -> int map: {Map}", dict);
+        return dict;
+    }
 
-        using (var connection = new SqliteConnection(connectionString))
+    private void AddStateDescriptionColumn(SqliteConnection connection, Dictionary<string, int> stateMapping)
+    {
+        using (var transaction = connection.BeginTransaction())
         {
-            connection.Open();
-
-            using (var transaction = connection.BeginTransaction())
+            try
             {
-                try
-                {
-                    // Rename old table
-                    using (var renameCommand = new SqliteCommand("ALTER TABLE Transfers RENAME TO Transfers_old;", connection))
-                    {
-                        renameCommand.ExecuteNonQuery();
-                    }
+                // rename old table
+                var renameCommand = new SqliteCommand("ALTER TABLE Transfers RENAME TO Transfers_old;", connection, transaction))
+                renameCommand.ExecuteNonQuery();
 
-                    // Create new table with StateDescription after State
-                    string createNewTableSQL = @"
+                // create new table with StateDescription after State
+                var createCommand = new SqliteCommand(@"
                     CREATE TABLE Transfers (
                         Id TEXT NOT NULL,
                         Username TEXT,
@@ -97,7 +108,7 @@ public class TransferStateMigration_04012025 : Migration
                         Size INTEGER NOT NULL,
                         StartOffset INTEGER NOT NULL,
                         State INTEGER NOT NULL,
-                        StateDescription TEXT, -- New column
+                        StateDescription TEXT, -- new column
                         RequestedAt TEXT NOT NULL,
                         EnqueuedAt TEXT,
                         StartedAt TEXT,
@@ -108,15 +119,11 @@ public class TransferStateMigration_04012025 : Migration
                         Exception TEXT,
                         Removed INTEGER NOT NULL,
                         CONSTRAINT PK_Transfers PRIMARY KEY(Id)
-                    );";
+                    );", connection, transaction);
+                createCommand.ExecuteNonQuery();
 
-                    using (var createCommand = new SqliteCommand(createNewTableSQL, connection))
-                    {
-                        createCommand.ExecuteNonQuery();
-                    }
-
-                    // Copy data into the new table
-                    string copyDataSQL = @"
+                // copy the old data into the new table
+                var copyCommand = new SqliteCommand(@"
                     INSERT INTO Transfers (
                         Id, Username, Direction, Filename, Size, StartOffset, State, 
                         RequestedAt, EnqueuedAt, StartedAt, EndedAt, BytesTransferred, 
@@ -126,30 +133,37 @@ public class TransferStateMigration_04012025 : Migration
                         Id, Username, Direction, Filename, Size, StartOffset, State, 
                         RequestedAt, EnqueuedAt, StartedAt, EndedAt, BytesTransferred, 
                         AverageSpeed, PlaceInQueue, Exception, Removed
-                    FROM Transfers_old;";
+                    FROM Transfers_old;",
+                connection, transaction);
+                copyCommand.ExecuteNonQuery();
 
-                    using (var copyCommand = new SqliteCommand(copyDataSQL, connection))
-                    {
-                        copyCommand.ExecuteNonQuery();
-                    }
+                // copy the status from Status to StatusDescription
+                var copyColumnCommand = new SqliteCommand("UPDATE Transfers SET StateDescription = State", connection, transaction);
+                copyColumnCommand.ExecuteNonQuery();
 
-                    // Drop the old table
-                    using (var dropCommand = new SqliteCommand("DROP TABLE Transfers_old;", connection))
-                    {
-                        dropCommand.ExecuteNonQuery();
-                    }
-
-                    transaction.Commit();
-                    Console.WriteLine("Column 'StateDescription' added successfully.");
-                }
-                catch (Exception ex)
+                // todo: set Status to the integer representation of the column
+                foreach (var state in stateMapping)
                 {
-                    transaction.Rollback();
-                    Console.WriteLine($"Error: {ex.Message}");
-                }
-            }
+                    Log.Debug("Set {String} to {Int}", state.Key, state.Value);
 
-            connection.Close();
+                    var mapCommand = new SqliteCommand($"UPDATE Transfers SET State = {state.Value} WHERE State = {state.Key}");
+                    mapCommand.ExecuteNonQuery();
+                }
+
+                // Drop the old table
+                using (var dropCommand = new SqliteCommand("DROP TABLE Transfers_old;", connection, transaction))
+                {
+                    dropCommand.ExecuteNonQuery();
+                }
+
+                transaction.Commit();
+                Console.WriteLine("Column 'StateDescription' added successfully.");
+            }
+            catch (Exception ex)
+            {
+                transaction.Rollback();
+                Console.WriteLine($"Error: {ex.Message}");
+            }
         }
     }
 }
