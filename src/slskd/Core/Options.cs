@@ -1664,7 +1664,7 @@ namespace slskd
                     [EnvironmentVariable("SLSK_INACTIVITY_TIMEOUT")]
                     [Description("connection inactivity timeout, in milliseconds")]
                     [Range(1000, int.MaxValue)]
-                    public int Inactivity { get; init; } = 30000;
+                    public int Inactivity { get; init; } = 15000;
                 }
 
                 /// <summary>
