@@ -239,41 +239,54 @@ namespace slskd.Search
                 StartedAt = DateTime.UtcNow,
             };
 
-            using var context = ContextFactory.CreateDbContext();
-            context.Add(search);
-            context.SaveChanges();
-
-            await SearchHub.BroadcastCreateAsync(search);
-
-            // initialize the list of responses that we'll use to accumulate them
-            // populated by the responseHandler we pass to SearchAsync
-            List<SearchResponse> responses = new();
-
-            options ??= new SearchOptions();
-            options = options.WithActions(
-                stateChanged: (args) =>
-                {
-                    search = search.WithSoulseekSearch(args.Search);
-                    SearchHub.BroadcastUpdateAsync(search);
-                    Update(search);
-                },
-                responseReceived: (args) => rateLimiter.Invoke(() =>
-                {
-                    // note: this is rate limited, but has the potential to update the database every 250ms (or whatever the
-                    // interval is set to) for the duration of the search. any issues with disk i/o or performance while searches
-                    // are running should investigate this as a cause
-                    search.ResponseCount = args.Search.ResponseCount;
-                    search.FileCount = args.Search.FileCount;
-                    search.LockedFileCount = args.Search.LockedFileCount;
-
-                    // note that we're not actually doing anything with the response here, that's happening in the
-                    // response handler. we're only updating counts here.
-                    SearchHub.BroadcastUpdateAsync(search);
-                    Update(search);
-                }));
+            bool searchCreated = false;
+            bool searchBroadcasted = false;
 
             try
             {
+                using var context = ContextFactory.CreateDbContext();
+                context.Add(search);
+                context.SaveChanges();
+
+                searchCreated = true;
+
+                await SearchHub.BroadcastCreateAsync(search);
+
+                searchBroadcasted = true;
+
+                // initialize the list of responses that we'll use to accumulate them
+                // populated by the responseHandler we pass to SearchAsync
+                List<SearchResponse> responses = new();
+
+                options ??= new SearchOptions();
+                options = options.WithActions(
+                    stateChanged: (args) =>
+                    {
+                        // this logic is executed by Soulseek.NET upon each transition of the searcn, including the final
+                        // transition to Completed. if for some reason something goes wrong, we won't see the final Completed
+                        // transition, we should instead see the task below throw, in which case it will become
+                        // faulted and we'll set the Completed flag manually in the ContinueWith() block
+                        search = search.WithSoulseekSearch(args.Search);
+                        SearchHub.BroadcastUpdateAsync(search);
+                        Update(search);
+
+                        Log.Debug("Search for '{Query}' state changed: {State} (id: {Id})", query, search.State, id);
+                    },
+                    responseReceived: (args) => rateLimiter.Invoke(() =>
+                    {
+                        // note: this is rate limited, but has the potential to update the database every 250ms (or whatever the
+                        // interval is set to) for the duration of the search. any issues with disk i/o or performance while searches
+                        // are running should investigate this as a cause
+                        search.ResponseCount = args.Search.ResponseCount;
+                        search.FileCount = args.Search.FileCount;
+                        search.LockedFileCount = args.Search.LockedFileCount;
+
+                        // note that we're not actually doing anything with the response here, that's happening in the
+                        // response handler. we're only updating counts here.
+                        SearchHub.BroadcastUpdateAsync(search);
+                        Update(search);
+                    }));
+
                 // initiate the search. this can throw at invocation if there's a problem with
                 // the client state (e.g. disconnected) or a problem with the search (e.g. no terms)
                 var soulseekSearchTask = Client.SearchAsync(
@@ -284,47 +297,56 @@ namespace slskd.Search
                     options,
                     cancellationToken: cancellationTokenSource.Token);
 
-                // seach looks ok so far; let the rest of the logic run asynchronously
+                // search looks ok so far; let the rest of the logic run asynchronously
                 // on a background thread. this logic needs to clean up after itself and
                 // update the search record to accurately reflect the final state
                 _ = Task.Run(async () =>
                 {
+                    var soulseekSearch = await soulseekSearchTask;
+                    search = search.WithSoulseekSearch(soulseekSearch);
+
+                    Log.Debug("Search for '{Query}' ended normally (id: {Id})", query, id);
+                }, cancellationToken: cancellationTokenSource.Token)
+                .ContinueWith(async task =>
+                {
                     try
                     {
-                        var soulseekSearch = await soulseekSearchTask;
-                        search = search.WithSoulseekSearch(soulseekSearch);
+                        // the only way we should ever get to this point is if we encounter an error sending the search
+                        // request to the server (timeout, cancelled) or hit some highly improbable error within Soulseek.NET,
+                        // potentially OOM or something. in these cases the task will throw and we need to force the
+                        // search record into Errored state.
+                        if (task.IsFaulted)
+                        {
+                            Log.Error(task.Exception, "Failed to execute search for '{Query}' (id: {Id}): {Message}", query, id, task.Exception?.Message ?? "Task completed in Faulted state, but there is no Exception");
+                            search.State = SearchStates.Completed | SearchStates.Errored;
+                        }
+
+                        search.EndedAt = DateTime.UtcNow;
+                        search.Responses = responses.Select(r => Response.FromSoulseekSearchResponse(r));
+
+                        Update(search);
+
+                        // zero responses before broadcasting, as we don't want to blast this
+                        // data out over the SignalR socket
+                        await SearchHub.BroadcastUpdateAsync(search with { Responses = [] });
+
+                        Log.Debug("Search for '{Query}' finalized (id: {Id}): {Search}", query, id, search with { Responses = [] });
                     }
                     catch (Exception ex)
                     {
-                        Log.Error(ex, "Failed to execute search {Search}: {Message}", new { query, scope, options }, ex.Message);
-                        search.State = SearchStates.Completed | SearchStates.Errored;
+                        // record may be left 'hanging' and will need to be cleaned up at the next boot; we tried to update but failed
+                        Log.Error(ex, "Failed to finalize search for '{Query}' (id: {Id}): {Message}", query, id, ex.Message);
+                        throw;
                     }
                     finally
                     {
                         rateLimiter.Dispose();
                         CancellationTokens.TryRemove(id, out _);
-
-                        try
-                        {
-                            search.EndedAt = DateTime.UtcNow;
-                            search.Responses = responses.Select(r => Response.FromSoulseekSearchResponse(r));
-
-                            Update(search);
-
-                            // zero responses before broadcasting, as we don't want to blast this
-                            // data out over the SignalR socket
-                            await SearchHub.BroadcastUpdateAsync(search with { Responses = [] });
-                        }
-                        catch (Exception ex)
-                        {
-                            // record may be left 'hanging' and will need to be cleaned up at the next boot
-                            Log.Error(ex, "Failed to persist search for {SearchQuery} ({Id})", query, id);
-                        }
                     }
                 });
 
+                // broadcast and return the _newly created_ search; it will continue to be updated in the background
                 await SearchHub.BroadcastUpdateAsync(search);
-
                 return search;
             }
             catch (Exception ex)
@@ -333,11 +355,18 @@ namespace slskd.Search
                 // the app isn't connected, and a few other straightforward issues that arise before even requesting the search
                 Log.Error(ex, "Failed to execute search {Search}: {Message}", new { query, scope, options }, ex.Message);
 
-                search.State = SearchStates.Completed | SearchStates.Errored;
-                search.EndedAt = search.StartedAt;
-                Update(search);
+                // selectively 'undo' whatever actions we were able to take successfully
+                if (searchCreated)
+                {
+                    search.State = SearchStates.Completed | SearchStates.Errored;
+                    search.EndedAt = search.StartedAt;
+                    Update(search);
 
-                await SearchHub.BroadcastUpdateAsync(search with { Responses = [] });
+                    if (searchBroadcasted)
+                    {
+                        await SearchHub.BroadcastUpdateAsync(search with { Responses = [] });
+                    }
+                }
 
                 throw;
             }

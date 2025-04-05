@@ -6,6 +6,7 @@ import Directory from './Directory';
 import DirectoryTree from './DirectoryTree';
 import * as lzString from 'lz-string';
 import React, { Component } from 'react';
+import { withRouter } from 'react-router-dom';
 import { Card, Icon, Input, Loader, Segment } from 'semantic-ui-react';
 
 const initialState = {
@@ -42,6 +43,9 @@ class Browse extends Component {
       },
       () => this.saveState(),
     );
+    if (this.props.location.state?.user) {
+      this.setState({ username: this.props.location.state.user }, this.browse);
+    }
 
     document.addEventListener('keyup', this.keyUp, false);
   }
@@ -150,11 +154,13 @@ class Browse extends Component {
 
   loadState = () => {
     this.setState(
-      JSON.parse(
-        lzString.decompress(
-          localStorage.getItem('soulseek-example-browse-state') || '',
-        ),
-      ) || initialState,
+      (!this.props.location.state?.user &&
+        JSON.parse(
+          lzString.decompress(
+            localStorage.getItem('soulseek-example-browse-state') || '',
+          ),
+        )) ||
+        initialState,
     );
   };
 
@@ -351,4 +357,4 @@ class Browse extends Component {
   }
 }
 
-export default Browse;
+export default withRouter(Browse);
