@@ -26,23 +26,6 @@ using Serilog;
 using slskd.Migrations;
 
 /// <summary>
-///     A database migration.
-/// </summary>
-public interface IMigration
-{
-    /// <summary>
-    ///     Apply the database migration.
-    /// </summary>
-    /// <remarks>
-    ///     The database list is included to help ensure that we're backing up databases before we start. Migrations
-    ///     must check the supplied list to ensure the database(s) they are attempting to migrate are included; if
-    ///     they are missing they haven't been backed up.
-    /// </remarks>
-    /// <param name="databases">A list of known databases.</param>
-    public void Apply(IEnumerable<string> databases);
-}
-
-/// <summary>
 ///     Applies database migrations.
 /// </summary>
 public class Migrator
@@ -63,9 +46,9 @@ public class Migrator
     /// <summary>
     ///     A map of all migrations, to be applied in the order they are specified (descending).
     /// </summary>
-    private Dictionary<string, IMigration> Migrations { get; } = new()
+    private Dictionary<string, Migration> Migrations { get; } = new()
     {
-        { nameof(TransferStateMigration_04012025), new TransferStateMigration_04012025() },
+        { nameof(TransferStateMigration_04012025), new TransferStateMigration_04012025("transfers") },
     };
 
     /// <summary>
@@ -167,7 +150,7 @@ public class Migrator
 
                 try
                 {
-                    Migrations[migration].Apply(Databases);
+                    Migrations[migration].Apply();
                     history[migration] = DateTime.UtcNow;
 
                     Log.Information("Migration {Name} was applied successfully (elapsed: {Duration}ms)", migration, currentSw.ElapsedMilliseconds);
@@ -207,10 +190,9 @@ public class Migrator
             {
                 Log.Fatal(restoreEx, "Failed to restore one or more databases from backup: {Message}", restoreEx.Message);
                 Log.Fatal("Restore manually by renaming '<database>.db.pre-migration' to '<database>.db' prior to starting the application again.");
-                throw;
             }
 
-            throw;
+            throw new SlskdException("Failed to apply one or more database migrations. See inner Exception for details.", ex);
         }
 
         var newHistory = history.ToJson();

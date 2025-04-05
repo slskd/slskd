@@ -1,4 +1,4 @@
-// <copyright file="TransferStateMigration.cs" company="slskd Team">
+// <copyright file="TransferStateMigration_04012025.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -21,18 +21,46 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
 using Microsoft.Data.Sqlite;
+using Serilog;
 
-public class TransferStateMigration_04012025 : IMigration
+/// <summary>
+///     Updates the Transfers table to:
+///
+///     * Add a new StatusDescription (TEXT) column
+///     * Copy the current (string) contents of the Status column to StatusDescription
+///     * Change the type of the Status column to INTEGER
+///     * Set the contents of the Status column to the numeric representation of the existing Status
+///
+///     This is necessary because Entity Framework doesn't work with [Flags] enums that are stored
+///     as strings; it tries to use bitwise operators to apply HasFlags(), and these obviously don't
+///     work against strings. Not sure why EF didn't complain about this, but here we are.
+/// </summary>
+public class TransferStateMigration_04012025 : Migration
 {
-    private string DbName => "transfers";
-
-    public void Apply(IEnumerable<string> databases)
+    public TransferStateMigration_04012025(string databasName)
+        : base(databasName)
     {
-        if (!databases.Contains(DbName))
+    }
+
+    private string DbName => "transfers";
+    private ILogger Log { get; } = Serilog.Log.ForContext<TransferStateMigration_04012025>();
+
+    public override void Apply()
+    {
+        // first, check the existing database to see if the StatusDescription column exists
+        // if it does, the migration has already been applied
+        var schema = GetDatabaseSchema();
+        var txfers = schema["Transfers"];
+
+        if (txfers.Any(c => c.Name == "StatusDescription"))
         {
-            throw new SlskdException($"Attempting to migrate database {DbName} but {DbName} is not in the list of known databases ({string.Join(",", databases)}). This is a precautionary check to ensure databases are properly backed up prior to migration, and the check has failed. Only an application update can fix this; please create an urgent issue: {Program.IssuesUrl}");
+            Log.Information("Migration {Name} has already been applied", nameof(TransferStateMigration_04012025));
+            return;
         }
+
+        AddStateDescriptionColumn(Path.Combine(Program.DataDirectory, "transfers.db"));
     }
 
     static void AddStateDescriptionColumn(string dbPath)
@@ -43,35 +71,11 @@ public class TransferStateMigration_04012025 : IMigration
             return;
         }
 
-        string connectionString = $"Data Source={dbPath};Version=3;";
+        string connectionString = $"Data Source={dbPath};";
 
         using (var connection = new SqliteConnection(connectionString))
         {
             connection.Open();
-
-            // Check if the column exists
-            bool columnExists = false;
-            using (var command = new SqliteCommand("PRAGMA table_info(Transfers);", connection))
-            using (var reader = command.ExecuteReader())
-            {
-                while (reader.Read())
-                {
-                    string columnName = reader["name"].ToString();
-                    if (columnName.Equals("StateDescription", StringComparison.OrdinalIgnoreCase))
-                    {
-                        columnExists = true;
-                        break;
-                    }
-                }
-            }
-
-            if (columnExists)
-            {
-                Console.WriteLine("Column 'StateDescription' already exists.");
-                return;
-            }
-
-            Console.WriteLine("Adding 'StateDescription' column...");
 
             using (var transaction = connection.BeginTransaction())
             {
@@ -92,7 +96,7 @@ public class TransferStateMigration_04012025 : IMigration
                         Filename TEXT,
                         Size INTEGER NOT NULL,
                         StartOffset INTEGER NOT NULL,
-                        State TEXT NOT NULL,
+                        State INTEGER NOT NULL,
                         StateDescription TEXT, -- New column
                         RequestedAt TEXT NOT NULL,
                         EnqueuedAt TEXT,
