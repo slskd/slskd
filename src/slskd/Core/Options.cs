@@ -1532,6 +1532,14 @@ namespace slskd
             public string Description { get; init; } = "A slskd user. https://github.com/slskd/slskd";
 
             /// <summary>
+            ///     Gets the file path for the user's profile picture.
+            /// </summary>
+            [Argument(default, "slsk-profile-picture")]
+            [EnvironmentVariable("SLSK_PROFILE_PICTURE")]
+            [Description("path to the user's profile picture file")]
+            public string ProfilePicture { get; init; } = Program.DefaultProfilePicturePath;
+
+            /// <summary>
             ///     Gets the local IP address on which to listen for incoming connections.
             /// </summary>
             [Argument(default, "slsk-listen-ip-address")]
@@ -1656,7 +1664,7 @@ namespace slskd
                     [EnvironmentVariable("SLSK_INACTIVITY_TIMEOUT")]
                     [Description("connection inactivity timeout, in milliseconds")]
                     [Range(1000, int.MaxValue)]
-                    public int Inactivity { get; init; } = 15000;
+                    public int Inactivity { get; init; } = 30000;
                 }
 
                 /// <summary>
