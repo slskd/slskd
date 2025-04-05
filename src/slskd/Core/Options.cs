@@ -1537,6 +1537,7 @@ namespace slskd
             [Argument(default, "slsk-picture")]
             [EnvironmentVariable("SLSK_PICTURE")]
             [Description("user picture for the Soulseek network")]
+            [FileExists(FileAccess.Read)]
             public string Picture { get; init; } = null;
 
             /// <summary>
