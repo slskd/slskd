@@ -22,8 +22,14 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using Microsoft.Data.Sqlite;
 using Serilog;
 using slskd.Migrations;
+
+public interface IMigration
+{
+    void Apply();
+}
 
 /// <summary>
 ///     Applies database migrations.
@@ -46,9 +52,10 @@ public class Migrator
     /// <summary>
     ///     A map of all migrations, to be applied in the order they are specified (descending).
     /// </summary>
-    private Dictionary<string, Migration> Migrations { get; } = new()
+    private Dictionary<string, IMigration> Migrations { get; } = new()
     {
-        { nameof(TransferStateMigration_04012025), new TransferStateMigration_04012025("transfers") },
+        // { nameof(TransferStateMigration_04012025), new TransferStateMigration_04012025() },
+        { nameof(TEMP_SeedTransfers), new TEMP_SeedTransfers() },
     };
 
     /// <summary>
@@ -100,6 +107,10 @@ public class Migrator
 
         Log.Warning("{Count} outstanding database migration(s) to apply. This operation must be completed before the application can start.", migrationsNotYetApplied.Count());
 
+        var migrationId = DateTime.UtcNow.ToString("MMddyy_hhmmss");
+
+        Log.Warning("-----> The ID for this migration is {MigrationId}. Use it to locate pre-migration database backups. <-----", migrationId);
+
         // take some simple backups before we do anything. this gives users a way to get back to a working configuration
         // if the migration is interrupted, fails, or if the user wants to revert to the previous version. these files
         // must be left in place after the migration completes, and they'll be overwritten the next time a migration is applied
@@ -111,7 +122,7 @@ public class Migrator
             {
                 var name = Path.Combine(Program.DataDirectory, database);
                 var src = $"{name}.db";
-                var dest = $"{name}.db.pre-migration";
+                var dest = $"{name}.pre-migration.{migrationId}.db";
 
                 File.Copy(src, dest, overwrite: true);
 
@@ -189,7 +200,7 @@ public class Migrator
             catch (Exception restoreEx)
             {
                 Log.Fatal(restoreEx, "Failed to restore one or more databases from backup: {Message}", restoreEx.Message);
-                Log.Fatal("Restore manually by renaming '<database>.db.pre-migration' to '<database>.db' prior to starting the application again.");
+                Log.Fatal($"Restore manually by renaming '<database>.pre-migration.{migrationId}.db' to '<database>.db' prior to starting the application again.");
             }
 
             throw new SlskdException("Failed to apply one or more database migrations. See inner Exception for details.", ex);
@@ -201,4 +212,49 @@ public class Migrator
 
         Log.Information("Migration(s) complete");
     }
+
+    public static Dictionary<string, IEnumerable<ColumnInfo>> GetDatabaseSchema(string connectionString)
+    {
+        try
+        {
+            using var connection = new SqliteConnection(connectionString);
+            connection.Open();
+
+            var dict = new Dictionary<string, IEnumerable<ColumnInfo>>();
+
+            using var tableCommand = new SqliteCommand("SELECT name FROM sqlite_master WHERE type='table';", connection);
+            using var tableReader = tableCommand.ExecuteReader();
+
+            while (tableReader.Read())
+            {
+                var table = tableReader.GetString(0);
+
+                var columns = new List<ColumnInfo>();
+
+                using var columnCommand = new SqliteCommand($"PRAGMA table_info({table});", connection);
+                using var cr = columnCommand.ExecuteReader();
+
+                while (cr.Read())
+                {
+                    columns.Add(new ColumnInfo(
+                        Cid: cr.GetInt64(cr.GetOrdinal("cid")),
+                        Name: cr.GetString(cr.GetOrdinal("name")),
+                        Type: cr.GetString(cr.GetOrdinal("type")),
+                        NotNull: cr.GetInt64(cr.GetOrdinal("notnull")) > 0,
+                        DefaultValue: cr["dflt_value"],
+                        PrimaryKey: cr.GetInt64(cr.GetOrdinal("pk")) > 0));
+                }
+
+                dict[table] = columns;
+            }
+
+            return dict;
+        }
+        catch (Exception ex)
+        {
+            throw new SlskdException($"Failed to retrieve schema information for database '{connectionString}'. The database might be corrupt or in use by another application; if the problem persists the backing file may need to be deleted", ex);
+        }
+    }
+
+    public record ColumnInfo(long Cid, string Name, string Type, bool NotNull, object DefaultValue, bool PrimaryKey);
 }

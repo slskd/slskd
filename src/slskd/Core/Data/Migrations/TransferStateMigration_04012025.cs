@@ -38,20 +38,17 @@ using Soulseek;
 ///     as strings; it tries to use bitwise operators to apply HasFlags(), and these obviously don't
 ///     work against strings. Not sure why EF didn't complain about this, but here we are.
 /// </summary>
-public class TransferStateMigration_04012025 : Migration
+public class TransferStateMigration_04012025 : IMigration
 {
-    public TransferStateMigration_04012025(string databasName)
-        : base(databasName)
-    {
-    }
-
     private ILogger Log { get; } = Serilog.Log.ForContext<TransferStateMigration_04012025>();
+    private string DatabaseName { get; } = "transfers";
+    private string ConnectionString => $"Data Source={Path.Combine(Program.DataDirectory, $"{DatabaseName}.db")}";
 
-    public override void Apply()
+    public void Apply()
     {
         // first, check the existing database to see if the StatusDescription column exists
         // if it does, the migration has already been applied
-        var schema = GetDatabaseSchema();
+        var schema = Migrator.GetDatabaseSchema(ConnectionString);
         var txfers = schema["Transfers"];
 
         if (txfers.Any(c => c.Name == "StatusDescription"))
@@ -60,7 +57,7 @@ public class TransferStateMigration_04012025 : Migration
             return;
         }
 
-        using var connection = new SqliteConnection($"Data Source={Path.Combine(Program.DataDirectory, "transfers.db")}");
+        using var connection = new SqliteConnection(ConnectionString);
         connection.Open();
 
         // get a distinct list of states from the existing data and translate each into the corresponding integer
