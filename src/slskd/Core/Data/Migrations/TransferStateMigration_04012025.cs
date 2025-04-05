@@ -19,9 +19,9 @@ namespace slskd.Migrations;
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Text.Json;
 using Microsoft.Data.Sqlite;
 using Serilog;
 using Soulseek;
@@ -66,7 +66,7 @@ public class TransferStateMigration_04012025 : Migration
         // get a distinct list of states from the existing data and translate each into the corresponding integer
         var stateMapping = GetStateMapping(connection);
 
-        AddStateDescriptionColumn(connection, stateMapping);
+        ModifyTableAndMassageData(connection, stateMapping);
     }
 
     private Dictionary<string, int> GetStateMapping(SqliteConnection connection)
@@ -88,82 +88,113 @@ public class TransferStateMigration_04012025 : Migration
         return dict;
     }
 
-    private void AddStateDescriptionColumn(SqliteConnection connection, Dictionary<string, int> stateMapping)
+    private void ModifyTableAndMassageData(SqliteConnection connection, Dictionary<string, int> stateMapping)
     {
-        using (var transaction = connection.BeginTransaction())
+        using var transaction = connection.BeginTransaction();
+
+        try
         {
-            try
+            /*
+                rename old table so we can create the new one with the layout we want
+                while preserving the existing data
+            */
+            var rename = @"
+                ALTER TABLE Transfers RENAME TO Transfers_old;
+            ";
+
+            using var renameCommand = new SqliteCommand(rename, connection, transaction);
+            renameCommand.ExecuteNonQuery();
+
+            /*
+                create the new table with StateDescription appearing after State
+            */
+            var create = @"
+                CREATE TABLE Transfers (
+                    Id TEXT NOT NULL,
+                    Username TEXT,
+                    Direction TEXT NOT NULL,
+                    Filename TEXT,
+                    Size INTEGER NOT NULL,
+                    StartOffset INTEGER NOT NULL,
+                    State INTEGER NOT NULL,
+                    StateDescription TEXT, -- new column
+                    RequestedAt TEXT NOT NULL,
+                    EnqueuedAt TEXT,
+                    StartedAt TEXT,
+                    EndedAt TEXT,
+                    BytesTransferred INTEGER NOT NULL,
+                    AverageSpeed REAL NOT NULL,
+                    PlaceInQueue INTEGER,
+                    Exception TEXT,
+                    Removed INTEGER NOT NULL,
+                    CONSTRAINT PK_Transfers PRIMARY KEY(Id)
+                );
+            ";
+
+            using var createCommand = new SqliteCommand(create, connection, transaction);
+            createCommand.ExecuteNonQuery();
+
+            /*
+                copy the existing data into the new table
+            */
+            var copy = @"
+                INSERT INTO Transfers (
+                    Id, Username, Direction, Filename, Size, StartOffset, State, 
+                    RequestedAt, EnqueuedAt, StartedAt, EndedAt, BytesTransferred, 
+                    AverageSpeed, PlaceInQueue, Exception, Removed
+                )
+                SELECT 
+                    Id, Username, Direction, Filename, Size, StartOffset, State, 
+                    RequestedAt, EnqueuedAt, StartedAt, EndedAt, BytesTransferred, 
+                    AverageSpeed, PlaceInQueue, Exception, Removed
+                FROM Transfers_old;";
+
+            using var copyCommand = new SqliteCommand(copy, connection, transaction);
+            copyCommand.ExecuteNonQuery();
+
+            /*
+                we no longer need the old table, so drop it
+            */
+            using var dropCommand = new SqliteCommand("DROP TABLE Transfers_old;", connection, transaction);
+            dropCommand.ExecuteNonQuery();
+
+            /*
+                copy the existing (string) State value from State to StateDescription
+            */
+            var copyColumnCommand = new SqliteCommand("UPDATE Transfers SET StateDescription = State", connection, transaction);
+            copyColumnCommand.ExecuteNonQuery();
+
+            /*
+                for each of the distinct State values that exist in the data, convert the string
+                representation into the numeric
+
+                there surely exist better ways to do this, but the reality is that 99% of the records
+                will be "Completed, Succeeded" (48), with a few "Completed, Errored" or "Completed, Cancelled"
+                sprinkled in. this should run in reasonable time for large collections
+
+                todo: benchmark this against a db with a lot of transfers
+            */
+            var sw = new Stopwatch();
+
+            foreach (var state in stateMapping)
             {
-                // rename old table
-                var renameCommand = new SqliteCommand("ALTER TABLE Transfers RENAME TO Transfers_old;", connection, transaction))
-                renameCommand.ExecuteNonQuery();
+                sw.Reset();
+                Log.Debug("Setting {String} to {Int}", state.Key, state.Value);
 
-                // create new table with StateDescription after State
-                var createCommand = new SqliteCommand(@"
-                    CREATE TABLE Transfers (
-                        Id TEXT NOT NULL,
-                        Username TEXT,
-                        Direction TEXT NOT NULL,
-                        Filename TEXT,
-                        Size INTEGER NOT NULL,
-                        StartOffset INTEGER NOT NULL,
-                        State INTEGER NOT NULL,
-                        StateDescription TEXT, -- new column
-                        RequestedAt TEXT NOT NULL,
-                        EnqueuedAt TEXT,
-                        StartedAt TEXT,
-                        EndedAt TEXT,
-                        BytesTransferred INTEGER NOT NULL,
-                        AverageSpeed REAL NOT NULL,
-                        PlaceInQueue INTEGER,
-                        Exception TEXT,
-                        Removed INTEGER NOT NULL,
-                        CONSTRAINT PK_Transfers PRIMARY KEY(Id)
-                    );", connection, transaction);
-                createCommand.ExecuteNonQuery();
+                var mapCommand = new SqliteCommand($"UPDATE Transfers SET State = {state.Value} WHERE State = '{state.Key}';", connection, transaction);
+                mapCommand.ExecuteNonQuery();
 
-                // copy the old data into the new table
-                var copyCommand = new SqliteCommand(@"
-                    INSERT INTO Transfers (
-                        Id, Username, Direction, Filename, Size, StartOffset, State, 
-                        RequestedAt, EnqueuedAt, StartedAt, EndedAt, BytesTransferred, 
-                        AverageSpeed, PlaceInQueue, Exception, Removed
-                    )
-                    SELECT 
-                        Id, Username, Direction, Filename, Size, StartOffset, State, 
-                        RequestedAt, EnqueuedAt, StartedAt, EndedAt, BytesTransferred, 
-                        AverageSpeed, PlaceInQueue, Exception, Removed
-                    FROM Transfers_old;",
-                connection, transaction);
-                copyCommand.ExecuteNonQuery();
-
-                // copy the status from Status to StatusDescription
-                var copyColumnCommand = new SqliteCommand("UPDATE Transfers SET StateDescription = State", connection, transaction);
-                copyColumnCommand.ExecuteNonQuery();
-
-                // todo: set Status to the integer representation of the column
-                foreach (var state in stateMapping)
-                {
-                    Log.Debug("Set {String} to {Int}", state.Key, state.Value);
-
-                    var mapCommand = new SqliteCommand($"UPDATE Transfers SET State = {state.Value} WHERE State = {state.Key}");
-                    mapCommand.ExecuteNonQuery();
-                }
-
-                // Drop the old table
-                using (var dropCommand = new SqliteCommand("DROP TABLE Transfers_old;", connection, transaction))
-                {
-                    dropCommand.ExecuteNonQuery();
-                }
-
-                transaction.Commit();
-                Console.WriteLine("Column 'StateDescription' added successfully.");
+                Log.Debug("{String} to {Int} in {Duration}", state.Key, state.Value, sw.ElapsedMilliseconds);
             }
-            catch (Exception ex)
-            {
-                transaction.Rollback();
-                Console.WriteLine($"Error: {ex.Message}");
-            }
+
+            Log.Debug("Committing transation...");
+            transaction.Commit();
+            Log.Debug("Transaction committed!");
+        }
+        catch (Exception)
+        {
+            transaction.Rollback();
+            throw;
         }
     }
 }
