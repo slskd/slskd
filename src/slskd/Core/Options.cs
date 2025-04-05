@@ -1534,10 +1534,10 @@ namespace slskd
             /// <summary>
             ///     Gets the file path for the user's profile picture.
             /// </summary>
-            [Argument(default, "slsk-profile-picture")]
-            [EnvironmentVariable("SLSK_PROFILE_PICTURE")]
-            [Description("path to the user's profile picture file")]
-            public string ProfilePicture { get; init; } = Program.DefaultProfilePicturePath;
+            [Argument(default, "slsk-picture")]
+            [EnvironmentVariable("SLSK_PICTURE")]
+            [Description("user picture for the Soulseek network")]
+            public string Picture { get; init; } = null;
 
             /// <summary>
             ///     Gets the local IP address on which to listen for incoming connections.
