@@ -203,11 +203,6 @@ namespace slskd
         public static string DefaultIncompleteDirectory { get; private set; }
 
         /// <summary>
-        ///     Gets the default profile picture path.
-        /// </summary>
-        public static string DefaultProfilePicturePath { get; private set; } = Path.Combine(AppContext.BaseDirectory, "slsk-profile-picture.jpg");
-
-        /// <summary>
         ///     Gets the path where application logs are saved.
         /// </summary>
         public static string LogDirectory { get; private set; } = null;
