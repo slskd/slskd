@@ -130,9 +130,9 @@
             public void Returns_Null_When_Path_Is_NullOrWhitespace(string path)
             {
                 var (service, _) = GetFixture();
-                
+
                 var result = service.GetProfilePicture(path);
-                
+
                 Assert.Null(result);
             }
 
@@ -141,9 +141,9 @@
             {
                 const string nonExistentPath = "nonexistent-file.jpg";
                 var (service, _) = GetFixture();
-                
+
                 var result = service.GetProfilePicture(nonExistentPath);
-                
+
                 Assert.Null(result);
             }
 
@@ -155,11 +155,11 @@
                 {
                     // Write some test data to the temp file
                     System.IO.File.WriteAllBytes(tempFile, new byte[] { 1, 2, 3, 4, 5 });
-                    
+
                     var (service, _) = GetFixture();
-                    
+
                     var result = service.GetProfilePicture(tempFile);
-                    
+
                     Assert.NotNull(result);
                     Assert.Equal(new byte[] { 1, 2, 3, 4, 5 }, result);
                 }
@@ -174,7 +174,7 @@
             }
         }
 
-        private static (UserService governor, Mocks mocks) GetFixture(Options options = null)
+        private static (UserService service, Mocks mocks) GetFixture(Options options = null)
         {
             var mocks = new Mocks(options);
             var service = new UserService(

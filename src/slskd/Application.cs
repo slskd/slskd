@@ -1662,7 +1662,7 @@ namespace slskd
         /// <returns>A Task resolving the UserInfo instance.</returns>
         private async Task<UserInfo> UserInfoResolver(string username, IPEndPoint endpoint)
         {
-            var profilePicture = Users.GetProfilePicture(Options.Soulseek.ProfilePicture);
+            var profilePicture = Users.GetProfilePicture(Options.Soulseek.Picture);
 
             if (Users.IsBlacklisted(username, endpoint.Address))
             {
@@ -1691,6 +1691,7 @@ namespace slskd
                 // i want to know how many slots they have, which gives me an idea of how fast their
                 // queue moves, and the length of the queue *ahead of me*, meaning how long i'd have to
                 // wait until my first download starts.
+                // revisited 3 years later: why was it important to leave this comment??
                 var info = new UserInfo(
                     description: Options.Soulseek.Description,
                     uploadSlots: group.Slots,
