@@ -192,7 +192,7 @@
 #   password: ~
 #   description: |
 #     A slskd user. https://github.com/slskd/slskd
-#   profile_picture: slsk-profile-picture.jpg
+#   picture: path/to/slsk-profile-picture.jpg
 #   listen_ip_address: 0.0.0.0
 #   listen_port: 50300
 #   diagnostic_level: Info
