@@ -1666,10 +1666,14 @@ namespace slskd
 
             try
             {
+                // note: the Picture setting is validated at startup to ensure it exists and that
+                // it is readable
                 pictureBytes = await System.IO.File.ReadAllBytesAsync(Options.Soulseek.Picture);
             }
             catch (Exception ex)
             {
+                // this isn't a serious enough problem to prevent us from continuing, so we'll just
+                // log a warning and continue, omitting the picture
                 Log.Warning("Failed to read Soulseek picture {Picture}: {Message}", Options.Soulseek.Picture, ex.Message);
             }
 

@@ -19,16 +19,13 @@ using Microsoft.Extensions.Options;
 
 namespace slskd.Users
 {
-    using System;
     using System.Collections.Concurrent;
     using System.Collections.Generic;
-    using System.IO;
     using System.Linq;
     using System.Net;
     using System.Threading.Tasks;
     using NetTools;
     using Serilog;
-    using slskd.Files;
     using Soulseek;
 
     /// <summary>

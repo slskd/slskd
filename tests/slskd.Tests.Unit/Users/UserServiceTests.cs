@@ -1,10 +1,8 @@
 ﻿namespace slskd.Tests.Unit.Users
 {
     using System.Collections.Generic;
-    using System.IO;
     using AutoFixture.Xunit2;
     using Moq;
-    using slskd.Files;
     using slskd.Users;
     using Soulseek;
     using Xunit;
@@ -136,12 +134,10 @@
             public Mocks(Options options = null)
             {
                 OptionsMonitor = new TestOptionsMonitor<Options>(options ?? new Options());
-                FileService = new FileService(OptionsMonitor);
             }
 
             public Mock<ISoulseekClient> SoulseekClient { get; } = new Mock<ISoulseekClient>();
             public TestOptionsMonitor<Options> OptionsMonitor { get; init; }
-            public FileService FileService { get; init; }
         }
     }
 }
