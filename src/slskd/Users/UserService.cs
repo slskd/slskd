@@ -75,6 +75,7 @@ namespace slskd.Users
             IOptionsMonitor<Options> optionsMonitor)
         {
             Client = soulseekClient;
+
             OptionsMonitor = optionsMonitor;
             OptionsMonitor.OnChange(options => Configure(options));
 

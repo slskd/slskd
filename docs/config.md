@@ -683,11 +683,13 @@ soulseek:
 | Command-Line         | Environment Variable       | Description                                   |
 | -------------------- | -------------------------- | --------------------------------------------- |
 | `--slsk-description` | `SLSKD_SLSK_DESCRIPTION`   | The user description for the Soulseek network |
+| `--slsk-picture`     | `SLSKD_SLSK_PICTURE`       | The user picture for the Soulseek network     |
 
 #### **YAML**
 ```yaml
 soulseek:
   description: A slskd user. https://github.com/slskd/slskd
+  picture: path/to/slsk-profile-picture.jpg
 ```
 
 ## Connection Options
