@@ -152,12 +152,5 @@ namespace slskd.Users
         /// <param name="username">The username of the peer.</param>
         /// <returns>The operation context.</returns>
         Task WatchAsync(string username);
-
-        /// <summary>
-        ///     Gets the profile picture as a byte array if it exists.
-        /// </summary>
-        /// <param name="profilePicture">The profile picture path to resolve.</param>
-        /// <returns>The profile picture as a byte array if it exists and can be read, null otherwise.</returns>
-        byte[] GetProfilePicture(string profilePicture);
     }
 }

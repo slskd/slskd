@@ -68,22 +68,16 @@ namespace slskd.Users
     /// </remarks>
     public class UserService : IUserService
     {
-        private readonly FileService fileService;
-
         /// <summary>
         ///     Initializes a new instance of the <see cref="UserService"/> class.
         /// </summary>
         /// <param name="soulseekClient"></param>
         /// <param name="optionsMonitor"></param>
-        /// <param name="fileService"></param>
         public UserService(
             ISoulseekClient soulseekClient,
-            IOptionsMonitor<Options> optionsMonitor,
-            FileService fileService)
+            IOptionsMonitor<Options> optionsMonitor)
         {
             Client = soulseekClient;
-            this.fileService = fileService;
-
             OptionsMonitor = optionsMonitor;
             OptionsMonitor.OnChange(options => Configure(options));
 
@@ -153,47 +147,6 @@ namespace slskd.Users
         /// </remarks>
         private ConcurrentDictionary<string, User> UserDictionary { get; set; } = new ConcurrentDictionary<string, User>();
         private ConcurrentDictionary<string, bool> WatchedUsernamesDictionary { get; set; } = new ConcurrentDictionary<string, bool>();
-
-        /// <summary>
-        ///     Gets the profile picture as a byte array if it exists.
-        /// </summary>
-        /// <param name="profilePicture">The profile picture path to resolve.</param>
-        /// <returns>The profile picture as a byte array if it exists and can be read, null otherwise.</returns>
-        public byte[] GetProfilePicture(string profilePicture)
-        {
-            if (string.IsNullOrWhiteSpace(profilePicture))
-            {
-                Log.Warning("Profile picture path is not set");
-                return null;
-            }
-
-            try
-            {
-                // Ensure the path is relative to the app directory for security
-                var fullPath = Path.GetFullPath(
-                    Path.Combine(AppContext.BaseDirectory, profilePicture));
-
-                var fileInfo = fileService.ResolveFileInfo(fullPath);
-                if (!fileInfo.Exists)
-                {
-                    Log.Warning("Profile picture '{Path}' not found", profilePicture);
-                    return null;
-                }
-
-                // Read the file into a byte array
-                return System.IO.File.ReadAllBytes(fileInfo.FullName);
-            }
-            catch (UnauthorizedException ex)
-            {
-                Log.Warning(ex, "Access to profile picture '{Path}' was denied", profilePicture);
-                return null;
-            }
-            catch (IOException ex)
-            {
-                Log.Warning(ex, "Failed to read profile picture '{Path}'", profilePicture);
-                return null;
-            }
-        }
 
         /// <summary>
         ///     Gets the name of the group for the specified <paramref name="username"/>.

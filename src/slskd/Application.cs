@@ -1662,7 +1662,16 @@ namespace slskd
         /// <returns>A Task resolving the UserInfo instance.</returns>
         private async Task<UserInfo> UserInfoResolver(string username, IPEndPoint endpoint)
         {
-            var profilePicture = Users.GetProfilePicture(Options.Soulseek.Picture);
+            byte[] pictureBytes = null;
+
+            try
+            {
+                pictureBytes = await System.IO.File.ReadAllBytesAsync(Options.Soulseek.Picture);
+            }
+            catch (Exception ex)
+            {
+                Log.Warning("Failed to read Soulseek picture {Picture}: {Message}", Options.Soulseek.Picture, ex.Message);
+            }
 
             if (Users.IsBlacklisted(username, endpoint.Address))
             {
@@ -1671,7 +1680,7 @@ namespace slskd
                     uploadSlots: 0,
                     queueLength: int.MaxValue,
                     hasFreeUploadSlot: false,
-                    picture: profilePicture);
+                    picture: pictureBytes);
             }
 
             try
@@ -1697,7 +1706,7 @@ namespace slskd
                     uploadSlots: group.Slots,
                     queueLength: forecastedPosition,
                     hasFreeUploadSlot: forecastedPosition == 0,
-                    picture: profilePicture);
+                    picture: pictureBytes);
 
                 return info;
             }
