@@ -680,6 +680,9 @@ soulseek:
 
 ## Other
 
+Users can configure "profile" information for other users on the network to view, including a description and a photo.  Note that Soulseek NS doesn't support .PNG,
+so formats .JPG/.JPEG, .GIF, and .BMP are advised.
+
 | Command-Line         | Environment Variable       | Description                                   |
 | -------------------- | -------------------------- | --------------------------------------------- |
 | `--slsk-description` | `SLSKD_SLSK_DESCRIPTION`   | The user description for the Soulseek network |
