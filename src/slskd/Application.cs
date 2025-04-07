@@ -1662,13 +1662,32 @@ namespace slskd
         /// <returns>A Task resolving the UserInfo instance.</returns>
         private async Task<UserInfo> UserInfoResolver(string username, IPEndPoint endpoint)
         {
+            byte[] pictureBytes = null;
+
+            if (!string.IsNullOrWhiteSpace(Options.Soulseek.Picture))
+            {
+                try
+                {
+                    // note: the Picture setting is validated at startup to ensure it exists and that
+                    // it is readable
+                    pictureBytes = await System.IO.File.ReadAllBytesAsync(Options.Soulseek.Picture);
+                }
+                catch (Exception ex)
+                {
+                    // this isn't a serious enough problem to prevent us from continuing, so we'll just
+                    // log a warning and continue, omitting the picture
+                    Log.Warning("Failed to read Soulseek picture {Picture}: {Message}", Options.Soulseek.Picture, ex.Message);
+                }
+            }
+
             if (Users.IsBlacklisted(username, endpoint.Address))
             {
                 return new UserInfo(
                     description: Options.Soulseek.Description,
                     uploadSlots: 0,
                     queueLength: int.MaxValue,
-                    hasFreeUploadSlot: false);
+                    hasFreeUploadSlot: false,
+                    picture: pictureBytes);
             }
 
             try
@@ -1688,11 +1707,13 @@ namespace slskd
                 // i want to know how many slots they have, which gives me an idea of how fast their
                 // queue moves, and the length of the queue *ahead of me*, meaning how long i'd have to
                 // wait until my first download starts.
+                // revisited 3 years later: why was it important to leave this comment??
                 var info = new UserInfo(
                     description: Options.Soulseek.Description,
                     uploadSlots: group.Slots,
                     queueLength: forecastedPosition,
-                    hasFreeUploadSlot: forecastedPosition == 0);
+                    hasFreeUploadSlot: forecastedPosition == 0,
+                    picture: pictureBytes);
 
                 return info;
             }
