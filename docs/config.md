@@ -853,7 +853,7 @@ The JWT TTL option determines how long issued JWTs are valid, defaulting to 7 da
 
 API keys can be configured to allow for secure communication without requiring the caller to obtain a JWT by signing in with a username and password. Each key must be given a name and a key with a length between 16 and 255 characters (inclusive). Callers may then supply one of the configured keys in the `X-API-Key` header when making web requests. Remember that API keys are secrets, so keep them safe.
 
-You can generate a random, 32 bit API key by starting the application with `-k` or `--generate-api-key` at the command line.
+You can generate a random, 32 bit API key by starting the application with `-k` or `--generate-secret` at the command line.
 
 An optional comma separated list of [CIDRs](https://en.wikipedia.org/wiki/Classless_Inter-Domain_Routing) can be defined for each key, which will restrict usage of the key to callers with a remote IP address that falls within one of the defined CIDRs.  The default CIDR list for each key is `0.0.0.0/0,::0`, which applies to any IP address (IPv4 or IPv6).
 
