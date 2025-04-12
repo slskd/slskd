@@ -83,10 +83,16 @@ class Response extends Component {
       const oldTree = { ...this.state.tree };
       const oldFiles = oldTree[directory];
 
-      const { files, name } = await getDirectoryContents({
+      // some clients might send more than one directory in the response,
+      // if the requested directory contains subdirectories. the root directory
+      // is always first, and for now we'll only display the contents of that.
+      const allDirectories = await getDirectoryContents({
         directory,
         username,
       });
+
+      const theRootDirectory = allDirectories?.[0];
+      const { files, name } = theRootDirectory;
 
       // the api returns file names only, so we need to prepend the directory
       // to make it look like a search result.  we also need to preserve
