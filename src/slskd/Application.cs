@@ -830,6 +830,12 @@ namespace slskd
 
             var logger = Loggers.GetOrAdd(source, Log.ForContext("Context", "Soulseek").ForContext("SubContext", source));
 
+            if (args.IncludesException && OptionsAtStartup.Debug)
+            {
+                logger.Write(TranslateLogLevel(args.Level), exception: args.Exception, "{@Message}", args.Message);
+                return;
+            }
+
             logger.Write(TranslateLogLevel(args.Level), "{@Message}", args.Message);
         }
 
