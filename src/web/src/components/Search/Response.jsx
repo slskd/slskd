@@ -83,21 +83,17 @@ class Response extends Component {
       const oldTree = { ...this.state.tree };
       const oldFiles = oldTree[directory];
 
-      // some clients might send more than one directory in the response,
-      // if the requested directory contains subdirectories. the root directory
-      // is always first, and for now we'll only display the contents of that.
-      const allDirectories = await getDirectoryContents({
-        directory,
-        username,
-      });
-
-      // todo: deleteme
-      console.log('allDirectories', allDirectories);
-      console.log('allDirectoriesJson', JSON.stringify(allDirectories));
-
       try {
+        // some clients might send more than one directory in the response,
+        // if the requested directory contains subdirectories. the root directory
+        // is always first, and for now we'll only display the contents of that.
+        const allDirectories = await getDirectoryContents({
+          directory,
+          username,
+        });
         const theRootDirectory = allDirectories?.[0];
 
+        // some clients might send an empty response for some reason
         if (!theRootDirectory) {
           throw new Error('No directories were included in the response');
         }
@@ -119,10 +115,9 @@ class Response extends Component {
         oldTree[name] = fixedFiles;
         this.setState({ tree: { ...oldTree } });
       } catch (error) {
-        throw new Error(
-          `Failed to process the requested folder response: ${error}`,
-          { cause: error },
-        );
+        throw new Error(`Failed to process directory response: ${error}`, {
+          cause: error,
+        });
       }
     } catch (error) {
       console.error(error);
