@@ -83,30 +83,42 @@ class Response extends Component {
       const oldTree = { ...this.state.tree };
       const oldFiles = oldTree[directory];
 
-      // some clients might send more than one directory in the response,
-      // if the requested directory contains subdirectories. the root directory
-      // is always first, and for now we'll only display the contents of that.
-      const allDirectories = await getDirectoryContents({
-        directory,
-        username,
-      });
+      try {
+        // some clients might send more than one directory in the response,
+        // if the requested directory contains subdirectories. the root directory
+        // is always first, and for now we'll only display the contents of that.
+        const allDirectories = await getDirectoryContents({
+          directory,
+          username,
+        });
+        const theRootDirectory = allDirectories?.[0];
 
-      const theRootDirectory = allDirectories?.[0];
-      const { files, name } = theRootDirectory;
+        // some clients might send an empty response for some reason
+        if (!theRootDirectory) {
+          throw new Error('No directories were included in the response');
+        }
 
-      // the api returns file names only, so we need to prepend the directory
-      // to make it look like a search result.  we also need to preserve
-      // any file selections, so check the old files and assign accordingly
-      const fixedFiles = files.map((file) => ({
-        ...file,
-        filename: `${directory}\\${file.filename}`,
-        selected:
-          oldFiles.find((f) => f.filename === `${directory}\\${file.filename}`)
-            ?.selected ?? false,
-      }));
+        const { files, name } = theRootDirectory;
 
-      oldTree[name] = fixedFiles;
-      this.setState({ tree: { ...oldTree } });
+        // the api returns file names only, so we need to prepend the directory
+        // to make it look like a search result.  we also need to preserve
+        // any file selections, so check the old files and assign accordingly
+        const fixedFiles = files.map((file) => ({
+          ...file,
+          filename: `${directory}\\${file.filename}`,
+          selected:
+            oldFiles.find(
+              (f) => f.filename === `${directory}\\${file.filename}`,
+            )?.selected ?? false,
+        }));
+
+        oldTree[name] = fixedFiles;
+        this.setState({ tree: { ...oldTree } });
+      } catch (error) {
+        throw new Error(`Failed to process directory response: ${error}`, {
+          cause: error,
+        });
+      }
     } catch (error) {
       console.error(error);
       toast.error(error?.response?.data ?? error?.message ?? error);
