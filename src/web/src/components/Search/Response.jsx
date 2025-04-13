@@ -91,22 +91,39 @@ class Response extends Component {
         username,
       });
 
-      const theRootDirectory = allDirectories?.[0];
-      const { files, name } = theRootDirectory;
+      // todo: deleteme
+      console.log('allDirectories', allDirectories);
+      console.log('allDirectoriesJson', JSON.stringify(allDirectories));
 
-      // the api returns file names only, so we need to prepend the directory
-      // to make it look like a search result.  we also need to preserve
-      // any file selections, so check the old files and assign accordingly
-      const fixedFiles = files.map((file) => ({
-        ...file,
-        filename: `${directory}\\${file.filename}`,
-        selected:
-          oldFiles.find((f) => f.filename === `${directory}\\${file.filename}`)
-            ?.selected ?? false,
-      }));
+      try {
+        const theRootDirectory = allDirectories?.[0];
 
-      oldTree[name] = fixedFiles;
-      this.setState({ tree: { ...oldTree } });
+        if (!theRootDirectory) {
+          throw new Error('No directories were included in the response');
+        }
+
+        const { files, name } = theRootDirectory;
+
+        // the api returns file names only, so we need to prepend the directory
+        // to make it look like a search result.  we also need to preserve
+        // any file selections, so check the old files and assign accordingly
+        const fixedFiles = files.map((file) => ({
+          ...file,
+          filename: `${directory}\\${file.filename}`,
+          selected:
+            oldFiles.find(
+              (f) => f.filename === `${directory}\\${file.filename}`,
+            )?.selected ?? false,
+        }));
+
+        oldTree[name] = fixedFiles;
+        this.setState({ tree: { ...oldTree } });
+      } catch (error) {
+        throw new Error(
+          `Failed to process the requested folder response: ${error}`,
+          { cause: error },
+        );
+      }
     } catch (error) {
       console.error(error);
       toast.error(error?.response?.data ?? error?.message ?? error);
