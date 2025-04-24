@@ -23,7 +23,7 @@
     "react": "^16.8.6",
     "react-dom": "^16.8.6",
     "react-responsive": "^9.0.0-beta.5",
-    "react-router-dom": "^5.0.0",
+    "react-router-dom": "^7.5.2",
     "react-toastify": "^9.0.1",
     "semantic-ui-less": "^2.5.0",
     "semantic-ui-react": "^2.1.0",
