@@ -188,6 +188,11 @@ namespace slskd
         public static string DataDirectory { get; private set; } = null;
 
         /// <summary>
+        ///     Gets the path where database migration information is saved.
+        /// </summary>
+        public static string DataMigrationsDirectory { get; private set; } = null;
+
+        /// <summary>
         ///     Gets the default fully qualified path to the configuration file.
         /// </summary>
         public static string DefaultConfigurationFile { get; private set; }
@@ -353,6 +358,7 @@ namespace slskd
             {
                 VerifyDirectory(AppDirectory, createIfMissing: true, verifyWriteable: true);
                 VerifyDirectory(DataDirectory, createIfMissing: true, verifyWriteable: true);
+                VerifyDirectory(DataMigrationsDirectory, createIfMissing: true, verifyWriteable: true);
                 VerifyDirectory(ScriptDirectory, createIfMissing: true, verifyWriteable: false);
                 VerifyDirectory(DefaultDownloadsDirectory, createIfMissing: true, verifyWriteable: true);
                 VerifyDirectory(DefaultIncompleteDirectory, createIfMissing: true, verifyWriteable: true);
@@ -496,10 +502,13 @@ namespace slskd
 
                 if (!OptionsAtStartup.Flags.Volatile)
                 {
+                    Log.Debug($"Running migrations...");
+
                     // note: if this ever throws, we've forgotten to register a Migrator following database DI config
                     app.Services.GetService<Migrator>().Migrate(force: OptionsAtStartup.Flags.ForceMigrations);
                 }
 
+                // todo: don't forget to take this out
                 Environment.Exit(1);
 
                 // hack: services that exist only to subscribe to the event bus are not referenced by anything else
