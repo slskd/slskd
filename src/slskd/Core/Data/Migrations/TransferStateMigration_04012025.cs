@@ -48,7 +48,7 @@ public class TransferStateMigration_04012025 : IMigration
     {
         // first, check the existing database to see if the StatusDescription column exists
         // if it does, the migration has already been applied
-        var schema = Migrator.GetDatabaseSchema(ConnectionString);
+        var schema = SchemaInspector.GetDatabaseSchema(ConnectionString);
         var txfers = schema["Transfers"];
 
         if (txfers.Any(c => c.Name == "StatusDescription"))
@@ -168,8 +168,6 @@ public class TransferStateMigration_04012025 : IMigration
                 there surely exist better ways to do this, but the reality is that 99% of the records
                 will be "Completed, Succeeded" (48), with a few "Completed, Errored" or "Completed, Cancelled"
                 sprinkled in. this should run in reasonable time for large collections
-
-                todo: benchmark this against a db with a lot of transfers
             */
             var sw = new Stopwatch();
 
