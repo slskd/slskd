@@ -1540,6 +1540,15 @@ namespace slskd
             public string Description { get; init; } = "A slskd user. https://github.com/slskd/slskd";
 
             /// <summary>
+            ///     Gets the file path for the user's profile picture.
+            /// </summary>
+            [Argument(default, "slsk-picture")]
+            [EnvironmentVariable("SLSK_PICTURE")]
+            [Description("user picture for the Soulseek network")]
+            [FileExists(FileAccess.Read)]
+            public string Picture { get; init; } = null;
+
+            /// <summary>
             ///     Gets the local IP address on which to listen for incoming connections.
             /// </summary>
             [Argument(default, "slsk-listen-ip-address")]

@@ -26,6 +26,8 @@ namespace slskd.Users.API
     using Asp.Versioning;
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
+    using Serilog;
+
     using Soulseek;
 
     /// <summary>
@@ -57,6 +59,7 @@ namespace slskd.Users.API
         private ISoulseekClient Client { get; }
         private IUserService Users { get; }
         private IOptionsSnapshot<Options> OptionsSnapshot { get; }
+        private ILogger Log { get; set; } = Serilog.Log.ForContext<UsersController>();
 
         /// <summary>
         ///     Retrieves the address of the specified <paramref name="username"/>.
@@ -152,7 +155,7 @@ namespace slskd.Users.API
         /// <returns></returns>
         [HttpPost("{username}/directory")]
         [Authorize(Policy = AuthPolicy.Any)]
-        [ProducesResponseType(typeof(Directory), 200)]
+        [ProducesResponseType(typeof(IEnumerable<Directory>), 200)]
         [ProducesResponseType(404)]
         public async Task<IActionResult> Directory([FromRoute, Required] string username, [FromBody, Required] DirectoryContentsRequest request)
         {
@@ -169,6 +172,9 @@ namespace slskd.Users.API
             try
             {
                 var result = await Client.GetDirectoryContentsAsync(username, request.Directory);
+
+                Log.Debug("{Endpoint} response from {User} for directory '{Directory}': {@Response}", nameof(Directory), username, request.Directory, result);
+
                 return Ok(result);
             }
             catch (UserOfflineException ex)
