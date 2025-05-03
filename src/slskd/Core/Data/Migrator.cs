@@ -99,7 +99,7 @@ public class Migrator
 
         if (!migrationsNotYetApplied.Any())
         {
-            Log.Information("Databases are up to date");
+            Log.Information("Databases are up to date!");
             return;
         }
 
@@ -107,7 +107,7 @@ public class Migrator
 
         var migrationId = DateTime.UtcNow.ToString("MMddyy_hhmmss");
 
-        Log.Warning("-----> The ID for this migration is {MigrationId}. Use it to locate pre-migration database backups, should manual cleanup be needed. <-----", migrationId);
+        Log.Warning("--> The ID for this migration is {MigrationId}. Use it to locate pre-migration database backups, should manual cleanup be needed. <--", migrationId);
 
         // take some simple backups before we do anything. this gives users a way to get back to a working configuration
         // if the migration is interrupted, fails, or if the user wants to revert to the previous version. these files
@@ -170,7 +170,7 @@ public class Migrator
                 }
             }
 
-            Log.Information("{Count} migration(s) applied successfully (elapsed: {Duration}ms elapsed)", total, overallSw.ElapsedMilliseconds);
+            Log.Information("{Count} migration(s) applied successfully (elapsed: {Duration}ms)", total, overallSw.ElapsedMilliseconds);
         }
         catch (Exception ex)
         {
@@ -207,7 +207,7 @@ public class Migrator
         File.WriteAllText(HistoryFileName, newHistory); // overwrites existing, if present
         Log.Debug("Saved history to {Location}: {History}", HistoryFileName, newHistory);
 
-        Log.Information("Migration(s) complete");
+        Log.Information("Migration(s) complete!");
     }
 
     private string MakeSourceDatabasePath(string database) => Path.Combine(Program.DataDirectory, $"{database}.db");

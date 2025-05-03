@@ -131,6 +131,8 @@ public class TransferStateMigration_04012025 : IMigration
             using var createCommand = new SqliteCommand(create, connection, transaction);
             createCommand.ExecuteNonQuery();
 
+            Log.Information("Schema changes applied, copying data...");
+
             /*
                 copy the existing data into the new table
             */
@@ -148,6 +150,8 @@ public class TransferStateMigration_04012025 : IMigration
 
             using var copyCommand = new SqliteCommand(copy, connection, transaction);
             copyCommand.ExecuteNonQuery();
+
+            Log.Information("Data copied, adjusting columns...");
 
             /*
                 we no longer need the old table, so drop it
@@ -170,10 +174,13 @@ public class TransferStateMigration_04012025 : IMigration
                 sprinkled in. this should run in reasonable time for large collections
             */
             var sw = new Stopwatch();
+            var step = 1;
 
             foreach (var state in stateMapping)
             {
                 sw.Reset();
+                Log.Information("> Updating column {Step} of {Total}. This may take some time...", step++, stateMapping.Count);
+
                 Log.Debug("Setting {String} to {Int}", state.Key, state.Value);
 
                 var mapCommand = new SqliteCommand($"UPDATE Transfers SET State = {state.Value} WHERE State = '{state.Key}';", connection, transaction);
@@ -185,6 +192,7 @@ public class TransferStateMigration_04012025 : IMigration
             Log.Debug("Committing transation...");
             transaction.Commit();
             Log.Debug("Transaction committed!");
+            Log.Information("Done!");
         }
         catch (Exception)
         {

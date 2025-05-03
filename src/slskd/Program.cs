@@ -341,6 +341,7 @@ namespace slskd
             // derive the application directory value and defaults that are dependent upon it
             AppDirectory ??= DefaultAppDirectory;
             DataDirectory = Path.Combine(AppDirectory, "data");
+            DataMigrationsDirectory = Path.Combine(DataDirectory, "migrations");
             LogDirectory = Path.Combine(AppDirectory, "logs");
             ScriptDirectory = Path.Combine(AppDirectory, "scripts");
 
@@ -502,7 +503,7 @@ namespace slskd
 
                 if (!OptionsAtStartup.Flags.Volatile)
                 {
-                    Log.Debug($"Running migrations...");
+                    Log.Information($"Running migrations...");
 
                     // note: if this ever throws, we've forgotten to register a Migrator following database DI config
                     app.Services.GetService<Migrator>().Migrate(force: OptionsAtStartup.Flags.ForceMigrations);
