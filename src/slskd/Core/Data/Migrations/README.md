@@ -1,6 +1,6 @@
 # Database Migrations
 
-In the hopefully unlikely event that a migration is necessary, a migration must be written.
+In the hopefully unlikely event that a non-backwards-compatible schema change to a database migration is necessary, a migration must be written.
 
 Migrations are applied by the `Migrator` at startup.
 
@@ -10,17 +10,21 @@ The `Migrator` creates a backup of each database prior to running any migrations
 
 ## Creating a Migration
 
-Each migration must be created as a class that implements the `IMigration` interface.
+Each migration must be created as a class that implements the `IMigration` interface.  The naming convention for migration classes is:
+
+```
+z<MMDDYYYY>_<ShortDescription>Migration
+```
 
 Migrations MUST:
 
 * Figure out where on disk the associated database(s) are located. This is accomplished by combining the static `Program.DataDirectory` variable
 and the name(s) of the table(s) that need to be migrated.
-* Log progress, so users can see that the application is performing work while records are updated.
-* Use transactions when performing database operations and using/try catch where appropriate to avoid partially applied migrations.
 * Inspect the target database(s) schema to determine whether the migration needs to be applied (if possible)
+* Use transactions when performing database operations and using/try catch where appropriate to avoid partially applied migrations.
+* Log progress, so users can see that the application is performing work while records are updated.
 
-When the migration is complete, edit the `Migrations` property in the `Migrator` to add the migration to the list in the proper order.
+The new `IMigration` implementation must be added to the dictionary in the `Migrations` property of the `Migrator` in the desired order so that it can be run.
 
 ### Above all else, each and every migration **MUST** be idempotent.
 
