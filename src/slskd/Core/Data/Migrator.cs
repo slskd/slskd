@@ -22,7 +22,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using Microsoft.Data.Sqlite;
 using Serilog;
 using slskd.Migrations;
 
@@ -45,7 +44,7 @@ public class Migrator
         Databases = databases;
     }
 
-    private string HistoryFileName { get; } = Path.Combine(Program.DataDirectory, "migration.history");
+    private string HistoryFileName { get; } = Path.Combine(Program.DataMigrationsDirectory, "history");
     private IEnumerable<string> Databases { get; }
     private ILogger Log { get; } = Serilog.Log.ForContext<Migrator>();
 
@@ -54,8 +53,7 @@ public class Migrator
     /// </summary>
     private Dictionary<string, IMigration> Migrations { get; } = new()
     {
-        // { nameof(TransferStateMigration_04012025), new TransferStateMigration_04012025() },
-        { nameof(TEMP_SeedTransfers), new TEMP_SeedTransfers() },
+        { nameof(TransferStateMigration_04012025), new TransferStateMigration_04012025() },
     };
 
     /// <summary>
@@ -109,7 +107,7 @@ public class Migrator
 
         var migrationId = DateTime.UtcNow.ToString("MMddyy_hhmmss");
 
-        Log.Warning("-----> The ID for this migration is {MigrationId}. Use it to locate pre-migration database backups. <-----", migrationId);
+        Log.Warning("-----> The ID for this migration is {MigrationId}. Use it to locate pre-migration database backups, should manual cleanup be needed. <-----", migrationId);
 
         // take some simple backups before we do anything. this gives users a way to get back to a working configuration
         // if the migration is interrupted, fails, or if the user wants to revert to the previous version. these files
@@ -120,9 +118,8 @@ public class Migrator
 
             foreach (var database in Databases)
             {
-                var name = Path.Combine(Program.DataDirectory, database);
-                var src = $"{name}.db";
-                var dest = $"{name}.pre-migration.{migrationId}.db";
+                var src = MakeSourceDatabasePath(database);
+                var dest = MakeBackupDatabasePath(database, migrationId);
 
                 File.Copy(src, dest, overwrite: true);
 
@@ -186,10 +183,10 @@ public class Migrator
                 foreach (var database in Databases)
                 {
                     var name = Path.Combine(Program.DataDirectory, database);
-                    var src = $"{name}.db.pre-migration";
-                    var dest = $"{name}.db";
+                    var src = MakeBackupDatabasePath(database, migrationId);
+                    var dest = MakeSourceDatabasePath(database);
 
-                    // note: leave the backup in place to give users peace of mind
+                    // note: leave the backup in place just in case; automatic cleanup will delete them later
                     File.Copy(src, dest, overwrite: true);
 
                     Log.Information("Restored {Original} from {Backup}", dest, src);
@@ -213,48 +210,6 @@ public class Migrator
         Log.Information("Migration(s) complete");
     }
 
-    public static Dictionary<string, IEnumerable<ColumnInfo>> GetDatabaseSchema(string connectionString)
-    {
-        try
-        {
-            using var connection = new SqliteConnection(connectionString);
-            connection.Open();
-
-            var dict = new Dictionary<string, IEnumerable<ColumnInfo>>();
-
-            using var tableCommand = new SqliteCommand("SELECT name FROM sqlite_master WHERE type='table';", connection);
-            using var tableReader = tableCommand.ExecuteReader();
-
-            while (tableReader.Read())
-            {
-                var table = tableReader.GetString(0);
-
-                var columns = new List<ColumnInfo>();
-
-                using var columnCommand = new SqliteCommand($"PRAGMA table_info({table});", connection);
-                using var cr = columnCommand.ExecuteReader();
-
-                while (cr.Read())
-                {
-                    columns.Add(new ColumnInfo(
-                        Cid: cr.GetInt64(cr.GetOrdinal("cid")),
-                        Name: cr.GetString(cr.GetOrdinal("name")),
-                        Type: cr.GetString(cr.GetOrdinal("type")),
-                        NotNull: cr.GetInt64(cr.GetOrdinal("notnull")) > 0,
-                        DefaultValue: cr["dflt_value"],
-                        PrimaryKey: cr.GetInt64(cr.GetOrdinal("pk")) > 0));
-                }
-
-                dict[table] = columns;
-            }
-
-            return dict;
-        }
-        catch (Exception ex)
-        {
-            throw new SlskdException($"Failed to retrieve schema information for database '{connectionString}'. The database might be corrupt or in use by another application; if the problem persists the backing file may need to be deleted", ex);
-        }
-    }
-
-    public record ColumnInfo(long Cid, string Name, string Type, bool NotNull, object DefaultValue, bool PrimaryKey);
+    private string MakeSourceDatabasePath(string database) => Path.Combine(Program.DataDirectory, $"{database}.db");
+    private string MakeBackupDatabasePath(string database, string timestamp) => Path.Combine(Program.DataMigrationsDirectory, $"{database}.pre-migration-backup.{timestamp}.db");
 }
