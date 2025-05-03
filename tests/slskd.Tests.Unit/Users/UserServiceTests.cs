@@ -2,7 +2,6 @@
 {
     using System.Collections.Generic;
     using AutoFixture.Xunit2;
-    using Microsoft.EntityFrameworkCore;
     using Moq;
     using slskd.Users;
     using Soulseek;
@@ -120,7 +119,7 @@
             }
         }
 
-        private static (UserService governor, Mocks mocks) GetFixture(Options options = null)
+        private static (UserService service, Mocks mocks) GetFixture(Options options = null)
         {
             var mocks = new Mocks(options);
             var service = new UserService(
