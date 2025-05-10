@@ -25,8 +25,14 @@ using System.Linq;
 using Serilog;
 using slskd.Migrations;
 
+/// <summary>
+///     Applies database migrations.
+/// </summary>
 public interface IMigration
 {
+    /// <summary>
+    ///    Applies the migration.
+    /// </summary>
     void Apply();
 }
 
@@ -53,7 +59,7 @@ public class Migrator
     /// </summary>
     private Dictionary<string, IMigration> Migrations { get; } = new()
     {
-        { nameof(z04012025_TransferStateMigration), new z04012025_TransferStateMigration() },
+        { nameof(Z04012025_TransferStateMigration), new Z04012025_TransferStateMigration() },
     };
 
     /// <summary>

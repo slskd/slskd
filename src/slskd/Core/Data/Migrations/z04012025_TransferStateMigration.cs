@@ -13,7 +13,6 @@
 //
 //     You should have received a copy of the GNU Affero General Public License
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
-
 // </copyright>
 
 namespace slskd.Migrations;
@@ -39,9 +38,9 @@ using Soulseek;
 ///     as strings; it tries to use bitwise operators to apply HasFlags(), and these obviously don't
 ///     work against strings. Not sure why EF didn't complain about this, but here we are.
 /// </summary>
-public class z04012025_TransferStateMigration : IMigration
+public class Z04012025_TransferStateMigration : IMigration
 {
-    private ILogger Log { get; } = Serilog.Log.ForContext<z04012025_TransferStateMigration>();
+    private ILogger Log { get; } = Serilog.Log.ForContext<Z04012025_TransferStateMigration>();
     private string DatabaseName { get; } = "transfers";
     private string ConnectionString => $"Data Source={Path.Combine(Program.DataDirectory, $"{DatabaseName}.db")}";
 
@@ -54,7 +53,7 @@ public class z04012025_TransferStateMigration : IMigration
 
         if (txfers.Any(c => c.Name == "StatusDescription"))
         {
-            Log.Information("Migration {Name} has already been applied", nameof(z04012025_TransferStateMigration));
+            Log.Information("Migration {Name} has already been applied", nameof(Z04012025_TransferStateMigration));
             return;
         }
 

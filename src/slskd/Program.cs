@@ -503,7 +503,7 @@ namespace slskd
 
                 if (!OptionsAtStartup.Flags.Volatile)
                 {
-                    Log.Information($"Running migrations...");
+                    Log.Debug($"Running Migrate()...");
 
                     // note: if this ever throws, we've forgotten to register a Migrator following database DI config
                     app.Services.GetService<Migrator>().Migrate(force: OptionsAtStartup.Flags.ForceMigrations);
