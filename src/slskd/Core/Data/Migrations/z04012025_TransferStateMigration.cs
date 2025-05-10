@@ -1,4 +1,4 @@
-// <copyright file="z04012025_TransferStateMigration.cs" company="slskd Team">
+// <copyright file="Z04012025_TransferStateMigration.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -29,10 +29,10 @@ using Soulseek;
 /// <summary>
 ///     Updates the Transfers table to:
 ///
-///     * Add a new StatusDescription (TEXT) column
-///     * Copy the current (string) contents of the Status column to StatusDescription
-///     * Change the type of the Status column to INTEGER
-///     * Set the contents of the Status column to the numeric representation of the existing Status
+///     * Add a new StateDescription (TEXT) column
+///     * Copy the current (string) contents of the State column to StateDescription
+///     * Change the type of the State column to INTEGER
+///     * Set the contents of the State column to the numeric representation of the existing State
 ///
 ///     This is necessary because Entity Framework doesn't work with [Flags] enums that are stored
 ///     as strings; it tries to use bitwise operators to apply HasFlags(), and these obviously don't
@@ -44,16 +44,21 @@ public class Z04012025_TransferStateMigration : IMigration
     private string DatabaseName { get; } = "transfers";
     private string ConnectionString => $"Data Source={Path.Combine(Program.DataDirectory, $"{DatabaseName}.db")}";
 
-    public void Apply()
+    public bool NeedsToBeApplied()
     {
-        // first, check the existing database to see if the StatusDescription column exists
-        // if it does, the migration has already been applied
+        // first, check the existing database to see if the StateDescription column exists
+        // if it does, the migration has already been applied, or the database has been recreated
         var schema = SchemaInspector.GetDatabaseSchema(ConnectionString);
         var txfers = schema["Transfers"];
 
-        if (txfers.Any(c => c.Name == "StatusDescription"))
+        return !txfers.Any(c => c.Name == "StateDescription");
+    }
+
+    public void Apply()
+    {
+        if (!NeedsToBeApplied())
         {
-            Log.Information("Migration {Name} has already been applied", nameof(Z04012025_TransferStateMigration));
+            Log.Information("Migration {Name} is not necessary or has already been applied", nameof(Z04012025_TransferStateMigration));
             return;
         }
 

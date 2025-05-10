@@ -31,6 +31,12 @@ using slskd.Migrations;
 public interface IMigration
 {
     /// <summary>
+    ///     Determines whether the migration needs to be applied.
+    /// </summary>
+    /// <returns>A value indicating whether the migration needs to be applied.</returns>
+    bool NeedsToBeApplied();
+
+    /// <summary>
     ///    Applies the migration.
     /// </summary>
     void Apply();
@@ -48,6 +54,13 @@ public class Migrator
     public Migrator(params string[] databases)
     {
         Databases = databases;
+    }
+
+    private enum MigrationDisposition
+    {
+        AlreadyAppliedPerHistoryFile,
+        ApplicationNotNeededPerMigration,
+        ApplicationRequired,
     }
 
     private string HistoryFileName { get; } = Path.Combine(Program.DataMigrationsDirectory, "history");
@@ -72,9 +85,11 @@ public class Migrator
 
         Log.Information("Checking for outstanding database migrations...");
 
-        // load migration history from the history file in the root of the data directory. this file contains a key/value
-        // pair for each migration that's been applied, along with the migration date.
-        // if force=true, we don't care about the history and there's no reason to look at it.
+        /*
+            load migration history from the history file in the root of the data directory. this file contains a key/value
+            pair for each migration that's been applied, along with the migration date.
+            if force=true, we're going to disregard history and overwrite it.
+        */
         if (!force)
         {
             try
@@ -100,16 +115,69 @@ public class Migrator
             }
         }
 
-        // figure out which migrations need to be applied by taking the set difference of the migration list and the history contents
-        var migrationsNotYetApplied = Migrations.Keys.Except(history.Keys);
+        /*
+        //
+            disposition each of the registered migrations into one of three dispositions:
+            - applied (per history file)
+            - not needed (per migration logic)
+            - required (does not appear in history and migration logic indicates it needs to be applied))
+        */
+        var migrationDispositions = new Dictionary<string, MigrationDisposition>();
 
-        if (!migrationsNotYetApplied.Any())
+        try
         {
+            foreach (var migration in Migrations.Keys)
+            {
+                if (history.ContainsKey(migration))
+                {
+                    migrationDispositions[migration] = MigrationDisposition.AlreadyAppliedPerHistoryFile;
+                }
+                else if (Migrations[migration].NeedsToBeApplied()) // warning: performs I/O
+                {
+                    migrationDispositions[migration] = MigrationDisposition.ApplicationRequired;
+                }
+                else
+                {
+                    migrationDispositions[migration] = MigrationDisposition.ApplicationNotNeededPerMigration;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Fatal(ex, "Failed to disposition migrations: {Message}", ex.Message);
+            throw;
+        }
+
+        Log.Debug("Migration dispositions: {Dispositions}", migrationDispositions);
+
+        var migrationsToApply = migrationDispositions
+            .Where(disposition => disposition.Value == MigrationDisposition.ApplicationRequired)
+            .Select(disposition => disposition.Key);
+
+        Log.Debug("Migrations to apply: {Migrations}", migrationsToApply);
+
+        if (!migrationsToApply.Any())
+        {
+            // we don't have to migrate anything! however, any migration that 1) isn't in history and 2) reported
+            // that it didn't need to be applied needs to be added to the history file so we can avoid doing that
+            // I/O each time the application starts.
+            foreach (var migration in migrationDispositions.Where(disposition => disposition.Value == MigrationDisposition.ApplicationNotNeededPerMigration))
+            {
+                // note that we might get here if the 'force' option was used. we'll just overwrite the timestamp.
+                history[migration.Key] = DateTime.UtcNow;
+            }
+
+            UpdateHistoryFile(history);
+
             Log.Information("Databases are up to date!");
             return;
         }
 
-        Log.Warning("{Count} outstanding database migration(s) to apply. This operation must be completed before the application can start.", migrationsNotYetApplied.Count());
+        /*
+            MIGRATION TIME!
+            ---------------------------------------------------------------------------------------------------------------------------------------------------
+        */
+        Log.Warning("{Count} outstanding database migration(s) to apply. This operation must be completed before the application can start.", migrationsToApply.Count());
 
         var migrationId = DateTime.UtcNow.ToString("MMddyy_hhmmss");
 
@@ -151,11 +219,11 @@ public class Migrator
             overallSw.Start();
 
             var current = 0;
-            var total = migrationsNotYetApplied.Count();
+            var total = migrationsToApply.Count();
 
             var currentSw = new Stopwatch();
 
-            foreach (var migration in migrationsNotYetApplied)
+            foreach (var migration in migrationsToApply)
             {
                 current++;
                 currentSw.Restart();
@@ -209,11 +277,15 @@ public class Migrator
             throw new SlskdException("Failed to apply one or more database migrations. See inner Exception for details.", ex);
         }
 
+        UpdateHistoryFile(history);
+        Log.Information("Migration(s) complete!");
+    }
+
+    private void UpdateHistoryFile(Dictionary<string, DateTime> history)
+    {
         var newHistory = history.ToJson();
         File.WriteAllText(HistoryFileName, newHistory); // overwrites existing, if present
         Log.Debug("Saved history to {Location}: {History}", HistoryFileName, newHistory);
-
-        Log.Information("Migration(s) complete!");
     }
 
     private string MakeSourceDatabasePath(string database) => Path.Combine(Program.DataDirectory, $"{database}.db");
