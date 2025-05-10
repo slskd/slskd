@@ -31,6 +31,20 @@ namespace slskd.Transfers
 
         public DbSet<Transfer> Transfers { get; set; }
 
+        public override int SaveChanges(bool acceptAllChangesOnSuccess)
+        {
+            // this is absolutely NOT IDEAL and will accellerate the move away from EF
+            foreach (var entry in ChangeTracker.Entries<Transfer>())
+            {
+                if (entry.State == EntityState.Added || entry.State == EntityState.Modified)
+                {
+                    entry.Entity.StateDescription = entry.Entity.State.ToString();
+                }
+            }
+
+            return base.SaveChanges(acceptAllChangesOnSuccess);
+        }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder
@@ -47,11 +61,6 @@ namespace slskd.Transfers
                 .Entity<Transfer>()
                 .Property(d => d.Direction)
                 .HasConversion(new EnumToStringConverter<Soulseek.TransferDirection>());
-
-            modelBuilder
-                .Entity<Transfer>()
-                .Property(d => d.State)
-                .HasConversion(new EnumToStringConverter<Soulseek.TransferStates>());
         }
     }
 }
