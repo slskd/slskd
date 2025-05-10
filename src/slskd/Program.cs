@@ -509,9 +509,6 @@ namespace slskd
                     app.Services.GetService<Migrator>().Migrate(force: OptionsAtStartup.Flags.ForceMigrations);
                 }
 
-                // todo: don't forget to take this out
-                Environment.Exit(1);
-
                 // hack: services that exist only to subscribe to the event bus are not referenced by anything else
                 //       and are thus never instantiated.  force a reference here so they are created.
                 _ = app.Services.GetService<ScriptService>();
