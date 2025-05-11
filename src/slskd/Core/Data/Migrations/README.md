@@ -13,7 +13,7 @@ The `Migrator` creates a backup of each database prior to running any migrations
 Each migration must be created as a class that implements the `IMigration` interface.  The naming convention for migration classes is:
 
 ```
-z<MMDDYYYY>_<ShortDescription>Migration
+Z<MMDDYYYY>_<ShortDescription>Migration
 ```
 
 Migrations MUST:
@@ -23,6 +23,8 @@ and the name(s) of the table(s) that need to be migrated.
 * Inspect the target database(s) schema to determine whether the migration needs to be applied (if possible)
 * Use transactions when performing database operations and using/try catch where appropriate to avoid partially applied migrations.
 * Log progress, so users can see that the application is performing work while records are updated.
+
+Review the `IMigration` interface to determine implementation details.
 
 The new `IMigration` implementation must be added to the dictionary in the `Migrations` property of the `Migrator` in the desired order so that it can be run.
 

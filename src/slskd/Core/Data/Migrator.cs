@@ -33,6 +33,9 @@ public interface IMigration
     /// <summary>
     ///     Determines whether the migration needs to be applied.
     /// </summary>
+    /// <remarks>
+    ///     This method MUST be read-only and should contain no side effects.
+    /// </remarks>
     /// <returns>A value indicating whether the migration needs to be applied.</returns>
     bool NeedsToBeApplied();
 
@@ -54,13 +57,6 @@ public class Migrator
     public Migrator(params string[] databases)
     {
         Databases = databases;
-    }
-
-    private enum MigrationDisposition
-    {
-        AlreadyAppliedPerHistoryFile,
-        ApplicationNotNeededPerMigration,
-        ApplicationRequired,
     }
 
     private string HistoryFileName { get; } = Path.Combine(Program.DataMigrationsDirectory, "history");
@@ -120,15 +116,9 @@ public class Migrator
         /*
             determine which migrations need to be applied
 
-            first, take the set difference (Except()) of the list of registered migrations and the history file. this gives
-            us a list of t he migrations that are not in the history file.
-
-            next, check each of the migrations not in history to see if they need to be applied. if they _don't_, then
-            add them directly to the history dictionary. if they do, add them to the list of migrations to apply.
-
-            the result is:
-            - an updated history dictionary, containing the dict loaded from disk plus any new migrations that _don't_ need to be applied
-            - a list of migrations that need to be applied
+            take the set difference between all registered migrations and the history file, then for each of the migrations
+            in that set, check to see if it needs to be applied. if it doesn't, add it to the history file with the current
+            timestamp. if it does, add it to the list of migrations to apply.
         */
         List<string> migrationsToApply = [];
 
@@ -158,6 +148,8 @@ public class Migrator
 
         if (migrationsToApply.Count == 0)
         {
+            // write the history file to disk; if there are new migrations that didn't need to be applied, or the user
+            // used the 'force' flag, the history file on disk and in memory will have diverged.
             UpdateHistoryFile(history);
 
             Log.Information("Databases are up to date!");
