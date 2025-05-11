@@ -115,30 +115,35 @@ public class Migrator
             }
         }
 
+        Log.Debug("Current history: {History}", history);
+
         /*
-        //
-            disposition each of the registered migrations into one of three dispositions:
-            - applied (per history file)
-            - not needed (per migration logic)
-            - required (does not appear in history and migration logic indicates it needs to be applied))
+            determine which migrations need to be applied
+
+            first, take the set difference (Except()) of the list of registered migrations and the history file. this gives
+            us a list of t he migrations that are not in the history file.
+
+            next, check each of the migrations not in history to see if they need to be applied. if they _don't_, then
+            add them directly to the history dictionary. if they do, add them to the list of migrations to apply.
+
+            the result is:
+            - an updated history dictionary, containing the dict loaded from disk plus any new migrations that _don't_ need to be applied
+            - a list of migrations that need to be applied
         */
-        var migrationDispositions = new Dictionary<string, MigrationDisposition>();
+        List<string> migrationsToApply = [];
 
         try
         {
-            foreach (var migration in Migrations.Keys)
+            foreach (var migration in Migrations.Keys.Except(history.Keys))
             {
-                if (history.ContainsKey(migration))
+                if (!Migrations[migration].NeedsToBeApplied()) // warning: performs I/O
                 {
-                    migrationDispositions[migration] = MigrationDisposition.AlreadyAppliedPerHistoryFile;
-                }
-                else if (Migrations[migration].NeedsToBeApplied()) // warning: performs I/O
-                {
-                    migrationDispositions[migration] = MigrationDisposition.ApplicationRequired;
+                    Log.Debug("Migration {Name} does not need to be applied", migration);
+                    history[migration] = DateTime.UtcNow;
                 }
                 else
                 {
-                    migrationDispositions[migration] = MigrationDisposition.ApplicationNotNeededPerMigration;
+                    migrationsToApply.Add(migration);
                 }
             }
         }
@@ -148,25 +153,11 @@ public class Migrator
             throw;
         }
 
-        Log.Debug("Migration dispositions: {Dispositions}", migrationDispositions);
-
-        var migrationsToApply = migrationDispositions
-            .Where(disposition => disposition.Value == MigrationDisposition.ApplicationRequired)
-            .Select(disposition => disposition.Key);
-
+        Log.Debug("Updated history: {History}", history);
         Log.Debug("Migrations to apply: {Migrations}", migrationsToApply);
 
-        if (!migrationsToApply.Any())
+        if (migrationsToApply.Count == 0)
         {
-            // we don't have to migrate anything! however, any migration that 1) isn't in history and 2) reported
-            // that it didn't need to be applied needs to be added to the history file so we can avoid doing that
-            // I/O each time the application starts.
-            foreach (var migration in migrationDispositions.Where(disposition => disposition.Value == MigrationDisposition.ApplicationNotNeededPerMigration))
-            {
-                // note that we might get here if the 'force' option was used. we'll just overwrite the timestamp.
-                history[migration.Key] = DateTime.UtcNow;
-            }
-
             UpdateHistoryFile(history);
 
             Log.Information("Databases are up to date!");
