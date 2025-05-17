@@ -24,7 +24,6 @@ using System.IO;
 using System.Linq;
 using Microsoft.Data.Sqlite;
 using Serilog;
-using Soulseek;
 
 /// <summary>
 ///     Updates the Transfers table to:
@@ -83,7 +82,7 @@ public class Z04012025_TransferStateMigration : IMigration
         while (reader.Read())
         {
             var state = reader.GetString(0);
-            dict[state] = (int)Enum.Parse(typeof(TransferStates), state);
+            dict[state] = (int)Enum.Parse(typeof(Z04012025_TransferStateMigration_TransferStates), state);
         }
 
         Log.Debug("State -> int map: {Map}", dict);
@@ -205,4 +204,29 @@ public class Z04012025_TransferStateMigration : IMigration
             throw;
         }
     }
+
+#pragma warning disable SA1201 // Elements should appear in the correct order
+    /// <summary>
+    ///    This is a copy of the TransferStates enum as it was at the time this migration was written. This exists to ensure
+    ///    that the migration can be applied to any version of the database, even if the enum changes in the future.
+    /// </summary>
+    [Flags]
+    private enum Z04012025_TransferStateMigration_TransferStates
+    {
+        None = 0,
+        Requested = 1,
+        Queued = 2,
+        Initializing = 4,
+        InProgress = 8,
+        Completed = 16,
+        Succeeded = 32,
+        Cancelled = 64,
+        TimedOut = 128,
+        Errored = 256,
+        Rejected = 512,
+        Aborted = 1024,
+        Locally = 2048,
+        Remotely = 4096,
+    }
+#pragma warning restore SA1201 // Elements should appear in the correct order
 }
