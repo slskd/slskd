@@ -57,7 +57,7 @@ public class Z04012025_TransferStateMigration : IMigration
     {
         if (!NeedsToBeApplied())
         {
-            Log.Information("Migration {Name} is not necessary or has already been applied", nameof(Z04012025_TransferStateMigration));
+            Log.Information("> Migration {Name} is not necessary or has already been applied", nameof(Z04012025_TransferStateMigration));
             return;
         }
 
@@ -135,7 +135,7 @@ public class Z04012025_TransferStateMigration : IMigration
             using var createCommand = new SqliteCommand(create, connection, transaction);
             createCommand.ExecuteNonQuery();
 
-            Log.Information("Schema changes applied, copying data...");
+            Log.Information("> Schema changes applied, copying data...");
 
             /*
                 copy the existing data into the new table
@@ -155,7 +155,7 @@ public class Z04012025_TransferStateMigration : IMigration
             using var copyCommand = new SqliteCommand(copy, connection, transaction);
             copyCommand.ExecuteNonQuery();
 
-            Log.Information("Data copied, adjusting columns...");
+            Log.Information("> Data copied, adjusting columns...");
 
             /*
                 we no longer need the old table, so drop it
@@ -196,7 +196,7 @@ public class Z04012025_TransferStateMigration : IMigration
             Log.Debug("Committing transation...");
             transaction.Commit();
             Log.Debug("Transaction committed!");
-            Log.Information("Done!");
+            Log.Information("> Done!");
         }
         catch (Exception)
         {
