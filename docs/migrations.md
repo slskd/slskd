@@ -10,12 +10,7 @@ When the application detects that a migration is required, it performs the follo
 
 2. Apply migrations: The application applies the necessary changes to the database schema and data.
 
-3. Save migration history: After successfully applying migrations, the application updates the migration history file to record the applied changes.
-
 At the start of each migration a unique `migration id` is generated. If anything goes wrong, this ID can be used to locate the backup files created before the error occured (as subsequent migration attempts/retries will generate new backups, which may contain partially applied migrations).
-
-History is stored in the `migrations` directory so that the application can avoid running migrations that have already been applied. If this file is deleted, moved, or becomes corrupted,
-all migrations will be applied the next time the application starts.  Avoid deleting, moving or modifying this file.
 
 ## What to Do If a Migration Fails
 

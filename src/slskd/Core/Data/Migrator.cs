@@ -77,62 +77,31 @@ public class Migrator
     /// <param name="force">Apply all migrations, regardless of whether there's evidence they have been applied already.</param>
     public void Migrate(bool force = false)
     {
-        Dictionary<string, DateTime> history = [];
-
-        Log.Information("Checking for outstanding database migrations...");
-
-        /*
-            load migration history from the history file in the root of the data directory. this file contains a key/value
-            pair for each migration that's been applied, along with the migration date.
-            if force=true, we're going to disregard history and overwrite it.
-        */
-        if (!force)
-        {
-            try
-            {
-                if (File.Exists(HistoryFileName))
-                {
-                    var txt = File.ReadAllText(HistoryFileName);
-                    history = txt.FromJson<Dictionary<string, DateTime>>();
-
-                    Log.Debug("Loaded migration history from {HistoryFile}: {History}", HistoryFileName, history);
-                }
-                else
-                {
-                    Log.Debug("Migration history file {HistoryFile} was not found", HistoryFileName);
-                }
-            }
-            catch (Exception ex)
-            {
-                // log a message but don't throw; migrations are (should be!) idempotent, so there's no harm in running them,
-                // it just takes unnecessary time.
-                Log.Warning("Failed to load migration history from {HistoryFile}: {Message}", HistoryFileName, ex.Message);
-                Log.Warning("Migration history will be overwritten and all migrations will be applied");
-            }
-        }
-
-        Log.Debug("Current history: {History}", history);
+        List<string> migrationsToApply = [];
+        List<string> migrationsToSkip = [];
 
         /*
             determine which migrations need to be applied
 
-            take the set difference between all registered migrations and the history file, then for each of the migrations
-            in that set, check to see if it needs to be applied. if it doesn't, add it to the history file with the current
-            timestamp. if it does, add it to the list of migrations to apply.
-        */
-        List<string> migrationsToApply = [];
+            for the time being, we'll rely on each of the migrations to determine whether they need to be applied
+            this will work until:
+              1) there's a migration that isn't idempotent (can't tell whether it needs to be applied on its own), or..
+              2) there are > ~20 migrations, making repeated I/O of database files too slow/expensive on low spec hardware
 
+            when the time comes, migration history should be stored within the database files themselves.
+        */
         try
         {
-            foreach (var migration in Migrations.Keys.Except(history.Keys))
+            foreach (var migration in Migrations.Keys)
             {
                 if (!Migrations[migration].NeedsToBeApplied()) // warning: performs I/O
                 {
                     Log.Debug("Migration {Name} does not need to be applied", migration);
-                    history[migration] = DateTime.UtcNow;
+                    migrationsToSkip.Add(migration);
                 }
                 else
                 {
+                    Log.Debug("Migration {Name} needs to be applied", migration);
                     migrationsToApply.Add(migration);
                 }
             }
@@ -143,15 +112,10 @@ public class Migrator
             throw;
         }
 
-        Log.Debug("Updated history: {History}", history);
-        Log.Debug("Migrations to apply: {Migrations}", migrationsToApply);
+        Log.Debug("Migrations: {Migrations}", new { migrationsToApply, migrationsToSkip });
 
         if (migrationsToApply.Count == 0)
         {
-            // write the history file to disk; if there are new migrations that didn't need to be applied, or the user
-            // used the 'force' flag, the history file on disk and in memory will have diverged.
-            UpdateHistoryFile(history);
-
             Log.Information("Databases are up to date!");
             return;
         }
@@ -216,7 +180,6 @@ public class Migrator
                 try
                 {
                     Migrations[migration].Apply();
-                    history[migration] = DateTime.UtcNow;
 
                     Log.Information("Migration {Name} was applied successfully (elapsed: {Duration}ms)", migration, currentSw.ElapsedMilliseconds);
                 }
@@ -260,15 +223,7 @@ public class Migrator
             throw new SlskdException("Failed to apply one or more database migrations. See inner Exception for details.", ex);
         }
 
-        UpdateHistoryFile(history);
         Log.Information("Migration(s) complete!");
-    }
-
-    private void UpdateHistoryFile(Dictionary<string, DateTime> history)
-    {
-        var newHistory = history.ToJson();
-        File.WriteAllText(HistoryFileName, newHistory); // overwrites existing, if present
-        Log.Debug("Saved history to {Location}: {History}", HistoryFileName, newHistory);
     }
 
     private string MakeSourceDatabasePath(string database) => Path.Combine(Program.DataDirectory, $"{database}.db");
