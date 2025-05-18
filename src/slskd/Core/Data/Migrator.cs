@@ -59,7 +59,6 @@ public class Migrator
         Databases = databases;
     }
 
-    private string HistoryFileName { get; } = Path.Combine(Program.DataMigrationsDirectory, "history");
     private IEnumerable<string> Databases { get; }
     private ILogger Log { get; } = Serilog.Log.ForContext<Migrator>();
 
@@ -94,7 +93,8 @@ public class Migrator
         {
             foreach (var migration in Migrations.Keys)
             {
-                if (!Migrations[migration].NeedsToBeApplied()) // warning: performs I/O
+                // warning: performs I/O
+                if (!Migrations[migration].NeedsToBeApplied())
                 {
                     Log.Debug("Migration {Name} does not need to be applied", migration);
                     migrationsToSkip.Add(migration);
@@ -227,5 +227,5 @@ public class Migrator
     }
 
     private string MakeSourceDatabasePath(string database) => Path.Combine(Program.DataDirectory, $"{database}.db");
-    private string MakeBackupDatabasePath(string database, string timestamp) => Path.Combine(Program.DataMigrationsDirectory, $"{database}.pre-migration-backup.{timestamp}.db");
+    private string MakeBackupDatabasePath(string database, string timestamp) => Path.Combine(Program.DataBackupDirectory, $"{database}.pre-migration-backup.{timestamp}.db");
 }

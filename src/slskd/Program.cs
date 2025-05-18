@@ -188,9 +188,9 @@ namespace slskd
         public static string DataDirectory { get; private set; } = null;
 
         /// <summary>
-        ///     Gets the path where database migration information is saved.
+        ///     Gets the path where backups of persistent data saved.
         /// </summary>
-        public static string DataMigrationsDirectory { get; private set; } = null;
+        public static string DataBackupDirectory { get; private set; } = null;
 
         /// <summary>
         ///     Gets the default fully qualified path to the configuration file.
@@ -341,7 +341,7 @@ namespace slskd
             // derive the application directory value and defaults that are dependent upon it
             AppDirectory ??= DefaultAppDirectory;
             DataDirectory = Path.Combine(AppDirectory, "data");
-            DataMigrationsDirectory = Path.Combine(DataDirectory, "migrations");
+            DataBackupDirectory = Path.Combine(DataDirectory, "backups");
             LogDirectory = Path.Combine(AppDirectory, "logs");
             ScriptDirectory = Path.Combine(AppDirectory, "scripts");
 
@@ -359,7 +359,7 @@ namespace slskd
             {
                 VerifyDirectory(AppDirectory, createIfMissing: true, verifyWriteable: true);
                 VerifyDirectory(DataDirectory, createIfMissing: true, verifyWriteable: true);
-                VerifyDirectory(DataMigrationsDirectory, createIfMissing: true, verifyWriteable: true);
+                VerifyDirectory(DataBackupDirectory, createIfMissing: true, verifyWriteable: true);
                 VerifyDirectory(ScriptDirectory, createIfMissing: true, verifyWriteable: false);
                 VerifyDirectory(DefaultDownloadsDirectory, createIfMissing: true, verifyWriteable: true);
                 VerifyDirectory(DefaultIncompleteDirectory, createIfMissing: true, verifyWriteable: true);
