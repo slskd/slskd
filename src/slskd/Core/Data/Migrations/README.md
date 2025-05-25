@@ -27,6 +27,4 @@ Review the `IMigration` interface to determine implementation details.
 
 The new `IMigration` implementation must be added to the dictionary in the `Migrations` property of the `Migrator` in the desired order so that it can be run.
 
-### Above all else, each and every migration **MUST** be idempotent.
-
-Users can delete the history file or use the `force` flag to cause migrations to be run again.  We can inspect schemas to determine whether re-running is necessary, but there may be cases where that's not enough.
+### Above all else, each and every migration **MUST** be idempotent; they'll be evaluated and run each time the app starts.

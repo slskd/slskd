@@ -28,26 +28,6 @@ using slskd.Migrations;
 /// <summary>
 ///     Applies database migrations.
 /// </summary>
-public interface IMigration
-{
-    /// <summary>
-    ///     Determines whether the migration needs to be applied.
-    /// </summary>
-    /// <remarks>
-    ///     This method MUST be read-only and should contain no side effects.
-    /// </remarks>
-    /// <returns>A value indicating whether the migration needs to be applied.</returns>
-    bool NeedsToBeApplied();
-
-    /// <summary>
-    ///    Applies the migration.
-    /// </summary>
-    void Apply();
-}
-
-/// <summary>
-///     Applies database migrations.
-/// </summary>
 public class Migrator
 {
     /// <summary>

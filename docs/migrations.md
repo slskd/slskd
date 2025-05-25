@@ -6,7 +6,7 @@ Database migrations are used to update the structure of the application's databa
 
 When the application detects that a migration is required, it performs the following steps:
 
-1. Back up existing databases: Before applying any changes, the application creates a backup of each database. These backups are stored in the `migrations` directory within the application's data directory. The backup files are named using the format `<database>.pre-migration-backup.<migration id>.db`.
+1. Back up existing databases: Before applying any changes, the application creates a backup of each database. These backups are stored in the `backups` directory within the application's data directory. The backup files are named using the format `<database>.pre-migration-backup.<migration id>.db`.
 
 2. Apply migrations: The application applies the necessary changes to the database schema and data.
 
@@ -18,12 +18,12 @@ If a migration fails, the application will attempt to restore the databases from
 
 1. Locate the Backup Files:
    - Find the _first_ failed migration attempt and note the associated ID (it will be in application logs). If it can't be located, it is safe to assume that the oldest ID is the correct one.
-   - Navigate to the `migrations` directory within the application's data directory.
+   - Navigate to the `backups` directory within the application's data directory.
    - Look for files named `<database>.pre-migration-backup.<migration id>.db`.
 
 2. Restore the Backup:
    - Rename the backup file to replace the current database file. For example, rename `transfers.pre-migration-backup.040123_123456.db` to `transfers.db`.
-   - Ensure the restored file is placed in the root of the application's data directory (move it up, out of the `migrations` directory).
+   - Ensure the restored file is placed in the root of the application's data directory (move it up, out of the `backups` directory).
 
 3. Restart the Application:
    - Start the application again. It will detect the restored database and attempt to reapply the migration.
