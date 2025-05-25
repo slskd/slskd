@@ -188,6 +188,11 @@ namespace slskd
         public static string DataDirectory { get; private set; } = null;
 
         /// <summary>
+        ///     Gets the path where backups of persistent data saved.
+        /// </summary>
+        public static string DataBackupDirectory { get; private set; } = null;
+
+        /// <summary>
         ///     Gets the default fully qualified path to the configuration file.
         /// </summary>
         public static string DefaultConfigurationFile { get; private set; }
@@ -336,6 +341,7 @@ namespace slskd
             // derive the application directory value and defaults that are dependent upon it
             AppDirectory ??= DefaultAppDirectory;
             DataDirectory = Path.Combine(AppDirectory, "data");
+            DataBackupDirectory = Path.Combine(DataDirectory, "backups");
             LogDirectory = Path.Combine(AppDirectory, "logs");
             ScriptDirectory = Path.Combine(AppDirectory, "scripts");
 
@@ -353,6 +359,7 @@ namespace slskd
             {
                 VerifyDirectory(AppDirectory, createIfMissing: true, verifyWriteable: true);
                 VerifyDirectory(DataDirectory, createIfMissing: true, verifyWriteable: true);
+                VerifyDirectory(DataBackupDirectory, createIfMissing: true, verifyWriteable: true);
                 VerifyDirectory(ScriptDirectory, createIfMissing: true, verifyWriteable: false);
                 VerifyDirectory(DefaultDownloadsDirectory, createIfMissing: true, verifyWriteable: true);
                 VerifyDirectory(DefaultIncompleteDirectory, createIfMissing: true, verifyWriteable: true);
@@ -494,6 +501,14 @@ namespace slskd
 
                 var app = builder.Build();
 
+                if (!OptionsAtStartup.Flags.Volatile)
+                {
+                    Log.Debug($"Running Migrate()...");
+
+                    // note: if this ever throws, we've forgotten to register a Migrator following database DI config
+                    app.Services.GetService<Migrator>().Migrate(force: OptionsAtStartup.Flags.ForceMigrations);
+                }
+
                 // hack: services that exist only to subscribe to the event bus are not referenced by anything else
                 //       and are thus never instantiated.  force a reference here so they are created.
                 _ = app.Services.GetService<ScriptService>();
@@ -596,6 +611,12 @@ namespace slskd
                 services.AddDbContext<TransfersDbContext>(DiskConnectionString("transfers"));
                 services.AddDbContext<MessagingDbContext>(DiskConnectionString("messaging"));
                 services.AddDbContext<EventsDbContext>(DiskConnectionString("events"));
+
+                // we're working with non-volatile database files, so register a Migrator to be used later in the
+                // bootup process. the presence of a Migrator instance in DI determines whether a migration is needed.
+                // it's important that we keep this list of databases in sync with those used by the application; anything
+                // not in this list will not be able to be migrated.
+                services.AddSingleton<Migrator>(_ => new Migrator(databases: ["search", "transfers", "messaging", "events"]));
             }
 
             services.AddSingleton<EventService>();

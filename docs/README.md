@@ -18,3 +18,7 @@
 ## Building slskd from Source
 
 ### [Build](https://github.com/slskd/slskd/blob/master/docs/build.md)
+
+## Troubleshooting
+
+### [Migrations](https://github.com/slskd/slskd/blob/master/docs/migrations.md)

@@ -450,7 +450,7 @@ namespace slskd
                     if (disposing)
                     {
                         CancellationTokenRegistration.Dispose();
-                        TimeoutTokenSource.Dispose();
+                        TimeoutTokenSource?.Dispose();
                         TimeoutTokenRegistration.Dispose();
                     }
 
