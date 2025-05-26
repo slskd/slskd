@@ -111,9 +111,7 @@ namespace slskd.Transfers.API
                 return Forbid();
             }
 
-            var transfers = Transfers.Downloads
-                .List() // https://github.com/dotnet/efcore/issues/10434
-                .Where(t => t.State.HasFlag(Soulseek.TransferStates.Completed));
+            var transfers = Transfers.Downloads.List(t => t.State.HasFlag(Soulseek.TransferStates.Completed));
 
             foreach (var id in transfers.Select(t => t.Id))
             {
@@ -182,8 +180,7 @@ namespace slskd.Transfers.API
 
             // get all the transfers that aren't removed
             var transfers = Transfers.Uploads
-                .List(t => true, includeRemoved: false) // https://github.com/dotnet/efcore/issues/10434
-                .Where(t => t.State.HasFlag(Soulseek.TransferStates.Completed));
+                .List(t => t.State.HasFlag(Soulseek.TransferStates.Completed), includeRemoved: false);
 
             foreach (var id in transfers.Select(t => t.Id))
             {
