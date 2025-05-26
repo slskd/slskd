@@ -489,7 +489,7 @@ namespace slskd.Transfers.Uploads
                     .AsNoTracking()
                     .Where(t => t.Direction == TransferDirection.Upload)
                     .Where(expression)
-                    .GroupBy(t => true) // https://stackoverflow.com/a/25489456
+                    .GroupBy(t => true) // https://stackoverflow.com/a/25489456: The GroupBy(x => true) statement places all items into a single group. The Select statement the allows operations against each group.
                     .Select(t => new
                     {
                         Files = t.Count(),
