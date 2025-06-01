@@ -87,9 +87,9 @@ namespace slskd.Transfers.Downloads
         ///     Removes <see cref="TransferStates.Completed"/> downloads older than the specified <paramref name="age"/>.
         /// </summary>
         /// <param name="age">The age after which downloads are eligible for pruning, in hours.</param>
-        /// <param name="state">An optional, additional state by which downloads are filtered for pruning.</param>
+        /// <param name="stateHasFlag">An optional, additional state by which downloads are filtered for pruning.</param>
         /// <returns>The number of pruned downloads.</returns>
-        int Prune(int age, TransferStates state = TransferStates.Completed);
+        int Prune(int age, TransferStates stateHasFlag = TransferStates.Completed);
 
         /// <summary>
         ///     Removes the download matching the specified <paramref name="id"/>.
@@ -531,13 +531,13 @@ namespace slskd.Transfers.Downloads
         ///     Removes <see cref="TransferStates.Completed"/> downloads older than the specified <paramref name="age"/>.
         /// </summary>
         /// <param name="age">The age after which downloads are eligible for pruning, in hours.</param>
-        /// <param name="state">An optional, additional state by which downloads are filtered for pruning.</param>
+        /// <param name="stateHasFlag">An optional, additional state by which downloads are filtered for pruning.</param>
         /// <returns>The number of pruned downloads.</returns>
-        public int Prune(int age, TransferStates state = TransferStates.Completed)
+        public int Prune(int age, TransferStates stateHasFlag = TransferStates.Completed)
         {
-            if (!state.HasFlag(TransferStates.Completed))
+            if (!stateHasFlag.HasFlag(TransferStates.Completed))
             {
-                throw new ArgumentException($"State must include {TransferStates.Completed}", nameof(state));
+                throw new ArgumentException($"State must include {TransferStates.Completed}", nameof(stateHasFlag));
             }
 
             try
@@ -550,7 +550,7 @@ namespace slskd.Transfers.Downloads
                     .Where(t => t.Direction == TransferDirection.Download)
                     .Where(t => !t.Removed)
                     .Where(t => t.EndedAt.HasValue && t.EndedAt.Value < cutoffDateTime)
-                    .Where(t => t.State == state) // https://github.com/dotnet/efcore/issues/20094
+                    .Where(t => t.State == stateHasFlag)
                     .ToList();
 
                 foreach (var tx in expired)
@@ -562,7 +562,7 @@ namespace slskd.Transfers.Downloads
 
                 if (pruned > 0)
                 {
-                    Log.Debug("Pruned {Count} expired downloads with state {State}", pruned, state);
+                    Log.Debug("Pruned {Count} expired downloads with state {State}", pruned, stateHasFlag);
                 }
 
                 return pruned;

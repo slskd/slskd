@@ -95,9 +95,9 @@ namespace slskd.Transfers.Uploads
         ///     Removes <see cref="TransferStates.Completed"/> uploads older than the specified <paramref name="age"/>.
         /// </summary>
         /// <param name="age">The age after which uploads are eligible for pruning, in minutes.</param>
-        /// <param name="state">An optional, additional state by which uploads are filtered for pruning.</param>
+        /// <param name="stateHasFlag">An optional, additional state by which uploads are filtered for pruning.</param>
         /// <returns>The number of pruned uploads.</returns>
-        int Prune(int age, TransferStates state = TransferStates.Completed);
+        int Prune(int age, TransferStates stateHasFlag = TransferStates.Completed);
 
         /// <summary>
         ///     Removes the upload matching the specified <paramref name="id"/>.
@@ -489,7 +489,7 @@ namespace slskd.Transfers.Uploads
                     .AsNoTracking()
                     .Where(t => t.Direction == TransferDirection.Upload)
                     .Where(expression)
-                    .GroupBy(t => true) // https://stackoverflow.com/a/25489456
+                    .GroupBy(t => true) // https://stackoverflow.com/a/25489456: The GroupBy(x => true) statement places all items into a single group. The Select statement the allows operations against each group.
                     .Select(t => new
                     {
                         Files = t.Count(),
@@ -541,13 +541,13 @@ namespace slskd.Transfers.Uploads
         ///     Removes <see cref="TransferStates.Completed"/> uploads older than the specified <paramref name="age"/>.
         /// </summary>
         /// <param name="age">The age after which uploads are eligible for pruning, in minutes.</param>
-        /// <param name="state">An optional, additional state by which uploads are filtered for pruning.</param>
+        /// <param name="stateHasFlag">An optional, additional state by which uploads are filtered for pruning.</param>
         /// <returns>The number of pruned uploads.</returns>
-        public int Prune(int age, TransferStates state = TransferStates.Completed)
+        public int Prune(int age, TransferStates stateHasFlag = TransferStates.Completed)
         {
-            if (!state.HasFlag(TransferStates.Completed))
+            if (!stateHasFlag.HasFlag(TransferStates.Completed))
             {
-                throw new ArgumentException($"State must include {TransferStates.Completed}", nameof(state));
+                throw new ArgumentException($"State must include {TransferStates.Completed}", nameof(stateHasFlag));
             }
 
             try
@@ -560,11 +560,7 @@ namespace slskd.Transfers.Uploads
                     .Where(t => t.Direction == TransferDirection.Upload)
                     .Where(t => !t.Removed)
                     .Where(t => t.EndedAt.HasValue && t.EndedAt.Value < cutoffDateTime)
-
-                    // note: don't try HasFlag() here: https://github.com/dotnet/efcore/issues/20094
-                    // this won't work because the state is stored as a comma separated string (which we've done deliberately)
-                    // and EF won't do the necessary work to generate the required SQL
-                    .Where(t => t.State == state)
+                    .Where(t => t.State.HasFlag(stateHasFlag))
                     .ToList();
 
                 foreach (var tx in expired)
@@ -576,7 +572,7 @@ namespace slskd.Transfers.Uploads
 
                 if (pruned > 0)
                 {
-                    Log.Debug("Pruned {Count} expired uploads with state {State}", pruned, state);
+                    Log.Debug("Pruned {Count} expired uploads with state {State}", pruned, stateHasFlag);
                 }
 
                 return pruned;
