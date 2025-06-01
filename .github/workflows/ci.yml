@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 env:
-  DOTNET_VERSION: '8'
+  DOTNET_VERSION: '9.0.203'
 
 jobs:
   build:
