@@ -1,6 +1,0 @@
-{
-  "sdk": {
-    "version": "9.0.203", // until colored console output using 'dotnet watch' is fixed
-    "rollForward": "disable"
-  }
-}
