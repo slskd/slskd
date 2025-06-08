@@ -19,7 +19,6 @@ using Microsoft.Extensions.Options;
 
 namespace slskd.Core.API
 {
-    using System.Threading.Tasks;
     using Asp.Versioning;
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
@@ -37,15 +36,18 @@ namespace slskd.Core.API
     {
         public ServerController(
             ISoulseekClient soulseekClient,
+            IConnectionWatchdog connectionWatchdog,
             IOptionsSnapshot<Options> optionsSnapshot,
             IStateSnapshot<State> stateSnapshot)
         {
             Client = soulseekClient;
+            ConnectionWatchdog = connectionWatchdog;
             OptionsSnapshot = optionsSnapshot;
             StateSnapshot = stateSnapshot;
         }
 
         private ISoulseekClient Client { get; }
+        private IConnectionWatchdog ConnectionWatchdog { get; }
         private IOptionsSnapshot<Options> OptionsSnapshot { get; }
         private IStateSnapshot<State> StateSnapshot { get; }
 
@@ -58,22 +60,17 @@ namespace slskd.Core.API
         [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(200)]
         [ProducesResponseType(403)]
-        public async Task<IActionResult> Connect()
+        public IActionResult Connect()
         {
             if (Program.IsRelayAgent)
             {
                 return Forbid();
             }
 
-            if (!Client.State.HasFlag(SoulseekClientStates.Connected))
+            // we use the watchdog here so that we get the correct auto-reconnect behavior
+            if (!ConnectionWatchdog.IsEnabled)
             {
-                var opt = OptionsSnapshot.Value.Soulseek;
-
-                await Client.ConnectAsync(
-                    address: opt.Address,
-                    port: opt.Port,
-                    username: opt.Username,
-                    password: opt.Password);
+                ConnectionWatchdog.Start();
             }
 
             return Ok();
@@ -98,6 +95,8 @@ namespace slskd.Core.API
 
             if (Client.State.HasFlag(SoulseekClientStates.Connected))
             {
+                // the IntentionalDisconnectException is used to indicate that the disconnect was intentional, which
+                // prevents the watchdog from trying to reconnect
                 Client.Disconnect(message, new IntentionalDisconnectException(message));
             }
 
