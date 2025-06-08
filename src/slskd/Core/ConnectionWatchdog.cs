@@ -57,6 +57,10 @@ namespace slskd
     /// <summary>
     ///     Monitors the connection to the Soulseek network and reconnects with exponential backoff, if necessary.
     /// </summary>
+    /// <remarks>
+    ///     This class is intended to be Started either at application startup or when the connection is disconnected, and
+    ///     stopped when the application is connected again; it doesn't "run" all the time.
+    /// </remarks>
     public class ConnectionWatchdog : IConnectionWatchdog
     {
         private static readonly int ReconnectMaxDelayMilliseconds = 300000; // 5 minutes
