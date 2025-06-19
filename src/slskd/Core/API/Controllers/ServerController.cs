@@ -93,6 +93,9 @@ namespace slskd.Core.API
                 return Forbid();
             }
 
+            // stop the watchdog so that it will exit any retry logic
+            ConnectionWatchdog.Stop(abortReconnect: true);
+
             if (Client.State.HasFlag(SoulseekClientStates.Connected))
             {
                 // the IntentionalDisconnectException is used to indicate that the disconnect was intentional, which
