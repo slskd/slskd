@@ -33,6 +33,10 @@ namespace slskd
         /// <summary>
         ///     Gets a value indicating whether the watchdog is monitoring the server connection.
         /// </summary>
+        /// <remarks>
+        ///     Generally true when the application *SHOULD* be connected to the server, but isn't.
+        ///     Otherwise false (e.g. when connected).
+        /// </remarks>
         bool IsEnabled { get; }
 
         /// <summary>
@@ -50,8 +54,9 @@ namespace slskd
         /// <summary>
         ///     Stops monitoring the server connection.
         /// </summary>
+        /// <param name="abortReconnect">A value indicating whether to abort an ongoing reconnect attempt.</param>
         /// <remarks>This should be called when the application is reasonably certain that the connection is connected.</remarks>
-        void Stop();
+        void Stop(bool abortReconnect = false);
     }
 
     /// <summary>
@@ -102,6 +107,7 @@ namespace slskd
         private IStateMonitor<State> State { get; }
         private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1, 1);
         private System.Timers.Timer WatchdogTimer { get; }
+        private CancellationTokenSource CancellationTokenSource { get; set; }
 
         /// <summary>
         ///     Disposes this instance.
@@ -135,8 +141,21 @@ namespace slskd
         /// <summary>
         ///     Stops monitoring the server connection.
         /// </summary>
+        /// <param name="abortReconnect">A value indicating whether to abort an ongoing reconnect attempt.</param>
         /// <remarks>This should be called when the application is reasonably certain that the connection is connected.</remarks>
-        public void Stop() => WatchdogTimer.Enabled = false;
+        public void Stop(bool abortReconnect = false)
+        {
+            WatchdogTimer.Enabled = false;
+
+            // note: the connect event fires before the connection logic is complete, so there is a chain of events
+            // that leads to the application being connected and then immediately disconnected if this CTS is cancelled
+            // when the watchdog is stopped due to sucessful connection. pass the cancelReconnect flag only when the user
+            // wants to abort the reconnect logic.
+            if (abortReconnect)
+            {
+                CancellationTokenSource?.Cancel();
+            }
+        }
 
         /// <summary>
         ///     Disposes this instance.
@@ -149,6 +168,7 @@ namespace slskd
                 if (disposing)
                 {
                     WatchdogTimer?.Dispose();
+                    CancellationTokenSource?.Dispose();
                 }
 
                 Disposed = true;
@@ -157,17 +177,24 @@ namespace slskd
 
         private async Task AttemptReconnect(int attempts = 1)
         {
+            // semaphore is obtained here and released only when the reconnect attempt is complete, so
+            // one and only one invocation of this can run at a time
             if (await SyncRoot.WaitAsync(0))
             {
                 try
                 {
-                    if (State.CurrentValue.Server.IsConnected)
+                    // go until we connect and break, or something stops the watchdog
+                    while (IsEnabled)
                     {
-                        return;
-                    }
+                        // bail out if we're already connected. it's possible that something else outside of the watchdog
+                        // connects the client. highly unlikely but that might change if someone inadvertently adds some logic.
+                        if (State.CurrentValue.Server.IsConnected)
+                        {
+                            return;
+                        }
 
-                    while (true)
-                    {
+                        CancellationTokenSource = new CancellationTokenSource();
+
                         if (attempts > 0)
                         {
                             var (delay, jitter) = Compute.ExponentialBackoffDelay(
@@ -176,7 +203,7 @@ namespace slskd
 
                             var approximateDelay = (int)Math.Ceiling((double)(delay + jitter) / 1000);
                             Log.Information($"Waiting about {(approximateDelay == 1 ? "a second" : $"{approximateDelay} seconds")} before attempting to reconnect");
-                            await Task.Delay(delay + jitter);
+                            await Task.Delay(delay + jitter, cancellationToken: CancellationTokenSource.Token);
 
                             Log.Information("Attempting to reconnect to the Soulseek server (#{Attempts})...", attempts);
                         }
@@ -192,11 +219,14 @@ namespace slskd
                             // the changes will take effect now.
                             var opt = Options.CurrentValue.Soulseek;
 
+                            // note: cancelling the CTS before the connect logic is fully complete (e.g. reacting to the connect event)
+                            // will cause the client to connect, then disconnect immediately
                             await Client.ConnectAsync(
                                 address: opt.Address,
                                 port: opt.Port,
                                 username: opt.Username,
-                                password: opt.Password);
+                                password: opt.Password,
+                                cancellationToken: CancellationTokenSource.Token);
 
                             break;
                         }
@@ -209,6 +239,7 @@ namespace slskd
                 }
                 finally
                 {
+                    CancellationTokenSource?.Dispose();
                     SyncRoot.Release();
                 }
             }
