@@ -115,17 +115,11 @@
 }
 
 .browse-collapse-all-button {
-  position: absolute;
+  position: sticky;
   top: 0;
   right: 0;
-  margin-bottom: 10px !important;
-  float: none;
-  z-index: 1;
-}
-
-.browse-collapse-all-button {
-  margin-bottom: 10px !important;
   float: right;
+  z-index: 1000;
 }
 
 .browse-folderlist-item-container {
