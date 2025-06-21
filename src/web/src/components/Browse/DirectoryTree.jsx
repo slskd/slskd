@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Button, List } from 'semantic-ui-react';
 
 // Sort directories and files alphabetically, directories first
@@ -17,168 +17,99 @@ const sortTree = (nodes) => {
 };
 
 const DirectoryTree = ({ onSelect, selectedDirectoryName, tree }) => {
-  // Initialize with all directories collapsed
-  const [collapsed, setCollapsed] = useState(() => {
-    const getAllDirectoryNames = (directories) => {
-      const names = new Set();
+  // Only keep track of opened nodes at the first level
+  const [opened, setOpened] = useState(new Set());
 
-      const traverse = (directories_) => {
-        for (const directory of directories_ || []) {
-          if (directory.children) {
-            names.add(directory.name);
-            traverse(directory.children);
-          }
-        }
-      };
-
-      traverse(directories || []);
-      return names;
-    };
-
-    return getAllDirectoryNames(tree);
-  });
+  useEffect(() => {
+    setOpened(new Set());
+  }, [tree]);
 
   const toggleCollapse = useCallback((directoryName) => {
-    setCollapsed((previous) => {
-      const newCollapsed = new Set(previous);
-      if (newCollapsed.has(directoryName)) {
-        newCollapsed.delete(directoryName);
+    setOpened((previousOpened) => {
+      const newOpened = new Set(previousOpened);
+      if (newOpened.has(directoryName)) {
+        newOpened.delete(directoryName);
       } else {
-        newCollapsed.add(directoryName);
+        newOpened.add(directoryName);
       }
 
-      return newCollapsed;
+      return newOpened;
     });
   }, []);
 
   const collapseAll = useCallback(() => {
-    const getAllDirectoryNames = (directories) => {
-      const names = new Set();
+    setOpened(new Set());
+  }, []);
 
-      const traverse = (directories_) => {
-        for (const directory of directories_ || []) {
-          if (directory.children) {
-            names.add(directory.name);
-            traverse(directory.children);
-          }
-        }
-      };
-
-      traverse(directories);
-      return names;
-    };
-
-    setCollapsed(getAllDirectoryNames(tree || []));
-  }, [tree]);
-
+  // Only render the first level, and children if opened
   // eslint-disable-next-line complexity
-  const renderNode = (
-    d,
-    selectedDirectoryNameParameter,
-    onSelectParameter,
-    collapsedParameter,
-    toggleCollapseParameter,
-    level,
-  ) => {
-    const selected = d.name === selectedDirectoryNameParameter;
+  const renderNode = (d, level = 0) => {
+    const selected = d.name === selectedDirectoryName;
     const isDirectory = Boolean(d.children);
     const hasChildren = isDirectory && d.children.length > 0;
-    const isCollapsed = collapsedParameter.has(d.name);
+    const isOpened = opened.has(d.name);
     const isLocked = d.locked === true;
 
     return (
-      <List
-        className="browse-folderlist-list"
-        key={d.name}
-      >
-        <List.Item>
-          <div
-            className="browse-folderlist-item-container"
-            style={{ paddingLeft: `${level * 20}px` }}
-          >
-            {isDirectory && hasChildren && !isLocked ? (
-              <List.Icon
-                className={`browse-folderlist-expand-icon ${isCollapsed ? 'collapsed' : 'expanded'}`}
-                name={isCollapsed ? 'caret right' : 'caret down'}
-                onClick={() => toggleCollapseParameter(d.name)}
-              />
-            ) : (
-              <div className="browse-folderlist-expand-spacer" />
-            )}
+      <List.Item key={d.name}>
+        <div
+          className="browse-folderlist-item-container"
+          style={{ paddingLeft: `${level * 20}px` }}
+        >
+          {isDirectory && hasChildren && !isLocked ? (
             <List.Icon
-              className={
-                'browse-folderlist-icon' +
-                (selected ? ' selected' : '') +
-                (isLocked ? ' locked' : '') +
-                (isDirectory && hasChildren && !isLocked ? ' hoverable' : '')
-              }
-              name={
-                isLocked
-                  ? 'lock'
-                  : selected
-                    ? isDirectory
-                      ? 'folder open'
-                      : 'file outline'
-                    : isDirectory
-                      ? 'folder'
-                      : 'file outline'
-              }
-              onClick={
-                isDirectory && hasChildren && !isLocked
-                  ? () => toggleCollapseParameter(d.name)
-                  : undefined
-              }
+              className={`browse-folderlist-expand-icon ${isOpened ? 'expanded' : 'collapsed'}`}
+              name={isOpened ? 'caret down' : 'caret right'}
+              onClick={() => toggleCollapse(d.name)}
             />
-            <List.Header
-              className={
-                'browse-folderlist-header' +
-                (selected ? ' selected' : '') +
-                (isLocked ? ' locked' : '')
-              }
-              onClick={(event) => onSelectParameter(event, d)}
-            >
-              {d.name.split('\\').pop().split('/').pop()}
-            </List.Header>
-          </div>
-          <List.Content>
-            {isDirectory && hasChildren && !isCollapsed && (
-              <List.List>
-                {d.children.map((child) =>
-                  renderNode(
-                    child,
-                    selectedDirectoryNameParameter,
-                    onSelectParameter,
-                    collapsedParameter,
-                    toggleCollapseParameter,
-                    level + 1,
-                  ),
-                )}
-              </List.List>
-            )}
-          </List.Content>
-        </List.Item>
-      </List>
+          ) : (
+            <div className="browse-folderlist-expand-spacer" />
+          )}
+          <List.Icon
+            className={
+              'browse-folderlist-icon' +
+              (selected ? ' selected' : '') +
+              (isLocked ? ' locked' : '') +
+              (isDirectory && hasChildren && !isLocked ? ' hoverable' : '')
+            }
+            name={
+              isLocked
+                ? 'lock'
+                : selected
+                  ? isDirectory
+                    ? 'folder open'
+                    : 'file outline'
+                  : isDirectory
+                    ? 'folder'
+                    : 'file outline'
+            }
+            onClick={
+              isDirectory && hasChildren && !isLocked
+                ? () => toggleCollapse(d.name)
+                : undefined
+            }
+          />
+          <List.Header
+            className={
+              'browse-folderlist-header' +
+              (selected ? ' selected' : '') +
+              (isLocked ? ' locked' : '')
+            }
+            onClick={(event) => onSelect(event, d)}
+          >
+            {d.name.split('\\').pop().split('/').pop()}
+          </List.Header>
+        </div>
+
+        {/* Only render children if this node is opened and it's a directory */}
+        {isDirectory && hasChildren && isOpened && (
+          <List.List>
+            {sortTree(d.children).map((child) => renderNode(child, level + 1))}
+          </List.List>
+        )}
+      </List.Item>
     );
   };
-
-  const subtree = (
-    root,
-    selectedDirectoryNameParameter,
-    onSelectParameter,
-    collapsedParameter,
-    toggleCollapseParameter,
-    level = 0,
-  ) =>
-    sortTree(root).map((d) =>
-      renderNode(
-        d,
-        selectedDirectoryNameParameter,
-        onSelectParameter,
-        collapsedParameter,
-        toggleCollapseParameter,
-        level,
-      ),
-    );
 
   return (
     <div className="browse-directorytree-container">
@@ -192,12 +123,10 @@ const DirectoryTree = ({ onSelect, selectedDirectoryName, tree }) => {
           Collapse All
         </Button>
       )}
-      {subtree(
-        tree,
-        selectedDirectoryName,
-        onSelect,
-        collapsed,
-        toggleCollapse,
+      {tree && tree.length > 0 && (
+        <List className="browse-folderlist-list">
+          {sortTree(tree).map((d) => renderNode(d, 0))}
+        </List>
       )}
     </div>
   );
