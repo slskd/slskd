@@ -32,9 +32,12 @@
   width: 100% !important;
   white-space: pre;
   overflow: auto !important;
-  max-height: 400px;
+  height: 400px;
+  min-height: 200px;
+  max-height: 900px;
   padding: 1em !important;
   box-shadow: unset !important;
+  resize: vertical;
 }
 
 .browse-folderlist-list {
