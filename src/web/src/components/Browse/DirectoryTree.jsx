@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Button, List } from 'semantic-ui-react';
+import { List } from 'semantic-ui-react';
 
 const sortTree = (nodes) => {
   return nodes
@@ -25,10 +25,6 @@ const DirectoryTree = ({ onSelect, selectedDirectoryName, tree }) => {
 
       return newOpened;
     });
-  }, []);
-
-  const collapseAll = useCallback(() => {
-    setOpened(new Set());
   }, []);
 
   // eslint-disable-next-line complexity
@@ -90,16 +86,6 @@ const DirectoryTree = ({ onSelect, selectedDirectoryName, tree }) => {
 
   return (
     <div className="browse-directorytree-container">
-      {tree && tree.length > 0 && (
-        <Button
-          className="browse-collapse-all-button"
-          compact
-          onClick={collapseAll}
-          size="mini"
-        >
-          Collapse All
-        </Button>
-      )}
       {tree && tree.length > 0 && (
         <List className="browse-folderlist-list">
           {sortTree(tree).map((d) => renderNode(d, 0))}
