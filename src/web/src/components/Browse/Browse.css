@@ -48,10 +48,13 @@
 .browse-folderlist-header {
   cursor: pointer;
   margin-left: 3px !important;
+  display: inline-block;
+  white-space: nowrap;
 }
 
 .browse-folderlist-icon {
-  float: left;
+  float: none;
+  display: inline-block;
 }
 
 .browse-filelist {
@@ -99,8 +102,71 @@
 
 .browse-folderlist-icon {
   color: var(--slskd-browse-folderlist-header-color) !important;
+  margin-right: 3px !important;
 }
 
 .browse-folderlist-icon.selected {
   color: var(--slskd-browse-folderlist-header-selected-color) !important;
+}
+
+/* Collapsible DirectoryTree styles */
+.browse-directorytree-container {
+  position: relative;
+}
+
+.browse-collapse-all-button {
+  position: absolute;
+  top: 0;
+  right: 0;
+  margin-bottom: 10px !important;
+  float: none;
+  z-index: 1;
+}
+
+.browse-collapse-all-button {
+  margin-bottom: 10px !important;
+  float: right;
+}
+
+.browse-folderlist-item-container {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+}
+
+.browse-folderlist-expand-icon {
+  cursor: pointer !important;
+  margin-right: 2px !important;
+  color: var(--slskd-browse-folderlist-header-color) !important;
+  transition: transform 0.2s ease !important;
+  width: 14px !important;
+  min-width: 14px !important;
+}
+
+.browse-folderlist-expand-icon:hover {
+  color: var(--slskd-browse-folderlist-header-selected-color) !important;
+}
+
+.browse-folderlist-expand-icon.collapsed {
+  transform: rotate(0deg);
+}
+
+.browse-folderlist-expand-icon.expanded {
+  transform: rotate(0deg);
+}
+
+.browse-folderlist-expand-spacer {
+  width: 14px;
+  min-width: 14px;
+  margin-right: 2px;
+}
+
+.browse-folderlist-icon.hoverable {
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+}
+
+.browse-folderlist-icon.hoverable:hover {
+  color: var(--slskd-browse-folderlist-header-selected-color) !important;
+  transform: scale(1.1);
 }
