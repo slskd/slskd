@@ -1,23 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Button, List } from 'semantic-ui-react';
 
-// Sort directories and files alphabetically, directories first
 const sortTree = (nodes) => {
-  if (!nodes) return [];
-
-  const directories = nodes
+  return nodes
     .filter((n) => n.children)
     .sort((a, b) => a.name.localeCompare(b.name));
-
-  const files = nodes
-    .filter((n) => !n.children)
-    .sort((a, b) => a.name.localeCompare(b.name));
-
-  return [...directories, ...files];
 };
 
 const DirectoryTree = ({ onSelect, selectedDirectoryName, tree }) => {
-  // Only keep track of opened nodes at the first level
   const [opened, setOpened] = useState(new Set());
 
   useEffect(() => {
@@ -41,12 +31,10 @@ const DirectoryTree = ({ onSelect, selectedDirectoryName, tree }) => {
     setOpened(new Set());
   }, []);
 
-  // Only render the first level, and children if opened
   // eslint-disable-next-line complexity
   const renderNode = (d, level = 0) => {
     const selected = d.name === selectedDirectoryName;
-    const isDirectory = Boolean(d.children);
-    const hasChildren = isDirectory && d.children.length > 0;
+    const hasChildren = d.children.length > 0;
     const isOpened = opened.has(d.name);
     const isLocked = d.locked === true;
 
@@ -56,7 +44,7 @@ const DirectoryTree = ({ onSelect, selectedDirectoryName, tree }) => {
           className="browse-folderlist-item-container"
           style={{ paddingLeft: `${level * 20}px` }}
         >
-          {isDirectory && hasChildren && !isLocked ? (
+          {hasChildren && !isLocked ? (
             <List.Icon
               className={`browse-folderlist-expand-icon ${isOpened ? 'expanded' : 'collapsed'}`}
               name={isOpened ? 'caret down' : 'caret right'}
@@ -70,21 +58,11 @@ const DirectoryTree = ({ onSelect, selectedDirectoryName, tree }) => {
               'browse-folderlist-icon' +
               (selected ? ' selected' : '') +
               (isLocked ? ' locked' : '') +
-              (isDirectory && hasChildren && !isLocked ? ' hoverable' : '')
+              (hasChildren && !isLocked ? ' hoverable' : '')
             }
-            name={
-              isLocked
-                ? 'lock'
-                : selected
-                  ? isDirectory
-                    ? 'folder open'
-                    : 'file outline'
-                  : isDirectory
-                    ? 'folder'
-                    : 'file outline'
-            }
+            name={isLocked ? 'lock' : selected ? 'folder open' : 'folder'}
             onClick={
-              isDirectory && hasChildren && !isLocked
+              hasChildren && !isLocked
                 ? () => toggleCollapse(d.name)
                 : undefined
             }
@@ -101,8 +79,7 @@ const DirectoryTree = ({ onSelect, selectedDirectoryName, tree }) => {
           </List.Header>
         </div>
 
-        {/* Only render children if this node is opened and it's a directory */}
-        {isDirectory && hasChildren && isOpened && (
+        {hasChildren && isOpened && (
           <List.List>
             {sortTree(d.children).map((child) => renderNode(child, level + 1))}
           </List.List>
