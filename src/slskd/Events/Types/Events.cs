@@ -27,6 +27,9 @@ public enum EventType
     DownloadFileComplete = 2,
     DownloadDirectoryComplete = 3,
     UploadFileComplete = 4,
+    PrivateMessageReceived = 5,
+    PublicChatMessageReceived = 6,
+    RoomMessageReceived = 7,
     Noop = int.MaxValue,
 }
 
@@ -63,6 +66,35 @@ public sealed record UploadFileCompleteEvent : Event
     public required string LocalFilename { get; init; }
     public required string RemoteFilename { get; init; }
     public required Transfer Transfer { get; init; }
+}
+
+public sealed record PrivateMessageReceivedEvent : Event
+{
+    public override EventType Type => EventType.PrivateMessageReceived;
+    public override int Version => 0;
+    public required string Username { get; init; }
+    public required string Message { get; init; }
+    public required bool Blacklisted { get; init; }
+}
+
+public sealed record PublicChatMessageReceivedEvent : Event
+{
+    public override EventType Type => EventType.PublicChatMessageReceived;
+    public override int Version => 0;
+    public required string RoomName { get; init; }
+    public required string Username { get; init; }
+    public required string Message { get; init; }
+    public required bool Blacklisted { get; init; }
+}
+
+public sealed record RoomMessageReceivedEvent : Event
+{
+    public override EventType Type => EventType.RoomMessageReceived;
+    public override int Version => 0;
+    public required string RoomName { get; init; }
+    public required string Username { get; init; }
+    public required string Message { get; init; }
+    public required bool Blacklisted { get; init; }
 }
 
 public sealed record NoopEvent : Event
