@@ -392,6 +392,14 @@ namespace slskd
             public bool ForceShareScan { get; init; } = false;
 
             /// <summary>
+            ///     Gets a value indicating whether to force database migrations to be applied on startup.
+            /// </summary>
+            [Argument(default, "force-migrations")]
+            [EnvironmentVariable("FORCE_MIGRATIONS")]
+            [Description("force database migrations to be applied on startup")]
+            public bool ForceMigrations { get; init; } = false;
+
+            /// <summary>
             ///     Gets a value indicating whether the application should check for a newer version on startup.
             /// </summary>
             [Argument(default, "no-version-check")]

@@ -313,9 +313,7 @@ namespace slskd
             // records to be updated if the application has started to shut down so that we can do this cleanup and properly
             // disposition them as having failed due to an application shutdown, instead of some random exception thrown while
             // things are being disposed.
-            var activeUploads = Transfers.Uploads.List(t => t.EndedAt == null || !t.State.HasFlag(TransferStates.Completed), includeRemoved: true)
-                .Where(t => t.EndedAt == null || !t.State.HasFlag(TransferStates.Completed)) // https://github.com/slskd/slskd/issues/1280
-                .ToList();
+            var activeUploads = Transfers.Uploads.List(t => t.EndedAt == null || !t.State.HasFlag(TransferStates.Completed), includeRemoved: true);
 
             foreach (var upload in activeUploads)
             {
@@ -326,9 +324,7 @@ namespace slskd
                 Transfers.Uploads.Update(upload);
             }
 
-            var activeDownloads = Transfers.Downloads.List(t => t.EndedAt == null || !t.State.HasFlag(TransferStates.Completed), includeRemoved: true)
-                .Where(t => t.EndedAt == null || !t.State.HasFlag(TransferStates.Completed)) // https://github.com/slskd/slskd/issues/1280
-                .ToList();
+            var activeDownloads = Transfers.Downloads.List(t => t.EndedAt == null || !t.State.HasFlag(TransferStates.Completed), includeRemoved: true);
 
             foreach (var download in activeDownloads)
             {
@@ -344,9 +340,7 @@ namespace slskd
                 when the search is complete, so when a search 'dangles' all responses have been lost. to avoid discrepancies,
                 we need to zero the response and file counts as well as set the state and EndedAt.
             */
-            var activeSearches = (await Search.ListAsync(s => s.EndedAt == null || !s.State.HasFlag(SearchStates.Completed)))
-                .Where(s => s.EndedAt == null || !s.State.HasFlag(SearchStates.Completed)) // https://github.com/slskd/slskd/issues/1280
-                .ToList();
+            var activeSearches = await Search.ListAsync(s => s.EndedAt == null || !s.State.HasFlag(SearchStates.Completed));
 
             foreach (var search in activeSearches)
             {
@@ -814,8 +808,9 @@ namespace slskd
         {
             static LogEventLevel TranslateLogLevel(DiagnosticLevel diagnosticLevel) => diagnosticLevel switch
             {
+                DiagnosticLevel.Trace => LogEventLevel.Verbose,
                 DiagnosticLevel.Debug => LogEventLevel.Debug,
-                DiagnosticLevel.Info => LogEventLevel.Debug,
+                DiagnosticLevel.Info => LogEventLevel.Information,
                 DiagnosticLevel.Warning => LogEventLevel.Warning,
                 DiagnosticLevel.None => default,
                 _ => default,
