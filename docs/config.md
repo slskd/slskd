@@ -1041,10 +1041,10 @@ Processes are started in the `/scripts` directory (meaning the working directory
 
 The data associated with the event that's invoking your script is stringified to JSON and set as the value of the `SLSKD_SCRIPT_DATA` environment variable.  Whatever command or script you specify will need to read this value and handle the data.
 
-> [!DANGER]
+> [!CAUTION]
 > **Remote Code Execution Risk**: The event data in `$SLSKD_SCRIPT_DATA` originates from the Soulseek network and may contain malicious content. Passing this data as command-line arguments could allow attackers to inject shell commands through specially crafted filenames, usernames, or other fields. For example, a filename like `song"; rm -rf /; echo "` could delete your entire filesystem if passed unsafely to a shell command.
 > 
-> **Safe practices:**
+> **Best practices:**
 > - ✅ Read `$SLSKD_SCRIPT_DATA` as an environment variable
 > - ✅ Parse the JSON and validate/sanitize individual fields before use
 > - ✅ Use programming languages with proper JSON parsing (Python, Node.js, etc.)
