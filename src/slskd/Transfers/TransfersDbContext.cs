@@ -61,6 +61,16 @@ namespace slskd.Transfers
                 .Entity<Transfer>()
                 .Property(d => d.Direction)
                 .HasConversion(new EnumToStringConverter<Soulseek.TransferDirection>());
+
+            modelBuilder
+                .Entity<Transfer>()
+                .HasIndex(t => t.Direction)
+                .HasDatabaseName("IDX_Transfers_Direction");
+
+            modelBuilder
+                .Entity<Transfer>()
+                .HasIndex(t => t.State)
+                .HasDatabaseName("IDX_Transfers_State");
         }
     }
 }
