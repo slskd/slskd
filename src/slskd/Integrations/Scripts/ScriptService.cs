@@ -180,7 +180,11 @@ public class ScriptService
                     Log.Debug("Running script '{Script}': \"{Executable}\" {Args} (id: {ProcessId})", script.Key, executable, run.Args ?? string.Join(' ', run.Arglist ?? []), processId);
                     var sw = Stopwatch.StartNew();
 
-                    process.StartInfo.EnvironmentVariables["SLSKD_SCRIPT_DATA"] = JsonSerializer.Serialize(data, JsonSerializerOptions);
+                    process.StartInfo.EnvironmentVariables["SLSKD_SCRIPT_DATA"] = JsonSerializer.Serialize(
+                        value: data,
+                        inputType: data.GetType(), // if omitted object is serialized as EventType, losing everything else
+                        options: JsonSerializerOptions);
+
                     process.Start();
 
                     process.WaitForExit();

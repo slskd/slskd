@@ -94,7 +94,10 @@ public class WebhookService
                 }
 
                 var content = new StringContent(
-                    content: JsonSerializer.Serialize(data, JsonSerializerOptions),
+                    content: JsonSerializer.Serialize(
+                        value: data,
+                        inputType: data.GetType(), // if omitted object is serialized as EventType, losing everything else
+                        options: JsonSerializerOptions),
                     encoding: Encoding.UTF8,
                     mediaType: "application/json");
 
