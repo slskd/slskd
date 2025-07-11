@@ -88,7 +88,7 @@ namespace slskd
             IManagedState<State> state,
             ISoulseekClient soulseekClient,
             FileService fileService,
-            IConnectionWatchdog connectionWatchdog,
+            ConnectionWatchdog connectionWatchdog,
             ITransferService transferService,
             IBrowseTracker browseTracker,
             IRoomTracker roomTracker,
@@ -213,7 +213,7 @@ namespace slskd
         private FileService Files { get; }
         private IRoomService RoomService { get; set; }
         private IBrowseTracker BrowseTracker { get; set; }
-        private IConnectionWatchdog ConnectionWatchdog { get; }
+        private ConnectionWatchdog ConnectionWatchdog { get; }
         private IMessagingService Messaging { get; set; }
         private ILogger Log { get; set; } = Serilog.Log.ForContext<Application>();
         private ConcurrentDictionary<string, ILogger> Loggers { get; } = new ConcurrentDictionary<string, ILogger>();
@@ -859,7 +859,7 @@ namespace slskd
             else
             {
                 Log.Error("Disconnected from the Soulseek server: {Message}", args.Exception?.Message ?? args.Message);
-                ConnectionWatchdog.Restart();
+                ConnectionWatchdog.Start();
             }
         }
 
