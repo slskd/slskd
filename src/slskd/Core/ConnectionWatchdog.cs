@@ -101,13 +101,20 @@ namespace slskd
         }
 
         /// <summary>
-        ///     Starts monitoring the server connection.
+        ///     Stops the watchdog and aborts any active reconnection loop, then starts again.
         /// </summary>
-        /// <remarks>This should be called when the connection is disconnected.</remarks>
-        public void Restart()
+        /// <remarks>
+        ///     This should be called when we have a reason to restart an in-process retry loop, such as a setting change,
+        ///     user request, etc.
+        /// </remarks>
+        public virtual void Restart()
         {
-            WatchdogTimer.Enabled = true;
-            _ = AttemptReconnect(attempts: 1);
+            if (IsEnabled)
+            {
+                Log.Information("(Re)connection process restarted");
+                Stop(abortReconnect: true);
+                Start();
+            }
         }
 
         /// <summary>
