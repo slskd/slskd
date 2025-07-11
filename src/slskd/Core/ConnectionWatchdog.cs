@@ -233,7 +233,18 @@ namespace slskd
                 }
                 finally
                 {
-                    CancellationTokenSource?.Dispose();
+                    var cts = CancellationTokenSource;
+                    CancellationTokenSource = null;
+
+                    try
+                    {
+                        cts?.Dispose();
+                    }
+                    catch (Exception)
+                    {
+                        // noop. i don't think this can throw, but if we fail to release the SyncRoot we'll be in trouble.
+                    }
+
                     SyncRoot.Release();
                 }
             }
