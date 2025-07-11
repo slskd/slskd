@@ -21,6 +21,7 @@ namespace slskd.Core.API
 {
     using Asp.Versioning;
     using Microsoft.AspNetCore.Authorization;
+    using Microsoft.AspNetCore.Http;
     using Microsoft.AspNetCore.Mvc;
     using Soulseek;
 
@@ -36,7 +37,7 @@ namespace slskd.Core.API
     {
         public ServerController(
             ISoulseekClient soulseekClient,
-            IConnectionWatchdog connectionWatchdog,
+            ConnectionWatchdog connectionWatchdog,
             IOptionsSnapshot<Options> optionsSnapshot,
             IStateSnapshot<State> stateSnapshot)
         {
@@ -47,7 +48,7 @@ namespace slskd.Core.API
         }
 
         private ISoulseekClient Client { get; }
-        private IConnectionWatchdog ConnectionWatchdog { get; }
+        private ConnectionWatchdog ConnectionWatchdog { get; }
         private IOptionsSnapshot<Options> OptionsSnapshot { get; }
         private IStateSnapshot<State> StateSnapshot { get; }
 
@@ -59,6 +60,7 @@ namespace slskd.Core.API
         [Route("")]
         [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(200)]
+        [ProducesResponseType(StatusCodes.Status205ResetContent)]
         [ProducesResponseType(403)]
         public IActionResult Connect()
         {
@@ -67,10 +69,19 @@ namespace slskd.Core.API
                 return Forbid();
             }
 
-            // we use the watchdog here so that we get the correct auto-reconnect behavior
+            // if the watchdog is already enabled, we're already attempting to connect. the user might have changed something
+            // or perhaps is just being impatient; either way, restart the retry loop so they can see results faster
+            // remember, we may be in a ~5 minute delay at this moment
+            if (ConnectionWatchdog.IsEnabled)
+            {
+                ConnectionWatchdog.Restart();
+                return StatusCode(StatusCodes.Status205ResetContent);
+            }
+
             if (!ConnectionWatchdog.IsEnabled)
             {
                 ConnectionWatchdog.Start();
+                return Ok();
             }
 
             return Ok();
