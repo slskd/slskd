@@ -48,6 +48,7 @@ public class Migrator
     private Dictionary<string, IMigration> Migrations { get; } = new()
     {
         { nameof(Z04012025_TransferStateMigration), new Z04012025_TransferStateMigration() },
+        { nameof(Z07062025_TransferIndexesMigration), new Z07062025_TransferIndexesMigration() },
     };
 
     /// <summary>
