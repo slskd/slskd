@@ -48,7 +48,7 @@ namespace slskd
             IStateMonitor<State> state)
         {
             Client = soulseekClient;
-            Options = optionsMonitor;
+            OptionsMonitor = optionsMonitor;
             State = state;
 
             WatchdogTimer = new System.Timers.Timer()
@@ -59,6 +59,8 @@ namespace slskd
             };
 
             WatchdogTimer.Elapsed += (sender, args) => _ = AttemptReconnect();
+
+            OptionsMonitor.OnChange(options => OptionsChanged(options));
         }
 
         /// <summary>
@@ -69,7 +71,7 @@ namespace slskd
         private ISoulseekClient Client { get; }
         private bool Disposed { get; set; }
         private ILogger Log { get; } = Serilog.Log.ForContext<Application>();
-        private IOptionsMonitor<Options> Options { get; set; }
+        private IOptionsMonitor<Options> OptionsMonitor { get; set; }
         private IStateMonitor<State> State { get; }
         private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1, 1);
         private System.Timers.Timer WatchdogTimer { get; }
@@ -138,6 +140,17 @@ namespace slskd
                 }
 
                 Disposed = true;
+            }
+        }
+
+        private void OptionsChanged(Options options)
+        {
+            // it's possible that a user begins changing connection settings in an attempt to get the client to connect
+            // if they edit the options _at all_, assume this is the case and restart the retry loop from the beginning
+            if (IsEnabled)
+            {
+                Log.Information("Options changed, restarting (re)connection process...");
+                Restart();
             }
         }
 
