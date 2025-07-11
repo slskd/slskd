@@ -150,6 +150,8 @@ namespace slskd
         /// <param name="disposing"></param>
         protected virtual void Dispose(bool disposing)
         {
+            Stop(abortReconnect: true);
+
             if (!Disposed)
             {
                 if (disposing)
