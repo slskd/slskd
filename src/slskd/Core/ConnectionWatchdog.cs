@@ -26,47 +26,13 @@ namespace slskd
     using Soulseek;
 
     /// <summary>
-    ///     Monitors the connection to the Soulseek server and reconnects with exponential backoff, if necessary.
-    /// </summary>
-    public interface IConnectionWatchdog : IDisposable
-    {
-        /// <summary>
-        ///     Gets a value indicating whether the watchdog is monitoring the server connection.
-        /// </summary>
-        /// <remarks>
-        ///     Generally true when the application *SHOULD* be connected to the server, but isn't.
-        ///     Otherwise false (e.g. when connected).
-        /// </remarks>
-        bool IsEnabled { get; }
-
-        /// <summary>
-        ///     Initializes the watchdog and makes the initial connection to the server.
-        /// </summary>
-        /// <remarks>This should be called at application startup.</remarks>
-        void Start();
-
-        /// <summary>
-        ///     Starts monitoring the server connection following a disconnect.
-        /// </summary>
-        /// <remarks>This should be called when the connection is disconnected.</remarks>
-        void Restart();
-
-        /// <summary>
-        ///     Stops monitoring the server connection.
-        /// </summary>
-        /// <param name="abortReconnect">A value indicating whether to abort an ongoing reconnect attempt.</param>
-        /// <remarks>This should be called when the application is reasonably certain that the connection is connected.</remarks>
-        void Stop(bool abortReconnect = false);
-    }
-
-    /// <summary>
     ///     Monitors the connection to the Soulseek network and reconnects with exponential backoff, if necessary.
     /// </summary>
     /// <remarks>
     ///     This class is intended to be Started either at application startup or when the connection is disconnected, and
     ///     stopped when the application is connected again; it doesn't "run" all the time.
     /// </remarks>
-    public class ConnectionWatchdog : IConnectionWatchdog
+    public class ConnectionWatchdog
     {
         private static readonly int ReconnectMaxDelayMilliseconds = 300000; // 5 minutes
 
@@ -122,7 +88,7 @@ namespace slskd
         ///     Initializes the watchdog and makes the initial connection to the server.
         /// </summary>
         /// <remarks>This should be called at application startup.</remarks>
-        public void Start()
+        public virtual void Start()
         {
             WatchdogTimer.Enabled = true;
             _ = AttemptReconnect(attempts: 0);
@@ -143,7 +109,7 @@ namespace slskd
         /// </summary>
         /// <param name="abortReconnect">A value indicating whether to abort an ongoing reconnect attempt.</param>
         /// <remarks>This should be called when the application is reasonably certain that the connection is connected.</remarks>
-        public void Stop(bool abortReconnect = false)
+        public virtual void Stop(bool abortReconnect = false)
         {
             WatchdogTimer.Enabled = false;
 
