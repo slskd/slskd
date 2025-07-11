@@ -35,8 +35,8 @@ public class Z07062025_TransferIndexesMigration : IMigration
     public bool NeedsToBeApplied()
     {
         // check to see if *BOTH* of the indexes are in place. if one or both are missing, we must apply
-        var schema = SchemaInspector.GetDatabaseIndexes(ConnectionString);
-        var txfers = schema["Transfers"];
+        var idxes = SchemaInspector.GetDatabaseIndexes(ConnectionString);
+        var txfers = idxes["Transfers"];
 
         var directionExists = txfers.Any(c => c.Name == "IDX_Transfers_Direction");
         var stateExists = txfers.Any(c => c.Name == "IDX_Transfers_State");
