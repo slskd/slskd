@@ -124,6 +124,7 @@ namespace slskd
         /// <remarks>This should be called when the application is reasonably certain that the connection is connected.</remarks>
         public virtual void Stop(bool abortReconnect = false)
         {
+            // stop the timer first to avoid having it start the connection process again when the cts is cancelled
             WatchdogTimer.Enabled = false;
 
             // note: the connect event fires before the connection logic is complete, so there is a chain of events
@@ -132,7 +133,14 @@ namespace slskd
             // wants to abort the reconnect logic.
             if (abortReconnect)
             {
-                CancellationTokenSource?.Cancel();
+                try
+                {
+                    CancellationTokenSource?.Cancel(throwOnFirstException: false);
+                }
+                catch (Exception)
+                {
+                    // noop. Cancel() can throw if registered callbacks throw, but we don't have any right now and we don't care anyway
+                }
             }
         }
 
