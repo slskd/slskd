@@ -213,7 +213,7 @@ namespace slskd
 
                             var approximateDelay = (int)Math.Ceiling((double)(delay + jitter) / 1000);
                             Log.Information($"Waiting about {(approximateDelay == 1 ? "a second" : $"{approximateDelay} seconds")} before attempting to reconnect");
-                            await Task.Delay(delay + jitter, cancellationToken: CancellationTokenSource.Token);
+                            await Task.Delay(delay + jitter, cancellationToken: CancellationTokenSource?.Token ?? CancellationToken.None);
 
                             Log.Information("Attempting to reconnect to the Soulseek server (#{Attempts})...", attempts);
                         }
@@ -227,7 +227,7 @@ namespace slskd
                             // reconnect with the latest configuration values we have for username and password, instead of the
                             // options that were captured at startup. if a user has updated these values prior to the disconnect,
                             // the changes will take effect now.
-                            var opt = Options.CurrentValue.Soulseek;
+                            var opt = OptionsMonitor.CurrentValue.Soulseek;
 
                             // note: cancelling the CTS before the connect logic is fully complete (e.g. reacting to the connect event)
                             // will cause the client to connect, then disconnect immediately
@@ -236,7 +236,7 @@ namespace slskd
                                 port: opt.Port,
                                 username: opt.Username,
                                 password: opt.Password,
-                                cancellationToken: CancellationTokenSource.Token);
+                                cancellationToken: CancellationTokenSource?.Token ?? CancellationToken.None);
 
                             break;
                         }
