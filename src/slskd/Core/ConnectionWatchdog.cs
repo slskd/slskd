@@ -29,8 +29,9 @@ namespace slskd
     ///     Monitors the connection to the Soulseek network and reconnects with exponential backoff, if necessary.
     /// </summary>
     /// <remarks>
-    ///     This class is intended to be Started either at application startup or when the connection is disconnected, and
-    ///     stopped when the application is connected again; it doesn't "run" all the time.
+    ///     This class is intended to be Start()ed either at application startup or when the connection is disconnected, and
+    ///     Stop()ed when the application is connected again; it doesn't "run" all the time because there are cases where
+    ///     a user has manually disconnected, was kicked by another login somewhere, etc. where we don't want to reconnect.
     /// </remarks>
     public class ConnectionWatchdog
     {
@@ -93,6 +94,9 @@ namespace slskd
         public virtual void Start()
         {
             WatchdogTimer.Enabled = true;
+
+            // note: this is synchronized so only 1 can run at a time. we're only calling it here to avoid the
+            // initial timer tick duration
             _ = AttemptReconnect(attempts: 0);
         }
 
@@ -162,7 +166,17 @@ namespace slskd
             {
                 try
                 {
-                    // go until we connect and break, or something stops the watchdog
+                    /*
+                        go until we connect and break, or something stops the watchdog. why don't we just use the timer here?
+                        good question. we could, but a loop gives us more control and precision.  at the expensive of needing to
+                        break out of it if a user wants to stop or reset.  reevaluate later!
+
+                        things that can cause us to exit this loop:
+                        - the timer being disabled, which will exit whenever the while expression is evaluated. any Task.Delay or connection attempt will keep going (this is more of a backstop)
+                        - CancellationTokenSource being tripped, which will throw TaskCanceledException or OperationCanceledException somewhere
+                        - a successful connection
+                    */
+
                     while (IsEnabled)
                     {
                         // bail out if we're already connected. it's possible that something else outside of the watchdog
