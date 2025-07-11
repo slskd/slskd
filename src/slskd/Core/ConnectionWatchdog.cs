@@ -209,12 +209,27 @@ namespace slskd
 
                             break;
                         }
+                        catch (Exception ex) when (ex is TaskCanceledException || ex is OperationCanceledException)
+                        {
+                            Log.Information("Reconnection attempt cancelled");
+                            Log.Debug(ex, "ConnectAsync() threw {Exception}", ex);
+                            return;
+                        }
                         catch (Exception ex)
                         {
                             attempts++;
                             Log.Error("Failed to reconnect: {Message}", ex.Message);
                         }
                     }
+                }
+                catch (Exception ex) when (ex is TaskCanceledException || ex is OperationCanceledException)
+                {
+                    Log.Information("Reconnection attempt cancelled");
+                    Log.Debug(ex, "Reconnect logic threw {Exception}", ex);
+                }
+                catch (Exception ex)
+                {
+                    Log.Warning(ex, "Reconnect attempt failed: {Message}", ex.Message);
                 }
                 finally
                 {
