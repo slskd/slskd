@@ -100,6 +100,7 @@ namespace slskd
             IPushbulletService pushbulletService,
             IRelayService relayService,
             EventService eventService,
+            EventBus eventBus,
             IHubContext<ApplicationHub> applicationHub,
             IHubContext<LogsHub> logHub)
         {
@@ -150,6 +151,7 @@ namespace slskd
             Search = searchService;
 
             Events = eventService;
+            EventBus = eventBus;
 
             Transfers = transferService;
             BrowseTracker = browseTracker;
@@ -232,6 +234,7 @@ namespace slskd
         private IShareService Shares { get; set; }
         private ISearchService Search { get; set; }
         private EventService Events { get; }
+        private EventBus EventBus { get; }
         private IRelayService Relay { get; set; }
         private IMemoryCache Cache { get; set; } = new MemoryCache(new MemoryCacheOptions());
         private IEnumerable<Regex> CompiledSearchResponseFilters { get; set; }
@@ -940,6 +943,16 @@ namespace slskd
 
         private void Client_PrivateMessageReceived(object sender, PrivateMessageReceivedEventArgs args)
         {
+            if (!args.Replayed)
+            {
+                EventBus.Raise(new PrivateMessageReceivedEvent
+                {
+                    Username = args.Username,
+                    Message = args.Message,
+                    Blacklisted = Users.IsBlacklisted(args.Username),
+                });
+            }
+
             if (Users.IsBlacklisted(args.Username))
             {
                 Log.Debug("Ignored private message from blacklisted user {Username}: {Message}", args.Username, args.Message);
@@ -956,6 +969,14 @@ namespace slskd
 
         private void Client_PublicChatMessageReceived(object sender, PublicChatMessageReceivedEventArgs args)
         {
+            EventBus.Raise(new PublicChatMessageReceivedEvent
+            {
+                RoomName = args.RoomName,
+                Username = args.Username,
+                Message = args.Message,
+                Blacklisted = Users.IsBlacklisted(args.Username),
+            });
+
             if (Users.IsBlacklisted(args.Username))
             {
                 Log.Debug("Ignored public chat message from blacklisted user {Username}: {Message}", args.Username, args.Message);
@@ -972,6 +993,14 @@ namespace slskd
 
         private void Client_RoomMessageReceived(object sender, RoomMessageReceivedEventArgs args)
         {
+            EventBus.Raise(new RoomMessageReceivedEvent
+            {
+                RoomName = args.RoomName,
+                Username = args.Username,
+                Message = args.Message,
+                Blacklisted = Users.IsBlacklisted(args.Username),
+            });
+
             // note: this event is also subscribed in the RoomService class
             if (Users.IsBlacklisted(args.Username))
             {
