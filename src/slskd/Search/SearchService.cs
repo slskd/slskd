@@ -266,7 +266,7 @@ namespace slskd.Search
                         // this logic is executed by Soulseek.NET upon each transition of the searcn, including the final
                         // transition to Completed. if for some reason something goes wrong, we won't see the final Completed
                         // transition, we should instead see the task below throw, in which case it will become
-                        // faulted and we'll set the Completed flag manually in the ContinueWith() block
+                        // faulted and we'll set the Completed flag manually in the catch block
                         search = search.WithSoulseekSearch(args.Search);
                         Update(search);
 
@@ -328,6 +328,7 @@ namespace slskd.Search
                             search.State = SearchStates.Completed | SearchStates.Errored;
                         }
 
+                        // todo: remove this once we're sure the problem is fixed
                         if (!search.State.HasFlag(SearchStates.Completed))
                         {
                             Log.Warning("Gotcha! Search for '{Search}' concluded without the Completed flag. Time is now {Timestamp}. States: {States}", query.SearchText, DateTime.UtcNow, stateTransitions);
