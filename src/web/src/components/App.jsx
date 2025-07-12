@@ -43,6 +43,7 @@ const initialState = {
 };
 
 const ModeSpecificConnectButton = ({
+  connectionWatchdog,
   controller = {},
   mode,
   pendingReconnect,
@@ -85,45 +86,62 @@ const ModeSpecificConnectButton = ({
       </Menu.Item>
     );
   } else {
-    return (
-      <>
-        {server?.isConnected && (
-          <Menu.Item onClick={() => disconnect()}>
-            <Icon.Group className="menu-icon-group">
-              <Icon
-                color={pendingReconnect ? 'yellow' : 'green'}
-                name="plug"
-              />
-              {user?.privileges?.isPrivileged && (
-                <Icon
-                  className="menu-icon-no-shadow"
-                  color="yellow"
-                  corner
-                  name="star"
-                />
-              )}
-            </Icon.Group>
-            Connected
-          </Menu.Item>
-        )}
-        {!server?.isConnected && (
-          <Menu.Item onClick={() => connect()}>
-            <Icon.Group className="menu-icon-group">
-              <Icon
-                color="grey"
-                name="plug"
-              />
+    if (server?.isConnected) {
+      return (
+        <Menu.Item onClick={() => disconnect()}>
+          <Icon.Group className="menu-icon-group">
+            <Icon
+              color={pendingReconnect ? 'yellow' : 'green'}
+              name="plug"
+            />
+            {user?.privileges?.isPrivileged && (
               <Icon
                 className="menu-icon-no-shadow"
-                color="red"
-                corner="bottom right"
-                name="close"
+                color="yellow"
+                corner
+                name="star"
               />
-            </Icon.Group>
-            Disconnected
-          </Menu.Item>
-        )}
-      </>
+            )}
+          </Icon.Group>
+          Connected
+        </Menu.Item>
+      );
+    }
+
+    // the server is disconnected, and we need to give the user some information about what the client is doing
+    // options are:
+    // - nothing. the client was manually disconnected, kicked off by another login, etc., and we're not trying to connect
+    // - actively trying to make a connection to the server
+    // - still trying to connect, but waiting for the next connection attempt
+    let icon = 'close';
+    let color = 'red';
+
+    if (connectionWatchdog?.isAttemptingConnection) {
+      icon = 'clock';
+      color = 'yellow';
+    }
+
+    if (server?.isConnecting || server?.IsLoggingIn) {
+      icon = 'sync alternate loading';
+      color = 'green';
+    }
+
+    return (
+      <Menu.Item onClick={() => connect()}>
+        <Icon.Group className="menu-icon-group">
+          <Icon
+            color="grey"
+            name="plug"
+          />
+          <Icon
+            className="menu-icon-no-shadow"
+            color={color}
+            corner="bottom right"
+            name={icon}
+          />
+        </Icon.Group>
+        Disconnected
+      </Menu.Item>
     );
   }
 };
@@ -264,6 +282,7 @@ class App extends Component {
           : 'light'),
     } = this.state;
     const {
+      connectionWatchdog = {},
       pendingReconnect,
       pendingRestart,
       relay = {},
@@ -409,6 +428,7 @@ class App extends Component {
                 Theme
               </Menu.Item>
               <ModeSpecificConnectButton
+                connectionWatchdog={connectionWatchdog}
                 controller={controller}
                 mode={mode}
                 pendingReconnect={pendingReconnect}
