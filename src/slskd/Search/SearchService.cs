@@ -257,6 +257,7 @@ namespace slskd.Search
                 // initialize the list of responses that we'll use to accumulate them
                 // populated by the responseHandler we pass to SearchAsync
                 List<SearchResponse> responses = new();
+                List<(SearchStates State, DateTime Timestamp, string Source)> stateTransitions = new();
 
                 options ??= new SearchOptions();
                 options = options.WithActions(
@@ -268,6 +269,8 @@ namespace slskd.Search
                         // faulted and we'll set the Completed flag manually in the ContinueWith() block
                         search = search.WithSoulseekSearch(args.Search);
                         Update(search);
+
+                        stateTransitions.Add((args.Search.State, DateTime.UtcNow, "StateChangedDelegate"));
 
                         SearchHub.BroadcastUpdateAsync(search);
 
@@ -287,7 +290,6 @@ namespace slskd.Search
                         // note that we're not actually doing anything with the response here, that's happening in the
                         // response handler. we're only updating counts here.
                         SearchHub.BroadcastUpdateAsync(search);
-                        Update(search);
                     }));
 
                 // initiate the search. this can throw at invocation if there's a problem with
@@ -305,15 +307,17 @@ namespace slskd.Search
                 // update the search record to accurately reflect the final state
                 _ = Task.Run(async () =>
                 {
-                    var soulseekSearch = await soulseekSearchTask;
-                    search = search.WithSoulseekSearch(soulseekSearch);
-
-                    Log.Debug("Search for '{Query}' ended normally (id: {Id})", query, id);
-                }, cancellationToken: cancellationTokenSource.Token)
-                .ContinueWith(async task =>
-                {
                     try
                     {
+                        try
+                        {
+                            var soulseekSearch = await soulseekSearchTask;
+                            stateTransitions.Add((SearchStates.None, DateTime.UtcNow, "Callsite")); // bogus entry to try and capture when it returned
+
+                            search = search.WithSoulseekSearch(soulseekSearch);
+
+                            Log.Debug("Search for '{Query}' ended normally (id: {Id})", query, id);
+                        }
                         catch (OperationCanceledException)
                         {
                             search.State = SearchStates.Completed | SearchStates.Cancelled;
@@ -322,6 +326,12 @@ namespace slskd.Search
                         {
                             Log.Error(ex, "Failed to execute search for '{Query}' (id: {Id}): {Message}", query, id, ex.Message);
                             search.State = SearchStates.Completed | SearchStates.Errored;
+                        }
+
+                        if (!search.State.HasFlag(SearchStates.Completed))
+                        {
+                            Log.Warning("Gotcha! Search for '{Search}' concluded without the Completed flag. Time is now {Timestamp}. States: {States}", query.SearchText, DateTime.UtcNow, stateTransitions);
+                            search.State |= SearchStates.Completed;
                         }
 
                         search.EndedAt = DateTime.UtcNow;
