@@ -35,6 +35,7 @@ namespace slskd
         public bool PendingReconnect { get; init; }
         public bool PendingRestart { get; init; }
         public ServerState Server { get; init; } = new ServerState();
+        public ServerConnectionWatchdogState ConnectionWatchdog { get; init; } = new ServerConnectionWatchdogState();
         public RelayState Relay { get; init; } = new RelayState();
         public UserState User { get; init; } = new UserState();
         public DistributedNetworkState DistributedNetwork { get; init; } = new DistributedNetworkState();
@@ -61,8 +62,17 @@ namespace slskd
         public IPEndPoint IPEndPoint { get; init; }
         public SoulseekClientStates State { get; init; }
         public bool IsConnected => State.HasFlag(SoulseekClientStates.Connected);
+        public bool IsConnecting => State.HasFlag(SoulseekClientStates.Connecting);
         public bool IsLoggedIn => State.HasFlag(SoulseekClientStates.LoggedIn);
+        public bool IsLoggingIn => State.HasFlag(SoulseekClientStates.LoggingIn);
         public bool IsTransitioning => State.HasFlag(SoulseekClientStates.Connecting) || State.HasFlag(SoulseekClientStates.Disconnecting) || State.HasFlag(SoulseekClientStates.LoggingIn);
+    }
+
+    public record ServerConnectionWatchdogState
+    {
+        public bool IsEnabled { get; init; } = false;
+        public bool IsAttemptingConnection { get; init; } = false;
+        public DateTime? NextAttemptAt { get; init; }
     }
 
     public record RelayState
