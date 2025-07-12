@@ -318,8 +318,9 @@ namespace slskd.Search
                         {
                             search.State = SearchStates.Completed | SearchStates.Cancelled;
                         }
+                        catch (Exception ex)
                         {
-                            Log.Error(task.Exception, "Failed to execute search for '{Query}' (id: {Id}): {Message}", query, id, task.Exception?.Message ?? "Task completed in Faulted state, but there is no Exception");
+                            Log.Error(ex, "Failed to execute search for '{Query}' (id: {Id}): {Message}", query, id, ex.Message);
                             search.State = SearchStates.Completed | SearchStates.Errored;
                         }
 
