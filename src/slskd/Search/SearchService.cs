@@ -267,8 +267,9 @@ namespace slskd.Search
                         // transition, we should instead see the task below throw, in which case it will become
                         // faulted and we'll set the Completed flag manually in the ContinueWith() block
                         search = search.WithSoulseekSearch(args.Search);
-                        SearchHub.BroadcastUpdateAsync(search);
                         Update(search);
+
+                        SearchHub.BroadcastUpdateAsync(search);
 
                         Log.Debug("Search for '{Query}' state changed: {State} (id: {Id})", query, search.State, id);
                     },
@@ -280,6 +281,8 @@ namespace slskd.Search
                         search.ResponseCount = args.Search.ResponseCount;
                         search.FileCount = args.Search.FileCount;
                         search.LockedFileCount = args.Search.LockedFileCount;
+
+                        Update(search);
 
                         // note that we're not actually doing anything with the response here, that's happening in the
                         // response handler. we're only updating counts here.
