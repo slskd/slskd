@@ -42,15 +42,15 @@ namespace slskd
         /// </summary>
         /// <param name="soulseekClient"></param>
         /// <param name="optionsMonitor"></param>
-        /// <param name="state"></param>
+        /// <param name="applicationState"></param>
         public ConnectionWatchdog(
             ISoulseekClient soulseekClient,
             IOptionsMonitor<Options> optionsMonitor,
-            IStateMonitor<State> state)
+            IManagedState<State> applicationState)
         {
             Client = soulseekClient;
             OptionsMonitor = optionsMonitor;
-            State = state;
+            ApplicationState = applicationState;
 
             WatchdogTimer = new System.Timers.Timer()
             {
@@ -59,7 +59,9 @@ namespace slskd
                 Enabled = false,
             };
 
-            WatchdogTimer.Elapsed += (sender, args) => _ = AttemptReconnect();
+            // the timer is used here to ensure that we keep trying if the connection logic fails for some reason. i'm questioning
+            // this at the moment and may continue to do so
+            WatchdogTimer.Elapsed += (sender, args) => _ = AttemptConnection(source: nameof(WatchdogTimer));
 
             OptionsMonitor.OnChange(options => OptionsChanged(options));
         }
@@ -69,12 +71,18 @@ namespace slskd
         /// </summary>
         public bool IsEnabled => WatchdogTimer.Enabled;
 
+        /// <summary>
+        ///     Gets a value indicating whether the watchdog is actively attempting to connect.
+        /// </summary>
+        public bool IsAttemptingConnection => SyncRoot.CurrentCount == 0;
+
         private ISoulseekClient Client { get; }
         private bool Disposed { get; set; }
         private ILogger Log { get; } = Serilog.Log.ForContext<Application>();
         private IOptionsMonitor<Options> OptionsMonitor { get; set; }
-        private IStateMonitor<State> State { get; }
+        private IManagedState<State> ApplicationState { get; }
         private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1, 1);
+        private object StateLock { get; } = new object();
         private System.Timers.Timer WatchdogTimer { get; }
         private CancellationTokenSource CancellationTokenSource { get; set; }
 
@@ -94,10 +102,11 @@ namespace slskd
         public virtual void Start()
         {
             WatchdogTimer.Enabled = true;
+            UpdateApplicationState();
 
             // note: this is synchronized so only 1 can run at a time. we're only calling it here to avoid the
             // initial timer tick duration
-            _ = AttemptReconnect(attempts: 0);
+            _ = AttemptConnection(source: nameof(Start));
         }
 
         /// <summary>
@@ -126,6 +135,7 @@ namespace slskd
         {
             // stop the timer first to avoid having it start the connection process again when the cts is cancelled
             WatchdogTimer.Enabled = false;
+            UpdateApplicationState();
 
             // note: the connect event fires before the connection logic is complete, so there is a chain of events
             // that leads to the application being connected and then immediately disconnected if this CTS is cancelled
@@ -164,6 +174,22 @@ namespace slskd
             }
         }
 
+        private void UpdateApplicationState(DateTime? nextAttemptAt = null)
+        {
+            lock (StateLock)
+            {
+                ApplicationState.SetValue(state => state with
+                {
+                    ConnectionWatchdog = new ServerConnectionWatchdogState()
+                    {
+                        IsEnabled = IsEnabled,
+                        IsAttemptingConnection = IsAttemptingConnection,
+                        NextAttemptAt = IsAttemptingConnection ? nextAttemptAt ?? state.ConnectionWatchdog.NextAttemptAt : null, // only null this if we're not attempting, otherwise it sticks
+                    },
+                });
+            }
+        }
+
         private void OptionsChanged(Options options)
         {
             // it's possible that a user begins changing connection settings in an attempt to get the client to connect
@@ -175,7 +201,7 @@ namespace slskd
             }
         }
 
-        private async Task AttemptReconnect(int attempts = 1)
+        private async Task AttemptConnection(string source)
         {
             // semaphore is obtained here and released only when the reconnect attempt is complete, so
             // one and only one invocation of this can run at a time
@@ -183,6 +209,8 @@ namespace slskd
             {
                 try
                 {
+                    Log.Debug("AttemptConnection initiated by {Source}", source);
+
                     /*
                         go until we connect and break, or something stops the watchdog. why don't we just use the timer here?
                         good question. we could, but a loop gives us more control and precision.  at the expensive of needing to
@@ -191,14 +219,15 @@ namespace slskd
                         things that can cause us to exit this loop:
                         - the timer being disabled, which will exit whenever the while expression is evaluated. any Task.Delay or connection attempt will keep going (this is more of a backstop)
                         - CancellationTokenSource being tripped, which will throw TaskCanceledException or OperationCanceledException somewhere
-                        - a successful connection
+                        - a successful connection OR the server becomes connected another way
                     */
+                    int attempts = 0;
 
                     while (IsEnabled)
                     {
                         // bail out if we're already connected. it's possible that something else outside of the watchdog
                         // connects the client. highly unlikely but that might change if someone inadvertently adds some logic.
-                        if (State.CurrentValue.Server.IsConnected)
+                        if (ApplicationState.CurrentValue.Server.IsConnected)
                         {
                             return;
                         }
@@ -213,13 +242,17 @@ namespace slskd
 
                             var approximateDelay = (int)Math.Ceiling((double)(delay + jitter) / 1000);
                             Log.Information($"Waiting about {(approximateDelay == 1 ? "a second" : $"{approximateDelay} seconds")} before attempting to reconnect");
+
+                            UpdateApplicationState(nextAttemptAt: DateTime.UtcNow.AddMilliseconds(delay + jitter));
+
                             await Task.Delay(delay + jitter, cancellationToken: CancellationTokenSource?.Token ?? CancellationToken.None);
 
-                            Log.Information("Attempting to reconnect to the Soulseek server (#{Attempts})...", attempts);
+                            Log.Information("Attempting to connect to the Soulseek server (#{Attempts})...", attempts);
                         }
                         else
                         {
                             Log.Information("Attempting to connect to the Soulseek server...");
+                            UpdateApplicationState(nextAttemptAt: DateTime.UtcNow);
                         }
 
                         try
@@ -277,6 +310,9 @@ namespace slskd
                     }
 
                     SyncRoot.Release();
+
+                    // do this after the semaphore is released so that IsAttemptingConnection is false and the next attempt is nulled
+                    UpdateApplicationState();
                 }
             }
         }
