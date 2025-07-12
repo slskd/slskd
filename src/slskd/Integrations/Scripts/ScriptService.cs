@@ -22,6 +22,9 @@ namespace slskd.Integrations.Scripts;
 using System;
 using System.Diagnostics;
 using System.Linq;
+using System.Text.Encodings.Web;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Serilog;
@@ -36,6 +39,15 @@ public class ScriptService
     {
         Events = eventBus;
         OptionsMonitor = optionsMonitor;
+
+        var json = new JsonSerializerOptions();
+        json.Converters.Add(new IPAddressConverter());
+        json.Converters.Add(new JsonStringEnumConverter());
+        json.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+        json.DefaultIgnoreCondition = JsonIgnoreCondition.Never; // include properties with null values
+        json.Encoder = JavaScriptEncoder.Default; // IMPORTANT! don't change this to 'UnsafeRelaxedJsonEscaping'; as the name implies, it's unsafe!
+
+        JsonSerializerOptions = json;
 
         Events.Subscribe<Event>(nameof(ScriptService), HandleEvent);
 
@@ -64,6 +76,7 @@ public class ScriptService
     private EventBus Events { get; }
     private string DefaultExecutable { get; }
     private string DefaultCommandPrefix { get; }
+    private JsonSerializerOptions JsonSerializerOptions { get; }
 
     private async Task HandleEvent(Event data)
     {
@@ -167,7 +180,11 @@ public class ScriptService
                     Log.Debug("Running script '{Script}': \"{Executable}\" {Args} (id: {ProcessId})", script.Key, executable, run.Args ?? string.Join(' ', run.Arglist ?? []), processId);
                     var sw = Stopwatch.StartNew();
 
-                    process.StartInfo.EnvironmentVariables["SLSKD_SCRIPT_DATA"] = data.ToJson();
+                    process.StartInfo.EnvironmentVariables["SLSKD_SCRIPT_DATA"] = JsonSerializer.Serialize(
+                        value: data,
+                        inputType: data.GetType(), // if omitted object is serialized as EventType, losing everything else
+                        options: JsonSerializerOptions);
+
                     process.Start();
 
                     process.WaitForExit();

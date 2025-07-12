@@ -25,6 +25,9 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Text;
+using System.Text.Encodings.Web;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Serilog;
 using slskd.Events;
@@ -40,6 +43,15 @@ public class WebhookService
         OptionsMonitor = optionsMonitor;
         HttpClientFactory = httpClientFactory;
 
+        var json = new JsonSerializerOptions();
+        json.Converters.Add(new IPAddressConverter());
+        json.Converters.Add(new JsonStringEnumConverter());
+        json.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+        json.DefaultIgnoreCondition = JsonIgnoreCondition.Never; // include properties with null values
+        json.Encoder = JavaScriptEncoder.Default; // IMPORTANT! don't change this to 'UnsafeRelaxedJsonEscaping'; as the name implies, it's unsafe!
+
+        JsonSerializerOptions = json;
+
         Events.Subscribe<Event>(nameof(WebhookService), HandleEvent);
 
         Log.Debug("{Service} initialized", nameof(WebhookService));
@@ -49,6 +61,7 @@ public class WebhookService
     private IOptionsMonitor<Options> OptionsMonitor { get; }
     private EventBus Events { get; }
     private IHttpClientFactory HttpClientFactory { get; }
+    private JsonSerializerOptions JsonSerializerOptions { get; }
 
     private async Task HandleEvent(Event data)
     {
@@ -80,7 +93,13 @@ public class WebhookService
                     http.DefaultRequestHeaders.TryAddWithoutValidation(header.Name, header.Value);
                 }
 
-                var content = new StringContent(data.ToJson(), Encoding.UTF8, "application/json");
+                var content = new StringContent(
+                    content: JsonSerializer.Serialize(
+                        value: data,
+                        inputType: data.GetType(), // if omitted object is serialized as EventType, losing everything else
+                        options: JsonSerializerOptions),
+                    encoding: Encoding.UTF8,
+                    mediaType: "application/json");
 
                 HttpStatusCode? statusCode = null;
 

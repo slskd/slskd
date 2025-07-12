@@ -67,6 +67,8 @@ public static class SchemaInspector
                 dict[table] = columns;
             }
 
+            connection.Close();
+
             return dict;
         }
         catch (Exception ex)
@@ -76,7 +78,62 @@ public static class SchemaInspector
     }
 
     /// <summary>
+    ///     Retrieves the index information for the specified SQLite database.
+    /// </summary>
+    /// <param name="connectionString">The connection string for the database.</param>
+    /// <returns>The index information.</returns>
+    /// <exception cref="SlskdException">Thrown if the database can't be accessed, or something else goes wrong.</exception>
+    public static Dictionary<string, IEnumerable<IndexInfo>> GetDatabaseIndexes(string connectionString)
+    {
+        try
+        {
+            using var connection = new SqliteConnection(connectionString);
+            connection.Open();
+
+            var dict = new Dictionary<string, IEnumerable<IndexInfo>>();
+
+            using var tableCommand = new SqliteCommand("SELECT name FROM sqlite_master WHERE type='table';", connection);
+            using var tableReader = tableCommand.ExecuteReader();
+
+            while (tableReader.Read())
+            {
+                var table = tableReader.GetString(0);
+
+                var indexes = new List<IndexInfo>();
+
+                using var command = new SqliteCommand($"PRAGMA index_list({table});", connection);
+                using var cr = command.ExecuteReader();
+
+                while (cr.Read())
+                {
+                    indexes.Add(new IndexInfo(
+                        Seq: cr.GetInt64(cr.GetOrdinal("seq")),
+                        Name: cr.GetString(cr.GetOrdinal("name")),
+                        Unique: cr.GetInt64(cr.GetOrdinal("unique")) > 0,
+                        Origin: cr.GetString(cr.GetOrdinal("origin")),
+                        Partial: cr.GetInt64(cr.GetOrdinal("partial")) > 0));
+                }
+
+                dict[table] = indexes;
+            }
+
+            connection.Close();
+
+            return dict;
+        }
+        catch (Exception ex)
+        {
+            throw new SlskdException($"Failed to retrieve index information for database '{connectionString}'. The database might be corrupt or in use by another application; if the problem persists the backing file may need to be deleted", ex);
+        }
+    }
+
+    /// <summary>
     ///     Represents a SQLite database column.
     /// </summary>
     public record ColumnInfo(long Cid, string Name, string Type, bool NotNull, object DefaultValue, bool PrimaryKey);
+
+    /// <summary>
+    ///     Represents a SQLite database index.
+    /// </summary>
+    public record IndexInfo(long Seq, string Name, bool Unique, string Origin, bool Partial);
 }
