@@ -311,11 +311,10 @@ namespace slskd.Search
                 {
                     try
                     {
-                        // the only way we should ever get to this point is if we encounter an error sending the search
-                        // request to the server (timeout, cancelled) or hit some highly improbable error within Soulseek.NET,
-                        // potentially OOM or something. in these cases the task will throw and we need to force the
-                        // search record into Errored state.
-                        if (task.IsFaulted)
+                        catch (OperationCanceledException)
+                        {
+                            search.State = SearchStates.Completed | SearchStates.Cancelled;
+                        }
                         {
                             Log.Error(task.Exception, "Failed to execute search for '{Query}' (id: {Id}): {Message}", query, id, task.Exception?.Message ?? "Task completed in Faulted state, but there is no Exception");
                             search.State = SearchStates.Completed | SearchStates.Errored;
