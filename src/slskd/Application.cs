@@ -992,8 +992,8 @@ namespace slskd
             {
                 Server = state.Server with
                 {
-                    Address = Client.Address,
-                    IPEndPoint = Client.IPEndPoint,
+                    Address = Client.State.HasFlag(SoulseekClientStates.Disconnected) ? null : Client.Address,
+                    IPEndPoint = Client.State.HasFlag(SoulseekClientStates.Disconnected) ? default : Client.IPEndPoint,
                     State = Client.State,
                 },
                 User = state.User with
