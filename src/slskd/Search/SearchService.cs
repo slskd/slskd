@@ -342,7 +342,7 @@ namespace slskd.Search
                         rateLimiter.Dispose();
                         CancellationTokens.TryRemove(id, out _);
                     }
-                });
+                }, cancellationToken: cancellationTokenSource.Token);
 
                 // broadcast and return the _newly created_ search; it will continue to be updated in the background
                 await SearchHub.BroadcastUpdateAsync(search);
