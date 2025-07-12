@@ -808,8 +808,9 @@ namespace slskd
         {
             static LogEventLevel TranslateLogLevel(DiagnosticLevel diagnosticLevel) => diagnosticLevel switch
             {
+                DiagnosticLevel.Trace => LogEventLevel.Verbose,
                 DiagnosticLevel.Debug => LogEventLevel.Debug,
-                DiagnosticLevel.Info => LogEventLevel.Debug,
+                DiagnosticLevel.Info => LogEventLevel.Information,
                 DiagnosticLevel.Warning => LogEventLevel.Warning,
                 DiagnosticLevel.None => default,
                 _ => default,
