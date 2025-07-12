@@ -26,38 +26,14 @@ namespace slskd
     using Soulseek;
 
     /// <summary>
-    ///     Monitors the connection to the Soulseek server and reconnects with exponential backoff, if necessary.
-    /// </summary>
-    public interface IConnectionWatchdog : IDisposable
-    {
-        /// <summary>
-        ///     Gets a value indicating whether the watchdog is monitoring the server connection.
-        /// </summary>
-        bool IsEnabled { get; }
-
-        /// <summary>
-        ///     Initializes the watchdog and makes the initial connection to the server.
-        /// </summary>
-        /// <remarks>This should be called at application startup.</remarks>
-        void Start();
-
-        /// <summary>
-        ///     Starts monitoring the server connection following a disconnect.
-        /// </summary>
-        /// <remarks>This should be called when the connection is disconnected.</remarks>
-        void Restart();
-
-        /// <summary>
-        ///     Stops monitoring the server connection.
-        /// </summary>
-        /// <remarks>This should be called when the application is reasonably certain that the connection is connected.</remarks>
-        void Stop();
-    }
-
-    /// <summary>
     ///     Monitors the connection to the Soulseek network and reconnects with exponential backoff, if necessary.
     /// </summary>
-    public class ConnectionWatchdog : IConnectionWatchdog
+    /// <remarks>
+    ///     This class is intended to be Start()ed either at application startup or when the connection is disconnected, and
+    ///     Stop()ed when the application is connected again; it doesn't "run" all the time because there are cases where
+    ///     a user has manually disconnected, was kicked by another login somewhere, etc. where we don't want to reconnect.
+    /// </remarks>
+    public class ConnectionWatchdog
     {
         private static readonly int ReconnectMaxDelayMilliseconds = 300000; // 5 minutes
 
@@ -66,15 +42,15 @@ namespace slskd
         /// </summary>
         /// <param name="soulseekClient"></param>
         /// <param name="optionsMonitor"></param>
-        /// <param name="state"></param>
+        /// <param name="applicationState"></param>
         public ConnectionWatchdog(
             ISoulseekClient soulseekClient,
             IOptionsMonitor<Options> optionsMonitor,
-            IStateMonitor<State> state)
+            IManagedState<State> applicationState)
         {
             Client = soulseekClient;
-            Options = optionsMonitor;
-            State = state;
+            OptionsMonitor = optionsMonitor;
+            ApplicationState = applicationState;
 
             WatchdogTimer = new System.Timers.Timer()
             {
@@ -83,7 +59,11 @@ namespace slskd
                 Enabled = false,
             };
 
-            WatchdogTimer.Elapsed += (sender, args) => _ = AttemptReconnect();
+            // the timer is used here to ensure that we keep trying if the connection logic fails for some reason. i'm questioning
+            // this at the moment and may continue to do so
+            WatchdogTimer.Elapsed += (sender, args) => _ = AttemptConnection(source: nameof(WatchdogTimer));
+
+            OptionsMonitor.OnChange(options => OptionsChanged(options));
         }
 
         /// <summary>
@@ -91,13 +71,20 @@ namespace slskd
         /// </summary>
         public bool IsEnabled => WatchdogTimer.Enabled;
 
+        /// <summary>
+        ///     Gets a value indicating whether the watchdog is actively attempting to connect.
+        /// </summary>
+        public bool IsAttemptingConnection => SyncRoot.CurrentCount == 0;
+
         private ISoulseekClient Client { get; }
         private bool Disposed { get; set; }
         private ILogger Log { get; } = Serilog.Log.ForContext<Application>();
-        private IOptionsMonitor<Options> Options { get; set; }
-        private IStateMonitor<State> State { get; }
+        private IOptionsMonitor<Options> OptionsMonitor { get; set; }
+        private IManagedState<State> ApplicationState { get; }
         private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1, 1);
+        private object StateLock { get; } = new object();
         private System.Timers.Timer WatchdogTimer { get; }
+        private CancellationTokenSource CancellationTokenSource { get; set; }
 
         /// <summary>
         ///     Disposes this instance.
@@ -112,27 +99,60 @@ namespace slskd
         ///     Initializes the watchdog and makes the initial connection to the server.
         /// </summary>
         /// <remarks>This should be called at application startup.</remarks>
-        public void Start()
+        public virtual void Start()
         {
             WatchdogTimer.Enabled = true;
-            _ = AttemptReconnect(attempts: 0);
+            UpdateApplicationState();
+
+            // note: this is synchronized so only 1 can run at a time. we're only calling it here to avoid the
+            // initial timer tick duration
+            _ = AttemptConnection(source: nameof(Start));
         }
 
         /// <summary>
-        ///     Starts monitoring the server connection.
+        ///     Stops the watchdog and aborts any active reconnection loop, then starts again.
         /// </summary>
-        /// <remarks>This should be called when the connection is disconnected.</remarks>
-        public void Restart()
+        /// <remarks>
+        ///     This should be called when we have a reason to restart an in-process retry loop, such as a setting change,
+        ///     user request, etc.
+        /// </remarks>
+        public virtual void Restart()
         {
-            WatchdogTimer.Enabled = true;
-            _ = AttemptReconnect(attempts: 1);
+            if (IsEnabled)
+            {
+                Log.Information("(Re)connection process restarted");
+                Stop(abortReconnect: true);
+                Start();
+            }
         }
 
         /// <summary>
         ///     Stops monitoring the server connection.
         /// </summary>
+        /// <param name="abortReconnect">A value indicating whether to abort an ongoing reconnect attempt.</param>
         /// <remarks>This should be called when the application is reasonably certain that the connection is connected.</remarks>
-        public void Stop() => WatchdogTimer.Enabled = false;
+        public virtual void Stop(bool abortReconnect = false)
+        {
+            // stop the timer first to avoid having it start the connection process again when the cts is cancelled
+            WatchdogTimer.Enabled = false;
+            UpdateApplicationState();
+
+            // note: the connect event fires before the connection logic is complete, so there is a chain of events
+            // that leads to the application being connected and then immediately disconnected if this CTS is cancelled
+            // when the watchdog is stopped due to sucessful connection. pass the cancelReconnect flag only when the user
+            // wants to abort the reconnect logic.
+            if (abortReconnect)
+            {
+                try
+                {
+                    CancellationTokenSource?.Cancel(throwOnFirstException: false);
+                }
+                catch (Exception)
+                {
+                    // noop. Cancel() can throw if registered callbacks throw, but we don't have any right now and we don't care anyway
+                }
+            }
+        }
 
         /// <summary>
         ///     Disposes this instance.
@@ -140,30 +160,80 @@ namespace slskd
         /// <param name="disposing"></param>
         protected virtual void Dispose(bool disposing)
         {
+            Stop(abortReconnect: true);
+
             if (!Disposed)
             {
                 if (disposing)
                 {
                     WatchdogTimer?.Dispose();
+                    CancellationTokenSource?.Dispose();
                 }
 
                 Disposed = true;
             }
         }
 
-        private async Task AttemptReconnect(int attempts = 1)
+        private void UpdateApplicationState(DateTime? nextAttemptAt = null)
         {
+            lock (StateLock)
+            {
+                ApplicationState.SetValue(state => state with
+                {
+                    ConnectionWatchdog = new ServerConnectionWatchdogState()
+                    {
+                        IsEnabled = IsEnabled,
+                        IsAttemptingConnection = IsAttemptingConnection,
+                        NextAttemptAt = IsAttemptingConnection ? nextAttemptAt ?? state.ConnectionWatchdog.NextAttemptAt : null, // only null this if we're not attempting, otherwise it sticks
+                    },
+                });
+            }
+        }
+
+        private void OptionsChanged(Options options)
+        {
+            // it's possible that a user begins changing connection settings in an attempt to get the client to connect
+            // if they edit the options _at all_, assume this is the case and restart the retry loop from the beginning
+            if (IsEnabled)
+            {
+                Log.Information("Options changed, restarting (re)connection process...");
+                Restart();
+            }
+        }
+
+        private async Task AttemptConnection(string source)
+        {
+            // semaphore is obtained here and released only when the reconnect attempt is complete, so
+            // one and only one invocation of this can run at a time
             if (await SyncRoot.WaitAsync(0))
             {
                 try
                 {
-                    if (State.CurrentValue.Server.IsConnected)
-                    {
-                        return;
-                    }
+                    Log.Debug("AttemptConnection initiated by {Source}", source);
 
-                    while (true)
+                    /*
+                        go until we connect and break, or something stops the watchdog. why don't we just use the timer here?
+                        good question. we could, but a loop gives us more control and precision.  at the expensive of needing to
+                        break out of it if a user wants to stop or reset.  reevaluate later!
+
+                        things that can cause us to exit this loop:
+                        - the timer being disabled, which will exit whenever the while expression is evaluated. any Task.Delay or connection attempt will keep going (this is more of a backstop)
+                        - CancellationTokenSource being tripped, which will throw TaskCanceledException or OperationCanceledException somewhere
+                        - a successful connection OR the server becomes connected another way
+                    */
+                    int attempts = 0;
+
+                    while (IsEnabled)
                     {
+                        // bail out if we're already connected. it's possible that something else outside of the watchdog
+                        // connects the client. highly unlikely but that might change if someone inadvertently adds some logic.
+                        if (ApplicationState.CurrentValue.Server.IsConnected)
+                        {
+                            return;
+                        }
+
+                        CancellationTokenSource = new CancellationTokenSource();
+
                         if (attempts > 0)
                         {
                             var (delay, jitter) = Compute.ExponentialBackoffDelay(
@@ -172,13 +242,17 @@ namespace slskd
 
                             var approximateDelay = (int)Math.Ceiling((double)(delay + jitter) / 1000);
                             Log.Information($"Waiting about {(approximateDelay == 1 ? "a second" : $"{approximateDelay} seconds")} before attempting to reconnect");
-                            await Task.Delay(delay + jitter);
 
-                            Log.Information("Attempting to reconnect to the Soulseek server (#{Attempts})...", attempts);
+                            UpdateApplicationState(nextAttemptAt: DateTime.UtcNow.AddMilliseconds(delay + jitter));
+
+                            await Task.Delay(delay + jitter, cancellationToken: CancellationTokenSource?.Token ?? CancellationToken.None);
+
+                            Log.Information("Attempting to connect to the Soulseek server (#{Attempts})...", attempts);
                         }
                         else
                         {
                             Log.Information("Attempting to connect to the Soulseek server...");
+                            UpdateApplicationState(nextAttemptAt: DateTime.UtcNow);
                         }
 
                         try
@@ -186,15 +260,24 @@ namespace slskd
                             // reconnect with the latest configuration values we have for username and password, instead of the
                             // options that were captured at startup. if a user has updated these values prior to the disconnect,
                             // the changes will take effect now.
-                            var opt = Options.CurrentValue.Soulseek;
+                            var opt = OptionsMonitor.CurrentValue.Soulseek;
 
+                            // note: cancelling the CTS before the connect logic is fully complete (e.g. reacting to the connect event)
+                            // will cause the client to connect, then disconnect immediately
                             await Client.ConnectAsync(
                                 address: opt.Address,
                                 port: opt.Port,
                                 username: opt.Username,
-                                password: opt.Password);
+                                password: opt.Password,
+                                cancellationToken: CancellationTokenSource?.Token ?? CancellationToken.None);
 
                             break;
+                        }
+                        catch (Exception ex) when (ex is TaskCanceledException || ex is OperationCanceledException)
+                        {
+                            Log.Information("Reconnection attempt cancelled");
+                            Log.Debug(ex, "ConnectAsync() threw {Exception}", ex);
+                            return;
                         }
                         catch (Exception ex)
                         {
@@ -203,9 +286,33 @@ namespace slskd
                         }
                     }
                 }
+                catch (Exception ex) when (ex is TaskCanceledException || ex is OperationCanceledException)
+                {
+                    Log.Information("Reconnection attempt cancelled");
+                    Log.Debug(ex, "Reconnect logic threw {Exception}", ex);
+                }
+                catch (Exception ex)
+                {
+                    Log.Warning(ex, "Reconnect attempt failed: {Message}", ex.Message);
+                }
                 finally
                 {
+                    var cts = CancellationTokenSource;
+                    CancellationTokenSource = null;
+
+                    try
+                    {
+                        cts?.Dispose();
+                    }
+                    catch (Exception)
+                    {
+                        // noop. i don't think this can throw, but if we fail to release the SyncRoot we'll be in trouble.
+                    }
+
                     SyncRoot.Release();
+
+                    // do this after the semaphore is released so that IsAttemptingConnection is false and the next attempt is nulled
+                    UpdateApplicationState();
                 }
             }
         }

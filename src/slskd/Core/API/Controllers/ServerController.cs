@@ -19,9 +19,9 @@ using Microsoft.Extensions.Options;
 
 namespace slskd.Core.API
 {
-    using System.Threading.Tasks;
     using Asp.Versioning;
     using Microsoft.AspNetCore.Authorization;
+    using Microsoft.AspNetCore.Http;
     using Microsoft.AspNetCore.Mvc;
     using Soulseek;
 
@@ -37,15 +37,18 @@ namespace slskd.Core.API
     {
         public ServerController(
             ISoulseekClient soulseekClient,
+            ConnectionWatchdog connectionWatchdog,
             IOptionsSnapshot<Options> optionsSnapshot,
             IStateSnapshot<State> stateSnapshot)
         {
             Client = soulseekClient;
+            ConnectionWatchdog = connectionWatchdog;
             OptionsSnapshot = optionsSnapshot;
             StateSnapshot = stateSnapshot;
         }
 
         private ISoulseekClient Client { get; }
+        private ConnectionWatchdog ConnectionWatchdog { get; }
         private IOptionsSnapshot<Options> OptionsSnapshot { get; }
         private IStateSnapshot<State> StateSnapshot { get; }
 
@@ -57,23 +60,28 @@ namespace slskd.Core.API
         [Route("")]
         [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(200)]
+        [ProducesResponseType(StatusCodes.Status205ResetContent)]
         [ProducesResponseType(403)]
-        public async Task<IActionResult> Connect()
+        public IActionResult Connect()
         {
             if (Program.IsRelayAgent)
             {
                 return Forbid();
             }
 
-            if (!Client.State.HasFlag(SoulseekClientStates.Connected))
+            // if the watchdog is already enabled, we're already attempting to connect. the user might have changed something
+            // or perhaps is just being impatient; either way, restart the retry loop so they can see results faster
+            // remember, we may be in a ~5 minute delay at this moment
+            if (ConnectionWatchdog.IsEnabled)
             {
-                var opt = OptionsSnapshot.Value.Soulseek;
+                ConnectionWatchdog.Restart();
+                return StatusCode(StatusCodes.Status205ResetContent);
+            }
 
-                await Client.ConnectAsync(
-                    address: opt.Address,
-                    port: opt.Port,
-                    username: opt.Username,
-                    password: opt.Password);
+            if (!ConnectionWatchdog.IsEnabled)
+            {
+                ConnectionWatchdog.Start();
+                return Ok();
             }
 
             return Ok();
@@ -96,8 +104,13 @@ namespace slskd.Core.API
                 return Forbid();
             }
 
+            // stop the watchdog so that it will exit any retry logic
+            ConnectionWatchdog.Stop(abortReconnect: true);
+
             if (Client.State.HasFlag(SoulseekClientStates.Connected))
             {
+                // the IntentionalDisconnectException is used to indicate that the disconnect was intentional, which
+                // prevents the watchdog from trying to reconnect
                 Client.Disconnect(message, new IntentionalDisconnectException(message));
             }
 

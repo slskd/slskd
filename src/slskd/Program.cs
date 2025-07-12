@@ -592,7 +592,7 @@ namespace slskd
             services.AddHostedService(p => p.GetRequiredService<IApplication>());
 
             services.AddSingleton<IWaiter, Waiter>();
-            services.AddSingleton<IConnectionWatchdog, ConnectionWatchdog>();
+            services.AddSingleton<ConnectionWatchdog, ConnectionWatchdog>();
 
             if (OptionsAtStartup.Flags.Volatile)
             {
