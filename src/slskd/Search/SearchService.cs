@@ -334,10 +334,12 @@ namespace slskd.Search
                             }
                         }
 
-                        // todo: remove this once we're sure the problem is fixed
+                        // it shouldn't be possible for this to happen, as the StateChanged callback is called before the
+                        // SearchAsync() method returns, and we will have already updated the record at that time. if for
+                        // some extremely odd reason that doesn't happen, make sure the record is persisted the final time
+                        // with the Completed flag set to avoid it getting "stuck"
                         if (!search.State.HasFlag(SearchStates.Completed))
                         {
-                            Log.Warning("Gotcha! Search for '{Search}' concluded without the Completed flag. Time is now {Timestamp}. States: {States}", query.SearchText, DateTime.UtcNow, stateTransitions);
                             search.State |= SearchStates.Completed;
                         }
 
