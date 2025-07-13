@@ -318,14 +318,20 @@ namespace slskd.Search
 
                             Log.Debug("Search for '{Query}' ended normally (id: {Id})", query, id);
                         }
-                        catch (OperationCanceledException)
-                        {
-                            search.State = SearchStates.Completed | SearchStates.Cancelled;
-                        }
                         catch (Exception ex)
                         {
-                            Log.Error(ex, "Failed to execute search for '{Query}' (id: {Id}): {Message}", query, id, ex.Message);
-                            search.State = SearchStates.Completed | SearchStates.Errored;
+                            // OperationCanceledException might be thrown somewhere deeper, and we don't want that to count.
+                            // a search that was actually cancelled by the user will meet the criteria below.
+                            if (ex is OperationCanceledException && cancellationTokenSource.Token.IsCancellationRequested)
+                            {
+                                Log.Information("Search for '{Query}' was cancelled");
+                                search.State = SearchStates.Completed | SearchStates.Cancelled;
+                            }
+                            else
+                            {
+                                Log.Error(ex, "Failed to execute search for '{Query}' (id: {Id}): {Message}", query, id, ex.Message);
+                                search.State = SearchStates.Completed | SearchStates.Errored;
+                            }
                         }
 
                         // todo: remove this once we're sure the problem is fixed
