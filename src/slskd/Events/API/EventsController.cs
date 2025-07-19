@@ -137,6 +137,9 @@ public class EventsController : ControllerBase
                 EventType.DownloadFileComplete => new DownloadFileCompleteEvent { LocalFilename = $"{d}local.file", RemoteFilename = $"{d}remote.file", Transfer = new Transfer() },
                 EventType.DownloadDirectoryComplete => new DownloadDirectoryCompleteEvent { LocalDirectoryName = $"{d}local.directory", RemoteDirectoryName = $"{d}remote.directory", Username = $"{d}username" },
                 EventType.UploadFileComplete => new UploadFileCompleteEvent { LocalFilename = $"{d}local.file", RemoteFilename = $"{d}remote.file", Transfer = new Transfer() },
+                EventType.PrivateMessageReceived => new PrivateMessageReceivedEvent { Username = $"{d}username", Message = $"{d}message", Blacklisted = false },
+                EventType.PublicChatMessageReceived => new PublicChatMessageReceivedEvent { RoomName = $"{d}room", Username = $"{d}username", Message = $"{d}message", Blacklisted = false },
+                EventType.RoomMessageReceived => new RoomMessageReceivedEvent { RoomName = $"{d}room", Username = $"{d}username", Message = $"{d}message", Blacklisted = false },
                 EventType.Noop => new NoopEvent(),
                 _ => throw new SlskdException($"Event type {eventType} is an enum member but is not handled.  Please submit an issue on GitHub."),
             };
