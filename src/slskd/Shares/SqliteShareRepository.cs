@@ -220,7 +220,7 @@ namespace slskd.Shares
 
             if (!reader.Read())
             {
-                Log.Warning("Failed to resolve shared file {Filename}", maskedFilename);
+                Log.Debug("Failed to resolve shared file {Filename}", maskedFilename);
                 return default;
             }
 
