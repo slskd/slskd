@@ -257,7 +257,6 @@ namespace slskd.Search
                 // initialize the list of responses that we'll use to accumulate them
                 // populated by the responseHandler we pass to SearchAsync
                 List<SearchResponse> responses = new();
-                List<(SearchStates State, DateTime Timestamp, string Source)> stateTransitions = new();
 
                 options ??= new SearchOptions();
                 options = options.WithActions(
@@ -269,8 +268,6 @@ namespace slskd.Search
                         // faulted and we'll set the Completed flag manually in the catch block
                         search = search.WithSoulseekSearch(args.Search);
                         Update(search);
-
-                        stateTransitions.Add((args.Search.State, DateTime.UtcNow, "StateChangedDelegate"));
 
                         SearchHub.BroadcastUpdateAsync(search);
 
@@ -312,14 +309,14 @@ namespace slskd.Search
                         try
                         {
                             var soulseekSearch = await soulseekSearchTask;
-                            stateTransitions.Add((SearchStates.None, DateTime.UtcNow, "Callsite")); // bogus entry to try and capture when it returned
-
                             search = search.WithSoulseekSearch(soulseekSearch);
 
                             Log.Debug("Search for '{Query}' ended normally (id: {Id})", query, id);
                         }
                         catch (Exception ex)
                         {
+                            Log.Debug(ex, "Search for '{Query}' threw {Exception}: {Message} (id: {Id})", query, ex.GetType(), ex.Message, id);
+
                             // OperationCanceledException might be thrown somewhere deeper, and we don't want that to count.
                             // a search that was actually cancelled by the user will meet the criteria below.
                             if (ex is OperationCanceledException && cancellationTokenSource.Token.IsCancellationRequested)
@@ -329,7 +326,7 @@ namespace slskd.Search
                             }
                             else
                             {
-                                Log.Error(ex, "Failed to execute search for '{Query}' (id: {Id}): {Message}", query, id, ex.Message);
+                                Log.Error(ex, "Failed to execute search for '{Query}': {Message}", query, ex.Message);
                                 search.State = SearchStates.Completed | SearchStates.Errored;
                             }
                         }
@@ -353,12 +350,12 @@ namespace slskd.Search
                         await SearchHub.BroadcastUpdateAsync(search with { Responses = [] });
 
                         Log.Debug("Search for '{Query}' finalized (id: {Id}): {Search}", query, id, search with { Responses = [] });
+                        Log.Information("Search for '{Query}' completed with {Responses} responses", search.ResponseCount);
                     }
                     catch (Exception ex)
                     {
                         // record may be left 'hanging' and will need to be cleaned up at the next boot; we tried to update but failed
-                        Log.Error(ex, "Failed to finalize search for '{Query}' (id: {Id}): {Message}", query, id, ex.Message);
-                        throw;
+                        Log.Error(ex, "Failed to finalize search for '{Query}': {Message}", query, ex.Message);
                     }
                     finally
                     {
