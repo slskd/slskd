@@ -265,10 +265,11 @@ namespace slskd.Search
                         // this logic is executed by Soulseek.NET upon each transition of the searcn, including the final
                         // transition to Completed. if for some reason something goes wrong, we won't see the final Completed
                         // transition, we should instead see the task below throw, in which case it will become
-                        // faulted and we'll set the Completed flag manually in the ContinueWith() block
+                        // faulted and we'll set the Completed flag manually in the catch block
                         search = search.WithSoulseekSearch(args.Search);
-                        SearchHub.BroadcastUpdateAsync(search);
                         Update(search);
+
+                        SearchHub.BroadcastUpdateAsync(search);
 
                         Log.Debug("Search for '{Query}' state changed: {State} (id: {Id})", query, search.State, id);
                     },
@@ -281,10 +282,11 @@ namespace slskd.Search
                         search.FileCount = args.Search.FileCount;
                         search.LockedFileCount = args.Search.LockedFileCount;
 
+                        Update(search);
+
                         // note that we're not actually doing anything with the response here, that's happening in the
                         // response handler. we're only updating counts here.
                         SearchHub.BroadcastUpdateAsync(search);
-                        Update(search);
                     }));
 
                 // initiate the search. this can throw at invocation if there's a problem with
@@ -302,23 +304,40 @@ namespace slskd.Search
                 // update the search record to accurately reflect the final state
                 _ = Task.Run(async () =>
                 {
-                    var soulseekSearch = await soulseekSearchTask;
-                    search = search.WithSoulseekSearch(soulseekSearch);
-
-                    Log.Debug("Search for '{Query}' ended normally (id: {Id})", query, id);
-                }, cancellationToken: cancellationTokenSource.Token)
-                .ContinueWith(async task =>
-                {
                     try
                     {
-                        // the only way we should ever get to this point is if we encounter an error sending the search
-                        // request to the server (timeout, cancelled) or hit some highly improbable error within Soulseek.NET,
-                        // potentially OOM or something. in these cases the task will throw and we need to force the
-                        // search record into Errored state.
-                        if (task.IsFaulted)
+                        try
                         {
-                            Log.Error(task.Exception, "Failed to execute search for '{Query}' (id: {Id}): {Message}", query, id, task.Exception?.Message ?? "Task completed in Faulted state, but there is no Exception");
-                            search.State = SearchStates.Completed | SearchStates.Errored;
+                            var soulseekSearch = await soulseekSearchTask;
+                            search = search.WithSoulseekSearch(soulseekSearch);
+
+                            Log.Debug("Search for '{Query}' ended normally (id: {Id})", query, id);
+                        }
+                        catch (Exception ex)
+                        {
+                            Log.Debug(ex, "Search for '{Query}' threw {Exception}: {Message} (id: {Id})", query, ex.GetType(), ex.Message, id);
+
+                            // OperationCanceledException might be thrown somewhere deeper, and we don't want that to count.
+                            // a search that was actually cancelled by the user will meet the criteria below.
+                            if (ex is OperationCanceledException && cancellationTokenSource.Token.IsCancellationRequested)
+                            {
+                                Log.Information("Search for '{Query}' was cancelled");
+                                search.State = SearchStates.Completed | SearchStates.Cancelled;
+                            }
+                            else
+                            {
+                                Log.Error(ex, "Failed to execute search for '{Query}': {Message}", query, ex.Message);
+                                search.State = SearchStates.Completed | SearchStates.Errored;
+                            }
+                        }
+
+                        // it shouldn't be possible for this to happen, as the StateChanged callback is called before the
+                        // SearchAsync() method returns, and we will have already updated the record at that time. if for
+                        // some extremely odd reason that doesn't happen, make sure the record is persisted the final time
+                        // with the Completed flag set to avoid it getting "stuck"
+                        if (!search.State.HasFlag(SearchStates.Completed))
+                        {
+                            search.State |= SearchStates.Completed;
                         }
 
                         search.EndedAt = DateTime.UtcNow;
@@ -331,19 +350,19 @@ namespace slskd.Search
                         await SearchHub.BroadcastUpdateAsync(search with { Responses = [] });
 
                         Log.Debug("Search for '{Query}' finalized (id: {Id}): {Search}", query, id, search with { Responses = [] });
+                        Log.Information("Search for '{Query}' completed with {Responses} responses", search.ResponseCount);
                     }
                     catch (Exception ex)
                     {
                         // record may be left 'hanging' and will need to be cleaned up at the next boot; we tried to update but failed
-                        Log.Error(ex, "Failed to finalize search for '{Query}' (id: {Id}): {Message}", query, id, ex.Message);
-                        throw;
+                        Log.Error(ex, "Failed to finalize search for '{Query}': {Message}", query, ex.Message);
                     }
                     finally
                     {
                         rateLimiter.Dispose();
                         CancellationTokens.TryRemove(id, out _);
                     }
-                });
+                }, cancellationToken: cancellationTokenSource.Token);
 
                 // broadcast and return the _newly created_ search; it will continue to be updated in the background
                 await SearchHub.BroadcastUpdateAsync(search);
