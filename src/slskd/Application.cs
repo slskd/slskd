@@ -943,17 +943,22 @@ namespace slskd
 
         private void Client_PrivateMessageReceived(object sender, PrivateMessageReceivedEventArgs args)
         {
+            var userIsBlacklisted = Users.IsBlacklisted(args.Username);
+
             if (!args.Replayed)
             {
                 EventBus.Raise(new PrivateMessageReceivedEvent
                 {
+                    MessageId = args.Id,
+                    MessageTimestamp = args.Timestamp,
                     Username = args.Username,
                     Message = args.Message,
-                    Blacklisted = Users.IsBlacklisted(args.Username),
+                    Replayed = args.Replayed,
+                    Blacklisted = userIsBlacklisted,
                 });
             }
 
-            if (Users.IsBlacklisted(args.Username))
+            if (userIsBlacklisted)
             {
                 Log.Debug("Ignored private message from blacklisted user {Username}: {Message}", args.Username, args.Message);
                 return;
