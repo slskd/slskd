@@ -971,15 +971,17 @@ namespace slskd
 
         private void Client_PublicChatMessageReceived(object sender, PublicChatMessageReceivedEventArgs args)
         {
+            var userIsBlacklisted = Users.IsBlacklisted(args.Username);
+
             EventBus.Raise(new PublicChatMessageReceivedEvent
             {
                 RoomName = args.RoomName,
                 Username = args.Username,
                 Message = args.Message,
-                Blacklisted = Users.IsBlacklisted(args.Username),
+                Blacklisted = userIsBlacklisted,
             });
 
-            if (Users.IsBlacklisted(args.Username))
+            if (userIsBlacklisted)
             {
                 Log.Debug("Ignored public chat message from blacklisted user {Username}: {Message}", args.Username, args.Message);
                 return;
@@ -995,16 +997,18 @@ namespace slskd
 
         private void Client_RoomMessageReceived(object sender, RoomMessageReceivedEventArgs args)
         {
+            var userIsBlacklisted = Users.IsBlacklisted(args.Username);
+
             EventBus.Raise(new RoomMessageReceivedEvent
             {
                 RoomName = args.RoomName,
                 Username = args.Username,
                 Message = args.Message,
-                Blacklisted = Users.IsBlacklisted(args.Username),
+                Blacklisted = userIsBlacklisted,
             });
 
             // note: this event is also subscribed in the RoomService class
-            if (Users.IsBlacklisted(args.Username))
+            if (userIsBlacklisted)
             {
                 return;
             }
