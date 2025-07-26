@@ -945,18 +945,15 @@ namespace slskd
         {
             var userIsBlacklisted = Users.IsBlacklisted(args.Username);
 
-            if (!args.Replayed)
+            EventBus.Raise(new PrivateMessageReceivedEvent
             {
-                EventBus.Raise(new PrivateMessageReceivedEvent
-                {
-                    MessageId = args.Id,
-                    MessageTimestamp = args.Timestamp,
-                    Username = args.Username,
-                    Message = args.Message,
-                    Replayed = args.Replayed,
-                    Blacklisted = userIsBlacklisted,
-                });
-            }
+                MessageId = args.Id,
+                MessageTimestamp = args.Timestamp,
+                Username = args.Username,
+                Message = args.Message,
+                Replayed = args.Replayed,
+                Blacklisted = userIsBlacklisted,
+            });
 
             if (userIsBlacklisted)
             {
