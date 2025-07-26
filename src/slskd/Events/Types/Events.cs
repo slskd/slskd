@@ -43,7 +43,7 @@ public abstract record Event
 
 public sealed record DownloadFileCompleteEvent : Event
 {
-    public override EventType Type { get; } = EventType.DownloadFileComplete;
+    public override EventType Type => EventType.DownloadFileComplete;
     public override int Version { get; } = 0;
     public required string LocalFilename { get; init; }
     public required string RemoteFilename { get; init; }
@@ -61,7 +61,7 @@ public sealed record DownloadDirectoryCompleteEvent : Event
 
 public sealed record UploadFileCompleteEvent : Event
 {
-    public override EventType Type { get; } = EventType.UploadFileComplete;
+    public override EventType Type => EventType.UploadFileComplete;
     public override int Version { get; } = 0;
     public required string LocalFilename { get; init; }
     public required string RemoteFilename { get; init; }
