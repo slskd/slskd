@@ -91,7 +91,6 @@ namespace slskd
             ConnectionWatchdog connectionWatchdog,
             ITransferService transferService,
             IBrowseTracker browseTracker,
-            IRoomTracker roomTracker,
             IRoomService roomService,
             IUserService userService,
             IMessagingService messagingService,
@@ -99,8 +98,6 @@ namespace slskd
             ISearchService searchService,
             IPushbulletService pushbulletService,
             IRelayService relayService,
-            EventService eventService,
-            EventBus eventBus,
             IHubContext<ApplicationHub> applicationHub,
             IHubContext<LogsHub> logHub)
         {
@@ -149,9 +146,6 @@ namespace slskd
             Shares.StateMonitor.OnChange(state => ShareState_OnChange(state));
 
             Search = searchService;
-
-            Events = eventService;
-            EventBus = eventBus;
 
             Transfers = transferService;
             BrowseTracker = browseTracker;
@@ -232,8 +226,6 @@ namespace slskd
         private IUserService Users { get; set; }
         private IShareService Shares { get; set; }
         private ISearchService Search { get; set; }
-        private EventService Events { get; }
-        private EventBus EventBus { get; }
         private IRelayService Relay { get; set; }
         private IMemoryCache Cache { get; set; } = new MemoryCache(new MemoryCacheOptions());
         private IEnumerable<Regex> CompiledSearchResponseFilters { get; set; }
