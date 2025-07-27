@@ -55,6 +55,11 @@ namespace slskd.Messaging
         /// </summary>
         public bool IsAcknowledged { get; set; } = false;
 
+        /// <summary>
+        ///     A value indicating whether the message has was replayed by the server.
+        /// </summary>
+        public bool WasReplayed { get; set; } = false;
+
         public static PrivateMessage FromEventArgs(PrivateMessageReceivedEventArgs eventArgs)
         {
             return new PrivateMessage()
@@ -64,6 +69,7 @@ namespace slskd.Messaging
                 Username = eventArgs.Username,
                 Message = eventArgs.Message,
                 IsAcknowledged = false,
+                WasReplayed = eventArgs.Replayed,
                 Direction = MessageDirection.In,
             };
         }
