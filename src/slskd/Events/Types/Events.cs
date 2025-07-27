@@ -76,24 +76,11 @@ public sealed record PrivateMessageReceivedEvent : Event
     public required PrivateMessage Message { get; init; }
 }
 
-public sealed record PublicChatMessageReceivedEvent : Event
-{
-    public override EventType Type => EventType.PublicChatMessageReceived;
-    public override int Version => 0;
-    public required string RoomName { get; init; }
-    public required string Username { get; init; }
-    public required string Message { get; init; }
-    public required bool Blacklisted { get; init; }
-}
-
 public sealed record RoomMessageReceivedEvent : Event
 {
     public override EventType Type => EventType.RoomMessageReceived;
     public override int Version => 0;
-    public required string RoomName { get; init; }
-    public required string Username { get; init; }
-    public required string Message { get; init; }
-    public required bool Blacklisted { get; init; }
+    public required RoomMessage Message { get; init; }
 }
 
 public sealed record NoopEvent : Event
