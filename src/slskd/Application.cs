@@ -989,18 +989,10 @@ namespace slskd
 
         private void Client_RoomMessageReceived(object sender, RoomMessageReceivedEventArgs args)
         {
-            var userIsBlacklisted = Users.IsBlacklisted(args.Username);
-
-            EventBus.Raise(new RoomMessageReceivedEvent
-            {
-                RoomName = args.RoomName,
-                Username = args.Username,
-                Message = args.Message,
-                Blacklisted = userIsBlacklisted,
-            });
-
             // note: this event is also subscribed in the RoomService class
-            if (userIsBlacklisted)
+            // this handler is only used for pushbullet.
+            // todo: refactor pushbullet so that it uses events
+            if (Users.IsBlacklisted(args.Username))
             {
                 return;
             }
