@@ -45,10 +45,15 @@ public class Migrator
     /// <summary>
     ///     A map of all migrations, to be applied in the order they are specified (descending).
     /// </summary>
+    /// <remarks>
+    ///     This could be done with reflection (e.g. find all instances of IMigration) but it's useful during development
+    ///     to selectively add/comment out lines. Slight risk that something is missed, so this should be append only.
+    /// </remarks>
     private Dictionary<string, IMigration> Migrations { get; } = new()
     {
         { nameof(Z04012025_TransferStateMigration), new Z04012025_TransferStateMigration() },
         { nameof(Z07062025_TransferIndexesMigration), new Z07062025_TransferIndexesMigration() },
+        { nameof(Z07262025_PrivateMessageWasReplayedMigration), new Z07262025_PrivateMessageWasReplayedMigration() },
     };
 
     /// <summary>
