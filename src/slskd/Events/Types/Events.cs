@@ -18,6 +18,7 @@
 namespace slskd.Events;
 
 using System;
+using slskd.Messaging;
 using slskd.Transfers;
 
 public enum EventType
@@ -72,12 +73,7 @@ public sealed record PrivateMessageReceivedEvent : Event
 {
     public override EventType Type => EventType.PrivateMessageReceived;
     public override int Version => 0;
-    public required int MessageId { get; init; }
-    public required DateTime MessageTimestamp { get; init; }
-    public required string Username { get; init; }
-    public required string Message { get; init; }
-    public required bool Replayed { get; init; }
-    public required bool Blacklisted { get; init; }
+    public required PrivateMessage Message { get; init; }
 }
 
 public sealed record PublicChatMessageReceivedEvent : Event

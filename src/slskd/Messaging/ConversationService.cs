@@ -24,6 +24,7 @@ namespace slskd.Messaging
     using System.Threading.Tasks;
     using Microsoft.EntityFrameworkCore;
     using Serilog;
+    using slskd.Events;
     using Soulseek;
 
     /// <summary>
@@ -112,12 +113,15 @@ namespace slskd.Messaging
     {
         public ConversationService(
             ISoulseekClient soulseekClient,
+            EventBus eventBus,
             IDbContextFactory<MessagingDbContext> contextFactory)
         {
             SoulseekClient = soulseekClient;
+            EventBus = eventBus;
             ContextFactory = contextFactory;
         }
 
+        private EventBus EventBus { get; }
         private IDbContextFactory<MessagingDbContext> ContextFactory { get; }
         private ILogger Log { get; } = Serilog.Log.ForContext<ConversationService>();
         private ISoulseekClient SoulseekClient { get; }
@@ -301,8 +305,12 @@ namespace slskd.Messaging
 
             if (existing != null)
             {
-                // the message was replayed. ensure the local ack bit is in sync with the server
-                existing.IsAcknowledged = message.IsAcknowledged;
+                // the message was replayed. either we haven't ACKed it, or we did and the ACK didn't make it to the
+                // server. either way we need to ensure that the local db understands the message needs to be ACKed, so
+                // force the bit false. we shouldn't need to update any other part of the message because IDs are unique
+                // on the soulseek server
+                existing.IsAcknowledged = false;
+                existing.WasReplayed = message.WasReplayed;
             }
             else
             {
@@ -311,6 +319,11 @@ namespace slskd.Messaging
             }
 
             context.SaveChanges();
+
+            EventBus.Raise(new PrivateMessageReceivedEvent
+            {
+                Message = message,
+            });
 
             return Task.CompletedTask;
         }
