@@ -184,7 +184,6 @@ namespace slskd
             Client.PrivateRoomModerationAdded += (e, room) => Log.Information("Promoted to moderator in private room {Room}", room);
             Client.PrivateRoomModerationRemoved += (e, room) => Log.Information("Demoted from moderator in private room {Room}", room);
 
-            Client.PublicChatMessageReceived += Client_PublicChatMessageReceived;
             Client.RoomMessageReceived += Client_RoomMessageReceived;
             Client.Disconnected += Client_Disconnected;
             Client.Connected += Client_Connected;
@@ -958,32 +957,6 @@ namespace slskd
             if (Options.Integration.Pushbullet.Enabled && !args.Replayed)
             {
                 _ = Pushbullet.PushAsync($"Private Message from {args.Username}", args.Username, args.Message);
-            }
-        }
-
-        private void Client_PublicChatMessageReceived(object sender, PublicChatMessageReceivedEventArgs args)
-        {
-            var userIsBlacklisted = Users.IsBlacklisted(args.Username);
-
-            EventBus.Raise(new PublicChatMessageReceivedEvent
-            {
-                RoomName = args.RoomName,
-                Username = args.Username,
-                Message = args.Message,
-                Blacklisted = userIsBlacklisted,
-            });
-
-            if (userIsBlacklisted)
-            {
-                Log.Debug("Ignored public chat message from blacklisted user {Username}: {Message}", args.Username, args.Message);
-                return;
-            }
-
-            Log.Information("[Public Chat/{Room}] [{Username}]: {Message}", args.RoomName, args.Username, args.Message);
-
-            if (Options.Integration.Pushbullet.Enabled && args.Message.Contains(Client.Username))
-            {
-                _ = Pushbullet.PushAsync($"Room Mention by {args.Username} in {args.RoomName}", args.RoomName, args.Message);
             }
         }
 
