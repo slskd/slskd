@@ -25,6 +25,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Serilog;
+using slskd.Messaging;
 using slskd.Transfers;
 
 /// <summary>
@@ -137,6 +138,8 @@ public class EventsController : ControllerBase
                 EventType.DownloadFileComplete => new DownloadFileCompleteEvent { LocalFilename = $"{d}local.file", RemoteFilename = $"{d}remote.file", Transfer = new Transfer() },
                 EventType.DownloadDirectoryComplete => new DownloadDirectoryCompleteEvent { LocalDirectoryName = $"{d}local.directory", RemoteDirectoryName = $"{d}remote.directory", Username = $"{d}username" },
                 EventType.UploadFileComplete => new UploadFileCompleteEvent { LocalFilename = $"{d}local.file", RemoteFilename = $"{d}remote.file", Transfer = new Transfer() },
+                EventType.PrivateMessageReceived => new PrivateMessageReceivedEvent { Message = new PrivateMessage { Id = 42, Timestamp = DateTime.UtcNow, Username = $"{d}username", Message = $"{d}message" } },
+                EventType.RoomMessageReceived => new RoomMessageReceivedEvent { Message = new RoomMessage { RoomName = $"{d}room", Username = $"{d}username", Message = $"{d}message" } },
                 EventType.Noop => new NoopEvent(),
                 _ => throw new SlskdException($"Event type {eventType} is an enum member but is not handled.  Please submit an issue on GitHub."),
             };

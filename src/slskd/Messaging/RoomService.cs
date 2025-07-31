@@ -24,6 +24,7 @@ namespace slskd.Messaging
     using System.Linq;
     using System.Threading.Tasks;
     using Serilog;
+    using slskd.Events;
     using slskd.Users;
 
     using Soulseek;
@@ -71,12 +72,14 @@ namespace slskd.Messaging
         /// <param name="stateMutator"></param>
         /// <param name="roomTracker"></param>
         /// <param name="userService"></param>
+        /// <param name="eventBus"></param>
         public RoomService(
             ISoulseekClient soulseekClient,
             IOptionsMonitor<Options> optionsMonitor,
             IStateMutator<State> stateMutator,
             IRoomTracker roomTracker,
-            IUserService userService)
+            IUserService userService,
+            EventBus eventBus)
         {
             Client = soulseekClient;
 
@@ -86,6 +89,7 @@ namespace slskd.Messaging
             RoomTracker = roomTracker;
 
             Users = userService;
+            EventBus = eventBus;
 
             Client.LoggedIn += Client_LoggedIn;
 
@@ -100,6 +104,7 @@ namespace slskd.Messaging
         private IOptionsMonitor<Options> OptionsMonitor { get; }
         private IRoomTracker RoomTracker { get; set; }
         private IUserService Users { get; set; }
+        private EventBus EventBus { get; }
 
         /// <summary>
         ///     Joins the specified <paramref name="roomName"/>.
@@ -228,6 +233,12 @@ namespace slskd.Messaging
 
             var message = RoomMessage.FromEventArgs(args, DateTime.UtcNow);
             RoomTracker.AddOrUpdateMessage(args.RoomName, message);
+
+            // todo: persist these in the database before raising (why are we not??)
+            EventBus.Raise<RoomMessageReceivedEvent>(new RoomMessageReceivedEvent
+            {
+                Message = message,
+            });
         }
     }
 }

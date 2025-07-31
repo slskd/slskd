@@ -91,7 +91,6 @@ namespace slskd
             ConnectionWatchdog connectionWatchdog,
             ITransferService transferService,
             IBrowseTracker browseTracker,
-            IRoomTracker roomTracker,
             IRoomService roomService,
             IUserService userService,
             IMessagingService messagingService,
@@ -99,7 +98,6 @@ namespace slskd
             ISearchService searchService,
             IPushbulletService pushbulletService,
             IRelayService relayService,
-            EventService eventService,
             IHubContext<ApplicationHub> applicationHub,
             IHubContext<LogsHub> logHub)
         {
@@ -149,8 +147,6 @@ namespace slskd
 
             Search = searchService;
 
-            Events = eventService;
-
             Transfers = transferService;
             BrowseTracker = browseTracker;
             Pushbullet = pushbulletService;
@@ -182,7 +178,6 @@ namespace slskd
             Client.PrivateRoomModerationAdded += (e, room) => Log.Information("Promoted to moderator in private room {Room}", room);
             Client.PrivateRoomModerationRemoved += (e, room) => Log.Information("Demoted from moderator in private room {Room}", room);
 
-            Client.PublicChatMessageReceived += Client_PublicChatMessageReceived;
             Client.RoomMessageReceived += Client_RoomMessageReceived;
             Client.Disconnected += Client_Disconnected;
             Client.Connected += Client_Connected;
@@ -231,7 +226,6 @@ namespace slskd
         private IUserService Users { get; set; }
         private IShareService Shares { get; set; }
         private ISearchService Search { get; set; }
-        private EventService Events { get; }
         private IRelayService Relay { get; set; }
         private IMemoryCache Cache { get; set; } = new MemoryCache(new MemoryCacheOptions());
         private IEnumerable<Regex> CompiledSearchResponseFilters { get; set; }
@@ -945,6 +939,10 @@ namespace slskd
                 Log.Debug("Ignored private message from blacklisted user {Username}: {Message}", args.Username, args.Message);
                 return;
             }
+            else
+            {
+                // todo: raise blacklisted message event?
+            }
 
             Messaging.Conversations.HandleMessageAsync(args.Username, PrivateMessage.FromEventArgs(args));
 
@@ -954,25 +952,11 @@ namespace slskd
             }
         }
 
-        private void Client_PublicChatMessageReceived(object sender, PublicChatMessageReceivedEventArgs args)
-        {
-            if (Users.IsBlacklisted(args.Username))
-            {
-                Log.Debug("Ignored public chat message from blacklisted user {Username}: {Message}", args.Username, args.Message);
-                return;
-            }
-
-            Log.Information("[Public Chat/{Room}] [{Username}]: {Message}", args.RoomName, args.Username, args.Message);
-
-            if (Options.Integration.Pushbullet.Enabled && args.Message.Contains(Client.Username))
-            {
-                _ = Pushbullet.PushAsync($"Room Mention by {args.Username} in {args.RoomName}", args.RoomName, args.Message);
-            }
-        }
-
         private void Client_RoomMessageReceived(object sender, RoomMessageReceivedEventArgs args)
         {
             // note: this event is also subscribed in the RoomService class
+            // this handler is only used for pushbullet.
+            // todo: refactor pushbullet so that it uses events
             if (Users.IsBlacklisted(args.Username))
             {
                 return;

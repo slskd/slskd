@@ -18,6 +18,7 @@
 namespace slskd.Events;
 
 using System;
+using slskd.Messaging;
 using slskd.Transfers;
 
 public enum EventType
@@ -27,6 +28,9 @@ public enum EventType
     DownloadFileComplete = 2,
     DownloadDirectoryComplete = 3,
     UploadFileComplete = 4,
+    // UploadDirectoryComplete = 5,
+    PrivateMessageReceived = 6,
+    RoomMessageReceived = 7,
     Noop = int.MaxValue,
 }
 
@@ -40,7 +44,7 @@ public abstract record Event
 
 public sealed record DownloadFileCompleteEvent : Event
 {
-    public override EventType Type { get; } = EventType.DownloadFileComplete;
+    public override EventType Type => EventType.DownloadFileComplete;
     public override int Version { get; } = 0;
     public required string LocalFilename { get; init; }
     public required string RemoteFilename { get; init; }
@@ -58,11 +62,25 @@ public sealed record DownloadDirectoryCompleteEvent : Event
 
 public sealed record UploadFileCompleteEvent : Event
 {
-    public override EventType Type { get; } = EventType.UploadFileComplete;
+    public override EventType Type => EventType.UploadFileComplete;
     public override int Version { get; } = 0;
     public required string LocalFilename { get; init; }
     public required string RemoteFilename { get; init; }
     public required Transfer Transfer { get; init; }
+}
+
+public sealed record PrivateMessageReceivedEvent : Event
+{
+    public override EventType Type => EventType.PrivateMessageReceived;
+    public override int Version => 0;
+    public required PrivateMessage Message { get; init; }
+}
+
+public sealed record RoomMessageReceivedEvent : Event
+{
+    public override EventType Type => EventType.RoomMessageReceived;
+    public override int Version => 0;
+    public required RoomMessage Message { get; init; }
 }
 
 public sealed record NoopEvent : Event

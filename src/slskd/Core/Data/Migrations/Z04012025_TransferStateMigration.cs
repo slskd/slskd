@@ -24,6 +24,7 @@ using System.IO;
 using System.Linq;
 using Microsoft.Data.Sqlite;
 using Serilog;
+using slskd.Transfers;
 
 /// <summary>
 ///     Updates the Transfers table to:
@@ -50,7 +51,7 @@ public class Z04012025_TransferStateMigration : IMigration
         var schema = SchemaInspector.GetDatabaseSchema(ConnectionString);
         var txfers = schema["Transfers"];
 
-        return !txfers.Any(c => c.Name == "StateDescription");
+        return !txfers.Any(c => c.Name == nameof(Transfer.StateDescription));
     }
 
     public void Apply()
