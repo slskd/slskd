@@ -28,8 +28,8 @@ public enum EventType
     DownloadFileComplete = 2,
     DownloadDirectoryComplete = 3,
     UploadFileComplete = 4,
-    PrivateMessageReceived = 5,
-    PublicChatMessageReceived = 6,
+    // UploadDirectoryComplete = 5,
+    PrivateMessageReceived = 6,
     RoomMessageReceived = 7,
     Noop = int.MaxValue,
 }
