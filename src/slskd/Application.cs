@@ -1466,6 +1466,7 @@ namespace slskd
 
                 Metrics.Search.ResponseLatency.Observe(sw.ElapsedMilliseconds);
                 Metrics.Search.CurrentResponseLatency.Update(sw.ElapsedMilliseconds);
+                Metrics.Search.RequestCount.CountUp();
 
                 if (results.Any())
                 {

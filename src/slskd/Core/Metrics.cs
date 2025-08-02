@@ -17,6 +17,8 @@
 
 namespace slskd
 {
+    using System;
+
     using System.IO;
     using System.Threading.Tasks;
     using Prometheus;
@@ -57,6 +59,11 @@ namespace slskd
             public static ExponentialMovingAverage CurrentResponseLatency { get; } = new ExponentialMovingAverage(smoothingFactor: 0.5, onUpdate: value => CurrentResponseLatencyGauge.Set(value));
 
             /// <summary>
+            ///     Gets an automatically resetting counter of the number of search requests received.
+            /// </summary>
+            public static TimedCounter RequestCount { get; } = new TimedCounter(TimeSpan.FromSeconds(1), onElapsed: count => CurrentRequestRateGauge.Set(count));
+
+            /// <summary>
             ///     Gets a counter representing the total number of search requests received.
             /// </summary>
             public static Counter RequestsReceived { get; } = Prometheus.Metrics.CreateCounter("slskd_search_requests_received", "Total number of search requests received");
@@ -67,6 +74,7 @@ namespace slskd
             public static Counter ResponsesSent { get; } = Prometheus.Metrics.CreateCounter("slskd_search_responses_sent", "Total number of search responses sent");
 
             private static Gauge CurrentResponseLatencyGauge { get; } = Prometheus.Metrics.CreateGauge("slskd_search_response_latency_current", "The average time taken to resolve a response to an incoming search request, in milliseconds");
+            private static Gauge CurrentRequestRateGauge { get; } = Prometheus.Metrics.CreateGauge("slskd_search_request_rate_current", "Number of search requests received in the last second");
         }
 
         public static class Browse
