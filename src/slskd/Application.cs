@@ -1433,6 +1433,7 @@ namespace slskd
         private async Task<SearchResponse> SearchResponseResolver(string username, int token, SearchQuery query)
         {
             Metrics.Search.RequestsReceived.Inc(1);
+            Metrics.Search.CurrentRequestRate.CountUp(1);
 
             if (Users.IsBlacklisted(username))
             {
@@ -1466,7 +1467,6 @@ namespace slskd
 
                 Metrics.Search.ResponseLatency.Observe(sw.ElapsedMilliseconds);
                 Metrics.Search.CurrentResponseLatency.Update(sw.ElapsedMilliseconds);
-                Metrics.Search.RequestCount.CountUp();
 
                 if (results.Any())
                 {
