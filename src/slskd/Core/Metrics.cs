@@ -61,7 +61,7 @@ namespace slskd
             /// <summary>
             ///     Gets an automatically resetting counter of the number of search requests received.
             /// </summary>
-            public static TimedCounter RequestCount { get; } = new TimedCounter(TimeSpan.FromSeconds(1), onElapsed: count => CurrentRequestRateGauge.Set(count));
+            public static TimedCounter CurrentRequestRate { get; } = new TimedCounter(TimeSpan.FromSeconds(1), onElapsed: count => CurrentRequestRateGauge.Set(count));
 
             /// <summary>
             ///     Gets a counter representing the total number of search requests received.
