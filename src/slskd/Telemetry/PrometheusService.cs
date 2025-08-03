@@ -49,7 +49,7 @@ public class PrometheusService
     /// </summary>
     /// <param name="include">An optional list of filters. If omitted, all metrics are included.</param>
     /// <returns></returns>
-    public virtual async Task<Dictionary<string, PrometheusMetric>> GetMetricsAsObject(List<Regex> include = null)
+    public virtual async Task<Dictionary<string, PrometheusMetric>> GetMetricsAsObject(IEnumerable<Regex> include = null)
     {
         var prometheusText = await GetMetricsAsString();
 
