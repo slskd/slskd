@@ -1847,8 +1847,7 @@ namespace slskd
             [Argument(default, "search-response-filter")]
             [EnvironmentVariable("SEARCH_RESPONSE_FILTER")]
             [Description("string to use as default filter for search results")]
-            [RequiresRestart]
-            public string SearchFilter { get; init; } = "";
+            public string SearchFilter { get; init; } = string.Empty;
 
             /// <summary>
             ///     Gets authentication options.
