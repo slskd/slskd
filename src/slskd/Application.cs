@@ -1270,6 +1270,8 @@ namespace slskd
             // shenanigans here could lead to missed updates.
             await OptionsSyncRoot.WaitAsync();
 
+            Log.Debug("OptionsMonitor OnChange Invoked");
+
             try
             {
                 var pendingRestart = false;
@@ -1281,8 +1283,11 @@ namespace slskd
                 // don't react to duplicate/no-change events https://github.com/slskd/slskd/issues/126
                 if (!diff.Any())
                 {
+                    Log.Debug("Diff of previous and new options is the same; nothing to do");
                     return;
                 }
+
+                Log.Debug("Diff of previous and new options contains {Count} changed properties: {Properties}", diff.Count(), diff.Select(p => p.FQN));
 
                 foreach (var (property, fqn, left, right) in diff)
                 {
