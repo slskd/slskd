@@ -116,7 +116,7 @@ namespace slskd
                         differences.Add((prop, fqn, leftVal, rightVal));
                     }
                 }
-                else if (propType.IsPrimitive || Nullable.GetUnderlyingType(propType) != null || new[] { typeof(string), typeof(decimal) }.Contains(propType))
+                else if (propType.IsPrimitive || propType.IsEnum || Nullable.GetUnderlyingType(propType) != null || new[] { typeof(string), typeof(decimal) }.Contains(propType))
                 {
                     if (!Equals(leftVal, rightVal))
                     {
