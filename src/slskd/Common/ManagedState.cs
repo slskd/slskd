@@ -151,10 +151,28 @@ namespace slskd
     {
         private event Action<(T, T)> Changed;
 
+        private T currentValue;
+
         /// <summary>
         ///     Gets the current application state.
         /// </summary>
-        public T CurrentValue { get; private set; } = (T)Activator.CreateInstance(typeof(T));
+        public T CurrentValue
+        {
+            get
+            {
+                lock (Lock)
+                {
+                    return currentValue;
+                }
+            }
+            private set
+            {
+                lock (Lock)
+                {
+                    currentValue = value;
+                }
+            }
+        }
 
         /// <summary>
         ///     Gets a point-in-time snapshot of the current state.
@@ -162,6 +180,11 @@ namespace slskd
         public IStateSnapshot<T> Snapshot => new StateSnapshot<T>(CurrentValue);
 
         private object Lock { get; } = new object();
+
+        public ManagedState()
+        {
+            currentValue = (T)Activator.CreateInstance(typeof(T));
+        }
 
         /// <summary>
         ///     Registers a listener to be called whenever the tracked state changes.
