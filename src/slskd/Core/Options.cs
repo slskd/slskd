@@ -36,10 +36,10 @@ namespace slskd
     using slskd.Relay;
     using slskd.Shares;
     using slskd.Validation;
-    using Soulseek.Diagnostics;
     using Utility.CommandLine;
     using Utility.EnvironmentVariables;
     using YamlDotNet.Serialization;
+    using SoulseekDiagnostics = Soulseek.Diagnostics;
 
     /// <summary>
     ///     Disambiguates options derived at startup from options that may update at run time.
@@ -1572,8 +1572,9 @@ namespace slskd
             [Argument(default, "slsk-diag-level")]
             [EnvironmentVariable("SLSK_DIAG_LEVEL")]
             [Description("minimum diagnostic level (None, Warning, Info, Debug)")]
+            [Enum(typeof(SoulseekDiagnostics.DiagnosticLevel))]
             [RequiresRestart]
-            public DiagnosticLevel DiagnosticLevel { get; init; } = DiagnosticLevel.Info;
+            public string DiagnosticLevel { get; init; } = SoulseekDiagnostics.DiagnosticLevel.Info.ToString().ToLowerInvariant();
 
             /// <summary>
             ///     Gets options for the distributed network.

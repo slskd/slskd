@@ -584,7 +584,7 @@ namespace slskd
                 new SoulseekClient(options: new SoulseekClientOptions(
                     maximumConcurrentUploads: OptionsAtStartup.Global.Upload.Slots,
                     maximumConcurrentDownloads: OptionsAtStartup.Global.Download.Slots,
-                    minimumDiagnosticLevel: OptionsAtStartup.Soulseek.DiagnosticLevel)));
+                    minimumDiagnosticLevel: OptionsAtStartup.Soulseek.DiagnosticLevel.ToEnum<Soulseek.Diagnostics.DiagnosticLevel>())));
 
             // add the core application service to DI as well as a hosted service so that other services can
             // access instance methods
