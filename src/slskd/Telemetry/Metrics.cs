@@ -18,28 +18,18 @@
 namespace slskd
 {
     using System;
-
-    using System.IO;
-    using System.Threading.Tasks;
     using Prometheus;
 
+    /// <summary>
+    ///     This class contains all of the custom Prometheus metrics for slskd.  These represent a small subset of the metrics
+    ///     available, with the rest coming from the .NET and ASP.NET frameworks and the host system.
+    /// </summary>
+    /// <remarks>
+    ///     These metrics and their names are part of the public API contract; avoid renaming or removing them, and think
+    ///     carefully about naming when adding new metrics.
+    /// </remarks>
     public static class Metrics
     {
-        /// <summary>
-        ///     Builds metrics into a Prometheus-formatted string.
-        /// </summary>
-        /// <returns>A Prometheus-formatted string.</returns>
-        public static async Task<string> BuildAsync()
-        {
-            using var stream = new MemoryStream();
-            using var reader = new StreamReader(stream);
-
-            await Prometheus.Metrics.DefaultRegistry.CollectAndExportAsTextAsync(stream);
-            stream.Position = 0;
-
-            return await reader.ReadToEndAsync();
-        }
-
         public static class Search
         {
             /// <summary>
@@ -61,7 +51,7 @@ namespace slskd
             /// <summary>
             ///     Gets an automatically resetting counter of the number of search requests received.
             /// </summary>
-            public static TimedCounter CurrentRequestRate { get; } = new TimedCounter(TimeSpan.FromSeconds(1), onElapsed: count => CurrentRequestRateGauge.Set(count));
+            public static TimedCounter CurrentRequestReceiveRate { get; } = new TimedCounter(TimeSpan.FromSeconds(1), onElapsed: count => CurrentRequestReceiveRateGauge.Set(count));
 
             /// <summary>
             ///     Gets a counter representing the total number of search requests received.
@@ -74,7 +64,7 @@ namespace slskd
             public static Counter ResponsesSent { get; } = Prometheus.Metrics.CreateCounter("slskd_search_responses_sent", "Total number of search responses sent");
 
             private static Gauge CurrentResponseLatencyGauge { get; } = Prometheus.Metrics.CreateGauge("slskd_search_response_latency_current", "The average time taken to resolve a response to an incoming search request, in milliseconds");
-            private static Gauge CurrentRequestRateGauge { get; } = Prometheus.Metrics.CreateGauge("slskd_search_request_rate_current", "Number of search requests received in the last second");
+            private static Gauge CurrentRequestReceiveRateGauge { get; } = Prometheus.Metrics.CreateGauge("slskd_search_request_receive_rate_current", "Number of search requests received in the last second");
         }
 
         public static class Browse

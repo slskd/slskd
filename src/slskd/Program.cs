@@ -622,6 +622,9 @@ namespace slskd
             services.AddSingleton<EventService>();
             services.AddSingleton<EventBus>();
 
+            services.AddSingleton<TelemetryService>();
+            services.AddSingleton<PrometheusService>();
+
             services.AddSingleton<ScriptService>();
             services.AddSingleton<WebhookService>();
 
@@ -1003,7 +1006,8 @@ namespace slskd
                             }
                         }
 
-                        var metricsAsText = await Metrics.BuildAsync();
+                        var telemetryService = context.RequestServices.GetRequiredService<TelemetryService>();
+                        var metricsAsText = await telemetryService.Prometheus.GetMetricsAsString();
 
                         context.Response.Headers.Append("Content-Type", "text/plain; version=0.0.4; charset=utf-8");
                         await context.Response.WriteAsync(metricsAsText);
