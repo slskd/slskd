@@ -1,3 +1,4 @@
+import { defaultFilter } from '../../../config';
 import {
   filterResponse,
   getResponses,
@@ -49,7 +50,7 @@ const SearchDetail = ({
   const [hideLocked, setHideLocked] = useState(true);
   const [hideNoFreeSlots, setHideNoFreeSlots] = useState(false);
   const [foldResults, setFoldResults] = useState(false);
-  const [resultFilters, setResultFilters] = useState('');
+  const [resultFilters, setResultFilters] = useState(defaultFilter);
   const [displayCount, setDisplayCount] = useState(5);
 
   // when the search transitions from !isComplete -> isComplete,
@@ -227,7 +228,7 @@ const SearchDetail = ({
               label={{ content: 'Filter', icon: 'filter' }}
               onChange={(_event, data) => setResultFilters(data.value)}
               placeholder="
-                lackluster container -bothersome iscbr|isvbr islossless|islossy 
+                lackluster container -bothersome iscbr|isvbr islossless|islossy
                 minbitrate:320 minbitdepth:24 minfilesize:10 minfilesinfolder:8 minlength:5000
               "
               value={resultFilters}

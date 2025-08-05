@@ -146,6 +146,7 @@
 #   url_base: /
 #   content_path: wwwroot
 #   logging: false
+#   web_search_filter:
 #   authentication:
 #     disabled: false
 #     username: slskd
