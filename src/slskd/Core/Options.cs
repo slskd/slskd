@@ -1844,10 +1844,10 @@ namespace slskd
             /// <summary>
             ///     Gets the value of the default filter to use for search results.
             /// </summary>
-            [Argument(default, "search-response-filter")]
-            [EnvironmentVariable("SEARCH_RESPONSE_FILTER")]
+            [Argument(default, "web-search-filter")]
+            [EnvironmentVariable("WEB_SEARCH_FILTER")]
             [Description("string to use as default filter for search results")]
-            public string SearchFilter { get; init; } = string.Empty;
+            public string WebSearchFilter { get; init; } = string.Empty;
 
             /// <summary>
             ///     Gets authentication options.
