@@ -1537,7 +1537,7 @@ namespace slskd
             [Argument(default, "slsk-description")]
             [EnvironmentVariable("SLSK_DESCRIPTION")]
             [Description("user description for the Soulseek network")]
-            public string Description { get; init; } = "A slskd user. https://github.com/slskd/slskd";
+            public string Description { get; init; } = "A slskd user. https://github.com/sredevopsorg/slskd";
 
             /// <summary>
             ///     Gets the file path for the user's profile picture.

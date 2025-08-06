@@ -691,7 +691,7 @@ so formats .JPG/.JPEG, .GIF, and .BMP are advised.
 #### **YAML**
 ```yaml
 soulseek:
-  description: A slskd user. https://github.com/slskd/slskd
+  description: A slskd user. https://github.com/sredevopsorg/slskd
   picture: path/to/slsk-profile-picture.jpg
 ```
 
@@ -956,7 +956,7 @@ The number and type of events will change as the application matures, but each e
 |Id|The unique ID for the event.  Events may be delivered to external consumers more than once; use this property to de-duplicate them.|
 |Timestamp|The time (UTC) at which the event was raised.  Events can arrive out of chronological order; use this property to determine if that has taken place.|
 |Version|The event version, used to disambiguate event shapes if a breaking change is made to the data in the future.|
-|Type|The event type.  Use this to determine what other data will be included.  See: [Events.cs](https://github.com/slskd/slskd/blob/master/src/slskd/Events/Types/Events.cs).|
+|Type|The event type.  Use this to determine what other data will be included.  See: [Events.cs](https://github.com/sredevopsorg/slskd/blob/master/src/slskd/Events/Types/Events.cs).|
 
 Here's an example of what a `DownloadFileComplete` event (at the time of this writing; review Events.cs!) looks like:
 

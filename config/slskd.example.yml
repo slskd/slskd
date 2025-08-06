@@ -192,7 +192,7 @@
 #   username: ~
 #   password: ~
 #   description: |
-#     A slskd user. https://github.com/slskd/slskd
+#     A slskd user. https://github.com/sredevopsorg/slskd
 #   picture: path/to/slsk-profile-picture.jpg
 #   listen_ip_address: 0.0.0.0
 #   listen_port: 50300

@@ -1280,7 +1280,7 @@ namespace slskd
 
                 var diff = PreviousOptions.DiffWith(newOptions);
 
-                // don't react to duplicate/no-change events https://github.com/slskd/slskd/issues/126
+                // don't react to duplicate/no-change events https://github.com/sredevopsorg/slskd/issues/126
                 if (!diff.Any())
                 {
                     Log.Debug("Diff of previous and new options is the same; nothing to do");

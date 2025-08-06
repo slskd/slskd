@@ -476,7 +476,7 @@ class App extends Component {
                   <Modal.Actions>
                     <Button
                       fluid
-                      href="https://github.com/slskd/slskd/releases"
+                      href="https://github.com/sredevopsorg/slskd/releases"
                       primary
                       style={{ marginLeft: 0 }}
                     >

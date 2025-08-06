@@ -1,9 +1,9 @@
 # slskd
 
-[![Build](https://img.shields.io/github/actions/workflow/status/slskd/slskd/ci.yml?branch=master&logo=github)](https://github.com/slskd/slskd/actions/workflows/ci.yml)
+[![Build](https://img.shields.io/github/actions/workflow/status/slskd/slskd/ci.yml?branch=master&logo=github)](https://github.com/sredevopsorg/slskd/actions/workflows/ci.yml)
 [![Docker Pulls](https://img.shields.io/docker/pulls/slskd/slskd?logo=docker)](https://hub.docker.com/r/slskd/slskd)
-[![GitHub all releases](https://img.shields.io/github/downloads/slskd/slskd/total?logo=github&color=brightgreen)](https://github.com/slskd/slskd/releases)
-[![Contributors](https://img.shields.io/github/contributors/slskd/slskd?logo=github)](https://github.com/slskd/slskd/graphs/contributors)
+[![GitHub all releases](https://img.shields.io/github/downloads/slskd/slskd/total?logo=github&color=brightgreen)](https://github.com/sredevopsorg/slskd/releases)
+[![Contributors](https://img.shields.io/github/contributors/slskd/slskd?logo=github)](https://github.com/sredevopsorg/slskd/graphs/contributors)
 [![Discord](https://img.shields.io/discord/971446666257391616?label=Discord&logo=discord)](https://slskd.org/discord)
 [![Matrix](https://img.shields.io/badge/Matrix-%3F%20online-na?logo=matrix&color=brightgreen)](https://slskd.org/matrix)
 
@@ -13,7 +13,7 @@ A modern client-server application for the [Soulseek](https://www.slsknet.org/ne
 
 ### Secure access
 
-slskd runs as a daemon or Docker container in your network (or in the cloud!) and is accessible from a web browser.  It's designed to be exposed to the internet, and everything is secured with a token that [you can control](https://github.com/slskd/slskd/blob/master/docs/config.md#authentication).  It also supports [reverse proxies](https://github.com/slskd/slskd/blob/master/docs/reverse_proxy.md), making it work well with other self-hosted tools.
+slskd runs as a daemon or Docker container in your network (or in the cloud!) and is accessible from a web browser.  It's designed to be exposed to the internet, and everything is secured with a token that [you can control](https://github.com/sredevopsorg/slskd/blob/master/docs/config.md#authentication).  It also supports [reverse proxies](https://github.com/sredevopsorg/slskd/blob/master/docs/reverse_proxy.md), making it work well with other self-hosted tools.
 
 ![image](https://user-images.githubusercontent.com/17145758/193290217-0e6d87f5-a547-4451-8d90-d554a902716c.png)
 
@@ -82,18 +82,18 @@ Once the container is running you can access the web UI over HTTP on port 5030, 
 
 The `SLSKD_REMOTE_CONFIGURATION` environment variable allows you to modify application configuration settings from the web UI.  You might not want to enable this for an internet-facing installation.
 
-You can find a more in-depth guide to running slskd in Docker [here](https://github.com/slskd/slskd/blob/master/docs/docker.md).
+You can find a more in-depth guide to running slskd in Docker [here](https://github.com/sredevopsorg/slskd/blob/master/docs/docker.md).
 
 ### With Binaries
 
-The latest stable binaries can be downloaded from the [releases](https://github.com/slskd/slskd/releases) page. Platform-specific binaries and the static content for the Web UI are produced as artifacts from every [build](https://github.com/slskd/slskd/actions?query=workflow%3ACI) if you'd prefer to use a canary release.
+The latest stable binaries can be downloaded from the [releases](https://github.com/sredevopsorg/slskd/releases) page. Platform-specific binaries and the static content for the Web UI are produced as artifacts from every [build](https://github.com/sredevopsorg/slskd/actions?query=workflow%3ACI) if you'd prefer to use a canary release.
 
 Binaries are shipped as zip files; extract the zip to your chosen directory and run.
 
-An application directory will be created in either `~/.local/share/slskd` (on Linux and macOS) or `%localappdata%/slskd` (on Windows).  In the root of this directory the file `slskd.yml` will be created the first time the application runs.  Edit this file to enter your credentials for the Soulseek network, and tweak any additional settings using the [configuration guide](https://github.com/slskd/slskd/blob/master/docs/config.md).
+An application directory will be created in either `~/.local/share/slskd` (on Linux and macOS) or `%localappdata%/slskd` (on Windows).  In the root of this directory the file `slskd.yml` will be created the first time the application runs.  Edit this file to enter your credentials for the Soulseek network, and tweak any additional settings using the [configuration guide](https://github.com/sredevopsorg/slskd/blob/master/docs/config.md).
 
 ## Configuration
 
 Once running, log in to the web UI using the default username `slskd` and password `slskd` to complete the configuration.
 
-Detailed documentation for configuration options can be found [here](https://github.com/slskd/slskd/blob/master/docs/config.md), and an example of the YAML configuration file can be reviewed [here](https://github.com/slskd/slskd/blob/master/config/slskd.example.yml).
+Detailed documentation for configuration options can be found [here](https://github.com/sredevopsorg/slskd/blob/master/docs/config.md), and an example of the YAML configuration file can be reviewed [here](https://github.com/sredevopsorg/slskd/blob/master/config/slskd.example.yml).

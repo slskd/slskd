@@ -96,7 +96,7 @@ namespace slskd
         /// <summary>
         ///     The url to the issues/support site.
         /// </summary>
-        public static readonly string IssuesUrl = "https://github.com/slskd/slskd/issues";
+        public static readonly string IssuesUrl = "https://github.com/sredevopsorg/slskd/issues";
 
         /// <summary>
         ///     The global prefix for environment variables.
@@ -873,12 +873,12 @@ namespace slskd
                         Contact = new OpenApiContact
                         {
                             Name = "GitHub",
-                            Url = new Uri("https://github.com/slskd/slskd"),
+                            Url = new Uri("https://github.com/sredevopsorg/slskd"),
                         },
                         License = new OpenApiLicense
                         {
                             Name = "AGPL-3.0 license",
-                            Url = new Uri("https://github.com/slskd/slskd/blob/master/LICENSE"),
+                            Url = new Uri("https://github.com/sredevopsorg/slskd/blob/master/LICENSE"),
                         },
                     });
 

@@ -1,6 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk.Web">
   <PropertyGroup>
-    <RepositoryUrl>https://github.com/slskd/slskd</RepositoryUrl>
+    <RepositoryUrl>https://github.com/sredevopsorg/slskd</RepositoryUrl>
     <PackageProjectUrl>https://slskd.org</PackageProjectUrl>
     <Authors>slskd Team</Authors>
     <Copyright>Copyright (c) slskd Team</Copyright>

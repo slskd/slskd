@@ -115,7 +115,7 @@ ProxyPassReverse /slskd/ http://the.local.ip.address:5030/slskd/
 
 ```
 
-From [discussion #890](https://github.com/slskd/slskd/discussions/890)
+From [discussion #890](https://github.com/sredevopsorg/slskd/discussions/890)
 
 ## IIS (Windows)
 
