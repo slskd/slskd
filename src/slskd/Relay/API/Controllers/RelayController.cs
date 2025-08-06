@@ -280,6 +280,7 @@ namespace slskd.Relay
 
             var agentName = Request.Headers["X-Relay-Agent"].FirstOrDefault();
             var credential = Request.Headers["X-Relay-Credential"].FirstOrDefault();
+            var sanitizedAgentName = SanitizeAgentName(agentName);
 
             if (!Relay.RegisteredAgents.Any(a => a.Name == agentName) || string.IsNullOrEmpty(credential))
             {
@@ -309,7 +310,7 @@ namespace slskd.Relay
             }
 
             Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), Program.AppName));
-            var temp = Path.Combine(Path.GetTempPath(), Program.AppName, $"share_{agentName}_{Path.GetRandomFileName()}.db");
+            var temp = Path.Combine(Path.GetTempPath(), Program.AppName, $"share_{sanitizedAgentName}_{Path.GetRandomFileName()}.db");
 
             try
             {
@@ -327,7 +328,7 @@ namespace slskd.Relay
 
                 Log.Information("Download of shares from {Agent} ({Token}) complete ({Size} in {Duration}ms)", agentName, guid, ((double)inputStream.Length).SizeSuffix(), sw.ElapsedMilliseconds);
 
-                await Relay.HandleShareUploadAsync(agentName, id: guid, shares, temp);
+                await Relay.HandleShareUploadAsync(sanitizedAgentName, id: guid, shares, temp);
 
                 return Ok();
             }
@@ -348,6 +349,22 @@ namespace slskd.Relay
                     Log.Debug(ex, "Failed to remove temporary share upload file: {Message}", ex.Message);
                 }
             }
+        }
+        /// <summary>
+        ///     Sanitizes the agent name to prevent resource injection.
+        ///     Only allows alphanumeric characters, underscore, and hyphen.
+        /// </summary>
+        private static string SanitizeAgentName(string agentName)
+        {
+            if (string.IsNullOrEmpty(agentName))
+                return "unknown";
+            var safe = new System.Text.StringBuilder();
+            foreach (var c in agentName)
+            {
+                if (char.IsLetterOrDigit(c) || c == '_' || c == '-')
+                    safe.Append(c);
+            }
+            return safe.Length > 0 ? safe.ToString() : "unknown";
         }
     }
 }
