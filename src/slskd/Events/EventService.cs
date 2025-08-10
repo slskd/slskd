@@ -48,7 +48,7 @@ public class EventService
     /// <returns>The retrieved list.</returns>
     /// <exception cref="ArgumentOutOfRangeException">Thrown when the specified <paramref name="offset"/> is less than zero.</exception>
     /// <exception cref="ArgumentOutOfRangeException">Thrown when the specified <paramref name="limit"/> is zero.</exception>
-    public virtual IReadOnlyCollection<EventRecord> Get(int offset = 0, int limit = int.MaxValue)
+    public virtual IReadOnlyList<EventRecord> Get(int offset = 0, int limit = int.MaxValue)
     {
         if (offset < 0)
         {
@@ -68,7 +68,8 @@ public class EventService
                 .OrderByDescending(e => e.Timestamp)
                 .Skip(offset)
                 .Take(limit)
-                .ToList();
+                .ToList()
+                .AsReadOnly();
 
             return events;
         }
