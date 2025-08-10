@@ -59,7 +59,7 @@ namespace slskd.Shares
 
             Local = (host, repository);
 
-            AllRepositories = new List<IShareRepository>(new[] { repository });
+            AllRepositories = [repository];
 
             Scanner = scanner ?? new ShareScanner(
                 workerCount: options.Shares.Cache.Workers,
@@ -116,7 +116,7 @@ namespace slskd.Shares
         private StorageMode CacheStorageMode { get; }
         private ILogger Log { get; } = Serilog.Log.ForContext<ShareService>();
         private (Host Host, IShareRepository Repository) Local { get; set; }
-        private IReadOnlyCollection<IShareRepository> AllRepositories { get; set; }
+        private IReadOnlyList<IShareRepository> AllRepositories { get; set; }
 
         /// <summary>
         ///     Adds a new, or updates an existing, share host.

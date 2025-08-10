@@ -88,7 +88,7 @@ namespace slskd.Shares
         private FileService Files { get; }
         private int WorkerCount { get; }
         private ILogger Log { get; } = Serilog.Log.ForContext<ShareScanner>();
-        private List<Share> Shares { get; set; }
+        private IReadOnlyList<Share> Shares { get; set; }
         private ISoulseekFileFactory SoulseekFileFactory { get; }
         private IManagedState<SharedFileCacheState> State { get; } = new ManagedState<SharedFileCacheState>();
         private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1);
@@ -161,6 +161,8 @@ namespace slskd.Shares
                 var swSnapshot = 0L;
                 sw.Start();
 
+                // note: this should be the only place where we are assigning Shares, so that this is 1) synchronized by SyncRoot
+                // and 2) stable throughout the scan.  if this ever changes we'll have to snapshot the value and use it instead
                 Shares = shares.ToList();
 
                 if (!Shares.Any())
@@ -168,7 +170,10 @@ namespace slskd.Shares
                     Log.Warning("Aborting shared file scan; no shares configured.");
                 }
 
-                Shares.ForEach(s => Log.Debug(s.ToJson()));
+                foreach (var share in Shares)
+                {
+                    Log.Debug(share.ToJson());
+                }
 
                 Shares.Where(s => !s.IsExcluded).ToList()
                     .ForEach(s => Log.Information("Sharing {Local} as {Remote}", s.LocalPath, s.RemotePath));
