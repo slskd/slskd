@@ -160,17 +160,20 @@ namespace slskd.Shares
                 prefix = share.RemotePath + (share.RemotePath.EndsWith('\\') ? string.Empty : '\\');
             }
 
+            // snapshot the current list of repositories
+            var repositories = AllRepositories.ToList();
+
             // Soulseek requires that each directory in the tree have an entry in the list returned in a browse response. if
             // missing, files that are nested within directories which contain only directories (no files) are displayed as being
             // in the root. to get around this, prime a dictionary with all known directories, and an empty Soulseek.Directory. if
             // there are any files in the directory, this entry will be overwritten with a new Soulseek.Directory containing the
             // files. if not they'll be left as is.
-            foreach (var directory in AllRepositories.SelectMany(r => r.ListDirectories(prefix)))
+            foreach (var directory in repositories.SelectMany(r => r.ListDirectories(prefix)))
             {
                 directories.TryAdd(directory, new Directory(directory));
             }
 
-            var files = AllRepositories.SelectMany(r => r.ListFiles(prefix, includeFullPath: true));
+            var files = repositories.SelectMany(r => r.ListFiles(prefix, includeFullPath: true));
 
             var groups = files
                 .GroupBy(file => file.Filename.GetNormalizedDirectoryName())
