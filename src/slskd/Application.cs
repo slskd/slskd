@@ -135,7 +135,10 @@ namespace slskd
                 regexOptions |= RegexOptions.IgnoreCase;
             }
 
-            CompiledSearchRequestFilters = OptionsAtStartup.Filters.Search.Request.Select(f => new Regex(f, regexOptions)).ToArray();
+            CompiledSearchRequestFilters = OptionsAtStartup.Filters.Search.Request
+                .Select(f => new Regex(f, regexOptions))
+                .ToList()
+                .AsReadOnly();
 
             State = state;
             State.OnChange(state => State_OnChange(state));
@@ -228,10 +231,10 @@ namespace slskd
         private ISearchService Search { get; set; }
         private IRelayService Relay { get; set; }
         private IMemoryCache Cache { get; set; } = new MemoryCache(new MemoryCacheOptions());
-        private Regex[] CompiledSearchRequestFilters { get; set; }
-        private IEnumerable<Guid> ActiveDownloadIdsAtPreviousShutdown { get; set; } = Enumerable.Empty<Guid>();
+        private IReadOnlyList<Regex> CompiledSearchRequestFilters { get; set; } = [];
+        private IReadOnlyList<Guid> ActiveDownloadIdsAtPreviousShutdown { get; set; } = [];
         private Options.FlagsOptions Flags { get; set; }
-        private IReadOnlyCollection<string> ExcludedSearchPhrases { get; set; } = Enumerable.Empty<string>().ToList();
+        private IReadOnlyList<string> ExcludedSearchPhrases { get; set; } = [];
 
         public void CollectGarbage()
         {
@@ -352,7 +355,7 @@ namespace slskd
             // save the ids of any downloads that were active, so we can re-enqueue them after we've connected and logged in.
             // we need to check the database before we re-request to make sure the user didn't remove them from the UI while
             // the application was running, but before it was logged in. so just save the ids.
-            ActiveDownloadIdsAtPreviousShutdown = activeDownloads.Select(d => d.Id);
+            ActiveDownloadIdsAtPreviousShutdown = activeDownloads.Select(d => d.Id).ToList().AsReadOnly();
             Log.Debug("Downloads to resume upon connection: {Ids}", ActiveDownloadIdsAtPreviousShutdown.ToJson());
 
             Log.Debug("Configuring client");
@@ -924,7 +927,7 @@ namespace slskd
                 }
 
                 // clear the ids we saved at startup; we don't want to re-request these again if the connection is cycled
-                ActiveDownloadIdsAtPreviousShutdown = Enumerable.Empty<Guid>();
+                ActiveDownloadIdsAtPreviousShutdown = [];
             }
             catch (Exception ex)
             {
@@ -1178,7 +1181,7 @@ namespace slskd
         private void Client_ExcludedSearchPhrasesReceived(object sender, IReadOnlyCollection<string> e)
         {
             Log.Debug("Excluded search phrases: {Phrases}", string.Join(", ", e));
-            ExcludedSearchPhrases = e;
+            ExcludedSearchPhrases = e.ToList();
         }
 
         private void Client_TransferProgressUpdated(object sender, TransferProgressUpdatedEventArgs args)
@@ -1319,7 +1322,11 @@ namespace slskd
                 if (PreviousOptions.Filters.Search.Request.Except(newOptions.Filters.Search.Request).Any()
                     || newOptions.Filters.Search.Request.Except(PreviousOptions.Filters.Search.Request).Any())
                 {
-                    CompiledSearchRequestFilters = newOptions.Filters.Search.Request.Select(f => new Regex(f, RegexOptions.Compiled)).ToArray();
+                    CompiledSearchRequestFilters = newOptions.Filters.Search.Request
+                        .Select(f => new Regex(f, RegexOptions.Compiled))
+                        .ToList()
+                        .AsReadOnly();
+
                     Log.Information("Updated and re-compiled search response filters");
                 }
 

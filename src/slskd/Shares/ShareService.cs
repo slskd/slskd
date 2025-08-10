@@ -59,7 +59,7 @@ namespace slskd.Shares
 
             Local = (host, repository);
 
-            AllRepositories = new List<IShareRepository>(new[] { repository });
+            AllRepositories = [repository];
 
             Scanner = scanner ?? new ShareScanner(
                 workerCount: options.Shares.Cache.Workers,
@@ -116,7 +116,7 @@ namespace slskd.Shares
         private StorageMode CacheStorageMode { get; }
         private ILogger Log { get; } = Serilog.Log.ForContext<ShareService>();
         private (Host Host, IShareRepository Repository) Local { get; set; }
-        private IEnumerable<IShareRepository> AllRepositories { get; set; }
+        private IReadOnlyList<IShareRepository> AllRepositories { get; set; }
 
         /// <summary>
         ///     Adds a new, or updates an existing, share host.
@@ -133,7 +133,9 @@ namespace slskd.Shares
 
             AllRepositories = HostDictionary.Values
                 .Select(value => value.Repository)
-                .Prepend(Local.Repository);
+                .Prepend(Local.Repository)
+                .ToList()
+                .AsReadOnly();
 
             State.SetValue(state => state with
             {
@@ -158,17 +160,20 @@ namespace slskd.Shares
                 prefix = share.RemotePath + (share.RemotePath.EndsWith('\\') ? string.Empty : '\\');
             }
 
+            // snapshot the current list of repositories
+            var repositories = AllRepositories.ToList();
+
             // Soulseek requires that each directory in the tree have an entry in the list returned in a browse response. if
             // missing, files that are nested within directories which contain only directories (no files) are displayed as being
             // in the root. to get around this, prime a dictionary with all known directories, and an empty Soulseek.Directory. if
             // there are any files in the directory, this entry will be overwritten with a new Soulseek.Directory containing the
             // files. if not they'll be left as is.
-            foreach (var directory in AllRepositories.SelectMany(r => r.ListDirectories(prefix)))
+            foreach (var directory in repositories.SelectMany(r => r.ListDirectories(prefix)))
             {
                 directories.TryAdd(directory, new Directory(directory));
             }
 
-            var files = AllRepositories.SelectMany(r => r.ListFiles(prefix, includeFullPath: true));
+            var files = repositories.SelectMany(r => r.ListFiles(prefix, includeFullPath: true));
 
             var groups = files
                 .GroupBy(file => file.Filename.GetNormalizedDirectoryName())
@@ -239,7 +244,9 @@ namespace slskd.Shares
 
             AllRepositories = HostDictionary.Values
                 .Select(value => value.Repository)
-                .Prepend(Local.Repository);
+                .Prepend(Local.Repository)
+                .ToList()
+                .AsReadOnly();
 
             State.SetValue(state => state with
             {
@@ -315,6 +322,9 @@ namespace slskd.Shares
         ///     Returns the list of all <see cref="Scan"/>  started at or after the specified <paramref name="startedAtOrAfter"/>
         ///     unix timestamp.
         /// </summary>
+        /// <remarks>
+        ///     Note that this returns the scan history for local shares only.
+        /// </remarks>
         /// <param name="startedAtOrAfter">A unix timestamp that serves as the lower bound of the time-based listing.</param>
         /// <returns>The operation context, including the list of found scans.</returns>
         public Task<IEnumerable<Scan>> ListScansAsync(long startedAtOrAfter = 0)
