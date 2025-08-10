@@ -135,7 +135,7 @@ namespace slskd
                 regexOptions |= RegexOptions.IgnoreCase;
             }
 
-            CompiledSearchResponseFilters = OptionsAtStartup.Filters.Search.Request.Select(f => new Regex(f, regexOptions));
+            CompiledSearchRequestFilters = OptionsAtStartup.Filters.Search.Request.Select(f => new Regex(f, regexOptions)).ToArray();
 
             State = state;
             State.OnChange(state => State_OnChange(state));
@@ -228,7 +228,7 @@ namespace slskd
         private ISearchService Search { get; set; }
         private IRelayService Relay { get; set; }
         private IMemoryCache Cache { get; set; } = new MemoryCache(new MemoryCacheOptions());
-        private IEnumerable<Regex> CompiledSearchResponseFilters { get; set; }
+        private Regex[] CompiledSearchRequestFilters { get; set; }
         private IEnumerable<Guid> ActiveDownloadIdsAtPreviousShutdown { get; set; } = Enumerable.Empty<Guid>();
         private Options.FlagsOptions Flags { get; set; }
         private IReadOnlyCollection<string> ExcludedSearchPhrases { get; set; } = Enumerable.Empty<string>().ToList();
@@ -1319,7 +1319,7 @@ namespace slskd
                 if (PreviousOptions.Filters.Search.Request.Except(newOptions.Filters.Search.Request).Any()
                     || newOptions.Filters.Search.Request.Except(PreviousOptions.Filters.Search.Request).Any())
                 {
-                    CompiledSearchResponseFilters = newOptions.Filters.Search.Request.Select(f => new Regex(f, RegexOptions.Compiled));
+                    CompiledSearchRequestFilters = newOptions.Filters.Search.Request.Select(f => new Regex(f, RegexOptions.Compiled)).ToArray();
                     Log.Information("Updated and re-compiled search response filters");
                 }
 
@@ -1445,7 +1445,7 @@ namespace slskd
                 return null;
             }
 
-            if (CompiledSearchResponseFilters.Any(filter => filter.IsMatch(query.SearchText)))
+            if (CompiledSearchRequestFilters.Any(filter => filter.IsMatch(query.SearchText)))
             {
                 return null;
             }
