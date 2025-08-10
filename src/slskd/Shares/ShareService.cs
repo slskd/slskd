@@ -322,6 +322,9 @@ namespace slskd.Shares
         ///     Returns the list of all <see cref="Scan"/>  started at or after the specified <paramref name="startedAtOrAfter"/>
         ///     unix timestamp.
         /// </summary>
+        /// <remarks>
+        ///     Note that this returns the scan history for local shares only.
+        /// </remarks>
         /// <param name="startedAtOrAfter">A unix timestamp that serves as the lower bound of the time-based listing.</param>
         /// <returns>The operation context, including the list of found scans.</returns>
         public Task<IEnumerable<Scan>> ListScansAsync(long startedAtOrAfter = 0)
