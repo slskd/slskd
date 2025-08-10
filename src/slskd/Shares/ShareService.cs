@@ -116,7 +116,7 @@ namespace slskd.Shares
         private StorageMode CacheStorageMode { get; }
         private ILogger Log { get; } = Serilog.Log.ForContext<ShareService>();
         private (Host Host, IShareRepository Repository) Local { get; set; }
-        private IEnumerable<IShareRepository> AllRepositories { get; set; }
+        private IReadOnlyCollection<IShareRepository> AllRepositories { get; set; }
 
         /// <summary>
         ///     Adds a new, or updates an existing, share host.
@@ -133,7 +133,9 @@ namespace slskd.Shares
 
             AllRepositories = HostDictionary.Values
                 .Select(value => value.Repository)
-                .Prepend(Local.Repository);
+                .Prepend(Local.Repository)
+                .ToList()
+                .AsReadOnly();
 
             State.SetValue(state => state with
             {
@@ -239,7 +241,9 @@ namespace slskd.Shares
 
             AllRepositories = HostDictionary.Values
                 .Select(value => value.Repository)
-                .Prepend(Local.Repository);
+                .Prepend(Local.Repository)
+                .ToList()
+                .AsReadOnly();
 
             State.SetValue(state => state with
             {
