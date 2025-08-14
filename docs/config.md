@@ -78,9 +78,9 @@ remote_configuration: false
 Users that want extra security and don't intend to use the application's web UI can disable it.  This setting is ideal in
 situations where slskd will be controlled by another application via the API (like when run as a Relay agent).
 
-| Command-Line             | Environment Variable         | Description                                                   |
-| ------------------------ | -----------------------------| ------------------------------------------------------------- |
-| `--headless` | `SLSKD_HEADLESS` | Determines whether the application should run in headless (no web UI) mode |
+| Command-Line             | Environment Variable         | Description                                                                |
+| ------------------------ | -----------------------------| -------------------------------------------------------------------------- |
+| `--headless`             | `SLSKD_HEADLESS`             | Determines whether the application should run in headless (no web UI) mode |
 
 #### **YAML**
 ```yaml
@@ -556,10 +556,10 @@ When enabled, the specified file is validated by reading the first few lines of 
 
 Note that the contents of the blacklist are stored in memory to ensure performance, and this will increase the amount of memory used, potentially significantly if the blacklist is large.
 
-| Command-Line         | Environment Variable | Description                    |
-| -------------------- | -------------------- | ------------------------------ |
-| `--enable-blacklist` | `BLACKLIST`          | Enable the managed blacklist   |
-| `--blacklist-file`   | `BLACKLIST_FILE`     | The path to the blacklist file |
+| Command-Line         | Environment Variable       | Description                    |
+| -------------------- | -------------------------- | ------------------------------ |
+| `--enable-blacklist` | `SLSKD_BLACKLIST`          | Enable the managed blacklist   |
+| `--blacklist-file`   | `SLSKD_BLACKLIST_FILE`     | The path to the blacklist file |
 
 ```yaml
 blacklist:
@@ -579,7 +579,7 @@ Additionally, when the client is disconnected, any rooms that were joined at the
 
 | Command-Line  | Environment Variable | Description                             |
 | ------------- | ---------------------| ----------------------------------------|
-| `--rooms`     | `ROOMS`              | A list of chat rooms to join on startup |
+| `--rooms`     | `SLSKD_ROOMS`        | A list of chat rooms to join on startup |
 
 #### **YAML**
 ```yaml
@@ -897,9 +897,9 @@ Search filters can be used to prevent certain types of search requests from bein
 
 Filter expressions are case insensitive by default.
 
-| Command Line              | Environment Variable    | Description                                                           |
-| ------------------------- | ----------------------- | --------------------------------------------------------------------- |
-| `--search-request-filter` | `SEARCH_REQUEST_FILTER` | A list of regular expressions used to filter incoming search requests |
+| Command Line              | Environment Variable          | Description                                                           |
+| ------------------------- | ----------------------------- | --------------------------------------------------------------------- |
+| `--search-request-filter` | `SLSKD_SEARCH_REQUEST_FILTER` | A list of regular expressions used to filter incoming search requests |
 
 #### **YAML**
 ```yaml
