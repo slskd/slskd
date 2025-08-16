@@ -98,7 +98,7 @@ public class Migrator
             throw;
         }
 
-        Log.Debug("Migrations: {Migrations}", new { migrationsToApply, migrationsToSkip });
+        Log.Debug("Migrations: {@Migrations}", new { migrationsToApply, migrationsToSkip });
 
         if (migrationsToApply.Count == 0)
         {
