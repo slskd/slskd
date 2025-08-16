@@ -594,29 +594,35 @@ namespace slskd
             services.AddSingleton<IWaiter, Waiter>();
             services.AddSingleton<ConnectionWatchdog, ConnectionWatchdog>();
 
-            if (OptionsAtStartup.Flags.Volatile)
+            // wire up all of the connection strings we'll use. this is somewhat annoying but necessary because of the
+            // intersection of run-time options (volatile, non-volatile) and ORM/mappers in use (EF, Dapper)
+            var databases = new[] { "search", "transfers", "messaging", "events" };
+
+            var connectionStrings = new ConnectionStringDictionary(databases
+                .Select(database =>
+                {
+                    var connStr = OptionsAtStartup.Flags.Volatile
+                        ? $"Data Source=file:{database}?mode=memory;Cache=shared;Pooling=True;"
+                        : $"Data Source={Path.Combine(DataDirectory, $"{database}.db")};Cache=shared;Pooling=True;";
+
+                    return new KeyValuePair<string, ConnectionString>(database, connStr);
+                })
+                .ToDictionary(x => x.Key, x => x.Value));
+
+            services.AddDbContext<SearchDbContext>(connectionStrings["search"]);
+            services.AddDbContext<TransfersDbContext>(connectionStrings["transfers"]);
+            services.AddDbContext<MessagingDbContext>(connectionStrings["messaging"]);
+            services.AddDbContext<EventsDbContext>(connectionStrings["events"]);
+
+            services.AddSingleton<ConnectionStringDictionary>(connectionStrings);
+
+            if (!OptionsAtStartup.Flags.Volatile)
             {
-                static string MemoryConnectionString(string name) => $"Data Source=file:{name}?mode=memory;Cache=shared;Pooling=True;";
-
-                services.AddDbContext<SearchDbContext>(MemoryConnectionString("search"));
-                services.AddDbContext<TransfersDbContext>(MemoryConnectionString("transfers"));
-                services.AddDbContext<MessagingDbContext>(MemoryConnectionString("messaging"));
-                services.AddDbContext<EventsDbContext>(MemoryConnectionString("events"));
-            }
-            else
-            {
-                static string DiskConnectionString(string name) => $"Data Source={Path.Combine(DataDirectory, $"{name}.db")};Cache=shared;Pooling=True;";
-
-                services.AddDbContext<SearchDbContext>(DiskConnectionString("search"));
-                services.AddDbContext<TransfersDbContext>(DiskConnectionString("transfers"));
-                services.AddDbContext<MessagingDbContext>(DiskConnectionString("messaging"));
-                services.AddDbContext<EventsDbContext>(DiskConnectionString("events"));
-
                 // we're working with non-volatile database files, so register a Migrator to be used later in the
                 // bootup process. the presence of a Migrator instance in DI determines whether a migration is needed.
                 // it's important that we keep this list of databases in sync with those used by the application; anything
                 // not in this list will not be able to be migrated.
-                services.AddSingleton<Migrator>(_ => new Migrator(databases: ["search", "transfers", "messaging", "events"]));
+                services.AddSingleton<Migrator>(_ => new Migrator(databases));
             }
 
             services.AddSingleton<EventService>();
