@@ -18,7 +18,6 @@
 namespace slskd.Migrations;
 
 using System;
-using System.IO;
 using System.Linq;
 using Microsoft.Data.Sqlite;
 using Serilog;
@@ -28,9 +27,13 @@ using Serilog;
 /// </summary>
 public class Z07062025_TransferIndexesMigration : IMigration
 {
+    public Z07062025_TransferIndexesMigration(ConnectionStringDictionary connectionStrings)
+    {
+        ConnectionString = connectionStrings[Database.Transfers];
+    }
+
     private ILogger Log { get; } = Serilog.Log.ForContext<Z07062025_TransferIndexesMigration>();
-    private string DatabaseName { get; } = "transfers";
-    private string ConnectionString => $"Data Source={Path.Combine(Program.DataDirectory, $"{DatabaseName}.db")}";
+    private string ConnectionString { get; }
 
     public bool NeedsToBeApplied()
     {

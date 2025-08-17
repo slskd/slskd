@@ -18,7 +18,6 @@
 namespace slskd.Migrations;
 
 using System;
-using System.IO;
 using System.Linq;
 using Microsoft.Data.Sqlite;
 using Serilog;
@@ -29,9 +28,13 @@ using slskd.Messaging;
 /// </summary>
 public class Z07262025_PrivateMessageWasReplayedMigration : IMigration
 {
+    public Z07262025_PrivateMessageWasReplayedMigration(ConnectionStringDictionary connectionStrings)
+    {
+        ConnectionString = connectionStrings[Database.Messaging];
+    }
+
     private ILogger Log { get; } = Serilog.Log.ForContext<Z07262025_PrivateMessageWasReplayedMigration>();
-    private string DatabaseName { get; } = "messaging";
-    private string ConnectionString => $"Data Source={Path.Combine(Program.DataDirectory, $"{DatabaseName}.db")}";
+    private string ConnectionString { get; }
 
     public bool NeedsToBeApplied()
     {
