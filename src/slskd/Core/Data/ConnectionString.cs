@@ -22,26 +22,9 @@ namespace slskd;
 /// </summary>
 public record ConnectionString
 {
-    /// <summary>
-    ///     Gets the connection string.
-    /// </summary>
     public required string Value { get; init; }
 
-    /// <summary>
-    ///     Implicit conversion from string to ConnectionString.
-    /// </summary>
-    /// <param name="value">The string value.</param>
     public static implicit operator ConnectionString(string value) => new() { Value = value };
-
-    /// <summary>
-    ///     Implicit conversion from ConnectionString to string.
-    /// </summary>
-    /// <param name="connectionString">The ConnectionString instance.</param>
     public static implicit operator string(ConnectionString connectionString) => connectionString.Value;
-
-    /// <summary>
-    ///     Returns the string representation of the connection string.
-    /// </summary>
-    /// <returns>The connection string value.</returns>
     public override string ToString() => Value;
 }
