@@ -81,10 +81,28 @@ namespace slskd.Shares
         /// </summary>
         public Task Completed => TaskCompletionSource.Task;
 
+        private bool started;
+
         /// <summary>
         ///     Gets a value indicating whether the reader has started reading.
         /// </summary>
-        public bool Started { get; private set; }
+        public bool Started
+        {
+            get
+            {
+                lock (SyncRoot)
+                {
+                    return started;
+                }
+            }
+            private set
+            {
+                lock (SyncRoot)
+                {
+                    started = value;
+                }
+            }
+        }
 
         private Channel<T> Channel { get; }
         private Action<T> Handler { get; }
