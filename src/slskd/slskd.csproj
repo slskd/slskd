@@ -44,6 +44,7 @@
 
   <ItemGroup>
     <PackageReference Include="Asp.Versioning.Mvc.ApiExplorer" Version="8.1.0" />
+    <PackageReference Include="Dapper" Version="2.1.66" />
     <PackageReference Include="FluentFTP" Version="49.0.2" />
     <PackageReference Include="IPAddressRange" Version="6.0.0" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.6" />
