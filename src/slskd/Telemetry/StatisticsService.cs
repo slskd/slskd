@@ -1,4 +1,4 @@
-// <copyright file="TelemetryService.cs" company="slskd Team">
+// <copyright file="StatisticsService.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -15,14 +15,14 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-namespace slskd;
+namespace slskd.Telemetry;
 
-public class TelemetryService
+public class StatisticsService
 {
-    public TelemetryService(PrometheusService prometheusService)
+    public StatisticsService(ConnectionStringDictionary connectionStringDictionary)
     {
-        Prometheus = prometheusService;
+        ConnectionStrings = connectionStringDictionary;
     }
 
-    public PrometheusService Prometheus { get; }
+    private ConnectionStringDictionary ConnectionStrings { get; }
 }
