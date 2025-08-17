@@ -1,4 +1,4 @@
-// <copyright file="ConnectionStringDictionary.cs" company="slskd Team">
+// <copyright file="Databases.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -15,21 +15,18 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-namespace slskd;
-
-using System.Collections.Generic;
-
 /// <summary>
-///     Provides a lightweight read-only construct to store connection strings keyed by database name.
+///     A primitive type for Database names and a static value for each of them. And a list.
 /// </summary>
-public class ConnectionStringDictionary
+public class Database
 {
-    public ConnectionStringDictionary(Dictionary<Database, ConnectionString> dictionary)
-    {
-        Strings = dictionary;
-    }
+    public static Database Search { get; } = new Database { Name = nameof(Search).ToLower() };
+    public static Database Transfers { get; } = new Database { Name = nameof(Transfers).ToLower() };
+    public static Database Messaging { get; } = new Database { Name = nameof(Messaging).ToLower() };
+    public static Database Events { get; } = new Database { Name = nameof(Events).ToLower() };
+    public static Database[] List { get; } = [Search, Transfers, Messaging, Events];
 
-    private Dictionary<Database, ConnectionString> Strings { get; } = [];
+    public required string Name { get; init; }
 
-    public ConnectionString this[Database database] => Strings[database];
+    public override string ToString() => Name;
 }

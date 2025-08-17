@@ -34,12 +34,19 @@ public class Migrator
     ///     Initializes a new instance of the <see cref="Migrator"/> class.
     /// </summary>
     /// <param name="databases">A list of known databases.</param>
-    public Migrator(params string[] databases)
+    public Migrator(ConnectionStringDictionary databases)
     {
         Databases = databases;
+
+        Migrations = new()
+        {
+            { nameof(Z04012025_TransferStateMigration), new Z04012025_TransferStateMigration(connectionStrings: Databases) },
+            { nameof(Z07062025_TransferIndexesMigration), new Z07062025_TransferIndexesMigration(connectionStrings: Databases) },
+            { nameof(Z07262025_PrivateMessageWasReplayedMigration), new Z07262025_PrivateMessageWasReplayedMigration(connectionStrings: Databases) },
+        };
     }
 
-    private IEnumerable<string> Databases { get; }
+    private ConnectionStringDictionary Databases { get; }
     private ILogger Log { get; } = Serilog.Log.ForContext<Migrator>();
 
     /// <summary>
@@ -49,12 +56,7 @@ public class Migrator
     ///     This could be done with reflection (e.g. find all instances of IMigration) but it's useful during development
     ///     to selectively add/comment out lines. Slight risk that something is missed, so this should be append only.
     /// </remarks>
-    private Dictionary<string, IMigration> Migrations { get; } = new()
-    {
-        { nameof(Z04012025_TransferStateMigration), new Z04012025_TransferStateMigration() },
-        { nameof(Z07062025_TransferIndexesMigration), new Z07062025_TransferIndexesMigration() },
-        { nameof(Z07262025_PrivateMessageWasReplayedMigration), new Z07262025_PrivateMessageWasReplayedMigration() },
-    };
+    private Dictionary<string, IMigration> Migrations { get; }
 
     /// <summary>
     ///     Applies database migrations.
@@ -123,10 +125,10 @@ public class Migrator
         {
             Log.Information("Backing up existing databases...");
 
-            foreach (var database in Databases)
+            foreach (var database in Database.List)
             {
-                var src = MakeSourceDatabasePath(database);
-                var dest = MakeBackupDatabasePath(database, migrationId);
+                var src = MakeSourceDatabasePath(database.Name);
+                var dest = MakeBackupDatabasePath(database.Name, migrationId);
 
                 File.Copy(src, dest, overwrite: true);
 
@@ -186,11 +188,11 @@ public class Migrator
             {
                 Log.Information("Attempting to restore databases from backups...");
 
-                foreach (var database in Databases)
+                foreach (var database in Database.List)
                 {
-                    var name = Path.Combine(Program.DataDirectory, database);
-                    var src = MakeBackupDatabasePath(database, migrationId);
-                    var dest = MakeSourceDatabasePath(database);
+                    var name = Path.Combine(Program.DataDirectory, database.Name);
+                    var src = MakeBackupDatabasePath(database.Name, migrationId);
+                    var dest = MakeSourceDatabasePath(database.Name);
 
                     // note: leave the backup in place just in case; automatic cleanup will delete them later
                     File.Copy(src, dest, overwrite: true);
