@@ -1,11 +1,11 @@
 import './SavedFilters.css';
 import {
   clearDefaultFilter,
-  createFilter,
   deleteFilter,
   getSavedFilters,
   isDefaultFilter,
   markFilterAsUsed,
+  saveFilter,
   setDefaultFilter,
 } from '../../../lib/savedFilters';
 import React, { useEffect, useState } from 'react';
@@ -60,7 +60,7 @@ const SavedFiltersActions = ({ currentFilter = '', onFilterLoad }) => {
     try {
       setLoading(true);
 
-      const success = createFilter(saveFilterName.trim(), currentFilter);
+      const success = saveFilter(saveFilterName.trim(), currentFilter);
       if (success) {
         toast.success(`Filter "${saveFilterName}" saved successfully`);
         setSaveFilterName('');

@@ -26,42 +26,32 @@ export const getSavedFilters = () => {
 };
 
 /**
- * Create a new filter
+ * Create a new filter or update an existing filter
  * @param {string} name - Name of the filter
  * @param {string} filterString - Filter string to save
  * @returns {boolean} Success status
  */
-export const createFilter = (name, filterString) => {
+export const saveFilter = (name, filterString) => {
   try {
     const filters = getSavedFilters();
-    filters.push({
-      createdAt: new Date().toISOString(),
-      filterString,
-      lastUsed: new Date().toISOString(),
-      name,
-    });
+    const existingFilter = filters.find((f) => f.name === name);
+    if (existingFilter) {
+      existingFilter.filterString = filterString;
+      existingFilter.lastUsed = new Date().toISOString();
+    } else {
+      filters.push({
+        createdAt: new Date().toISOString(),
+        filterString,
+        lastUsed: new Date().toISOString(),
+        name,
+      });
+    }
+
     localStorage.setItem(STORAGE_KEY, JSON.stringify(filters));
     return true;
   } catch (error) {
     console.error('Error creating filter:', error);
     throw new Error('Failed to create filter.' + error.message);
-  }
-};
-
-/**
- * Delete a saved filter
- * @param {string} name - Name of the filter to delete
- * @returns {boolean} Success status
- */
-export const deleteFilter = (name) => {
-  try {
-    const filters = getSavedFilters();
-    const filteredFilters = filters.filter((f) => f.name !== name);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(filteredFilters));
-    return true;
-  } catch (error) {
-    console.error('Error deleting filter:', error);
-    throw new Error('Failed to delete filter.' + error.message);
   }
 };
 
@@ -161,5 +151,26 @@ export const isDefaultFilter = (filterName) => {
   } catch (error) {
     console.error('Error checking default filter:', error);
     throw new Error('Failed to check default filter.' + error.message);
+  }
+};
+
+/**
+ * Delete a saved filter
+ * @param {string} name - Name of the filter to delete
+ * @returns {boolean} Success status
+ */
+export const deleteFilter = (name) => {
+  try {
+    const filters = getSavedFilters();
+    const filteredFilters = filters.filter((f) => f.name !== name);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(filteredFilters));
+    if (getDefaultFilter() === name) {
+      clearDefaultFilter();
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error deleting filter:', error);
+    throw new Error('Failed to delete filter.' + error.message);
   }
 };
