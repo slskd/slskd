@@ -1,4 +1,4 @@
-﻿// <copyright file="StatisticsController.cs" company="slskd Team">
+﻿// <copyright file="TelemetryController.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -20,6 +20,7 @@ namespace slskd.Telemetry;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
@@ -29,17 +30,17 @@ using Soulseek;
 /// <summary>
 ///     Telemetry.
 /// </summary>
-[Route("api/v{version:apiVersion}/telemetry/[controller]")]
+[Route("api/v{version:apiVersion}/[controller]")]
 [ApiVersion("0")]
 [ApiController]
 [Produces("application/json")]
-public class StatisticsController : ControllerBase
+public class TelemetryController : ControllerBase
 {
     /// <summary>
-    ///     Initializes a new instance of the <see cref="StatisticsController"/> class.
+    ///     Initializes a new instance of the <see cref="TelemetryController"/> class.
     /// </summary>
     /// <param name="telemetryService"></param>
-    public StatisticsController(TelemetryService telemetryService)
+    public TelemetryController(TelemetryService telemetryService)
     {
         Telemetry = telemetryService;
     }
@@ -47,7 +48,67 @@ public class StatisticsController : ControllerBase
     private TelemetryService Telemetry { get; }
 
     /// <summary>
-    ///     Summarizes transfer statistics for all users for the specified time range.
+    ///     KPIs for the app, based on the Prometheus dashboard
+    ///     * process_Working_set_bytes = total memory used
+    ///     * dotnet_total_memory_bytes = sum of all managed memory
+    ///     * process_cpu_seconds_total = total cpu time spent (not a great measure)
+    ///     * system_runtime_cpu_usage = % of cpu consumed
+    ///     * system_net_sockets_* = TCP activity
+    ///     KPIs for the _system_, not the app
+    ///     * node_memory_* = info about _system_ memory
+    ///     * node_filesystem_avail_bytes = how much space is left on the system
+    ///     * node_network = info about network adapters on the system
+    ///     Other
+    ///     * process_start_time_seconds = unix timestamp of start time
+    /// </summary>
+    private List<Regex> KpiRegexes { get; } = new List<Regex>
+    {
+        new Regex("slskd_.*", RegexOptions.Compiled),
+        new Regex("node_(?!cpu)", RegexOptions.Compiled),
+        new Regex("process_.*", RegexOptions.Compiled),
+        new Regex("dotnet_total_memory_bytes", RegexOptions.Compiled),
+        new Regex("system_runtime_[cpu_usage|working_set|alloc_total]", RegexOptions.Compiled),
+        new Regex("system_net_sockets.*", RegexOptions.Compiled),
+        new Regex("microsoft_aspnetcore_server_kestrel_[current|total]_connections", RegexOptions.Compiled),
+    };
+
+    /// <summary>
+    ///     Gets application metrics.
+    /// </summary>
+    /// <remarks>
+    ///     Returns a list of all application metrics.
+    /// </remarks>
+    /// <returns></returns>
+    [HttpGet("metrics")]
+    [Authorize(Policy = AuthPolicy.Any)]
+    [Produces("text/plain", "application/json")]
+    public async Task<IActionResult> Get()
+    {
+        if (Request.Headers.Accept.ToString().Equals("application/json", StringComparison.OrdinalIgnoreCase))
+        {
+            Dictionary<string, PrometheusMetric> dict = await Telemetry.Prometheus.GetMetricsAsObject();
+            return Ok(dict);
+        }
+
+        var response = await Telemetry.Prometheus.GetMetricsAsString();
+        return Content(response, "text/plain");
+    }
+
+    /// <summary>
+    ///     Gets gets key performance indicators for the application.
+    /// </summary>
+    /// <returns></returns>
+    [HttpGet("metrics/kpis")]
+    [Authorize(Policy = AuthPolicy.Any)]
+    public async Task<IActionResult> GetKpis()
+    {
+        Dictionary<string, PrometheusMetric> dict = await Telemetry.Prometheus.GetMetricsAsObject(include: KpiRegexes);
+        return Ok(dict);
+    }
+
+    /// <summary>
+    ///     Summarizes transfer statistics, grouped by direction and final transfer state, for all users, and for the
+    ///     specified time range.
     /// </summary>
     /// <param name="start">The start time.</param>
     /// <param name="end">The end time.</param>
@@ -55,7 +116,7 @@ public class StatisticsController : ControllerBase
     [HttpGet("statistics/transfers")]
     [Authorize(Policy = AuthPolicy.Any)]
     [ProducesResponseType(typeof(Dictionary<TransferDirection, Dictionary<TransferStates, TransferSummary>>), 200)]
-    public async Task<IActionResult> GetTransferSummary(
+    public IActionResult GetTransferSummary(
         [FromQuery] DateTime? start = null,
         [FromQuery] DateTime? end = null)
     {
@@ -71,8 +132,8 @@ public class StatisticsController : ControllerBase
     }
 
     /// <summary>
-    ///     Summarizes transfer statistics for the specified direction (Upload or Download) for all users and for the
-    ///     specified time range.
+    ///     Summarizes transfer statistics for the specified direction, grouped by final transfer state,
+    ///     for all users, and for the specified time range.
     /// </summary>
     /// <param name="direction">The direction (Upload or Download).</param>
     /// <param name="start">The start time.</param>
@@ -81,7 +142,7 @@ public class StatisticsController : ControllerBase
     [HttpGet("statistics/transfers/{direction}")]
     [Authorize(Policy = AuthPolicy.Any)]
     [ProducesResponseType(typeof(Dictionary<TransferStates, TransferSummary>), 200)]
-    public async Task<IActionResult> GetTransferSummaryByDirection(
+    public IActionResult GetTransferSummaryByDirection(
         [FromRoute, Required] string direction,
         [FromQuery] DateTime? start = null,
         [FromQuery] DateTime? end = null)
@@ -89,7 +150,6 @@ public class StatisticsController : ControllerBase
         start ??= DateTime.MinValue;
         end ??= DateTime.MaxValue;
 
-        // todo: pluralize this for consistency
         if (!Enum.TryParse<TransferDirection>(direction, ignoreCase: true, out var directionEnum))
         {
             return BadRequest($"Direction must be one of: {string.Join(", ", Enum.GetNames(typeof(TransferDirection)))}");
@@ -105,16 +165,29 @@ public class StatisticsController : ControllerBase
         return Ok(data[directionEnum]);
     }
 
+    /// <summary>
+    ///     Returns the top N user summaries for the specified direction, by total count and direction.
+    /// </summary>
+    /// <param name="direction">The direction (Upload or Download).</param>
+    /// <param name="start">The start time.</param>
+    /// <param name="end">The end time.</param>
+    /// <param name="limit">The number of records to return (Default: 25).</param>
+    /// <param name="offset">The record offset (if paginating).</param>
+    /// <returns></returns>
     [HttpGet("statistics/transfers/{direction}/users")]
     [Authorize(Policy = AuthPolicy.Any)]
-    [ProducesResponseType(typeof(Dictionary<string, TransferSummary>), 200)]
-    public async Task<IActionResult> GetSuccessfulTransferSummaryByDirectionAndUsername(
+    [ProducesResponseType(typeof(List<UserTransferSummary>), 200)]
+    public IActionResult GetSuccessfulTransferSummaryByDirectionAndUsername(
         [FromRoute] string direction,
         [FromQuery] DateTime? start = null,
-        [FromQuery] DateTime? end = null)
+        [FromQuery] DateTime? end = null,
+        [FromQuery] int? limit = null,
+        [FromQuery] int? offset = null)
     {
         start ??= DateTime.MinValue;
         end ??= DateTime.MaxValue;
+        limit ??= 25;
+        offset ??= 0;
 
         if (!Enum.TryParse<TransferDirection>(direction, ignoreCase: true, out var directionEnum))
         {
@@ -126,13 +199,13 @@ public class StatisticsController : ControllerBase
             return BadRequest("End time must be later than start time");
         }
 
-        return Ok(Telemetry.Statistics.GetSuccessfulTransferSummaryByDirectionAndUsername(directionEnum, start.Value, end));
+        return Ok(Telemetry.Statistics.GetSuccessfulTransferSummaryByDirectionAndUsername(directionEnum, start.Value, end, limit: limit.Value, offset: offset.Value));
     }
 
     [HttpGet("statistics/transfers/users/{username}")]
     [Authorize(Policy = AuthPolicy.Any)]
     [ProducesResponseType(typeof(Dictionary<TransferDirection, Dictionary<TransferStates, TransferSummary>>), 200)]
-    public async Task<IActionResult> GetTransferSummaryByUsername(
+    public IActionResult GetTransferSummaryByUsername(
         [FromRoute] string username,
         [FromQuery] DateTime? start = null,
         [FromQuery] DateTime? end = null)
