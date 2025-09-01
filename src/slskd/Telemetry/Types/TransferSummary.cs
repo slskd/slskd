@@ -19,6 +19,7 @@ namespace slskd.Telemetry;
 
 public record TransferSummary
 {
+    public string Username { get; init; }
     public long TotalBytes { get; init; }
     public long Count { get; init; }
     public double AverageSpeed { get; init; }

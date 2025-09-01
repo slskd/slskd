@@ -19,6 +19,7 @@ namespace slskd.Telemetry;
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Dapper;
 using Microsoft.Data.Sqlite;
 using Soulseek;
