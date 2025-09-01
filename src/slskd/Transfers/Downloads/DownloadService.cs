@@ -385,8 +385,11 @@ namespace slskd.Transfers.Downloads
                                 Log.Error(ex, "Download of {Filename} from user {Username} failed: {Message}", file.Filename, username, ex.Message);
 
                                 transfer.EndedAt = DateTime.UtcNow;
-                                transfer.Exception = ex.Message;
                                 transfer.State = TransferStates.Completed | TransferStates.Errored;
+
+                                // Soulseek.NET will include the filename and username in some messages; this is useful for many things but not tracking
+                                // exceptions in a database. when we encounter one of these, drop the first segment.
+                                transfer.Exception = ex.Message.Contains(':') ? ex.Message.Substring(ex.Message.IndexOf(':') + 1).Trim() : ex.Message;
 
                                 // todo: broadcast to signalr hub
                                 SynchronizedUpdate(transfer, cancellable: false);
