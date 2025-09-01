@@ -172,25 +172,24 @@ public class StatisticsService
         {
             Direction = direction.ToString(),
             Limit = limit,
+            Offset = offset,
             Start = start,
             End = end,
         };
 
         var results = connection.Query<TransferSummaryRow>(sql, param);
 
-        foreach (var result in results)
+        var list = results.Select(row => new TransferSummary
         {
-            dict.Add(result.Username, new TransferSummary
-            {
-                TotalBytes = result.TotalBytes,
-                Count = result.Count,
-                AverageSpeed = result.AverageSpeed,
-                AverageWait = result.AverageWait,
-                AverageDuration = result.AverageDuration,
-            });
-        }
+            Username = row.Username,
+            TotalBytes = row.TotalBytes,
+            Count = row.Count,
+            AverageSpeed = row.AverageSpeed,
+            AverageWait = row.AverageWait,
+            AverageDuration = row.AverageDuration,
+        }).ToList();
 
-        return dict;
+        return list;
     }
 
     private record TransferSummaryRow
