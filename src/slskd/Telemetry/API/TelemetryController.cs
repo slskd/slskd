@@ -146,6 +146,7 @@ public class TelemetryController : ControllerBase
         start ??= DateTime.MinValue;
         end ??= DateTime.MaxValue;
 
+        // todo: pluralize this for consistency
         if (!Enum.TryParse<TransferDirection>(direction, ignoreCase: true, out var directionEnum))
         {
             return BadRequest($"Direction must be one of: {string.Join(", ", Enum.GetNames(typeof(TransferDirection)))}");
