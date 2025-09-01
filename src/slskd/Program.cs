@@ -68,6 +68,7 @@ namespace slskd
     using slskd.Search;
     using slskd.Search.API;
     using slskd.Shares;
+    using slskd.Telemetry;
     using slskd.Transfers;
     using slskd.Transfers.Downloads;
     using slskd.Transfers.Uploads;
@@ -626,8 +627,9 @@ namespace slskd
             services.AddSingleton<EventService>();
             services.AddSingleton<EventBus>();
 
-            services.AddSingleton<TelemetryService>();
             services.AddSingleton<PrometheusService>();
+            services.AddSingleton<StatisticsService>();
+            services.AddSingleton<TelemetryService>();
 
             services.AddSingleton<ScriptService>();
             services.AddSingleton<WebhookService>();
