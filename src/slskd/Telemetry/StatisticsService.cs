@@ -120,15 +120,17 @@ public class StatisticsService
     /// <param name="start">The optional start time of the summary window.</param>
     /// <param name="end">The optional end time of the summary window.</param>
     /// <param name="limit">The number of records to return (default: 25).</param>
+    /// <param name="offset">The record offset (if paginating).</param>
     /// <returns>A dictionary keyed by username and containing summary information.</returns>
     /// <exception cref="ArgumentException">
     ///     Thrown if end time is not later than start time, or limit is not greater than zero.
     /// </exception>
-    public Dictionary<string, TransferSummary> GetSuccessfulTransferSummaryByDirectionAndUsername(
+    public List<TransferSummary> GetSuccessfulTransferSummaryByDirectionAndUsername(
         TransferDirection direction,
         DateTime? start = null,
         DateTime? end = null,
-        int limit = 25)
+        int limit = 25,
+        int offset = 0)
     {
         start ??= DateTime.MinValue;
         end ??= DateTime.MaxValue;
@@ -142,8 +144,6 @@ public class StatisticsService
         {
             throw new ArgumentOutOfRangeException("Limit must be greater than zero");
         }
-
-        var dict = new Dictionary<string, TransferSummary>();
 
         var sql = @$"
             SELECT
@@ -161,8 +161,9 @@ public class StatisticsService
                 AND EndedAt IS NOT NULL
                 AND EndedAt BETWEEN @Start AND @End
             GROUP BY Username, Direction, StateDescription
-            ORDER BY Count DESC
+            ORDER BY Count DESC, TotalBytes DESC, Username ASC
             LIMIT @Limit
+            OFFSET @Offset
         ";
 
         using var connection = new SqliteConnection(ConnectionStrings[Database.Transfers]);
