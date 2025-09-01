@@ -17,12 +17,190 @@
 
 namespace slskd.Telemetry;
 
+using System;
+using System.Collections.Generic;
+using Dapper;
+using Microsoft.Data.Sqlite;
+using Soulseek;
+
 public class StatisticsService
 {
+    /// <summary>
+    ///     Initializes a new instance of the <see cref="StatisticsService"/> class.
+    /// </summary>
+    /// <param name="connectionStringDictionary"></param>
     public StatisticsService(ConnectionStringDictionary connectionStringDictionary)
     {
         ConnectionStrings = connectionStringDictionary;
     }
 
     private ConnectionStringDictionary ConnectionStrings { get; }
+
+    /// <summary>
+    ///     Returns a summary of all transfer data grouped by direction and final transfer state. Includes only
+    ///     completed transfers.
+    /// </summary>
+    /// <param name="start">The optional start time of the summary window.</param>
+    /// <param name="end">The optional end time of the summary window.</param>
+    /// <param name="direction">The optional direction (Upload or Download) for the summary.</param>
+    /// <param name="username">The optional username by which to filter results.</param>
+    /// <returns>A nested dictionary keyed by direction and state and containing summary information.</returns>
+    /// <exception cref="ArgumentException">Thrown if end time is not later than start time.</exception>
+    public Dictionary<TransferDirection, Dictionary<TransferStates, TransferSummary>> GetTransferSummary(
+        DateTime? start = null,
+        DateTime? end = null,
+        TransferDirection? direction = null,
+        string username = null)
+    {
+        start ??= DateTime.MinValue;
+        end ??= DateTime.MaxValue;
+
+        if (end <= start)
+        {
+            throw new ArgumentException("End time must be later than start time");
+        }
+
+        var dict = new Dictionary<TransferDirection, Dictionary<TransferStates, TransferSummary>>()
+        {
+            { TransferDirection.Download, new Dictionary<TransferStates, TransferSummary>() },
+            { TransferDirection.Upload, new Dictionary<TransferStates, TransferSummary>() },
+        };
+
+        var sql = @$"
+            SELECT
+                Direction,
+                StateDescription,
+                SUM(Size) AS TotalBytes,
+                COUNT(*) AS Count,
+                AVG(AverageSpeed) AS AverageSpeed,
+                AVG(strftime('%s', StartedAt) - strftime('%s', EnqueuedAt)) AS AverageWait,
+                AVG(strftime('%s', EndedAt) - strftime('%s', StartedAt)) AS AverageDuration
+            FROM Transfers
+            WHERE EndedAt IS NOT NULL
+                AND EndedAt BETWEEN @Start AND @End
+                {(direction is not null ? "AND Direction = @Direction" : string.Empty)}
+                {(username is not null ? "AND Username = @Username" : string.Empty)}
+            GROUP BY Direction, StateDescription
+        ";
+
+        using var connection = new SqliteConnection(ConnectionStrings[Database.Transfers]);
+
+        var param = new
+        {
+            Direction = direction?.ToString(),
+            Username = username,
+            Start = start,
+            End = end,
+        };
+
+        var results = connection.Query<TransferSummaryRow>(sql, param);
+
+        foreach (var result in results)
+        {
+            var record = new TransferSummary
+            {
+                TotalBytes = result.TotalBytes,
+                Count = result.Count,
+                AverageSpeed = result.AverageSpeed,
+                AverageWait = result.AverageWait,
+                AverageDuration = result.AverageDuration,
+            };
+
+            dict[result.Direction].Add(result.StateDescription & ~TransferStates.Completed, record);
+        }
+
+        return dict;
+    }
+
+    /// <summary>
+    ///     Returns the top <paramref name="limit"/> user summaries by total count and direction, order by total count
+    ///     descending. Only successful transfers are included in counts.
+    /// </summary>
+    /// <param name="direction">The direction (Upload or Download) for the summary.</param>
+    /// <param name="start">The optional start time of the summary window.</param>
+    /// <param name="end">The optional end time of the summary window.</param>
+    /// <param name="limit">The number of records to return (default: 25).</param>
+    /// <returns>A dictionary keyed by username and containing summary information.</returns>
+    /// <exception cref="ArgumentException">
+    ///     Thrown if end time is not later than start time, or limit is not greater than zero.
+    /// </exception>
+    public Dictionary<string, TransferSummary> GetSuccessfulTransferSummaryByDirectionAndUsername(
+        TransferDirection direction,
+        DateTime? start = null,
+        DateTime? end = null,
+        int limit = 25)
+    {
+        start ??= DateTime.MinValue;
+        end ??= DateTime.MaxValue;
+
+        if (end <= start)
+        {
+            throw new ArgumentException("End time must be later than start time");
+        }
+
+        if (limit <= 0)
+        {
+            throw new ArgumentOutOfRangeException("Limit must be greater than zero");
+        }
+
+        var dict = new Dictionary<string, TransferSummary>();
+
+        var sql = @$"
+            SELECT
+                Username,
+                Direction,
+                StateDescription,
+                SUM(Size) AS TotalBytes,
+                COUNT(*) AS Count,
+                AVG(AverageSpeed) AS AverageSpeed,
+                AVG(strftime('%s', StartedAt) - strftime('%s', EnqueuedAt)) AS AverageWait,
+                AVG(strftime('%s', EndedAt) - strftime('%s', StartedAt)) AS AverageDuration
+            FROM Transfers
+            WHERE Direction = @Direction
+                AND State = 48
+                AND EndedAt IS NOT NULL
+                AND EndedAt BETWEEN @Start AND @End
+            GROUP BY Username, Direction, StateDescription
+            ORDER BY Count DESC
+            LIMIT @Limit
+        ";
+
+        using var connection = new SqliteConnection(ConnectionStrings[Database.Transfers]);
+
+        var param = new
+        {
+            Direction = direction.ToString(),
+            Limit = limit,
+            Start = start,
+            End = end,
+        };
+
+        var results = connection.Query<TransferSummaryRow>(sql, param);
+
+        foreach (var result in results)
+        {
+            dict.Add(result.Username, new TransferSummary
+            {
+                TotalBytes = result.TotalBytes,
+                Count = result.Count,
+                AverageSpeed = result.AverageSpeed,
+                AverageWait = result.AverageWait,
+                AverageDuration = result.AverageDuration,
+            });
+        }
+
+        return dict;
+    }
+
+    private record TransferSummaryRow
+    {
+        public string Username { get; init; }
+        public TransferDirection Direction { get; init; }
+        public TransferStates StateDescription { get; init; }
+        public long TotalBytes { get; init; }
+        public long Count { get; init; }
+        public double AverageSpeed { get; init; }
+        public double AverageWait { get; init; }
+        public double AverageDuration { get; init; }
+    }
 }
