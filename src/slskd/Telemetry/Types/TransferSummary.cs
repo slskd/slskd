@@ -1,4 +1,4 @@
-// <copyright file="TelemetryService.cs" company="slskd Team">
+// <copyright file="TransferSummary.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -17,14 +17,11 @@
 
 namespace slskd.Telemetry;
 
-public class TelemetryService
+public record TransferSummary
 {
-    public TelemetryService(PrometheusService prometheusService, StatisticsService statisticsService)
-    {
-        Prometheus = prometheusService;
-        Statistics = statisticsService;
-    }
-
-    public PrometheusService Prometheus { get; }
-    public StatisticsService Statistics { get; }
+    public long TotalBytes { get; init; }
+    public long Count { get; init; }
+    public double AverageSpeed { get; init; }
+    public double AverageWait { get; init; }
+    public double AverageDuration { get; init; }
 }
