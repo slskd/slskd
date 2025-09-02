@@ -19,7 +19,6 @@ namespace slskd.Telemetry;
 
 using System;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Asp.Versioning;
@@ -132,53 +131,17 @@ public class TelemetryController : ControllerBase
     }
 
     /// <summary>
-    ///     Summarizes transfer statistics for the specified direction, grouped by final transfer state,
-    ///     for all users, and for the specified time range.
+    ///     Returns the top N user summaries by total count and direction.
     /// </summary>
-    /// <param name="direction">The direction (Upload or Download).</param>
-    /// <param name="start">The start time.</param>
-    /// <param name="end">The end time.</param>
-    /// <returns>A dictionary keyed by state and containing summary information.</returns>
-    [HttpGet("statistics/transfers/{direction}")]
-    [Authorize(Policy = AuthPolicy.Any)]
-    [ProducesResponseType(typeof(Dictionary<TransferStates, TransferSummary>), 200)]
-    public IActionResult GetTransferSummaryByDirection(
-        [FromRoute, Required] string direction,
-        [FromQuery] DateTime? start = null,
-        [FromQuery] DateTime? end = null)
-    {
-        start ??= DateTime.MinValue;
-        end ??= DateTime.MaxValue;
-
-        if (!Enum.TryParse<TransferDirection>(direction, ignoreCase: true, out var directionEnum))
-        {
-            return BadRequest($"Direction must be one of: {string.Join(", ", Enum.GetNames(typeof(TransferDirection)))}");
-        }
-
-        if (start >= end)
-        {
-            return BadRequest("End time must be later than start time");
-        }
-
-        var data = Telemetry.Statistics.GetTransferSummary(start.Value, end, directionEnum);
-
-        return Ok(data[directionEnum]);
-    }
-
-    /// <summary>
-    ///     Returns the top N user summaries for the specified direction, by total count and direction.
-    /// </summary>
-    /// <param name="direction">The direction (Upload or Download).</param>
     /// <param name="start">The start time.</param>
     /// <param name="end">The end time.</param>
     /// <param name="limit">The number of records to return (Default: 25).</param>
     /// <param name="offset">The record offset (if paginating).</param>
     /// <returns></returns>
-    [HttpGet("statistics/transfers/{direction}/users")]
+    [HttpGet("statistics/transfers/users")]
     [Authorize(Policy = AuthPolicy.Any)]
-    [ProducesResponseType(typeof(List<UserTransferSummary>), 200)]
-    public IActionResult GetSuccessfulTransferSummaryByDirectionAndUsername(
-        [FromRoute] string direction,
+    [ProducesResponseType(typeof(Dictionary<TransferDirection, List<UserTransferSummary>>), 200)]
+    public IActionResult GetSuccessfulTransferSummaryByUsername(
         [FromQuery] DateTime? start = null,
         [FromQuery] DateTime? end = null,
         [FromQuery] int? limit = null,
@@ -189,30 +152,89 @@ public class TelemetryController : ControllerBase
         limit ??= 25;
         offset ??= 0;
 
-        if (!Enum.TryParse<TransferDirection>(direction, ignoreCase: true, out var directionEnum))
+        if (start >= end)
         {
-            return BadRequest($"Direction must be one of: {string.Join(", ", Enum.GetNames(typeof(TransferDirection)))}");
+            return BadRequest("End time must be later than start time");
         }
+
+        if (limit <= 0)
+        {
+            return BadRequest("Limit must be greater than zero");
+        }
+
+        if (offset < 0)
+        {
+            return BadRequest("Offset must be greater than or equal to zero");
+        }
+
+        var downloads = Telemetry.Statistics.GetSuccessfulTransferSummaryByDirectionAndUsername(direction: TransferDirection.Download, start.Value, end, limit: limit.Value, offset: offset.Value);
+        var uploads = Telemetry.Statistics.GetSuccessfulTransferSummaryByDirectionAndUsername(direction: TransferDirection.Upload, start.Value, end, limit: limit.Value, offset: offset.Value);
+
+        var dict = new Dictionary<TransferDirection, List<TransferSummary>>()
+        {
+            { TransferDirection.Download, downloads },
+            { TransferDirection.Upload, uploads },
+        };
+
+        return Ok(dict);
+    }
+
+    /// <summary>
+    ///     Returns the top N errors by total count and direction.
+    /// </summary>
+    /// <param name="start">The start time.</param>
+    /// <param name="end">The end time.</param>
+    /// <param name="limit">The number of records to return (Default: 25).</param>
+    /// <param name="offset">The record offset (if paginating).</param>
+    /// <returns></returns>
+    [HttpGet("statistics/transfers/errors")]
+    [Authorize(Policy = AuthPolicy.Any)]
+    [ProducesResponseType(typeof(Dictionary<TransferDirection, Dictionary<TransferStates, TransferSummary>>), 200)]
+    public IActionResult GetTransferErrorSummary(
+        [FromQuery] DateTime? start = null,
+        [FromQuery] DateTime? end = null,
+        [FromQuery] int? limit = null,
+        [FromQuery] int? offset = null)
+    {
+        start ??= DateTime.MinValue;
+        end ??= DateTime.MaxValue;
+        limit ??= 25;
+        offset ??= 0;
 
         if (start >= end)
         {
             return BadRequest("End time must be later than start time");
         }
 
-        return Ok(Telemetry.Statistics.GetSuccessfulTransferSummaryByDirectionAndUsername(directionEnum, start.Value, end, limit: limit.Value, offset: offset.Value));
+        if (limit <= 0)
+        {
+            return BadRequest("Limit must be greater than zero");
+        }
+
+        if (offset < 0)
+        {
+            return BadRequest("Offset must be greater than or equal to zero");
+        }
+
+        var downloads = Telemetry.Statistics.GetTransferErrorSummary(start, end, TransferDirection.Download, limit: limit.Value, offset: offset.Value);
+        var uploads = Telemetry.Statistics.GetTransferErrorSummary(start, end, TransferDirection.Upload, limit: limit.Value, offset: offset.Value);
+
+        var dict = new Dictionary<TransferDirection, Dictionary<string, long>>()
+        {
+            { TransferDirection.Download, downloads },
+            { TransferDirection.Upload, uploads },
+        };
+
+        return Ok(dict);
     }
 
-    [HttpGet("statistics/transfers/users/{username}")]
+    [HttpGet("statistics/transfers/errors")]
     [Authorize(Policy = AuthPolicy.Any)]
-    [ProducesResponseType(typeof(Dictionary<TransferDirection, Dictionary<TransferStates, TransferSummary>>), 200)]
-    public IActionResult GetTransferSummaryByUsername(
-        [FromRoute] string username,
-        [FromQuery] DateTime? start = null,
-        [FromQuery] DateTime? end = null)
+    [ProducesResponseType(typeof(UserSummary), 200)]
+    public IActionResult GetUserStatistics(
+        [FromQuery] string username)
     {
-        start ??= DateTime.MinValue;
-        end ??= DateTime.MaxValue;
-
-        return Ok(Telemetry.Statistics.GetTransferSummary(start, end, username: username));
+        // todo: return everything we know about this user
+        return Ok();
     }
 }

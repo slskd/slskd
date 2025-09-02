@@ -193,6 +193,70 @@ public class StatisticsService
         return list;
     }
 
+    public Dictionary<string, long> GetTransferErrorSummary(
+        DateTime? start = null,
+        DateTime? end = null,
+        TransferDirection? direction = null,
+        string username = null,
+        int limit = 25,
+        int offset = 0)
+    {
+        start ??= DateTime.MinValue;
+        end ??= DateTime.MaxValue;
+
+        if (end <= start)
+        {
+            throw new ArgumentException("End time must be later than start time");
+        }
+
+        var dict = new Dictionary<string, long>();
+
+        var sql = @$"
+            SELECT 
+                Direction,
+                CASE 
+                    WHEN INSTR(Exception, ':') > 0 
+                    THEN SUBSTR(Exception, INSTR(Exception, ':') + 2)
+                    ELSE Exception
+                END as Exception,
+                COUNT(*) as Count
+            FROM transfers 
+            WHERE state & ~48
+                {(direction is not null ? "AND Direction = @Direction" : string.Empty)}
+                {(username is not null ? "AND Username = @Username" : string.Empty)}
+            GROUP BY Direction,
+            CASE 
+                WHEN INSTR(Exception, ':') > 0 
+                THEN SUBSTR(Exception, INSTR(Exception, ':') + 2)
+                ELSE Exception
+            END
+            ORDER BY Count DESC
+            LIMIT @Limit
+            OFFSET @Offset
+        ";
+
+        using var connection = new SqliteConnection(ConnectionStrings[Database.Transfers]);
+
+        var param = new
+        {
+            Direction = direction.ToString(),
+            Username = username,
+            Start = start,
+            End = end,
+            Limit = limit,
+            Offset = offset,
+        };
+
+        var results = connection.Query<ErrorSummaryRow>(sql, param);
+
+        foreach (var result in results)
+        {
+            dict.Add(result.Exception, result.Count);
+        }
+
+        return dict;
+    }
+
     private record TransferSummaryRow
     {
         public string Username { get; init; }
@@ -203,5 +267,11 @@ public class StatisticsService
         public double AverageSpeed { get; init; }
         public double AverageWait { get; init; }
         public double AverageDuration { get; init; }
+    }
+
+    private record ErrorSummaryRow
+    {
+        public string Exception { get; init; }
+        public long Count { get; init; }
     }
 }
