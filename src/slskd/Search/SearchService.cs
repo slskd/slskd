@@ -321,7 +321,7 @@ namespace slskd.Search
                             // a search that was actually cancelled by the user will meet the criteria below.
                             if (ex is OperationCanceledException && cancellationTokenSource.Token.IsCancellationRequested)
                             {
-                                Log.Information("Search for '{Query}' was cancelled");
+                                Log.Information("Search for '{Query}' was cancelled", query);
                                 search.State = SearchStates.Completed | SearchStates.Cancelled;
                             }
                             else
@@ -350,7 +350,7 @@ namespace slskd.Search
                         await SearchHub.BroadcastUpdateAsync(search with { Responses = [] });
 
                         Log.Debug("Search for '{Query}' finalized (id: {Id}): {Search}", query, id, search with { Responses = [] });
-                        Log.Information("Search for '{Query}' completed with {Responses} responses", search.ResponseCount);
+                        Log.Information("Search for '{Query}' completed with {Responses} responses", query, search.ResponseCount);
                     }
                     catch (Exception ex)
                     {
