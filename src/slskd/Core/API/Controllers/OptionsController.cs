@@ -190,6 +190,11 @@ namespace slskd.Core.API
             {
                 var options = yaml.FromYaml<Options>();
 
+                if (options is null)
+                {
+                    return true;
+                }
+
                 if (!options.TryValidate(out var result))
                 {
                     error = result.GetResultView();
