@@ -114,6 +114,85 @@ public class StatisticsService
     }
 
     /// <summary>
+    ///     Returns a summary of all transfer data grouped by direction and final transfer state. Includes only
+    ///     completed transfers.
+    /// </summary>
+    /// <param name="start">The start time of the summary window.</param>
+    /// <param name="end">The end time of the summary window.</param>
+    /// <param name="interval">The interval for the histogram.</param>
+    /// <param name="direction">The optional direction (Upload or Download) for the summary.</param>
+    /// <param name="username">The optional username by which to filter results.</param>
+    /// <returns>A nested dictionary keyed by direction and state and containing summary information.</returns>
+    /// <exception cref="ArgumentException">Thrown if end time is not later than start time.</exception>
+    public List<Dictionary<TransferDirection, Dictionary<TransferStates, TransferSummary>>> GetTransferSummaryHistogram(
+        DateTime start,
+        DateTime end,
+        TimeSpan interval,
+        TransferDirection? direction = null,
+        string username = null)
+    {
+        if (end <= start)
+        {
+            throw new ArgumentException("End time must be later than start time");
+        }
+
+        var dict = new Dictionary<TransferDirection, Dictionary<TransferStates, TransferSummary>>()
+        {
+            { TransferDirection.Download, new Dictionary<TransferStates, TransferSummary>() },
+            { TransferDirection.Upload, new Dictionary<TransferStates, TransferSummary>() },
+        };
+
+        var sql2 = @$"
+            SELECT
+                datetime(strftime('%s', EndedAt) / @Interval * @Interval, 'unixepoch') AS Interval,
+                Direction,
+                StateDescription,
+                SUM(Size) AS TotalBytes,
+                COUNT(*) AS Count,
+                AVG(AverageSpeed) AS AverageSpeed,
+                AVG(strftime('%s', StartedAt) - strftime('%s', EnqueuedAt)) AS AverageWait,
+                AVG(strftime('%s', EndedAt) - strftime('%s', StartedAt)) AS AverageDuration
+            FROM Transfers
+            WHERE EndedAt IS NOT NULL
+                AND EndedAt BETWEEN @Start AND @End
+                {(direction is not null ? "AND Direction = @Direction" : string.Empty)}
+                {(username is not null ? "AND Username = @Username" : string.Empty)}
+            GROUP BY Interval, Direction, StateDescription
+            ORDER BY Interval, Direction, StateDescription;
+        ";
+
+        using var connection = new SqliteConnection(ConnectionStrings[Database.Transfers]);
+
+        var param = new
+        {
+            Direction = direction?.ToString(),
+            Username = username,
+            Start = start,
+            End = end,
+            Interval = interval.TotalSeconds,
+        };
+
+        var results = connection.Query<TransferSummaryRow>(sql2, param);
+
+        foreach (var result in results)
+        {
+            Console.WriteLine(result);
+            var record = new TransferSummary
+            {
+                TotalBytes = result.TotalBytes,
+                Count = result.Count,
+                AverageSpeed = result.AverageSpeed,
+                AverageWait = result.AverageWait,
+                AverageDuration = result.AverageDuration,
+            };
+
+            dict[result.Direction].Add(result.StateDescription & ~TransferStates.Completed, record);
+        }
+
+        return [dict];
+    }
+
+    /// <summary>
     ///     Returns the top <paramref name="limit"/> user summaries by total count and direction, order by total count
     ///     descending. Only successful transfers are included in counts.
     /// </summary>
@@ -277,6 +356,7 @@ public class StatisticsService
 
     private record TransferSummaryRow
     {
+        public DateTime? Interval { get; init; }
         public string Username { get; init; }
         public TransferDirection Direction { get; init; }
         public TransferStates StateDescription { get; init; }

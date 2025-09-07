@@ -112,7 +112,7 @@ public class TelemetryController : ControllerBase
     /// <param name="start">The start time.</param>
     /// <param name="end">The end time.</param>
     /// <returns>A dictionary keyed by direction and state and containing summary information.</returns>
-    [HttpGet("statistics/transfers")]
+    [HttpGet("statistics/transfers/summary")]
     [Authorize(Policy = AuthPolicy.Any)]
     [ProducesResponseType(typeof(Dictionary<TransferDirection, Dictionary<TransferStates, TransferSummary>>), 200)]
     public IActionResult GetTransferSummary(
@@ -128,6 +128,24 @@ public class TelemetryController : ControllerBase
         }
 
         return Ok(Telemetry.Statistics.GetTransferSummary(start.Value, end));
+    }
+
+    [HttpGet("statistics/transfers/histogram")]
+    [Authorize(Policy = AuthPolicy.Any)]
+    [ProducesResponseType(typeof(Dictionary<TransferDirection, Dictionary<TransferStates, TransferSummary>>), 200)]
+    public IActionResult GetTransferSummaryHistogram(
+        [FromQuery] DateTime? start = null,
+        [FromQuery] DateTime? end = null)
+    {
+        start ??= DateTime.MinValue;
+        end ??= DateTime.MaxValue;
+
+        if (start >= end)
+        {
+            return BadRequest("End time must be later than start time");
+        }
+
+        return Ok(Telemetry.Statistics.GetTransferSummaryHistogram(start.Value, end.Value, TimeSpan.FromSeconds(60)));
     }
 
     /// <summary>
