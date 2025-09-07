@@ -126,7 +126,7 @@ public class StatisticsService
     /// <exception cref="ArgumentException">
     ///     Thrown if end time is not later than start time, or limit is not greater than zero.
     /// </exception>
-    public List<TransferSummary> GetSuccessfulTransferSummaryByDirectionAndUsername(
+    public List<TransferSummary> GetTransferRanking(
         TransferDirection direction,
         DateTime? start = null,
         DateTime? end = null,
@@ -193,6 +193,19 @@ public class StatisticsService
         return list;
     }
 
+    /// <summary>
+    ///     Returns a summary of distinct transfer errors and the number of times they occurred.
+    /// </summary>
+    /// <param name="start">The optional start time of the summary window.</param>
+    /// <param name="end">The optional end time of the summary window.</param>
+    /// <param name="direction">The direction (Upload or Download) for the summary.</param>
+    /// <param name="username">The optional username by which to filter results.</param>
+    /// <param name="limit">The number of records to return (default: 25).</param>
+    /// <param name="offset">The record offset (if paginating).</param>
+    /// <returns></returns>
+    /// <exception cref="ArgumentException">
+    ///     Thrown if end time is not later than start time, or limit is not greater than zero.
+    /// </exception>
     public Dictionary<string, long> GetTransferErrorSummary(
         DateTime? start = null,
         DateTime? end = null,
@@ -207,6 +220,11 @@ public class StatisticsService
         if (end <= start)
         {
             throw new ArgumentException("End time must be later than start time");
+        }
+
+        if (limit <= 0)
+        {
+            throw new ArgumentOutOfRangeException("Limit must be greater than zero");
         }
 
         var dict = new Dictionary<string, long>();

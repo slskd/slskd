@@ -167,8 +167,8 @@ public class TelemetryController : ControllerBase
             return BadRequest("Offset must be greater than or equal to zero");
         }
 
-        var downloads = Telemetry.Statistics.GetSuccessfulTransferSummaryByDirectionAndUsername(direction: TransferDirection.Download, start.Value, end, limit: limit.Value, offset: offset.Value);
-        var uploads = Telemetry.Statistics.GetSuccessfulTransferSummaryByDirectionAndUsername(direction: TransferDirection.Upload, start.Value, end, limit: limit.Value, offset: offset.Value);
+        var downloads = Telemetry.Statistics.GetTransferRanking(direction: TransferDirection.Download, start.Value, end, limit: limit.Value, offset: offset.Value);
+        var uploads = Telemetry.Statistics.GetTransferRanking(direction: TransferDirection.Upload, start.Value, end, limit: limit.Value, offset: offset.Value);
 
         var dict = new Dictionary<TransferDirection, List<TransferSummary>>()
         {
@@ -226,15 +226,5 @@ public class TelemetryController : ControllerBase
         };
 
         return Ok(dict);
-    }
-
-    [HttpGet("statistics/transfers/errors")]
-    [Authorize(Policy = AuthPolicy.Any)]
-    [ProducesResponseType(typeof(UserSummary), 200)]
-    public IActionResult GetUserStatistics(
-        [FromQuery] string username)
-    {
-        // todo: return everything we know about this user
-        return Ok();
     }
 }
