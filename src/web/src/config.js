@@ -12,12 +12,14 @@ const tokenPassthroughValue = 'n/a';
 const activeChatKey = 'slskd-active-chat';
 const activeRoomKey = 'slskd-active-room';
 const activeUserInfoKey = 'slskd-active-user';
+const defaultFilter = window.defaultFilter ?? '';
 
 export {
   activeChatKey,
   activeRoomKey,
   activeUserInfoKey,
   apiBaseUrl,
+  defaultFilter,
   hubBaseUrl,
   rootUrl,
   tokenKey,
