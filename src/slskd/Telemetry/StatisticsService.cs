@@ -124,7 +124,7 @@ public class StatisticsService
     /// <param name="username">The optional username by which to filter results.</param>
     /// <returns>A nested dictionary keyed by direction and state and containing summary information.</returns>
     /// <exception cref="ArgumentException">Thrown if end time is not later than start time.</exception>
-    public List<Dictionary<TransferDirection, Dictionary<TransferStates, TransferSummary>>> GetTransferSummaryHistogram(
+    public Dictionary<DateTime, Dictionary<TransferDirection, Dictionary<TransferStates, TransferSummary>>> GetTransferSummaryHistogram(
         DateTime start,
         DateTime end,
         TimeSpan interval,
@@ -136,13 +136,11 @@ public class StatisticsService
             throw new ArgumentException("End time must be later than start time");
         }
 
-        var dict = new Dictionary<TransferDirection, Dictionary<TransferStates, TransferSummary>>()
-        {
-            { TransferDirection.Download, new Dictionary<TransferStates, TransferSummary>() },
-            { TransferDirection.Upload, new Dictionary<TransferStates, TransferSummary>() },
-        };
+        var dict = new Dictionary<DateTime, Dictionary<TransferDirection, Dictionary<TransferStates, TransferSummary>>>();
 
-        var sql2 = @$"
+        // todo: fill the dictionary with gapless intervals and empty dictionaries
+
+        var sql = @$"
             SELECT
                 datetime(strftime('%s', EndedAt) / @Interval * @Interval, 'unixepoch') AS Interval,
                 Direction,
@@ -150,8 +148,8 @@ public class StatisticsService
                 SUM(Size) AS TotalBytes,
                 COUNT(*) AS Count,
                 AVG(AverageSpeed) AS AverageSpeed,
-                AVG(strftime('%s', StartedAt) - strftime('%s', EnqueuedAt)) AS AverageWait,
-                AVG(strftime('%s', EndedAt) - strftime('%s', StartedAt)) AS AverageDuration
+                COALESCE(AVG(strftime('%s', StartedAt) - strftime('%s', EnqueuedAt)), 0) AS AverageWait,
+                COALESCE(AVG(strftime('%s', EndedAt) - strftime('%s', StartedAt)), 0) AS AverageDuration
             FROM Transfers
             WHERE EndedAt IS NOT NULL
                 AND EndedAt BETWEEN @Start AND @End
@@ -172,8 +170,9 @@ public class StatisticsService
             Interval = interval.TotalSeconds,
         };
 
-        var results = connection.Query<TransferSummaryRow>(sql2, param);
+        var results = connection.Query<TransferSummaryRow>(sql, param);
 
+        // todo: update the dictionary entry for the interval and proper direction
         foreach (var result in results)
         {
             Console.WriteLine(result);
@@ -189,6 +188,7 @@ public class StatisticsService
             dict[result.Direction].Add(result.StateDescription & ~TransferStates.Completed, record);
         }
 
+        // we should have a sparsely populated dictionary
         return [dict];
     }
 
