@@ -53,7 +53,8 @@ namespace slskd.Validation
                     {
                         try
                         {
-                            File.Open(file, FileMode.Open, FileAccess.Value).Dispose();
+                            using var fs = File.Open(file, FileMode.Open, FileAccess.Value);
+                            fs.Close();
                         }
                         catch (IOException)
                         {
