@@ -352,10 +352,42 @@ namespace slskd
         /// </summary>
         /// <param name="remoteFilename">The fully qualified remote filename to convert.</param>
         /// <param name="baseDirectory">The base directory for the local filename.</param>
+        /// <param name="relativePath">Optional relative path to override the default path structure.</param>
         /// <returns>The converted filename.</returns>
-        public static string ToLocalFilename(this string remoteFilename, string baseDirectory)
+        public static string ToLocalFilename(this string remoteFilename, string baseDirectory, string relativePath)
         {
-            return Path.Combine(baseDirectory, remoteFilename.ToLocalRelativeFilename());
+            // Check if filename contains custom path information (format: "originalFilename|customPath")
+            string actualRemoteFilename = remoteFilename;
+            string customPath = relativePath;
+
+            if (remoteFilename.Contains("|"))
+            {
+                var parts = remoteFilename.Split('|', 2);
+                if (parts.Length == 2)
+                {
+                    actualRemoteFilename = parts[0];
+                    customPath = parts[1];
+                }
+            }
+
+            if (string.IsNullOrEmpty(customPath))
+            {
+                return Path.Combine(baseDirectory, actualRemoteFilename.ToLocalRelativeFilename());
+            }
+            else
+            {
+                // For custom paths, we need to sanitize the path and ensure proper directory separators
+                var sanitizedCustomPath = customPath.LocalizePath();
+                var parts = sanitizedCustomPath.Split(Path.DirectorySeparatorChar);
+
+                for (int i = 0; i < parts.Length; i++)
+                {
+                    parts[i] = parts[i].ReplaceInvalidFileNameCharacters();
+                }
+
+                var finalPath = string.Join(Path.DirectorySeparatorChar, parts);
+                return Path.Combine(baseDirectory, finalPath);
+            }
         }
 
         /// <summary>

@@ -291,10 +291,10 @@ namespace slskd.Transfers.Downloads
 
                                 var completedTransfer = await Client.DownloadAsync(
                                     username: username,
-                                    remoteFilename: file.Filename,
+                                    remoteFilename: file.Filename.Contains("|") ? file.Filename.Split('|')[0] : file.Filename,
                                     outputStreamFactory: () => Task.FromResult(
                                         Files.CreateFile(
-                                            filename: file.Filename.ToLocalFilename(baseDirectory: OptionsMonitor.CurrentValue.Directories.Incomplete),
+                                            filename: file.Filename.ToLocalFilename(baseDirectory: OptionsMonitor.CurrentValue.Directories.Incomplete, relativePath: null),
                                             options: new CreateFileOptions
                                             {
                                                 Access = System.IO.FileAccess.Write,
@@ -319,10 +319,10 @@ namespace slskd.Transfers.Downloads
                                 // todo: broadcast to signalr hub
                                 SynchronizedUpdate(transfer, cancellable: false);
 
-                                var destinationDirectory = System.IO.Path.GetDirectoryName(file.Filename.ToLocalFilename(baseDirectory: OptionsMonitor.CurrentValue.Directories.Downloads));
+                                var destinationDirectory = System.IO.Path.GetDirectoryName(file.Filename.ToLocalFilename(baseDirectory: OptionsMonitor.CurrentValue.Directories.Downloads, relativePath: null));
 
                                 var finalFilename = Files.MoveFile(
-                                    sourceFilename: file.Filename.ToLocalFilename(baseDirectory: OptionsMonitor.CurrentValue.Directories.Incomplete),
+                                    sourceFilename: file.Filename.ToLocalFilename(baseDirectory: OptionsMonitor.CurrentValue.Directories.Incomplete, relativePath: null),
                                     destinationDirectory: destinationDirectory,
                                     overwrite: false,
                                     deleteSourceDirectoryIfEmptyAfterMove: true);
