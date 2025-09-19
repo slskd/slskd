@@ -66,6 +66,8 @@ namespace slskd.Transfers.Uploads
         /// <returns>The operation context.</returns>
         Task EnqueueAsync(string username, string filename);
 
+        Task EnqueueAsyncV2(string username, string filename);
+
         /// <summary>
         ///     Finds a single upload matching the specified <paramref name="expression"/>.
         /// </summary>
@@ -168,6 +170,7 @@ namespace slskd.Transfers.Uploads
         private IShareService Shares { get; set; }
         private IUserService Users { get; set; }
         private EventBus EventBus { get; }
+        private ConcurrentDictionary<string, bool> Locks { get; } = new ConcurrentDictionary<string, bool>();
 
         /// <summary>
         ///     Adds the specified <paramref name="transfer"/>. Supersedes any existing record for the same file and username.
@@ -193,6 +196,115 @@ namespace slskd.Transfers.Uploads
 
             context.Add(transfer);
             context.SaveChanges();
+        }
+
+        public async Task EnqueueAsyncV2(string username, string filename)
+        {
+            // first, acquire a lock for this specific file from this specific user; don't allow this method to run
+            // more than once concurrently.
+            if (!Locks.TryAdd($"{username}:{filename}", true))
+            {
+                Log.Warning("Ignoring concurrent request to enqueue {Fielname} from {Username}", filename, username);
+            }
+
+            try
+            {
+                string host = default;
+                string localFilename = default;
+                long resolvedFileLength = default;
+                long localFileLength = default;
+
+                Log.Information("[{Context}] {Username} requested {Filename}", "UPLOAD REQUESTED", username, filename);
+
+                try
+                {
+                    (host, localFilename, resolvedFileLength) = await Shares.ResolveFileAsync(filename);
+
+                    Log.Debug("Resolved file {RemoteFilename} to host {Host} and file {LocalFilename}", filename, host, localFilename);
+
+                    if (host == Program.LocalHostName)
+                    {
+                        // if it's local, do a quick check to see if it exists to spare the caller from queueing up if the transfer is
+                        // doomed to fail. for remote files, take a leap of faith.
+                        var info = Files.ResolveFileInfo(localFilename);
+
+                        if (!info.Exists)
+                        {
+                            Shares.RequestScan();
+                            throw new NotFoundException($"The file '{localFilename}' could not be located on disk. A share scan should be performed.");
+                        }
+
+                        localFileLength = info.Length;
+                    }
+                    else
+                    {
+                        if (OptionsMonitor.CurrentValue.Flags.OptimisticRelayFileInfo)
+                        {
+                            localFileLength = resolvedFileLength;
+                        }
+                        else
+                        {
+                            var (exists, length) = await Relay.GetFileInfoAsync(agentName: host, filename);
+
+                            if (!exists || length <= 0)
+                            {
+                                // todo: force a remote scan
+                                throw new NotFoundException($"The file '{localFilename}' could not be located on Agent {host}. A share scan should be performed.");
+                            }
+
+                            localFileLength = length;
+                        }
+                    }
+                }
+                catch (NotFoundException)
+                {
+                    Log.Information("[{Context}] {Filename} for {Username}: file not found", "UPLOAD REJECTED", username, filename);
+                    throw new DownloadEnqueueException($"File not shared.");
+                }
+
+                Log.Information("Resolved {Remote} to physical file {Physical} on host '{Host}'", filename, localFilename, host);
+
+                if (localFileLength != resolvedFileLength)
+                {
+                    // todo: should we fail the transfer? the file changed on disk since the last scan. i guess not? since the caller doesn't provide a size
+                    Shares.RequestScan();
+                    Log.Warning("Resolved size for {Remote} of {Resolved} doesn't match actual size {Actual}", filename, resolvedFileLength, localFileLength);
+                }
+
+                // now that we know the *LOCAL* filename, which is the filename used in the database, check to see if we
+                // have any unfinished transfers, bailing out if so
+                var existingRecords = List(t => t.Username == username
+                    && t.Filename == localFilename
+                    && (t.EndedAt == null || !t.State.HasFlag(TransferStates.Completed)), includeRemoved: true);
+
+                if (existingRecords.Any())
+                {
+                    Log.Information("Upload {Filename} to {Username} is already queued or in progress", localFilename, username);
+                    return;
+                }
+
+                var id = Guid.NewGuid();
+
+                var transfer = new Transfer()
+                {
+                    State = TransferStates.Queued | TransferStates.Locally,
+                    Id = id,
+                    Username = username,
+                    Direction = TransferDirection.Upload,
+                    Filename = localFilename,
+                    Size = localFileLength,
+                    StartOffset = 0, // potentially updated later during handshaking
+                    RequestedAt = DateTime.UtcNow,
+                };
+
+                // persist the transfer to the database so we have a record that it was attempted
+                AddOrSupersede(transfer);
+            }
+            finally
+            {
+                Locks.TryRemove($"{username}:{filename}", out _);
+                Log.Debug("Released upload enqueue lock {Lock}", $"{username}:{filename}");
+            }
         }
 
         /// <summary>
@@ -279,6 +391,7 @@ namespace slskd.Transfers.Uploads
 
             var transfer = new Transfer()
             {
+                State = TransferStates.None,
                 Id = id,
                 Username = username,
                 Direction = TransferDirection.Upload,

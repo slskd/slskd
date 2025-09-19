@@ -559,7 +559,7 @@ namespace slskd
             if (string.Equals(group, PrivilegedGroup))
             {
                 Log.Debug("Limits bypassed for {Username} and {File}; user is privileged", username, filename);
-                await Transfers.Uploads.EnqueueAsync(username, filename);
+                await Transfers.Uploads.EnqueueAsyncV2(username, filename);
                 return;
             }
 
@@ -733,7 +733,7 @@ namespace slskd
             sw.Stop();
             Log.Debug("Enqueue decision made in {Duration}ms", sw.ElapsedMilliseconds);
 
-            await Transfers.Uploads.EnqueueAsync(username, filename);
+            await Transfers.Uploads.EnqueueAsyncV2(username, filename);
         }
 
         /// <summary>

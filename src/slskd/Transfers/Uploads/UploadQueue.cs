@@ -27,6 +27,8 @@ namespace slskd.Transfers
     using System.Threading;
     using System.Threading.Tasks;
     using Serilog;
+    using slskd.Transfers.Uploads;
+
     using slskd.Users;
 
     /// <summary>
@@ -34,28 +36,6 @@ namespace slskd.Transfers
     /// </summary>
     public interface IUploadQueue
     {
-        /// <summary>
-        ///     Awaits the start of an upload.
-        /// </summary>
-        /// <param name="username">The username of the remote user.</param>
-        /// <param name="filename">The filename for which to await the start.</param>
-        /// <returns>The operation context.</returns>
-        Task AwaitStartAsync(string username, string filename);
-
-        /// <summary>
-        ///     Signals the completion of an upload.
-        /// </summary>
-        /// <param name="username">The username of the remote user.</param>
-        /// <param name="filename">The completed filename.</param>
-        void Complete(string username, string filename);
-
-        /// <summary>
-        ///     Enqueues an upload.
-        /// </summary>
-        /// <param name="username">The username of the remote user.</param>
-        /// <param name="filename">The filename to enqueue.</param>
-        void Enqueue(string username, string filename);
-
         /// <summary>
         ///     Gets information about the specified <paramref name="groupName"/>.
         /// </summary>
@@ -95,9 +75,11 @@ namespace slskd.Transfers
         /// <param name="optionsMonitor">The OptionsMonitor instance to use.</param>
         public UploadQueue(
             IUserService userService,
+            IUploadService uploadService,
             IOptionsMonitor<Options> optionsMonitor)
         {
             Users = userService;
+            Uploads = uploadService;
 
             OptionsMonitor = optionsMonitor;
             OptionsMonitor.OnChange(Configure);
@@ -105,6 +87,7 @@ namespace slskd.Transfers
             Configure(OptionsMonitor.CurrentValue);
         }
 
+        private IUploadService Uploads { get; }
         private int GlobalSlots { get; set; } = 0;
         private Dictionary<string, UploadGroup> Groups { get; set; } = new Dictionary<string, UploadGroup>();
         private int LastGlobalSlots { get; set; }
@@ -112,123 +95,7 @@ namespace slskd.Transfers
         private ILogger Log { get; } = Serilog.Log.ForContext<UploadQueue>();
         private IOptionsMonitor<Options> OptionsMonitor { get; }
         private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1, 1);
-        private ConcurrentDictionary<string, List<Upload>> Uploads { get; set; } = new ConcurrentDictionary<string, List<Upload>>();
         private IUserService Users { get; }
-
-        /// <summary>
-        ///     Awaits the start of an upload.
-        /// </summary>
-        /// <param name="username">The username of the remote user.</param>
-        /// <param name="filename">The filename for which to await the start.</param>
-        /// <returns>The operation context.</returns>
-        public Task AwaitStartAsync(string username, string filename)
-        {
-            SyncRoot.Wait();
-
-            try
-            {
-                if (!Uploads.TryGetValue(username, out var list))
-                {
-                    throw new SlskdException($"No enqueued uploads for user {username}");
-                }
-
-                var upload = list.FirstOrDefault(e => e.Filename == filename);
-
-                if (upload == default)
-                {
-                    throw new SlskdException($"File {filename} is not enqueued for user {username}");
-                }
-
-                upload.Ready = DateTime.UtcNow;
-                Log.Debug("Ready: {File} for {User} at {Time}", Path.GetFileName(upload.Filename), upload.Username, upload.Enqueued);
-
-                return upload.TaskCompletionSource.Task;
-            }
-            finally
-            {
-                SyncRoot.Release();
-                Process();
-            }
-        }
-
-        /// <summary>
-        ///     Signals the completion of an upload.
-        /// </summary>
-        /// <param name="username">The username of the remote user.</param>
-        /// <param name="filename">The completed filename.</param>
-        public void Complete(string username, string filename)
-        {
-            SyncRoot.Wait();
-
-            try
-            {
-                if (!Uploads.TryGetValue(username, out var list))
-                {
-                    throw new SlskdException($"No enqueued uploads for user {username}");
-                }
-
-                var upload = list.FirstOrDefault(e => e.Filename == filename);
-
-                if (upload == default)
-                {
-                    throw new SlskdException($"File {filename} is not enqueued for user {username}");
-                }
-
-                list.Remove(upload);
-                Log.Debug("Complete: {File} for {User} at {Time}", Path.GetFileName(upload.Filename), upload.Username, upload.Enqueued);
-
-                // ensure the slot is returned to the group from which it was acquired the group may have been removed during the
-                // transfer. if so, do nothing.
-                if (Groups.ContainsKey(upload.Group ?? string.Empty))
-                {
-                    var group = Groups[upload.Group];
-
-                    group.UsedSlots = Math.Max(0, group.UsedSlots - 1);
-                    Log.Debug("Group {Group} slots: {Used}/{Available}", group.Name, group.UsedSlots, group.Slots);
-                }
-
-                if (!list.Any() && Uploads.TryRemove(username, out _))
-                {
-                    Log.Debug("Cleaned up tracking list for {User}; no more queued uploads to track", username);
-                }
-            }
-            finally
-            {
-                SyncRoot.Release();
-                Process();
-            }
-        }
-
-        /// <summary>
-        ///     Enqueues an upload.
-        /// </summary>
-        /// <param name="username">The username of the remote user.</param>
-        /// <param name="filename">The filename to enqueue.</param>
-        public void Enqueue(string username, string filename)
-        {
-            SyncRoot.Wait();
-
-            try
-            {
-                var upload = new Upload() { Username = username, Filename = filename };
-
-                Uploads.AddOrUpdate(
-                    key: username,
-                    addValue: new List<Upload>(new[] { upload }),
-                    updateValueFactory: (key, list) =>
-                    {
-                        list.Add(upload);
-                        return list;
-                    });
-
-                Log.Debug("Enqueued: {File} for {User} at {Time}", Path.GetFileName(upload.Filename), upload.Username, upload.Enqueued);
-            }
-            finally
-            {
-                SyncRoot.Release();
-                Process();
-            }
-        }
 
         /// <summary>
         ///     Gets information about the specified <paramref name="groupName"/>.
@@ -243,123 +110,6 @@ namespace slskd.Transfers
             }
 
             throw new NotFoundException($"A group with the name {groupName} could not be found");
-        }
-
-        /// <summary>
-        ///     Computes the estimated queue position of the specified <paramref name="filename"/> for the specified <paramref name="username"/>.
-        /// </summary>
-        /// <param name="username">The username associated with the file.</param>
-        /// <param name="filename">The filename of the file for which the position is to be estimated.</param>
-        /// <returns>The estimated queue position of the file.</returns>
-        /// <exception cref="NotFoundException">Thrown if the specified filename is not enqueued.</exception>
-        public int EstimatePosition(string username, string filename)
-        {
-            var groupName = Users.GetGroup(username);
-            var groupRecord = Groups.GetValueOrDefault(groupName);
-
-            // the Uploads dictionary is keyed by username; gather all of the users that belong to the same group as the requested user
-            var uploadsForGroup = Uploads.Where(kvp => Users.GetGroup(kvp.Key) == groupName);
-
-            // the RoundRobin queue implementation is not strictly fair to all users; only uploads that are ready are candidates
-            // for selection. this means that if Bob downloads files twice as fast as Alice, Bob is going to advance through the
-            // queue twice as fast, too. assume everyone downloads at equal speed for this estimate. also assume that all files
-            // are of equal length.
-            if (groupRecord.Strategy == QueueStrategy.RoundRobin)
-            {
-                // find this user's uploads
-                if (!Uploads.TryGetValue(username, out var uploadsForUser))
-                {
-                    throw new NotFoundException($"File {filename} is not enqueued for user {username}");
-                }
-
-                // find the position of the requested file in the user's queue
-                var localPosition = uploadsForUser
-                    .OrderBy(upload => upload.Enqueued)
-                    .ToList()
-                    .FindIndex(upload => upload.Username == username && upload.Filename == filename);
-
-                if (localPosition < 0)
-                {
-                    throw new NotFoundException($"File {filename} is not enqueued for user {username}");
-                }
-
-                // start the position to the local position within this user's queue; the user's own files must be completed
-                // before this one can start.
-                var position = localPosition;
-
-                // for each other user, add either localPosition or the count of that user's uploads, whichever is less
-                // example:
-                //
-                // aaaaa
-                // bb
-                // cccccccccccc
-                // ddddddd
-                //     ^
-                //
-                // if we want the position of the file over the carat above, first find the position of it
-                // within its own queue (= 5). assume uploads will process top down, left to right until reaching
-                // this one.  that's 5 files from a, 2 from b, 5 from c, and the other 4 from d, putting the file over
-                // the carat at position 16. the actual number will vary due to many factors, including where in the
-                // round-robin ordering d is actually positioned (so +/- number of users downloading).
-                foreach (var group in uploadsForGroup.Where(group => group.Key != username))
-                {
-                    position += Math.Min(localPosition, group.Value.Count);
-                }
-
-                return position;
-            }
-
-            // for FIFO queues, files are uploaded in the order they are enqueued, so the position should be pretty good estimate.
-            // List ordering is guaranteed, so we are getting an accurate portrayal of where this file is in the queue by order of
-            // time enqueued. this includes uploads that are in progress.
-            var flattenedSortedUploadsForGroup = uploadsForGroup
-                .SelectMany(group => group.Value)
-                .OrderBy(upload => upload.Enqueued)
-                .ToList();
-
-            var globalPosition = flattenedSortedUploadsForGroup.FindIndex(upload => upload.Username == username && upload.Filename == filename);
-
-            if (globalPosition < 0)
-            {
-                throw new NotFoundException($"File {filename} is not enqueued for user {username}");
-            }
-
-            return globalPosition;
-        }
-
-        /// <summary>
-        ///     Computes the estimated queue position of the specified <paramref name="username"/> if they were to enqueue a file,
-        ///     or zero if the transfer could start immediately.
-        /// </summary>
-        /// <param name="username">The username for which to estimate.</param>
-        /// <returns>
-        ///     The estimated queue position if the user were to enqueue a file, or zero if the transfer could start immediately.
-        /// </returns>
-        public int ForecastPosition(string username)
-        {
-            var groupName = Users.GetGroup(username);
-
-            // if there's a slot available, the user will enter the queue at position 0 (will start immediately)
-            if (Groups.TryGetValue(groupName, out var groupRecord) && groupRecord.SlotAvailable)
-            {
-                return 0;
-            }
-
-            // the Uploads dictionary is keyed by username; gather all of the users that belong to the same group as the requested user
-            var uploadsForGroup = Uploads.Where(kvp => Users.GetGroup(kvp.Key) == groupName);
-
-            // assuming that the queue will be processed in a true round-robin fashion and that the user will be the last in the
-            // rotation (worst case), the user's start position will be equal to the number of users downloading or waiting, + 1.
-            if (groupRecord.Strategy == QueueStrategy.RoundRobin)
-            {
-                return uploadsForGroup.Count() + 1;
-            }
-
-            // for FIFO queues, the user will enter the queue at the very back. return the total number of uploads in progress and
-            // enqueued, + 1.
-            return uploadsForGroup
-                .SelectMany(group => group.Value)
-                .Count() + 1;
         }
 
         private void Configure(Options options)
@@ -436,6 +186,10 @@ namespace slskd.Transfers
             }
         }
 
+        /// <summary>
+        ///     Process the queue and attempt to initiate the next highest priority upload, if any are available.
+        /// </summary>
+        /// <returns></returns>
         private Upload Process()
         {
             SyncRoot.Wait();
