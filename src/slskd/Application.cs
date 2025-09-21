@@ -559,7 +559,7 @@ namespace slskd
             if (string.Equals(group, PrivilegedGroup))
             {
                 Log.Debug("Limits bypassed for {Username} and {File}; user is privileged", username, filename);
-                await Transfers.Uploads.EnqueueAsync(username, filename);
+                await Transfers.Uploads.EnqueueAsyncV2(username, filename);
                 return;
             }
 
@@ -733,7 +733,7 @@ namespace slskd
             sw.Stop();
             Log.Debug("Enqueue decision made in {Duration}ms", sw.ElapsedMilliseconds);
 
-            await Transfers.Uploads.EnqueueAsync(username, filename);
+            await Transfers.Uploads.EnqueueAsyncV2(username, filename);
         }
 
         /// <summary>
@@ -1222,6 +1222,9 @@ namespace slskd
 
         private Task<int?> PlaceInQueueResolver(string username, IPEndPoint endpoint, string filename)
         {
+            // todo: remove me
+            return Task.FromResult<int?>(0);
+
             try
             {
                 var place = Transfers.Uploads.Queue.EstimatePosition(username, filename);
