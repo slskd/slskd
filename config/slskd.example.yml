@@ -143,6 +143,7 @@
 #     certificate:
 #       pfx: ~
 #       password: ~
+#   socket: ~
 #   url_base: /
 #   content_path: wwwroot
 #   logging: false

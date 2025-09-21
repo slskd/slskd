@@ -1812,6 +1812,15 @@ namespace slskd
             [Validate]
             [RequiresRestart]
             public HttpsOptions Https { get; init; } = new HttpsOptions();
+            
+            /// <summary>
+            ///     Gets the unix listen socket.
+            /// </summary>
+            [Argument(default, "http-socket")]
+            [EnvironmentVariable("HTTP_SOCKET")]
+            [Description("unix listen socket for web UI")]
+            [RequiresRestart]
+            public string Socket { get; init; }
 
             /// <summary>
             ///     Gets the base url for web requests.
