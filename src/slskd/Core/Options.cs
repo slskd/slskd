@@ -457,10 +457,10 @@ namespace slskd
             ///     Gets a value indicating whether to use the uploaded shares from Relay agents as the source of
             ///     truth for file existence and size, instead of querying the agent prior to enqueueing the file.
             /// </summary>
-            [Argument(default, "pessimistic-relay-file-info")]
-            [EnvironmentVariable("PESSIMISTIC_RELAY_FILE_INFO")]
+            [Argument(default, "optimistic-relay-file-info")]
+            [EnvironmentVariable("OPTIMISTIC_RELAY_FILE_INFO")]
             [Description("use uploaded relay shares as source of truth for file existence and size")]
-            public bool PessimisticRelayFileInfo { get; init; } = false;
+            public bool OptimisticRelayFileInfo { get; init; } = false;
         }
 
         /// <summary>

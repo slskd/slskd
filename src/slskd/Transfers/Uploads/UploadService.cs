@@ -904,7 +904,7 @@ namespace slskd.Transfers.Uploads
 
                 length = info.Length;
             }
-            else if (OptionsMonitor.CurrentValue.Flags.PessimisticRelayFileInfo)
+            else if (!OptionsMonitor.CurrentValue.Flags.OptimisticRelayFileInfo)
             {
                 /*
                     if the file is hosted on a relay agent and the user has set the pessimistic flag to true,
