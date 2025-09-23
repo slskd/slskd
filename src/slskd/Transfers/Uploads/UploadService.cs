@@ -518,8 +518,17 @@ namespace slskd.Transfers.Uploads
                 */
                 if (existingInProgressRecords.Count != 0)
                 {
-                    Log.Information("Upload of {Filename} to {Username} is already queued or is in progress (ids: {Ids})", filename, username, string.Join(", ", existingInProgressRecords));
+                    Log.Information("Upload of {Filename} to {Username} is already queued or is in progress (ids: {Ids})", filename, username, string.Join(", ", existingInProgressRecords.Select(t => t.Id)));
                     return null;
+                }
+
+                /*
+                    check the tracked upload dictionary in Soulseek.NET to see if it knows about this already
+                    it shouldn't, if the slskd database doesn't. but things could get desynced
+                */
+                if (Client.Uploads.Any(u => u.Username == username && u.Filename == filename))
+                {
+                    throw new DuplicateTransferException("A duplicate upload of the same file to the same user is already registered");
                 }
 
                 /*
