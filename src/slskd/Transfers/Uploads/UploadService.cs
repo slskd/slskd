@@ -71,6 +71,11 @@ namespace slskd.Transfers.Uploads
         /// </summary>
         /// <param name="transfer">The transfer to upload.</param>
         /// <returns>The operation context.</returns>
+        /// <exception cref="ArgumentNullException">Thrown if the specified Transfer is null.</exception>
+        /// <exception cref="TransferNotFoundException">Thrown if the specified Transfer ID can't be found in the database.</exception>
+        /// <exception cref="InvalidOperationException">Thrown if the specified Transfer is not in the Queued | Locally state.</exception>
+        /// <exception cref="DuplicateTransferException">Thrown if an upload matching the username and filename is already tracked by Soulseek.NET.</exception>
+        /// <exception cref="NotFoundException">Thrown if the specified file can't be found on disk.</exception>
         Task<Transfer> UploadAsync(Transfer transfer);
 
         /// <summary>
@@ -208,6 +213,11 @@ namespace slskd.Transfers.Uploads
         /// </summary>
         /// <param name="transfer">The transfer to upload.</param>
         /// <returns>The operation context.</returns>
+        /// <exception cref="ArgumentNullException">Thrown if the specified Transfer is null.</exception>
+        /// <exception cref="TransferNotFoundException">Thrown if the specified Transfer ID can't be found in the database.</exception>
+        /// <exception cref="InvalidOperationException">Thrown if the specified Transfer is not in the Queued | Locally state.</exception>
+        /// <exception cref="DuplicateTransferException">Thrown if an upload matching the username and filename is already tracked by Soulseek.NET.</exception>
+        /// <exception cref="NotFoundException">Thrown if the specified file can't be found on disk.</exception>
         public async Task<Transfer> UploadAsync(Transfer transfer)
         {
             var lockName = $"{nameof(UploadAsync)}:{transfer.Username}:{transfer.Filename}";
@@ -216,6 +226,47 @@ namespace slskd.Transfers.Uploads
             {
                 Log.Debug("Ignoring concurrent invocation; lock {LockName} already held", lockName);
                 return null;
+            }
+
+            Transfer t = transfer;
+
+            /*
+                fetch an updated copy of the transfer record from the database; now that we are locked, we *should*
+                have exclusive access to this record
+
+                we're not using DbContext and tracked changes here because we don't want to hold a connection
+                open for the duration of the upload
+            */
+            t = Find(t => t.Id == transfer.Id)
+                ?? throw new TransferNotFoundException($"Transfer with ID {transfer.Id} not found");
+
+            if (t.State != (TransferStates.Queued | TransferStates.Locally))
+            {
+                throw new InvalidOperationException($"Invalid starting state for upload; expected {TransferStates.Queued | TransferStates.Locally}, encountered {t.State}");
+            }
+
+            /*
+                Soulseek.NET keeps an internal dictionary of all transfers for the duration of the transfer logic;
+                check that list to see if there's already an instance of this upload in it, just in case we've gotten
+                out of sync somehow
+            */
+            if (Client.Uploads.Any(u => u.Username == t.Username && u.Filename == t.Filename))
+            {
+                throw new DuplicateTransferException("A duplicate upload of the same file to the same user is already registered");
+            }
+
+            // users with uploads must be watched so that we can keep informed of their online status, privileges, and
+            // statistics. this is so that we can accurately determine their effective group.
+            try
+            {
+                if (!Users.IsWatched(t.Username))
+                {
+                    await Users.WatchAsync(t.Username);
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "Failed to watch user {Username}", t.Username);
             }
 
             var cts = new CancellationTokenSource();
@@ -239,51 +290,18 @@ namespace slskd.Transfers.Uploads
             string localFilename = default;
             long localFileLength = default;
 
-            Transfer t = transfer;
+            /*
+                from this point forward, any exit from this method MUST result in an update to the Transfer record
+                in the database that sets EndedAt and ensures that the State property includes the Completed flag
 
+                failure to do so means records will get "stuck" in the database/on the UI
+
+                additionally, any acquired locks/semaphores must be released, including (and most importantly) the queue slot
+            */
             try
             {
                 Log.Debug("Acquired lock {LockName}", lockName);
                 Log.Information("Initializing upload {Filename} to {Username}", t.Filename, t.Username);
-
-                // users with uploads must be watched so that we can keep informed of their online status, privileges, and
-                // statistics. this is so that we can accurately determine their effective group.
-                try
-                {
-                    if (!Users.IsWatched(t.Username))
-                    {
-                        await Users.WatchAsync(t.Username);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Log.Warning(ex, "Failed to watch user {Username}", t.Username);
-                }
-
-                /*
-                    fetch an updated copy of the transfer record from the database; now that we are locked, we *should*
-                    have exclusive access to this record
-
-                    we're not using DbContext and tracked changes here because we don't want to hold a connection
-                    open for the duration of the upload
-                */
-                t = Find(t => t.Id == transfer.Id)
-                    ?? throw new TransferNotFoundException($"Transfer with ID {transfer.Id} not found");
-
-                if (t.State != (TransferStates.Queued | TransferStates.Locally))
-                {
-                    throw new TransferException($"Invalid starting state for upload; expected {TransferStates.Queued | TransferStates.Locally}, encountered {t.State}");
-                }
-
-                /*
-                    Soulseek.NET keeps an internal dictionary of all transfers for the duration of the transfer logic;
-                    check that list to see if there's already an instance of this upload in it, just in case we've gotten
-                    out of sync somehow
-                */
-                if (Client.Uploads.Any(u => u.Username == t.Username && u.Filename == t.Filename))
-                {
-                    throw new TransferException("A duplicate upload of the same file to the same user is already registered");
-                }
 
                 // locate the file on disk. we checked this once already when enqueueing, but it may have moved since
                 // can throw NotFoundException
@@ -385,11 +403,6 @@ namespace slskd.Transfers.Uploads
                 });
 
                 return transfer;
-            }
-            catch (TransferNotFoundException ex)
-            {
-                Log.Error(ex, "Attempted to upload non-existent transfer {Id}", t.Id);
-                throw;
             }
             catch (NotFoundException)
             {
