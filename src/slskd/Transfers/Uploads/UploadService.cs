@@ -484,7 +484,7 @@ namespace slskd.Transfers.Uploads
 
             if (!Locks.TryAdd(lockName, true))
             {
-                Log.Debug("Ignoring concurrent invocation; lock {LockName} already held", nameof(EnqueueAsync), lockName);
+                Log.Debug("Ignoring concurrent invocation; lock {LockName} already held", lockName);
                 return null;
             }
 
