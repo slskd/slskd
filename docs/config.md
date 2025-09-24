@@ -802,6 +802,7 @@ Logging of HTTP requests is disabled by default.
 | Command-Line      | Environment Variable       | Description                                       |
 | ----------------- | -------------------------- | ------------------------------------------------- |
 | `-l\|--http-port` | `SLSKD_HTTP_PORT`          | The HTTP listen port                              |
+| `--http-socket`   | `SLSKD_HTTP_SOCKET`        | The unix listen socket                            |
 | `--url-base`      | `SLSKD_URL_BASE`           | The base url for web requests                     |
 | `--content-path`  | `SLSKD_CONTENT_PATH`       | The path to static web content                    |
 | `--http-logging`  | `SLSKD_HTTP_LOGGING`       | Determines whether HTTP requests are to be logged |
@@ -810,6 +811,7 @@ Logging of HTTP requests is disabled by default.
 ```yaml
 web:
   port: 5030
+  socket: ~
   url_base: /
   content_path: wwwroot
   logging: false
