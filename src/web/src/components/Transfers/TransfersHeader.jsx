@@ -1,4 +1,5 @@
 import { isStateCancellable, isStateRetryable } from '../../lib/transfers';
+import { formatBytes } from '../../lib/util';
 import { Div, Nbsp } from '../Shared';
 import ShrinkableDropdownButton from '../Shared/ShrinkableDropdownButton';
 import React, { useMemo, useState } from 'react';
@@ -59,6 +60,14 @@ const getRemovableFiles = ({ files, removeOption }) => {
   }
 };
 
+const totalTransferredSize = ({ files }) => {
+  let t = 0;
+  files.map((f) => (t += f.bytesTransferred));
+
+  const [s, sExtension] = formatBytes(t, 1).split(' ');
+  return `${s} ${sExtension}`;
+};
+
 const TransfersHeader = ({
   cancelling = false,
   direction,
@@ -102,6 +111,9 @@ const TransfersHeader = ({
           name={direction}
           size="big"
         />
+      </div>
+      <div className="transfers-segment-stats">
+        <p>Total transferred: {totalTransferredSize({ files })}</p>
       </div>
       <Div
         className="transfers-header-buttons"
