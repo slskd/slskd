@@ -1843,6 +1843,14 @@ namespace slskd
             public bool Logging { get; init; } = false;
 
             /// <summary>
+            ///     Gets the value of the default filter to use for search results.
+            /// </summary>
+            [Argument(default, "web-search-filter")]
+            [EnvironmentVariable("WEB_SEARCH_FILTER")]
+            [Description("string to use as default filter for search results")]
+            public string WebSearchFilter { get; init; } = string.Empty;
+
+            /// <summary>
             ///     Gets authentication options.
             /// </summary>
             [Validate]

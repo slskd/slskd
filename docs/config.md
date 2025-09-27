@@ -1,4 +1,4 @@
-# Configuration 
+# Configuration
 
 The application is highly configurable while coming out of the box with sensible defaults.
 
@@ -633,7 +633,7 @@ soulseek:
 
 Options for the Soulseek distributed network, which is how search requests are delivered.
 
-The distributed network should only be disabled if no files are being shared.  
+The distributed network should only be disabled if no files are being shared.
 
 Child connections should generally only be disabled on low spec systems or situations where network bandwidth is scarce. Received search requests are re-broadcast to each child connection, and incoming requests are numerous. Consider increasing the child limit from the default of 25 on systems with CPU and memory headroom.
 
@@ -659,7 +659,7 @@ soulseek:
 
 The local IP address and port on which the application listens for incoming connections.
 
-As with any other Soulseek client, configuring the listen port and port forwarding ensures full connectivity with other clients, including those without a correctly configured a listening port.  
+As with any other Soulseek client, configuring the listen port and port forwarding ensures full connectivity with other clients, including those without a correctly configured a listening port.
 
 Symptoms of a misconfigured listen port include poor search results and the inability to browse or retrieve user information for some users.
 
@@ -716,7 +716,7 @@ soulseek:
   connection:
     timeout:
       connect: 10000
-      inactivity: 15000  
+      inactivity: 15000
 ```
 
 ### Buffers
@@ -744,7 +744,7 @@ soulseek:
       read: 16384
       write: 16384
       transfer: 262144
-      write_queue: 250    
+      write_queue: 250
 ```
 
 ### Proxy
@@ -770,7 +770,7 @@ soulseek:
       address: ~
       port: ~
       username: ~
-      password: ~   
+      password: ~
 ```
 
 ## Diagnostic Level
@@ -799,12 +799,13 @@ The content path can be used to force the application to serve static web conten
 
 Logging of HTTP requests is disabled by default.
 
-| Command-Line      | Environment Variable       | Description                                       |
-| ----------------- | -------------------------- | ------------------------------------------------- |
-| `-l\|--http-port` | `SLSKD_HTTP_PORT`          | The HTTP listen port                              |
-| `--url-base`      | `SLSKD_URL_BASE`           | The base url for web requests                     |
-| `--content-path`  | `SLSKD_CONTENT_PATH`       | The path to static web content                    |
-| `--http-logging`  | `SLSKD_HTTP_LOGGING`       | Determines whether HTTP requests are to be logged |
+| Command-Line           | Environment Variable       | Description                                       |
+| -----------------------| -------------------------- | ------------------------------------------------- |
+| `-l\|--http-port`      | `SLSKD_HTTP_PORT`          | The HTTP listen port                              |
+| `--url-base`           | `SLSKD_URL_BASE`           | The base url for web requests                     |
+| `--content-path`       | `SLSKD_CONTENT_PATH`       | The path to static web content                    |
+| `--http-logging`       | `SLSKD_HTTP_LOGGING`       | Determines whether HTTP requests are to be logged |
+| `--web-search-filter`  | `SLSKD_WEB_SEARCH_FILTER`  | Default filter to apply to search results         |
 
 #### **YAML**
 ```yaml
@@ -935,7 +936,7 @@ retention:
       cancelled: 5
     download:
       succeeded: 1440 # 1 day
-      errored: 20160 # 2 weeks 
+      errored: 20160 # 2 weeks
       cancelled: 5
   files:
     complete: 20160 # 2 weeks
@@ -1043,7 +1044,7 @@ The data associated with the event that's invoking your script is stringified to
 
 > [!CAUTION]
 > **Remote Code Execution Risk**: The event data in `$SLSKD_SCRIPT_DATA` originates from the Soulseek network and may contain malicious content. Passing this data as command-line arguments could allow attackers to inject shell commands through specially crafted filenames, usernames, or other fields. For example, a filename like `song"; rm -rf /; echo "` could delete your entire filesystem if passed unsafely to a shell command.
-> 
+>
 > **Best practices:**
 > - ✅ Read `$SLSKD_SCRIPT_DATA` as an environment variable
 > - ✅ Parse the JSON and validate/sanitize individual fields before use
@@ -1120,7 +1121,7 @@ integration:
 
 ### Pushbullet
 
-Pushbullet notifications can be sent when a private message is sent, or the current user's username is mentioned in a chat room. Notifications are prefixed with a user-definable string to differentiate these notifications from others.  
+Pushbullet notifications can be sent when a private message is sent, or the current user's username is mentioned in a chat room. Notifications are prefixed with a user-definable string to differentiate these notifications from others.
 
 A Pushbullet account must be created, and users must create an API key within the Pushbullet application and configure it through options. Complete documentation for the Pushbullet API, including the latest instructions for obtaining an API key or "Access Token" can be found [here](https://docs.pushbullet.com/).
 
