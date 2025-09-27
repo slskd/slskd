@@ -50,6 +50,15 @@ namespace slskd.Transfers
         void Complete(string username, string filename);
 
         /// <summary>
+        ///     Gracefully attempts to signal the completion of an upload, returning false if a problem is encountered
+        ///     (such as the upload not being tracked currently).
+        /// </summary>
+        /// <param name="username">The username of the remote user.</param>
+        /// <param name="filename">The completed filename.</param>
+        /// <returns>A value indicating whether a problem was encountered.</returns>
+        bool TryComplete(string username, string filename);
+
+        /// <summary>
         ///     Enqueues an upload.
         /// </summary>
         /// <param name="username">The username of the remote user.</param>
@@ -152,8 +161,31 @@ namespace slskd.Transfers
         }
 
         /// <summary>
+        ///     Gracefully attempts to signal the completion of an upload, returning false if a problem is encountered
+        ///     (such as the upload not being tracked currently).
+        /// </summary>
+        /// <param name="username">The username of the remote user.</param>
+        /// <param name="filename">The completed filename.</param>
+        /// <returns>A value indicating whether a problem was encountered.</returns>
+        public bool TryComplete(string username, string filename)
+        {
+            try
+            {
+                Complete(username, filename);
+                return true;
+            }
+            catch (SlskdException)
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
         ///     Signals the completion of an upload.
         /// </summary>
+        /// <remarks>
+        ///     Will not throw on repeated attempts.
+        /// </remarks>
         /// <param name="username">The username of the remote user.</param>
         /// <param name="filename">The completed filename.</param>
         public void Complete(string username, string filename)
