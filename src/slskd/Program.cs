@@ -493,6 +493,12 @@ namespace slskd
                                 }
                             });
                         }
+
+                        if (OptionsAtStartup.Web.Socket != null)
+                        {
+                            Log.Information($"Listening on socket {OptionsAtStartup.Web.Socket}");
+                            options.ListenUnixSocket(OptionsAtStartup.Web.Socket);
+                        }
                     });
 
                 builder.Services
