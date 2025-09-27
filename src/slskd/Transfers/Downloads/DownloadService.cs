@@ -155,11 +155,11 @@ namespace slskd.Transfers.Downloads
             using var context = ContextFactory.CreateDbContext();
 
             var existing = context.Transfers
-                    .Where(t => t.Direction == TransferDirection.Download)
-                    .Where(t => t.Username == transfer.Username)
-                    .Where(t => t.Filename == transfer.Filename)
-                    .Where(t => !t.Removed)
-                    .FirstOrDefault();
+                .Where(t => t.Direction == TransferDirection.Download)
+                .Where(t => t.Username == transfer.Username)
+                .Where(t => t.Filename == transfer.Filename)
+                .Where(t => !t.Removed)
+                .FirstOrDefault();
 
             if (existing != default)
             {
@@ -283,10 +283,35 @@ namespace slskd.Transfers.Downloads
                                     },
                                     progressUpdated: (args) => rateLimiter.Invoke(() =>
                                     {
-                                        transfer = transfer.WithSoulseekTransfer(args.Transfer);
+                                        // don't do anything unless the `transfer` within the outer scope is in the
+                                        // InProgress state; this will help prevent out-of-band updates that are sometimes
+                                        // being made after the transfer is completed, causing them to appear 'stuck'
+                                        if (transfer.State == TransferStates.InProgress)
+                                        {
+                                            syncRoot.Wait(cts.Token);
 
-                                        // todo: broadcast to signalr hub
-                                        SynchronizedUpdate(transfer);
+                                            try
+                                            {
+                                                // check again to see if the state changed while we were waiting to obtain the lock
+                                                if (transfer.State == TransferStates.InProgress)
+                                                {
+                                                    // update only the properties that we expect to change between progress updates
+                                                    // this helps prevent this update from 'stepping' on other updates
+                                                    transfer.BytesTransferred = args.Transfer.BytesTransferred;
+                                                    transfer.AverageSpeed = args.Transfer.AverageSpeed;
+
+                                                    using var context = ContextFactory.CreateDbContext();
+
+                                                    context.Transfers.Where(t => t.Id == transfer.Id).ExecuteUpdate(setter => setter
+                                                        .SetProperty(t => t.BytesTransferred, transfer.BytesTransferred)
+                                                        .SetProperty(t => t.AverageSpeed, transfer.AverageSpeed));
+                                                }
+                                            }
+                                            finally
+                                            {
+                                                syncRoot.Release();
+                                            }
+                                        }
                                     }));
 
                                 var completedTransfer = await Client.DownloadAsync(
