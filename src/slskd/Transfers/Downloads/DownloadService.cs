@@ -155,11 +155,11 @@ namespace slskd.Transfers.Downloads
             using var context = ContextFactory.CreateDbContext();
 
             var existing = context.Transfers
-                    .Where(t => t.Direction == TransferDirection.Download)
-                    .Where(t => t.Username == transfer.Username)
-                    .Where(t => t.Filename == transfer.Filename)
-                    .Where(t => !t.Removed)
-                    .FirstOrDefault();
+                .Where(t => t.Direction == TransferDirection.Download)
+                .Where(t => t.Username == transfer.Username)
+                .Where(t => t.Filename == transfer.Filename)
+                .Where(t => !t.Removed)
+                .FirstOrDefault();
 
             if (existing != default)
             {
