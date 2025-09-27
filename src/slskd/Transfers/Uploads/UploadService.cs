@@ -329,10 +329,35 @@ namespace slskd.Transfers.Uploads
                     },
                     progressUpdated: (args) => rateLimiter.Invoke(() =>
                     {
-                        transfer = transfer.WithSoulseekTransfer(args.Transfer);
+                        // don't do anything unless the `transfer` within the outer scope is in the
+                        // InProgress state; this will help prevent out-of-band updates that are sometimes
+                        // being made after the transfer is completed, causing them to appear 'stuck'
+                        if (transfer.State == TransferStates.InProgress)
+                        {
+                            syncRoot.Wait(cts.Token);
 
-                        // todo: broadcast
-                        SynchronizedUpdate(transfer);
+                            try
+                            {
+                                // update only the properties that we expect to change between progress updates
+                                // this helps prevent this update from 'stepping' on other updates
+                                transfer.BytesTransferred = args.Transfer.BytesTransferred;
+                                transfer.AverageSpeed = args.Transfer.AverageSpeed;
+
+                                // check again to see if the state changed while we were waiting to obtain the lock
+                                if (transfer.State == TransferStates.InProgress)
+                                {
+                                    using var context = ContextFactory.CreateDbContext();
+
+                                    context.Transfers.Where(t => t.Id == transfer.Id).ExecuteUpdate(setter => setter
+                                        .SetProperty(t => t.BytesTransferred, args.Transfer.BytesTransferred)
+                                        .SetProperty(t => t.AverageSpeed, args.Transfer.AverageSpeed));
+                                }
+                            }
+                            finally
+                            {
+                                syncRoot.Release();
+                            }
+                        }
                     }),
                     seekInputStreamAutomatically: false,
                     disposeInputStreamOnCompletion: true, // note: don't set this to false!
