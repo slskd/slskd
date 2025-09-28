@@ -136,6 +136,7 @@
 #       - ^.{1,2}$
 # web:
 #   port: 5030
+#   socket: ~
 #   https:
 #     disabled: false
 #     port: 5031
@@ -143,7 +144,6 @@
 #     certificate:
 #       pfx: ~
 #       password: ~
-#   socket: ~
 #   url_base: /
 #   content_path: wwwroot
 #   logging: false
