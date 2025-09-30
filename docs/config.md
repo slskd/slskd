@@ -793,6 +793,8 @@ soulseek:
 
 The default HTTP listen port is 5030, but can be anything between 1 and 65535.
 
+A [unix domain socket](https://en.wikipedia.org/wiki/Unix_domain_socket) can be used on both unix-like operating systems and Windows. The specified socket file path must be absolute, and must point to a file that does not exist (slskd will manage it automatically).
+
 The URL base option allows the application to operate behind a reverse proxy. Setting a base of "slskd" would make the web UI accessible at `http://<host>:<port>/slskd`.
 
 The content path can be used to force the application to serve static web content from a location other than the default (`wwwroot`). The application is designed to decouple the Web UI from the rest of the application to be replaceable.
@@ -802,7 +804,7 @@ Logging of HTTP requests is disabled by default.
 | Command-Line      | Environment Variable       | Description                                       |
 | ----------------- | -------------------------- | ------------------------------------------------- |
 | `-l\|--http-port` | `SLSKD_HTTP_PORT`          | The HTTP listen port                              |
-| `--http-socket`   | `SLSKD_HTTP_SOCKET`        | The unix listen socket                            |
+| `--http-socket`   | `SLSKD_HTTP_SOCKET`        | The HTTP listen unix domain socket (UDS) path     |
 | `--url-base`      | `SLSKD_URL_BASE`           | The base url for web requests                     |
 | `--content-path`  | `SLSKD_CONTENT_PATH`       | The path to static web content                    |
 | `--http-logging`  | `SLSKD_HTTP_LOGGING`       | Determines whether HTTP requests are to be logged |

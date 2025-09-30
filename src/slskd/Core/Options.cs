@@ -1807,20 +1807,22 @@ namespace slskd
             public int Port { get; init; } = 5030;
 
             /// <summary>
+            ///     Gets the HTTP listen unix domain socket (UDS) path.
+            /// </summary>
+            [Argument(default, "http-socket")]
+            [EnvironmentVariable("HTTP_SOCKET")]
+            [Description("HTTP listen unix domain socket (UDS) path for web UI")]
+            [FileDoesNotExist]
+            [AbsoluteFilePath]
+            [RequiresRestart]
+            public string Socket { get; init; }
+
+            /// <summary>
             ///     Gets HTTPS options.
             /// </summary>
             [Validate]
             [RequiresRestart]
             public HttpsOptions Https { get; init; } = new HttpsOptions();
-            
-            /// <summary>
-            ///     Gets the unix listen socket.
-            /// </summary>
-            [Argument(default, "http-socket")]
-            [EnvironmentVariable("HTTP_SOCKET")]
-            [Description("unix listen socket for web UI")]
-            [RequiresRestart]
-            public string Socket { get; init; }
 
             /// <summary>
             ///     Gets the base url for web requests.
