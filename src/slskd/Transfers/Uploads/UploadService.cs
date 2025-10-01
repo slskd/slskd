@@ -69,7 +69,7 @@ namespace slskd.Transfers.Uploads
         /// <summary>
         ///     Uploads the specified enqueued <paramref name="transfer"/> to the requesting user.
         /// </summary>
-        /// <param name="transfer">The transfer to upload.</param>
+        /// <param name="transfer">The Transfer to upload.</param>
         /// <returns>The operation context.</returns>
         /// <exception cref="ArgumentNullException">Thrown if the specified Transfer is null.</exception>
         /// <exception cref="TransferNotFoundException">Thrown if the specified Transfer ID can't be found in the database.</exception>
@@ -211,7 +211,7 @@ namespace slskd.Transfers.Uploads
         /// <summary>
         ///     Uploads the specified enqueued <paramref name="transfer"/> to the requesting user.
         /// </summary>
-        /// <param name="transfer">The transfer to upload.</param>
+        /// <param name="transfer">The Transfer to upload.</param>
         /// <returns>The operation context.</returns>
         /// <exception cref="ArgumentNullException">Thrown if the specified Transfer is null.</exception>
         /// <exception cref="TransferNotFoundException">Thrown if the specified Transfer ID can't be found in the database.</exception>
@@ -228,7 +228,7 @@ namespace slskd.Transfers.Uploads
                 return null;
             }
 
-            Transfer t = transfer;
+            Log.Debug("Acquired lock {LockName}", lockName);
 
             /*
                 fetch an updated copy of the transfer record from the database; now that we are locked, we *should*
@@ -237,12 +237,12 @@ namespace slskd.Transfers.Uploads
                 we're not using DbContext and tracked changes here because we don't want to hold a connection
                 open for the duration of the upload
             */
-            t = Find(t => t.Id == transfer.Id)
+            transfer = Find(t => t.Id == transfer.Id)
                 ?? throw new TransferNotFoundException($"Transfer with ID {transfer.Id} not found");
 
-            if (t.State != (TransferStates.Queued | TransferStates.Locally))
+            if (transfer.State != (TransferStates.Queued | TransferStates.Locally))
             {
-                throw new InvalidOperationException($"Invalid starting state for upload; expected {TransferStates.Queued | TransferStates.Locally}, encountered {t.State}");
+                throw new InvalidOperationException($"Invalid starting state for upload; expected {TransferStates.Queued | TransferStates.Locally}, encountered {transfer.State}");
             }
 
             /*
@@ -250,7 +250,7 @@ namespace slskd.Transfers.Uploads
                 check that list to see if there's already an instance of this upload in it, just in case we've gotten
                 out of sync somehow
             */
-            if (Client.Uploads.Any(u => u.Username == t.Username && u.Filename == t.Filename))
+            if (Client.Uploads.Any(u => u.Username == transfer.Username && u.Filename == transfer.Filename))
             {
                 throw new DuplicateTransferException("A duplicate upload of the same file to the same user is already registered");
             }
@@ -259,14 +259,14 @@ namespace slskd.Transfers.Uploads
             // statistics. this is so that we can accurately determine their effective group.
             try
             {
-                if (!Users.IsWatched(t.Username))
+                if (!Users.IsWatched(transfer.Username))
                 {
-                    await Users.WatchAsync(t.Username);
+                    await Users.WatchAsync(transfer.Username);
                 }
             }
             catch (Exception ex)
             {
-                Log.Warning(ex, "Failed to watch user {Username}", t.Username);
+                Log.Warning(ex, "Failed to watch user {Username}", transfer.Username);
             }
 
             var cts = new CancellationTokenSource();
@@ -300,25 +300,24 @@ namespace slskd.Transfers.Uploads
             */
             try
             {
-                Log.Debug("Acquired lock {LockName}", lockName);
-                Log.Information("Initializing upload {Filename} to {Username}", t.Filename, t.Username);
+                Log.Information("Initializing upload of {Filename} to {Username}", transfer.Filename, transfer.Username);
 
                 // locate the file on disk. we checked this once already when enqueueing, but it may have moved since
                 // can throw NotFoundException
-                (host, localFilename, localFileLength) = await ResolveFileInfoAsync(remoteFilename: t.Filename);
+                (host, localFilename, localFileLength) = await ResolveFileInfoAsync(remoteFilename: transfer.Filename);
 
                 using var rateLimiter = new RateLimiter(250, flushOnDispose: true);
 
                 var topts = new TransferOptions(
                     stateChanged: (args) =>
                     {
-                        Log.Debug("Upload of {Filename} to user {Username} changed state from {Previous} to {New}", localFilename, t.Username, args.PreviousState, args.Transfer.State);
+                        Log.Debug("Upload of {Filename} to user {Username} changed state from {Previous} to {New}", localFilename, transfer.Username, args.PreviousState, args.Transfer.State);
 
                         // prevent Exceptions thrown during shutdown from updating the transfer record with related Exceptions;
                         // instead, allow these to be left "hanging" so that they are properly cleaned up at the next startup
                         if (Application.IsShuttingDown)
                         {
-                            Log.Debug("Upload update of {Filename} to {Username} not persisted; app is shutting down", t.Filename, t.Username);
+                            Log.Debug("Upload update of {Filename} to {Username} not persisted; app is shutting down", transfer.Filename, transfer.Username);
                             return;
                         }
 
@@ -367,10 +366,10 @@ namespace slskd.Transfers.Uploads
                     slotReleased: (tx) => Queue.Complete(tx.Username, tx.Filename));
 
                 // register the cancellation token
-                CancellationTokens.TryAdd(t.Id, cts);
+                CancellationTokens.TryAdd(transfer.Id, cts);
 
                 // add the transfer to the UploadQueue so that it can become eligible for selection
-                Queue.Enqueue(t.Username, t.Filename);
+                Queue.Enqueue(transfer.Username, transfer.Filename);
                 transfer.EnqueuedAt = DateTime.UtcNow;
                 SynchronizedUpdate(transfer);
 
@@ -379,8 +378,8 @@ namespace slskd.Transfers.Uploads
                 if (host == Program.LocalHostName)
                 {
                     completedTransfer = await Client.UploadAsync(
-                        username: t.Username,
-                        remoteFilename: t.Filename,
+                        username: transfer.Username,
+                        remoteFilename: transfer.Filename,
                         size: localFileLength,
                         inputStreamFactory: (startOffset) =>
                         {
@@ -398,14 +397,14 @@ namespace slskd.Transfers.Uploads
                 else
                 {
                     completedTransfer = await Client.UploadAsync(
-                        username: t.Username,
-                        remoteFilename: t.Filename,
+                        username: transfer.Username,
+                        remoteFilename: transfer.Filename,
                         size: localFileLength,
-                        inputStreamFactory: (startOffset) => Relay.GetFileStreamAsync(agentName: host, filename: t.Filename, startOffset, id: t.Id),
+                        inputStreamFactory: (startOffset) => Relay.GetFileStreamAsync(agentName: host, filename: transfer.Filename, startOffset, id: transfer.Id),
                         options: topts,
                         cancellationToken: cts.Token);
 
-                    Relay.TryCloseFileStream(host, id: t.Id);
+                    Relay.TryCloseFileStream(host, id: transfer.Id);
                 }
 
                 // explicitly dispose the rate limiter to prevent updates from it beyond this point, and in doing so we
@@ -423,7 +422,7 @@ namespace slskd.Transfers.Uploads
                 {
                     Timestamp = transfer.EndedAt.Value,
                     LocalFilename = localFilename,
-                    RemoteFilename = t.Filename,
+                    RemoteFilename = transfer.Filename,
                     Transfer = transfer,
                 });
 
@@ -439,11 +438,18 @@ namespace slskd.Transfers.Uploads
 
                 throw;
             }
-            catch (OperationCanceledException ex)
+            catch (Exception ex) when (ex is OperationCanceledException || ex is TimeoutException)
             {
                 transfer.EndedAt = DateTime.UtcNow;
                 transfer.Exception = ex.Message;
-                transfer.State = TransferStates.Completed | TransferStates.Cancelled;
+                transfer.State = TransferStates.Completed;
+
+                transfer.State |= ex switch
+                {
+                    OperationCanceledException => TransferStates.Cancelled,
+                    TimeoutException => TransferStates.TimedOut,
+                    _ => TransferStates.Errored,
+                };
 
                 // todo: broadcast
                 SynchronizedUpdate(transfer, cancellable: false);
@@ -452,7 +458,7 @@ namespace slskd.Transfers.Uploads
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "Upload of {Filename} to user {Username} failed: {Message}", t.Filename, t.Username, ex.Message);
+                Log.Error(ex, "Upload of {Filename} to user {Username} failed: {Message}", transfer.Filename, transfer.Username, ex.Message);
 
                 transfer.EndedAt = DateTime.UtcNow;
                 transfer.Exception = ex.Message;
@@ -469,7 +475,7 @@ namespace slskd.Transfers.Uploads
                 {
                     try
                     {
-                        Relay.TryCloseFileStream(host, id: t.Id);
+                        Relay.TryCloseFileStream(host, id: transfer.Id);
                     }
                     catch
                     {
@@ -482,16 +488,16 @@ namespace slskd.Transfers.Uploads
                     Locks.TryRemove(lockName, out _);
                     Log.Debug("Released lock {LockName}", lockName);
 
-                    CancellationTokens.TryRemove(t.Id, out _);
+                    CancellationTokens.TryRemove(transfer.Id, out _);
 
                     // if for some reason this logic exits without the slotReleased delegate and Complete() being invoked,
                     // the file will get stuck in the queue and prevent any further uploads to the user. be extra cautious
                     // and ensure it gets removed
-                    Queue.TryComplete(username: t.Username, filename: t.Filename);
+                    Queue.TryComplete(username: transfer.Username, filename: transfer.Filename);
                 }
                 catch (Exception ex)
                 {
-                    Log.Error(ex, "Failed to finalize upload of {Filename} to {Username}: {Message}", t.Filename, t.Username, ex.Message);
+                    Log.Error(ex, "Failed to finalize upload of {Filename} to {Username}: {Message}", transfer.Filename, transfer.Username, ex.Message);
                     throw;
                 }
             }
