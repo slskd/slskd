@@ -511,11 +511,21 @@ namespace slskd.Transfers.Uploads
         /// <returns>The operation context.</returns>
         public async Task<Transfer> EnqueueAsync(string username, string filename)
         {
+            if (string.IsNullOrEmpty(username))
+            {
+                throw new ArgumentNullException(nameof(username), "Username is required");
+            }
+
+            if (string.IsNullOrEmpty(filename))
+            {
+                throw new ArgumentNullException(nameof(filename), "Filename is required");
+            }
+
             var lockName = $"{nameof(EnqueueAsync)}:{username}:{filename}";
 
             if (!Locks.TryAdd(lockName, true))
             {
-                Log.Debug("Ignoring concurrent invocation; lock {LockName} already held", lockName);
+                Log.Debug("Ignoring concurrent upload enqueue attempt; lock {LockName} already held", lockName);
                 return null;
             }
 
@@ -606,7 +616,7 @@ namespace slskd.Transfers.Uploads
                 {
                     record.Removed = true;
                     context.Update(record);
-                    Log.Debug("Marked existing upload record {Filename} to {Username} removed (id: {Id})", filename, username, record.Id);
+                    Log.Debug("Marked existing upload record of {Filename} to {Username} removed (id: {Id})", filename, username, record.Id);
                 }
 
                 context.SaveChanges();
@@ -700,8 +710,10 @@ namespace slskd.Transfers.Uploads
             }
             finally
             {
-                Locks.TryRemove(lockName, out _);
-                Log.Debug("Released lock {LockName}", lockName);
+                if (Locks.TryRemove(lockName, out _))
+                {
+                    Log.Debug("Released lock {LockName}", lockName);
+                }
             }
         }
 
