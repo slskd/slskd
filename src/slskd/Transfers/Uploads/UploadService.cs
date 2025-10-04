@@ -220,15 +220,6 @@ namespace slskd.Transfers.Uploads
         /// <exception cref="NotFoundException">Thrown if the specified file can't be found on disk.</exception>
         public async Task<Transfer> UploadAsync(Transfer transfer)
         {
-            var lockName = $"{nameof(UploadAsync)}:{transfer.Username}:{transfer.Filename}";
-
-            if (!Locks.TryAdd(lockName, true))
-            {
-                Log.Debug("Ignoring concurrent invocation; lock {LockName} already held", lockName);
-                return null;
-            }
-
-            Log.Debug("Acquired lock {LockName}", lockName);
 
             var cts = new CancellationTokenSource();
             var syncRoot = new SemaphoreSlim(1, 1);
@@ -251,6 +242,14 @@ namespace slskd.Transfers.Uploads
             string localFilename = default;
             long localFileLength = default;
 
+            var lockName = $"{nameof(UploadAsync)}:{transfer.Username}:{transfer.Filename}";
+
+            if (!Locks.TryAdd(lockName, true))
+            {
+                Log.Debug("Ignoring concurrent invocation; lock {LockName} already held", lockName);
+                return null;
+            }
+
             /*
                 from this point forward, any exit from this method MUST result in an update to the Transfer record
                 in the database that sets EndedAt and ensures that the State property includes the Completed flag
@@ -261,6 +260,8 @@ namespace slskd.Transfers.Uploads
             */
             try
             {
+                Log.Debug("Acquired lock {LockName}", lockName);
+
                 /*
                     fetch an updated copy of the transfer record from the database; now that we are locked, we *should*
                     have exclusive access to this record

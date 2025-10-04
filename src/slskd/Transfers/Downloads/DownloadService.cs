@@ -203,16 +203,6 @@ namespace slskd.Transfers.Downloads
         /// <exception cref="DuplicateTransferException">Thrown if a download matching the username and filename is already tracked by Soulseek.NET.</exception>
         public async Task<Transfer> DownloadAsync(Transfer transfer)
         {
-            var lockName = $"{nameof(DownloadAsync)}:{transfer.Username}:{transfer.Filename}";
-
-            if (!Locks.TryAdd(lockName, true))
-            {
-                Log.Debug("Ignoring concurrent invocation; lock {LockName} already held", lockName);
-                return null;
-            }
-
-            Log.Debug("Acquired lock {LockName}", lockName);
-
             var cts = new CancellationTokenSource();
             var syncRoot = new SemaphoreSlim(1, 1);
 
@@ -230,6 +220,14 @@ namespace slskd.Transfers.Downloads
                 }
             }
 
+            var lockName = $"{nameof(DownloadAsync)}:{transfer.Username}:{transfer.Filename}";
+
+            if (!Locks.TryAdd(lockName, true))
+            {
+                Log.Debug("Ignoring concurrent invocation; lock {LockName} already held", lockName);
+                return null;
+            }
+
             /*
                 from this point forward, any exit from this method MUST result in an update to the Transfer record
                 in the database that sets EndedAt and ensures that the State property includes the Completed flag
@@ -240,6 +238,8 @@ namespace slskd.Transfers.Downloads
             */
             try
             {
+                Log.Debug("Acquired lock {LockName}", lockName);
+
                 /*
                     fetch an updated copy of the transfer record from the database; now that we are locked, we *should*
                     have exclusive access to this record
