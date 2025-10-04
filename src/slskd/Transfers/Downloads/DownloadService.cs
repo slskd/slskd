@@ -213,31 +213,6 @@ namespace slskd.Transfers.Downloads
 
             Log.Debug("Acquired lock {LockName}", lockName);
 
-            /*
-                fetch an updated copy of the transfer record from the database; now that we are locked, we *should*
-                have exclusive access to this record
-
-                we're not using DbContext and tracked changes here because we don't want to hold a connection
-                open for the duration of the download
-            */
-            transfer = Find(t => t.Id == transfer.Id)
-                ?? throw new TransferNotFoundException($"Transfer with ID {transfer.Id} not found");
-
-            if (transfer.State != (TransferStates.Queued | TransferStates.Locally))
-            {
-                throw new InvalidOperationException($"Invalid starting state for download; expected {TransferStates.Queued | TransferStates.Locally}, encountered {transfer.State}");
-            }
-
-            /*
-                Soulseek.NET keeps an internal dictionary of all transfers for the duration of the transfer logic;
-                check that list to see if there's already an instance of this download in it, just in case we've gotten
-                out of sync somehow
-            */
-            if (Client.Downloads.Any(u => u.Username == transfer.Username && u.Filename == transfer.Filename))
-            {
-                throw new DuplicateTransferException("A duplicate download of the same file to the same user is already registered");
-            }
-
             var cts = new CancellationTokenSource();
             var syncRoot = new SemaphoreSlim(1, 1);
 
@@ -265,6 +240,31 @@ namespace slskd.Transfers.Downloads
             */
             try
             {
+                /*
+                    fetch an updated copy of the transfer record from the database; now that we are locked, we *should*
+                    have exclusive access to this record
+
+                    we're not using DbContext and tracked changes here because we don't want to hold a connection
+                    open for the duration of the download
+                */
+                transfer = Find(t => t.Id == transfer.Id)
+                    ?? throw new TransferNotFoundException($"Transfer with ID {transfer.Id} not found");
+
+                if (transfer.State != (TransferStates.Queued | TransferStates.Locally))
+                {
+                    throw new InvalidOperationException($"Invalid starting state for download; expected {TransferStates.Queued | TransferStates.Locally}, encountered {transfer.State}");
+                }
+
+                /*
+                    Soulseek.NET keeps an internal dictionary of all transfers for the duration of the transfer logic;
+                    check that list to see if there's already an instance of this download in it, just in case we've gotten
+                    out of sync somehow
+                */
+                if (Client.Downloads.Any(u => u.Username == transfer.Username && u.Filename == transfer.Filename))
+                {
+                    throw new DuplicateTransferException("A duplicate download of the same file to the same user is already registered");
+                }
+
                 Log.Information("Initializing download of {Filename} from {Username}", transfer.Filename, transfer.Username);
 
                 using var rateLimiter = new RateLimiter(250, flushOnDispose: true);
