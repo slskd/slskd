@@ -492,7 +492,7 @@ namespace slskd.Transfers.Downloads
 
             if (!Locks.TryAdd(lockName, true))
             {
-                Log.Debug("Ignoring concurrent download enqueue attempt; lock {LockName} a;ready held", lockName);
+                Log.Debug("Ignoring concurrent download enqueue attempt; lock {LockName} already held", lockName);
                 return null;
             }
 
