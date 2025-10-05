@@ -55,11 +55,12 @@ namespace slskd.Transfers.Downloads
         /// </remarks>
         /// <param name="username">The username of remote user.</param>
         /// <param name="files">The list of files to enqueue.</param>
+        /// <param name="cancellationToken">The token to monitor for cancellation.</param>
         /// <returns>The operation context.</returns>
         /// <exception cref="ArgumentException">Thrown when the username is null or an empty string.</exception>
         /// <exception cref="ArgumentException">Thrown when no files are requested.</exception>
         /// <exception cref="AggregateException">Thrown when at least one of the requested files throws.</exception>
-        Task<List<Transfer>> EnqueueAsync(string username, IEnumerable<(string Filename, long Size)> files);
+        Task<List<Transfer>> EnqueueAsync(string username, IEnumerable<(string Filename, long Size)> files, CancellationToken cancellationToken = default);
 
         /// <summary>
         ///     Enqueues the specified <paramref name="filename"/> from the specified <paramref name="username"/>.
@@ -67,19 +68,23 @@ namespace slskd.Transfers.Downloads
         /// <param name="username">The username of remote user.</param>
         /// <param name="filename">The remote filename to download.</param>
         /// <param name="size">The size of the file.</param>
+        /// <param name="stateChanged">An optional delegate to invoke the transfer state changes.</param>
+        /// <param name="cancellationToken">The token to monitor for cancellation.</param>
         /// <returns>The operation context.</returns>
-        Task<Transfer> EnqueueAsync(string username, string filename, long size);
+        Task<Transfer> EnqueueAsync(string username, string filename, long size, Action<Transfer> stateChanged = null, CancellationToken cancellationToken = default);
 
         /// <summary>
         ///     Downloads the specified enqueued <paramref name="transfer"/> from the remote user.
         /// </summary>
         /// <param name="transfer">The Transfer to download.</param>
+        /// <param name="stateChanged">An optional delegate to invoke the transfer state changes.</param>
+        /// <param name="cancellationToken">The token to monitor for cancellation.</param>
         /// <returns>The operation context.</returns>
         /// <exception cref="ArgumentNullException">Thrown if the specified Transfer is null.</exception>
         /// <exception cref="TransferNotFoundException">Thrown if the specified Transfer ID can't be found in the database.</exception>
         /// <exception cref="InvalidOperationException">Thrown if the specified Transfer is not in the Queued | Locally state.</exception>
         /// <exception cref="DuplicateTransferException">Thrown if a download matching the username and filename is already tracked by Soulseek.NET.</exception>
-        Task<Transfer> DownloadAsync(Transfer transfer);
+        Task<Transfer> DownloadAsync(Transfer transfer, Action<Transfer> stateChanged = null, CancellationToken cancellationToken = default);
 
         /// <summary>
         ///     Finds a single download matching the specified <paramref name="expression"/>.
@@ -196,14 +201,16 @@ namespace slskd.Transfers.Downloads
         ///     Downloads the specified enqueued <paramref name="transfer"/> from the remote user.
         /// </summary>
         /// <param name="transfer">The Transfer to download.</param>
+        /// <param name="stateChanged">An optional delegate to invoke the transfer state changes.</param>
+        /// <param name="cancellationToken">The token to monitor for cancellation.</param>
         /// <returns>The operation context.</returns>
         /// <exception cref="ArgumentNullException">Thrown if the specified Transfer is null.</exception>
         /// <exception cref="TransferNotFoundException">Thrown if the specified Transfer ID can't be found in the database.</exception>
         /// <exception cref="InvalidOperationException">Thrown if the specified Transfer is not in the Queued | Locally state.</exception>
         /// <exception cref="DuplicateTransferException">Thrown if a download matching the username and filename is already tracked by Soulseek.NET.</exception>
-        public async Task<Transfer> DownloadAsync(Transfer transfer)
+        public async Task<Transfer> DownloadAsync(Transfer transfer, Action<Transfer> stateChanged = null, CancellationToken cancellationToken = default)
         {
-            var cts = new CancellationTokenSource();
+            var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             var syncRoot = new SemaphoreSlim(1, 1);
 
             void SynchronizedUpdate(Transfer transfer, bool cancellable = true)
@@ -286,13 +293,15 @@ namespace slskd.Transfers.Downloads
 
                         // we don't know when the download is actually enqueued (remotely) until it switches into that state
                         // when it is enqueued locally is irrelevant, due to internal throttling etc
-                        if (transfer.EnqueuedAt is null && args.Transfer.State.HasFlag(TransferStates.Queued) && args.Transfer.State.HasFlag(TransferStates.Remotely))
+                        if (args.Transfer.State.HasFlag(TransferStates.Queued) && args.Transfer.State.HasFlag(TransferStates.Remotely))
                         {
-                            transfer.EnqueuedAt = DateTime.UtcNow;
+                            transfer.EnqueuedAt ??= DateTime.UtcNow;
                         }
 
                         // todo: broadcast
                         SynchronizedUpdate(transfer);
+
+                        stateChanged?.Invoke(transfer);
                     },
                     progressUpdated: (args) => rateLimiter.Invoke(() =>
                     {
@@ -470,8 +479,10 @@ namespace slskd.Transfers.Downloads
         /// <param name="username">The username of remote user.</param>
         /// <param name="filename">The remote filename to download.</param>
         /// <param name="size">The size of the file.</param>
+        /// <param name="stateChanged">An optional delegate to invoke the transfer state changes.</param>
+        /// <param name="cancellationToken">The token to monitor for cancellation.</param>
         /// <returns>The operation context.</returns>
-        public Task<Transfer> EnqueueAsync(string username, string filename, long size)
+        public Task<Transfer> EnqueueAsync(string username, string filename, long size, Action<Transfer> stateChanged = null, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrEmpty(username))
             {
@@ -574,7 +585,7 @@ namespace slskd.Transfers.Downloads
                     Task.Run can fail due to thread pool exhaustion or OOM, and this *SHOULD* throw up the chain and
                     fail the enqueue request
                 */
-                _ = Task.Run(() => DownloadAsync(transfer)).ContinueWith(task =>
+                _ = Task.Run(() => DownloadAsync(transfer, stateChanged, cancellationToken)).ContinueWith(task =>
                 {
                     if (task.IsCompletedSuccessfully)
                     {
@@ -609,7 +620,7 @@ namespace slskd.Transfers.Downloads
                         Log.Error(ex, "Failed to clean up transfer {Id} after failed execution: {Message}", id, ex.Message);
                         throw;
                     }
-                });
+                }, cancellationToken);
 
                 return Task.FromResult(transfer);
             }
@@ -656,11 +667,12 @@ namespace slskd.Transfers.Downloads
         /// </remarks>
         /// <param name="username">The username of the remote user.</param>
         /// <param name="files">The list of files to enqueue.</param>
+        /// <param name="cancellationToken">The token to monitor for cancellation.</param>
         /// <returns>The operation context.</returns>
         /// <exception cref="ArgumentException">Thrown when the username is null or an empty string.</exception>
         /// <exception cref="ArgumentException">Thrown when no files are requested.</exception>
         /// <exception cref="AggregateException">Thrown when at least one of the requested files throws.</exception>
-        public async Task<List<Transfer>> EnqueueAsync(string username, IEnumerable<(string Filename, long Size)> files)
+        public async Task<List<Transfer>> EnqueueAsync(string username, IEnumerable<(string Filename, long Size)> files, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrEmpty(username))
             {
@@ -675,11 +687,74 @@ namespace slskd.Transfers.Downloads
             List<Transfer> transfers = [];
             List<Exception> exceptions = [];
 
+            /*
+                enqueue each of the specified files, waiting to ensure that the remote client has responded to our
+                request to enqueue before moving on to the next
+
+                we do this because Soulseek.NET sends a TransferRequest/40 which expects a TransferResponse/41 in return,
+                telling us that either 1) the transfer can begin immediately 2) the transfer was enqueued remotely
+                or 3) the transfer was rejected
+
+                if at a later date Soulseek.NET is refactored to use different logic, we'll want to rethink this, particularly
+                to avoid the need to wait for a confirmation from the remote client.
+
+                note: we can't just fire off all of these requests at the same time, because the remote client will get
+                overwhelmed, responses will be delayed, and the timeout within Soulseek.NET that's waiting for the
+                TransferResponse/41 message will expire and fail the download
+            */
             foreach (var file in files)
             {
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    break;
+                }
+
                 try
                 {
-                    transfers.Add(await EnqueueAsync(username, file.Filename, file.Size));
+                    var enqueuedTcs = new TaskCompletionSource<Transfer>();
+                    List<string> transitions = [];
+
+                    // set a hard limit on the time we are willing to wait for the remote client to confirm or reject
+                    // the enqueue of the file. we have to do this so that we don't get stuck indefinitely
+                    using var timeoutCts = new CancellationTokenSource(TimeSpan.FromMinutes(1));
+                    timeoutCts.Token.Register(() =>
+                    {
+                        if (!enqueuedTcs.Task.IsCompleted)
+                        {
+                            Log.Warning("Download of {Filename} from {Username} failed to enqueue remotely after hard time limit. State transition history: {History}", file.Filename, username, string.Join(", ", transitions));
+                            enqueuedTcs.TrySetException(new TimeoutException("Download failed to enqueue remotely after hard time limit"));
+                        }
+                    });
+
+                    void stateChanged(Transfer transfer)
+                    {
+                        transitions.Add(transfer.State.ToString());
+
+                        // _contractually_ (covered by unit tests!) all downloads will at some point enter the Queued | Remotely state
+                        // there _should be_ no way we can get hung up here, but if we do
+                        if (transfer.State.HasFlag(TransferStates.Queued) && transfer.State.HasFlag(TransferStates.Remotely))
+                        {
+                            enqueuedTcs.TrySetResult(transfer);
+                        }
+
+                        // if something goes wrong and we never get to enqueued, trip the result when we transition into
+                        // completed, so we don't get stuck. we shouldn't take this to mean we were successful, we're just
+                        // trying to ensure we don't get stuck
+                        if (transfer.State.HasFlag(TransferStates.Completed))
+                        {
+                            enqueuedTcs.TrySetResult(transfer);
+                        }
+                    }
+
+                    // enqueue the file. this call will return when the record has been inserted and the download task
+                    // kicked off.  the stateChanged delegate will be passed down to the download task, which will eventually trip it
+                    await EnqueueAsync(username, file.Filename, file.Size, stateChanged, cancellationToken);
+
+                    // wait for the download to either enter the Queued | Remotely or Completed states, or for the hard limit
+                    // timeout to trip and set an exception
+                    var transfer = await enqueuedTcs.Task;
+
+                    transfers.Add(transfer);
                 }
                 catch (Exception ex)
                 {
@@ -687,7 +762,7 @@ namespace slskd.Transfers.Downloads
                 }
             }
 
-            if (exceptions.Any())
+            if (exceptions.Count != 0)
             {
                 throw new AggregateException(exceptions);
             }
