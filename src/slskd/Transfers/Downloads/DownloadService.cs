@@ -672,9 +672,25 @@ namespace slskd.Transfers.Downloads
                 throw new ArgumentException("At least one file is required", nameof(files));
             }
 
-            var tasks = files.Select(file => EnqueueAsync(username, file.Filename, file.Size));
+            List<Transfer> transfers = [];
+            List<Exception> exceptions = [];
 
-            var transfers = await Task.WhenAll(tasks);
+            foreach (var file in files)
+            {
+                try
+                {
+                    transfers.Add(await EnqueueAsync(username, file.Filename, file.Size));
+                }
+                catch (Exception ex)
+                {
+                    exceptions.Add(ex);
+                }
+            }
+
+            if (exceptions.Any())
+            {
+                throw new AggregateException(exceptions);
+            }
 
             return transfers.ToList();
         }
