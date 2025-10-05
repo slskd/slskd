@@ -68,7 +68,7 @@
     <PackageReference Include="Serilog.Sinks.File" Version="5.0.0" />
     <PackageReference Include="Serilog.Sinks.Grafana.Loki" Version="7.1.1" />
     <PackageReference Include="Serilog.Sinks.Http" Version="8.0.0" />
-    <PackageReference Include="Soulseek" Version="8.1.2" />
+    <PackageReference Include="Soulseek" Version="8.2.1" />
     <PackageReference Include="StyleCop.Analyzers" Version="1.2.0-beta.556">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
