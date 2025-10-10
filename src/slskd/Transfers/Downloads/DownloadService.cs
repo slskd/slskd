@@ -279,29 +279,34 @@ namespace slskd.Transfers.Downloads
                 var topts = new TransferOptions(
                     stateChanged: (args) =>
                     {
-                        Log.Debug("Download of {Filename} from user {Username} changed state from {Previous} to {New}", transfer.Filename, transfer.Username, args.PreviousState, args.Transfer.State);
-
-                        // prevent Exceptions thrown during shutdown from updating the transfer record with related Exceptions;
-                        // instead, allow these to be left "hanging" so that they are properly cleaned up at the next startup
-                        if (Application.IsShuttingDown)
+                        try
                         {
-                            Log.Debug("Download update of {Filename} to {Username} not persisted; app is shutting down", transfer.Filename, transfer.Username);
-                            return;
+                            Log.Debug("Download of {Filename} from user {Username} changed state from {Previous} to {New}", transfer.Filename, transfer.Username, args.PreviousState, args.Transfer.State);
+
+                            // prevent Exceptions thrown during shutdown from updating the transfer record with related Exceptions;
+                            // instead, allow these to be left "hanging" so that they are properly cleaned up at the next startup
+                            if (Application.IsShuttingDown)
+                            {
+                                Log.Debug("Download update of {Filename} to {Username} not persisted; app is shutting down", transfer.Filename, transfer.Username);
+                                return;
+                            }
+
+                            transfer = transfer.WithSoulseekTransfer(args.Transfer);
+
+                            // we don't know when the download is actually enqueued (remotely) until it switches into that state
+                            // when it is enqueued locally is irrelevant, due to internal throttling etc
+                            if (args.Transfer.State.HasFlag(TransferStates.Queued) && args.Transfer.State.HasFlag(TransferStates.Remotely))
+                            {
+                                transfer.EnqueuedAt ??= DateTime.UtcNow;
+                            }
+
+                            // todo: broadcast
+                            SynchronizedUpdate(transfer);
                         }
-
-                        transfer = transfer.WithSoulseekTransfer(args.Transfer);
-
-                        // we don't know when the download is actually enqueued (remotely) until it switches into that state
-                        // when it is enqueued locally is irrelevant, due to internal throttling etc
-                        if (args.Transfer.State.HasFlag(TransferStates.Queued) && args.Transfer.State.HasFlag(TransferStates.Remotely))
+                        finally
                         {
-                            transfer.EnqueuedAt ??= DateTime.UtcNow;
+                            stateChanged?.Invoke(transfer);
                         }
-
-                        // todo: broadcast
-                        SynchronizedUpdate(transfer);
-
-                        stateChanged?.Invoke(transfer);
                     },
                     progressUpdated: (args) => rateLimiter.Invoke(() =>
                     {
