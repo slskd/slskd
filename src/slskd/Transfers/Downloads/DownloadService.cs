@@ -489,6 +489,19 @@ namespace slskd.Transfers.Downloads
                 throw new ArgumentException("At least one file is required", nameof(files));
             }
 
+            IPEndPoint endpoint;
+
+            try
+            {
+                // get the user's ip and port. this will throw if they are offline.
+                endpoint = await Client.GetUserEndPointAsync(username, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to enqueue {Count} files from {Username}: {Message}", files.Count(), username, ex.Message);
+                throw;
+            }
+
             List<string> acquiredLocks = [];
 
             try
