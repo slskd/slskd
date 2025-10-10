@@ -380,8 +380,10 @@ namespace slskd
                 proxyOptions: proxyOptions);
 
             // os-specific keepalive is configured for long-lived connections for the server and distributed parent/children
-            var serverOptions = connectionOptions.With(configureSocketAction: socket => ConfigureSocketKeepAlive(socket, OptionsAtStartup.Soulseek.Connection));
-            var distributedOptions = connectionOptions.With(configureSocketAction: socket => ConfigureSocketKeepAlive(socket, OptionsAtStartup.Soulseek.Connection));
+            var serverOptions = connectionOptions.With(configureSocketAction: socket => ConfigureSocketOptions(socket, OptionsAtStartup.Soulseek.Connection));
+            var distributedOptions = connectionOptions.With(
+                writeBufferSize: OptionsAtStartup.Soulseek.Connection.Buffer.WriteQueue, // write queue set to keep distributed children from impacting performance
+                configureSocketAction: socket => ConfigureSocketOptions(socket, OptionsAtStartup.Soulseek.Connection));
 
             var transferOptions = connectionOptions.With(
                 readBufferSize: OptionsAtStartup.Soulseek.Connection.Buffer.Transfer,
@@ -495,7 +497,7 @@ namespace slskd
             return Task.CompletedTask;
         }
 
-        private void ConfigureSocketKeepAlive(Socket socket, Options.SoulseekOptions.ConnectionOptions options)
+        private void ConfigureSocketOptions(Socket socket, Options.SoulseekOptions.ConnectionOptions options)
         {
             /*
                 os-specific keepalive is configured for long-lived connections for the server and distributed parent/children
@@ -507,6 +509,11 @@ namespace slskd
             */
             try
             {
+                // these are set in Soulseek.NET too, but to be super, super sure, do it again; these options can cause
+                // I/O loops to hang indefinitely and are suspected to be a cause of 'stuck' transfers
+                socket.SendTimeout = options.Timeout.Inactivity;
+                socket.ReceiveTimeout = options.Timeout.Inactivity;
+
                 socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
 
                 if (OperatingSystem.IsWindows() && OptionsAtStartup.Flags.LegacyWindowsTcpKeepalive)
@@ -1391,8 +1398,8 @@ namespace slskd
                             inactivityTimeout: connection.Timeout.Inactivity,
                             proxyOptions: proxyPatch);
 
-                        serverPatch = connectionPatch.With(configureSocketAction: socket => ConfigureSocketKeepAlive(socket, options: connection));
-                        distributedPatch = connectionPatch.With(configureSocketAction: socket => ConfigureSocketKeepAlive(socket, options: connection));
+                        serverPatch = connectionPatch.With(configureSocketAction: socket => ConfigureSocketOptions(socket, options: connection));
+                        distributedPatch = connectionPatch.With(configureSocketAction: socket => ConfigureSocketOptions(socket, options: connection));
 
                         transferPatch = connectionPatch.With(
                             readBufferSize: OptionsAtStartup.Soulseek.Connection.Buffer.Transfer,
