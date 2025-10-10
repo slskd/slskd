@@ -25,6 +25,8 @@ namespace slskd.Transfers.Downloads
     using System.Collections.Generic;
     using System.Linq;
     using System.Linq.Expressions;
+    using System.Net;
+
     using System.Threading;
     using System.Threading.Tasks;
     using Microsoft.EntityFrameworkCore;
@@ -477,7 +479,7 @@ namespace slskd.Transfers.Downloads
         /// <exception cref="ArgumentException">Thrown when the username is null or an empty string.</exception>
         /// <exception cref="ArgumentException">Thrown when no files are requested.</exception>
         /// <exception cref="AggregateException">Thrown when at least one of the requested files throws.</exception>
-        public Task<(List<Transfer> Enqueued, List<Transfer> Failed)> EnqueueAsync(string username, IEnumerable<(string Filename, long Size)> files, CancellationToken cancellationToken = default)
+        public async Task<(List<Transfer> Enqueued, List<Transfer> Failed)> EnqueueAsync(string username, IEnumerable<(string Filename, long Size)> files, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrEmpty(username))
             {
@@ -611,6 +613,17 @@ namespace slskd.Transfers.Downloads
                 if (enqueued.Count == 0)
                 {
                     return (enqueued, failed);
+                }
+
+                // prime the cache for this user, to 1) make sure we can connect, and 2) avoid needing to race for it in the loop
+                try
+                {
+                    await Client.ConnectToUserAsync(username, invalidateCache: false, cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, "Failed to connect to {Username}: {Message}", username, ex.Message);
+                    throw;
                 }
 
                 /*
@@ -794,7 +807,7 @@ namespace slskd.Transfers.Downloads
                     Log.Error(task.Exception, "Task for enqueue of {Count} files from {Username} did not complete successfully: {Error}", files.Count(), username, task.Exception.Flatten().Message);
                 }, cancellationToken: CancellationToken.None);
 
-                return Task.FromResult((enqueued, failed));
+                return (enqueued, failed);
             }
             finally
             {
