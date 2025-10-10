@@ -374,7 +374,7 @@ namespace slskd
             var connectionOptions = new ConnectionOptions(
                 readBufferSize: OptionsAtStartup.Soulseek.Connection.Buffer.Read,
                 writeBufferSize: OptionsAtStartup.Soulseek.Connection.Buffer.Write,
-                writeQueueSize: OptionsAtStartup.Soulseek.Connection.Buffer.WriteQueue,
+                writeQueueSize: int.MaxValue, // no write queue for peer, server or transfer connections
                 connectTimeout: OptionsAtStartup.Soulseek.Connection.Timeout.Connect,
                 inactivityTimeout: OptionsAtStartup.Soulseek.Connection.Timeout.Inactivity,
                 proxyOptions: proxyOptions);
