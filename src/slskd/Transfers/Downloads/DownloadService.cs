@@ -595,6 +595,11 @@ namespace slskd.Transfers.Downloads
                     }
                 }
 
+                if (enqueued.Count == 0)
+                {
+                    return (enqueued, failed);
+                }
+
                 /*
                     the files are all now in the database in the Queued | Locally state.
 
