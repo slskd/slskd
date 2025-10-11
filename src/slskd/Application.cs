@@ -380,14 +380,18 @@ namespace slskd
                 proxyOptions: proxyOptions);
 
             // os-specific keepalive is configured for long-lived connections for the server and distributed parent/children
-            var serverOptions = connectionOptions.With(configureSocketAction: socket => ConfigureSocketOptions(socket, OptionsAtStartup.Soulseek.Connection));
+            var serverOptions = connectionOptions.With(
+                inactivityTimeout: -1, // don't disconnect due to inactivity
+                configureSocket: socket => ConfigureSocketKeepaliveOptions(socket, OptionsAtStartup.Soulseek.Connection));
+
             var distributedOptions = connectionOptions.With(
-                writeBufferSize: OptionsAtStartup.Soulseek.Connection.Buffer.WriteQueue, // write queue set to keep distributed children from impacting performance
-                configureSocketAction: socket => ConfigureSocketOptions(socket, OptionsAtStartup.Soulseek.Connection));
+                writeQueueSize: OptionsAtStartup.Soulseek.Connection.Buffer.WriteQueue, // write queue set to keep distributed children from impacting performance
+                configureSocket: socket => ConfigureSocketKeepaliveOptions(socket, OptionsAtStartup.Soulseek.Connection));
 
             var transferOptions = connectionOptions.With(
                 readBufferSize: OptionsAtStartup.Soulseek.Connection.Buffer.Transfer,
-                writeBufferSize: OptionsAtStartup.Soulseek.Connection.Buffer.Transfer);
+                writeBufferSize: OptionsAtStartup.Soulseek.Connection.Buffer.Transfer,
+                inactivityTimeout: OptionsAtStartup.Soulseek.Connection.Timeout.Transfer);
 
             var patch = new SoulseekClientOptionsPatch(
                 listenIPAddress: IPAddress.Parse(OptionsAtStartup.Soulseek.ListenIpAddress),
@@ -497,7 +501,7 @@ namespace slskd
             return Task.CompletedTask;
         }
 
-        private void ConfigureSocketOptions(Socket socket, Options.SoulseekOptions.ConnectionOptions options)
+        private void ConfigureSocketKeepaliveOptions(Socket socket, Options.SoulseekOptions.ConnectionOptions options)
         {
             /*
                 os-specific keepalive is configured for long-lived connections for the server and distributed parent/children
@@ -509,11 +513,6 @@ namespace slskd
             */
             try
             {
-                // these are set in Soulseek.NET too, but to be super, super sure, do it again; these options can cause
-                // I/O loops to hang indefinitely and are suspected to be a cause of 'stuck' transfers
-                socket.SendTimeout = options.Timeout.Inactivity;
-                socket.ReceiveTimeout = options.Timeout.Inactivity;
-
                 socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
 
                 if (OperatingSystem.IsWindows() && OptionsAtStartup.Flags.LegacyWindowsTcpKeepalive)
@@ -1398,12 +1397,18 @@ namespace slskd
                             inactivityTimeout: connection.Timeout.Inactivity,
                             proxyOptions: proxyPatch);
 
-                        serverPatch = connectionPatch.With(configureSocketAction: socket => ConfigureSocketOptions(socket, options: connection));
-                        distributedPatch = connectionPatch.With(configureSocketAction: socket => ConfigureSocketOptions(socket, options: connection));
+                        serverPatch = connectionPatch.With(
+                            inactivityTimeout: -1, // don't disconnect due to inactivity
+                            configureSocket: socket => ConfigureSocketKeepaliveOptions(socket, options: connection));
+
+                        distributedPatch = connectionPatch.With(
+                            writeQueueSize: connection.Buffer.WriteQueue, // write queue set to keep distributed children from impacting performance
+                            configureSocket: socket => ConfigureSocketKeepaliveOptions(socket, options: connection));
 
                         transferPatch = connectionPatch.With(
                             readBufferSize: OptionsAtStartup.Soulseek.Connection.Buffer.Transfer,
-                            writeBufferSize: OptionsAtStartup.Soulseek.Connection.Buffer.Transfer);
+                            writeBufferSize: OptionsAtStartup.Soulseek.Connection.Buffer.Transfer,
+                            inactivityTimeout: connection.Timeout.Transfer);
                     }
 
                     var patch = new SoulseekClientOptionsPatch(
