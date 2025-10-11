@@ -1014,5 +1014,19 @@ namespace slskd.Transfers.Downloads
             context.Update(transfer);
             context.SaveChanges();
         }
+
+        private void SynchronizedUpdate(Transfer transfer, SemaphoreSlim semaphore, CancellationToken cancellationToken = default)
+        {
+            semaphore.Wait(cancellationToken);
+
+            try
+            {
+                Update(transfer);
+            }
+            finally
+            {
+                semaphore.Release();
+            }
+        }
     }
 }
