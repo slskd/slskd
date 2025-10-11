@@ -292,28 +292,36 @@ namespace slskd.Transfers.Downloads
                         // being made after the transfer is completed, causing them to appear 'stuck'
                         if (transfer.State == TransferStates.InProgress)
                         {
-                            syncRoot.Wait(cts.Token);
-
-                            try
+                            // don't wait for the semaphore; if a previous progress update is still hanging, don't make
+                            // the problem worse. this will result in fewer/jumpy updates on systems with slow filesystems
+                            // but the alternative is to continue to stack slow writes on top of one another
+                            if (progressSemaphore.Wait(millisecondsTimeout: 0, cts.Token))
                             {
-                                // check again to see if the state changed while we were waiting to obtain the lock
-                                if (transfer.State == TransferStates.InProgress)
+                                try
                                 {
-                                    // update only the properties that we expect to change between progress updates
-                                    // this helps prevent this update from 'stepping' on other updates
-                                    transfer.BytesTransferred = args.Transfer.BytesTransferred;
-                                    transfer.AverageSpeed = args.Transfer.AverageSpeed;
+                                    // check again to see if the state changed while we were waiting to obtain the lock
+                                    if (transfer.State == TransferStates.InProgress)
+                                    {
+                                        // update only the properties that we expect to change between progress updates
+                                        // this helps prevent this update from 'stepping' on other updates
+                                        transfer.BytesTransferred = args.Transfer.BytesTransferred;
+                                        transfer.AverageSpeed = args.Transfer.AverageSpeed;
 
-                                    using var context = ContextFactory.CreateDbContext();
+                                        using var context = ContextFactory.CreateDbContext();
 
-                                    context.Transfers.Where(t => t.Id == transfer.Id).ExecuteUpdate(setter => setter
-                                        .SetProperty(t => t.BytesTransferred, transfer.BytesTransferred)
-                                        .SetProperty(t => t.AverageSpeed, transfer.AverageSpeed));
+                                        context.Transfers.Where(t => t.Id == transfer.Id).ExecuteUpdate(setter => setter
+                                            .SetProperty(t => t.BytesTransferred, transfer.BytesTransferred)
+                                            .SetProperty(t => t.AverageSpeed, transfer.AverageSpeed));
+                                    }
+                                }
+                                finally
+                                {
+                                    progressSemaphore.Release();
                                 }
                             }
-                            finally
+                            else
                             {
-                                syncRoot.Release();
+                                Log.Debug("Skipped progress update of {Filename} from {Username} {BytesTransferred}/{TotalBytes}; previous update still pending", transfer.Filename, transfer.Username, args.Transfer.BytesTransferred, args.Transfer.Size);
                             }
                         }
                     }),
