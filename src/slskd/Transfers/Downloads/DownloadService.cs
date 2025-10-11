@@ -201,21 +201,8 @@ namespace slskd.Transfers.Downloads
         public async Task<Transfer> DownloadAsync(Transfer transfer, Action<Transfer> stateChanged = null, CancellationToken cancellationToken = default)
         {
             var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            var syncRoot = new SemaphoreSlim(1, 1);
-
-            void SynchronizedUpdate(Transfer transfer, bool cancellable = true)
-            {
-                syncRoot.Wait(cancellable ? cts.Token : CancellationToken.None);
-
-                try
-                {
-                    Update(transfer);
-                }
-                finally
-                {
-                    syncRoot.Release();
-                }
-            }
+            var updateSemaphore = new SemaphoreSlim(1, 1);
+            var progressSemaphore = new SemaphoreSlim(1, 1);
 
             var lockName = $"{nameof(DownloadAsync)}:{transfer.Username}:{transfer.Filename}";
 
@@ -277,7 +264,7 @@ namespace slskd.Transfers.Downloads
                             // instead, allow these to be left "hanging" so that they are properly cleaned up at the next startup
                             if (Application.IsShuttingDown)
                             {
-                                Log.Debug("Download update of {Filename} to {Username} not persisted; app is shutting down", transfer.Filename, transfer.Username);
+                                Log.Debug("Download update of {Filename} from {Username} not persisted; app is shutting down", transfer.Filename, transfer.Username);
                                 return;
                             }
 
@@ -291,7 +278,7 @@ namespace slskd.Transfers.Downloads
                             }
 
                             // todo: broadcast
-                            SynchronizedUpdate(transfer);
+                            SynchronizedUpdate(transfer, semaphore: updateSemaphore, cancellationToken: cts.Token);
                         }
                         finally
                         {
@@ -365,7 +352,7 @@ namespace slskd.Transfers.Downloads
                 transfer = transfer.WithSoulseekTransfer(completedTransfer);
 
                 // todo: broadcast to signalr hub
-                SynchronizedUpdate(transfer, cancellable: false);
+                SynchronizedUpdate(transfer, semaphore: updateSemaphore, cancellationToken: CancellationToken.None);
 
                 // move the file from incomplete to complete
                 var destinationDirectory = System.IO.Path.GetDirectoryName(transfer.Filename.ToLocalFilename(baseDirectory: OptionsMonitor.CurrentValue.Directories.Downloads));
@@ -434,7 +421,7 @@ namespace slskd.Transfers.Downloads
                 };
 
                 // todo: broadcast
-                SynchronizedUpdate(transfer, cancellable: false);
+                SynchronizedUpdate(transfer, semaphore: updateSemaphore, cancellationToken: CancellationToken.None);
 
                 throw;
             }
@@ -447,7 +434,7 @@ namespace slskd.Transfers.Downloads
                 transfer.State = TransferStates.Completed | TransferStates.Errored;
 
                 // todo: broadcast
-                SynchronizedUpdate(transfer, cancellable: false);
+                SynchronizedUpdate(transfer, semaphore: updateSemaphore, cancellationToken: CancellationToken.None);
 
                 throw;
             }
