@@ -207,6 +207,7 @@
 #     timeout:
 #       connect: 10000
 #       inactivity: 15000
+#       transfer: 30000
 #     buffer:
 #       read: 16384
 #       write: 16384

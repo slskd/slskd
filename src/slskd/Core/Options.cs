@@ -1675,6 +1675,15 @@ namespace slskd
                     [Description("connection inactivity timeout, in milliseconds")]
                     [Range(1000, int.MaxValue)]
                     public int Inactivity { get; init; } = 15000;
+
+                    /// <summary>
+                    ///     Gets the transfer connection timeout, in milliseconds.
+                    /// </summary>
+                    [Argument(default, "slsk-transfer-timeout")]
+                    [EnvironmentVariable("SLSK_TRANSFER_TIMEOUT")]
+                    [Description("transfer connection timeout, in milliseconds")]
+                    [Range(30_000, int.MaxValue)]
+                    public int Transfer { get; init; } = 60000;
                 }
 
                 /// <summary>
