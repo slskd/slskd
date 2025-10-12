@@ -223,20 +223,6 @@ namespace slskd.Transfers.Uploads
             var cts = new CancellationTokenSource();
             var syncRoot = new SemaphoreSlim(1, 1);
 
-            void SynchronizedUpdate(Transfer transfer, bool cancellable = true)
-            {
-                syncRoot.Wait(cancellable ? cts.Token : CancellationToken.None);
-
-                try
-                {
-                    Update(transfer);
-                }
-                finally
-                {
-                    syncRoot.Release();
-                }
-            }
-
             string host = default;
             string localFilename = default;
             long localFileLength = default;
@@ -324,7 +310,7 @@ namespace slskd.Transfers.Uploads
                         transfer = transfer.WithSoulseekTransfer(args.Transfer);
 
                         // todo: broadcast
-                        SynchronizedUpdate(transfer);
+                        SynchronizedUpdate(transfer, semaphore: syncRoot, cancellationToken: cts.Token);
                     },
                     progressUpdated: (args) => rateLimiter.Invoke(() =>
                     {
@@ -379,7 +365,7 @@ namespace slskd.Transfers.Uploads
                 // add the transfer to the UploadQueue so that it can become eligible for selection
                 Queue.Enqueue(transfer.Username, transfer.Filename);
                 transfer.EnqueuedAt = DateTime.UtcNow;
-                SynchronizedUpdate(transfer);
+                SynchronizedUpdate(transfer, semaphore: syncRoot, cancellationToken: cts.Token);
 
                 Soulseek.Transfer completedTransfer;
 
@@ -424,7 +410,7 @@ namespace slskd.Transfers.Uploads
                 transfer = transfer.WithSoulseekTransfer(completedTransfer);
 
                 // todo: broadcast
-                SynchronizedUpdate(transfer, cancellable: false);
+                SynchronizedUpdate(transfer, semaphore: syncRoot, cancellationToken: CancellationToken.None);
 
                 EventBus.Raise(new UploadFileCompleteEvent
                 {
@@ -442,7 +428,7 @@ namespace slskd.Transfers.Uploads
                 transfer.Exception = "File could not be found";
                 transfer.State = TransferStates.Completed | TransferStates.Aborted;
 
-                SynchronizedUpdate(transfer, cancellable: false);
+                SynchronizedUpdate(transfer, semaphore: syncRoot, cancellationToken: CancellationToken.None);
 
                 throw;
             }
@@ -460,7 +446,7 @@ namespace slskd.Transfers.Uploads
                 };
 
                 // todo: broadcast
-                SynchronizedUpdate(transfer, cancellable: false);
+                SynchronizedUpdate(transfer, semaphore: syncRoot, cancellationToken: CancellationToken.None);
 
                 throw;
             }
@@ -473,7 +459,7 @@ namespace slskd.Transfers.Uploads
                 transfer.State = TransferStates.Completed | TransferStates.Errored;
 
                 // todo: broadcast
-                SynchronizedUpdate(transfer, cancellable: false);
+                SynchronizedUpdate(transfer, semaphore: syncRoot, cancellationToken: CancellationToken.None);
 
                 throw;
             }
@@ -1004,6 +990,20 @@ namespace slskd.Transfers.Uploads
             }
 
             return (host, filename, length);
+        }
+
+        private void SynchronizedUpdate(Transfer transfer, SemaphoreSlim semaphore, CancellationToken cancellationToken = default)
+        {
+            semaphore.Wait(cancellationToken);
+
+            try
+            {
+                Update(transfer);
+            }
+            finally
+            {
+                semaphore.Release();
+            }
         }
     }
 }
