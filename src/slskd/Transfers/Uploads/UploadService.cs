@@ -220,7 +220,6 @@ namespace slskd.Transfers.Uploads
         /// <exception cref="NotFoundException">Thrown if the specified file can't be found on disk.</exception>
         public async Task<Transfer> UploadAsync(Transfer transfer)
         {
-
             var cts = new CancellationTokenSource();
             var syncRoot = new SemaphoreSlim(1, 1);
 
@@ -307,7 +306,7 @@ namespace slskd.Transfers.Uploads
                 // can throw NotFoundException
                 (host, localFilename, localFileLength) = await ResolveFileInfoAsync(remoteFilename: transfer.Filename);
 
-                using var rateLimiter = new RateLimiter(250, flushOnDispose: true);
+                using var rateLimiter = new RateLimiter(250, concurrencyLimit: 1, flushOnDispose: true);
 
                 var topts = new TransferOptions(
                     stateChanged: (args) =>
@@ -334,28 +333,36 @@ namespace slskd.Transfers.Uploads
                         // being made after the transfer is completed, causing them to appear 'stuck'
                         if (transfer.State == TransferStates.InProgress)
                         {
-                            syncRoot.Wait(cts.Token);
-
-                            try
+                            // don't wait for the semaphore; if a previous progress update is still hanging, don't make
+                            // the problem worse. this will result in fewer/jumpy updates on systems with slow filesystems
+                            // but the alternative is to continue to stack slow writes on top of one another
+                            if (syncRoot.Wait(millisecondsTimeout: 0, cts.Token))
                             {
-                                // update only the properties that we expect to change between progress updates
-                                // this helps prevent this update from 'stepping' on other updates
-                                transfer.BytesTransferred = args.Transfer.BytesTransferred;
-                                transfer.AverageSpeed = args.Transfer.AverageSpeed;
-
-                                // check again to see if the state changed while we were waiting to obtain the lock
-                                if (transfer.State == TransferStates.InProgress)
+                                try
                                 {
-                                    using var context = ContextFactory.CreateDbContext();
+                                    // update only the properties that we expect to change between progress updates
+                                    // this helps prevent this update from 'stepping' on other updates
+                                    transfer.BytesTransferred = args.Transfer.BytesTransferred;
+                                    transfer.AverageSpeed = args.Transfer.AverageSpeed;
 
-                                    context.Transfers.Where(t => t.Id == transfer.Id).ExecuteUpdate(setter => setter
-                                        .SetProperty(t => t.BytesTransferred, args.Transfer.BytesTransferred)
-                                        .SetProperty(t => t.AverageSpeed, args.Transfer.AverageSpeed));
+                                    // check again to see if the state changed while we were waiting to obtain the lock
+                                    if (transfer.State == TransferStates.InProgress)
+                                    {
+                                        using var context = ContextFactory.CreateDbContext();
+
+                                        context.Transfers.Where(t => t.Id == transfer.Id).ExecuteUpdate(setter => setter
+                                            .SetProperty(t => t.BytesTransferred, args.Transfer.BytesTransferred)
+                                            .SetProperty(t => t.AverageSpeed, args.Transfer.AverageSpeed));
+                                    }
+                                }
+                                finally
+                                {
+                                    syncRoot.Release();
                                 }
                             }
-                            finally
+                            else
                             {
-                                syncRoot.Release();
+                                Log.Debug("Skipped progress update of {Filename} to {Username} {BytesTransferred}/{TotalBytes}; previous update still pending", transfer.Filename, transfer.Username, args.Transfer.BytesTransferred, args.Transfer.Size);
                             }
                         }
                     }),
