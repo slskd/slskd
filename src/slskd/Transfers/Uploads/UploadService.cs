@@ -220,23 +220,8 @@ namespace slskd.Transfers.Uploads
         /// <exception cref="NotFoundException">Thrown if the specified file can't be found on disk.</exception>
         public async Task<Transfer> UploadAsync(Transfer transfer)
         {
-
             var cts = new CancellationTokenSource();
             var syncRoot = new SemaphoreSlim(1, 1);
-
-            void SynchronizedUpdate(Transfer transfer, bool cancellable = true)
-            {
-                syncRoot.Wait(cancellable ? cts.Token : CancellationToken.None);
-
-                try
-                {
-                    Update(transfer);
-                }
-                finally
-                {
-                    syncRoot.Release();
-                }
-            }
 
             string host = default;
             string localFilename = default;
@@ -307,7 +292,7 @@ namespace slskd.Transfers.Uploads
                 // can throw NotFoundException
                 (host, localFilename, localFileLength) = await ResolveFileInfoAsync(remoteFilename: transfer.Filename);
 
-                using var rateLimiter = new RateLimiter(250, flushOnDispose: true);
+                using var rateLimiter = new RateLimiter(250, concurrencyLimit: 1, flushOnDispose: true);
 
                 var topts = new TransferOptions(
                     stateChanged: (args) =>
@@ -325,7 +310,7 @@ namespace slskd.Transfers.Uploads
                         transfer = transfer.WithSoulseekTransfer(args.Transfer);
 
                         // todo: broadcast
-                        SynchronizedUpdate(transfer);
+                        SynchronizedUpdate(transfer, semaphore: syncRoot, cancellationToken: cts.Token);
                     },
                     progressUpdated: (args) => rateLimiter.Invoke(() =>
                     {
@@ -334,28 +319,32 @@ namespace slskd.Transfers.Uploads
                         // being made after the transfer is completed, causing them to appear 'stuck'
                         if (transfer.State == TransferStates.InProgress)
                         {
-                            syncRoot.Wait(cts.Token);
-
-                            try
+                            // don't wait for the semaphore; if a previous progress update is still hanging, don't make
+                            // the problem worse. this will result in fewer/jumpy updates on systems with slow filesystems
+                            // but the alternative is to continue to stack slow writes on top of one another
+                            if (syncRoot.Wait(millisecondsTimeout: 0, cts.Token))
                             {
-                                // update only the properties that we expect to change between progress updates
-                                // this helps prevent this update from 'stepping' on other updates
-                                transfer.BytesTransferred = args.Transfer.BytesTransferred;
-                                transfer.AverageSpeed = args.Transfer.AverageSpeed;
-
-                                // check again to see if the state changed while we were waiting to obtain the lock
-                                if (transfer.State == TransferStates.InProgress)
+                                try
                                 {
+                                    // update only the properties that we expect to change between progress updates
+                                    // this helps prevent this update from 'stepping' on other updates
+                                    transfer.BytesTransferred = args.Transfer.BytesTransferred;
+                                    transfer.AverageSpeed = args.Transfer.AverageSpeed;
+
                                     using var context = ContextFactory.CreateDbContext();
 
                                     context.Transfers.Where(t => t.Id == transfer.Id).ExecuteUpdate(setter => setter
-                                        .SetProperty(t => t.BytesTransferred, args.Transfer.BytesTransferred)
-                                        .SetProperty(t => t.AverageSpeed, args.Transfer.AverageSpeed));
+                                        .SetProperty(t => t.BytesTransferred, transfer.BytesTransferred)
+                                        .SetProperty(t => t.AverageSpeed, transfer.AverageSpeed));
+                                }
+                                finally
+                                {
+                                    syncRoot.Release();
                                 }
                             }
-                            finally
+                            else
                             {
-                                syncRoot.Release();
+                                Log.Debug("Skipped progress update of {Filename} to {Username} {BytesTransferred}/{TotalBytes}; previous update still pending", transfer.Filename, transfer.Username, args.Transfer.BytesTransferred, args.Transfer.Size);
                             }
                         }
                     }),
@@ -372,7 +361,7 @@ namespace slskd.Transfers.Uploads
                 // add the transfer to the UploadQueue so that it can become eligible for selection
                 Queue.Enqueue(transfer.Username, transfer.Filename);
                 transfer.EnqueuedAt = DateTime.UtcNow;
-                SynchronizedUpdate(transfer);
+                SynchronizedUpdate(transfer, semaphore: syncRoot, cancellationToken: cts.Token);
 
                 Soulseek.Transfer completedTransfer;
 
@@ -417,7 +406,7 @@ namespace slskd.Transfers.Uploads
                 transfer = transfer.WithSoulseekTransfer(completedTransfer);
 
                 // todo: broadcast
-                SynchronizedUpdate(transfer, cancellable: false);
+                SynchronizedUpdate(transfer, semaphore: syncRoot, cancellationToken: CancellationToken.None);
 
                 EventBus.Raise(new UploadFileCompleteEvent
                 {
@@ -435,7 +424,7 @@ namespace slskd.Transfers.Uploads
                 transfer.Exception = "File could not be found";
                 transfer.State = TransferStates.Completed | TransferStates.Aborted;
 
-                SynchronizedUpdate(transfer, cancellable: false);
+                SynchronizedUpdate(transfer, semaphore: syncRoot, cancellationToken: CancellationToken.None);
 
                 throw;
             }
@@ -453,7 +442,7 @@ namespace slskd.Transfers.Uploads
                 };
 
                 // todo: broadcast
-                SynchronizedUpdate(transfer, cancellable: false);
+                SynchronizedUpdate(transfer, semaphore: syncRoot, cancellationToken: CancellationToken.None);
 
                 throw;
             }
@@ -466,7 +455,7 @@ namespace slskd.Transfers.Uploads
                 transfer.State = TransferStates.Completed | TransferStates.Errored;
 
                 // todo: broadcast
-                SynchronizedUpdate(transfer, cancellable: false);
+                SynchronizedUpdate(transfer, semaphore: syncRoot, cancellationToken: CancellationToken.None);
 
                 throw;
             }
@@ -997,6 +986,20 @@ namespace slskd.Transfers.Uploads
             }
 
             return (host, filename, length);
+        }
+
+        private void SynchronizedUpdate(Transfer transfer, SemaphoreSlim semaphore, CancellationToken cancellationToken = default)
+        {
+            semaphore.Wait(cancellationToken);
+
+            try
+            {
+                Update(transfer);
+            }
+            finally
+            {
+                semaphore.Release();
+            }
         }
     }
 }

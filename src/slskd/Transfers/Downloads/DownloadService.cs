@@ -203,20 +203,6 @@ namespace slskd.Transfers.Downloads
             var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             var syncRoot = new SemaphoreSlim(1, 1);
 
-            void SynchronizedUpdate(Transfer transfer, bool cancellable = true)
-            {
-                syncRoot.Wait(cancellable ? cts.Token : CancellationToken.None);
-
-                try
-                {
-                    Update(transfer);
-                }
-                finally
-                {
-                    syncRoot.Release();
-                }
-            }
-
             var lockName = $"{nameof(DownloadAsync)}:{transfer.Username}:{transfer.Filename}";
 
             if (!Locks.TryAdd(lockName, true))
@@ -264,7 +250,7 @@ namespace slskd.Transfers.Downloads
 
                 Log.Information("Initializing download of {Filename} from {Username}", transfer.Filename, transfer.Username);
 
-                using var rateLimiter = new RateLimiter(250, flushOnDispose: true);
+                using var rateLimiter = new RateLimiter(250, concurrencyLimit: 1, flushOnDispose: true);
 
                 var topts = new TransferOptions(
                     stateChanged: (args) =>
@@ -277,7 +263,7 @@ namespace slskd.Transfers.Downloads
                             // instead, allow these to be left "hanging" so that they are properly cleaned up at the next startup
                             if (Application.IsShuttingDown)
                             {
-                                Log.Debug("Download update of {Filename} to {Username} not persisted; app is shutting down", transfer.Filename, transfer.Username);
+                                Log.Debug("Download update of {Filename} from {Username} not persisted; app is shutting down", transfer.Filename, transfer.Username);
                                 return;
                             }
 
@@ -291,7 +277,7 @@ namespace slskd.Transfers.Downloads
                             }
 
                             // todo: broadcast
-                            SynchronizedUpdate(transfer);
+                            SynchronizedUpdate(transfer, semaphore: syncRoot, cancellationToken: cts.Token);
                         }
                         finally
                         {
@@ -305,12 +291,12 @@ namespace slskd.Transfers.Downloads
                         // being made after the transfer is completed, causing them to appear 'stuck'
                         if (transfer.State == TransferStates.InProgress)
                         {
-                            syncRoot.Wait(cts.Token);
-
-                            try
+                            // don't wait for the semaphore; if a previous progress update is still hanging, don't make
+                            // the problem worse. this will result in fewer/jumpy updates on systems with slow filesystems
+                            // but the alternative is to continue to stack slow writes on top of one another
+                            if (syncRoot.Wait(millisecondsTimeout: 0, cts.Token))
                             {
-                                // check again to see if the state changed while we were waiting to obtain the lock
-                                if (transfer.State == TransferStates.InProgress)
+                                try
                                 {
                                     // update only the properties that we expect to change between progress updates
                                     // this helps prevent this update from 'stepping' on other updates
@@ -323,10 +309,14 @@ namespace slskd.Transfers.Downloads
                                         .SetProperty(t => t.BytesTransferred, transfer.BytesTransferred)
                                         .SetProperty(t => t.AverageSpeed, transfer.AverageSpeed));
                                 }
+                                finally
+                                {
+                                    syncRoot.Release();
+                                }
                             }
-                            finally
+                            else
                             {
-                                syncRoot.Release();
+                                Log.Debug("Skipped progress update of {Filename} from {Username} {BytesTransferred}/{TotalBytes}; previous update still pending", transfer.Filename, transfer.Username, args.Transfer.BytesTransferred, args.Transfer.Size);
                             }
                         }
                     }),
@@ -365,7 +355,7 @@ namespace slskd.Transfers.Downloads
                 transfer = transfer.WithSoulseekTransfer(completedTransfer);
 
                 // todo: broadcast to signalr hub
-                SynchronizedUpdate(transfer, cancellable: false);
+                SynchronizedUpdate(transfer, semaphore: syncRoot, cancellationToken: CancellationToken.None);
 
                 // move the file from incomplete to complete
                 var destinationDirectory = System.IO.Path.GetDirectoryName(transfer.Filename.ToLocalFilename(baseDirectory: OptionsMonitor.CurrentValue.Directories.Downloads));
@@ -434,7 +424,7 @@ namespace slskd.Transfers.Downloads
                 };
 
                 // todo: broadcast
-                SynchronizedUpdate(transfer, cancellable: false);
+                SynchronizedUpdate(transfer, semaphore: syncRoot, cancellationToken: CancellationToken.None);
 
                 throw;
             }
@@ -447,7 +437,7 @@ namespace slskd.Transfers.Downloads
                 transfer.State = TransferStates.Completed | TransferStates.Errored;
 
                 // todo: broadcast
-                SynchronizedUpdate(transfer, cancellable: false);
+                SynchronizedUpdate(transfer, semaphore: syncRoot, cancellationToken: CancellationToken.None);
 
                 throw;
             }
@@ -1013,6 +1003,20 @@ namespace slskd.Transfers.Downloads
 
             context.Update(transfer);
             context.SaveChanges();
+        }
+
+        private void SynchronizedUpdate(Transfer transfer, SemaphoreSlim semaphore, CancellationToken cancellationToken = default)
+        {
+            semaphore.Wait(cancellationToken);
+
+            try
+            {
+                Update(transfer);
+            }
+            finally
+            {
+                semaphore.Release();
+            }
         }
     }
 }
