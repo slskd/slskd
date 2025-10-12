@@ -1863,6 +1863,15 @@ namespace slskd
             public bool Logging { get; init; } = false;
 
             /// <summary>
+            ///     Gets the number of search results to display per page in the web UI.
+            /// </summary>
+            [Argument(default, "search-page-size")]
+            [EnvironmentVariable("SEARCH_PAGE_SIZE")]
+            [Description("number of search results to display per page in the web UI")]
+            [Range(1, int.MaxValue)]
+            public int SearchPageSize { get; init; } = 5;
+
+            /// <summary>
             ///     Gets authentication options.
             /// </summary>
             [Validate]

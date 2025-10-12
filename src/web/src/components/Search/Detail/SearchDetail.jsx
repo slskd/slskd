@@ -31,6 +31,7 @@ const SearchDetail = ({
   onCreate,
   onRemove,
   onStop,
+  pageSize,
   removing,
   search,
   stopping,
@@ -50,7 +51,7 @@ const SearchDetail = ({
   const [hideNoFreeSlots, setHideNoFreeSlots] = useState(false);
   const [foldResults, setFoldResults] = useState(false);
   const [resultFilters, setResultFilters] = useState('');
-  const [displayCount, setDisplayCount] = useState(5);
+  const [displayCount, setDisplayCount] = useState(pageSize);
 
   // when the search transitions from !isComplete -> isComplete,
   // fetch the results from the server
@@ -124,7 +125,7 @@ const SearchDetail = ({
     setError(undefined);
     setResults([]);
     setHiddenResults([]);
-    setDisplayCount(5);
+    setDisplayCount(pageSize);
   };
 
   const create = async ({ navigate, search: searchForCreate }) => {
@@ -249,11 +250,12 @@ const SearchDetail = ({
             <Button
               className="showmore-button"
               fluid
-              onClick={() => setDisplayCount(displayCount + 5)}
+              onClick={() => setDisplayCount(displayCount + pageSize)}
               primary
               size="large"
             >
-              Show {remainingCount > 5 ? 5 : remainingCount} More Results{' '}
+              Show {remainingCount > pageSize ? pageSize : remainingCount} More
+              Results{' '}
               {`(${remainingCount} remaining, ${filteredCount} hidden by filter(s))`}
             </Button>
           ) : filteredCount > 0 ? (
