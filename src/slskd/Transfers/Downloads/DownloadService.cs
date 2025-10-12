@@ -303,15 +303,11 @@ namespace slskd.Transfers.Downloads
                                     transfer.BytesTransferred = args.Transfer.BytesTransferred;
                                     transfer.AverageSpeed = args.Transfer.AverageSpeed;
 
-                                    // check again to see if the state changed while we were waiting to obtain the lock
-                                    if (transfer.State == TransferStates.InProgress)
-                                    {
-                                        using var context = ContextFactory.CreateDbContext();
+                                    using var context = ContextFactory.CreateDbContext();
 
-                                        context.Transfers.Where(t => t.Id == transfer.Id).ExecuteUpdate(setter => setter
-                                            .SetProperty(t => t.BytesTransferred, transfer.BytesTransferred)
-                                            .SetProperty(t => t.AverageSpeed, transfer.AverageSpeed));
-                                    }
+                                    context.Transfers.Where(t => t.Id == transfer.Id).ExecuteUpdate(setter => setter
+                                        .SetProperty(t => t.BytesTransferred, transfer.BytesTransferred)
+                                        .SetProperty(t => t.AverageSpeed, transfer.AverageSpeed));
                                 }
                                 finally
                                 {
