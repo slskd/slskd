@@ -337,8 +337,8 @@ namespace slskd.Transfers.Uploads
                                         using var context = ContextFactory.CreateDbContext();
 
                                         context.Transfers.Where(t => t.Id == transfer.Id).ExecuteUpdate(setter => setter
-                                            .SetProperty(t => t.BytesTransferred, args.Transfer.BytesTransferred)
-                                            .SetProperty(t => t.AverageSpeed, args.Transfer.AverageSpeed));
+                                            .SetProperty(t => t.BytesTransferred, transfer.BytesTransferred)
+                                            .SetProperty(t => t.AverageSpeed, transfer.AverageSpeed));
                                     }
                                 }
                                 finally
