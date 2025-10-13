@@ -219,6 +219,7 @@ namespace slskd
         private OptionsAtStartup OptionsAtStartup { get; set; }
         private IOptionsMonitor<Options> OptionsMonitor { get; set; }
         private SemaphoreSlim OptionsSyncRoot { get; } = new SemaphoreSlim(1, 1);
+        private SemaphoreSlim EnqueueRequestRateLimiter { get; } = new SemaphoreSlim(20, 20);
         private Options PreviousOptions { get; set; }
         private IPushbulletService Pushbullet { get; }
         private DateTime SharesRefreshStarted { get; set; }
@@ -538,6 +539,8 @@ namespace slskd
             var stopwatch = new Stopwatch();
             var decisionStopwatch = new Stopwatch();
 
+            await EnqueueRequestRateLimiter.WaitAsync();
+
             try
             {
                 stopwatch.Start();
@@ -748,6 +751,9 @@ namespace slskd
             {
                 decisionStopwatch.Stop();
                 stopwatch.Stop();
+
+                EnqueueRequestRateLimiter.Release();
+
                 Log.Debug("EnqueueDownload for {Username}/{Filename} completed in {ElapsedOverall}ms, decision made in {ElapsedDecision}ms", username, filename, stopwatch.ElapsedMilliseconds, decisionStopwatch.ElapsedMilliseconds);
             }
         }
