@@ -499,11 +499,25 @@ namespace slskd.Transfers.Downloads
             }
 
             List<string> acquiredLocks = [];
+            List<Transfer> enqueued = [];
+            List<Transfer> failed = [];
 
             try
             {
-                List<Transfer> enqueued = [];
-                List<Transfer> failed = [];
+                using var context = ContextFactory.CreateDbContext();
+
+                /*
+                    get all past downloads from this user for this filename
+                */
+                var existingRecords = context.Transfers
+                    .Where(t => t.Direction == TransferDirection.Download)
+                    .Where(t => t.Username == username)
+                    .AsNoTracking()
+                    .ToList();
+
+                var existingInProgressRecords = existingRecords
+                    .Where(t => t.EndedAt == null || !t.State.HasFlag(TransferStates.Completed))
+                    .ToList();
 
                 /*
                     first, check inputs and do an _exhaustive_ check for all of the files provided, separating files out
@@ -543,22 +557,6 @@ namespace slskd.Transfers.Downloads
 
                         Log.Information("Download of {Filename} from {Username} requested", file.Filename, username);
 
-                        using var context = ContextFactory.CreateDbContext();
-
-                        /*
-                            first, get all past downloads from this user for this filename
-                        */
-                        var existingRecords = context.Transfers
-                            .Where(t => t.Direction == TransferDirection.Download)
-                            .Where(t => t.Username == username)
-                            .Where(t => t.Filename == file.Filename)
-                            .AsNoTracking()
-                            .ToList();
-
-                        var existingInProgressRecords = existingRecords
-                            .Where(t => t.EndedAt == null || !t.State.HasFlag(TransferStates.Completed))
-                            .ToList();
-
                         /*
                             if there are any that haven't ended yet (checking a few ways out of paranoia), then there's already
                             an existing transfer record covering this file, and we're already enqueued. nothing more to do!
@@ -588,7 +586,6 @@ namespace slskd.Transfers.Downloads
                             Log.Debug("Marked existing download record of {Filename} from {Username} removed (id: {Id})", file.Filename, username, record.Id);
                         }
 
-                        context.SaveChanges();
                         enqueued.Add(transfer);
 
                         Log.Information("Successfully enqueued download of {Filename} from {Username} (id: {Id})", file.Filename, username, transfer.Id);
@@ -603,6 +600,8 @@ namespace slskd.Transfers.Downloads
                         continue;
                     }
                 }
+
+                var recordsCreated = context.SaveChanges();
 
                 if (enqueued.Count == 0)
                 {
