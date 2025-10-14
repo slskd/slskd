@@ -480,6 +480,11 @@ namespace slskd.Transfers.Downloads
                 throw new ArgumentException("At least one file is required", nameof(files));
             }
 
+            if (files.Count() != files.Distinct().Count())
+            {
+                throw new ArgumentException("Two or more files in request are duplicated", nameof(files));
+            }
+
             IPEndPoint endpoint;
 
             try
