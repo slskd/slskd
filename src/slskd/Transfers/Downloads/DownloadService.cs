@@ -325,6 +325,10 @@ namespace slskd.Transfers.Downloads
                 // register the cancellation token
                 CancellationTokens.TryAdd(transfer.Id, cts);
 
+                System.IO.UnixFileMode? unixFileMode = !string.IsNullOrEmpty(OptionsMonitor.CurrentValue.Permissions.File.Mode)
+                    ? OptionsMonitor.CurrentValue.Permissions.File.Mode.ToUnixFileMode()
+                    : null;
+
                 var completedTransfer = await Client.DownloadAsync(
                     username: transfer.Username,
                     remoteFilename: transfer.Filename,
@@ -336,9 +340,7 @@ namespace slskd.Transfers.Downloads
                                 Access = System.IO.FileAccess.Write,
                                 Mode = System.IO.FileMode.Create, // overwrites file if it exists
                                 Share = System.IO.FileShare.None, // exclusive access for the duration of the download
-                                UnixCreateMode = !string.IsNullOrEmpty(OptionsMonitor.CurrentValue.Permissions.File.Mode)
-                                    ? OptionsMonitor.CurrentValue.Permissions.File.Mode.ToUnixFileMode()
-                                    : null,
+                                UnixCreateMode = unixFileMode,
                             })),
                     size: transfer.Size,
                     startOffset: 0,
@@ -363,6 +365,7 @@ namespace slskd.Transfers.Downloads
                 var finalFilename = Files.MoveFile(
                     sourceFilename: transfer.Filename.ToLocalFilename(baseDirectory: OptionsMonitor.CurrentValue.Directories.Incomplete),
                     destinationDirectory: destinationDirectory,
+                    unixFileMode: unixFileMode,
                     overwrite: false,
                     deleteSourceDirectoryIfEmptyAfterMove: true);
 
