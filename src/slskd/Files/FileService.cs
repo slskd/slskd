@@ -379,6 +379,7 @@ namespace slskd.Files
         /// </remarks>
         /// <param name="sourceFilename">The fully qualified filename of the file to move.</param>
         /// <param name="destinationDirectory">The fully qualified directory to which to move the source file.</param>
+        /// <param name="unixFileMode">An optional Unix file mode to apply to the destination file.</param>
         /// <param name="overwrite">An optional value indicating whether the destination file should be overwritten if it already exists.</param>
         /// <param name="deleteSourceDirectoryIfEmptyAfterMove">
         ///     An optional value indicating whether the parent directory of the source file should be deleted if it is empty after the move.
@@ -387,7 +388,7 @@ namespace slskd.Files
         /// <exception cref="ArgumentNullException">Thrown if either of the specified file or directories are null or contain only whitespace.</exception>
         /// <exception cref="FileNotFoundException">Thrown if the specified <paramref name="sourceFilename"/> does not exist.</exception>
         /// <exception cref="IOException">Thrown if the file can't be moved, or the <paramref name="deleteSourceDirectoryIfEmptyAfterMove"/> option is set and the operation fails.</exception>
-        public virtual string MoveFile(string sourceFilename, string destinationDirectory, bool overwrite = false, bool deleteSourceDirectoryIfEmptyAfterMove = false)
+        public virtual string MoveFile(string sourceFilename, string destinationDirectory, UnixFileMode? unixFileMode = null, bool overwrite = false, bool deleteSourceDirectoryIfEmptyAfterMove = false)
         {
             ArgumentNullException.ThrowIfNullOrWhiteSpace(sourceFilename, nameof(sourceFilename));
             ArgumentNullException.ThrowIfNullOrWhiteSpace(destinationDirectory, nameof(destinationDirectory));
@@ -424,6 +425,22 @@ namespace slskd.Files
                 File.Move(sourceFilename, destinationFilename, overwrite: overwrite);
 
                 Log.Debug("Successfully moved {Source} to {Destination}", sourceFilename, destinationFilename);
+
+                // attempting to use UnixCreateMode on Windows raises an Exception
+                // we *MUST* check the OS and skip this on Windows
+                if (!OperatingSystem.IsWindows())
+                {
+                    var appOption = OptionsMonitor.CurrentValue.Permissions.File.Mode;
+                    var mode = unixFileMode ?? appOption?.ToUnixFileMode();
+
+                    // if options haven't been passed in and none have been set in app config, omit this
+                    // so that the application's umask will be applied, saving users the hassle of setting it twice.
+                    if (mode.HasValue)
+                    {
+                        File.SetUnixFileMode(destinationFilename, mode.Value);
+                        Log.Debug("Successfully set Unix file mode to {Mode}", mode);
+                    }
+                }
 
                 // if the parent directory is empty after the move, delete it
                 if (deleteSourceDirectoryIfEmptyAfterMove && !Directory.EnumerateFileSystemEntries(Path.GetDirectoryName(sourceFilename)).Any())
