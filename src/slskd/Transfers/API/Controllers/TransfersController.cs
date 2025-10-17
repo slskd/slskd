@@ -206,7 +206,11 @@ namespace slskd.Transfers.API
         [ProducesResponseType(201)]
         [ProducesResponseType(typeof(string), 403)]
         [ProducesResponseType(typeof(string), 500)]
-        public async Task<IActionResult> EnqueueAsync([FromRoute, Required] string username, [FromBody] IEnumerable<QueueDownloadRequest> requests, CancellationToken cancellationToken)
+#pragma warning disable CS1573 // Parameter has no matching param tag in the XML comment (but other parameters do)
+#pragma warning disable SA1611 // Element parameters should be documented
+        public async Task<IActionResult> EnqueueAsync([FromRoute, Required] string username, [FromBody] IEnumerable<QueueDownloadRequest> requests, CancellationToken cancellationToken = default)
+#pragma warning restore SA1611 // Element parameters should be documented
+#pragma warning restore CS1573 // Parameter has no matching param tag in the XML comment (but other parameters do)
         {
             if (Program.IsRelayAgent)
             {
@@ -220,7 +224,7 @@ namespace slskd.Transfers.API
 
             try
             {
-                await Transfers.Downloads.EnqueueAsync(username, requests.Select(r => (r.Filename, r.Size)));
+                await Transfers.Downloads.EnqueueAsync(username, requests.Select(r => (r.Filename, r.Size)), cancellationToken);
                 return StatusCode(201);
             }
             catch (Exception ex)
