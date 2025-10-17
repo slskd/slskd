@@ -23,6 +23,7 @@ namespace slskd.Transfers.API
     using System.Collections.Generic;
     using System.ComponentModel.DataAnnotations;
     using System.Linq;
+    using System.Threading;
     using System.Threading.Tasks;
     using Asp.Versioning;
     using Microsoft.AspNetCore.Authorization;
@@ -51,6 +52,7 @@ namespace slskd.Transfers.API
             OptionsSnapshot = optionsSnapshot;
         }
 
+        private static SemaphoreSlim DownloadRequestLimiter { get; } = new SemaphoreSlim(1, 1);
         private ITransferService Transfers { get; }
         private IOptionsSnapshot<Options> OptionsSnapshot { get; }
 
@@ -204,21 +206,34 @@ namespace slskd.Transfers.API
         [ProducesResponseType(201)]
         [ProducesResponseType(typeof(string), 403)]
         [ProducesResponseType(typeof(string), 500)]
-        public async Task<IActionResult> EnqueueAsync([FromRoute, Required] string username, [FromBody] IEnumerable<QueueDownloadRequest> requests)
+#pragma warning disable CS1573 // Parameter has no matching param tag in the XML comment (but other parameters do)
+#pragma warning disable SA1611 // Element parameters should be documented
+        public async Task<IActionResult> EnqueueAsync([FromRoute, Required] string username, [FromBody] IEnumerable<QueueDownloadRequest> requests, CancellationToken cancellationToken = default)
+#pragma warning restore SA1611 // Element parameters should be documented
+#pragma warning restore CS1573 // Parameter has no matching param tag in the XML comment (but other parameters do)
         {
             if (Program.IsRelayAgent)
             {
                 return Forbid();
             }
 
+            if (!DownloadRequestLimiter.Wait(0))
+            {
+                return StatusCode(429, "Only one concurrent operation is permitted. Wait until the previous request completes");
+            }
+
             try
             {
-                await Transfers.Downloads.EnqueueAsync(username, requests.Select(r => (r.Filename, r.Size)));
+                await Transfers.Downloads.EnqueueAsync(username, requests.Select(r => (r.Filename, r.Size)), cancellationToken);
                 return StatusCode(201);
             }
             catch (Exception ex)
             {
                 return StatusCode(500, ex.Message);
+            }
+            finally
+            {
+                DownloadRequestLimiter.Release();
             }
         }
 

@@ -511,6 +511,8 @@ namespace slskd.Transfers.Downloads
                 */
                 foreach (var file in files)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
+
                     var transfer = new Transfer()
                     {
                         Id = Guid.NewGuid(),
