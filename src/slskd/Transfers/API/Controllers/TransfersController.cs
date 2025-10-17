@@ -23,6 +23,7 @@ namespace slskd.Transfers.API
     using System.Collections.Generic;
     using System.ComponentModel.DataAnnotations;
     using System.Linq;
+    using System.Threading;
     using System.Threading.Tasks;
     using Asp.Versioning;
     using Microsoft.AspNetCore.Authorization;
@@ -51,6 +52,7 @@ namespace slskd.Transfers.API
             OptionsSnapshot = optionsSnapshot;
         }
 
+        private static SemaphoreSlim DownloadRequestLimiter { get; } = new SemaphoreSlim(1, 1);
         private ITransferService Transfers { get; }
         private IOptionsSnapshot<Options> OptionsSnapshot { get; }
 
@@ -204,11 +206,16 @@ namespace slskd.Transfers.API
         [ProducesResponseType(201)]
         [ProducesResponseType(typeof(string), 403)]
         [ProducesResponseType(typeof(string), 500)]
-        public async Task<IActionResult> EnqueueAsync([FromRoute, Required] string username, [FromBody] IEnumerable<QueueDownloadRequest> requests)
+        public async Task<IActionResult> EnqueueAsync([FromRoute, Required] string username, [FromBody] IEnumerable<QueueDownloadRequest> requests, CancellationToken cancellationToken)
         {
             if (Program.IsRelayAgent)
             {
                 return Forbid();
+            }
+
+            if (!DownloadRequestLimiter.Wait(0))
+            {
+                return StatusCode(429, "Only one concurrent operation is permitted. Wait until the previous request completes");
             }
 
             try
@@ -219,6 +226,10 @@ namespace slskd.Transfers.API
             catch (Exception ex)
             {
                 return StatusCode(500, ex.Message);
+            }
+            finally
+            {
+                DownloadRequestLimiter.Release();
             }
         }
 
