@@ -28,6 +28,7 @@ namespace slskd.Transfers.API
     using Asp.Versioning;
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
+    using Serilog;
 
     /// <summary>
     ///     Transfers.
@@ -55,6 +56,7 @@ namespace slskd.Transfers.API
         private static SemaphoreSlim DownloadRequestLimiter { get; } = new SemaphoreSlim(1, 1);
         private ITransferService Transfers { get; }
         private IOptionsSnapshot<Options> OptionsSnapshot { get; }
+        private ILogger Log { get; set; } = Serilog.Log.ForContext<TransfersController>();
 
         /// <summary>
         ///     Cancels the specified download.
@@ -229,6 +231,7 @@ namespace slskd.Transfers.API
             }
             catch (Exception ex)
             {
+                Log.Error(ex, "Failed to enqueue {Count} files for {Username}: {Message}", requests.Count(), username, ex.Message);
                 return StatusCode(500, ex.Message);
             }
             finally
