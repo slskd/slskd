@@ -812,7 +812,7 @@ namespace slskd.Transfers.Downloads
                             // timeout to trip and set an exception
                             await enqueuedTcs.Task;
 
-                            Log.Debug("Download of {Filename} from {Username} successfully entered state {State}", state);
+                            Log.Debug("Download of {Filename} from {Username} successfully entered state {State}", transfer.Filename, transfer.Username, state);
                         }
                         catch (Exception ex)
                         {
