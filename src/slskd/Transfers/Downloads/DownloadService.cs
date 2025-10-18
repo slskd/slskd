@@ -200,6 +200,16 @@ namespace slskd.Transfers.Downloads
         /// <exception cref="DuplicateTransferException">Thrown if a download matching the username and filename is already tracked by Soulseek.NET.</exception>
         public async Task<Transfer> DownloadAsync(Transfer transfer, Action<Transfer> stateChanged = null, CancellationToken cancellationToken = default)
         {
+            if (transfer is null)
+            {
+                throw new ArgumentNullException(nameof(transfer), "A valid, enqueued Transfer is required");
+            }
+
+            if (transfer.State != (TransferStates.Queued | TransferStates.Locally))
+            {
+                throw new InvalidOperationException($"Invalid starting state for download; expected {TransferStates.Queued | TransferStates.Locally}, encountered {transfer.State}");
+            }
+
             var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             var syncRoot = new SemaphoreSlim(1, 1);
 
@@ -207,8 +217,8 @@ namespace slskd.Transfers.Downloads
 
             if (!Locks.TryAdd(lockName, true))
             {
-                Log.Debug("Ignoring concurrent invocation; lock {LockName} already held", lockName);
-                return null;
+                Log.Debug("Download attempt failed; lock {LockName} already held", lockName);
+                throw new DuplicateTransferException("A duplicate download of the same file to the same user is already in progress");
             }
 
             /*
@@ -247,8 +257,6 @@ namespace slskd.Transfers.Downloads
                 {
                     throw new DuplicateTransferException("A duplicate download of the same file to the same user is already registered");
                 }
-
-                Log.Information("Initializing download of {Filename} from {Username}", transfer.Filename, transfer.Username);
 
                 using var rateLimiter = new RateLimiter(250, concurrencyLimit: 1, flushOnDispose: true);
 
@@ -329,6 +337,8 @@ namespace slskd.Transfers.Downloads
                     ? OptionsMonitor.CurrentValue.Permissions.File.Mode.ToUnixFileMode()
                     : null;
 
+                Log.Debug("Invoking Soulseek DownloadAsync() for {Filename} from {Username}", transfer.Filename, transfer.Username);
+
                 var completedTransfer = await Client.DownloadAsync(
                     username: transfer.Username,
                     remoteFilename: transfer.Filename,
@@ -348,6 +358,8 @@ namespace slskd.Transfers.Downloads
                     cancellationToken: cts.Token,
                     options: topts);
 
+                Log.Debug("Invocation of Soulseek DownloadAsync() for {Filename} from user {Username} completed successfully", transfer.Filename, transfer.Username);
+
                 // explicitly dispose the rate limiter to prevent updates from it beyond this point, and in doing so we
                 // flushe any pending update, _probably_ pushing the state of the transfer back to InProgress
                 rateLimiter.Dispose();
@@ -359,6 +371,8 @@ namespace slskd.Transfers.Downloads
                 // todo: broadcast to signalr hub
                 SynchronizedUpdate(transfer, semaphore: syncRoot, cancellationToken: CancellationToken.None);
 
+                Log.Debug("Successfully updated Transfer for {Filename} from {Username} (state: {State}, progress: {Progress})", transfer.Filename, transfer.Username, transfer.State, transfer.PercentComplete);
+
                 // move the file from incomplete to complete
                 var destinationDirectory = System.IO.Path.GetDirectoryName(transfer.Filename.ToLocalFilename(baseDirectory: OptionsMonitor.CurrentValue.Directories.Downloads));
 
@@ -369,7 +383,9 @@ namespace slskd.Transfers.Downloads
                     overwrite: false,
                     deleteSourceDirectoryIfEmptyAfterMove: true);
 
-                Log.Debug("Moved file to {Destination}", finalFilename);
+                Log.Debug("Moved file {Filename} to {Destination}", transfer.Filename, finalFilename);
+
+                Log.Debug("Running post-download logic for {Filename} from {Username}", transfer.Filename, transfer.Username);
 
                 // begin post-processing tasks; the file is downloaded, it has been removed from the client's download dictionary,
                 // and the file has been moved from the incomplete directory to the downloads directory
@@ -411,10 +427,15 @@ namespace slskd.Transfers.Downloads
                     _ = FTP.UploadAsync(finalFilename);
                 }
 
+                Log.Debug("Completed post-download logic for {Filename} from {Username} successfully", transfer.Filename, transfer.Username);
+                Log.Information("Download of {Filename} from user {Username} completed successfully", transfer.Filename, transfer.Username);
+
                 return transfer;
             }
             catch (Exception ex) when (ex is OperationCanceledException || ex is TimeoutException)
             {
+                Log.Error(ex, "Download of {Filename} from user {Username} failed: {Message}", transfer.Filename, transfer.Username, ex.Message);
+
                 transfer.EndedAt = DateTime.UtcNow;
                 transfer.Exception = ex.Message;
                 transfer.State = TransferStates.Completed;
@@ -446,17 +467,20 @@ namespace slskd.Transfers.Downloads
             }
             finally
             {
+                Log.Debug("Finalizing download of {Filename} from {Username}", transfer.Filename, transfer.Username);
+
                 try
                 {
                     Locks.TryRemove(lockName, out _);
                     Log.Debug("Released lock {LockName}", lockName);
 
                     CancellationTokens.TryRemove(transfer.Id, out _);
+
+                    Log.Debug("Finalization of download of {Filename} from {Username} completed", transfer.Filename, transfer.Username);
                 }
                 catch (Exception ex)
                 {
                     Log.Error(ex, "Failed to finalize download of {Filename} from {Username}: {Message}", transfer.Filename, transfer.Username, ex.Message);
-                    throw;
                 }
             }
         }
@@ -817,11 +841,11 @@ namespace slskd.Transfers.Downloads
                 {
                     if (task.IsCompletedSuccessfully)
                     {
-                        Log.Warning("Task for enqueue of {Count} files from {Username} completed successfully", files.Count(), username);
+                        Log.Warning("Task for batch enqueue of {Count} files from {Username} completed successfully", files.Count(), username);
                         return;
                     }
 
-                    Log.Error(task.Exception, "Task for enqueue of {Count} files from {Username} did not complete successfully: {Error}", files.Count(), username, task.Exception.Flatten().Message);
+                    Log.Error(task.Exception, "Task for batch enqueue of {Count} files from {Username} did not complete successfully: {Error}", files.Count(), username, task.Exception.Flatten().Message);
                 }, cancellationToken: CancellationToken.None);
 
                 if (batchEnqueueTask.Status == TaskStatus.Canceled)
@@ -846,13 +870,21 @@ namespace slskd.Transfers.Downloads
             }
             finally
             {
+                Log.Debug("Finalizing enqueue of one or more files from {Username}", username);
+
                 foreach (var lockName in acquiredLocks)
                 {
                     if (Locks.TryRemove(lockName, out _))
                     {
                         Log.Debug("Released lock {LockName}", lockName);
                     }
+                    else
+                    {
+                        Log.Error("Failed to release lock for {LockName}", lockName);
+                    }
                 }
+
+                Log.Debug("Finalization of enqueue of one or more files from {Username} completed", username);
             }
         }
 
