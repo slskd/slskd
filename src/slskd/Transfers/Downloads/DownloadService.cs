@@ -385,16 +385,16 @@ namespace slskd.Transfers.Downloads
 
                 Log.Debug("Moved file {Filename} to {Destination}", transfer.Filename, finalFilename);
 
+                if (OptionsMonitor.CurrentValue.Relay.Enabled)
+                {
+                    _ = Relay.NotifyFileDownloadCompleteAsync(finalFilename);
+                }
+
                 try
                 {
-                    Log.Debug("Running post-download logic for {Filename} from {Username}", transfer.Filename, transfer.Username);
-
                     // begin post-processing tasks; the file is downloaded, it has been removed from the client's download dictionary,
                     // and the file has been moved from the incomplete directory to the downloads directory
-                    if (OptionsMonitor.CurrentValue.Relay.Enabled)
-                    {
-                        _ = Relay.NotifyFileDownloadCompleteAsync(finalFilename);
-                    }
+                    Log.Debug("Running post-download logic for {Filename} from {Username}", transfer.Filename, transfer.Username);
 
                     EventBus.Raise(new DownloadFileCompleteEvent
                     {
