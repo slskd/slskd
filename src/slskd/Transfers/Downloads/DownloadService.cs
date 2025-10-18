@@ -385,49 +385,59 @@ namespace slskd.Transfers.Downloads
 
                 Log.Debug("Moved file {Filename} to {Destination}", transfer.Filename, finalFilename);
 
-                Log.Debug("Running post-download logic for {Filename} from {Username}", transfer.Filename, transfer.Username);
-
-                // begin post-processing tasks; the file is downloaded, it has been removed from the client's download dictionary,
-                // and the file has been moved from the incomplete directory to the downloads directory
-                if (OptionsMonitor.CurrentValue.Relay.Enabled)
+                try
                 {
-                    _ = Relay.NotifyFileDownloadCompleteAsync(finalFilename);
-                }
+                    Log.Debug("Running post-download logic for {Filename} from {Username}", transfer.Filename, transfer.Username);
 
-                EventBus.Raise(new DownloadFileCompleteEvent
-                {
-                    Timestamp = transfer.EndedAt.Value,
-                    LocalFilename = finalFilename,
-                    RemoteFilename = transfer.Filename,
-                    Transfer = transfer,
-                });
+                    // begin post-processing tasks; the file is downloaded, it has been removed from the client's download dictionary,
+                    // and the file has been moved from the incomplete directory to the downloads directory
+                    if (OptionsMonitor.CurrentValue.Relay.Enabled)
+                    {
+                        _ = Relay.NotifyFileDownloadCompleteAsync(finalFilename);
+                    }
 
-                // try to figure out if this file is the last of a directory, and if so, raise the associated
-                // event. this can be tricky because we want to be sure that this is the last file in this specific
-                // directory, excluding any pending downloads in a subdirectory.
-                var remoteDirectorySeparator = transfer.Filename.GuessDirectorySeparator();
-                var remoteDirectoryName = transfer.Filename.GetDirectoryName(directorySeparator: remoteDirectorySeparator);
-                var pendingDownloadsInDirectory = Client.Downloads
-                    .Where(t => t.Username == transfer.Username)
-                    .Where(t => t.Filename.GetDirectoryName(directorySeparator: remoteDirectorySeparator) == remoteDirectoryName);
-
-                if (!pendingDownloadsInDirectory.Any())
-                {
-                    EventBus.Raise(new DownloadDirectoryCompleteEvent
+                    EventBus.Raise(new DownloadFileCompleteEvent
                     {
                         Timestamp = transfer.EndedAt.Value,
-                        Username = transfer.Username,
-                        LocalDirectoryName = destinationDirectory,
-                        RemoteDirectoryName = remoteDirectoryName,
+                        LocalFilename = finalFilename,
+                        RemoteFilename = transfer.Filename,
+                        Transfer = transfer,
                     });
-                }
 
-                if (OptionsMonitor.CurrentValue.Integration.Ftp.Enabled)
+                    // try to figure out if this file is the last of a directory, and if so, raise the associated
+                    // event. this can be tricky because we want to be sure that this is the last file in this specific
+                    // directory, excluding any pending downloads in a subdirectory.
+                    var remoteDirectorySeparator = transfer.Filename.GuessDirectorySeparator();
+                    var remoteDirectoryName = transfer.Filename.GetDirectoryName(directorySeparator: remoteDirectorySeparator);
+                    var pendingDownloadsInDirectory = Client.Downloads
+                        .Where(t => t.Username == transfer.Username)
+                        .Where(t => t.Filename.GetDirectoryName(directorySeparator: remoteDirectorySeparator) == remoteDirectoryName);
+
+                    if (!pendingDownloadsInDirectory.Any())
+                    {
+                        EventBus.Raise(new DownloadDirectoryCompleteEvent
+                        {
+                            Timestamp = transfer.EndedAt.Value,
+                            Username = transfer.Username,
+                            LocalDirectoryName = destinationDirectory,
+                            RemoteDirectoryName = remoteDirectoryName,
+                        });
+                    }
+
+                    if (OptionsMonitor.CurrentValue.Integration.Ftp.Enabled)
+                    {
+                        _ = FTP.UploadAsync(finalFilename);
+                    }
+
+                    Log.Debug("Completed post-download logic for {Filename} from {Username} successfully", transfer.Filename, transfer.Username);
+                }
+                catch (Exception ex)
                 {
-                    _ = FTP.UploadAsync(finalFilename);
+                    // log, but don't throw. the file ended up in the download folder and is complete; if we throw it looks like it didn't complete
+                    // todo: add a visual indicator/new state for Transfers that indicate this state.  or move all of this logic out and handle it via events
+                    Log.Error(ex, "Failed to run post-download processes for {Filename} from {Username}: {Message}", transfer.Filename, transfer.Username, ex.Message);
                 }
 
-                Log.Debug("Completed post-download logic for {Filename} from {Username} successfully", transfer.Filename, transfer.Username);
                 Log.Information("Download of {Filename} from user {Username} completed successfully", transfer.Filename, transfer.Username);
 
                 return transfer;
