@@ -628,7 +628,7 @@ namespace slskd.Transfers.Downloads
                         context.SaveChanges();
                         enqueued.Add(transfer);
 
-                        Log.Information("Successfully enqueued download of {Filename} from {Username} (id: {Id})", file.Filename, username, transfer.Id);
+                        Log.Information("Successfully locally enqueued download of {Filename} from {Username}", file.Filename, username, transfer.Id);
                     }
                     catch (Exception ex)
                     {
@@ -652,7 +652,7 @@ namespace slskd.Transfers.Downloads
                 // prime the cache for this user, to 1) make sure we can connect, and 2) avoid needing to race for it in the loop
                 try
                 {
-                    Log.Debug("Priming message connection to {Username}", enqueued.Count, username);
+                    Log.Debug("Priming message connection to {Username}", username);
                     await Client.ConnectToUserAsync(username, invalidateCache: false, cancellationToken);
                 }
                 catch (Exception ex)
@@ -666,7 +666,7 @@ namespace slskd.Transfers.Downloads
 
                     we'll proceed with downloading them, but in a separate task run in the background
                 */
-                Log.Debug("Scheduling batch enqueue Task for {Count} files from {Username}", enqueued.Count, username);
+                Log.Debug("Scheduling batch remote enqueue Task for {Count} files from {Username}", enqueued.Count, username);
 
                 var batchEnqueueTask = Task.Run(async () =>
                 {
@@ -703,6 +703,7 @@ namespace slskd.Transfers.Downloads
 
                             var enqueuedTcs = new TaskCompletionSource<Transfer>();
                             List<string> transitions = [];
+                            TransferStates state = TransferStates.None;
 
                             // set a hard limit on the time we are willing to wait for the remote client to confirm or reject
                             // the enqueue of the file. we have to do this so that we don't get stuck indefinitely
@@ -718,6 +719,7 @@ namespace slskd.Transfers.Downloads
 
                             void stateChanged(Transfer transfer)
                             {
+                                state = transfer.State;
                                 transitions.Add(transfer.State.ToString());
 
                                 // _contractually_ (covered by unit tests!) all downloads will at some point enter the Queued | Remotely state
@@ -809,6 +811,8 @@ namespace slskd.Transfers.Downloads
                             // wait for the download to either enter the Queued | Remotely or Completed states, or for the hard limit
                             // timeout to trip and set an exception
                             await enqueuedTcs.Task;
+
+                            Log.Debug("Download of {Filename} from {Username} successfully entered state {State}", state);
                         }
                         catch (Exception ex)
                         {
@@ -854,7 +858,7 @@ namespace slskd.Transfers.Downloads
                 {
                     if (task.IsCompletedSuccessfully)
                     {
-                        Log.Warning("Task for batch enqueue of {Count} files from {Username} completed successfully", files.Count(), username);
+                        Log.Information("Task for batch enqueue of {Count} files from {Username} completed successfully", files.Count(), username);
                         return;
                     }
 
