@@ -147,6 +147,7 @@
 #   url_base: /
 #   content_path: wwwroot
 #   logging: false
+#   search_page_size: 5
 #   authentication:
 #     disabled: false
 #     username: slskd
