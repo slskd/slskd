@@ -758,14 +758,14 @@ namespace slskd.Transfers.Downloads
                                 {
                                     var foundTransfer = Find(t => t.Id == transfer.Id);
 
-                                    if (transfer is not null)
+                                    if (foundTransfer is not null)
                                     {
-                                        transfer.EndedAt ??= DateTime.UtcNow;
-                                        transfer.Exception ??= task.Exception.InnerException.Message;
+                                        foundTransfer.EndedAt ??= DateTime.UtcNow;
+                                        foundTransfer.Exception ??= task.Exception.InnerException.Message;
 
-                                        if (!transfer.State.HasFlag(TransferStates.Completed))
+                                        if (!foundTransfer.State.HasFlag(TransferStates.Completed))
                                         {
-                                            transfer.State = TransferStates.Completed | task.Exception.InnerException switch
+                                            foundTransfer.State = TransferStates.Completed | task.Exception.InnerException switch
                                             {
                                                 OperationCanceledException => TransferStates.Cancelled,
                                                 TimeoutException => TransferStates.TimedOut,
@@ -773,7 +773,7 @@ namespace slskd.Transfers.Downloads
                                             };
                                         }
 
-                                        Update(transfer);
+                                        Update(foundTransfer);
                                     }
                                 }
                                 catch (Exception ex)
@@ -806,16 +806,16 @@ namespace slskd.Transfers.Downloads
 
                             try
                             {
-                                var transferRecord = Find(t => t.Id == transfer.Id);
+                                var foundTransfer = Find(t => t.Id == transfer.Id);
 
-                                if (transfer is not null)
+                                if (foundTransfer is not null)
                                 {
-                                    transfer.EndedAt ??= DateTime.UtcNow;
-                                    transfer.Exception ??= ex.Message;
+                                    foundTransfer.EndedAt ??= DateTime.UtcNow;
+                                    foundTransfer.Exception ??= ex.Message;
 
-                                    if (!transfer.State.HasFlag(TransferStates.Completed))
+                                    if (!foundTransfer.State.HasFlag(TransferStates.Completed))
                                     {
-                                        transfer.State = TransferStates.Completed | ex switch
+                                        foundTransfer.State = TransferStates.Completed | ex switch
                                         {
                                             OperationCanceledException => TransferStates.Cancelled,
                                             TimeoutException => TransferStates.TimedOut,
