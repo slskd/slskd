@@ -509,6 +509,8 @@ namespace slskd.Transfers.Downloads
 
             IPEndPoint endpoint;
 
+            Log.Information("Requested enqueue of {Count} files from user {Username}", files.Count(), username);
+
             try
             {
                 // get the user's ip and port. this will throw if they are offline.
@@ -565,7 +567,7 @@ namespace slskd.Transfers.Downloads
                         acquiredLocks.Add(lockName);
                         Log.Debug("Acquired lock {LockName}", lockName);
 
-                        Log.Information("Download of {Filename} from {Username} requested", file.Filename, username);
+                        Log.Debug("Checking whether download of {Filename} from {Username} is already in progress", file.Filename, username);
 
                         using var context = ContextFactory.CreateDbContext();
 
@@ -604,6 +606,7 @@ namespace slskd.Transfers.Downloads
                             add it to the database and remove any existing (past) records of it from the UI
                         */
                         context.Add(transfer);
+                        Log.Debug("Added Transfer record for download of {Filename} from {Username} (id: {Id})", transfer.Filename, transfer.Username, transfer.Id);
 
                         foreach (var record in existingRecords.Where(t => !t.Removed))
                         {
@@ -634,7 +637,7 @@ namespace slskd.Transfers.Downloads
                     return (enqueued, failed);
                 }
 
-                Log.Debug("Attempting to enqueue {Count} files from {Username}", enqueued.Count, username);
+                Log.Debug("Attempting to remotely enqueue {Count} files from {Username}", enqueued.Count, username);
 
                 // prime the cache for this user, to 1) make sure we can connect, and 2) avoid needing to race for it in the loop
                 try
