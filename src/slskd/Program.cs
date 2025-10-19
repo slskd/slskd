@@ -708,7 +708,7 @@ namespace slskd
             // note: don't dispose this (or let it be disposed) or some of the stats, like those related
             // to the thread pool won't work
             DotNetRuntimeStats = DotNetRuntimeStatsBuilder.Default().StartCollecting();
-            services.AddSystemMetrics(registerDefaultCollectors: true);
+            services.AddSystemMetrics();
 
             services.AddDataProtection()
                 .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(DataDirectory, "misc", ".DataProtection-Keys")));
