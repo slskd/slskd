@@ -1137,6 +1137,27 @@ namespace slskd
                     }
                 }))
                 .CreateLogger();
+
+            // occurs when a faulted task's unobserved exception is about to trigger exception escalation policy, which, by default, would terminate the process.
+            TaskScheduler.UnobservedTaskException += (sender, e) =>
+            {
+                Serilog.Log.Logger.Error(e.Exception, "Unobserved exception: {Message}", e.Exception.Message);
+                e.SetObserved();
+            };
+
+            AppDomain.CurrentDomain.UnhandledException += (sender, e) =>
+            {
+                var exception = e.ExceptionObject as Exception;
+
+                if (e.IsTerminating)
+                {
+                    Serilog.Log.Logger.Fatal(exception, "Unhandled fatal exception: {Message}", e.IsTerminating);
+                }
+                else
+                {
+                    Serilog.Log.Logger.Error(exception, "Unhandled exception: {Message}", exception.Message);
+                }
+            };
         }
 
         private static IConfigurationBuilder AddConfigurationProviders(this IConfigurationBuilder builder, string environmentVariablePrefix, string configurationFile, bool reloadOnChange)
