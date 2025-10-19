@@ -532,6 +532,18 @@ namespace slskd.Transfers.Downloads
                 throw;
             }
 
+            // prime the cache for this user, to 1) make sure we can connect, and 2) avoid needing to race for it in the loop
+            try
+            {
+                Log.Debug("Priming message connection to {Username}", username);
+                await Client.ConnectToUserAsync(username, invalidateCache: false, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to connect to {Username}: {Message}", username, ex.Message);
+                throw;
+            }
+
             List<string> acquiredLocks = [];
 
             try
@@ -645,20 +657,6 @@ namespace slskd.Transfers.Downloads
                 {
                     Log.Warning("None of the {Count} requested files from {Username} could be enqueued as they are already in progress", files.Count(), username);
                     return (enqueued, failed);
-                }
-
-                Log.Debug("Attempting to remotely enqueue {Count} files from {Username}", enqueued.Count, username);
-
-                // prime the cache for this user, to 1) make sure we can connect, and 2) avoid needing to race for it in the loop
-                try
-                {
-                    Log.Debug("Priming message connection to {Username}", username);
-                    await Client.ConnectToUserAsync(username, invalidateCache: false, cancellationToken);
-                }
-                catch (Exception ex)
-                {
-                    Log.Error(ex, "Failed to connect to {Username}: {Message}", username, ex.Message);
-                    throw;
                 }
 
                 /*
