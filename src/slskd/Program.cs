@@ -236,6 +236,7 @@ namespace slskd
         private static OptionsAtStartup OptionsAtStartup { get; } = new OptionsAtStartup();
         private static ILogger Log { get; set; } = new ConsoleWriteLineLogger();
         private static Mutex Mutex { get; } = new Mutex(initiallyOwned: true, Compute.Sha256Hash(AppName));
+        private static IDisposable DotNetRuntimeStats { get; set; }
 
         [Argument('g', "generate-cert", "generate X509 certificate and password for HTTPs")]
         private static bool GenerateCertificate { get; set; }
@@ -704,8 +705,10 @@ namespace slskd
                 .AllowCredentials()
                 .WithExposedHeaders("X-URL-Base", "X-Total-Count")));
 
-            services.AddSystemMetrics();
-            using var runtimeMetrics = DotNetRuntimeStatsBuilder.Default().StartCollecting();
+            // note: don't dispose this (or let it be disposed) or some of the stats, like those related
+            // to the thread pool won't work
+            DotNetRuntimeStats = DotNetRuntimeStatsBuilder.Default().StartCollecting();
+            services.AddSystemMetrics(registerDefaultCollectors: true);
 
             services.AddDataProtection()
                 .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(DataDirectory, "misc", ".DataProtection-Keys")));
