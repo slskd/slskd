@@ -23,6 +23,8 @@ namespace slskd
     using System.Collections.Generic;
     using System.ComponentModel;
     using System.ComponentModel.DataAnnotations;
+    using System.Diagnostics;
+
     using System.IO;
     using System.Linq;
     using System.Net;
@@ -1138,12 +1140,12 @@ namespace slskd
                 }))
                 .CreateLogger();
 
-            // occurs when a faulted task's unobserved exception is about to trigger exception escalation policy, which, by default, would terminate the process.
-            TaskScheduler.UnobservedTaskException += (sender, e) =>
-            {
-                Serilog.Log.Logger.Error(e.Exception, "Unobserved exception: {Message}", e.Exception.Message);
-                e.SetObserved();
-            };
+            // // occurs when a faulted task's unobserved exception is about to trigger exception escalation policy, which, by default, would terminate the process.
+            // TaskScheduler.UnobservedTaskException += (sender, e) =>
+            // {
+            //     Serilog.Log.Logger.Error(e.Exception, "Unobserved exception: {Message}", e.Exception.Message);
+            //     e.SetObserved();
+            // };
 
             AppDomain.CurrentDomain.UnhandledException += (sender, e) =>
             {
