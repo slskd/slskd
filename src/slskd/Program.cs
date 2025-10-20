@@ -23,6 +23,8 @@ namespace slskd
     using System.Collections.Generic;
     using System.ComponentModel;
     using System.ComponentModel.DataAnnotations;
+    using System.Diagnostics;
+
     using System.IO;
     using System.Linq;
     using System.Net;
@@ -236,6 +238,7 @@ namespace slskd
         private static OptionsAtStartup OptionsAtStartup { get; } = new OptionsAtStartup();
         private static ILogger Log { get; set; } = new ConsoleWriteLineLogger();
         private static Mutex Mutex { get; } = new Mutex(initiallyOwned: true, Compute.Sha256Hash(AppName));
+        private static IDisposable DotNetRuntimeStats { get; set; }
 
         [Argument('g', "generate-cert", "generate X509 certificate and password for HTTPs")]
         private static bool GenerateCertificate { get; set; }
@@ -591,6 +594,7 @@ namespace slskd
                     maximumConcurrentUploads: OptionsAtStartup.Global.Upload.Slots,
                     maximumConcurrentDownloads: OptionsAtStartup.Global.Download.Slots,
                     minimumDiagnosticLevel: OptionsAtStartup.Soulseek.DiagnosticLevel.ToEnum<Soulseek.Diagnostics.DiagnosticLevel>(),
+                    maximumConcurrentSearches: 2,
                     raiseEventsAsynchronously: true)));
 
             // add the core application service to DI as well as a hosted service so that other services can
@@ -703,8 +707,10 @@ namespace slskd
                 .AllowCredentials()
                 .WithExposedHeaders("X-URL-Base", "X-Total-Count")));
 
+            // note: don't dispose this (or let it be disposed) or some of the stats, like those related
+            // to the thread pool won't work
+            DotNetRuntimeStats = DotNetRuntimeStatsBuilder.Default().StartCollecting();
             services.AddSystemMetrics();
-            using var runtimeMetrics = DotNetRuntimeStatsBuilder.Default().StartCollecting();
 
             services.AddDataProtection()
                 .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(DataDirectory, "misc", ".DataProtection-Keys")));
@@ -1133,6 +1139,27 @@ namespace slskd
                     }
                 }))
                 .CreateLogger();
+
+            // // occurs when a faulted task's unobserved exception is about to trigger exception escalation policy, which, by default, would terminate the process.
+            // TaskScheduler.UnobservedTaskException += (sender, e) =>
+            // {
+            //     Serilog.Log.Logger.Error(e.Exception, "Unobserved exception: {Message}", e.Exception.Message);
+            //     e.SetObserved();
+            // };
+
+            AppDomain.CurrentDomain.UnhandledException += (sender, e) =>
+            {
+                var exception = e.ExceptionObject as Exception;
+
+                if (e.IsTerminating)
+                {
+                    Serilog.Log.Logger.Fatal(exception, "Unhandled fatal exception: {Message}", e.IsTerminating);
+                }
+                else
+                {
+                    Serilog.Log.Logger.Error(exception, "Unhandled exception: {Message}", exception.Message);
+                }
+            };
         }
 
         private static IConfigurationBuilder AddConfigurationProviders(this IConfigurationBuilder builder, string environmentVariablePrefix, string configurationFile, bool reloadOnChange)
