@@ -64,19 +64,6 @@ namespace slskd.Transfers.Downloads
         Task<(List<Transfer> Enqueued, List<Transfer> Failed)> EnqueueAsync(string username, IEnumerable<(string Filename, long Size)> files, CancellationToken cancellationToken = default);
 
         /// <summary>
-        ///     Downloads the specified enqueued <paramref name="transfer"/> from the remote user.
-        /// </summary>
-        /// <param name="transfer">The Transfer to download.</param>
-        /// <param name="stateChanged">An optional delegate to invoke the transfer state changes.</param>
-        /// <param name="cancellationToken">The token to monitor for cancellation.</param>
-        /// <returns>The operation context.</returns>
-        /// <exception cref="ArgumentNullException">Thrown if the specified Transfer is null.</exception>
-        /// <exception cref="TransferNotFoundException">Thrown if the specified Transfer ID can't be found in the database.</exception>
-        /// <exception cref="InvalidOperationException">Thrown if the specified Transfer is not in the Queued | Locally state.</exception>
-        /// <exception cref="DuplicateTransferException">Thrown if a download matching the username and filename is already tracked by Soulseek.NET.</exception>
-        Task<Transfer> DownloadAsync(Transfer transfer, Action<Transfer> stateChanged = null, CancellationToken cancellationToken = default);
-
-        /// <summary>
         ///     Finds a single download matching the specified <paramref name="expression"/>.
         /// </summary>
         /// <param name="expression">The expression to use to match downloads.</param>
