@@ -213,14 +213,6 @@ namespace slskd.Transfers.Downloads
             var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             var syncRoot = new SemaphoreSlim(1, 1);
 
-            var lockName = $"{nameof(DownloadAsync)}:{transfer.Username}:{transfer.Filename}";
-
-            if (!Locks.TryAdd(lockName, true))
-            {
-                Log.Debug("Download attempt failed; lock {LockName} already held", lockName);
-                throw new DuplicateTransferException("A duplicate download of the same file to the same user is already in progress");
-            }
-
             /*
                 from this point forward, any exit from this method MUST result in an update to the Transfer record
                 in the database that sets EndedAt and ensures that the State property includes the Completed flag
@@ -231,8 +223,6 @@ namespace slskd.Transfers.Downloads
             */
             try
             {
-                Log.Debug("Acquired lock {LockName}", lockName);
-
                 /*
                     fetch an updated copy of the transfer record from the database; now that we are locked, we *should*
                     have exclusive access to this record
@@ -477,21 +467,7 @@ namespace slskd.Transfers.Downloads
             }
             finally
             {
-                Log.Debug("Finalizing download of {Filename} from {Username}", transfer.Filename, transfer.Username);
-
-                try
-                {
-                    Locks.TryRemove(lockName, out _);
-                    Log.Debug("Released lock {LockName}", lockName);
-
-                    CancellationTokens.TryRemove(transfer.Id, out _);
-
-                    Log.Debug("Finalization of download of {Filename} from {Username} completed", transfer.Filename, transfer.Username);
-                }
-                catch (Exception ex)
-                {
-                    Log.Error(ex, "Failed to finalize download of {Filename} from {Username}: {Message}", transfer.Filename, transfer.Username, ex.Message);
-                }
+                CancellationTokens.TryRemove(transfer.Id, out _);
             }
         }
 
