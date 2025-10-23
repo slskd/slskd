@@ -148,7 +148,19 @@ namespace slskd.Transfers.Downloads
         private ILogger Log { get; } = Serilog.Log.ForContext<DownloadService>();
         private IOptionsMonitor<Options> OptionsMonitor { get; }
         private EventBus EventBus { get; }
-        private ConcurrentDictionary<string, bool> Locks { get; } = new();
+
+        /// <summary>
+        ///     Allow only one enqueue operation for a given user at a time. Entries are added on the fly if they
+        ///     don't already exist, and a timer asynchronously cleans the dictionary up.
+        /// </summary>
+        private ConcurrentDictionary<string, SemaphoreSlim> EnqueueSemaphores { get; } = [];
+
+        /// <summary>
+        ///     Synchronizes the cleanup process; after gaining exclusive access over the dictionary, checks each entry
+        ///     to see if the containing semaphore can be obtained immediately.  If so, it's not in use and is therefore
+        ///     removed from the dictionary and discarded.
+        /// </summary>
+        private SemaphoreSlim EnqueueSemaphoreSyncRoot { get; } = new SemaphoreSlim(initialCount: 1, maxCount: 1);
 
         /// <summary>
         ///     Adds the specified <paramref name="transfer"/>. Supersedes any existing record for the same file and username.
