@@ -61,7 +61,7 @@ namespace slskd.Transfers.Downloads
         /// <exception cref="ArgumentException">Thrown when the username is null or an empty string.</exception>
         /// <exception cref="ArgumentException">Thrown when no files are requested.</exception>
         /// <exception cref="AggregateException">Thrown when at least one of the requested files throws.</exception>
-        Task<(List<Transfer> Enqueued, List<Transfer> Failed)> EnqueueAsync(string username, IEnumerable<(string Filename, long Size)> files, CancellationToken cancellationToken = default);
+        Task<(List<Transfer> Enqueued, List<string> Failed)> EnqueueAsync(string username, IEnumerable<(string Filename, long Size)> files, CancellationToken cancellationToken = default);
 
         /// <summary>
         ///     Finds a single download matching the specified <paramref name="expression"/>.
@@ -198,7 +198,7 @@ namespace slskd.Transfers.Downloads
         /// <exception cref="ArgumentException">Thrown when the username is null or an empty string.</exception>
         /// <exception cref="ArgumentException">Thrown when no files are requested.</exception>
         /// <exception cref="AggregateException">Thrown when at least one of the requested files throws.</exception>
-        public async Task<(List<Transfer> Enqueued, List<Transfer> Failed)> EnqueueAsync(string username, IEnumerable<(string Filename, long Size)> files, CancellationToken cancellationToken = default)
+        public async Task<(List<Transfer> Enqueued, List<string> Failed)> EnqueueAsync(string username, IEnumerable<(string Filename, long Size)> files, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrEmpty(username))
             {
@@ -219,9 +219,9 @@ namespace slskd.Transfers.Downloads
 
             Log.Information("Requested enqueue of {Count} files from user {Username}", files.Count(), username);
 
+            // get the user's ip and port. this will throw if they are offline.
             try
             {
-                // get the user's ip and port. this will throw if they are offline.
                 endpoint = await Client.GetUserEndPointAsync(username, cancellationToken);
             }
             catch (Exception ex)
@@ -244,14 +244,42 @@ namespace slskd.Transfers.Downloads
 
             List<string> acquiredLocks = [];
             List<Transfer> enqueued = [];
-            List<Transfer> failed = [];
+            List<string> failed = [];
+            SemaphoreSlim semaphore;
+            Task semaphoreWaitTask;
+
+            // briefly obtain exclusive access over the semaphore dictionary to either get or create a record for this user
+            // this contends with the cleanup process, which will discard records if the associated semaphore can be acquired
+            // upon release of the semaphore, this logic will run and will potentially add a record right back
+            await EnqueueSemaphoreSyncRoot.WaitAsync(cancellationToken);
 
             try
             {
+                // fetch or create a semaphore record for this user, and set up a task (but don't await it yet! to avoid cleanup contention)
+                semaphore = EnqueueSemaphores.GetOrAdd(username, (username) => new SemaphoreSlim(initialCount: 1, maxCount: 1));
+                semaphoreWaitTask = semaphore.WaitAsync(cancellationToken);
+            }
+            finally
+            {
+                EnqueueSemaphoreSyncRoot.Release();
+            }
+
+            // wait until we can get exclusive access to this user. it's important that we do so, so we can optimize database
+            // access within the critical section.  this allows us to fetch the transfers for this user only once, and we don't
+            // have to worry about the database changing while we're in the critical section
+            Log.Debug("Awaiting enqueue semaphore for user {Username}", username);
+            await semaphoreWaitTask;
+
+            try
+            {
+                Log.Debug("Acquired enqueue semaphore for user {Username}", username);
+
                 using var context = ContextFactory.CreateDbContext();
 
                 /*
-                    get all past downloads from this user for this filename
+                    get all past downloads from this user.  this list will remain stable throughout this process because
+                    we have exclusive access for this user.  we'll be adding new records, but we've already deduplicated
+                    them so we don't have to worry about duplicate records being created in the critical section
                 */
                 var existingRecords = context.Transfers
                     .Where(t => t.Direction == TransferDirection.Download)
@@ -264,43 +292,17 @@ namespace slskd.Transfers.Downloads
                     .ToList();
 
                 /*
-                    first, check inputs and do an _exhaustive_ check for all of the files provided, separating files out
-                    into good/bad
+                    iterate over the files, and either:
 
-                    acquire locks for each, and track them so we can release them later (in the finally block)
+                    1. if there's no active download for the file already, insert a record and kick off the download task
+                    2. if there's an active download already, stick the file in the failed array
                 */
                 foreach (var file in files)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
 
-                    var transfer = new Transfer()
-                    {
-                        Id = Guid.NewGuid(),
-                        Username = username,
-                        Direction = TransferDirection.Download,
-                        Filename = file.Filename, // important! use the remote filename
-                        Size = file.Size,
-                        StartOffset = 0, // todo: maybe implement resumeable downloads?
-                        RequestedAt = DateTime.UtcNow,
-                        State = TransferStates.Queued | TransferStates.Locally,
-                    };
-
-                    var lockName = $"{nameof(EnqueueAsync)}:{username}:{file.Filename}";
-
-                    if (!Locks.TryAdd(lockName, true))
-                    {
-                        Log.Debug("Ignoring concurrent download enqueue attempt; lock {LockName} already held", lockName);
-                        transfer.Exception = "A download for this file from this user is already underway";
-                        transfer.State = TransferStates.Aborted | TransferStates.Completed;
-                        failed.Add(transfer);
-                        continue;
-                    }
-
                     try
                     {
-                        acquiredLocks.Add(lockName);
-                        Log.Debug("Acquired lock {LockName}", lockName);
-
                         Log.Debug("Checking whether download of {Filename} from {Username} is already in progress", file.Filename, username);
 
                         /*
@@ -310,20 +312,29 @@ namespace slskd.Transfers.Downloads
                             check the tracked download dictionary in Soulseek.NET to see if it knows about this already
                             it shouldn't, if the slskd database doesn't. but things could get desynced
                         */
-                        if (existingInProgressRecords.Count != 0 || Client.Downloads.Any(u => u.Username == username && u.Filename == file.Filename))
+                        var existingInProgressRecord = existingInProgressRecords.FirstOrDefault(t => t.Filename == file.Filename);
+
+                        if (existingInProgressRecord is not null || Client.Downloads.Any(u => u.Username == username && u.Filename == file.Filename))
                         {
-                            Log.Debug("Ignoring concurrent download enqueue attempt; lock {LockName} already held", lockName);
-                            transfer.Exception = "A download for this file from this user is already underway";
-                            transfer.State = TransferStates.Aborted | TransferStates.Completed;
-                            failed.Add(transfer);
+                            Log.Debug("Ignoring concurrent download enqueue attempt; transfer for {Filename} from {Username} already in progress (id: {Id})", file.Filename, username, existingInProgressRecord.Id);
+                            failed.Add(file.Filename);
                             continue;
                         }
 
-                        /*
-                            we've passed 3 different checks to ensure that this file is not already being downloaded, so
-                            add it to the database and remove any existing (past) records of it from the UI
-                        */
+                        var transfer = new Transfer()
+                        {
+                            Id = Guid.NewGuid(),
+                            Username = username,
+                            Direction = TransferDirection.Download,
+                            Filename = file.Filename, // important! use the remote filename
+                            Size = file.Size,
+                            StartOffset = 0, // todo: maybe implement resumeable downloads?
+                            RequestedAt = DateTime.UtcNow,
+                            State = TransferStates.Queued | TransferStates.Locally,
+                        };
+
                         context.Add(transfer);
+
                         Log.Debug("Added Transfer record for download of {Filename} from {Username} (id: {Id})", transfer.Filename, transfer.Username, transfer.Id);
 
                         foreach (var record in existingRecords.Where(t => !t.Removed))
@@ -339,16 +350,19 @@ namespace slskd.Transfers.Downloads
                     }
                     catch (Exception ex)
                     {
-                        // note: there's nothing to cancel or download yet, so any failure to execute the above is an error
                         Log.Error(ex, "Failed to enqueue download of {Filename} from {Username}: {Message}", file.Filename, username, ex.Message);
-                        transfer.Exception = ex.Message;
-                        transfer.State = TransferStates.Errored | TransferStates.Completed;
-                        failed.Add(transfer);
+                        failed.Add(file.Filename);
                         continue;
                     }
                 }
 
-                var recordsCreated = context.SaveChanges();
+                /*
+                    persist our database changes, including:
+
+                    * INSERTs for all of the newly enqueued files
+                    * UPDATEs for any files that are complete but still being shown on the UI
+                */
+                context.SaveChanges();
 
                 if (enqueued.Count == 0)
                 {
