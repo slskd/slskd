@@ -139,6 +139,24 @@ namespace slskd.Transfers.Downloads
             Clock.EveryMinute += (_, _) => Task.Run(() => CleanupEnqueueSemaphoresAsync());
         }
 
+        /// <summary>
+        ///     These tokens give users the ability to cancel transfers via the UI (or API).
+        ///
+        ///     The lifecycle is:
+        ///
+        ///     1. in EnqueueAsync(), just before transfer records are added to the database, these CTS are created and
+        ///        added to the dictionary
+        ///     2. in EnqueueAsync(), if there was an error or any condition which caused the transfer to not proceed was met,
+        ///        the CTS is removed from the dictionary and disposed
+        ///     3. in DownloadAsync(), in the finally block after all post-download logic has been executed, the CTS
+        ///        is removed and disposed.
+        ///
+        ///     The CTS should be in the dictionary the entire time the transfer is "in flight", from the first moment it
+        ///     comes into being (via database insert) until the eventual download process has completed or failed.
+        ///
+        ///     Every cancellable operation in this flow needs to use this CTS token either directly or by linking it with another,
+        ///     or we risk transfers getting stuck with no way for users to get rid of them.
+        /// </summary>
         private ConcurrentDictionary<Guid, CancellationTokenSource> CancellationTokens { get; } = new ConcurrentDictionary<Guid, CancellationTokenSource>();
         private ISoulseekClient Client { get; }
         private IDbContextFactory<TransfersDbContext> ContextFactory { get; }
@@ -287,7 +305,25 @@ namespace slskd.Transfers.Downloads
                     .Where(t => t.EndedAt == null || !t.State.HasFlag(TransferStates.Completed))
                     .ToList();
 
-                var concurrentEnqueueRequests = 15; // average album length, somewhat arbitrarily chosen
+                /*
+                    determine how many concurrent enqueue requests we want to send to the remote client.
+
+                    sending a ton of them can bog the client down and fail transfers due to resource contention on both sides,
+                    but both clients should be able to handle momentary 'bursts'.
+
+                    if the request contains 30 files or fewer, send all of the requests at the same time. the average number
+                    of tracks in a single album is 15, so this is 2x as many as most enqueue requests will need.
+
+                    if that number is more than 30, send only 5 at a time; transfers will be starting as we are still
+                    enqueueing files, and this raises the risk of errors considerably.
+                */
+                var concurrentEnqueueRequests = 5;
+
+                if (files.Count() <= 30)
+                {
+                    concurrentEnqueueRequests = files.Count();
+                }
+
                 var maxTimeToWaitForEnqueueRequestAck = TimeSpan.FromMinutes(3);
                 var enqueueSemaphore = new SemaphoreSlim(initialCount: concurrentEnqueueRequests, maxCount: concurrentEnqueueRequests);
 
@@ -357,18 +393,15 @@ namespace slskd.Transfers.Downloads
                         }
 
                         /*
-                            DANGER ZONE! this record is in the database now; we're on the hook for making sure it ends up
-                            with a State that includes the Completed flag, else it remain "stuck" on the UI
-                        */
-                        context.SaveChanges();
-
-                        /*
                             create a TaskCompletionSource that we can await for one of the following:
 
                             1. the transfer enters the Queued | Remotely state
                             2. the transfer enters a state containing Completed
                             3. the linked CancellationTokenSource we add to CancellationTokens is cancelled
                             4. the 'max wait time' CancellationTokenSource is cancelled
+
+                            add this to the dictionary before inserting the record, so we are guaranteed to have it
+                            in the right place once the transfer hits the UI
                         */
                         var enqueuedTcs = new TaskCompletionSource<Transfer>();
 
@@ -376,6 +409,12 @@ namespace slskd.Transfers.Downloads
                         var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
                         CancellationTokens.TryAdd(transfer.Id, cts);
                         cts.Token.Register(() => enqueuedTcs.TrySetCanceled());
+
+                        /*
+                            DANGER ZONE! this record is in the database now; we're on the hook for making sure it ends up
+                            with a State that includes the Completed flag, else it remain "stuck" on the UI
+                        */
+                        context.SaveChanges();
 
                         Log.Debug("Scheduling Task for enqueue of {Filename} from {Username}", file.Filename, username);
 
@@ -702,13 +741,18 @@ namespace slskd.Transfers.Downloads
                 return true;
             }
 
-            // if the cancellation token is no longer registered, something went wrong. in an attempt to get back
-            // to a good state, "manually" set the state of the transfer to cancelled, which should allow the user
-            // to clear it and try again.  we shouldn't manipulate the record directly unless the token couldn't be
-            // found in the dictionary; we'll create a race condition (maybe that's ok? we can revisit later)
+            /*
+                if the cancellation token couldn't be found in the dictionary, either:
+
+                1. the transfer completed already
+                2. something went wrong and the record is 'stuck'
+
+                see if we can find the record, and if it's *NOT* completed, cancel it. otherwise,
+                leave it alone.
+            */
             var t = Find(t => t.Id == id);
 
-            if (t is not null)
+            if (t is not null && !t.State.HasFlag(TransferStates.Completed))
             {
                 t.EndedAt = DateTime.UtcNow;
                 t.State = TransferStates.Completed | TransferStates.Cancelled;
@@ -1019,9 +1063,10 @@ namespace slskd.Transfers.Downloads
             }
             finally
             {
-                // this is added in EnqueueAsync()
-                CancellationTokens.TryRemove(transfer.Id, out var cts);
-                cts?.Dispose();
+                if (CancellationTokens.TryRemove(transfer.Id, out var cts))
+                {
+                    cts?.Dispose();
+                }
             }
         }
 
