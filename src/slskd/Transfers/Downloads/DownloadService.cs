@@ -223,19 +223,21 @@ namespace slskd.Transfers.Downloads
                 throw new ArgumentException("Username is required", nameof(username));
             }
 
-            if (!files.Any())
+            var fileList = files.ToList();
+
+            if (fileList.Count == 0)
             {
                 throw new ArgumentException("At least one file is required", nameof(files));
             }
 
-            if (files.Count() != files.Distinct().Count())
+            if (fileList.Count != fileList.Distinct().Count())
             {
                 throw new ArgumentException("Two or more files in request are duplicated", nameof(files));
             }
 
             IPEndPoint endpoint;
 
-            Log.Information("Requested enqueue of {Count} files from user {Username}", files.Count(), username);
+            Log.Information("Requested enqueue of {Count} files from user {Username}", fileList.Count, username);
 
             // get the user's ip and port. this will throw if they are offline.
             try
@@ -244,7 +246,7 @@ namespace slskd.Transfers.Downloads
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "Failed to enqueue {Count} files from {Username}: {Message}", files.Count(), username, ex.Message);
+                Log.Error(ex, "Failed to enqueue {Count} files from {Username}: {Message}", fileList.Count, username, ex.Message);
                 throw;
             }
 
@@ -303,7 +305,7 @@ namespace slskd.Transfers.Downloads
 
                 var existingInProgressRecords = existingRecords
                     .Where(t => t.EndedAt == null || !t.State.HasFlag(TransferStates.Completed))
-                    .ToList();
+                    .ToDictionary(t => t.Filename, t => t);
 
                 /*
                     determine how many concurrent enqueue requests we want to send to the remote client.
@@ -319,9 +321,9 @@ namespace slskd.Transfers.Downloads
                 */
                 var concurrentEnqueueRequests = 5;
 
-                if (files.Count() <= 30)
+                if (fileList.Count <= 30)
                 {
-                    concurrentEnqueueRequests = files.Count();
+                    concurrentEnqueueRequests = fileList.Count;
                 }
 
                 var maxTimeToWaitForEnqueueRequestAck = TimeSpan.FromMinutes(3);
@@ -336,7 +338,7 @@ namespace slskd.Transfers.Downloads
                     if we fail to enqueue a file, we must call TryFail() to ensure that if a record was inserted, it is
                     given a final disposition that will keep it from getting 'stuck'
                 */
-                foreach (var file in files)
+                foreach (var file in fileList)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
                     Guid transferId = Guid.NewGuid();
@@ -352,7 +354,7 @@ namespace slskd.Transfers.Downloads
                             check the tracked download dictionary in Soulseek.NET to see if it knows about this already
                             it shouldn't, if the slskd database doesn't. but things could get desynced
                         */
-                        var existingInProgressRecord = existingInProgressRecords.FirstOrDefault(t => t.Filename == file.Filename);
+                        existingInProgressRecords.TryGetValue(file.Filename, out var existingInProgressRecord);
 
                         if (existingInProgressRecord is not null || Client.Downloads.Any(u => u.Username == username && u.Filename == file.Filename))
                         {
@@ -474,10 +476,11 @@ namespace slskd.Transfers.Downloads
                                         return;
                                     }
 
-                                    Log.Error(task.Exception, "Task for download of {Filename} from {Username} did not complete successfully: {Error}", transfer.Filename, transfer.Username, task.Exception.Message);
+                                    Log.Error(task.Exception, "Task for download of {Filename} from {Username} did not complete successfully: {Error}", file.Filename, username, task.Exception.InnerException?.Message ?? task.Exception.Message);
+
                                     if (!TryFail(transferId, exception: task.Exception))
                                     {
-                                        Log.Error(task.Exception, "Failed to clean up transfer {Id} after failed execution: {Message}", transfer.Id, task.Exception.Message);
+                                        Log.Error(task.Exception, "Failed to clean up transfer {Id} after failed enqueue: {Message}", transfer.Id, task.Exception.Message);
                                     }
                                 }, cancellationToken: CancellationToken.None); // end downloadTask.Run();
 
@@ -517,7 +520,8 @@ namespace slskd.Transfers.Downloads
                                 return;
                             }
 
-                            Log.Error(task.Exception, "Task for enqueue of {Filename} from {Username} did not complete successfully: {Error}", file.Filename, username, task.Exception.InnerException.Message);
+                            Log.Error(task.Exception, "Task for enqueue of {Filename} from {Username} did not complete successfully: {Error}", file.Filename, username, task.Exception.InnerException?.Message ?? task.Exception.Message);
+
                             if (!TryFail(transferId, exception: task.Exception))
                             {
                                 Log.Error(task.Exception, "Failed to clean up transfer {Id} after failed enqueue: {Message}", transfer.Id, task.Exception.Message);
@@ -525,7 +529,7 @@ namespace slskd.Transfers.Downloads
                         }, cancellationToken: CancellationToken.None); // end downloadEnqueueTask.Run();
 
                         Log.Debug("Download enqueue Task status for {Filename} from {Username}: {Status}", file.Filename, username, downloadEnqueueTask.Status);
-                        Log.Information("Successfully locally enqueued download of {Filename} from {Username}", file.Filename, username, transfer.Id);
+                        Log.Information("Successfully locally enqueued download of {Filename} from {Username} (id: {Id})", file.Filename, username, transfer.Id);
                         enqueued.Add(transfer);
                     }
                     catch (Exception ex)
@@ -548,7 +552,7 @@ namespace slskd.Transfers.Downloads
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "Failed to enqueue one or more of {Count} files from {Username}: {Message}", files.Count(), username, ex.Message);
+                Log.Error(ex, "Failed to enqueue one or more of {Count} files from {Username}: {Message}", fileList.Count, username, ex.Message);
                 throw;
             }
             finally
