@@ -814,13 +814,19 @@ namespace slskd.Transfers.Downloads
                 throw new ArgumentNullException(nameof(transfer), "A valid, enqueued Transfer is required");
             }
 
+            // grab the latest from the database; this may have been sitting behind a semaphore or something
+            transfer = Find(t => t.Id == transfer.Id)
+                ?? throw new TransferNotFoundException($"Transfer with ID {transfer.Id} not found");
+
             if (transfer.State != (TransferStates.Queued | TransferStates.Locally))
             {
                 throw new InvalidOperationException($"Invalid starting state for download; expected {TransferStates.Queued | TransferStates.Locally}, encountered {transfer.State}");
             }
 
-            var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            var syncRoot = new SemaphoreSlim(1, 1);
+            if (Client.Downloads.Any(u => u.Username == transfer.Username && u.Filename == transfer.Filename))
+            {
+                throw new DuplicateTransferException("A duplicate download of the same file to the same user is already registered");
+            }
 
             /*
                 from this point forward, any exit from this method MUST result in an update to the Transfer record
@@ -830,34 +836,14 @@ namespace slskd.Transfers.Downloads
 
                 additionally, any acquired locks/semaphores must be released, including (and most importantly) the queue slot
             */
+            var updateSyncRoot = new SemaphoreSlim(1, 1);
+
             try
             {
-                /*
-                    fetch an updated copy of the transfer record from the database; now that we are locked, we *should*
-                    have exclusive access to this record
-
-                    we're not using DbContext and tracked changes here because we don't want to hold a connection
-                    open for the duration of the download
-                */
-                transfer = Find(t => t.Id == transfer.Id)
-                    ?? throw new TransferNotFoundException($"Transfer with ID {transfer.Id} not found");
-
-                if (transfer.State != (TransferStates.Queued | TransferStates.Locally))
-                {
-                    throw new InvalidOperationException($"Invalid starting state for download; expected {TransferStates.Queued | TransferStates.Locally}, encountered {transfer.State}");
-                }
-
-                /*
-                    Soulseek.NET keeps an internal dictionary of all transfers for the duration of the transfer logic;
-                    check that list to see if there's already an instance of this download in it, just in case we've gotten
-                    out of sync somehow
-                */
-                if (Client.Downloads.Any(u => u.Username == transfer.Username && u.Filename == transfer.Filename))
-                {
-                    throw new DuplicateTransferException("A duplicate download of the same file to the same user is already registered");
-                }
-
                 using var rateLimiter = new RateLimiter(250, concurrencyLimit: 1, flushOnDispose: true);
+
+                using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                CancellationTokens.TryAdd(transfer.Id, cts);
 
                 var topts = new TransferOptions(
                     stateChanged: (args) =>
@@ -884,7 +870,7 @@ namespace slskd.Transfers.Downloads
                             }
 
                             // todo: broadcast
-                            SynchronizedUpdate(transfer, semaphore: syncRoot, cancellationToken: cts.Token);
+                            SynchronizedUpdate(transfer, semaphore: updateSyncRoot, cancellationToken: cts.Token);
                         }
                         finally
                         {
@@ -901,7 +887,7 @@ namespace slskd.Transfers.Downloads
                             // don't wait for the semaphore; if a previous progress update is still hanging, don't make
                             // the problem worse. this will result in fewer/jumpy updates on systems with slow filesystems
                             // but the alternative is to continue to stack slow writes on top of one another
-                            if (syncRoot.Wait(millisecondsTimeout: 0, cts.Token))
+                            if (updateSyncRoot.Wait(millisecondsTimeout: 0, cts.Token))
                             {
                                 try
                                 {
@@ -918,7 +904,7 @@ namespace slskd.Transfers.Downloads
                                 }
                                 finally
                                 {
-                                    syncRoot.Release();
+                                    updateSyncRoot.Release();
                                 }
                             }
                             else
@@ -928,9 +914,6 @@ namespace slskd.Transfers.Downloads
                         }
                     }),
                     disposeOutputStreamOnCompletion: true);
-
-                // register the cancellation token
-                CancellationTokens.TryAdd(transfer.Id, cts);
 
                 System.IO.UnixFileMode? unixFileMode = !string.IsNullOrEmpty(OptionsMonitor.CurrentValue.Permissions.File.Mode)
                     ? OptionsMonitor.CurrentValue.Permissions.File.Mode.ToUnixFileMode()
@@ -968,7 +951,7 @@ namespace slskd.Transfers.Downloads
                 transfer = transfer.WithSoulseekTransfer(completedTransfer);
 
                 // todo: broadcast to signalr hub
-                SynchronizedUpdate(transfer, semaphore: syncRoot, cancellationToken: CancellationToken.None);
+                SynchronizedUpdate(transfer, semaphore: updateSyncRoot, cancellationToken: CancellationToken.None);
 
                 Log.Debug("Successfully updated Transfer for {Filename} from {Username} (state: {State}, progress: {Progress})", transfer.Filename, transfer.Username, transfer.State, transfer.PercentComplete);
 
@@ -1057,7 +1040,7 @@ namespace slskd.Transfers.Downloads
                 };
 
                 // todo: broadcast
-                SynchronizedUpdate(transfer, semaphore: syncRoot, cancellationToken: CancellationToken.None);
+                SynchronizedUpdate(transfer, semaphore: updateSyncRoot, cancellationToken: CancellationToken.None);
 
                 throw;
             }
@@ -1070,7 +1053,7 @@ namespace slskd.Transfers.Downloads
                 transfer.State = TransferStates.Completed | TransferStates.Errored;
 
                 // todo: broadcast
-                SynchronizedUpdate(transfer, semaphore: syncRoot, cancellationToken: CancellationToken.None);
+                SynchronizedUpdate(transfer, semaphore: updateSyncRoot, cancellationToken: CancellationToken.None);
 
                 throw;
             }
