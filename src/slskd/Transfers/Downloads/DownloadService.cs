@@ -494,6 +494,12 @@ namespace slskd.Transfers.Downloads
                         Log.Error(ex, "Failed to enqueue download of {Filename} from {Username}: {Message}", file.Filename, username, ex.Message);
                         TryFail(transferId, exception: ex);
                         failed.Add(file.Filename);
+
+                        if (CancellationTokens.TryRemove(transferId, out var cts))
+                        {
+                            cts.Dispose();
+                        }
+
                         continue;
                     }
                 } // end foreach()
