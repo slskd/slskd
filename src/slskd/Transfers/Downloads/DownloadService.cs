@@ -61,20 +61,7 @@ namespace slskd.Transfers.Downloads
         /// <exception cref="ArgumentException">Thrown when the username is null or an empty string.</exception>
         /// <exception cref="ArgumentException">Thrown when no files are requested.</exception>
         /// <exception cref="AggregateException">Thrown when at least one of the requested files throws.</exception>
-        Task<(List<Transfer> Enqueued, List<Transfer> Failed)> EnqueueAsync(string username, IEnumerable<(string Filename, long Size)> files, CancellationToken cancellationToken = default);
-
-        /// <summary>
-        ///     Downloads the specified enqueued <paramref name="transfer"/> from the remote user.
-        /// </summary>
-        /// <param name="transfer">The Transfer to download.</param>
-        /// <param name="stateChanged">An optional delegate to invoke the transfer state changes.</param>
-        /// <param name="cancellationToken">The token to monitor for cancellation.</param>
-        /// <returns>The operation context.</returns>
-        /// <exception cref="ArgumentNullException">Thrown if the specified Transfer is null.</exception>
-        /// <exception cref="TransferNotFoundException">Thrown if the specified Transfer ID can't be found in the database.</exception>
-        /// <exception cref="InvalidOperationException">Thrown if the specified Transfer is not in the Queued | Locally state.</exception>
-        /// <exception cref="DuplicateTransferException">Thrown if a download matching the username and filename is already tracked by Soulseek.NET.</exception>
-        Task<Transfer> DownloadAsync(Transfer transfer, Action<Transfer> stateChanged = null, CancellationToken cancellationToken = default);
+        Task<(List<Transfer> Enqueued, List<string> Failed)> EnqueueAsync(string username, IEnumerable<(string Filename, long Size)> files, CancellationToken cancellationToken = default);
 
         /// <summary>
         ///     Finds a single download matching the specified <paramref name="expression"/>.
@@ -148,8 +135,28 @@ namespace slskd.Transfers.Downloads
             FTP = ftpClient;
             Relay = relayService;
             EventBus = eventBus;
+
+            Clock.EveryMinute += (_, _) => Task.Run(() => CleanupEnqueueSemaphoresAsync());
         }
 
+        /// <summary>
+        ///     These tokens give users the ability to cancel transfers via the UI (or API).
+        ///
+        ///     The lifecycle is:
+        ///
+        ///     1. in EnqueueAsync(), just before transfer records are added to the database, these CTS are created and
+        ///        added to the dictionary
+        ///     2. in EnqueueAsync(), if there was an error or any condition which caused the transfer to not proceed was met,
+        ///        the CTS is removed from the dictionary and disposed
+        ///     3. in DownloadAsync(), in the finally block after all post-download logic has been executed, the CTS
+        ///        is removed and disposed.
+        ///
+        ///     The CTS should be in the dictionary the entire time the transfer is "in flight", from the first moment it
+        ///     comes into being (via database insert) until the eventual download process has completed or failed.
+        ///
+        ///     Every cancellable operation in this flow needs to use this CTS token either directly or by linking it with another,
+        ///     or we risk transfers getting stuck with no way for users to get rid of them.
+        /// </summary>
         private ConcurrentDictionary<Guid, CancellationTokenSource> CancellationTokens { get; } = new ConcurrentDictionary<Guid, CancellationTokenSource>();
         private ISoulseekClient Client { get; }
         private IDbContextFactory<TransfersDbContext> ContextFactory { get; }
@@ -159,7 +166,19 @@ namespace slskd.Transfers.Downloads
         private ILogger Log { get; } = Serilog.Log.ForContext<DownloadService>();
         private IOptionsMonitor<Options> OptionsMonitor { get; }
         private EventBus EventBus { get; }
-        private ConcurrentDictionary<string, bool> Locks { get; } = new();
+
+        /// <summary>
+        ///     Allow only one enqueue operation for a given user at a time. Entries are added on the fly if they
+        ///     don't already exist, and a timer asynchronously cleans the dictionary up.
+        /// </summary>
+        private ConcurrentDictionary<string, SemaphoreSlim> EnqueueSemaphores { get; } = [];
+
+        /// <summary>
+        ///     Synchronizes the cleanup process; after gaining exclusive access over the dictionary, checks each entry
+        ///     to see if the containing semaphore can be obtained immediately.  If so, it's not in use and is therefore
+        ///     removed from the dictionary and discarded.
+        /// </summary>
+        private SemaphoreSlim EnqueueSemaphoreSyncRoot { get; } = new SemaphoreSlim(initialCount: 1, maxCount: 1);
 
         /// <summary>
         ///     Adds the specified <paramref name="transfer"/>. Supersedes any existing record for the same file and username.
@@ -188,314 +207,6 @@ namespace slskd.Transfers.Downloads
         }
 
         /// <summary>
-        ///     Downloads the specified enqueued <paramref name="transfer"/> from the remote user.
-        /// </summary>
-        /// <param name="transfer">The Transfer to download.</param>
-        /// <param name="stateChanged">An optional delegate to invoke the transfer state changes.</param>
-        /// <param name="cancellationToken">The token to monitor for cancellation.</param>
-        /// <returns>The operation context.</returns>
-        /// <exception cref="ArgumentNullException">Thrown if the specified Transfer is null.</exception>
-        /// <exception cref="TransferNotFoundException">Thrown if the specified Transfer ID can't be found in the database.</exception>
-        /// <exception cref="InvalidOperationException">Thrown if the specified Transfer is not in the Queued | Locally state.</exception>
-        /// <exception cref="DuplicateTransferException">Thrown if a download matching the username and filename is already tracked by Soulseek.NET.</exception>
-        public async Task<Transfer> DownloadAsync(Transfer transfer, Action<Transfer> stateChanged = null, CancellationToken cancellationToken = default)
-        {
-            if (transfer is null)
-            {
-                throw new ArgumentNullException(nameof(transfer), "A valid, enqueued Transfer is required");
-            }
-
-            if (transfer.State != (TransferStates.Queued | TransferStates.Locally))
-            {
-                throw new InvalidOperationException($"Invalid starting state for download; expected {TransferStates.Queued | TransferStates.Locally}, encountered {transfer.State}");
-            }
-
-            var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            var syncRoot = new SemaphoreSlim(1, 1);
-
-            var lockName = $"{nameof(DownloadAsync)}:{transfer.Username}:{transfer.Filename}";
-
-            if (!Locks.TryAdd(lockName, true))
-            {
-                Log.Debug("Download attempt failed; lock {LockName} already held", lockName);
-                throw new DuplicateTransferException("A duplicate download of the same file to the same user is already in progress");
-            }
-
-            /*
-                from this point forward, any exit from this method MUST result in an update to the Transfer record
-                in the database that sets EndedAt and ensures that the State property includes the Completed flag
-
-                failure to do so means records will get "stuck" in the database/on the UI
-
-                additionally, any acquired locks/semaphores must be released, including (and most importantly) the queue slot
-            */
-            try
-            {
-                Log.Debug("Acquired lock {LockName}", lockName);
-
-                /*
-                    fetch an updated copy of the transfer record from the database; now that we are locked, we *should*
-                    have exclusive access to this record
-
-                    we're not using DbContext and tracked changes here because we don't want to hold a connection
-                    open for the duration of the download
-                */
-                transfer = Find(t => t.Id == transfer.Id)
-                    ?? throw new TransferNotFoundException($"Transfer with ID {transfer.Id} not found");
-
-                if (transfer.State != (TransferStates.Queued | TransferStates.Locally))
-                {
-                    throw new InvalidOperationException($"Invalid starting state for download; expected {TransferStates.Queued | TransferStates.Locally}, encountered {transfer.State}");
-                }
-
-                /*
-                    Soulseek.NET keeps an internal dictionary of all transfers for the duration of the transfer logic;
-                    check that list to see if there's already an instance of this download in it, just in case we've gotten
-                    out of sync somehow
-                */
-                if (Client.Downloads.Any(u => u.Username == transfer.Username && u.Filename == transfer.Filename))
-                {
-                    throw new DuplicateTransferException("A duplicate download of the same file to the same user is already registered");
-                }
-
-                using var rateLimiter = new RateLimiter(250, concurrencyLimit: 1, flushOnDispose: true);
-
-                var topts = new TransferOptions(
-                    stateChanged: (args) =>
-                    {
-                        try
-                        {
-                            Log.Debug("Download of {Filename} from user {Username} changed state from {Previous} to {New}", transfer.Filename, transfer.Username, args.PreviousState, args.Transfer.State);
-
-                            // prevent Exceptions thrown during shutdown from updating the transfer record with related Exceptions;
-                            // instead, allow these to be left "hanging" so that they are properly cleaned up at the next startup
-                            if (Application.IsShuttingDown)
-                            {
-                                Log.Debug("Download update of {Filename} from {Username} not persisted; app is shutting down", transfer.Filename, transfer.Username);
-                                return;
-                            }
-
-                            transfer = transfer.WithSoulseekTransfer(args.Transfer);
-
-                            // we don't know when the download is actually enqueued (remotely) until it switches into that state
-                            // when it is enqueued locally is irrelevant, due to internal throttling etc
-                            if (args.Transfer.State.HasFlag(TransferStates.Queued) && args.Transfer.State.HasFlag(TransferStates.Remotely))
-                            {
-                                transfer.EnqueuedAt ??= DateTime.UtcNow;
-                            }
-
-                            // todo: broadcast
-                            SynchronizedUpdate(transfer, semaphore: syncRoot, cancellationToken: cts.Token);
-                        }
-                        finally
-                        {
-                            stateChanged?.Invoke(transfer);
-                        }
-                    },
-                    progressUpdated: (args) => rateLimiter.Invoke(() =>
-                    {
-                        // don't do anything unless the `transfer` within the outer scope is in the
-                        // InProgress state; this will help prevent out-of-band updates that are sometimes
-                        // being made after the transfer is completed, causing them to appear 'stuck'
-                        if (transfer.State == TransferStates.InProgress)
-                        {
-                            // don't wait for the semaphore; if a previous progress update is still hanging, don't make
-                            // the problem worse. this will result in fewer/jumpy updates on systems with slow filesystems
-                            // but the alternative is to continue to stack slow writes on top of one another
-                            if (syncRoot.Wait(millisecondsTimeout: 0, cts.Token))
-                            {
-                                try
-                                {
-                                    // update only the properties that we expect to change between progress updates
-                                    // this helps prevent this update from 'stepping' on other updates
-                                    transfer.BytesTransferred = args.Transfer.BytesTransferred;
-                                    transfer.AverageSpeed = args.Transfer.AverageSpeed;
-
-                                    using var context = ContextFactory.CreateDbContext();
-
-                                    context.Transfers.Where(t => t.Id == transfer.Id).ExecuteUpdate(setter => setter
-                                        .SetProperty(t => t.BytesTransferred, transfer.BytesTransferred)
-                                        .SetProperty(t => t.AverageSpeed, transfer.AverageSpeed));
-                                }
-                                finally
-                                {
-                                    syncRoot.Release();
-                                }
-                            }
-                            else
-                            {
-                                Log.Debug("Skipped progress update of {Filename} from {Username} {BytesTransferred}/{TotalBytes}; previous update still pending", transfer.Filename, transfer.Username, args.Transfer.BytesTransferred, args.Transfer.Size);
-                            }
-                        }
-                    }),
-                    disposeOutputStreamOnCompletion: true);
-
-                // register the cancellation token
-                CancellationTokens.TryAdd(transfer.Id, cts);
-
-                System.IO.UnixFileMode? unixFileMode = !string.IsNullOrEmpty(OptionsMonitor.CurrentValue.Permissions.File.Mode)
-                    ? OptionsMonitor.CurrentValue.Permissions.File.Mode.ToUnixFileMode()
-                    : null;
-
-                Log.Debug("Invoking Soulseek DownloadAsync() for {Filename} from {Username}", transfer.Filename, transfer.Username);
-
-                var completedTransfer = await Client.DownloadAsync(
-                    username: transfer.Username,
-                    remoteFilename: transfer.Filename,
-                    outputStreamFactory: () => Task.FromResult(
-                        Files.CreateFile(
-                            filename: transfer.Filename.ToLocalFilename(baseDirectory: OptionsMonitor.CurrentValue.Directories.Incomplete),
-                            options: new CreateFileOptions
-                            {
-                                Access = System.IO.FileAccess.Write,
-                                Mode = System.IO.FileMode.Create, // overwrites file if it exists
-                                Share = System.IO.FileShare.None, // exclusive access for the duration of the download
-                                UnixCreateMode = unixFileMode,
-                            })),
-                    size: transfer.Size,
-                    startOffset: 0,
-                    token: null,
-                    cancellationToken: cts.Token,
-                    options: topts);
-
-                Log.Debug("Invocation of Soulseek DownloadAsync() for {Filename} from user {Username} completed successfully", transfer.Filename, transfer.Username);
-
-                // explicitly dispose the rate limiter to prevent updates from it beyond this point, and in doing so we
-                // flushe any pending update, _probably_ pushing the state of the transfer back to InProgress
-                rateLimiter.Dispose();
-
-                // copy the completed transfer that was returned from Soulseek.NET in a terminal, fully updated state
-                // over the top of the transfer record, then persist it
-                transfer = transfer.WithSoulseekTransfer(completedTransfer);
-
-                // todo: broadcast to signalr hub
-                SynchronizedUpdate(transfer, semaphore: syncRoot, cancellationToken: CancellationToken.None);
-
-                Log.Debug("Successfully updated Transfer for {Filename} from {Username} (state: {State}, progress: {Progress})", transfer.Filename, transfer.Username, transfer.State, transfer.PercentComplete);
-
-                // move the file from incomplete to complete
-                var destinationDirectory = System.IO.Path.GetDirectoryName(transfer.Filename.ToLocalFilename(baseDirectory: OptionsMonitor.CurrentValue.Directories.Downloads));
-
-                var finalFilename = Files.MoveFile(
-                    sourceFilename: transfer.Filename.ToLocalFilename(baseDirectory: OptionsMonitor.CurrentValue.Directories.Incomplete),
-                    destinationDirectory: destinationDirectory,
-                    unixFileMode: unixFileMode,
-                    overwrite: false,
-                    deleteSourceDirectoryIfEmptyAfterMove: true);
-
-                Log.Debug("Moved file {Filename} to {Destination}", transfer.Filename, finalFilename);
-
-                if (OptionsMonitor.CurrentValue.Relay.Enabled)
-                {
-                    _ = Relay.NotifyFileDownloadCompleteAsync(finalFilename);
-                }
-
-                try
-                {
-                    // begin post-processing tasks; the file is downloaded, it has been removed from the client's download dictionary,
-                    // and the file has been moved from the incomplete directory to the downloads directory
-                    Log.Debug("Running post-download logic for {Filename} from {Username}", transfer.Filename, transfer.Username);
-
-                    EventBus.Raise(new DownloadFileCompleteEvent
-                    {
-                        Timestamp = transfer.EndedAt.Value,
-                        LocalFilename = finalFilename,
-                        RemoteFilename = transfer.Filename,
-                        Transfer = transfer,
-                    });
-
-                    // try to figure out if this file is the last of a directory, and if so, raise the associated
-                    // event. this can be tricky because we want to be sure that this is the last file in this specific
-                    // directory, excluding any pending downloads in a subdirectory.
-                    var remoteDirectorySeparator = transfer.Filename.GuessDirectorySeparator();
-                    var remoteDirectoryName = transfer.Filename.GetDirectoryName(directorySeparator: remoteDirectorySeparator);
-                    var pendingDownloadsInDirectory = Client.Downloads
-                        .Where(t => t.Username == transfer.Username)
-                        .Where(t => t.Filename.GetDirectoryName(directorySeparator: remoteDirectorySeparator) == remoteDirectoryName);
-
-                    if (!pendingDownloadsInDirectory.Any())
-                    {
-                        EventBus.Raise(new DownloadDirectoryCompleteEvent
-                        {
-                            Timestamp = transfer.EndedAt.Value,
-                            Username = transfer.Username,
-                            LocalDirectoryName = destinationDirectory,
-                            RemoteDirectoryName = remoteDirectoryName,
-                        });
-                    }
-
-                    if (OptionsMonitor.CurrentValue.Integration.Ftp.Enabled)
-                    {
-                        _ = FTP.UploadAsync(finalFilename);
-                    }
-
-                    Log.Debug("Completed post-download logic for {Filename} from {Username} successfully", transfer.Filename, transfer.Username);
-                }
-                catch (Exception ex)
-                {
-                    // log, but don't throw. the file ended up in the download folder and is complete; if we throw it looks like it didn't complete
-                    // todo: add a visual indicator/new state for Transfers that indicate this state.  or move all of this logic out and handle it via events
-                    Log.Error(ex, "Failed to run post-download processes for {Filename} from {Username}: {Message}", transfer.Filename, transfer.Username, ex.Message);
-                }
-
-                Log.Information("Download of {Filename} from user {Username} completed successfully", transfer.Filename, transfer.Username);
-
-                return transfer;
-            }
-            catch (Exception ex) when (ex is OperationCanceledException || ex is TimeoutException)
-            {
-                Log.Error(ex, "Download of {Filename} from user {Username} failed: {Message}", transfer.Filename, transfer.Username, ex.Message);
-
-                transfer.EndedAt = DateTime.UtcNow;
-                transfer.Exception = ex.Message;
-                transfer.State = TransferStates.Completed;
-
-                transfer.State |= ex switch
-                {
-                    OperationCanceledException => TransferStates.Cancelled,
-                    TimeoutException => TransferStates.TimedOut,
-                    _ => TransferStates.Errored,
-                };
-
-                // todo: broadcast
-                SynchronizedUpdate(transfer, semaphore: syncRoot, cancellationToken: CancellationToken.None);
-
-                throw;
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "Download of {Filename} from user {Username} failed: {Message}", transfer.Filename, transfer.Username, ex.Message);
-
-                transfer.EndedAt = DateTime.UtcNow;
-                transfer.Exception = ex.Message;
-                transfer.State = TransferStates.Completed | TransferStates.Errored;
-
-                // todo: broadcast
-                SynchronizedUpdate(transfer, semaphore: syncRoot, cancellationToken: CancellationToken.None);
-
-                throw;
-            }
-            finally
-            {
-                Log.Debug("Finalizing download of {Filename} from {Username}", transfer.Filename, transfer.Username);
-
-                try
-                {
-                    Locks.TryRemove(lockName, out _);
-                    Log.Debug("Released lock {LockName}", lockName);
-
-                    CancellationTokens.TryRemove(transfer.Id, out _);
-
-                    Log.Debug("Finalization of download of {Filename} from {Username} completed", transfer.Filename, transfer.Username);
-                }
-                catch (Exception ex)
-                {
-                    Log.Error(ex, "Failed to finalize download of {Filename} from {Username}: {Message}", transfer.Filename, transfer.Username, ex.Message);
-                }
-            }
-        }
-
-        /// <summary>
         ///     Enqueues the requested list of <paramref name="files"/>.
         /// </summary>
         /// <param name="username">The username of the remote user.</param>
@@ -505,30 +216,37 @@ namespace slskd.Transfers.Downloads
         /// <exception cref="ArgumentException">Thrown when the username is null or an empty string.</exception>
         /// <exception cref="ArgumentException">Thrown when no files are requested.</exception>
         /// <exception cref="AggregateException">Thrown when at least one of the requested files throws.</exception>
-        public async Task<(List<Transfer> Enqueued, List<Transfer> Failed)> EnqueueAsync(string username, IEnumerable<(string Filename, long Size)> files, CancellationToken cancellationToken = default)
+        public async Task<(List<Transfer> Enqueued, List<string> Failed)> EnqueueAsync(string username, IEnumerable<(string Filename, long Size)> files, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrEmpty(username))
             {
                 throw new ArgumentException("Username is required", nameof(username));
             }
 
-            if (!files.Any())
+            var fileList = files.ToList();
+
+            if (fileList.Count == 0)
             {
                 throw new ArgumentException("At least one file is required", nameof(files));
             }
 
+            if (fileList.Count != fileList.Distinct().Count())
+            {
+                throw new ArgumentException("Two or more files in request are duplicated", nameof(files));
+            }
+
             IPEndPoint endpoint;
 
-            Log.Information("Requested enqueue of {Count} files from user {Username}", files.Count(), username);
+            Log.Information("Requested enqueue of {Count} files from user {Username}", fileList.Count, username);
 
+            // get the user's ip and port. this will throw if they are offline.
             try
             {
-                // get the user's ip and port. this will throw if they are offline.
                 endpoint = await Client.GetUserEndPointAsync(username, cancellationToken);
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "Failed to enqueue {Count} files from {Username}: {Message}", files.Count(), username, ex.Message);
+                Log.Error(ex, "Failed to enqueue {Count} files from {Username}: {Message}", fileList.Count, username, ex.Message);
                 throw;
             }
 
@@ -544,68 +262,90 @@ namespace slskd.Transfers.Downloads
                 throw;
             }
 
-            List<string> acquiredLocks = [];
+            List<Transfer> enqueued = [];
+            List<string> failed = [];
+
+            SemaphoreSlim userSemaphore;
+            Task userSemaphoreWaitTask;
+
+            Log.Debug("Awaiting enqueue semaphore sync root");
+            await EnqueueSemaphoreSyncRoot.WaitAsync(cancellationToken);
 
             try
             {
-                List<Transfer> enqueued = [];
-                List<Transfer> failed = [];
+                Log.Debug("Acquired enqueue semaphore sync root");
+                userSemaphore = EnqueueSemaphores.GetOrAdd(username, (username) => new SemaphoreSlim(initialCount: 1, maxCount: 1));
+                userSemaphoreWaitTask = userSemaphore.WaitAsync(cancellationToken);
+            }
+            finally
+            {
+                EnqueueSemaphoreSyncRoot.Release();
+                Log.Debug("Released enqueue semaphore sync root");
+            }
+
+            Log.Debug("Awaiting enqueue semaphore for user {Username}", username);
+            await userSemaphoreWaitTask;
+
+            try
+            {
+                Log.Debug("Acquired enqueue semaphore for user {Username}", username);
+
+                using var context = ContextFactory.CreateDbContext();
 
                 /*
-                    first, check inputs and do an _exhaustive_ check for all of the files provided, separating files out
-                    into good/bad
-
-                    acquire locks for each, and track them so we can release them later (in the finally block)
+                    get all past downloads from this user.  this list will remain stable throughout this process because
+                    we have exclusive access for this user.  we'll be adding new records, but we've already deduplicated
+                    them so we don't have to worry about duplicate records being created in the critical section
                 */
-                foreach (var file in files)
+                var existingRecords = context.Transfers
+                    .Where(t => t.Direction == TransferDirection.Download)
+                    .Where(t => t.Username == username)
+                    .AsNoTracking()
+                    .ToList();
+
+                var existingInProgressRecords = existingRecords
+                    .Where(t => t.EndedAt == null || !t.State.HasFlag(TransferStates.Completed))
+                    .ToDictionary(t => t.Filename, t => t);
+
+                /*
+                    determine how many concurrent enqueue requests we want to send to the remote client.
+
+                    sending a ton of them can bog the client down and fail transfers due to resource contention on both sides,
+                    but both clients should be able to handle momentary 'bursts'.
+
+                    if the request contains 30 files or fewer, send all of the requests at the same time. the average number
+                    of tracks in a single album is 15, so this is 2x as many as most enqueue requests will need.
+
+                    if that number is more than 30, send only 5 at a time; transfers will be starting as we are still
+                    enqueueing files, and this raises the risk of errors considerably.
+                */
+                var concurrentEnqueueRequests = 5;
+
+                if (fileList.Count <= 30)
+                {
+                    concurrentEnqueueRequests = fileList.Count;
+                }
+
+                var maxTimeToWaitForEnqueueRequestAck = TimeSpan.FromMinutes(3);
+                var enqueueSemaphore = new SemaphoreSlim(initialCount: concurrentEnqueueRequests, maxCount: concurrentEnqueueRequests);
+
+                /*
+                    iterate over each of the files in the request.  each file must be dispositioned as one of the following:
+
+                    1. enqueued: passed duplicate checks and successfully kicked off a Task to enqueue the download
+                    2. failed: download is already in progress, or something went wrong kicking off the Task
+
+                    if we fail to enqueue a file, we must call TryFail() to ensure that if a record was inserted, it is
+                    given a final disposition that will keep it from getting 'stuck'
+                */
+                foreach (var file in fileList)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-
-                    var transfer = new Transfer()
-                    {
-                        Id = Guid.NewGuid(),
-                        Username = username,
-                        Direction = TransferDirection.Download,
-                        Filename = file.Filename, // important! use the remote filename
-                        Size = file.Size,
-                        StartOffset = 0, // todo: maybe implement resumeable downloads?
-                        RequestedAt = DateTime.UtcNow,
-                        State = TransferStates.Queued | TransferStates.Locally,
-                    };
-
-                    var lockName = $"{nameof(EnqueueAsync)}:{username}:{file.Filename}";
-
-                    if (!Locks.TryAdd(lockName, true))
-                    {
-                        Log.Debug("Ignoring concurrent download enqueue attempt; lock {LockName} already held", lockName);
-                        transfer.Exception = "A download for this file from this user is already underway";
-                        transfer.State = TransferStates.Aborted | TransferStates.Completed;
-                        failed.Add(transfer);
-                        continue;
-                    }
+                    Guid transferId = Guid.NewGuid();
 
                     try
                     {
-                        acquiredLocks.Add(lockName);
-                        Log.Debug("Acquired lock {LockName}", lockName);
-
                         Log.Debug("Checking whether download of {Filename} from {Username} is already in progress", file.Filename, username);
-
-                        using var context = ContextFactory.CreateDbContext();
-
-                        /*
-                            first, get all past downloads from this user for this filename
-                        */
-                        var existingRecords = context.Transfers
-                            .Where(t => t.Direction == TransferDirection.Download)
-                            .Where(t => t.Username == username)
-                            .Where(t => t.Filename == file.Filename)
-                            .AsNoTracking()
-                            .ToList();
-
-                        var existingInProgressRecords = existingRecords
-                            .Where(t => t.EndedAt == null || !t.State.HasFlag(TransferStates.Completed))
-                            .ToList();
 
                         /*
                             if there are any that haven't ended yet (checking a few ways out of paranoia), then there's already
@@ -614,20 +354,37 @@ namespace slskd.Transfers.Downloads
                             check the tracked download dictionary in Soulseek.NET to see if it knows about this already
                             it shouldn't, if the slskd database doesn't. but things could get desynced
                         */
-                        if (existingInProgressRecords.Count != 0 || Client.Downloads.Any(u => u.Username == username && u.Filename == file.Filename))
+                        existingInProgressRecords.TryGetValue(file.Filename, out var existingInProgressRecord);
+
+                        if (existingInProgressRecord is not null || Client.Downloads.Any(u => u.Username == username && u.Filename == file.Filename))
                         {
-                            Log.Debug("Ignoring concurrent download enqueue attempt; lock {LockName} already held", lockName);
-                            transfer.Exception = "A download for this file from this user is already underway";
-                            transfer.State = TransferStates.Aborted | TransferStates.Completed;
-                            failed.Add(transfer);
+                            Log.Debug("Ignoring concurrent download enqueue attempt; transfer for {Filename} from {Username} already in progress (id: {Id})", file.Filename, username, existingInProgressRecord.Id);
+                            failed.Add(file.Filename);
                             continue;
                         }
 
                         /*
-                            we've passed 3 different checks to ensure that this file is not already being downloaded, so
-                            add it to the database and remove any existing (past) records of it from the UI
+                            add the transfer record to the database in the Queued | Locally state, and set the 'Removed'
+                            property of any existing transfer to 'true', allowing the new record to supersede any old record(s)
+                            on the UI
+
+                            we have to persist these changes to the database at this time so the record shows up on the UI,
+                            otherwise the transfers only show up as they are enqueued.
                         */
+                        var transfer = new Transfer()
+                        {
+                            Id = transferId,
+                            Username = username,
+                            Direction = TransferDirection.Download,
+                            Filename = file.Filename, // important! use the remote filename
+                            Size = file.Size,
+                            StartOffset = 0, // todo: maybe implement resumeable downloads?
+                            RequestedAt = DateTime.UtcNow,
+                            State = TransferStates.Queued | TransferStates.Locally,
+                        };
+
                         context.Add(transfer);
+
                         Log.Debug("Added Transfer record for download of {Filename} from {Username} (id: {Id})", transfer.Filename, transfer.Username, transfer.Id);
 
                         foreach (var record in existingRecords.Where(t => !t.Removed))
@@ -637,269 +394,171 @@ namespace slskd.Transfers.Downloads
                             Log.Debug("Marked existing download record of {Filename} from {Username} removed (id: {Id})", file.Filename, username, record.Id);
                         }
 
+                        /*
+                            create a TaskCompletionSource that we can await for one of the following:
+
+                            1. the transfer enters the Queued | Remotely state
+                            2. the transfer enters a state containing Completed
+                            3. the linked CancellationTokenSource we add to CancellationTokens is cancelled
+                            4. the 'max wait time' CancellationTokenSource is cancelled
+
+                            add this to the dictionary before inserting the record, so we are guaranteed to have it
+                            in the right place once the transfer hits the UI
+                        */
+                        var enqueuedTcs = new TaskCompletionSource<Transfer>();
+
+                        // satisfies condition #3; CancellationTokenSource set cancelled by the user (via API call)
+                        var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                        CancellationTokens.TryAdd(transfer.Id, cts);
+                        cts.Token.Register(() => enqueuedTcs.TrySetCanceled());
+
+                        /*
+                            DANGER ZONE! this record is in the database now; we're on the hook for making sure it ends up
+                            with a State that includes the Completed flag, else it remain "stuck" on the UI
+                        */
                         context.SaveChanges();
-                        enqueued.Add(transfer);
 
-                        Log.Information("Successfully locally enqueued download of {Filename} from {Username}", file.Filename, username, transfer.Id);
-                    }
-                    catch (Exception ex)
-                    {
-                        // note: there's nothing to cancel or download yet, so any failure to execute the above is an error
-                        Log.Error(ex, "Failed to enqueue download of {Filename} from {Username}: {Message}", file.Filename, username, ex.Message);
-                        transfer.Exception = ex.Message;
-                        transfer.State = TransferStates.Errored | TransferStates.Completed;
-                        failed.Add(transfer);
-                        continue;
-                    }
-                }
+                        Log.Debug("Scheduling Task for enqueue of {Filename} from {Username}", file.Filename, username);
 
-                if (enqueued.Count == 0)
-                {
-                    Log.Warning("None of the {Count} requested files from {Username} could be enqueued as they are already in progress", files.Count(), username);
-                    return (enqueued, failed);
-                }
-
-                /*
-                    the files are all now in the database in the Queued | Locally state.
-
-                    we'll proceed with downloading them, but in a separate task run in the background
-                */
-                Log.Debug("Scheduling batch remote enqueue Task for {Count} files from {Username}", enqueued.Count, username);
-
-                var batchEnqueueTask = Task.Run(async () =>
-                {
-                    /*
-                        enqueue each of the specified files, waiting to ensure that the remote client has responded to our
-                        request to enqueue before moving on to the next
-
-                        we do this because Soulseek.NET sends a TransferRequest/40 which expects a TransferResponse/41 in return,
-                        telling us that either 1) the transfer can begin immediately 2) the transfer was enqueued remotely
-                        or 3) the transfer was rejected
-
-                        if at a later date Soulseek.NET is refactored to use different logic, we'll want to rethink this, particularly
-                        to avoid the need to wait for a confirmation from the remote client.
-
-                        note: we can't just fire off all of these requests at the same time, because the remote client will get
-                        overwhelmed, responses will be delayed, and the timeout within Soulseek.NET that's waiting for the
-                        TransferResponse/41 message will expire and fail the download
-                    */
-                    var concurrentRequests = 10;
-                    var maxTimeToWaitForTransferAck = TimeSpan.FromMinutes(1);
-
-                    var semaphore = new SemaphoreSlim(initialCount: concurrentRequests, maxCount: concurrentRequests);
-
-                    Log.Debug("Scheduling Tasks to download {Count} files from {Username}", enqueued.Count, username);
-
-                    var tasks = enqueued.Select(async transfer =>
-                    {
-                        Log.Debug("Awaiting download semaphore for {Filename} from {Username}", transfer.Filename, transfer.Username);
-                        await semaphore.WaitAsync();
-
-                        try
+                        var downloadEnqueueTask = Task.Run(async () =>
                         {
-                            Log.Debug("Acquired download semaphore for {Filename} from {Username}", transfer.Filename, transfer.Username);
-
-                            var enqueuedTcs = new TaskCompletionSource<Transfer>();
-                            List<string> transitions = [];
-                            TransferStates state = TransferStates.None;
-
-                            // set a hard limit on the time we are willing to wait for the remote client to confirm or reject
-                            // the enqueue of the file. we have to do this so that we don't get stuck indefinitely
-                            using var timeoutCts = new CancellationTokenSource(maxTimeToWaitForTransferAck);
-                            timeoutCts.Token.Register(() =>
-                            {
-                                if (!enqueuedTcs.Task.IsCompleted)
-                                {
-                                    Log.Warning("Download of {Filename} from {Username} failed to enqueue remotely after hard time limit. State transition history: {History}", transfer.Filename, username, string.Join(", ", transitions));
-                                    enqueuedTcs.TrySetException(new TimeoutException("Download failed to enqueue remotely after hard time limit"));
-                                }
-                            });
-
-                            void stateChanged(Transfer transfer)
-                            {
-                                state = transfer.State;
-                                transitions.Add(transfer.State.ToString());
-
-                                // _contractually_ (covered by unit tests!) all downloads will at some point enter the Queued | Remotely state
-                                // there _should be_ no way we can get hung up here, but if we do, also check for Completed as a backstop
-                                if (transfer.State.HasFlag(TransferStates.Queued) && transfer.State.HasFlag(TransferStates.Remotely))
-                                {
-                                    enqueuedTcs.TrySetResult(transfer);
-                                }
-
-                                // if something goes wrong and we never get to enqueued, trip the result when we transition into
-                                // completed, so we don't get stuck. we shouldn't take this to mean we were successful, we're just
-                                // trying to ensure we don't get stuck
-                                if (transfer.State.HasFlag(TransferStates.Completed))
-                                {
-                                    if (transfer.State.HasFlag(TransferStates.Succeeded))
-                                    {
-                                        enqueuedTcs.TrySetResult(transfer);
-                                    }
-                                    else
-                                    {
-                                        enqueuedTcs.TrySetException(new TransferException(transfer.Exception));
-                                    }
-                                }
-                            }
-
-                            Log.Debug("Scheduling Task for download of {Filename} from {Username}", transfer.Filename, transfer.Username);
-
-                            // enqueue the file. this call will return when the record has been inserted and the download task
-                            // kicked off.  the stateChanged delegate will be passed down to the download task, which will eventually trip it
-                            var downloadTask = Task.Run(() => DownloadAsync(transfer, stateChanged, cancellationToken)).ContinueWith(task =>
-                            {
-                                if (task.IsCompletedSuccessfully)
-                                {
-                                    Log.Information("Task for download of {Filename} from {Username} completed successfully", transfer.Filename, transfer.Username);
-                                    return;
-                                }
-
-                                /*
-                                    things that can cause us to arrive here:
-
-                                    * transfer record deleted somehow
-                                    * transfer record updated so that it's no longer in Queued | Locally
-                                    * Soulseek.NET already tracking an identical download (slskd <> Soulseek.NET desync)
-                                */
-                                Log.Error(task.Exception, "Task for download of {Filename} from {Username} did not complete successfully: {Error}", transfer.Filename, transfer.Username, task.Exception.Message);
-
-                                try
-                                {
-                                    var foundTransfer = Find(t => t.Id == transfer.Id);
-
-                                    if (foundTransfer is not null)
-                                    {
-                                        foundTransfer.EndedAt ??= DateTime.UtcNow;
-                                        foundTransfer.Exception ??= task.Exception.InnerException.Message;
-
-                                        if (!foundTransfer.State.HasFlag(TransferStates.Completed))
-                                        {
-                                            foundTransfer.State = TransferStates.Completed | task.Exception.InnerException switch
-                                            {
-                                                OperationCanceledException => TransferStates.Cancelled,
-                                                TimeoutException => TransferStates.TimedOut,
-                                                _ => TransferStates.Errored,
-                                            };
-                                        }
-
-                                        Update(foundTransfer);
-                                    }
-                                }
-                                catch (Exception ex)
-                                {
-                                    Log.Error(ex, "Failed to clean up transfer {Id} after failed execution: {Message}", transfer.Id, ex.Message);
-                                }
-                            }, cancellationToken);
-
-                            if (downloadTask.Status == TaskStatus.Canceled)
-                            {
-                                throw new OperationCanceledException($"The download Task for {transfer.Filename} from {transfer.Username} was cancelled");
-                            }
-
-                            if (downloadTask.Status == TaskStatus.Faulted)
-                            {
-                                throw new Exception($"The download Task for {transfer.Filename} from {transfer.Username} faulted: {downloadTask.Exception}", downloadTask.Exception);
-                            }
-
-                            Log.Debug("Download Task status: {Status}", downloadTask.Status);
-
-                            Log.Debug("Waiting for download of {Filename} from {Username} to transition into {State}", transfer.Filename, transfer.Username, TransferStates.Queued | TransferStates.Remotely);
-
-                            // wait for the download to either enter the Queued | Remotely or Completed states, or for the hard limit
-                            // timeout to trip and set an exception
-                            await enqueuedTcs.Task;
-
-                            Log.Debug("Download of {Filename} from {Username} successfully entered state {State}", transfer.Filename, transfer.Username, state);
-                        }
-                        catch (Exception ex)
-                        {
-                            Log.Error(ex, "Failed to download {Filename} from {Username}: {Message}", transfer.Filename, transfer.Username, ex.Message);
+                            Log.Debug("Awaiting download enqueue semaphore for {Filename} from {Username}", transfer.Filename, transfer.Username);
+                            await enqueueSemaphore.WaitAsync(cts.Token);
 
                             try
                             {
-                                var foundTransfer = Find(t => t.Id == transfer.Id);
+                                Log.Debug("Acquired download enqueue semaphore for {Filename} from {Username}", transfer.Filename, transfer.Username);
 
-                                if (foundTransfer is not null)
+                                List<string> transitions = [];
+                                TransferStates state = TransferStates.None;
+
+                                // satisfies condition #4; remote user doesn't respond after a really long time
+                                using var timeoutCts = new CancellationTokenSource(maxTimeToWaitForEnqueueRequestAck);
+                                timeoutCts.Token.Register(() =>
                                 {
-                                    foundTransfer.EndedAt ??= DateTime.UtcNow;
-                                    foundTransfer.Exception ??= ex.Message;
+                                    Log.Warning("Download of {Filename} from {Username} failed to enqueue remotely after hard time limit of {Duration} seconds. State transition history: {History}", transfer.Filename, username, maxTimeToWaitForEnqueueRequestAck.TotalSeconds, string.Join(", ", transitions));
+                                    enqueuedTcs.TrySetException(new TimeoutException($"Download failed to enqueue remotely after hard time limit of {maxTimeToWaitForEnqueueRequestAck.TotalSeconds} secs"));
+                                });
 
-                                    if (!foundTransfer.State.HasFlag(TransferStates.Completed))
+                                // satisfies conditions #1 and #2
+                                void stateChanged(Transfer transfer)
+                                {
+                                    state = transfer.State;
+                                    transitions.Add(transfer.State.ToString());
+
+                                    if (transfer.State.HasFlag(TransferStates.Queued) && transfer.State.HasFlag(TransferStates.Remotely))
                                     {
-                                        foundTransfer.State = TransferStates.Completed | ex switch
-                                        {
-                                            OperationCanceledException => TransferStates.Cancelled,
-                                            TimeoutException => TransferStates.TimedOut,
-                                            _ => TransferStates.Errored,
-                                        };
+                                        // satisfies condition #1; transfer is now remotely queued
+                                        enqueuedTcs.TrySetResult(transfer);
                                     }
 
-                                    Update(transfer);
+                                    // satisfies condition #2; transfer advanced to a terminal state before being enqueued remotely (probably failed)
+                                    if (transfer.State.HasFlag(TransferStates.Completed))
+                                    {
+                                        if (transfer.State.HasFlag(TransferStates.Succeeded))
+                                        {
+                                            enqueuedTcs.TrySetResult(transfer);
+                                        }
+                                        else
+                                        {
+                                            enqueuedTcs.TrySetException(new TransferException(transfer.Exception));
+                                        }
+                                    }
+                                }
+
+                                Log.Debug("Scheduling Task for download of {Filename} from {Username}", transfer.Filename, transfer.Username);
+
+                                var downloadTask = Task.Run(() => DownloadAsync(transfer, stateChanged, cancellationToken: cts.Token)).ContinueWith(task =>
+                                {
+                                    if (task.IsCompletedSuccessfully)
+                                    {
+                                        Log.Information("Task for download of {Filename} from {Username} completed successfully", transfer.Filename, transfer.Username);
+                                        return;
+                                    }
+
+                                    Log.Error(task.Exception, "Task for download of {Filename} from {Username} did not complete successfully: {Error}", file.Filename, username, task.Exception.InnerException?.Message ?? task.Exception.Message);
+
+                                    if (!TryFail(transferId, exception: task.Exception))
+                                    {
+                                        Log.Error(task.Exception, "Failed to clean up transfer {Id} after failed enqueue: {Message}", transfer.Id, task.Exception.Message);
+                                    }
+                                }, cancellationToken: CancellationToken.None); // end downloadTask.Run();
+
+                                Log.Debug("Download Task status for {Filename} from {Username}: {Status}", file.Filename, username, downloadTask.Status);
+
+                                Log.Debug("Waiting for download of {Filename} from {Username} to transition into {State}", transfer.Filename, transfer.Username, TransferStates.Queued | TransferStates.Remotely);
+
+                                /*
+                                    wait for one of the four conditions to be true:
+
+                                    1. the transfer enters the Queued | Remotely state
+                                    2. the transfer enters a state containing Completed
+                                    3. the linked CancellationTokenSource we add to CancellationTokens is cancelled
+                                    4. the 'max wait time' CancellationTokenSource is cancelled
+                                */
+                                await enqueuedTcs.Task;
+
+                                Log.Debug("Download of {Filename} from {Username} successfully entered state {State}", transfer.Filename, transfer.Username, state);
+                            }
+                            catch (Exception ex)
+                            {
+                                Log.Error(ex, "Download of {File} from {Username} failed: {Message}", transfer.Filename, transfer.Username, ex.Message);
+                                if (!TryFail(transferId, exception: ex))
+                                {
+                                    Log.Error(ex, "Failed to clean up transfer {Id} after failed execution: {Message}", transfer.Id, ex.Message);
                                 }
                             }
-                            catch (Exception innerEx)
+                            finally
                             {
-                                Log.Error(innerEx, "Failed to clean up transfer {Id} after failed enqueue: {Message}", transfer.Id, innerEx.Message);
+                                enqueueSemaphore.Release();
                             }
-                        }
-                        finally
+                        }, cancellationToken: cts.Token).ContinueWith(task =>
                         {
-                            semaphore.Release();
-                            Log.Debug("Released download semaphore for {Filename} from {Username}", transfer.Filename, transfer.Username);
-                        }
-                    });
+                            if (task.IsCompletedSuccessfully)
+                            {
+                                Log.Information("Task for enqueue of {Filename} from {Username} completed successfully", file.Filename, username);
+                                return;
+                            }
 
-                    Log.Debug("Waiting for all {Count} download Tasks for {Username} to complete", enqueued.Count, username);
-                    await Task.WhenAll(tasks);
-                }, cancellationToken).ContinueWith(task =>
-                {
-                    if (task.IsCompletedSuccessfully)
-                    {
-                        Log.Information("Task for batch enqueue of {Count} files from {Username} completed successfully", files.Count(), username);
-                        return;
+                            Log.Error(task.Exception, "Task for enqueue of {Filename} from {Username} did not complete successfully: {Error}", file.Filename, username, task.Exception.InnerException?.Message ?? task.Exception.Message);
+
+                            if (!TryFail(transferId, exception: task.Exception))
+                            {
+                                Log.Error(task.Exception, "Failed to clean up transfer {Id} after failed enqueue: {Message}", transfer.Id, task.Exception.Message);
+                            }
+                        }, cancellationToken: CancellationToken.None); // end downloadEnqueueTask.Run();
+
+                        Log.Debug("Download enqueue Task status for {Filename} from {Username}: {Status}", file.Filename, username, downloadEnqueueTask.Status);
+                        Log.Information("Successfully locally enqueued download of {Filename} from {Username} (id: {Id})", file.Filename, username, transfer.Id);
+                        enqueued.Add(transfer);
                     }
+                    catch (Exception ex)
+                    {
+                        Log.Error(ex, "Failed to enqueue download of {Filename} from {Username}: {Message}", file.Filename, username, ex.Message);
+                        TryFail(transferId, exception: ex);
+                        failed.Add(file.Filename);
 
-                    Log.Error(task.Exception, "Task for batch enqueue of {Count} files from {Username} did not complete successfully: {Error}", files.Count(), username, task.Exception.Flatten().Message);
-                }, cancellationToken: CancellationToken.None);
+                        if (CancellationTokens.TryRemove(transferId, out var cts))
+                        {
+                            cts.Dispose();
+                        }
 
-                if (batchEnqueueTask.Status == TaskStatus.Canceled)
-                {
-                    throw new OperationCanceledException($"The batch enqueue Task for {enqueued.Count} files from {username} was cancelled");
-                }
+                        continue;
+                    }
+                } // end foreach()
 
-                if (batchEnqueueTask.Status == TaskStatus.Faulted)
-                {
-                    throw new Exception($"The batch enqueue Task for {enqueued.Count} files from {username} faulted: {batchEnqueueTask.Exception}", batchEnqueueTask.Exception);
-                }
-
-                Log.Debug("Batch enqueue Task status: {Status}", batchEnqueueTask.Status);
                 Log.Information("Successfully enqueued {Count} files from {Username}", enqueued.Count, username);
-
                 return (enqueued, failed);
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "Failed to enqueue one or more of {Count} files from {Username}: {Message}", files.Count(), username, ex.Message);
+                Log.Error(ex, "Failed to enqueue one or more of {Count} files from {Username}: {Message}", fileList.Count, username, ex.Message);
                 throw;
             }
             finally
             {
-                Log.Debug("Finalizing enqueue of one or more files from {Username}", username);
-
-                foreach (var lockName in acquiredLocks)
-                {
-                    if (Locks.TryRemove(lockName, out _))
-                    {
-                        Log.Debug("Released lock {LockName}", lockName);
-                    }
-                    else
-                    {
-                        Log.Error("Failed to release lock for {LockName}", lockName);
-                    }
-                }
-
-                Log.Debug("Finalization of enqueue of one or more files from {Username} completed", username);
+                userSemaphore.Release();
+                Log.Debug("Released enqueue semaphore for user {Username}", username);
             }
         }
 
@@ -1077,9 +736,71 @@ namespace slskd.Transfers.Downloads
         /// <returns>A value indicating whether the download was successfully cancelled.</returns>
         public bool TryCancel(Guid id)
         {
+            // if the cancellation token is still in the dictionary, calling Cancel() on it _should_
+            // cause the transfer operation to fail with an OperationCancelled exception and set the state
+            // of the transfer to Cancelled.  _should_!
             if (CancellationTokens.TryRemove(id, out var cts))
             {
                 cts.Cancel();
+                return true;
+            }
+
+            /*
+                if the cancellation token couldn't be found in the dictionary, either:
+
+                1. the transfer completed already
+                2. something went wrong and the record is 'stuck'
+
+                see if we can find the record, and if it's *NOT* completed, cancel it. otherwise,
+                leave it alone.
+            */
+            var t = Find(t => t.Id == id);
+
+            if (t is not null && !t.State.HasFlag(TransferStates.Completed))
+            {
+                t.EndedAt = DateTime.UtcNow;
+                t.State = TransferStates.Completed | TransferStates.Cancelled;
+                t.Exception = new OperationCanceledException().Message;
+                Update(t);
+                return true;
+            }
+
+            // this transfer id didn't have a cancellation token registered, and we couldn't find it in the dictionary
+            return false;
+        }
+
+        /// <summary>
+        ///     Fails the download matching the specified <paramref name="id"/> with the specified <paramref name="exception"/>,
+        ///     and sets the final state accordingly.
+        /// </summary>
+        /// <remarks>
+        ///     This method is designed to be idempotent, meaning subsequent calls for a given transfer shouldn't change
+        ///     the EndedAt or Exception properties if they have already been set. If the transfer State already includes
+        ///     the terminal Completed flag, it is unchanged.
+        /// </remarks>
+        /// <param name="id">The unique identifier for the download.</param>
+        /// <param name="exception">The exception that caused the failure.</param>
+        /// <returns>A value indicating whether the download was successfully failed.</returns>
+        public bool TryFail(Guid id, Exception exception)
+        {
+            var t = Find(t => t.Id == id);
+
+            if (t is not null)
+            {
+                t.EndedAt ??= DateTime.UtcNow;
+                t.Exception ??= exception.Message;
+
+                if (!t.State.HasFlag(TransferStates.Completed))
+                {
+                    t.State = TransferStates.Completed | exception switch
+                    {
+                        OperationCanceledException => TransferStates.Cancelled,
+                        TimeoutException => TransferStates.TimedOut,
+                        _ => TransferStates.Errored,
+                    };
+                }
+
+                Update(t);
                 return true;
             }
 
@@ -1098,6 +819,260 @@ namespace slskd.Transfers.Downloads
             context.SaveChanges();
         }
 
+        /// <summary>
+        ///     Downloads the specified enqueued <paramref name="transfer"/> from the remote user.
+        /// </summary>
+        /// <param name="transfer">The Transfer to download.</param>
+        /// <param name="stateChanged">An optional delegate to invoke the transfer state changes.</param>
+        /// <param name="cancellationToken">The token to monitor for cancellation.</param>
+        /// <returns>The operation context.</returns>
+        /// <exception cref="ArgumentNullException">Thrown if the specified Transfer is null.</exception>
+        /// <exception cref="TransferNotFoundException">Thrown if the specified Transfer ID can't be found in the database.</exception>
+        /// <exception cref="InvalidOperationException">Thrown if the specified Transfer is not in the Queued | Locally state.</exception>
+        /// <exception cref="DuplicateTransferException">Thrown if a download matching the username and filename is already tracked by Soulseek.NET.</exception>
+        private async Task<Transfer> DownloadAsync(Transfer transfer, Action<Transfer> stateChanged = null, CancellationToken cancellationToken = default)
+        {
+            if (transfer is null)
+            {
+                throw new ArgumentNullException(nameof(transfer), "A valid, enqueued Transfer is required");
+            }
+
+            // grab the latest from the database; this may have been sitting behind a semaphore or something
+            transfer = Find(t => t.Id == transfer.Id)
+                ?? throw new TransferNotFoundException($"Transfer with ID {transfer.Id} not found");
+
+            if (transfer.State != (TransferStates.Queued | TransferStates.Locally))
+            {
+                throw new InvalidOperationException($"Invalid starting state for download; expected {TransferStates.Queued | TransferStates.Locally}, encountered {transfer.State}");
+            }
+
+            if (Client.Downloads.Any(u => u.Username == transfer.Username && u.Filename == transfer.Filename))
+            {
+                throw new DuplicateTransferException("A duplicate download of the same file to the same user is already registered");
+            }
+
+            // there _should_ be a cancellation token for this transfer in the dictionary; if so link it with the one we are given
+            // (which is probably the same one, harmless if so) to make sure we don't get any wires crossed
+            CancellationTokens.TryGetValue(transfer.Id, out var cancellationTokenSource);
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, cancellationTokenSource?.Token ?? CancellationToken.None);
+            cancellationToken = cts.Token;
+
+            var updateSyncRoot = new SemaphoreSlim(1, 1);
+
+            try
+            {
+                using var rateLimiter = new RateLimiter(250, concurrencyLimit: 1, flushOnDispose: true);
+
+                var topts = new TransferOptions(
+                    stateChanged: (args) =>
+                    {
+                        try
+                        {
+                            Log.Debug("Download of {Filename} from user {Username} changed state from {Previous} to {New}", transfer.Filename, transfer.Username, args.PreviousState, args.Transfer.State);
+
+                            // prevent Exceptions thrown during shutdown from updating the transfer record with related Exceptions;
+                            // instead, allow these to be left "hanging" so that they are properly cleaned up at the next startup
+                            if (Application.IsShuttingDown)
+                            {
+                                Log.Debug("Download update of {Filename} from {Username} not persisted; app is shutting down", transfer.Filename, transfer.Username);
+                                return;
+                            }
+
+                            transfer = transfer.WithSoulseekTransfer(args.Transfer);
+
+                            // we don't know when the download is actually enqueued (remotely) until it switches into that state
+                            // when it is enqueued locally is irrelevant, due to internal throttling etc
+                            if (args.Transfer.State.HasFlag(TransferStates.Queued) && args.Transfer.State.HasFlag(TransferStates.Remotely))
+                            {
+                                transfer.EnqueuedAt ??= DateTime.UtcNow;
+                            }
+
+                            // todo: broadcast
+                            SynchronizedUpdate(transfer, semaphore: updateSyncRoot, cancellationToken: cancellationToken);
+                        }
+                        finally
+                        {
+                            stateChanged?.Invoke(transfer);
+                        }
+                    },
+                    progressUpdated: (args) => rateLimiter.Invoke(() =>
+                    {
+                        // don't do anything unless the `transfer` within the outer scope is in the
+                        // InProgress state; this will help prevent out-of-band updates that are sometimes
+                        // being made after the transfer is completed, causing them to appear 'stuck'
+                        if (transfer.State == TransferStates.InProgress)
+                        {
+                            // don't wait for the semaphore; if a previous progress update is still hanging, don't make
+                            // the problem worse. this will result in fewer/jumpy updates on systems with slow filesystems
+                            // but the alternative is to continue to stack slow writes on top of one another
+                            if (updateSyncRoot.Wait(millisecondsTimeout: 0, cancellationToken: cancellationToken))
+                            {
+                                try
+                                {
+                                    // update only the properties that we expect to change between progress updates
+                                    // this helps prevent this update from 'stepping' on other updates
+                                    transfer.BytesTransferred = args.Transfer.BytesTransferred;
+                                    transfer.AverageSpeed = args.Transfer.AverageSpeed;
+
+                                    using var context = ContextFactory.CreateDbContext();
+
+                                    context.Transfers.Where(t => t.Id == transfer.Id).ExecuteUpdate(setter => setter
+                                        .SetProperty(t => t.BytesTransferred, transfer.BytesTransferred)
+                                        .SetProperty(t => t.AverageSpeed, transfer.AverageSpeed));
+                                }
+                                finally
+                                {
+                                    updateSyncRoot.Release();
+                                }
+                            }
+                            else
+                            {
+                                Log.Debug("Skipped progress update of {Filename} from {Username} {BytesTransferred}/{TotalBytes}; previous update still pending", transfer.Filename, transfer.Username, args.Transfer.BytesTransferred, args.Transfer.Size);
+                            }
+                        }
+                    }),
+                    disposeOutputStreamOnCompletion: true);
+
+                System.IO.UnixFileMode? unixFileMode = !string.IsNullOrEmpty(OptionsMonitor.CurrentValue.Permissions.File.Mode)
+                    ? OptionsMonitor.CurrentValue.Permissions.File.Mode.ToUnixFileMode()
+                    : null;
+
+                Log.Debug("Invoking Soulseek DownloadAsync() for {Filename} from {Username}", transfer.Filename, transfer.Username);
+
+                var completedTransfer = await Client.DownloadAsync(
+                    username: transfer.Username,
+                    remoteFilename: transfer.Filename,
+                    outputStreamFactory: () => Task.FromResult(
+                        Files.CreateFile(
+                            filename: transfer.Filename.ToLocalFilename(baseDirectory: OptionsMonitor.CurrentValue.Directories.Incomplete),
+                            options: new CreateFileOptions
+                            {
+                                Access = System.IO.FileAccess.Write,
+                                Mode = System.IO.FileMode.Create, // overwrites file if it exists
+                                Share = System.IO.FileShare.None, // exclusive access for the duration of the download
+                                UnixCreateMode = unixFileMode,
+                            })),
+                    size: transfer.Size,
+                    startOffset: 0,
+                    token: null,
+                    cancellationToken: cancellationToken,
+                    options: topts);
+
+                Log.Debug("Invocation of Soulseek DownloadAsync() for {Filename} from user {Username} completed successfully", transfer.Filename, transfer.Username);
+
+                // explicitly dispose the rate limiter to prevent updates from it beyond this point, and in doing so we
+                // flush any pending update, _probably_ pushing the state of the transfer back to InProgress
+                rateLimiter.Dispose();
+
+                // copy the completed transfer that was returned from Soulseek.NET in a terminal, fully updated state
+                // over the top of the transfer record, then persist it
+                transfer = transfer.WithSoulseekTransfer(completedTransfer);
+
+                // todo: broadcast to signalr hub
+                SynchronizedUpdate(transfer, semaphore: updateSyncRoot, cancellationToken: CancellationToken.None);
+
+                Log.Debug("Successfully updated Transfer for {Filename} from {Username} (state: {State}, progress: {Progress})", transfer.Filename, transfer.Username, transfer.State, transfer.PercentComplete);
+
+                // move the file from incomplete to complete
+                var destinationDirectory = System.IO.Path.GetDirectoryName(transfer.Filename.ToLocalFilename(baseDirectory: OptionsMonitor.CurrentValue.Directories.Downloads));
+
+                var finalFilename = Files.MoveFile(
+                    sourceFilename: transfer.Filename.ToLocalFilename(baseDirectory: OptionsMonitor.CurrentValue.Directories.Incomplete),
+                    destinationDirectory: destinationDirectory,
+                    unixFileMode: unixFileMode,
+                    overwrite: false,
+                    deleteSourceDirectoryIfEmptyAfterMove: true);
+
+                Log.Debug("Moved file {Filename} to {Destination}", transfer.Filename, finalFilename);
+
+                if (OptionsMonitor.CurrentValue.Relay.Enabled)
+                {
+                    _ = Relay.NotifyFileDownloadCompleteAsync(finalFilename);
+                }
+
+                try
+                {
+                    // begin post-processing tasks; the file is downloaded, it has been removed from the client's download dictionary,
+                    // and the file has been moved from the incomplete directory to the downloads directory
+                    Log.Debug("Running post-download logic for {Filename} from {Username}", transfer.Filename, transfer.Username);
+
+                    EventBus.Raise(new DownloadFileCompleteEvent
+                    {
+                        Timestamp = transfer.EndedAt.Value,
+                        LocalFilename = finalFilename,
+                        RemoteFilename = transfer.Filename,
+                        Transfer = transfer,
+                    });
+
+                    // try to figure out if this file is the last of a directory, and if so, raise the associated
+                    // event. this can be tricky because we want to be sure that this is the last file in this specific
+                    // directory, excluding any pending downloads in a subdirectory.
+                    var remoteDirectorySeparator = transfer.Filename.GuessDirectorySeparator();
+                    var remoteDirectoryName = transfer.Filename.GetDirectoryName(directorySeparator: remoteDirectorySeparator);
+                    var pendingDownloadsInDirectory = Client.Downloads
+                        .Where(t => t.Username == transfer.Username)
+                        .Where(t => t.Filename.GetDirectoryName(directorySeparator: remoteDirectorySeparator) == remoteDirectoryName);
+
+                    if (!pendingDownloadsInDirectory.Any())
+                    {
+                        EventBus.Raise(new DownloadDirectoryCompleteEvent
+                        {
+                            Timestamp = transfer.EndedAt.Value,
+                            Username = transfer.Username,
+                            LocalDirectoryName = destinationDirectory,
+                            RemoteDirectoryName = remoteDirectoryName,
+                        });
+                    }
+
+                    if (OptionsMonitor.CurrentValue.Integration.Ftp.Enabled)
+                    {
+                        _ = FTP.UploadAsync(finalFilename);
+                    }
+
+                    Log.Debug("Completed post-download logic for {Filename} from {Username} successfully", transfer.Filename, transfer.Username);
+                }
+                catch (Exception ex)
+                {
+                    // log, but don't throw. the file ended up in the download folder and is complete; if we throw it looks like it didn't complete
+                    // todo: add a visual indicator/new state for Transfers that indicate this state.  or move all of this logic out and handle it via events
+                    Log.Error(ex, "Failed to run post-download processes for {Filename} from {Username}: {Message}", transfer.Filename, transfer.Username, ex.Message);
+                }
+
+                Log.Information("Download of {Filename} from user {Username} completed successfully", transfer.Filename, transfer.Username);
+
+                return transfer;
+            }
+            catch (Exception ex) when (ex is OperationCanceledException || ex is TimeoutException)
+            {
+                Log.Error(ex, "Download of {Filename} from user {Username} failed: {Message}", transfer.Filename, transfer.Username, ex.Message);
+
+                TryFail(transfer.Id, exception: ex);
+
+                // todo: broadcast
+                SynchronizedUpdate(transfer, semaphore: updateSyncRoot, cancellationToken: CancellationToken.None);
+
+                throw;
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Download of {Filename} from user {Username} failed: {Message}", transfer.Filename, transfer.Username, ex.Message);
+
+                TryFail(transfer.Id, exception: ex);
+
+                // todo: broadcast
+                SynchronizedUpdate(transfer, semaphore: updateSyncRoot, cancellationToken: CancellationToken.None);
+
+                throw;
+            }
+            finally
+            {
+                if (CancellationTokens.TryRemove(transfer.Id, out var storedCancellationTokenSource))
+                {
+                    storedCancellationTokenSource?.Dispose();
+                }
+            }
+        }
+
         private void SynchronizedUpdate(Transfer transfer, SemaphoreSlim semaphore, CancellationToken cancellationToken = default)
         {
             semaphore.Wait(cancellationToken);
@@ -1109,6 +1084,29 @@ namespace slskd.Transfers.Downloads
             finally
             {
                 semaphore.Release();
+            }
+        }
+
+        private async Task CleanupEnqueueSemaphoresAsync()
+        {
+            if (await EnqueueSemaphoreSyncRoot.WaitAsync(0).ConfigureAwait(false))
+            {
+                try
+                {
+                    foreach (var kvp in EnqueueSemaphores)
+                    {
+                        if (await kvp.Value.WaitAsync(0).ConfigureAwait(false))
+                        {
+                            EnqueueSemaphores.TryRemove(kvp.Key, out var removed);
+                            removed.Dispose();
+                            Log.Debug("Cleaned up enqueue semaphore for {Key}", kvp.Key);
+                        }
+                    }
+                }
+                finally
+                {
+                    EnqueueSemaphoreSyncRoot.Release();
+                }
             }
         }
     }
