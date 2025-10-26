@@ -766,7 +766,7 @@ namespace slskd.Transfers.Downloads
         }
 
         /// <summary>
-        ///     Fails the download matching the specified <paramref name="id"/> with thee specified <paramref name="exception"/>,
+        ///     Fails the download matching the specified <paramref name="id"/> with the specified <paramref name="exception"/>,
         ///     and sets the final state accordingly.
         /// </summary>
         /// <remarks>
