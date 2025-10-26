@@ -849,10 +849,9 @@ namespace slskd.Transfers.Downloads
 
             // there _should_ be a cancellation token for this transfer in the dictionary; if so link it with the one we are given
             // (which is probably the same one, harmless if so) to make sure we don't get any wires crossed
-            if (CancellationTokens.TryGetValue(transfer.Id, out var cancellationTokenSource))
-            {
-                cancellationToken = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken).Token;
-            }
+            CancellationTokens.TryGetValue(transfer.Id, out var cancellationTokenSource);
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, cancellationTokenSource?.Token ?? CancellationToken.None);
+            cancellationToken = cts.Token;
 
             var updateSyncRoot = new SemaphoreSlim(1, 1);
 
@@ -958,7 +957,7 @@ namespace slskd.Transfers.Downloads
                 Log.Debug("Invocation of Soulseek DownloadAsync() for {Filename} from user {Username} completed successfully", transfer.Filename, transfer.Username);
 
                 // explicitly dispose the rate limiter to prevent updates from it beyond this point, and in doing so we
-                // flushe any pending update, _probably_ pushing the state of the transfer back to InProgress
+                // flush any pending update, _probably_ pushing the state of the transfer back to InProgress
                 rateLimiter.Dispose();
 
                 // copy the completed transfer that was returned from Soulseek.NET in a terminal, fully updated state
@@ -1063,9 +1062,9 @@ namespace slskd.Transfers.Downloads
             }
             finally
             {
-                if (CancellationTokens.TryRemove(transfer.Id, out var cts))
+                if (CancellationTokens.TryRemove(transfer.Id, out var storedCancellationTokenSource))
                 {
-                    cts?.Dispose();
+                    storedCancellationTokenSource?.Dispose();
                 }
             }
         }
@@ -1096,7 +1095,7 @@ namespace slskd.Transfers.Downloads
                         {
                             EnqueueSemaphores.TryRemove(kvp.Key, out var removed);
                             removed.Dispose();
-                            Log.Debug($"Cleaned up enqueue semaphore for {kvp.Key}");
+                            Log.Debug("Cleaned up enqueue semaphore for {Key}", kvp.Key);
                         }
                     }
                 }
