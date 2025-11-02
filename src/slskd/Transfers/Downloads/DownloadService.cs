@@ -387,7 +387,7 @@ namespace slskd.Transfers.Downloads
 
                         Log.Debug("Added Transfer record for download of {Filename} from {Username} (id: {Id})", transfer.Filename, transfer.Username, transfer.Id);
 
-                        foreach (var record in existingRecords.Where(t => !t.Removed))
+                        foreach (var record in existingRecords.Where(t => t.Filename == file.Filename && !t.Removed))
                         {
                             record.Removed = true;
                             context.Update(record);
