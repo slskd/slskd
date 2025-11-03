@@ -41,8 +41,8 @@ public class Z07062025_TransferIndexesMigration : IMigration
         var idxes = SchemaInspector.GetDatabaseIndexes(ConnectionString);
         var txfers = idxes["Transfers"];
 
-        var directionExists = txfers.Any(c => c.Name == "IDX_Transfers_Direction");
-        var stateExists = txfers.Any(c => c.Name == "IDX_Transfers_State");
+        var directionExists = txfers.Any(c => c.Name.Equals("IDX_Transfers_Direction", StringComparison.OrdinalIgnoreCase));
+        var stateExists = txfers.Any(c => c.Name.Equals("IDX_Transfers_State", StringComparison.OrdinalIgnoreCase));
 
         if (directionExists && stateExists)
         {
