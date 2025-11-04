@@ -53,7 +53,7 @@ namespace slskd.Transfers.API
             OptionsSnapshot = optionsSnapshot;
         }
 
-        private static SemaphoreSlim DownloadRequestLimiter { get; } = new SemaphoreSlim(1, 1);
+        private static SemaphoreSlim DownloadRequestLimiter { get; } = new SemaphoreSlim(2, 2);
         private ITransferService Transfers { get; }
         private IOptionsSnapshot<Options> OptionsSnapshot { get; }
         private ILogger Log { get; set; } = Serilog.Log.ForContext<TransfersController>();
@@ -226,8 +226,9 @@ namespace slskd.Transfers.API
 
             try
             {
-                await Transfers.Downloads.EnqueueAsync(username, requests.Select(r => (r.Filename, r.Size)), cancellationToken);
-                return StatusCode(201);
+                var (enqueued, failed) = await Transfers.Downloads.EnqueueAsync(username, requests.Select(r => (r.Filename, r.Size)), cancellationToken);
+
+                return StatusCode(201, new { Enqueued = enqueued, Failed = failed });
             }
             catch (Exception ex)
             {
