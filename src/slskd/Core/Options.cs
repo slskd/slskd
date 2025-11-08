@@ -1863,6 +1863,15 @@ namespace slskd
             public bool Logging { get; init; } = false;
 
             /// <summary>
+            ///     Gets the path to a custom CSS file for theme customization.
+            /// </summary>
+            [EnvironmentVariable("CUSTOM_CSS_PATH")]
+            [Description("path to a custom CSS file for theme customization")]
+            [FileExists]
+            [AbsoluteFilePath]
+            public string CustomCssPath { get; init; }
+
+            /// <summary>
             ///     Gets authentication options.
             /// </summary>
             [Validate]

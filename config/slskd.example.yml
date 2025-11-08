@@ -147,6 +147,7 @@
 #   url_base: /
 #   content_path: wwwroot
 #   logging: false
+#   custom_css_path: ~  # path to a custom CSS file for theme customization (e.g., /config/custom-theme.css)
 #   authentication:
 #     disabled: false
 #     username: slskd

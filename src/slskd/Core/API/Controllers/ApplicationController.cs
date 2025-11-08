@@ -159,5 +159,42 @@ namespace slskd.Core.API
             Log.Information("Loopback POST: {Body}", body);
             return Ok();
         }
+
+        /// <summary>
+        ///     Gets custom CSS content if configured.
+        /// </summary>
+        /// <returns></returns>
+        [HttpGet("custom.css")]
+        [AllowAnonymous]
+        [Produces("text/css")]
+        public IActionResult GetCustomCss()
+        {
+            var customCssPath = OptionsMonitor.CurrentValue.Web.CustomCssPath;
+
+            if (string.IsNullOrWhiteSpace(customCssPath))
+            {
+                return Content(string.Empty, "text/css");
+            }
+
+            try
+            {
+                if (!System.IO.File.Exists(customCssPath))
+                {
+                    Log.Warning("Custom CSS file not found: {Path}", customCssPath);
+                    return Content(string.Empty, "text/css");
+                }
+
+                var css = System.IO.File.ReadAllText(customCssPath);
+
+                Response.Headers.CacheControl = "public, max-age=31536000"; // 1 year
+
+                return Content(css, "text/css");
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "Failed to read custom CSS file: {Path}", customCssPath);
+                return Content(string.Empty, "text/css");
+            }
+        }
     }
 }
