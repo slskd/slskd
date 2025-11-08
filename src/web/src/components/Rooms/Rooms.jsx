@@ -1,5 +1,12 @@
+import { activeRoomKey } from '../../config';
+import * as optionsApi from '../../lib/options';
+import * as rooms from '../../lib/rooms';
+import PlaceholderSegment from '../Shared/PlaceholderSegment';
+import RoomMenu from './RoomMenu';
+import RoomUserList from './RoomUserList';
 import React, { Component, createRef } from 'react';
 import { withRouter } from 'react-router-dom';
+import { toast } from 'react-toastify';
 import {
   Button,
   Card,
@@ -12,15 +19,7 @@ import {
   Ref,
   Segment,
 } from 'semantic-ui-react';
-import { toast } from 'react-toastify';
 import YAML from 'yaml';
-
-import { activeRoomKey } from '../../config';
-import * as optionsApi from '../../lib/options';
-import * as rooms from '../../lib/rooms';
-import PlaceholderSegment from '../Shared/PlaceholderSegment';
-import RoomMenu from './RoomMenu';
-import RoomUserList from './RoomUserList';
 
 const initialState = {
   active: '',
