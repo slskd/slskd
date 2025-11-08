@@ -1,9 +1,3 @@
-import { activeRoomKey } from '../../config';
-import * as rooms from '../../lib/rooms';
-import * as optionsApi from '../../lib/options';
-import PlaceholderSegment from '../Shared/PlaceholderSegment';
-import RoomMenu from './RoomMenu';
-import RoomUserList from './RoomUserList';
 import React, { Component, createRef } from 'react';
 import { withRouter } from 'react-router-dom';
 import {
@@ -18,7 +12,15 @@ import {
   Ref,
   Segment,
 } from 'semantic-ui-react';
+import { toast } from 'react-toastify';
 import YAML from 'yaml';
+
+import { activeRoomKey } from '../../config';
+import * as optionsApi from '../../lib/options';
+import * as rooms from '../../lib/rooms';
+import PlaceholderSegment from '../Shared/PlaceholderSegment';
+import RoomMenu from './RoomMenu';
+import RoomUserList from './RoomUserList';
 
 const initialState = {
   active: '',
@@ -228,21 +230,27 @@ class Rooms extends Component {
   handleIgnoreUser = async () => {
     const username = this.state.contextMenu?.message?.username;
     if (!username) return;
+
     try {
       const yamlText = await optionsApi.getYaml();
-      const doc = YAML.parseDocument(yamlText);
+      const yamlDocument = YAML.parseDocument(yamlText);
 
-      let groups = doc.get('groups');
+      let groups = yamlDocument.get('groups');
+
       if (!groups) {
         groups = new YAML.YAMLMap();
-        doc.set('groups', groups);
+        yamlDocument.set('groups', groups);
       }
+
       let blacklisted = groups.get('blacklisted');
+
       if (!blacklisted) {
         blacklisted = new YAML.YAMLMap();
         groups.set('blacklisted', blacklisted);
       }
+
       let members = blacklisted.get('members');
+
       if (!members) {
         members = new YAML.YAMLSeq();
         blacklisted.set('members', members);
@@ -252,12 +260,13 @@ class Rooms extends Component {
         members.add(username);
       }
 
-      const newYamlText = doc.toString();
+      const newYamlText = yamlDocument.toString();
       await optionsApi.updateYaml({ yaml: newYamlText });
-      alert(`User '${username}' added to blacklist.`);
-    } catch (err) {
-      alert('Failed to ignore user: ' + err);
+      toast.success(`User '${username}' added to blacklist.`);
+    } catch (error) {
+      toast.error('Failed to ignore user: ' + error);
     }
+
     this.handleCloseContextMenu();
   };
 
