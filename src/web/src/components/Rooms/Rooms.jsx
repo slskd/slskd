@@ -1,25 +1,22 @@
 import { activeRoomKey } from '../../config';
-import * as optionsApi from '../../lib/options';
 import * as rooms from '../../lib/rooms';
+import * as userActions from '../../lib/userActions';
+import MessageContextMenu from '../Shared/MessageContextMenu';
 import PlaceholderSegment from '../Shared/PlaceholderSegment';
 import RoomMenu from './RoomMenu';
 import RoomUserList from './RoomUserList';
 import React, { Component, createRef } from 'react';
 import { withRouter } from 'react-router-dom';
-import { toast } from 'react-toastify';
 import {
-  Button,
   Card,
   Dimmer,
   Icon,
   Input,
   List,
   Loader,
-  Portal,
   Ref,
   Segment,
 } from 'semantic-ui-react';
-import YAML from 'yaml';
 
 const initialState = {
   active: '',
@@ -210,105 +207,53 @@ class Rooms extends Component {
   };
 
   handleReply = () => {
-    this.messageRef.current.value = `[${this.state.contextMenu.message.username}] ${this.state.contextMenu.message.message} --> `;
+    const { message, username } = this.state.contextMenu.message;
+    this.messageRef.current.value = `[${username}] ${message} --> `;
     this.focusInput();
+    this.handleCloseContextMenu();
   };
 
   handleUserProfile = () => {
-    this.props.history.push('/users', {
-      user: this.state.contextMenu.message.username,
-    });
+    const username = this.state.contextMenu?.message?.username;
+    if (!username) return;
+    userActions.navigateToUserProfile(this.props.history, username);
+    this.handleCloseContextMenu();
   };
 
   handleBrowseShares = () => {
-    this.props.history.push('/browse', {
-      user: this.state.contextMenu.message.username,
-    });
+    const username = this.state.contextMenu?.message?.username;
+    if (!username) return;
+    userActions.navigateToBrowseShares(this.props.history, username);
+    this.handleCloseContextMenu();
   };
 
   handleIgnoreUser = async () => {
     const username = this.state.contextMenu?.message?.username;
     if (!username) return;
-
-    try {
-      const yamlText = await optionsApi.getYaml();
-      const yamlDocument = YAML.parseDocument(yamlText);
-
-      let groups = yamlDocument.get('groups');
-
-      if (!groups) {
-        groups = YAML.createNode({});
-        yamlDocument.set('groups', groups);
-      }
-
-      let blacklisted = groups.get('blacklisted');
-
-      if (!blacklisted) {
-        blacklisted = YAML.createNode({});
-        groups.set('blacklisted', blacklisted);
-      }
-
-      let members = blacklisted.get('members');
-
-      if (!members) {
-        members = YAML.createNode([]);
-        blacklisted.set('members', members);
-      }
-
-      if (!members.items.includes(username)) {
-        members.add(username);
-      }
-
-      const newYamlText = yamlDocument.toString();
-      await optionsApi.updateYaml({ yaml: newYamlText });
-      toast.success(`User '${username}' added to blacklist.`);
-    } catch (error) {
-      toast.error('Failed to ignore user: ' + error);
-    }
-
+    await userActions.ignoreUser(username);
     this.handleCloseContextMenu();
   };
 
-  renderContextMenu() {
-    const { contextMenu } = this.state;
-    return (
-      <Portal open={contextMenu.open}>
-        <div
-          className="ui vertical buttons popup-menu"
-          style={{
-            left: contextMenu.x,
-            maxHeight: `calc(100vh - ${contextMenu.y}px)`,
-            top: contextMenu.y,
-          }}
-        >
-          <Button
-            className="ui compact button popup-option"
-            onClick={this.handleReply}
-          >
-            Reply
-          </Button>
-          <Button
-            className="ui compact button popup-option"
-            onClick={this.handleUserProfile}
-          >
-            User Profile
-          </Button>
-          <Button
-            className="ui compact button popup-option"
-            onClick={this.handleBrowseShares}
-          >
-            Browse Shares
-          </Button>
-          <Button
-            className="ui compact button popup-option"
-            onClick={this.handleIgnoreUser}
-          >
-            Ignore User
-          </Button>
-        </div>
-      </Portal>
-    );
-  }
+  getContextMenuActions = () => {
+    return [
+      {
+        label: 'Reply',
+        onClick: this.handleReply,
+      },
+      {
+        label: 'User Profile',
+        onClick: this.handleUserProfile,
+      },
+      {
+        label: 'Browse Shares',
+        onClick: this.handleBrowseShares,
+      },
+      {
+        label: 'Ignore User',
+        onClick: this.handleIgnoreUser,
+      },
+    ];
+  };
 
   render() {
     const { active = [], joined = [], loading, room } = this.state;
@@ -438,7 +383,12 @@ class Rooms extends Component {
             </Card.Content>
           </Card>
         )}
-        {this.renderContextMenu()}
+        <MessageContextMenu
+          actions={this.getContextMenuActions()}
+          open={this.state.contextMenu.open}
+          x={this.state.contextMenu.x}
+          y={this.state.contextMenu.y}
+        />
       </div>
     );
   }

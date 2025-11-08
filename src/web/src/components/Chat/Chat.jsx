@@ -1,9 +1,12 @@
 import './Chat.css';
 import { activeChatKey } from '../../config';
 import * as chat from '../../lib/chat';
+import * as userActions from '../../lib/userActions';
+import MessageContextMenu from '../Shared/MessageContextMenu';
 import PlaceholderSegment from '../Shared/PlaceholderSegment';
 import ChatMenu from './ChatMenu';
 import React, { Component, createRef } from 'react';
+import { withRouter } from 'react-router-dom';
 import {
   Card,
   Dimmer,
@@ -17,6 +20,12 @@ import {
 
 const initialState = {
   active: '',
+  contextMenu: {
+    message: null,
+    open: false,
+    x: 0,
+    y: 0,
+  },
   conversations: {},
   interval: undefined,
   loading: false,
@@ -40,12 +49,14 @@ class Chat extends Component {
         this.selectConversation(
           this.state.active || this.getFirstConversation(),
         );
+        document.addEventListener('click', this.handleCloseContextMenu);
       },
     );
   }
 
   componentWillUnmount() {
     clearInterval(this.state.interval);
+    document.removeEventListener('click', this.handleCloseContextMenu);
     this.setState({ interval: undefined });
   }
 
@@ -198,6 +209,76 @@ class Chat extends Component {
     this.selectConversation(this.getFirstConversation());
   };
 
+  handleContextMenu = (clickEvent, message) => {
+    clickEvent.preventDefault();
+    this.setState({
+      contextMenu: {
+        message,
+        open: true,
+        x: clickEvent.pageX,
+        y: clickEvent.pageY,
+      },
+    });
+  };
+
+  handleCloseContextMenu = () => {
+    this.setState((previousState) => ({
+      contextMenu: {
+        ...previousState.contextMenu,
+        open: false,
+      },
+    }));
+  };
+
+  handleReply = () => {
+    const { message } = this.state.contextMenu.message;
+    this.messageRef.current.value = `${message} --> `;
+    this.focusInput();
+    this.handleCloseContextMenu();
+  };
+
+  handleUserProfile = () => {
+    const username = this.state.contextMenu?.message?.username;
+    if (!username) return;
+    userActions.navigateToUserProfile(this.props.history, username);
+    this.handleCloseContextMenu();
+  };
+
+  handleBrowseShares = () => {
+    const username = this.state.contextMenu?.message?.username;
+    if (!username) return;
+    userActions.navigateToBrowseShares(this.props.history, username);
+    this.handleCloseContextMenu();
+  };
+
+  handleIgnoreUser = async () => {
+    const username = this.state.contextMenu?.message?.username;
+    if (!username) return;
+    await userActions.ignoreUser(username);
+    this.handleCloseContextMenu();
+  };
+
+  getContextMenuActions = () => {
+    return [
+      {
+        label: 'Reply',
+        onClick: this.handleReply,
+      },
+      {
+        label: 'User Profile',
+        onClick: this.handleUserProfile,
+      },
+      {
+        label: 'Browse Shares',
+        onClick: this.handleBrowseShares,
+      },
+      {
+        label: 'Ignore User',
+        onClick: this.handleIgnoreUser,
+      },
+    ];
+  };
+
   render() {
     const { active, conversations = [], loading } = this.state;
     const messages = conversations[active]?.messages || [];
@@ -261,23 +342,29 @@ class Chat extends Component {
                       <Ref innerRef={this.listRef}>
                         <List>
                           {messages.map((message) => (
-                            <List.Content
-                              className={`chat-message ${message.direction === 'Out' ? 'chat-message-self' : ''}`}
+                            <div
                               key={`${message.timestamp}+${message.message}`}
+                              onContextMenu={(clickEvent) =>
+                                this.handleContextMenu(clickEvent, message)
+                              }
                             >
-                              <span className="chat-message-time">
-                                {this.formatTimestamp(message.timestamp)}
-                              </span>
-                              <span className="chat-message-name">
-                                {message.direction === 'Out'
-                                  ? user.username
-                                  : message.username}
-                                :{' '}
-                              </span>
-                              <span className="chat-message-message">
-                                {message.message}
-                              </span>
-                            </List.Content>
+                              <List.Content
+                                className={`chat-message ${message.direction === 'Out' ? 'chat-message-self' : ''}`}
+                              >
+                                <span className="chat-message-time">
+                                  {this.formatTimestamp(message.timestamp)}
+                                </span>
+                                <span className="chat-message-name">
+                                  {message.direction === 'Out'
+                                    ? user.username
+                                    : message.username}
+                                  :{' '}
+                                </span>
+                                <span className="chat-message-message">
+                                  {message.message}
+                                </span>
+                              </List.Content>
+                            </div>
                           ))}
                           <List.Content id="chat-history-scroll-anchor" />
                         </List>
@@ -320,9 +407,15 @@ class Chat extends Component {
             </Card.Content>
           </Card>
         )}
+        <MessageContextMenu
+          actions={this.getContextMenuActions()}
+          open={this.state.contextMenu.open}
+          x={this.state.contextMenu.x}
+          y={this.state.contextMenu.y}
+        />
       </div>
     );
   }
 }
 
-export default Chat;
+export default withRouter(Chat);
