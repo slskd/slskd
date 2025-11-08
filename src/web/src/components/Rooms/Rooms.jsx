@@ -1,6 +1,9 @@
 import { activeRoomKey } from '../../config';
+import {
+  contextMenuInitialState,
+  createContextMenuHandlers,
+} from '../../lib/contextMenuHelpers';
 import * as rooms from '../../lib/rooms';
-import * as userActions from '../../lib/userActions';
 import MessageContextMenu from '../Shared/MessageContextMenu';
 import PlaceholderSegment from '../Shared/PlaceholderSegment';
 import RoomMenu from './RoomMenu';
@@ -20,12 +23,7 @@ import {
 
 const initialState = {
   active: '',
-  contextMenu: {
-    message: null,
-    open: false,
-    x: 0,
-    y: 0,
-  },
+  contextMenu: contextMenuInitialState,
   intervals: {
     messages: undefined,
     rooms: undefined,
@@ -43,6 +41,11 @@ class Rooms extends Component {
     super(props);
 
     this.state = initialState;
+
+    const handlers = createContextMenuHandlers(this, {
+      formatReply: (message) => `[${message.username}] ${message.message} --> `,
+    });
+    Object.assign(this, handlers);
   }
 
   componentDidMount() {
@@ -183,76 +186,6 @@ class Rooms extends Component {
 
     await rooms.sendMessage({ message, roomName: active });
     this.messageRef.current.value = '';
-  };
-
-  handleContextMenu = (clickEvent, message) => {
-    clickEvent.preventDefault();
-    this.setState({
-      contextMenu: {
-        message,
-        open: true,
-        x: clickEvent.pageX,
-        y: clickEvent.pageY,
-      },
-    });
-  };
-
-  handleCloseContextMenu = () => {
-    this.setState((previousState) => ({
-      contextMenu: {
-        ...previousState.contextMenu,
-        open: false,
-      },
-    }));
-  };
-
-  handleReply = () => {
-    const { message, username } = this.state.contextMenu.message;
-    this.messageRef.current.value = `[${username}] ${message} --> `;
-    this.focusInput();
-    this.handleCloseContextMenu();
-  };
-
-  handleUserProfile = () => {
-    const username = this.state.contextMenu?.message?.username;
-    if (!username) return;
-    userActions.navigateToUserProfile(this.props.history, username);
-    this.handleCloseContextMenu();
-  };
-
-  handleBrowseShares = () => {
-    const username = this.state.contextMenu?.message?.username;
-    if (!username) return;
-    userActions.navigateToBrowseShares(this.props.history, username);
-    this.handleCloseContextMenu();
-  };
-
-  handleIgnoreUser = async () => {
-    const username = this.state.contextMenu?.message?.username;
-    if (!username) return;
-    await userActions.ignoreUser(username);
-    this.handleCloseContextMenu();
-  };
-
-  getContextMenuActions = () => {
-    return [
-      {
-        handleClick: this.handleReply,
-        label: 'Reply',
-      },
-      {
-        handleClick: this.handleUserProfile,
-        label: 'User Profile',
-      },
-      {
-        handleClick: this.handleBrowseShares,
-        label: 'Browse Shares',
-      },
-      {
-        handleClick: this.handleIgnoreUser,
-        label: 'Ignore User',
-      },
-    ];
   };
 
   render() {
