@@ -1,5 +1,6 @@
 import { activeRoomKey } from '../../config';
 import * as rooms from '../../lib/rooms';
+import * as optionsApi from '../../lib/options';
 import PlaceholderSegment from '../Shared/PlaceholderSegment';
 import RoomMenu from './RoomMenu';
 import RoomUserList from './RoomUserList';
@@ -17,6 +18,7 @@ import {
   Ref,
   Segment,
 } from 'semantic-ui-react';
+import YAML from 'yaml';
 
 const initialState = {
   active: '',
@@ -223,6 +225,42 @@ class Rooms extends Component {
     });
   };
 
+  handleIgnoreUser = async () => {
+    const username = this.state.contextMenu?.message?.username;
+    if (!username) return;
+    try {
+      const yamlText = await optionsApi.getYaml();
+      const doc = YAML.parseDocument(yamlText);
+
+      let groups = doc.get('groups');
+      if (!groups) {
+        groups = new YAML.YAMLMap();
+        doc.set('groups', groups);
+      }
+      let blacklisted = groups.get('blacklisted');
+      if (!blacklisted) {
+        blacklisted = new YAML.YAMLMap();
+        groups.set('blacklisted', blacklisted);
+      }
+      let members = blacklisted.get('members');
+      if (!members) {
+        members = new YAML.YAMLSeq();
+        blacklisted.set('members', members);
+      }
+
+      if (!members.items.includes(username)) {
+        members.add(username);
+      }
+
+      const newYamlText = doc.toString();
+      await optionsApi.updateYaml({ yaml: newYamlText });
+      alert(`User '${username}' added to blacklist.`);
+    } catch (err) {
+      alert('Failed to ignore user: ' + err);
+    }
+    this.handleCloseContextMenu();
+  };
+
   renderContextMenu() {
     const { contextMenu } = this.state;
     return (
@@ -252,6 +290,12 @@ class Rooms extends Component {
             onClick={this.handleBrowseShares}
           >
             Browse Shares
+          </Button>
+          <Button
+            className="ui compact button popup-option"
+            onClick={this.handleIgnoreUser}
+          >
+            Ignore User
           </Button>
         </div>
       </Portal>
