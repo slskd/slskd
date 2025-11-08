@@ -237,20 +237,20 @@ class Rooms extends Component {
   getContextMenuActions = () => {
     return [
       {
+        handleClick: this.handleReply,
         label: 'Reply',
-        onClick: this.handleReply,
       },
       {
+        handleClick: this.handleUserProfile,
         label: 'User Profile',
-        onClick: this.handleUserProfile,
       },
       {
+        handleClick: this.handleBrowseShares,
         label: 'Browse Shares',
-        onClick: this.handleBrowseShares,
       },
       {
+        handleClick: this.handleIgnoreUser,
         label: 'Ignore User',
-        onClick: this.handleIgnoreUser,
       },
     ];
   };

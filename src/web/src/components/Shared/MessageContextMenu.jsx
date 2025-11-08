@@ -1,14 +1,13 @@
-import PropTypes from 'prop-types';
 import React from 'react';
 import { Button, Portal } from 'semantic-ui-react';
 
 /**
  * Reusable context menu component for message actions
- * @param {Object} props - Component props
+ * @param {object} props - Component props
  * @param {boolean} props.open - Whether the menu is open
  * @param {number} props.x - X position for the menu
  * @param {number} props.y - Y position for the menu
- * @param {Array} props.actions - Array of action objects with { label, onClick, icon? }
+ * @param {Array} props.actions - Array of action objects with { label, handleClick, icon? }
  */
 const MessageContextMenu = ({ actions = [], open, x, y }) => {
   if (!open) return null;
@@ -23,12 +22,12 @@ const MessageContextMenu = ({ actions = [], open, x, y }) => {
           top: y,
         }}
       >
-        {actions.map((action, index) => (
+        {actions.map((action) => (
           <Button
             className="ui compact button popup-option"
             icon={action.icon}
-            key={index}
-            onClick={action.onClick}
+            key={action.label}
+            onClick={action.handleClick}
           >
             {action.label}
           </Button>
@@ -36,19 +35,6 @@ const MessageContextMenu = ({ actions = [], open, x, y }) => {
       </div>
     </Portal>
   );
-};
-
-MessageContextMenu.propTypes = {
-  actions: PropTypes.arrayOf(
-    PropTypes.shape({
-      icon: PropTypes.string,
-      label: PropTypes.string.isRequired,
-      onClick: PropTypes.func.isRequired,
-    }),
-  ),
-  open: PropTypes.bool.isRequired,
-  x: PropTypes.number.isRequired,
-  y: PropTypes.number.isRequired,
 };
 
 export default MessageContextMenu;

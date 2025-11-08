@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 
 /**
  * Custom hook for managing context menu state and behavior
- * @returns {Object} Context menu state and handlers
+ * @returns {object} Context menu state and handlers
  */
 export const useContextMenu = () => {
   const [contextMenu, setContextMenu] = useState({
@@ -23,8 +23,8 @@ export const useContextMenu = () => {
   }, []);
 
   const handleClose = useCallback(() => {
-    setContextMenu((prev) => ({
-      ...prev,
+    setContextMenu((previous) => ({
+      ...previous,
       open: false,
     }));
   }, []);
@@ -36,6 +36,8 @@ export const useContextMenu = () => {
         document.removeEventListener('click', handleClose);
       };
     }
+
+    return undefined;
   }, [contextMenu.open, handleClose]);
 
   return {

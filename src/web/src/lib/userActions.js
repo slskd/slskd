@@ -4,7 +4,7 @@ import YAML from 'yaml';
 
 /**
  * Navigate to user profile page
- * @param {Object} history - React Router history object
+ * @param {object} history - React Router history object
  * @param {string} username - Username to view
  */
 export const navigateToUserProfile = (history, username) => {
@@ -13,7 +13,7 @@ export const navigateToUserProfile = (history, username) => {
 
 /**
  * Navigate to user browse shares page
- * @param {Object} history - React Router history object
+ * @param {object} history - React Router history object
  * @param {string} username - Username to browse
  */
 export const navigateToBrowseShares = (history, username) => {
