@@ -2080,8 +2080,7 @@ namespace slskd
             /// </summary>
             [EnvironmentVariable("CUSTOM_CSS_PATH")]
             [Description("path to a custom CSS file for theme customization")]
-            [FileExists]
-            [AbsoluteFilePath]
+            [FileExists(FileAccess.Read)]
             public string CustomCssPath { get; init; }
 
             /// <summary>
