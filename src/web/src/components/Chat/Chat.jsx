@@ -34,7 +34,6 @@ class Chat extends Component {
     super(props);
 
     this.state = initialState;
-    
     const handlers = createContextMenuHandlers(this);
     Object.assign(this, handlers);
   }
