@@ -237,21 +237,21 @@ class Rooms extends Component {
       let groups = yamlDocument.get('groups');
 
       if (!groups) {
-        groups = new YAML.YAMLMap();
+        groups = yamlDocument.createNode({});
         yamlDocument.set('groups', groups);
       }
 
       let blacklisted = groups.get('blacklisted');
 
       if (!blacklisted) {
-        blacklisted = new YAML.YAMLMap();
+        blacklisted = yamlDocument.createNode({});
         groups.set('blacklisted', blacklisted);
       }
 
       let members = blacklisted.get('members');
 
       if (!members) {
-        members = new YAML.YAMLSeq();
+        members = yamlDocument.createNode([]);
         blacklisted.set('members', members);
       }
 
