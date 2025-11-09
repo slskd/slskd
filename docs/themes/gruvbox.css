@@ -13,7 +13,7 @@
  */
 
 /* ============================================================
-   GRUVBOX LIGHT (when dark class is NOT present)
+   GRUVBOX LIGHT
    ============================================================ */
 
 :root {
@@ -149,8 +149,14 @@
   color: #fbf1c7;
 }
 
+/* Light mode CodeMirror */
+:root div.cm-content {
+  background-color: #fbf1c7 !important;
+  color: #3c3836 !important;
+}
+
 /* ============================================================
-   GRUVBOX DARK (when dark class IS present)
+   GRUVBOX DARK
    ============================================================ */
 
 :root.dark {
@@ -284,4 +290,10 @@
 :root.dark ::selection {
   background: #fe8019;
   color: #282828;
+}
+
+/* Dark mode CodeMirror */
+:root.dark div.cm-content {
+  background-color: #282828 !important;
+  color: #ebdbb2 !important;
 }
