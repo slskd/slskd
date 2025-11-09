@@ -1,0 +1,299 @@
+/**
+ * Solarized Theme for slskd
+ * 
+ * Based on Solarized by Ethan Schoonover (https://ethanschoonover.com/solarized/)
+ * Precision colors for machines and people
+ * 
+ * Usage:
+ *   1. Save this file (e.g., /config/solarized.css)
+ *   2. Add to slskd.yml:
+ *      web:
+ *        custom_css_path: /config/solarized.css
+ *   3. Refresh browser cache
+ */
+
+/* ============================================================
+   SOLARIZED LIGHT
+   ============================================================ */
+
+:root {
+  /* === Backgrounds === */
+  --background-color: #fdf6e3 !important;
+  --slskd-primary-background: #fdf6e3;
+  --slskd-secondary-background: #eee8d5;
+  --slskd-overlay-background: #fdf6e3;
+  --slskd-tertiary-background: #d5cfc2;
+  --slskd-tertiary-border-color: rgba(101, 123, 131, 0.15);
+  --slskd-subtle-background: rgba(38, 139, 210, 0.1);
+  
+  /* === Text === */
+  --slskd-color: #657b83;
+  --slskd-color-subtle: #93a1a1;
+  --slskd-hover-background: #e7e1d3;
+  --slskd-color-inset: #fdf6e3;
+  --slskd-emphasis-background: #268bd2;
+
+  /* === Site globals === */
+  --smui-site-body-text-color: #657b83;
+  --smui-site-input-color: #657b83;
+  --smui-site-link-color: #268bd2;
+  --smui-site-link-hover-color: #2aa198;
+  --slskd-browse-folderlist-header-color: #657b83;
+  --slskd-browse-folderlist-header-selected-color: #268bd2;
+
+  /* === Buttons === */
+  --smui-button-background-color: #eee8d5;
+  --smui-button-text-color: #657b83;
+  --smui-button-border: 1px solid rgba(101, 123, 131, 0.2);
+  --smui-button-hover-background-color: #d5cfc2;
+
+  /* === Inputs === */
+  --smui-input-background: #fdf6e3;
+  --smui-input-border-color: #d5cfc2;
+  --smui-input-color: #657b83;
+  --smui-input-placeholder-color: #93a1a1;
+  --smui-input-focus-color: #657b83;
+
+  /* === Labels === */
+  --smui-label-background-color: #eee8d5;
+  --smui-label-color: #657b83;
+
+  /* === Menus === */
+  --smui-menu-inverted-background: #eee8d5;
+  --smui-menu-active-item-text-color: #657b83;
+  --smui-menu-background: #eee8d5;
+  --smui-menu-item-color: #657b83;
+  --smui-menu-hovered-item-background: #d5cfc2;
+  --smui-menu-hovered-item-color: #657b83;
+
+  /* === Segments === */
+  --smui-segment-background: #fdf6e3;
+  --smui-segment-ui-header-color: #657b83;
+  --smui-segment-border: 1px solid rgba(101, 123, 131, 0.15);
+
+  /* === Headers === */
+  --smui-header-text-color: #657b83;
+
+  /* === Cards === */
+  --smui-card-background: #fdf6e3;
+  --smui-card-border-shadow: 0px 0px 0px 1px rgba(101, 123, 131, 0.2);
+  --smui-card-floating-shadow: 0px 3px 12px rgba(101, 123, 131, 0.1);
+  --smui-card-text-color: #657b83;
+  --smui-card-meta-color: #93a1a1;
+
+  /* === Tables === */
+  --smui-table-background: #fdf6e3;
+  --smui-table-color: #657b83;
+  --smui-table-border-color: #eee8d5;
+  --smui-table-header-background: #eee8d5;
+  --smui-table-header-color: #657b83;
+  --smui-table-footer-background: #eee8d5;
+  --smui-table-footer-color: #657b83;
+  --smui-table-selectable-background-color: rgba(38, 139, 210, 0.1);
+  --smui-table-row-disabled-color: #93a1a1;
+  --smui-table-row-negative-color: #657b83;
+  --smui-table-row-negative-background-color: rgba(220, 50, 47, 0.15);
+  --smui-table-row-negative-border-color: rgba(220, 50, 47, 0.4);
+  --smui-table-row-negative-background-hover-color: #dc322f;
+  --smui-table-row-warning-color: #657b83;
+  --smui-table-row-warning-background-color: rgba(181, 137, 0, 0.15);
+  --smui-table-row-warning-border-color: rgba(181, 137, 0, 0.4);
+  --smui-table-row-warning-background-hover-color: #b58900;
+
+  /* === Modals === */
+  --smui-modal-background: #fdf6e3;
+  --smui-modal-color: #657b83;
+  --smui-modal-border: 1px solid rgba(101, 123, 131, 0.15);
+
+  /* === Items === */
+  --smui-item-meta-color: #93a1a1;
+  --smui-item-description-color: #657b83;
+
+  /* === Semantic colors === */
+  --smui-positive-color: #859900;
+  --smui-warning-color: #b58900;
+  --smui-negative-color: #dc322f;
+  --smui-info-color: #268bd2;
+
+  /* === Chat === */
+  --slskd-room-message-color: #657b83;
+  --slskd-room-message-self-color: #859900;
+  --slskd-chat-color: #657b83;
+  --slskd-self-message-background-color: rgba(133, 153, 0, 0.1);
+
+  /* === Scrollbar === */
+  scrollbar-color: #d5cfc2 #eee8d5;
+}
+
+/* Light mode scrollbars (Webkit) */
+:root ::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+:root ::-webkit-scrollbar-track {
+  background: #eee8d5;
+}
+
+:root ::-webkit-scrollbar-thumb {
+  background: #d5cfc2;
+  border-radius: 6px;
+}
+
+:root ::-webkit-scrollbar-thumb:hover {
+  background: #93a1a1;
+}
+
+:root ::selection {
+  background: #b58900;
+  color: #fdf6e3;
+}
+
+/* Light mode CodeMirror */
+:root div.cm-content {
+  background-color: #fdf6e3 !important;
+  color: #657b83 !important;
+}
+
+/* ============================================================
+   SOLARIZED DARK
+   ============================================================ */
+
+:root.dark {
+  /* === Backgrounds === */
+  --background-color: #002b36 !important;
+  --slskd-primary-background: #002b36;
+  --slskd-secondary-background: #073642;
+  --slskd-overlay-background: #002b36;
+  --slskd-tertiary-background: #0d4855;
+  --slskd-tertiary-border-color: rgba(131, 148, 150, 0.1);
+  --slskd-subtle-background: rgba(38, 139, 210, 0.1);
+  
+  /* === Text === */
+  --slskd-color: #839496;
+  --slskd-color-subtle: #586e75;
+  --slskd-hover-background: #0d4855;
+  --slskd-color-inset: #073642;
+  --slskd-emphasis-background: #268bd2;
+
+  /* === Site globals === */
+  --smui-site-body-text-color: #839496;
+  --smui-site-input-color: #839496;
+  --smui-site-link-color: #268bd2;
+  --smui-site-link-hover-color: #2aa198;
+  --slskd-browse-folderlist-header-color: #839496;
+  --slskd-browse-folderlist-header-selected-color: #268bd2;
+
+  /* === Buttons === */
+  --smui-button-background-color: #073642;
+  --smui-button-text-color: #839496;
+  --smui-button-border: 1px solid rgba(131, 148, 150, 0.1);
+  --smui-button-hover-background-color: #0d4855;
+
+  /* === Inputs === */
+  --smui-input-background: #073642;
+  --smui-input-border-color: #0d4855;
+  --smui-input-color: #839496;
+  --smui-input-placeholder-color: #586e75;
+  --smui-input-focus-color: #839496;
+
+  /* === Labels === */
+  --smui-label-background-color: #073642;
+  --smui-label-color: #839496;
+
+  /* === Menus === */
+  --smui-menu-inverted-background: #073642;
+  --smui-menu-active-item-text-color: #839496;
+  --smui-menu-background: #073642;
+  --smui-menu-item-color: #839496;
+  --smui-menu-hovered-item-background: #0d4855;
+  --smui-menu-hovered-item-color: #839496;
+
+  /* === Segments === */
+  --smui-segment-background: #002b36;
+  --smui-segment-ui-header-color: #839496;
+  --smui-segment-border: 1px solid rgba(131, 148, 150, 0.1);
+
+  /* === Headers === */
+  --smui-header-text-color: #839496;
+
+  /* === Cards === */
+  --smui-card-background: #002b36;
+  --smui-card-border-shadow: 0px 0px 0px 1px #073642;
+  --smui-card-floating-shadow: 0px 2px 4px 0px rgba(131, 148, 150, 0.12);
+  --smui-card-text-color: #839496;
+  --smui-card-meta-color: #586e75;
+
+  /* === Tables === */
+  --smui-table-background: #002b36;
+  --smui-table-color: #839496;
+  --smui-table-border-color: #073642;
+  --smui-table-header-background: #073642;
+  --smui-table-header-color: #839496;
+  --smui-table-footer-background: #073642;
+  --smui-table-footer-color: #839496;
+  --smui-table-selectable-background-color: rgba(38, 139, 210, 0.1);
+  --smui-table-row-disabled-color: #586e75;
+  --smui-table-row-negative-color: #839496;
+  --smui-table-row-negative-background-color: rgba(220, 50, 47, 0.15);
+  --smui-table-row-negative-border-color: rgba(220, 50, 47, 0.4);
+  --smui-table-row-negative-background-hover-color: #dc322f;
+  --smui-table-row-warning-color: #839496;
+  --smui-table-row-warning-background-color: rgba(181, 137, 0, 0.15);
+  --smui-table-row-warning-border-color: rgba(181, 137, 0, 0.4);
+  --smui-table-row-warning-background-hover-color: #b58900;
+
+  /* === Modals === */
+  --smui-modal-background: #002b36;
+  --smui-modal-color: #839496;
+  --smui-modal-border: 1px solid rgba(131, 148, 150, 0.1);
+
+  /* === Items === */
+  --smui-item-meta-color: #586e75;
+  --smui-item-description-color: #839496;
+
+  /* === Semantic colors === */
+  --smui-positive-color: #859900;
+  --smui-warning-color: #b58900;
+  --smui-negative-color: #dc322f;
+  --smui-info-color: #268bd2;
+
+  /* === Chat === */
+  --slskd-room-message-color: #839496;
+  --slskd-room-message-self-color: #859900;
+  --slskd-chat-color: #839496;
+  --slskd-self-message-background-color: rgba(133, 153, 0, 0.15);
+
+  /* === Scrollbar === */
+  scrollbar-color: #073642 #002b36;
+}
+
+/* Dark mode scrollbars (Webkit) */
+:root.dark ::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+:root.dark ::-webkit-scrollbar-track {
+  background: #002b36;
+}
+
+:root.dark ::-webkit-scrollbar-thumb {
+  background: #073642;
+  border-radius: 6px;
+}
+
+:root.dark ::-webkit-scrollbar-thumb:hover {
+  background: #0d4855;
+}
+
+:root.dark ::selection {
+  background: #cb4b16;
+  color: #002b36;
+}
+
+/* Dark mode CodeMirror */
+:root.dark div.cm-content {
+  background-color: #002b36 !important;
+  color: #839496 !important;
+}
