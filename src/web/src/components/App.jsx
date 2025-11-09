@@ -169,6 +169,12 @@ class App extends Component {
         );
     }
 
+    // Load custom theme stylesheet after App.css to ensure it takes precedence
+    const themeLink = document.createElement('link');
+    themeLink.rel = 'stylesheet';
+    themeLink.href = '/api/v0/application/theme';
+    document.head.appendChild(themeLink);
+
     this.init();
   }
 
