@@ -164,7 +164,7 @@ namespace slskd.Core.API
         ///     Gets custom CSS content if configured.
         /// </summary>
         /// <returns></returns>
-        [HttpGet("custom.css")]
+        [HttpGet("theme")]
         [AllowAnonymous]
         [Produces("text/css")]
         public IActionResult GetCustomCss()
