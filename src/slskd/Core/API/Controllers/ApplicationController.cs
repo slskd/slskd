@@ -164,7 +164,7 @@ namespace slskd.Core.API
         ///     Gets custom CSS content if configured.
         /// </summary>
         /// <returns></returns>
-        [HttpGet("custom.css")]
+        [HttpGet("custom-css")]
         [AllowAnonymous]
         [Produces("text/css")]
         public IActionResult GetCustomCss()
@@ -184,9 +184,19 @@ namespace slskd.Core.API
                     return Content(string.Empty, "text/css");
                 }
 
+                var fileInfo = new System.IO.FileInfo(customCssPath);
+                var etag = $"\"{fileInfo.LastWriteTimeUtc.Ticks}\"";
+
+                if (Request.Headers.IfNoneMatch == etag)
+                {
+                    return StatusCode(304);
+                }
+
                 var css = System.IO.File.ReadAllText(customCssPath);
 
+                Response.Headers.ETag = etag;
                 Response.Headers.CacheControl = "public, max-age=31536000"; // 1 year
+                Response.Headers.LastModified = fileInfo.LastWriteTimeUtc.ToString("R");
 
                 return Content(css, "text/css");
             }
