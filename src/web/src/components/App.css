@@ -1,27 +1,27 @@
 :root {
-    --background-color: #c8c8c8;
-    --slskd-browse-folderlist-header-color: #24292f;
-    --slskd-browse-folderlist-header-selected-color: #0E6EB8;
+    --background-color: rgba(200, 200, 200, 1);
+    --slskd-browse-folderlist-header-color: rgba(36, 41, 47, 1);
+    --slskd-browse-folderlist-header-selected-color: rgba(14, 110, 184, 1);
 
     /* Primary/Secondary/Tertiary backgrounds */
-    --slskd-primary-background: #ffffff;
-    --slskd-secondary-background: #1b1c1d;
-    --slskd-overlay-background: #000000de;
-    --slskd-tertiary-background: #e5e7eb;
-    --slskd-tertiary-border-color: rgba(31,35,40,0.12);
-    --slskd-subtle-background: rgba(9,105,218,0.08);
+    --slskd-primary-background: rgba(255, 255, 255, 1);
+    --slskd-secondary-background: rgba(27, 28, 29, 1);
+    --slskd-overlay-background: rgba(0, 0, 0, 0.87);
+    --slskd-tertiary-background: rgba(229, 231, 235, 1);
+    --slskd-tertiary-border-color: rgba(31, 35, 40, 0.12);
+    --slskd-subtle-background: rgba(9, 105, 218, 0.08);
     
     /* Text colors */
-    --slskd-color: #2d333b;
-    --slskd-color-subtle: #656d76;
-    --slskd-hover-background: #ffffff;
-    --slskd-color-inset: #fafbfc;
-    --slskd-emphasis-background: #0969da;
+    --slskd-color: rgba(45, 51, 59, 1);
+    --slskd-color-subtle: var(--background-color);
+    --slskd-hover-background: rgba(255, 255, 255, 1);
+    --slskd-color-inset: rgba(250, 251, 252, 1);
+    --slskd-emphasis-background: rgba(9, 105, 218, 1);
 
     /* globals/site */
     --smui-site-body-text-color: var(--slskd-color);
     --smui-site-input-color: var(--smui-site-body-text-color);
-    --smui-site-link-color: #0969da;
+    --smui-site-link-color: rgba(9, 105, 218, 1);
     --smui-site-link-hover-underline: underline;
 
     /* element/button */
@@ -52,8 +52,8 @@
 
     /* view/card */
     --smui-card-background: var(--slskd-primary-background);
-    --smui-card-border-shadow: 0px 0px 0px 1px #d1d9e0;
-    --smui-card-floating-shadow: 0px 3px 12px rgba(31,35,40,0.1);
+    --smui-card-border-shadow: 0px 0px 0px 1px rgba(209, 217, 224, 1);
+    --smui-card-floating-shadow: 0px 3px 12px rgba(31, 35, 40, 0.1);
     --smui-card-text-color: var(--smui-site-body-text-color);
     --smui-card-meta-color: var(--slskd-color-subtle);
 
@@ -61,20 +61,20 @@
     --smui-table-background: var(--slskd-primary-background);
     --smui-table-color: var(--smui-site-body-text-color);
     --smui-table-border-color: var(--slskd-tertiary-background);
-    --smui-table-header-background: var(--slskd-secondary-background);
+    --smui-table-header-background: var(--slskd-tertiary-background);
     --smui-table-header-color: var(--smui-site-body-text-color);
-    --smui-table-footer-background: var(--slskd-secondary-background);
+    --smui-table-footer-background: var(--slskd-tertiary-background);
     --smui-table-footer-color: var(--smui-site-body-text-color);
     --smui-table-selectable-background-color: var(--slskd-subtle-background);
     --smui-table-row-disabled-color: var(--slskd-color-subtle);
     --smui-table-row-negative-color: var(--smui-site-body-text-color);
-    --smui-table-row-negative-background-color: rgba(248,81,73,0.15);
-    --smui-table-row-negative-border-color: rgba(248,81,73,0.4);
-    --smui-table-row-negative-background-hover-color: #da3633;
+    --smui-table-row-negative-background-color: rgba(248, 81, 73, 0.15);
+    --smui-table-row-negative-border-color: rgba(248, 81, 73, 0.4);
+    --smui-table-row-negative-background-hover-color: rgba(218, 54, 51, 1);
     --smui-table-row-warning-color: var(--smui-site-body-text-color);
-    --smui-table-row-warning-background-color: rgba(187,128,9,0.15);
-    --smui-table-row-warning-border-color: rgba(187,128,9,0.4);
-    --smui-table-row-warning-background-hover-color: #9e6a03;
+    --smui-table-row-warning-background-color: rgba(187, 128, 9, 0.15);
+    --smui-table-row-warning-border-color: rgba(187, 128, 9, 0.4);
+    --smui-table-row-warning-background-hover-color: rgba(158, 106, 3, 1);
 
     /* modules/modal */
     --smui-modal-background: var(--slskd-overlay-background);
@@ -89,34 +89,34 @@
     --smui-menu-background: var(--slskd-hover-background);
     --smui-menu-item-color: var(--slskd-color);
     --smui-menu-hovered-item-background: var(--slskd-emphasis-background);
-    --smui-menu-hovered-item-color: #ffffff;
+    --smui-menu-hovered-item-color: rgba(255, 255, 255, 1);
 
     /* Chat colors */
-    --slskd-room-message-color: #2d333b;
-    --slskd-room-message-self-color: #0000FF;
-    --slskd-chat-color: #2d333b;
+    --slskd-room-message-color: rgba(45, 51, 59, 1);
+    --slskd-room-message-self-color: rgba(0, 0, 255, 1);
+    --slskd-chat-color: rgba(45, 51, 59, 1);
     --slskd-self-message-background-color: rgba(26, 127, 55, 0.08);
 }
 
 :root.dark {
-    --slskd-primary-background: #0d1116;
-    --slskd-secondary-background: #161b21;
-    --slskd-overlay-background: #161b22;
-    --slskd-tertiary-background: #21262d;
-    --slskd-tertiary-border-color: rgba(240,246,252,0.1);
-    --slskd-subtle-background: rgba(110,118,129,0.1);
-    --slskd-color: #c9d1d9;
-    --slskd-color-subtle: #6e7681;
-    --slskd-hover-background: #30363d;
-    --slskd-color-inset: #010409;
-    --slskd-emphasis-background: #1f6feb;
+    --slskd-primary-background: rgba(13, 17, 22, 1);
+    --slskd-secondary-background: rgba(22, 27, 33, 1);
+    --slskd-overlay-background: rgba(22, 27, 34, 1);
+    --slskd-tertiary-background: rgba(33, 38, 45, 1);
+    --slskd-tertiary-border-color: rgba(240, 246, 252, 0.1);
+    --slskd-subtle-background: rgba(110, 118, 129, 0.1);
+    --slskd-color: rgba(201, 209, 217, 1);
+    --slskd-color-subtle: rgba(110, 118, 129, 1);
+    --slskd-hover-background: rgba(48, 54, 61, 1);
+    --slskd-color-inset: rgba(1, 4, 9, 1);
+    --slskd-emphasis-background: rgba(31, 111, 235, 1);
 
     --background-color: var(--slskd-primary-background) !important;
 
     /* globals/site */
     --smui-site-body-text-color: var(--slskd-color);
     --smui-site-input-color: var(--smui-site-body-text-color);
-    --smui-site-link-color: #58a6ff;
+    --smui-site-link-color: rgba(88, 166, 255, 1);
     --smui-site-link-hover-underline: underline;
 
     --slskd-browse-folderlist-header-color: var(--slskd-color);
@@ -150,8 +150,8 @@
 
     /* view/card */
     --smui-card-background: var(--slskd-primary-background);
-    --smui-card-border-shadow: 0px 0px 0px 1px #2b2b2a;
-    --smui-card-floating-shadow: 0px 2px 4px 0px rgb(221, 219, 217 / 12%), 0px 2px 10px 0px rgb(221, 219, 217 / 15%);
+    --smui-card-border-shadow: 0px 0px 0px 1px rgba(43, 43, 42, 1);
+    --smui-card-floating-shadow: 0px 2px 4px 0px rgba(221, 219, 217, 0.12), 0px 2px 10px 0px rgba(221, 219, 217, 0.15);
     --smui-card-text-color: var(--smui-site-body-text-color);
     --smui-card-meta-color: var(--slskd-color-subtle);
 
@@ -166,13 +166,13 @@
     --smui-table-selectable-background-color: var(--slskd-subtle-background);
     --smui-table-row-disabled-color: var(--slskd-color-subtle);
     --smui-table-row-negative-color: var(--smui-site-body-text-color);
-    --smui-table-row-negative-background-color: rgba(248,81,73,0.15);
-    --smui-table-row-negative-border-color:rgba(248,81,73,0.4);
-    --smui-table-row-negative-background-hover-color:#da3633;
+    --smui-table-row-negative-background-color: rgba(248, 81, 73, 0.15);
+    --smui-table-row-negative-border-color: rgba(248, 81, 73, 0.4);
+    --smui-table-row-negative-background-hover-color: rgba(218, 54, 51, 1);
     --smui-table-row-warning-color: var(--smui-site-body-text-color);
-    --smui-table-row-warning-background-color:rgba(187,128,9,0.15);
-    --smui-table-row-warning-border-color: rgba(187,128,9,0.4);
-    --smui-table-row-warning-background-hover-color: #9e6a03;
+    --smui-table-row-warning-background-color: rgba(187, 128, 9, 0.15);
+    --smui-table-row-warning-border-color: rgba(187, 128, 9, 0.4);
+    --smui-table-row-warning-background-hover-color: rgba(158, 106, 3, 1);
 
     /* modules/modal */
     --smui-modal-background: var(--slskd-overlay-background);
