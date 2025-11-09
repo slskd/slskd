@@ -1,21 +1,21 @@
 :root {
-    --background-color: #ffffff !important;
+    --background-color: #fafbfc !important;
     --slskd-browse-folderlist-header-color: #24292f;
     --slskd-browse-folderlist-header-selected-color: #0E6EB8;
 
     /* Primary/Secondary/Tertiary backgrounds */
-    --slskd-primary-background: #ffffff;
-    --slskd-secondary-background: #f6f8fa;
-    --slskd-overlay-background: #ffffff;
-    --slskd-tertiary-background: #eaeef2;
-    --slskd-tertiary-border-color: rgba(31,35,40,0.15);
-    --slskd-subtle-background: rgba(9,105,218,0.1);
+    --slskd-primary-background: #fafbfc;
+    --slskd-secondary-background: #f0f2f5;
+    --slskd-overlay-background: #fafbfc;
+    --slskd-tertiary-background: #e5e7eb;
+    --slskd-tertiary-border-color: rgba(31,35,40,0.12);
+    --slskd-subtle-background: rgba(9,105,218,0.08);
     
     /* Text colors */
-    --slskd-color: #24292f;
-    --slskd-color-subtle: #57606a;
-    --slskd-hover-background: #f3f4f6;
-    --slskd-color-inset: #ffffff;
+    --slskd-color: #2d333b;
+    --slskd-color-subtle: #656d76;
+    --slskd-hover-background: #eaeef2;
+    --slskd-color-inset: #fafbfc;
     --slskd-emphasis-background: #0969da;
 
     /* globals/site */
@@ -52,8 +52,8 @@
 
     /* view/card */
     --smui-card-background: var(--slskd-primary-background);
-    --smui-card-border-shadow: 0px 0px 0px 1px #d0d7de;
-    --smui-card-floating-shadow: 0px 3px 12px rgba(31,35,40,0.12);
+    --smui-card-border-shadow: 0px 0px 0px 1px #d1d9e0;
+    --smui-card-floating-shadow: 0px 3px 12px rgba(31,35,40,0.1);
     --smui-card-text-color: var(--smui-site-body-text-color);
     --smui-card-meta-color: var(--slskd-color-subtle);
 
@@ -92,13 +92,13 @@
     --smui-menu-hovered-item-color: #ffffff;
 
     /* Chat colors */
-    --slskd-room-message-color: #24292f;
+    --slskd-room-message-color: #2d333b;
     --slskd-room-message-self-color: #1a7f37;
-    --slskd-chat-color: #24292f;
-    --slskd-self-message-background-color: rgba(26, 127, 55, 0.1);
+    --slskd-chat-color: #2d333b;
+    --slskd-self-message-background-color: rgba(26, 127, 55, 0.08);
 
     /* Scrollbars */
-    scrollbar-color: #d0d7de #f6f8fa;
+    scrollbar-color: #d1d9e0 #f0f2f5;
 }
 
 :root.dark {
