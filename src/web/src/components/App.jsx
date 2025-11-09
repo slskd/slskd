@@ -173,7 +173,7 @@ class App extends Component {
     const themeLink = document.createElement('link');
     themeLink.rel = 'stylesheet';
     themeLink.href = '/api/v0/application/theme';
-    document.head.appendChild(themeLink);
+    document.head.append(themeLink);
 
     this.init();
   }
