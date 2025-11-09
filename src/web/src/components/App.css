@@ -5,7 +5,7 @@
 
     /* Primary/Secondary/Tertiary backgrounds */
     --slskd-primary-background: #fafbfc;
-    --slskd-secondary-background: #f0f2f5;
+    --slskd-secondary-background: #1b1c1d;
     --slskd-overlay-background: #fafbfc;
     --slskd-tertiary-background: #e5e7eb;
     --slskd-tertiary-border-color: rgba(31,35,40,0.12);
@@ -40,7 +40,7 @@
 
     /* collections/menu */
     --smui-menu-inverted-background: var(--slskd-secondary-background);
-    --smui-menu-active-item-text-color: var(--smui-site-body-text-color);
+    --smui-menu-active-item-text-color: var(--slskd-overlay-background);
 
     /* element/segment */
     --smui-segment-background: var(--slskd-primary-background);
@@ -93,7 +93,7 @@
 
     /* Chat colors */
     --slskd-room-message-color: #2d333b;
-    --slskd-room-message-self-color: #1a7f37;
+    --slskd-room-message-self-color: #0000FF;
     --slskd-chat-color: #2d333b;
     --slskd-self-message-background-color: rgba(26, 127, 55, 0.08);
 
@@ -141,7 +141,7 @@
 
     /* collections/menu */
     --smui-menu-inverted-background: var(--slskd-secondary-background);
-    --smui-menu-active-item-text-color: var(--smui-site-body-text-color);
+    --smui-menu-active-item-text-color: var(--slskd-overlay-background);
 
     /* element/segment */
     --smui-segment-background: var(--slskd-primary-background);
