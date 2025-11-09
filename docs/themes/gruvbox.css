@@ -1,130 +1,128 @@
 /**
- * Gruvbox Dark + Solarized Light Theme for slskd
+ * Gruvbox Theme for slskd
  * 
- * Combines two classic color schemes:
- *   - Dark mode: Gruvbox by morhetz (https://github.com/morhetz/gruvbox)
- *   - Light mode: Solarized Light by Ethan Schoonover (https://ethanschoonover.com/solarized/)
- * 
+ * Based on Gruvbox by morhetz (https://github.com/morhetz/gruvbox)
+ * Retro groove color scheme with warm, earthy tones
  * 
  * Usage:
- *   1. Save this file (e.g., /config/gruvbox-solarized.css)
+ *   1. Save this file (e.g., /config/gruvbox.css)
  *   2. Add to slskd.yml:
  *      web:
- *        custom_css_path: /config/gruvbox-solarized.css
- *   3. Restart slskd
+ *        custom_css_path: /config/gruvbox.css
+ *   3. Refresh browser cache
  */
 
 /* ============================================================
-   SOLARIZED LIGHT (when dark class is NOT present)
+   GRUVBOX LIGHT (when dark class is NOT present)
    ============================================================ */
 
 :root {
   /* === Backgrounds === */
-  --background-color: #fdf6e3 !important;
-  --slskd-primary-background: #fdf6e3;
-  --slskd-secondary-background: #eee8d5;
-  --slskd-overlay-background: #fdf6e3;
-  --slskd-tertiary-background: #d5cfc2;
-  --slskd-tertiary-border-color: rgba(101, 123, 131, 0.15);
-  --slskd-subtle-background: rgba(38, 139, 210, 0.1);
+  --background-color: #fbf1c7 !important;
+  --slskd-primary-background: #fbf1c7;
+  --slskd-secondary-background: #ebdbb2;
+  --slskd-overlay-background: #fbf1c7;
+  --slskd-tertiary-background: #d5c4a1;
+  --slskd-tertiary-border-color: rgba(60, 56, 54, 0.15);
+  --slskd-subtle-background: rgba(69, 133, 136, 0.1);
   
   /* === Text === */
-  --slskd-color: #586e75;
-  --slskd-color-subtle: #93a1a1;
-  --slskd-hover-background: #e7e1d3;
-  --slskd-color-inset: #fdf6e3;
-  --slskd-emphasis-background: #268bd2;
+  --slskd-color: #3c3836;
+  --slskd-color-subtle: #7c6f64;
+  --slskd-hover-background: #d5c4a1;
+  --slskd-color-inset: #f9f5d7;
+  --slskd-emphasis-background: #458588;
 
   /* === Site globals === */
-  --smui-site-body-text-color: #586e75;
-  --smui-site-input-color: #586e75;
-  --smui-site-link-color: #268bd2;
-  --smui-site-link-hover-color: #2aa198;
-  --slskd-browse-folderlist-header-color: #586e75;
-  --slskd-browse-folderlist-header-selected-color: #268bd2;
+  --smui-site-body-text-color: #3c3836;
+  --smui-site-input-color: #3c3836;
+  --smui-site-link-color: #076678;
+  --smui-site-link-hover-color: #427b58;
+  --slskd-browse-folderlist-header-color: #3c3836;
+  --slskd-browse-folderlist-header-selected-color: #076678;
 
   /* === Buttons === */
-  --smui-button-background-color: #eee8d5;
-  --smui-button-text-color: #586e75;
-  --smui-button-border: 1px solid rgba(101, 123, 131, 0.2);
-  --smui-button-hover-background-color: #d5cfc2;
+  --smui-button-background-color: #ebdbb2;
+  --smui-button-text-color: #3c3836;
+  --smui-button-border: 1px solid rgba(60, 56, 54, 0.2);
+  --smui-button-hover-background-color: #d5c4a1;
 
   /* === Inputs === */
-  --smui-input-background: #fdf6e3;
-  --smui-input-border-color: #d5cfc2;
-  --smui-input-color: #586e75;
-  --smui-input-placeholder-color: #93a1a1;
-  --smui-input-focus-color: #586e75;
+  --smui-input-background: #f9f5d7;
+  --smui-input-border-color: #d5c4a1;
+  --smui-input-color: #3c3836;
+  --smui-input-placeholder-color: #7c6f64;
+  --smui-input-focus-color: #3c3836;
 
   /* === Labels === */
-  --smui-label-background-color: #eee8d5;
-  --smui-label-color: #586e75;
+  --smui-label-background-color: #ebdbb2;
+  --smui-label-color: #3c3836;
 
   /* === Menus === */
-  --smui-menu-inverted-background: #eee8d5;
-  --smui-menu-active-item-text-color: #586e75;
-  --smui-menu-background: #e7e1d3;
-  --smui-menu-item-color: #586e75;
-  --smui-menu-hovered-item-background: #268bd2;
-  --smui-menu-hovered-item-color: #fdf6e3;
+  --smui-menu-inverted-background: #ebdbb2;
+  --smui-menu-active-item-text-color: #3c3836;
+  --smui-menu-background: #ebdbb2;
+  --smui-menu-item-color: #3c3836;
+  --smui-menu-hovered-item-background: #d5c4a1;
+  --smui-menu-hovered-item-color: #3c3836;
 
   /* === Segments === */
-  --smui-segment-background: #fdf6e3;
-  --smui-segment-ui-header-color: #586e75;
-  --smui-segment-border: 1px solid rgba(101, 123, 131, 0.15);
+  --smui-segment-background: #fbf1c7;
+  --smui-segment-ui-header-color: #3c3836;
+  --smui-segment-border: 1px solid rgba(60, 56, 54, 0.15);
 
   /* === Headers === */
-  --smui-header-text-color: #586e75;
+  --smui-header-text-color: #3c3836;
 
   /* === Cards === */
-  --smui-card-background: #fdf6e3;
-  --smui-card-border-shadow: 0px 0px 0px 1px rgba(101, 123, 131, 0.2);
-  --smui-card-floating-shadow: 0px 3px 12px rgba(101, 123, 131, 0.1);
-  --smui-card-text-color: #586e75;
-  --smui-card-meta-color: #93a1a1;
+  --smui-card-background: #fbf1c7;
+  --smui-card-border-shadow: 0px 0px 0px 1px rgba(60, 56, 54, 0.2);
+  --smui-card-floating-shadow: 0px 3px 12px rgba(60, 56, 54, 0.1);
+  --smui-card-text-color: #3c3836;
+  --smui-card-meta-color: #7c6f64;
 
   /* === Tables === */
-  --smui-table-background: #fdf6e3;
-  --smui-table-color: #586e75;
-  --smui-table-border-color: #eee8d5;
-  --smui-table-header-background: #eee8d5;
-  --smui-table-header-color: #586e75;
-  --smui-table-footer-background: #eee8d5;
-  --smui-table-footer-color: #586e75;
-  --smui-table-selectable-background-color: rgba(38, 139, 210, 0.1);
-  --smui-table-row-disabled-color: #93a1a1;
-  --smui-table-row-negative-color: #586e75;
-  --smui-table-row-negative-background-color: rgba(220, 50, 47, 0.15);
-  --smui-table-row-negative-border-color: rgba(220, 50, 47, 0.4);
-  --smui-table-row-negative-background-hover-color: #dc322f;
-  --smui-table-row-warning-color: #586e75;
-  --smui-table-row-warning-background-color: rgba(181, 137, 0, 0.15);
-  --smui-table-row-warning-border-color: rgba(181, 137, 0, 0.4);
-  --smui-table-row-warning-background-hover-color: #b58900;
+  --smui-table-background: #fbf1c7;
+  --smui-table-color: #3c3836;
+  --smui-table-border-color: #ebdbb2;
+  --smui-table-header-background: #ebdbb2;
+  --smui-table-header-color: #3c3836;
+  --smui-table-footer-background: #ebdbb2;
+  --smui-table-footer-color: #3c3836;
+  --smui-table-selectable-background-color: rgba(69, 133, 136, 0.1);
+  --smui-table-row-disabled-color: #7c6f64;
+  --smui-table-row-negative-color: #3c3836;
+  --smui-table-row-negative-background-color: rgba(204, 36, 29, 0.15);
+  --smui-table-row-negative-border-color: rgba(204, 36, 29, 0.4);
+  --smui-table-row-negative-background-hover-color: #cc241d;
+  --smui-table-row-warning-color: #3c3836;
+  --smui-table-row-warning-background-color: rgba(215, 153, 33, 0.15);
+  --smui-table-row-warning-border-color: rgba(215, 153, 33, 0.4);
+  --smui-table-row-warning-background-hover-color: #d79921;
 
   /* === Modals === */
-  --smui-modal-background: #fdf6e3;
-  --smui-modal-color: #586e75;
-  --smui-modal-border: 1px solid rgba(101, 123, 131, 0.15);
+  --smui-modal-background: #fbf1c7;
+  --smui-modal-color: #3c3836;
+  --smui-modal-border: 1px solid rgba(60, 56, 54, 0.15);
 
   /* === Items === */
-  --smui-item-meta-color: #93a1a1;
-  --smui-item-description-color: #586e75;
+  --smui-item-meta-color: #7c6f64;
+  --smui-item-description-color: #3c3836;
 
   /* === Semantic colors === */
-  --smui-positive-color: #859900;
-  --smui-warning-color: #b58900;
-  --smui-negative-color: #dc322f;
-  --smui-info-color: #268bd2;
+  --smui-positive-color: #79740e;
+  --smui-warning-color: #b57614;
+  --smui-negative-color: #9d0006;
+  --smui-info-color: #076678;
 
   /* === Chat === */
-  --slskd-room-message-color: #586e75;
-  --slskd-room-message-self-color: #859900;
-  --slskd-chat-color: #586e75;
-  --slskd-self-message-background-color: rgba(133, 153, 0, 0.1);
+  --slskd-room-message-color: #3c3836;
+  --slskd-room-message-self-color: #79740e;
+  --slskd-chat-color: #3c3836;
+  --slskd-self-message-background-color: rgba(121, 116, 14, 0.15);
 
   /* === Scrollbar === */
-  scrollbar-color: #d5cfc2 #eee8d5;
+  scrollbar-color: #d5c4a1 #ebdbb2;
 }
 
 /* Light mode scrollbars (Webkit) */
@@ -134,21 +132,21 @@
 }
 
 :root ::-webkit-scrollbar-track {
-  background: #eee8d5;
+  background: #ebdbb2;
 }
 
 :root ::-webkit-scrollbar-thumb {
-  background: #d5cfc2;
+  background: #d5c4a1;
   border-radius: 6px;
 }
 
 :root ::-webkit-scrollbar-thumb:hover {
-  background: #93a1a1;
+  background: #bdae93;
 }
 
 :root ::selection {
-  background: #b58900;
-  color: #fdf6e3;
+  background: #d79921;
+  color: #fbf1c7;
 }
 
 /* ============================================================
