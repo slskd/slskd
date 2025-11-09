@@ -1,101 +1,101 @@
 :root {
-    --background-color: rgba(200, 200, 200, 1);
-    --slskd-browse-folderlist-header-color: rgba(36, 41, 47, 1);
+    --background-color: white;
+    --slskd-browse-folderlist-header-color: rgba(0, 0, 0, 0.95);
     --slskd-browse-folderlist-header-selected-color: rgba(14, 110, 184, 1);
 
     /* Primary/Secondary/Tertiary backgrounds */
-    --slskd-primary-background: rgba(255, 255, 255, 1);
-    --slskd-secondary-background: rgba(27, 28, 29, 1);
-    --slskd-overlay-background: rgba(0, 0, 0, 0.87);
-    --slskd-tertiary-background: rgba(229, 231, 235, 1);
-    --slskd-tertiary-border-color: rgba(31, 35, 40, 0.12);
-    --slskd-subtle-background: rgba(9, 105, 218, 0.08);
+    --slskd-primary-background: initial;
+    --slskd-secondary-background: initial;
+    --slskd-overlay-background: initial;
+    --slskd-tertiary-background: initial;
+    --slskd-tertiary-border-color: initial;
+    --slskd-subtle-background: initial;
     
     /* Text colors */
-    --slskd-color: rgba(45, 51, 59, 1);
-    --slskd-color-subtle: var(--background-color);
-    --slskd-hover-background: rgba(255, 255, 255, 1);
-    --slskd-color-inset: rgba(250, 251, 252, 1);
-    --slskd-emphasis-background: rgba(9, 105, 218, 1);
+    --slskd-color: initial;
+    --slskd-color-subtle: initial;
+    --slskd-hover-background: initial;
+    --slskd-color-inset: initial;
+    --slskd-emphasis-background: initial;
 
     /* globals/site */
-    --smui-site-body-text-color: var(--slskd-color);
-    --smui-site-input-color: var(--smui-site-body-text-color);
-    --smui-site-link-color: rgba(9, 105, 218, 1);
-    --smui-site-link-hover-underline: underline;
+    --smui-site-body-text-color: initial;
+    --smui-site-input-color: initial;
+    --smui-site-link-color: initial;
+    --smui-site-link-hover-underline: initial;
 
     /* element/button */
-    --smui-button-background-color: var(--slskd-tertiary-background);
-    --smui-button-text-color: var(--smui-site-body-text-color);
-    --smui-button-border: 1px solid var(--slskd-tertiary-border-color);
-    --smui-button-hover-background-color: var(--slskd-hover-background);
+    --smui-button-background-color: initial;
+    --smui-button-text-color: initial;
+    --smui-button-border: initial;
+    --smui-button-hover-background-color: initial;
 
     /* element/input */
-    --smui-input-background: var(--slskd-color-inset);
-    --smui-input-focus-color: var(--smui-site-body-text-color);
+    --smui-input-background: initial;
+    --smui-input-focus-color: initial;
 
     /* element/label */
-    --smui-label-background-color: var(--slskd-tertiary-background);
-    --smui-label-color: var(--smui-site-body-text-color);
+    --smui-label-background-color: initial;
+    --smui-label-color: initial;
 
     /* collections/menu */
-    --smui-menu-inverted-background: var(--slskd-secondary-background);
-    --smui-menu-active-item-text-color: var(--slskd-overlay-background);
+    --smui-menu-inverted-background: initial;
+    --smui-menu-active-item-text-color: initial;
 
     /* element/segment */
-    --smui-segment-background: var(--slskd-primary-background);
-    --smui-segment-ui-header-color: var(--smui-site-body-text-color);
-    --smui-segment-border: 1px solid var(--slskd-tertiary-border-color);
+    --smui-segment-background: initial;
+    --smui-segment-ui-header-color: initial;
+    --smui-segment-border: initial;
 
     /* elements/header */
-    --smui-header-text-color: var(--smui-site-body-text-color);
+    --smui-header-text-color: initial;
 
     /* view/card */
-    --smui-card-background: var(--slskd-primary-background);
-    --smui-card-border-shadow: 0px 0px 0px 1px rgba(209, 217, 224, 1);
-    --smui-card-floating-shadow: 0px 3px 12px rgba(31, 35, 40, 0.1);
-    --smui-card-text-color: var(--smui-site-body-text-color);
-    --smui-card-meta-color: var(--slskd-color-subtle);
+    --smui-card-background: initial;
+    --smui-card-border-shadow: initial;
+    --smui-card-floating-shadow: initial;
+    --smui-card-text-color: initial;
+    --smui-card-meta-color: initial;
 
     /* collections/table */
-    --smui-table-background: var(--slskd-primary-background);
-    --smui-table-color: var(--smui-site-body-text-color);
-    --smui-table-border-color: var(--slskd-tertiary-background);
-    --smui-table-header-background: var(--slskd-tertiary-background);
-    --smui-table-header-color: var(--smui-site-body-text-color);
-    --smui-table-footer-background: var(--slskd-tertiary-background);
-    --smui-table-footer-color: var(--smui-site-body-text-color);
-    --smui-table-selectable-background-color: var(--slskd-subtle-background);
-    --smui-table-row-disabled-color: var(--slskd-color-subtle);
-    --smui-table-row-negative-color: var(--smui-site-body-text-color);
-    --smui-table-row-negative-background-color: rgba(248, 81, 73, 0.15);
-    --smui-table-row-negative-border-color: rgba(248, 81, 73, 0.4);
-    --smui-table-row-negative-background-hover-color: rgba(218, 54, 51, 1);
-    --smui-table-row-warning-color: var(--smui-site-body-text-color);
-    --smui-table-row-warning-background-color: rgba(187, 128, 9, 0.15);
-    --smui-table-row-warning-border-color: rgba(187, 128, 9, 0.4);
-    --smui-table-row-warning-background-hover-color: rgba(158, 106, 3, 1);
+    --smui-table-background: initial;
+    --smui-table-color: initial;
+    --smui-table-border-color: initial;
+    --smui-table-header-background: initial;
+    --smui-table-header-color: initial;
+    --smui-table-footer-background: initial;
+    --smui-table-footer-color: initial;
+    --smui-table-selectable-background-color: initial;
+    --smui-table-row-disabled-color: initial;
+    --smui-table-row-negative-color: initial;
+    --smui-table-row-negative-background-color: initial;
+    --smui-table-row-negative-border-color: initial;
+    --smui-table-row-negative-background-hover-color: initial;
+    --smui-table-row-warning-color: initial;
+    --smui-table-row-warning-background-color: initial;
+    --smui-table-row-warning-border-color: initial;
+    --smui-table-row-warning-background-hover-color: initial;
 
     /* modules/modal */
-    --smui-modal-background: var(--slskd-overlay-background);
-    --smui-modal-color: var(--smui-site-body-text-color);
-    --smui-modal-border: 1px solid var(--slskd-tertiary-border-color);
+    --smui-modal-background: initial;
+    --smui-modal-color: initial;
+    --smui-modal-border: initial;
 
     /* views/item */
-    --smui-item-meta-color: var(--slskd-color-subtle);
-    --smui-item-description-color: var(--slskd-color);
+    --smui-item-meta-color: initial;
+    --smui-item-description-color: initial;
 
     /* modules/dropdown */
-    --smui-menu-background: var(--slskd-hover-background);
-    --smui-menu-item-color: var(--slskd-color);
-    --smui-menu-hovered-item-background: var(--slskd-emphasis-background);
-    --smui-menu-hovered-item-color: rgba(255, 255, 255, 1);
+    --smui-menu-background: initial;
+    --smui-menu-item-color: initial;
+    --smui-menu-hovered-item-background: initial;
+    --smui-menu-hovered-item-color: initial;
 
     /* Chat colors */
-    --slskd-room-message-color: rgba(45, 51, 59, 1);
-    --slskd-room-message-self-color: rgba(0, 0, 255, 1);
-    --slskd-chat-color: rgba(45, 51, 59, 1);
-    --slskd-self-message-background-color: rgba(26, 127, 55, 0.08);
+    --slskd-room-message-color: initial;
+    --slskd-room-message-self-color: initial;
+    --slskd-chat-color: initial;
+    --slskd-self-message-background-color: initial;
 }
 
 :root.dark {
