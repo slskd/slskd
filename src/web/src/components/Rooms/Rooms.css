@@ -116,8 +116,12 @@
   font-style: italic;
 }
 
+.room-message {
+  color: var(--slskd-room-message-color, inherit);
+}
+
 .room-message-self, .room-user-self {
-  color: blue;
+  color: var(--slskd-room-message-self-color, blue);
 }
 
 .room-input {
