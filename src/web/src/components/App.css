@@ -1,12 +1,12 @@
 :root {
-    --background-color: #fafbfc !important;
+    --background-color: #c8c8c8;
     --slskd-browse-folderlist-header-color: #24292f;
     --slskd-browse-folderlist-header-selected-color: #0E6EB8;
 
     /* Primary/Secondary/Tertiary backgrounds */
-    --slskd-primary-background: #fafbfc;
+    --slskd-primary-background: #ffffff;
     --slskd-secondary-background: #1b1c1d;
-    --slskd-overlay-background: #fafbfc;
+    --slskd-overlay-background: #000000de;
     --slskd-tertiary-background: #e5e7eb;
     --slskd-tertiary-border-color: rgba(31,35,40,0.12);
     --slskd-subtle-background: rgba(9,105,218,0.08);
@@ -14,7 +14,7 @@
     /* Text colors */
     --slskd-color: #2d333b;
     --slskd-color-subtle: #656d76;
-    --slskd-hover-background: #eaeef2;
+    --slskd-hover-background: #ffffff;
     --slskd-color-inset: #fafbfc;
     --slskd-emphasis-background: #0969da;
 
@@ -96,9 +96,6 @@
     --slskd-room-message-self-color: #0000FF;
     --slskd-chat-color: #2d333b;
     --slskd-self-message-background-color: rgba(26, 127, 55, 0.08);
-
-    /* Scrollbars */
-    scrollbar-color: #d1d9e0 #f0f2f5;
 }
 
 :root.dark {
