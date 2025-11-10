@@ -155,7 +155,18 @@ namespace slskd
             Pushbullet = pushbulletService;
 
             RoomService = roomService;
+
             Users = userService;
+            Users.PresenceMonitor.OnChange(presence =>
+                State.SetValue(state => state with
+                {
+                    User = state.User with
+                    {
+                        Presence = presence.Current,
+                    },
+                })
+            );
+
             Messaging = messagingService;
             ApplicationHub = applicationHub;
 
@@ -913,6 +924,17 @@ namespace slskd
 
             try
             {
+                // if the presence value from state is offline, this indicates none has been set yet;
+                // so we use the value from the config by default
+                if (State.CurrentValue.User.Presence == UserPresence.Offline)
+                {
+                    await Users.SetPresenceAsync(Options.Soulseek.Presence);
+                }
+                else
+                {
+                    await Client.SetStatusAsync(State.CurrentValue.User.Presence);
+                }
+
                 // send whatever counts we have currently. we'll probably connect before the cache is primed, so these will be zero
                 // initially, but we'll update them when the cache is filled.
                 await Client.SetSharedCountsAsync(State.CurrentValue.Shares.Directories, State.CurrentValue.Shares.Files);
@@ -1369,6 +1391,11 @@ namespace slskd
                     var update = newOptions.Soulseek;
 
                     Log.Debug("Soulseek options changed from {Previous} to {Current}", old.ToJson(), update.ToJson());
+
+                    if (old.Presence != update.Presence)
+                    {
+                        await Users.SetPresenceAsync(update.Presence);
+                    }
 
                     // determine whether any Connection options changed. if so, replace the whole object. Soulseek.NET doesn't
                     // offer a way to patch parts of connection options. the updates only affect new connections, so a partial

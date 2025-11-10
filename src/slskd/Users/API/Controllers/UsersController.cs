@@ -47,18 +47,21 @@ namespace slskd.Users.API
         /// <param name="browseTracker"></param>
         /// <param name="userService"></param>
         /// <param name="optionsSnapshot"></param>
-        public UsersController(ISoulseekClient soulseekClient, IBrowseTracker browseTracker, IUserService userService, IOptionsSnapshot<Options> optionsSnapshot)
+        /// <param name="stateSnapshot"></param>
+        public UsersController(ISoulseekClient soulseekClient, IBrowseTracker browseTracker, IUserService userService, IOptionsSnapshot<Options> optionsSnapshot, IStateSnapshot<State> stateSnapshot)
         {
             Client = soulseekClient;
             BrowseTracker = browseTracker;
             Users = userService;
             OptionsSnapshot = optionsSnapshot;
+            StateSnapshot = stateSnapshot;
         }
 
         private IBrowseTracker BrowseTracker { get; }
         private ISoulseekClient Client { get; }
         private IUserService Users { get; }
         private IOptionsSnapshot<Options> OptionsSnapshot { get; }
+        private IStateSnapshot<State> StateSnapshot { get; }
         private ILogger Log { get; set; } = Serilog.Log.ForContext<UsersController>();
 
         /// <summary>
@@ -235,6 +238,54 @@ namespace slskd.Users.API
             {
                 return NotFound(ex.Message);
             }
+        }
+
+        /// <summary>
+        ///     Retrieves the current user presence.
+        /// </summary>
+        /// <returns></returns>
+        /// <response code="200"></response>
+        [HttpGet]
+        [Route("presence")]
+        [Authorize(Policy = AuthPolicy.Any)]
+        [ProducesResponseType(typeof(UserPresence), 200)]
+        [ProducesResponseType(403)]
+        public IActionResult GetPresence()
+        {
+            if (Program.IsRelayAgent)
+            {
+                return Forbid();
+            }
+
+            return Ok(StateSnapshot.Value.User.Presence);
+        }
+
+        /// <summary>
+        ///     Sets the current user <paramref name="presence"/>.
+        /// </summary>
+        /// <param name="presence"></param>
+        /// <returns></returns>
+        /// <response code="200"></response>
+        [HttpPut]
+        [Route("presence")]
+        [Authorize(Policy = AuthPolicy.Any)]
+        [ProducesResponseType(200)]
+        [ProducesResponseType(400)]
+        [ProducesResponseType(403)]
+        public async Task<IActionResult> SetPresence([FromBody, Required] UserPresence presence)
+        {
+            if (Program.IsRelayAgent)
+            {
+                return Forbid();
+            }
+
+            if (presence == default)
+            {
+                return BadRequest();
+            }
+
+            await Users.SetPresenceAsync(presence);
+            return Ok();
         }
     }
 }

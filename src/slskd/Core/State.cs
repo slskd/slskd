@@ -91,6 +91,7 @@ namespace slskd
     public record UserState
     {
         public string Username { get; init; }
+        public UserPresence Presence { get; init; } = UserPresence.Offline;
         public UserPrivilegeState Privileges { get; init; } = new UserPrivilegeState();
         public UserStatisticsState Statistics { get; init; } = new UserStatisticsState();
     }

@@ -79,6 +79,8 @@ namespace slskd.Users
             OptionsMonitor = optionsMonitor;
             OptionsMonitor.OnChange(options => Configure(options));
 
+            PresenceMonitor = Presence;
+
             // updates may be sent unsolicited from the server, so update when we get them. binding these events will cause
             // multiple redundant round trips when initially watching a user or when explicitly requesting via
             // GetStatus/GetStatistics. this is wasteful, but there's no functional side effect.
@@ -116,11 +118,17 @@ namespace slskd.Users
         /// </summary>
         public IReadOnlyList<string> WatchedUsernames => WatchedUsernamesDictionary.Keys.ToList().AsReadOnly();
 
+        /// <summary>
+        ///     Gets the presence monitor for the service.
+        /// </summary>
+        public IStateMonitor<UserPresence> PresenceMonitor { get; }
+
         private ISoulseekClient Client { get; }
         private string LastOptionsHash { get; set; }
         private string LastBlacklistOptionsHash { get; set; }
         private ILogger Log { get; set; } = Serilog.Log.ForContext<UserService>();
         private IOptionsMonitor<Options> OptionsMonitor { get; }
+        private IManagedState<UserPresence> Presence { get; } = new ManagedState<UserPresence>();
         private Blacklist Blacklist { get; } = new Blacklist();
 
         /// <summary>
@@ -349,6 +357,16 @@ namespace slskd.Users
             // can be sure that if IsWatched() is true, we have valid stats and status. if we can't ensure this, the application
             // will have non-deterministic behavior when it makes decisions about user groups, limits, governance etc.
             WatchedUsernamesDictionary.TryAdd(username, true);
+        }
+
+        public async Task SetPresenceAsync(UserPresence presence)
+        {
+            Presence.SetValue(_ => presence);
+
+            if (Client.State.HasFlag(SoulseekClientStates.Connected))
+            {
+                await Client.SetStatusAsync(presence);
+            }
         }
 
         private void Client_PrivilegedUserListReceived(IEnumerable<string> list)
