@@ -610,9 +610,12 @@ namespace slskd
             var connectionStringDictionary = new ConnectionStringDictionary(Database.List
                 .Select(database =>
                 {
+                    var caching = OptionsAtStartup.Flags.NoSqliteCacheSharing ? "Private" : "Shared";
+                    var pooling = OptionsAtStartup.Flags.NoSqlitePooling ? "False" : "True"; // don't invert and ToString this it is confusing
+
                     var connStr = OptionsAtStartup.Flags.Volatile
-                        ? $"Data Source=file:{database}?mode=memory;Cache=shared;Pooling=True;"
-                        : $"Data Source={Path.Combine(DataDirectory, $"{database}.db")};Cache=shared;Pooling=True;";
+                        ? $"Data Source=file:{database}?mode=memory;Cache={caching};Pooling={pooling};"
+                        : $"Data Source={Path.Combine(DataDirectory, $"{database}.db")};Cache={caching};Pooling={pooling}";
 
                     return new KeyValuePair<Database, ConnectionString>(database, connStr);
                 })
