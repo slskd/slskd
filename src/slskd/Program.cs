@@ -1229,6 +1229,10 @@ namespace slskd
 
                 /*
                     set (and validate) our desired PRAGMAs
+
+                    note: synchronous mode wants to default to 2, and setting it here may not actually do anything
+                          an alternative would be to set it at the start of each new connection, but i'm unsure if that
+                          would have the intended effect.  revisit later.
                 */
                 ctx.Database.OpenConnection();
                 var conn = ctx.Database.GetDbConnection();
