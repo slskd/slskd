@@ -1216,10 +1216,47 @@ namespace slskd
                     }
                 });
 
+                /*
+                    instantiate the DbContext and make sure it is created
+                */
                 using var ctx = services
                     .BuildServiceProvider()
                     .GetRequiredService<IDbContextFactory<T>>()
                     .CreateDbContext();
+
+                Log.Debug("Ensuring {Contex} is created", typeof(T).Name);
+                ctx.Database.EnsureCreated();
+
+                /*
+                    set (and validate) our desired PRAGMAs
+                */
+                ctx.Database.OpenConnection();
+                var conn = ctx.Database.GetDbConnection();
+
+                Log.Debug("Setting PRAGMAs for {Contex}", typeof(T).Name);
+                using var initCommand = conn.CreateCommand();
+                initCommand.CommandText = "PRAGMA journal_mode=WAL; PRAGMA synchronous=1; PRAGMA optimize;";
+                initCommand.ExecuteNonQuery();
+
+                using var journalCmd = conn.CreateCommand();
+                journalCmd.CommandText = "PRAGMA journal_mode;";
+                var journalMode = journalCmd.ExecuteScalar()?.ToString();
+
+                if (!journalMode.Equals("WAL", StringComparison.OrdinalIgnoreCase))
+                {
+                    Log.Warning("Failed to set database {Type} journal_mode PRAGMA to WAL; performance may be reduced", typeof(T).Name);
+                }
+
+                using var syncCmd = conn.CreateCommand();
+                syncCmd.CommandText = "PRAGMA synchronous;";
+                var sync = syncCmd.ExecuteScalar()?.ToString();
+
+                if (!sync.Equals("1", StringComparison.OrdinalIgnoreCase))
+                {
+                    Log.Warning("Failed to set database {Type} synchronous PRAGMA to 1; performance may be reduced", typeof(T).Name);
+                }
+
+                Log.Debug("PRAGMAs for {Context}: journal_mode={JournalMode}, synchronous={Synchronous}", typeof(T).Name, journalMode, sync);
 
                 return services;
             }
