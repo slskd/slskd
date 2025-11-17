@@ -26,7 +26,6 @@ namespace slskd.Transfers
         public TransfersDbContext(DbContextOptions<TransfersDbContext> options)
             : base(options)
         {
-            Database.EnsureCreated();
         }
 
         public DbSet<Transfer> Transfers { get; set; }
