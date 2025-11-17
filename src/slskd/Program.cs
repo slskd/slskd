@@ -1209,6 +1209,7 @@ namespace slskd
                 services.AddDbContextFactory<T>(options =>
                 {
                     options.UseSqlite(connectionString);
+                    options.AddInterceptors(new SqliteConnectionOpenedInterceptor());
 
                     if (OptionsAtStartup.Debug && OptionsAtStartup.Flags.LogSQL)
                     {
@@ -1230,9 +1231,7 @@ namespace slskd
                 /*
                     set (and validate) our desired PRAGMAs
 
-                    note: synchronous mode wants to default to 2, and setting it here may not actually do anything
-                          an alternative would be to set it at the start of each new connection, but i'm unsure if that
-                          would have the intended effect.  revisit later.
+                    synchronous mode is also set upon every connection via SqliteConnectionOpenedInterceptor.
                 */
                 ctx.Database.OpenConnection();
                 var conn = ctx.Database.GetDbConnection();
