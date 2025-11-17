@@ -25,7 +25,6 @@ namespace slskd.Search
         public SearchDbContext(DbContextOptions<SearchDbContext> options)
             : base(options)
         {
-            Database.EnsureCreated();
         }
 
         public DbSet<Search> Searches { get; set; }
