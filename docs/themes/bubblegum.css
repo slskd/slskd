@@ -120,6 +120,7 @@
   --slskd-room-message-self-color: #ff1493;
   --slskd-chat-color: #cc0066;
   --slskd-self-message-background-color: rgba(255, 20, 147, 0.15);
+  --slskd-self-room-message-background-color: rgba(255, 20, 147, 0.15);
 
   /* === Scrollbar === */
   scrollbar-color: #ff99d6 #ffc7ea;
@@ -263,6 +264,7 @@
   --slskd-room-message-self-color: #da70d6;
   --slskd-chat-color: #d8b3d8;
   --slskd-self-message-background-color: rgba(218, 112, 214, 0.2);
+  --slskd-self-room-message-background-color: rgba(218, 112, 214, 0.2);
 
   /* === Scrollbar === */
   scrollbar-color: #2d1a2d #0a0a0a;

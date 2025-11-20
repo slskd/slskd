@@ -1,3 +1,11 @@
+:root {
+  --slskd-self-room-message-background-color: rgba(0, 0, 0, 0.03);
+}
+
+:root.dark {
+  --slskd-self-room-message-background-color: rgba(255, 255, 255, 0.03);
+}
+
 .popup-menu {
   overflow-y: auto;
   position: fixed;
@@ -120,7 +128,12 @@
   color: var(--slskd-room-message-color, inherit);
 }
 
-.room-message-self, .room-user-self {
+.room-message-self {
+  color: var(--slskd-room-message-self-color, blue);
+  background-color: var(--slskd-self-room-message-background-color);
+}
+
+.room-user-self {
   color: var(--slskd-room-message-self-color, blue);
 }
 

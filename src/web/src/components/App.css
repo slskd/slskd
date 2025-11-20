@@ -96,6 +96,7 @@
     --slskd-room-message-self-color: initial;
     --slskd-chat-color: initial;
     --slskd-self-message-background-color: initial;
+    --slskd-self-room-message-background-color: initial;
 }
 
 :root.dark {
