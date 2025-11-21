@@ -332,6 +332,10 @@ body {
     background-color: transparent !important;
 }
 
+.ui.inverted.dimmer {
+    background-color: var(--slskd-primary-background) !important;
+}
+
 .view {
   padding-left: 15px;
   padding-right: 15px;
