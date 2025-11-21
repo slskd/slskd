@@ -139,7 +139,7 @@
 
     /* collections/menu */
     --smui-menu-inverted-background: var(--slskd-secondary-background);
-    --smui-menu-active-item-text-color: var(--slskd-overlay-background);
+    --smui-menu-active-item-text-color: var(--smui-site-body-text-color);
 
     /* element/segment */
     --smui-segment-background: var(--slskd-primary-background);
