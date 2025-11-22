@@ -13,6 +13,7 @@
 #   force_migrations: false
 #   no_version_check: false
 #   log_sql: false
+#   log_unobserved_exceptions: false
 #   experimental: false
 #   volatile: false
 #   case_sensitive_reg_ex: false
