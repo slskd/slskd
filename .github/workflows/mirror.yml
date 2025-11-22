@@ -11,7 +11,17 @@ on:
 jobs:
   mirror:
     runs-on: ubuntu-latest
-    
+    strategy:
+      matrix:
+        target:
+          - name: GitLab
+            host: gitlab.com
+            repo: git@gitlab.com:slskd/slskd.git
+          - name: Codeberg
+            host: codeberg.org
+            repo: git@codeberg.org:slskd/slskd.git
+      fail-fast: false  # Continue with other mirrors even if one fails
+
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
@@ -34,54 +44,35 @@ jobs:
         echo "$SSH_KEY" > ~/.ssh/id_ed25519
         chmod 600 ~/.ssh/id_ed25519
 
-        # Add known hosts to avoid SSH prompts
-        ssh-keyscan gitlab.com >> ~/.ssh/known_hosts
-        ssh-keyscan codeberg.org >> ~/.ssh/known_hosts
+        # Start SSH agent and add key
+        eval "$(ssh-agent -s)"
+        ssh-add ~/.ssh/id_ed25519
+
+        # Add known host to avoid SSH prompts
+        ssh-keyscan ${{ matrix.target.host }} >> ~/.ssh/known_hosts
 
         # Configure Git
         git config --global user.name "GitHub Actions"
         git config --global user.email "actions@github.com"
 
-    - name: Mirror to GitLab
+    - name: Mirror to ${{ matrix.target.name }}
+      if: github.event_name != 'delete'
       run: |
-        echo "🔄 Syncing to GitLab..."
-        # Add GitLab remote with SSH
-        git remote add gitlab git@gitlab.com:slskd/slskd.git
+        echo "🔄 Syncing to ${{ matrix.target.name }}..."
+        # Add remote with SSH
+        git remote add mirror ${{ matrix.target.repo }}
 
-        # Push all branches and tags to GitLab
-        git push gitlab --all --force
-        git push gitlab --tags --force
+        # Push all branches and tags
+        git push mirror --all --force
+        git push mirror --tags --force
 
-        echo "✅ Successfully synced to GitLab"
+        echo "✅ Successfully synced to ${{ matrix.target.name }}"
 
-    - name: Mirror to Codeberg
-      run: |
-        echo "🔄 Syncing to Codeberg..."
-        # Add Codeberg remote with SSH
-        git remote add codeberg git@codeberg.org:slskd/slskd.git
-
-        # Push all branches and tags to Codeberg
-        git push codeberg --all --force
-        git push codeberg --tags --force
-
-        echo "✅ Successfully synced to Codeberg"
-
-    - name: Handle branch deletion
+    - name: Handle branch deletion on ${{ matrix.target.name }}
       if: github.event_name == 'delete' && github.event.ref_type == 'branch'
       run: |
         DELETED_BRANCH="${{ github.event.ref }}"
-        echo "🗑️ Branch '$DELETED_BRANCH' was deleted, syncing deletion to mirrors..."
+        echo "🗑️ Branch '$DELETED_BRANCH' was deleted, syncing deletion to ${{ matrix.target.name }}..."
 
-        # Delete branch from GitLab
-        git push git@gitlab.com:slskd/slskd.git --delete "$DELETED_BRANCH" || echo "Branch may not exist on GitLab"
-
-        # Delete branch from Codeberg
-        git push git@codeberg.org:slskd/slskd.git --delete "$DELETED_BRANCH" || echo "Branch may not exist on Codeberg"
-
-    - name: Summary
-      run: |
-        echo "🎉 Repository mirroring completed!"
-        echo "📊 Summary:"
-        echo "  - GitHub: ✅ Source repository"
-        echo "  - GitLab: ✅ Synced"
-        echo "  - Codeberg: ✅ Synced"
+        # Delete branch from mirror
+        git push ${{ matrix.target.repo }} --delete "$DELETED_BRANCH" || echo "Branch may not exist on ${{ matrix.target.name }}"
