@@ -57,7 +57,7 @@ public class TelemetryController : ControllerBase
     ///     * node_filesystem_avail_bytes = how much space is left on the system
     ///     * node_network = info about network adapters on the system
     ///     Other
-    ///     * process_start_time_seconds = unix timestamp of start time
+    ///     * process_start_time_seconds = unix timestamp of start time.
     /// </summary>
     private List<Regex> KpiRegexes { get; } = new List<Regex>
     {
