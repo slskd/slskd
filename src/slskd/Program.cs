@@ -1143,12 +1143,15 @@ namespace slskd
                 }))
                 .CreateLogger();
 
-            // // occurs when a faulted task's unobserved exception is about to trigger exception escalation policy, which, by default, would terminate the process.
-            // TaskScheduler.UnobservedTaskException += (sender, e) =>
-            // {
-            //     Serilog.Log.Logger.Error(e.Exception, "Unobserved exception: {Message}", e.Exception.Message);
-            //     e.SetObserved();
-            // };
+            if (OptionsAtStartup.Flags.LogUnobservedExceptions)
+            {
+                // log Exceptions raised on fired-and-forgotten tasks, which adds very little value but might help debug someday
+                TaskScheduler.UnobservedTaskException += (sender, e) =>
+                {
+                    Serilog.Log.Logger.Error(e.Exception, "Unobserved exception: {Message}", e.Exception.Message);
+                    e.SetObserved();
+                };
+            }
 
             AppDomain.CurrentDomain.UnhandledException += (sender, e) =>
             {

@@ -418,6 +418,15 @@ namespace slskd
             public bool LogSQL { get; init; } = false;
 
             /// <summary>
+            ///     Gets a value indicating whether to log unobserved Exceptions.
+            /// </summary>
+            [Argument(default, "log-unobserved-exceptions")]
+            [EnvironmentVariable("LOG_UNOBSERVED_EXCEPTIONS")]
+            [Description("log unobserved exceptions (caution: verbose)")]
+            [RequiresRestart]
+            public bool LogUnobservedExceptions { get; init; } = false;
+
+            /// <summary>
             ///     Gets a value indicating whether the application should run in experimental mode.
             /// </summary>
             [Argument(default, "experimental")]
