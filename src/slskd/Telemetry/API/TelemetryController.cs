@@ -135,17 +135,19 @@ public class TelemetryController : ControllerBase
     [ProducesResponseType(typeof(Dictionary<TransferDirection, Dictionary<TransferStates, TransferSummary>>), 200)]
     public IActionResult GetTransferSummaryHistogram(
         [FromQuery] DateTime? start = null,
-        [FromQuery] DateTime? end = null)
+        [FromQuery] DateTime? end = null,
+        [FromQuery] TimeSpan? interval = null)
     {
-        start ??= DateTime.MinValue;
-        end ??= DateTime.MaxValue;
+        start ??= DateTime.UtcNow.AddDays(-7);
+        end ??= DateTime.UtcNow;
+        interval ??= TimeSpan.FromHours(1);
 
         if (start >= end)
         {
             return BadRequest("End time must be later than start time");
         }
 
-        return Ok(Telemetry.Statistics.GetTransferSummaryHistogram(start.Value, end.Value, TimeSpan.FromSeconds(60)));
+        return Ok(Telemetry.Statistics.GetTransferSummaryHistogram(start.Value, end.Value, interval.Value));
     }
 
     /// <summary>
