@@ -25,7 +25,6 @@ namespace slskd.Messaging
         public MessagingDbContext(DbContextOptions<MessagingDbContext> options)
             : base(options)
         {
-            Database.EnsureCreated();
         }
 
         public DbSet<Conversation> Conversations { get; set; }

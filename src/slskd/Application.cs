@@ -188,8 +188,8 @@ namespace slskd
             Client.LoggedIn += Client_LoggedIn;
             Client.StateChanged += Client_StateChanged;
             Client.DistributedNetworkStateChanged += Client_DistributedNetworkStateChanged;
-            Client.DownloadDenied += (e, args) => Log.Information("Download of {Filename} from {Username} was denied: {Message}", args.Filename, args.Username, args.Message);
-            Client.DownloadFailed += (e, args) => Log.Information("Download of {Filename} from {Username} failed", args.Filename, args.Username);
+            Client.DownloadDenied += (e, args) => Log.Error("Download of {Filename} from {Username} was denied by the remote user: {Message}", args.Filename, args.Username, args.Message);
+            Client.DownloadFailed += (e, args) => Log.Error("Download of {Filename} from {Username} reported as failed by the remote user", args.Filename, args.Username);
 
             Client.ExcludedSearchPhrasesReceived += Client_ExcludedSearchPhrasesReceived;
 
@@ -220,6 +220,7 @@ namespace slskd
         private OptionsAtStartup OptionsAtStartup { get; set; }
         private IOptionsMonitor<Options> OptionsMonitor { get; set; }
         private SemaphoreSlim OptionsSyncRoot { get; } = new SemaphoreSlim(1, 1);
+        private SemaphoreSlim EnqueueRequestRateLimiter { get; } = new SemaphoreSlim(20, 20);
         private Options PreviousOptions { get; set; }
         private IPushbulletService Pushbullet { get; }
         private DateTime SharesRefreshStarted { get; set; }
@@ -375,18 +376,24 @@ namespace slskd
             var connectionOptions = new ConnectionOptions(
                 readBufferSize: OptionsAtStartup.Soulseek.Connection.Buffer.Read,
                 writeBufferSize: OptionsAtStartup.Soulseek.Connection.Buffer.Write,
-                writeQueueSize: OptionsAtStartup.Soulseek.Connection.Buffer.WriteQueue,
+                writeQueueSize: int.MaxValue, // no write queue for peer, server or transfer connections
                 connectTimeout: OptionsAtStartup.Soulseek.Connection.Timeout.Connect,
                 inactivityTimeout: OptionsAtStartup.Soulseek.Connection.Timeout.Inactivity,
                 proxyOptions: proxyOptions);
 
             // os-specific keepalive is configured for long-lived connections for the server and distributed parent/children
-            var serverOptions = connectionOptions.With(configureSocketAction: socket => ConfigureSocketKeepAlive(socket, OptionsAtStartup.Soulseek.Connection));
-            var distributedOptions = connectionOptions.With(configureSocketAction: socket => ConfigureSocketKeepAlive(socket, OptionsAtStartup.Soulseek.Connection));
+            var serverOptions = connectionOptions.With(
+                inactivityTimeout: -1, // don't disconnect due to inactivity
+                configureSocket: socket => ConfigureSocketKeepaliveOptions(socket, OptionsAtStartup.Soulseek.Connection));
+
+            var distributedOptions = connectionOptions.With(
+                writeQueueSize: OptionsAtStartup.Soulseek.Connection.Buffer.WriteQueue, // write queue set to keep distributed children from impacting performance
+                configureSocket: socket => ConfigureSocketKeepaliveOptions(socket, OptionsAtStartup.Soulseek.Connection));
 
             var transferOptions = connectionOptions.With(
                 readBufferSize: OptionsAtStartup.Soulseek.Connection.Buffer.Transfer,
-                writeBufferSize: OptionsAtStartup.Soulseek.Connection.Buffer.Transfer);
+                writeBufferSize: OptionsAtStartup.Soulseek.Connection.Buffer.Transfer,
+                inactivityTimeout: OptionsAtStartup.Soulseek.Connection.Timeout.Transfer);
 
             var patch = new SoulseekClientOptionsPatch(
                 listenIPAddress: IPAddress.Parse(OptionsAtStartup.Soulseek.ListenIpAddress),
@@ -496,7 +503,7 @@ namespace slskd
             return Task.CompletedTask;
         }
 
-        private void ConfigureSocketKeepAlive(Socket socket, Options.SoulseekOptions.ConnectionOptions options)
+        private void ConfigureSocketKeepaliveOptions(Socket socket, Options.SoulseekOptions.ConnectionOptions options)
         {
             /*
                 os-specific keepalive is configured for long-lived connections for the server and distributed parent/children
@@ -530,211 +537,226 @@ namespace slskd
         // todo: consider moving this somewhere else; it's pretty long and complicated
         private async Task EnqueueDownload(string username, IPEndPoint endpoint, string filename)
         {
-            if (Users.IsBlacklisted(username, endpoint.Address))
-            {
-                Log.Information("Rejected enqueue request for blacklisted user {Username} ({IP})", username, endpoint.Address);
-                throw new DownloadEnqueueException("File not shared.");
-            }
+            var stopwatch = new Stopwatch();
+            var decisionStopwatch = new Stopwatch();
 
-            // in order to properly determine if the requested file would exceed any limits, we need to know the size of the file
-            // it helps, too, that this will tell us whether the file is even shared.
-            (string Host, string Filename, long Size) resolved;
+            await EnqueueRequestRateLimiter.WaitAsync();
 
             try
             {
-                resolved = await Shares.ResolveFileAsync(filename);
-            }
-            catch (NotFoundException)
-            {
-                throw new DownloadEnqueueException("File not shared.");
-            }
+                stopwatch.Start();
 
-            // get the user's group. this will be the name of the user's group, if they have been added to a
-            // user defined group, or one of the built-ins; 'default', 'privileged', 'leecher', or 'blacklisted'
-            var group = await Users.GetOrFetchGroupAsync(username);
+                if (Users.IsBlacklisted(username, endpoint.Address))
+                {
+                    Log.Information("Rejected enqueue request for blacklisted user {Username} ({IP})", username, endpoint.Address);
+                    throw new DownloadEnqueueException("File not shared.");
+                }
 
-            // privileged users aren't subject to limits (for now)
-            // i'm putting this off because 1) limits are unique to slskd, so all other clients are "unlimited"
-            // and 2) i can't figure out what the limits would be, if not unlimited. users should get some level
-            // of control, but i'd need to figure out a lower bound
-            if (string.Equals(group, PrivilegedGroup))
-            {
-                Log.Debug("Limits bypassed for {Username} and {File}; user is privileged", username, filename);
+                // in order to properly determine if the requested file would exceed any limits, we need to know the size of the file
+                // it helps, too, that this will tell us whether the file is even shared.
+                (string Host, string Filename, long Size) resolved;
+
+                try
+                {
+                    resolved = await Shares.ResolveFileAsync(filename);
+                }
+                catch (NotFoundException)
+                {
+                    throw new DownloadEnqueueException("File not shared.");
+                }
+
+                // get the user's group. this will be the name of the user's group, if they have been added to a
+                // user defined group, or one of the built-ins; 'default', 'privileged', 'leecher', or 'blacklisted'
+                var group = await Users.GetOrFetchGroupAsync(username);
+
+                // privileged users aren't subject to limits (for now)
+                // i'm putting this off because 1) limits are unique to slskd, so all other clients are "unlimited"
+                // and 2) i can't figure out what the limits would be, if not unlimited. users should get some level
+                // of control, but i'd need to figure out a lower bound
+                if (string.Equals(group, PrivilegedGroup))
+                {
+                    Log.Debug("Limits bypassed for {Username} and {File}; user is privileged", username, filename);
+                    await Transfers.Uploads.EnqueueAsync(username, filename);
+                    return;
+                }
+
+                // we'll fall back to global limits for any limit that isn't set at the group level
+                var global = Options.Global.Limits;
+
+                // resolve the limits for this user's group.
+                Options.LimitsOptions limits;
+
+                if (Options.Groups.UserDefined.TryGetValue(group, out var userDefinedOptions))
+                {
+                    limits = userDefinedOptions.Limits;
+                }
+                else
+                {
+                    limits = group switch
+                    {
+                        DefaultGroup => Options.Groups.Default.Limits,
+                        LeecherGroup => Options.Groups.Leechers.Limits,
+                        _ => Options.Groups.Default.Limits, // that's weird! we'll just go with defaults..
+                    };
+                }
+
+                bool IsNull(Options.LimitsOptions.Limits lim, Options.LimitsOptions.Limits global)
+                    => (lim is null && global is null) || ((lim?.Files ?? global?.Files ?? lim?.Megabytes ?? global?.Megabytes ?? lim.Failures ?? global.Failures) is null);
+
+                /*
+                 * we have limits set, so now we have to fetch the data and compare to see if any would be hit if we allow this transfer to be enqueued.
+                 * the strategy here is to summarize all uploads:
+                 * 1) belonging to this user
+                 * 2) that were started within the time period
+                 * 3) that did not end due to an error (state includes errored, exception column is set)
+                */
+                (bool Files, bool Megabytes) OverLimits(
+                    (int Files, long Bytes) stats,
+                    Options.LimitsOptions.Limits options,
+                    Options.LimitsOptions.Limits defaults,
+                    long size)
+                {
+                    var files = false;
+                    var megabytes = false;
+                    var byteLimitInMegabytes = options?.Megabytes ?? defaults?.Megabytes;
+
+                    if (byteLimitInMegabytes is not null && (stats.Bytes + size) > (byteLimitInMegabytes * 1000L * 1000L))
+                    {
+                        Log.Debug("Projected bytes {Bytes} exceeds limit {Limit}", stats.Bytes + size, byteLimitInMegabytes * 1000L * 1000L);
+                        megabytes = true;
+                    }
+
+                    var fileLimit = options?.Files ?? defaults?.Files;
+
+                    if (fileLimit is not null && (stats.Files + 1) > fileLimit)
+                    {
+                        Log.Debug("Projected file count {Files} exceeds limit {Limit}", stats.Files + 1, fileLimit);
+                        files = true;
+                    }
+
+                    return (files, megabytes);
+                }
+
+                decisionStopwatch.Start();
+
+                // start with the queue, since that should contain the fewest files and should be the least expensive to check
+                // "queued" includes both queued and in progress; records with a null EndedAt property, which is guaranteed to be set
+                // for terminal transfers.
+                if (!IsNull(limits?.Queued, global?.Queued))
+                {
+                    var queued = Transfers.Uploads.Summarize(
+                        expression: t => t.Username == username && t.EndedAt == null);
+
+                    Log.Debug("Fetched queue stats: files: {Files}, bytes: {Bytes} ({Time}ms)", queued.Files, queued.Bytes, decisionStopwatch.ElapsedMilliseconds);
+
+                    var over = OverLimits(queued, limits?.Queued, global?.Queued, resolved.Size);
+
+                    if (over.Files || over.Megabytes)
+                    {
+                        Log.Information("Rejected enqueue request for user {Username}: Queued limits exceeded", username);
+
+                        // note: return exactly 'Too many files' or 'Too many megabytes' to ensure interop with other clients.
+                        // these messages are retryable, while anything else is not
+                        throw new DownloadEnqueueException($"Too many {(over.Megabytes ? "megabytes" : "files")}");
+                    }
+                }
+
+                // start with weekly, as this is the most likely limit to be hit and we want to keep the work to a minimum
+                // transfers that 'count' for the weekly limit are uploads that:
+                // * started within the last week
+                // * which have or have not ended (assuming queued files will complete)
+                // * that were not errored
+                if (!IsNull(limits?.Weekly, global?.Weekly))
+                {
+                    var erroredState = TransferStates.Completed | TransferStates.Errored;
+                    var cutoffDateTime = DateTime.UtcNow.AddDays(-7);
+
+                    var failures = Transfers.Uploads.Summarize(
+                        expression: t =>
+                            t.Username == username
+                            && t.StartedAt >= cutoffDateTime
+                            && (t.State.HasFlag(erroredState) || t.Exception != null));
+
+                    Log.Debug("Fetched weekly failures: {Failures} ({Time}ms)", failures.Files, decisionStopwatch.ElapsedMilliseconds);
+
+                    var failureLimit = limits?.Weekly?.Failures ?? global?.Weekly?.Failures;
+
+                    if (failureLimit is not null && failures.Files >= failureLimit)
+                    {
+                        Log.Information("Rejected enqueue request for user {Username}: Weekly failure limit met or exceeded", username);
+                        throw new DownloadEnqueueException("Too many failed transfers this week");
+                    }
+
+                    var weekly = Transfers.Uploads.Summarize(
+                        expression: t =>
+                            t.Username == username
+                            && t.StartedAt >= cutoffDateTime
+                            && !t.State.HasFlag(erroredState)
+                            && t.Exception == null);
+
+                    Log.Debug("Fetched weekly stats: files: {Files}, bytes: {Bytes} ({Time}ms)", weekly.Files, weekly.Bytes, decisionStopwatch.ElapsedMilliseconds);
+
+                    var over = OverLimits(weekly, limits?.Weekly, global?.Weekly, resolved.Size);
+
+                    if (over.Files || over.Megabytes)
+                    {
+                        Log.Information("Rejected enqueue request for user {Username}: Weekly limits exceeded", username);
+                        throw new DownloadEnqueueException($"Too many {(over.Files ? "files" : "megabytes")} this week");
+                    }
+                }
+
+                // lastly, check daily limits. the criteria for this is the same as weekly, just looking over the previous day instead
+                // of the previous 7.
+                if (!IsNull(limits?.Daily, global?.Daily))
+                {
+                    var erroredState = TransferStates.Completed | TransferStates.Errored;
+                    var cutoffDateTime = DateTime.UtcNow.AddDays(-1);
+
+                    var failures = Transfers.Uploads.Summarize(
+                        expression: t =>
+                            t.Username == username
+                            && t.StartedAt >= cutoffDateTime
+                            && (t.State.HasFlag(erroredState) || t.Exception != null));
+
+                    Log.Debug("Fetched daily failures: {Failures} ({Time}ms)", failures.Files, decisionStopwatch.ElapsedMilliseconds);
+
+                    var failureLimit = limits?.Daily?.Failures ?? global?.Daily?.Failures;
+
+                    if (failureLimit is not null && failures.Files >= failureLimit)
+                    {
+                        Log.Information("Rejected enqueue request for user {Username}: Daily failure limit met or exceeded", username);
+                        throw new DownloadEnqueueException("Too many failed transfers today");
+                    }
+
+                    var daily = Transfers.Uploads.Summarize(
+                        expression: t =>
+                            t.Username == username
+                            && t.StartedAt >= cutoffDateTime
+                            && !t.State.HasFlag(erroredState)
+                            && t.Exception == null);
+
+                    Log.Debug("Fetched daily stats: files: {Files}, bytes: {Bytes} ({Time}ms)", daily.Files, daily.Bytes, decisionStopwatch.ElapsedMilliseconds);
+
+                    var over = OverLimits(daily, limits?.Daily, global?.Daily, resolved.Size);
+
+                    if (over.Files || over.Megabytes)
+                    {
+                        Log.Information("Rejected enqueue request for user {Username}: Daily limits exceeded", username);
+                        throw new DownloadEnqueueException($"Too many {(over.Files ? "files" : "megabytes")} today");
+                    }
+                }
+
                 await Transfers.Uploads.EnqueueAsync(username, filename);
-                return;
             }
-
-            // we'll fall back to global limits for any limit that isn't set at the group level
-            var global = Options.Global.Limits;
-
-            // resolve the limits for this user's group.
-            Options.LimitsOptions limits;
-
-            if (Options.Groups.UserDefined.TryGetValue(group, out var userDefinedOptions))
+            finally
             {
-                limits = userDefinedOptions.Limits;
+                decisionStopwatch.Stop();
+                stopwatch.Stop();
+
+                EnqueueRequestRateLimiter.Release();
+
+                Log.Debug("EnqueueDownload for {Username}/{Filename} completed in {ElapsedOverall}ms, decision made in {ElapsedDecision}ms", username, filename, stopwatch.ElapsedMilliseconds, decisionStopwatch.ElapsedMilliseconds);
             }
-            else
-            {
-                limits = group switch
-                {
-                    DefaultGroup => Options.Groups.Default.Limits,
-                    LeecherGroup => Options.Groups.Leechers.Limits,
-                    _ => Options.Groups.Default.Limits, // that's weird! we'll just go with defaults..
-                };
-            }
-
-            bool IsNull(Options.LimitsOptions.Limits lim, Options.LimitsOptions.Limits global)
-                => (lim is null && global is null) || ((lim?.Files ?? global?.Files ?? lim?.Megabytes ?? global?.Megabytes ?? lim.Failures ?? global.Failures) is null);
-
-            /*
-             * we have limits set, so now we have to fetch the data and compare to see if any would be hit if we allow this transfer to be enqueued.
-             * the strategy here is to summarize all uploads:
-             * 1) belonging to this user
-             * 2) that were started within the time period
-             * 3) that did not end due to an error (state includes errored, exception column is set)
-            */
-            (bool Files, bool Megabytes) OverLimits(
-                (int Files, long Bytes) stats,
-                Options.LimitsOptions.Limits options,
-                Options.LimitsOptions.Limits defaults,
-                long size)
-            {
-                var files = false;
-                var megabytes = false;
-                var byteLimitInMegabytes = options?.Megabytes ?? defaults?.Megabytes;
-
-                if (byteLimitInMegabytes is not null && (stats.Bytes + size) > (byteLimitInMegabytes * 1000L * 1000L))
-                {
-                    Log.Debug("Projected bytes {Bytes} exceeds limit {Limit}", stats.Bytes + size, byteLimitInMegabytes * 1000L * 1000L);
-                    megabytes = true;
-                }
-
-                var fileLimit = options?.Files ?? defaults?.Files;
-
-                if (fileLimit is not null && (stats.Files + 1) > fileLimit)
-                {
-                    Log.Debug("Projected file count {Files} exceeds limit {Limit}", stats.Files + 1, fileLimit);
-                    files = true;
-                }
-
-                return (files, megabytes);
-            }
-
-            var sw = new Stopwatch();
-            sw.Start();
-
-            // start with the queue, since that should contain the fewest files and should be the least expensive to check
-            // "queued" includes both queued and in progress; records with a null EndedAt property, which is guaranteed to be set
-            // for terminal transfers.
-            if (!IsNull(limits?.Queued, global?.Queued))
-            {
-                var queued = Transfers.Uploads.Summarize(
-                    expression: t => t.Username == username && t.EndedAt == null);
-
-                Log.Debug("Fetched queue stats: files: {Files}, bytes: {Bytes} ({Time}ms)", queued.Files, queued.Bytes, sw.ElapsedMilliseconds);
-
-                var over = OverLimits(queued, limits?.Queued, global?.Queued, resolved.Size);
-
-                if (over.Files || over.Megabytes)
-                {
-                    Log.Information("Rejected enqueue request for user {Username}: Queued limits exceeded", username);
-
-                    // note: return exactly 'Too many files' or 'Too many megabytes' to ensure interop with other clients.
-                    // these messages are retryable, while anything else is not
-                    throw new DownloadEnqueueException($"Too many {(over.Megabytes ? "megabytes" : "files")}");
-                }
-            }
-
-            // start with weekly, as this is the most likely limit to be hit and we want to keep the work to a minimum
-            // transfers that 'count' for the weekly limit are uploads that:
-            // * started within the last week
-            // * which have or have not ended (assuming queued files will complete)
-            // * that were not errored
-            if (!IsNull(limits?.Weekly, global?.Weekly))
-            {
-                var erroredState = TransferStates.Completed | TransferStates.Errored;
-                var cutoffDateTime = DateTime.UtcNow.AddDays(-7);
-
-                var failures = Transfers.Uploads.Summarize(
-                    expression: t =>
-                        t.Username == username
-                        && t.StartedAt >= cutoffDateTime
-                        && (t.State.HasFlag(erroredState) || t.Exception != null));
-
-                Log.Debug("Fetched weekly failures: {Failures} ({Time}ms)", failures.Files, sw.ElapsedMilliseconds);
-
-                var failureLimit = limits?.Weekly?.Failures ?? global?.Weekly?.Failures;
-
-                if (failureLimit is not null && failures.Files >= failureLimit)
-                {
-                    Log.Information("Rejected enqueue request for user {Username}: Weekly failure limit met or exceeded", username);
-                    throw new DownloadEnqueueException("Too many failed transfers this week");
-                }
-
-                var weekly = Transfers.Uploads.Summarize(
-                    expression: t =>
-                        t.Username == username
-                        && t.StartedAt >= cutoffDateTime
-                        && !t.State.HasFlag(erroredState)
-                        && t.Exception == null);
-
-                Log.Debug("Fetched weekly stats: files: {Files}, bytes: {Bytes} ({Time}ms)", weekly.Files, weekly.Bytes, sw.ElapsedMilliseconds);
-
-                var over = OverLimits(weekly, limits?.Weekly, global?.Weekly, resolved.Size);
-
-                if (over.Files || over.Megabytes)
-                {
-                    Log.Information("Rejected enqueue request for user {Username}: Weekly limits exceeded", username);
-                    throw new DownloadEnqueueException($"Too many {(over.Files ? "files" : "megabytes")} this week");
-                }
-            }
-
-            // lastly, check daily limits. the criteria for this is the same as weekly, just looking over the previous day instead
-            // of the previous 7.
-            if (!IsNull(limits?.Daily, global?.Daily))
-            {
-                var erroredState = TransferStates.Completed | TransferStates.Errored;
-                var cutoffDateTime = DateTime.UtcNow.AddDays(-1);
-
-                var failures = Transfers.Uploads.Summarize(
-                    expression: t =>
-                        t.Username == username
-                        && t.StartedAt >= cutoffDateTime
-                        && (t.State.HasFlag(erroredState) || t.Exception != null));
-
-                Log.Debug("Fetched daily failures: {Failures} ({Time}ms)", failures.Files, sw.ElapsedMilliseconds);
-
-                var failureLimit = limits?.Daily?.Failures ?? global?.Daily?.Failures;
-
-                if (failureLimit is not null && failures.Files >= failureLimit)
-                {
-                    Log.Information("Rejected enqueue request for user {Username}: Daily failure limit met or exceeded", username);
-                    throw new DownloadEnqueueException("Too many failed transfers today");
-                }
-
-                var daily = Transfers.Uploads.Summarize(
-                    expression: t =>
-                        t.Username == username
-                        && t.StartedAt >= cutoffDateTime
-                        && !t.State.HasFlag(erroredState)
-                        && t.Exception == null);
-
-                Log.Debug("Fetched daily stats: files: {Files}, bytes: {Bytes} ({Time}ms)", daily.Files, daily.Bytes, sw.ElapsedMilliseconds);
-
-                var over = OverLimits(daily, limits?.Daily, global?.Daily, resolved.Size);
-
-                if (over.Files || over.Megabytes)
-                {
-                    Log.Information("Rejected enqueue request for user {Username}: Daily limits exceeded", username);
-                    throw new DownloadEnqueueException($"Too many {(over.Files ? "files" : "megabytes")} today");
-                }
-            }
-
-            sw.Stop();
-            Log.Debug("Enqueue decision made in {Duration}ms", sw.ElapsedMilliseconds);
-
-            await Transfers.Uploads.EnqueueAsync(username, filename);
         }
 
         /// <summary>
@@ -1382,12 +1404,18 @@ namespace slskd
                             inactivityTimeout: connection.Timeout.Inactivity,
                             proxyOptions: proxyPatch);
 
-                        serverPatch = connectionPatch.With(configureSocketAction: socket => ConfigureSocketKeepAlive(socket, options: connection));
-                        distributedPatch = connectionPatch.With(configureSocketAction: socket => ConfigureSocketKeepAlive(socket, options: connection));
+                        serverPatch = connectionPatch.With(
+                            inactivityTimeout: -1, // don't disconnect due to inactivity
+                            configureSocket: socket => ConfigureSocketKeepaliveOptions(socket, options: connection));
+
+                        distributedPatch = connectionPatch.With(
+                            writeQueueSize: connection.Buffer.WriteQueue, // write queue set to keep distributed children from impacting performance
+                            configureSocket: socket => ConfigureSocketKeepaliveOptions(socket, options: connection));
 
                         transferPatch = connectionPatch.With(
                             readBufferSize: OptionsAtStartup.Soulseek.Connection.Buffer.Transfer,
-                            writeBufferSize: OptionsAtStartup.Soulseek.Connection.Buffer.Transfer);
+                            writeBufferSize: OptionsAtStartup.Soulseek.Connection.Buffer.Transfer,
+                            inactivityTimeout: connection.Timeout.Transfer);
                     }
 
                     var patch = new SoulseekClientOptionsPatch(

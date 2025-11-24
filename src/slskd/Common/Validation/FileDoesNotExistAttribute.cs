@@ -1,4 +1,4 @@
-﻿// <copyright file="FileExistsAttribute.cs" company="slskd Team">
+﻿// <copyright file="FileDoesNotExistAttribute.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -21,21 +21,10 @@ namespace slskd.Validation
     using System.IO;
 
     /// <summary>
-    ///     Validates that the file at the specified path exists.
+    ///     Validates that the file at the specified path does not exist.
     /// </summary>
-    public class FileExistsAttribute : ValidationAttribute
+    public class FileDoesNotExistAttribute : ValidationAttribute
     {
-        public FileExistsAttribute()
-        {
-        }
-
-        public FileExistsAttribute(FileAccess fileAccess)
-        {
-            FileAccess = fileAccess;
-        }
-
-        private FileAccess? FileAccess { get; } = null;
-
         protected override ValidationResult IsValid(object value, ValidationContext validationContext)
         {
             if (value != null)
@@ -44,22 +33,9 @@ namespace slskd.Validation
 
                 if (!string.IsNullOrEmpty(file))
                 {
-                    if (!File.Exists(file))
+                    if (File.Exists(file))
                     {
-                        return new ValidationResult($"The {validationContext.DisplayName} field specifies a non-existent file '{file}'.");
-                    }
-
-                    if (FileAccess is not null)
-                    {
-                        try
-                        {
-                            using var fs = File.Open(file, FileMode.Open, FileAccess.Value);
-                            fs.Close();
-                        }
-                        catch (IOException)
-                        {
-                            return new ValidationResult($"The {validationContext.DisplayName} field specifies a file '{file}' that cannot be opened for required access '{FileAccess}'");
-                        }
+                        return new ValidationResult($"The {validationContext.DisplayName} field specifies an existing file '{file}'.");
                     }
                 }
             }
