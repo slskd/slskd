@@ -138,18 +138,28 @@ public class StatisticsService
 
         var dict = new Dictionary<DateTime, Dictionary<TransferDirection, Dictionary<TransferStates, TransferSummary>>>();
 
-        // todo: fill the dictionary with gapless intervals and empty dictionaries
+        // Fill the dictionary with gapless intervals and empty dictionaries
+        var currentInterval = new DateTime(start.Ticks / interval.Ticks * interval.Ticks, DateTimeKind.Utc);
+        while (currentInterval < end)
+        {
+            dict[currentInterval] = new Dictionary<TransferDirection, Dictionary<TransferStates, TransferSummary>>()
+            {
+                { TransferDirection.Download, new Dictionary<TransferStates, TransferSummary>() },
+                { TransferDirection.Upload, new Dictionary<TransferStates, TransferSummary>() },
+            };
+            currentInterval = currentInterval.Add(interval);
+        }
 
         var sql = @$"
             SELECT
-                datetime(strftime('%s', EndedAt) / @Interval * @Interval, 'unixepoch') AS Interval,
+                datetime(strftime('%s', EndedAt) / CAST(@Interval AS INTEGER) * CAST(@Interval AS INTEGER), 'unixepoch') AS Interval,
                 Direction,
                 StateDescription,
                 SUM(Size) AS TotalBytes,
                 COUNT(*) AS Count,
                 AVG(AverageSpeed) AS AverageSpeed,
-                COALESCE(AVG(strftime('%s', StartedAt) - strftime('%s', EnqueuedAt)), 0) AS AverageWait,
-                COALESCE(AVG(strftime('%s', EndedAt) - strftime('%s', StartedAt)), 0) AS AverageDuration
+                COALESCE(AVG(strftime('%s', StartedAt) - strftime('%s', EnqueuedAt)), 0.0) AS AverageWait,
+                COALESCE(AVG(strftime('%s', EndedAt) - strftime('%s', StartedAt)), 0.0) AS AverageDuration
             FROM Transfers
             WHERE EndedAt IS NOT NULL
                 AND EndedAt BETWEEN @Start AND @End
@@ -167,15 +177,18 @@ public class StatisticsService
             Username = username,
             Start = start,
             End = end,
-            Interval = interval.TotalSeconds,
+            Interval = (int)interval.TotalSeconds,
         };
 
         var results = connection.Query<TransferSummaryRow>(sql, param);
 
-        // todo: update the dictionary entry for the interval and proper direction
         foreach (var result in results)
         {
-            Console.WriteLine(result);
+            Console.WriteLine(result.ToJson());
+        }
+
+        foreach (var result in results)
+        {
             var record = new TransferSummary
             {
                 TotalBytes = result.TotalBytes,
@@ -185,11 +198,19 @@ public class StatisticsService
                 AverageDuration = result.AverageDuration,
             };
 
-            dict[result.Direction].Add(result.StateDescription & ~TransferStates.Completed, record);
+            if (result.Interval.HasValue)
+            {
+                // Normalize the result interval to match the bucket interval
+                var bucketInterval = new DateTime(result.Interval.Value.Ticks / interval.Ticks * interval.Ticks, DateTimeKind.Utc);
+
+                if (dict.TryGetValue(bucketInterval, out var intervalDict))
+                {
+                    intervalDict[result.Direction][result.StateDescription & ~TransferStates.Completed] = record;
+                }
+            }
         }
 
-        // we should have a sparsely populated dictionary
-        return [dict];
+        return dict;
     }
 
     /// <summary>
