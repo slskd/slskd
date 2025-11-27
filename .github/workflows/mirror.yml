@@ -7,21 +7,7 @@ on:
   delete:
     branches:
       - '**'  # Trigger when branches are deleted
-  workflow_dispatch:  # Allow manual triggering from GitHub UI
-    inputs:
-      target:
-        description: 'Target to mirror to'
-        required: false
-        default: 'all'
-        type: choice
-        options:
-          - all
-          - GitLab
-          - Codeberg
-      delay:
-        description: 'Delay in seconds before mirroring'
-        required: false
-        default: '0'
+  workflow_dispatch:
 
 concurrency:
   group: mirror-sync
@@ -42,18 +28,6 @@ jobs:
       fail-fast: false  # Continue with other mirrors even if one fails
 
     steps:
-    - name: Wait for things to settle
-      run: |
-        echo "⏳ Waiting 15 seconds..."
-        sleep 15
-
-    - name: Checkout repository
-      if: github.event_name != 'delete'  # Skip checkout for delete events
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 0  # Fetch full history for proper mirroring
-        token: ${{ secrets.GITHUB_TOKEN }}
-
     - name: Configure SSH
       env:
         SSH_KEY: ${{ secrets.GIT_MIRROR_SSH_KEY }}
