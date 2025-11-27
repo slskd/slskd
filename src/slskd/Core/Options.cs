@@ -472,14 +472,6 @@ namespace slskd
             public bool OptimisticRelayFileInfo { get; init; } = false;
 
             /// <summary>
-            ///     Gets a value indicating whether SQLite cache sharing should be disabled (set to Private).
-            /// </summary>
-            [Argument(default, "no-sqlite-cache-sharing")]
-            [EnvironmentVariable("NO_SQLITE_CACHE_SHARING")]
-            [Description("disable SQLite cache sharing")]
-            public bool NoSqliteCacheSharing { get; init; } = false;
-
-            /// <summary>
             ///     Gets a value indicating whether SQLite pooling should be disabled.
             /// </summary>
             [Argument(default, "no-sqlite-pooling")]
