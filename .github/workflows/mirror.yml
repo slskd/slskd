@@ -54,18 +54,12 @@ jobs:
         git config --global user.name "GitHub Actions"
         git config --global user.email "actions@github.com"
 
+    - name: Check out GitHub Repository
+      run: |
+        git clone --mirror git@github.com:slskd/slskd
+        git for-each-ref --format="delete %(refname)" refs/pull refs/original | git update-ref --stdin
+
     - name: Mirror to ${{ matrix.target.name }}
       run: |
-        echo "🔄 Mirroring repository to ${{ matrix.target.name }}..."
-        
-        # Clone the GitHub repository as a mirror (bare repo with all refs)
-        git clone --mirror https://github.com/${{ github.repository }}.git mirror-repo
-        cd mirror-repo
-        
-        # Set the push URL to the target repository
-        git remote set-url --push origin ${{ matrix.target.repo }}
-        
-        # Push everything to the mirror (handles all branches, tags, and deletions)
-        git push --mirror
-        
-        echo "✅ Successfully mirrored to ${{ matrix.target.name }}"
+        git remote add mirror ${{ matrix.target.repo }}
+        git push --mirror mirror
