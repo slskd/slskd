@@ -54,24 +54,12 @@ jobs:
         # Configure Git
         git config --global user.name "GitHub Actions"
         git config --global user.email "actions@github.com"
+    - name: Check out GitHub Repository
+      run:
+        git clone --mirror git@github.com:slskd/slskd
+        git for-each-ref --format="delete %(refname)" refs/pull refs/original | git update-ref --stdin
 
     - name: Mirror to ${{ matrix.target.name }}
       run: |
-        echo "🔄 Syncing to ${{ matrix.target.name }}..."
-        # Add remote with SSH
         git remote add mirror ${{ matrix.target.repo }}
-
-        # Push all branches and tags
-        git push mirror --all --force
-        git push mirror --tags --force
-
-        echo "✅ Successfully synced to ${{ matrix.target.name }}"
-
-    - name: Handle branch deletion on ${{ matrix.target.name }}
-      if: github.event_name == 'delete' && github.event.ref_type == 'branch'
-      run: |
-        DELETED_BRANCH="${{ github.event.ref }}"
-        echo "🗑️ Branch '$DELETED_BRANCH' was deleted, syncing deletion to ${{ matrix.target.name }}..."
-
-        # Delete branch from mirror
-        git push ${{ matrix.target.repo }} --delete "$DELETED_BRANCH" || echo "Branch may not exist on ${{ matrix.target.name }}"
+        git push --mirror mirror
