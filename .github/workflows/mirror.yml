@@ -55,8 +55,12 @@ jobs:
         git config --global user.email "actions@github.com"
 
     - name: Check out GitHub Repository
+      uses: actions/checkout@v6
+      with:
+        fetch-depth: 0
+
+    - name: Clean up hidden GitHub refs
       run: |
-        git clone --mirror git@github.com:slskd/slskd
         git for-each-ref --format="delete %(refname)" refs/pull refs/original | git update-ref --stdin
 
     - name: Mirror to ${{ matrix.target.name }}
