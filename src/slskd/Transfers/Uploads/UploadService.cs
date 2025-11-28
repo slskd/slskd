@@ -432,28 +432,22 @@ namespace slskd.Transfers.Uploads
 
                 return transfer;
             }
-            catch (NotFoundException)
+            catch (NotFoundException ex)
             {
-                transfer.EndedAt = DateTime.Now;
-                transfer.Exception = "File could not be found";
-                transfer.State = TransferStates.Completed | TransferStates.Aborted;
+                Log.Error(ex, "Upload of {Filename} to user {Username} failed: {Message}", transfer.Filename, transfer.Username, ex.Message);
 
+                TryFail(transfer.Id, "File could not be found", TransferStates.Completed | TransferStates.Aborted);
+
+                // todo: broadcast
                 SynchronizedUpdate(transfer, semaphore: syncRoot, cancellationToken: CancellationToken.None);
 
                 throw;
             }
             catch (Exception ex) when (ex is OperationCanceledException || ex is TimeoutException)
             {
-                transfer.EndedAt = DateTime.UtcNow;
-                transfer.Exception = ex.Message;
-                transfer.State = TransferStates.Completed;
+                Log.Error(ex, "Upload of {Filename} to user {Username} failed: {Message}", transfer.Filename, transfer.Username, ex.Message);
 
-                transfer.State |= ex switch
-                {
-                    OperationCanceledException => TransferStates.Cancelled,
-                    TimeoutException => TransferStates.TimedOut,
-                    _ => TransferStates.Errored,
-                };
+                TryFail(transfer.Id, exception: ex);
 
                 // todo: broadcast
                 SynchronizedUpdate(transfer, semaphore: syncRoot, cancellationToken: CancellationToken.None);
@@ -464,9 +458,7 @@ namespace slskd.Transfers.Uploads
             {
                 Log.Error(ex, "Upload of {Filename} to user {Username} failed: {Message}", transfer.Filename, transfer.Username, ex.Message);
 
-                transfer.EndedAt = DateTime.UtcNow;
-                transfer.Exception = ex.Message;
-                transfer.State = TransferStates.Completed | TransferStates.Errored;
+                TryFail(transfer.Id, exception: ex);
 
                 // todo: broadcast
                 SynchronizedUpdate(transfer, semaphore: syncRoot, cancellationToken: CancellationToken.None);
