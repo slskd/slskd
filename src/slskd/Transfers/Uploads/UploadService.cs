@@ -670,7 +670,7 @@ namespace slskd.Transfers.Uploads
 
                 if (!TryFail(id, exception: ex))
                 {
-                    Log.Error(ex, "Failed to clean up transfer {Id} after failed execution: {Message}", id, ex.Message);
+                    Log.Error(ex, "Failed to clean up transfer {Id} after failed enqueue: {Message}", id, ex.Message);
                     throw;
                 }
 
