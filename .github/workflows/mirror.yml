@@ -1,12 +1,18 @@
 name: Mirror Repository
 
 on:
+  create:
   push:
     branches:
       - '**'  # Trigger on push to any branch
   delete:
     branches:
       - '**'  # Trigger when branches are deleted
+  workflow_dispatch:
+
+concurrency:
+  group: mirror-sync
+  cancel-in-progress: false
 
 jobs:
   mirror:
@@ -23,12 +29,6 @@ jobs:
       fail-fast: false  # Continue with other mirrors even if one fails
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 0  # Fetch full history for proper mirroring
-        token: ${{ secrets.GITHUB_TOKEN }}
-
     - name: Configure SSH
       env:
         SSH_KEY: ${{ secrets.GIT_MIRROR_SSH_KEY }}
@@ -59,7 +59,12 @@ jobs:
         git clone --mirror git@github.com:slskd/slskd
         git for-each-ref --format="delete %(refname)" refs/pull refs/original | git update-ref --stdin
 
+    - name: Check out repo
+      run: |
+        git clone --bare https://github.com/slskd/slskd slskd
+
     - name: Mirror to ${{ matrix.target.name }}
+      working-directory: ./slskd
       run: |
         git remote add mirror ${{ matrix.target.repo }}
         git push --mirror mirror

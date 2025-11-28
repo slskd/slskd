@@ -108,6 +108,20 @@ namespace slskd.Transfers.Downloads
         bool TryCancel(Guid id);
 
         /// <summary>
+        ///     Fails the download matching the specified <paramref name="id"/> with the specified <paramref name="exception"/>,
+        ///     and sets the final state accordingly.
+        /// </summary>
+        /// <remarks>
+        ///     This method is designed to be idempotent, meaning subsequent calls for a given transfer shouldn't change
+        ///     the EndedAt or Exception properties if they have already been set. If the transfer State already includes
+        ///     the terminal Completed flag, it is unchanged.
+        /// </remarks>
+        /// <param name="id">The unique identifier for the download.</param>
+        /// <param name="exception">The exception that caused the failure.</param>
+        /// <returns>A value indicating whether the download was successfully failed.</returns>
+        bool TryFail(Guid id, Exception exception);
+
+        /// <summary>
         ///     Updates the specified <paramref name="transfer"/>.
         /// </summary>
         /// <param name="transfer">The transfer to update.</param>
@@ -785,30 +799,38 @@ namespace slskd.Transfers.Downloads
         {
             var t = Find(t => t.Id == id);
 
-            if (t is not null)
+            if (t is null)
             {
-                t.EndedAt ??= DateTime.UtcNow;
+                return false;
+            }
 
-                // Soulseek.NET will include the filename and username in some messages; this is useful for many things but not tracking
-                // exceptions in a database. when we encounter one of these, drop the first segment.
-                var m = exception.Message;
-                t.Exception ??= m.Contains(':') ? m.Substring(m.IndexOf(':') + 1).Trim() : m;
+            t.EndedAt ??= DateTime.UtcNow;
 
-                if (!t.State.HasFlag(TransferStates.Completed))
+            // Soulseek.NET will include the filename and username in some messages; this is useful for many things but not tracking
+            // exceptions in a database. when we encounter one of these, drop the first segment.
+            var m = exception.Message;
+            t.Exception ??= m.Contains(':') ? m.Substring(m.IndexOf(':') + 1).Trim() : m;
+
+            if (!t.State.HasFlag(TransferStates.Completed))
+            {
+                t.State = TransferStates.Completed | exception switch
                 {
-                    t.State = TransferStates.Completed | exception switch
-                    {
-                        OperationCanceledException => TransferStates.Cancelled,
-                        TimeoutException => TransferStates.TimedOut,
-                        _ => TransferStates.Errored,
-                    };
-                }
+                    OperationCanceledException => TransferStates.Cancelled,
+                    TimeoutException => TransferStates.TimedOut,
+                    _ => TransferStates.Errored,
+                };
+            }
 
+            try
+            {
                 Update(t);
                 return true;
             }
-
-            return false;
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to update database: {Message}", ex.Message);
+                return false;
+            }
         }
 
         /// <summary>
