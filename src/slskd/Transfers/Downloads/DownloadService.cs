@@ -799,26 +799,34 @@ namespace slskd.Transfers.Downloads
         {
             var t = Find(t => t.Id == id);
 
-            if (t is not null)
+            if (t is null)
             {
-                t.EndedAt ??= DateTime.UtcNow;
-                t.Exception ??= exception.Message;
+                return false;
+            }
 
-                if (!t.State.HasFlag(TransferStates.Completed))
+            t.EndedAt ??= DateTime.UtcNow;
+            t.Exception ??= exception.Message;
+
+            if (!t.State.HasFlag(TransferStates.Completed))
+            {
+                t.State = TransferStates.Completed | exception switch
                 {
-                    t.State = TransferStates.Completed | exception switch
-                    {
-                        OperationCanceledException => TransferStates.Cancelled,
-                        TimeoutException => TransferStates.TimedOut,
-                        _ => TransferStates.Errored,
-                    };
-                }
+                    OperationCanceledException => TransferStates.Cancelled,
+                    TimeoutException => TransferStates.TimedOut,
+                    _ => TransferStates.Errored,
+                };
+            }
 
+            try
+            {
                 Update(t);
                 return true;
             }
-
-            return false;
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to update database: {Message}", ex.Message);
+                return false;
+            }
         }
 
         /// <summary>

@@ -902,27 +902,6 @@ namespace slskd.Transfers.Uploads
             return TryFail(id, exception.Message, state);
         }
 
-        private bool TryFail(Guid id, string exception, TransferStates state)
-        {
-            var t = Find(t => t.Id == id);
-
-            if (t is not null)
-            {
-                t.EndedAt ??= DateTime.UtcNow;
-                t.Exception ??= exception;
-
-                if (!t.State.HasFlag(TransferStates.Completed))
-                {
-                    t.State = TransferStates.Completed | state;
-                }
-
-                Update(t);
-                return true;
-            }
-
-            return false;
-        }
-
         /// <summary>
         ///     Synchronously updates the specified <paramref name="transfer"/>.
         /// </summary>
@@ -933,6 +912,35 @@ namespace slskd.Transfers.Uploads
 
             context.Update(transfer);
             context.SaveChanges();
+        }
+
+        private bool TryFail(Guid id, string exception, TransferStates state)
+        {
+            var t = Find(t => t.Id == id);
+
+            if (t is null)
+            {
+                return false;
+            }
+
+            t.EndedAt ??= DateTime.UtcNow;
+            t.Exception ??= exception;
+
+            if (!t.State.HasFlag(TransferStates.Completed))
+            {
+                t.State = TransferStates.Completed | state;
+            }
+
+            try
+            {
+                Update(t);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to update database: {Message}", ex.Message);
+                return false;
+            }
         }
 
         /// <summary>
