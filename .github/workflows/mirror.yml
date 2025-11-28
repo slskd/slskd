@@ -1,6 +1,7 @@
 name: Mirror Repository
 
 on:
+  create:
   push:
     branches:
       - '**'  # Trigger on push to any branch
