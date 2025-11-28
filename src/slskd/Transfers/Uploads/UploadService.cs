@@ -665,23 +665,9 @@ namespace slskd.Transfers.Uploads
                     */
                     Log.Error(task.Exception, "Task for upload of {Filename} to {Username} did not complete successfully: {Error}", filename, username, task.Exception.Message);
 
-                    try
+                    if (!TryFail(id, task.Exception))
                     {
-                        var transfer = Find(t => t.Id == id);
-
-                        if (transfer is not null)
-                        {
-                            transfer.EndedAt ??= DateTime.UtcNow;
-                            transfer.Exception ??= task.Exception.Message;
-                            transfer.State = TransferStates.Completed | transfer.State;
-
-                            Update(transfer);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.Error(ex, "Failed to clean up transfer {Id} after failed execution: {Message}", id, ex.Message);
-                        throw;
+                        Log.Error(task.Exception, "Failed to clean up transfer {Id} after failed execution: {Message}", id, task.Exception.Message);
                     }
                 });
 
@@ -691,22 +677,9 @@ namespace slskd.Transfers.Uploads
             {
                 Log.Error(ex, "Failed to enqueue upload of {Filename} to {Username}: {Message}", filename, username, ex.Message);
 
-                try
+                if (!TryFail(id, exception: ex))
                 {
-                    var transfer = Find(t => t.Id == id);
-
-                    if (transfer is not null)
-                    {
-                        transfer.EndedAt ??= DateTime.UtcNow;
-                        transfer.Exception ??= ex.Message;
-                        transfer.State = TransferStates.Completed | transfer.State;
-
-                        Update(transfer);
-                    }
-                }
-                catch (Exception innerEx)
-                {
-                    Log.Error(innerEx, "Failed to clean up transfer {Id} after failed enqueue: {Message}", id, innerEx.Message);
+                    Log.Error(ex, "Failed to clean up transfer {Id} after failed execution: {Message}", id, ex.Message);
                     throw;
                 }
 
