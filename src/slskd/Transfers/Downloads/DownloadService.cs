@@ -108,6 +108,20 @@ namespace slskd.Transfers.Downloads
         bool TryCancel(Guid id);
 
         /// <summary>
+        ///     Fails the download matching the specified <paramref name="id"/> with the specified <paramref name="exception"/>,
+        ///     and sets the final state accordingly.
+        /// </summary>
+        /// <remarks>
+        ///     This method is designed to be idempotent, meaning subsequent calls for a given transfer shouldn't change
+        ///     the EndedAt or Exception properties if they have already been set. If the transfer State already includes
+        ///     the terminal Completed flag, it is unchanged.
+        /// </remarks>
+        /// <param name="id">The unique identifier for the download.</param>
+        /// <param name="exception">The exception that caused the failure.</param>
+        /// <returns>A value indicating whether the download was successfully failed.</returns>
+        bool TryFail(Guid id, Exception exception);
+
+        /// <summary>
         ///     Updates the specified <paramref name="transfer"/>.
         /// </summary>
         /// <param name="transfer">The transfer to update.</param>
