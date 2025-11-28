@@ -926,21 +926,29 @@ namespace slskd.Transfers.Uploads
         /// <returns>A value indicating whether the upload was successfully failed.</returns>
         public bool TryFail(Guid id, Exception exception)
         {
+            var state = exception switch
+            {
+                NotFoundException => TransferStates.Aborted,
+                OperationCanceledException => TransferStates.Cancelled,
+                TimeoutException => TransferStates.TimedOut,
+                _ => TransferStates.Errored,
+            };
+
+            return TryFail(id, exception.Message, state);
+        }
+
+        private bool TryFail(Guid id, string exception, TransferStates state)
+        {
             var t = Find(t => t.Id == id);
 
             if (t is not null)
             {
                 t.EndedAt ??= DateTime.UtcNow;
-                t.Exception ??= exception.Message;
+                t.Exception ??= exception;
 
                 if (!t.State.HasFlag(TransferStates.Completed))
                 {
-                    t.State = TransferStates.Completed | exception switch
-                    {
-                        OperationCanceledException => TransferStates.Cancelled,
-                        TimeoutException => TransferStates.TimedOut,
-                        _ => TransferStates.Errored,
-                    };
+                    t.State = TransferStates.Completed | state;
                 }
 
                 Update(t);
