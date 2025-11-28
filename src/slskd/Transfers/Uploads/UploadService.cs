@@ -494,7 +494,6 @@ namespace slskd.Transfers.Uploads
                 catch (Exception ex)
                 {
                     Log.Error(ex, "Failed to finalize upload of {Filename} to {Username}: {Message}", transfer.Filename, transfer.Username, ex.Message);
-                    throw;
                 }
             }
         }
