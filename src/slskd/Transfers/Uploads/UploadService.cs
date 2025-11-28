@@ -126,6 +126,20 @@ namespace slskd.Transfers.Uploads
         bool TryCancel(Guid id);
 
         /// <summary>
+        ///     Fails the upload matching the specified <paramref name="id"/> with the specified <paramref name="exception"/>,
+        ///     and sets the final state accordingly.
+        /// </summary>
+        /// <remarks>
+        ///     This method is designed to be idempotent, meaning subsequent calls for a given transfer shouldn't change
+        ///     the EndedAt or Exception properties if they have already been set. If the transfer State already includes
+        ///     the terminal Completed flag, it is unchanged.
+        /// </remarks>
+        /// <param name="id">The unique identifier for the upload.</param>
+        /// <param name="exception">The exception that caused the failure.</param>
+        /// <returns>A value indicating whether the upload was successfully failed.</returns>
+        bool TryFail(Guid id, Exception exception);
+
+        /// <summary>
         ///     Synchronously updates the specified <paramref name="transfer"/>.
         /// </summary>
         /// <param name="transfer">The transfer to update.</param>
@@ -892,6 +906,44 @@ namespace slskd.Transfers.Uploads
             if (CancellationTokens.TryRemove(id, out var cts))
             {
                 cts.Cancel();
+                return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        ///     Fails the upload matching the specified <paramref name="id"/> with the specified <paramref name="exception"/>,
+        ///     and sets the final state accordingly.
+        /// </summary>
+        /// <remarks>
+        ///     This method is designed to be idempotent, meaning subsequent calls for a given transfer shouldn't change
+        ///     the EndedAt or Exception properties if they have already been set. If the transfer State already includes
+        ///     the terminal Completed flag, it is unchanged.
+        /// </remarks>
+        /// <param name="id">The unique identifier for the upload.</param>
+        /// <param name="exception">The exception that caused the failure.</param>
+        /// <returns>A value indicating whether the upload was successfully failed.</returns>
+        public bool TryFail(Guid id, Exception exception)
+        {
+            var t = Find(t => t.Id == id);
+
+            if (t is not null)
+            {
+                t.EndedAt ??= DateTime.UtcNow;
+                t.Exception ??= exception.Message;
+
+                if (!t.State.HasFlag(TransferStates.Completed))
+                {
+                    t.State = TransferStates.Completed | exception switch
+                    {
+                        OperationCanceledException => TransferStates.Cancelled,
+                        TimeoutException => TransferStates.TimedOut,
+                        _ => TransferStates.Errored,
+                    };
+                }
+
+                Update(t);
                 return true;
             }
 
