@@ -24,12 +24,14 @@ using Dapper;
 using Microsoft.Data.Sqlite;
 using Soulseek;
 
+/// <summary>
+///     Statistics.
+/// </summary>
 public class StatisticsService
 {
     /// <summary>
     ///     Initializes a new instance of the <see cref="StatisticsService"/> class.
     /// </summary>
-    /// <param name="connectionStringDictionary"></param>
     public StatisticsService(ConnectionStringDictionary connectionStringDictionary)
     {
         ConnectionStrings = connectionStringDictionary;
