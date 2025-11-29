@@ -184,11 +184,6 @@ public class StatisticsService
 
         foreach (var result in results)
         {
-            Console.WriteLine(result.ToJson());
-        }
-
-        foreach (var result in results)
-        {
             var record = new TransferSummary
             {
                 TotalBytes = result.TotalBytes,
