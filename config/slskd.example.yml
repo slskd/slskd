@@ -13,6 +13,7 @@
 #   force_migrations: false
 #   no_version_check: false
 #   log_sql: false
+#   log_unobserved_exceptions: false
 #   experimental: false
 #   volatile: false
 #   case_sensitive_reg_ex: false
@@ -136,6 +137,7 @@
 #       - ^.{1,2}$
 # web:
 #   port: 5030
+#   socket: ~
 #   https:
 #     disabled: false
 #     port: 5031
@@ -206,6 +208,7 @@
 #     timeout:
 #       connect: 10000
 #       inactivity: 15000
+#       transfer: 30000
 #     buffer:
 #       read: 16384
 #       write: 16384

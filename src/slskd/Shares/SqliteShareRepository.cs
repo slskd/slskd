@@ -157,7 +157,9 @@ namespace slskd.Shares
         {
             using var conn = GetConnection();
 
-            conn.ExecuteNonQuery("PRAGMA journal_mode=WAL");
+            // warning: with synchronous=0, an operating system crash can leave the database corrupted.
+            // if this occurs we should generate a new one, so this is _probably_ ok
+            conn.ExecuteNonQuery("PRAGMA journal_mode=WAL; PRAGMA synchronous=0;");
 
             if (discardExisting)
             {

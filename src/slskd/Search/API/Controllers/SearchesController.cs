@@ -20,6 +20,7 @@ using Microsoft.Extensions.Options;
 namespace slskd.Search.API
 {
     using System;
+    using System.Threading;
     using System.Threading.Tasks;
     using Asp.Versioning;
     using Microsoft.AspNetCore.Authorization;
@@ -49,6 +50,7 @@ namespace slskd.Search.API
             OptionsSnapshot = optionsSnapshot;
         }
 
+        private static SemaphoreSlim SearchRequestLimiter { get; } = new SemaphoreSlim(1, 1);
         private ISearchService Searches { get; }
         private IOptionsSnapshot<Options> OptionsSnapshot { get; }
         private ILogger Log { get; set; } = Serilog.Log.ForContext<SearchesController>();
@@ -75,29 +77,41 @@ namespace slskd.Search.API
                 return BadRequest("SearchText may not be null or empty");
             }
 
-            var id = request.Id ?? Guid.NewGuid();
-
-            Search search;
+            if (!SearchRequestLimiter.Wait(0))
+            {
+                return StatusCode(429, "Only one concurrent operation is permitted. Wait until the previous request completes");
+            }
 
             try
             {
-                search = await Searches.StartAsync(id, SearchQuery.FromText(request.SearchText), SearchScope.Network, request.ToSearchOptions());
-                return Ok(search);
+                var id = request.Id ?? Guid.NewGuid();
+
+                Search search;
+
+                try
+                {
+                    search = await Searches.StartAsync(id, SearchQuery.FromText(request.SearchText), SearchScope.Network, request.ToSearchOptions());
+                    return Ok(search);
+                }
+                catch (Exception ex) when (ex is ArgumentException || ex is Soulseek.DuplicateTokenException)
+                {
+                    Log.Error(ex, "Failed to execute search {Search}: {Message}", request, ex.Message);
+                    return BadRequest(ex.Message);
+                }
+                catch (InvalidOperationException ex)
+                {
+                    Log.Error(ex, "Failed to execute search {Search}: {Message}", request, ex.Message);
+                    return Conflict(ex.Message);
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, "Failed to execute search {Search}: {Message}", request, ex.Message);
+                    return StatusCode(500, ex.Message);
+                }
             }
-            catch (Exception ex) when (ex is ArgumentException || ex is Soulseek.DuplicateTokenException)
+            finally
             {
-                Log.Error(ex, "Failed to execute search {Search}: {Message}", request, ex.Message);
-                return BadRequest(ex.Message);
-            }
-            catch (InvalidOperationException ex)
-            {
-                Log.Error(ex, "Failed to execute search {Search}: {Message}", request, ex.Message);
-                return Conflict(ex.Message);
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "Failed to execute search {Search}: {Message}", request, ex.Message);
-                return StatusCode(500, ex.Message);
+                SearchRequestLimiter.Release();
             }
         }
 

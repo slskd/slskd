@@ -64,7 +64,19 @@ namespace slskd.Transfers.Uploads
         /// <param name="username">The username of the requesting user.</param>
         /// <param name="filename">The local filename of the requested file.</param>
         /// <returns>The operation context.</returns>
-        Task EnqueueAsync(string username, string filename);
+        Task<Transfer> EnqueueAsync(string username, string filename);
+
+        /// <summary>
+        ///     Uploads the specified enqueued <paramref name="transfer"/> to the requesting user.
+        /// </summary>
+        /// <param name="transfer">The Transfer to upload.</param>
+        /// <returns>The operation context.</returns>
+        /// <exception cref="ArgumentNullException">Thrown if the specified Transfer is null.</exception>
+        /// <exception cref="TransferNotFoundException">Thrown if the specified Transfer ID can't be found in the database.</exception>
+        /// <exception cref="InvalidOperationException">Thrown if the specified Transfer is not in the Queued | Locally state.</exception>
+        /// <exception cref="DuplicateTransferException">Thrown if an upload matching the username and filename is already tracked by Soulseek.NET.</exception>
+        /// <exception cref="NotFoundException">Thrown if the specified file can't be found on disk.</exception>
+        Task<Transfer> UploadAsync(Transfer transfer);
 
         /// <summary>
         ///     Finds a single upload matching the specified <paramref name="expression"/>.
@@ -112,6 +124,20 @@ namespace slskd.Transfers.Uploads
         /// <param name="id">The unique identifier for the upload.</param>
         /// <returns>A value indicating whether the upload was successfully cancelled.</returns>
         bool TryCancel(Guid id);
+
+        /// <summary>
+        ///     Fails the upload matching the specified <paramref name="id"/> with the specified <paramref name="exception"/>,
+        ///     and sets the final state accordingly.
+        /// </summary>
+        /// <remarks>
+        ///     This method is designed to be idempotent, meaning subsequent calls for a given transfer shouldn't change
+        ///     the EndedAt or Exception properties if they have already been set. If the transfer State already includes
+        ///     the terminal Completed flag, it is unchanged.
+        /// </remarks>
+        /// <param name="id">The unique identifier for the upload.</param>
+        /// <param name="exception">The exception that caused the failure.</param>
+        /// <returns>A value indicating whether the upload was successfully failed.</returns>
+        bool TryFail(Guid id, Exception exception);
 
         /// <summary>
         ///     Synchronously updates the specified <paramref name="transfer"/>.
@@ -168,6 +194,7 @@ namespace slskd.Transfers.Uploads
         private IShareService Shares { get; set; }
         private IUserService Users { get; set; }
         private EventBus EventBus { get; }
+        private ConcurrentDictionary<string, bool> Locks { get; } = new();
 
         /// <summary>
         ///     Adds the specified <paramref name="transfer"/>. Supersedes any existing record for the same file and username.
@@ -179,11 +206,11 @@ namespace slskd.Transfers.Uploads
             using var context = ContextFactory.CreateDbContext();
 
             var existing = context.Transfers
-                    .Where(t => t.Direction == TransferDirection.Upload)
-                    .Where(t => t.Username == transfer.Username)
-                    .Where(t => t.Filename == transfer.Filename)
-                    .Where(t => !t.Removed)
-                    .FirstOrDefault();
+                .Where(t => t.Direction == TransferDirection.Upload)
+                .Where(t => t.Username == transfer.Username)
+                .Where(t => t.Filename == transfer.Filename)
+                .Where(t => !t.Removed)
+                .FirstOrDefault();
 
             if (existing != default)
             {
@@ -196,254 +223,466 @@ namespace slskd.Transfers.Uploads
         }
 
         /// <summary>
-        ///     Enqueues the requested file.
+        ///     Uploads the specified enqueued <paramref name="transfer"/> to the requesting user.
         /// </summary>
-        /// <param name="username">The username of the requesting user.</param>
-        /// <param name="filename">The local filename of the requested file.</param>
+        /// <param name="transfer">The Transfer to upload.</param>
         /// <returns>The operation context.</returns>
-        public async Task EnqueueAsync(string username, string filename)
+        /// <exception cref="ArgumentNullException">Thrown if the specified Transfer is null.</exception>
+        /// <exception cref="TransferNotFoundException">Thrown if the specified Transfer ID can't be found in the database.</exception>
+        /// <exception cref="InvalidOperationException">Thrown if the specified Transfer is not in the Queued | Locally state.</exception>
+        /// <exception cref="DuplicateTransferException">Thrown if an upload matching the username and filename is already tracked by Soulseek.NET.</exception>
+        /// <exception cref="NotFoundException">Thrown if the specified file can't be found on disk.</exception>
+        public async Task<Transfer> UploadAsync(Transfer transfer)
         {
+            var cts = new CancellationTokenSource();
+            var syncRoot = new SemaphoreSlim(1, 1);
+
             string host = default;
             string localFilename = default;
-            long resolvedFileLength = default;
             long localFileLength = default;
 
-            Log.Information("[{Context}] {Username} requested {Filename}", "UPLOAD REQUESTED", username, filename);
+            var lockName = $"{nameof(UploadAsync)}:{transfer.Username}:{transfer.Filename}";
 
+            if (!Locks.TryAdd(lockName, true))
+            {
+                Log.Debug("Ignoring concurrent invocation; lock {LockName} already held", lockName);
+                return null;
+            }
+
+            /*
+                from this point forward, any exit from this method MUST result in an update to the Transfer record
+                in the database that sets EndedAt and ensures that the State property includes the Completed flag
+
+                failure to do so means records will get "stuck" in the database/on the UI
+
+                additionally, any acquired locks/semaphores must be released, including (and most importantly) the queue slot
+            */
             try
             {
-                (host, localFilename, resolvedFileLength) = await Shares.ResolveFileAsync(filename);
+                Log.Debug("Acquired lock {LockName}", lockName);
 
-                Log.Debug("Resolved file {RemoteFilename} to host {Host} and file {LocalFilename}", filename, host, localFilename);
+                /*
+                    fetch an updated copy of the transfer record from the database; now that we are locked, we *should*
+                    have exclusive access to this record
+
+                    we're not using DbContext and tracked changes here because we don't want to hold a connection
+                    open for the duration of the upload
+                */
+                transfer = Find(t => t.Id == transfer.Id)
+                    ?? throw new TransferNotFoundException($"Transfer with ID {transfer.Id} not found");
+
+                if (transfer.State != (TransferStates.Queued | TransferStates.Locally))
+                {
+                    throw new InvalidOperationException($"Invalid starting state for upload; expected {TransferStates.Queued | TransferStates.Locally}, encountered {transfer.State}");
+                }
+
+                /*
+                    Soulseek.NET keeps an internal dictionary of all transfers for the duration of the transfer logic;
+                    check that list to see if there's already an instance of this upload in it, just in case we've gotten
+                    out of sync somehow
+                */
+                if (Client.Uploads.Any(u => u.Username == transfer.Username && u.Filename == transfer.Filename))
+                {
+                    throw new DuplicateTransferException("A duplicate upload of the same file to the same user is already registered");
+                }
+
+                // users with uploads must be watched so that we can keep informed of their online status, privileges, and
+                // statistics. this is so that we can accurately determine their effective group.
+                try
+                {
+                    if (!Users.IsWatched(transfer.Username))
+                    {
+                        await Users.WatchAsync(transfer.Username);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log.Warning(ex, "Failed to watch user {Username}", transfer.Username);
+                }
+
+                Log.Information("Initializing upload of {Filename} to {Username}", transfer.Filename, transfer.Username);
+
+                // locate the file on disk. we checked this once already when enqueueing, but it may have moved since
+                // can throw NotFoundException
+                (host, localFilename, localFileLength) = await ResolveFileInfoAsync(remoteFilename: transfer.Filename);
+
+                using var rateLimiter = new RateLimiter(250, concurrencyLimit: 1, flushOnDispose: true);
+
+                var topts = new TransferOptions(
+                    stateChanged: (args) =>
+                    {
+                        Log.Debug("Upload of {Filename} to user {Username} changed state from {Previous} to {New}", localFilename, transfer.Username, args.PreviousState, args.Transfer.State);
+
+                        // prevent Exceptions thrown during shutdown from updating the transfer record with related Exceptions;
+                        // instead, allow these to be left "hanging" so that they are properly cleaned up at the next startup
+                        if (Application.IsShuttingDown)
+                        {
+                            Log.Debug("Upload update of {Filename} to {Username} not persisted; app is shutting down", transfer.Filename, transfer.Username);
+                            return;
+                        }
+
+                        transfer = transfer.WithSoulseekTransfer(args.Transfer);
+
+                        // todo: broadcast
+                        SynchronizedUpdate(transfer, semaphore: syncRoot, cancellationToken: cts.Token);
+                    },
+                    progressUpdated: (args) => rateLimiter.Invoke(() =>
+                    {
+                        // don't do anything unless the `transfer` within the outer scope is in the
+                        // InProgress state; this will help prevent out-of-band updates that are sometimes
+                        // being made after the transfer is completed, causing them to appear 'stuck'
+                        if (transfer.State == TransferStates.InProgress)
+                        {
+                            // don't wait for the semaphore; if a previous progress update is still hanging, don't make
+                            // the problem worse. this will result in fewer/jumpy updates on systems with slow filesystems
+                            // but the alternative is to continue to stack slow writes on top of one another
+                            if (syncRoot.Wait(millisecondsTimeout: 0, cts.Token))
+                            {
+                                try
+                                {
+                                    // update only the properties that we expect to change between progress updates
+                                    // this helps prevent this update from 'stepping' on other updates
+                                    transfer.BytesTransferred = args.Transfer.BytesTransferred;
+                                    transfer.AverageSpeed = args.Transfer.AverageSpeed;
+
+                                    using var context = ContextFactory.CreateDbContext();
+
+                                    context.Transfers.Where(t => t.Id == transfer.Id).ExecuteUpdate(setter => setter
+                                        .SetProperty(t => t.BytesTransferred, transfer.BytesTransferred)
+                                        .SetProperty(t => t.AverageSpeed, transfer.AverageSpeed));
+                                }
+                                finally
+                                {
+                                    syncRoot.Release();
+                                }
+                            }
+                            else
+                            {
+                                Log.Debug("Skipped progress update of {Filename} to {Username} {BytesTransferred}/{TotalBytes}; previous update still pending", transfer.Filename, transfer.Username, args.Transfer.BytesTransferred, args.Transfer.Size);
+                            }
+                        }
+                    }),
+                    seekInputStreamAutomatically: false,
+                    disposeInputStreamOnCompletion: true, // note: don't set this to false!
+                    governor: (tx, req, ct) => Governor.GetBytesAsync(tx.Username, req, ct),
+                    reporter: (tx, att, grant, act) => Governor.ReturnBytes(tx.Username, att, grant, act),
+                    slotAwaiter: (tx, ct) => Queue.AwaitStartAsync(tx.Username, tx.Filename),
+                    slotReleased: (tx) => Queue.Complete(tx.Username, tx.Filename));
+
+                // register the cancellation token
+                CancellationTokens.TryAdd(transfer.Id, cts);
+
+                // add the transfer to the UploadQueue so that it can become eligible for selection
+                Queue.Enqueue(transfer.Username, transfer.Filename);
+                transfer.EnqueuedAt = DateTime.UtcNow;
+                SynchronizedUpdate(transfer, semaphore: syncRoot, cancellationToken: cts.Token);
+
+                Soulseek.Transfer completedTransfer;
 
                 if (host == Program.LocalHostName)
                 {
-                    // if it's local, do a quick check to see if it exists to spare the caller from queueing up if the transfer is
-                    // doomed to fail. for remote files, take a leap of faith.
-                    var info = Files.ResolveFileInfo(localFilename);
+                    completedTransfer = await Client.UploadAsync(
+                        username: transfer.Username,
+                        remoteFilename: transfer.Filename,
+                        size: localFileLength,
+                        inputStreamFactory: (startOffset) =>
+                        {
+#pragma warning disable S2930 // "IDisposables" should be disposed
+                            // disposeInputStreamOnCompletion takes care of this
+                            var stream = new FileStream(localFilename, FileMode.Open, FileAccess.Read);
+#pragma warning restore S2930 // "IDisposables" should be disposed
 
-                    if (!info.Exists)
-                    {
-                        Shares.RequestScan();
-                        throw new NotFoundException($"The file '{localFilename}' could not be located on disk. A share scan should be performed.");
-                    }
-
-                    localFileLength = info.Length;
+                            stream.Seek(startOffset, SeekOrigin.Begin);
+                            return Task.FromResult((Stream)stream);
+                        },
+                        options: topts,
+                        cancellationToken: cts.Token);
                 }
                 else
                 {
-                    if (OptionsMonitor.CurrentValue.Flags.OptimisticRelayFileInfo)
-                    {
-                        localFileLength = resolvedFileLength;
-                    }
-                    else
-                    {
-                        var (exists, length) = await Relay.GetFileInfoAsync(agentName: host, filename);
+                    completedTransfer = await Client.UploadAsync(
+                        username: transfer.Username,
+                        remoteFilename: transfer.Filename,
+                        size: localFileLength,
+                        inputStreamFactory: (startOffset) => Relay.GetFileStreamAsync(agentName: host, filename: transfer.Filename, startOffset, id: transfer.Id),
+                        options: topts,
+                        cancellationToken: cts.Token);
 
-                        if (!exists || length <= 0)
-                        {
-                            // todo: force a remote scan
-                            throw new NotFoundException($"The file '{localFilename}' could not be located on Agent {host}. A share scan should be performed.");
-                        }
-
-                        localFileLength = length;
-                    }
+                    Relay.TryCloseFileStream(host, id: transfer.Id);
                 }
-            }
-            catch (NotFoundException)
-            {
-                Log.Information("[{Context}] {Filename} for {Username}: file not found", "UPLOAD REJECTED", username, filename);
-                throw new DownloadEnqueueException($"File not shared.");
-            }
 
-            Log.Information("Resolved {Remote} to physical file {Physical} on host '{Host}'", filename, localFilename, host);
+                // explicitly dispose the rate limiter to prevent updates from it beyond this point, and in doing so we
+                // flushe any pending update, _probably_ pushing the state of the transfer back to InProgress
+                rateLimiter.Dispose();
 
-            if (localFileLength != resolvedFileLength)
-            {
-                // todo: should we fail the transfer? the file changed on disk since the last scan. i guess not? since the caller doesn't provide a size
-                Shares.RequestScan();
-                Log.Warning("Resolved size for {Remote} of {Resolved} doesn't match actual size {Actual}", filename, resolvedFileLength, localFileLength);
-            }
+                // copy the completed transfer that was returned from Soulseek.NET in a terminal, fully updated state
+                // over the top of the transfer record, then persist it
+                transfer = transfer.WithSoulseekTransfer(completedTransfer);
 
-            // find existing records for this username and file that haven't been removed from the UI
-            var existingRecords = List(t => t.Username == username && t.Filename == localFilename, includeRemoved: false);
+                // todo: broadcast
+                SynchronizedUpdate(transfer, semaphore: syncRoot, cancellationToken: CancellationToken.None);
 
-            // check whether any of these records is in a non-complete state and bail out if so
-            if (existingRecords.Any(t => !t.State.HasFlag(TransferStates.Completed)))
-            {
-                Log.Information("Upload {Filename} to {Username} is already queued or in progress", localFilename, username);
-                return;
-            }
-
-            var id = Guid.NewGuid();
-
-            var transfer = new Transfer()
-            {
-                Id = id,
-                Username = username,
-                Direction = TransferDirection.Upload,
-                Filename = localFilename,
-                Size = localFileLength,
-                StartOffset = 0, // potentially updated later during handshaking
-                RequestedAt = DateTime.UtcNow,
-            };
-
-            // persist the transfer to the database so we have a record that it was attempted
-            AddOrSupersede(transfer);
-
-            // create a new cancellation token source so that we can cancel the upload from the UI.
-            var cts = new CancellationTokenSource();
-            CancellationTokens.TryAdd(id, cts);
-
-            // accept all download requests, and begin the upload immediately. normally there would be an internal queue, and
-            // uploads would be handled separately.
-            _ = Task.Run(async () =>
-            {
-                using var rateLimiter = new RateLimiter(250, flushOnDispose: true);
-                var syncRoot = new SemaphoreSlim(1, 1);
-
-                void SynchronizedUpdate(Transfer transfer, bool cancellable = true)
+                EventBus.Raise(new UploadFileCompleteEvent
                 {
-                    syncRoot.Wait(cancellable ? cts.Token : CancellationToken.None);
+                    Timestamp = transfer.EndedAt.Value,
+                    LocalFilename = localFilename,
+                    RemoteFilename = transfer.Filename,
+                    Transfer = transfer,
+                });
 
+                return transfer;
+            }
+            catch (NotFoundException ex)
+            {
+                Log.Error(ex, "Upload of {Filename} to user {Username} failed: {Message}", transfer.Filename, transfer.Username, ex.Message);
+
+                TryFail(transfer.Id, "File could not be found", TransferStates.Completed | TransferStates.Aborted);
+
+                // todo: broadcast
+                SynchronizedUpdate(transfer, semaphore: syncRoot, cancellationToken: CancellationToken.None);
+
+                throw;
+            }
+            catch (Exception ex) when (ex is OperationCanceledException || ex is TimeoutException)
+            {
+                Log.Error(ex, "Upload of {Filename} to user {Username} failed: {Message}", transfer.Filename, transfer.Username, ex.Message);
+
+                TryFail(transfer.Id, exception: ex);
+
+                // todo: broadcast
+                SynchronizedUpdate(transfer, semaphore: syncRoot, cancellationToken: CancellationToken.None);
+
+                throw;
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Upload of {Filename} to user {Username} failed: {Message}", transfer.Filename, transfer.Username, ex.Message);
+
+                TryFail(transfer.Id, exception: ex);
+
+                // todo: broadcast
+                SynchronizedUpdate(transfer, semaphore: syncRoot, cancellationToken: CancellationToken.None);
+
+                throw;
+            }
+            finally
+            {
+                if (host != Program.LocalHostName)
+                {
                     try
                     {
-                        Update(transfer);
+                        Relay.TryCloseFileStream(host, id: transfer.Id);
                     }
-                    finally
+                    catch
                     {
-                        syncRoot.Release();
+                        // noop
                     }
                 }
 
                 try
                 {
-                    // users with uploads must be watched so that we can keep informed of their online status, privileges, and
-                    // statistics. this is so that we can accurately determine their effective group.
+                    Locks.TryRemove(lockName, out _);
+                    Log.Debug("Released lock {LockName}", lockName);
+
+                    CancellationTokens.TryRemove(transfer.Id, out _);
+
+                    // if for some reason this logic exits without the slotReleased delegate and Complete() being invoked,
+                    // the file will get stuck in the queue and prevent any further uploads to the user. be extra cautious
+                    // and ensure it gets removed
+                    Queue.TryComplete(username: transfer.Username, filename: transfer.Filename);
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, "Failed to finalize upload of {Filename} to {Username}: {Message}", transfer.Filename, transfer.Username, ex.Message);
+                }
+            }
+        }
+
+        /// <summary>
+        ///     Enqueues the requested file.
+        /// </summary>
+        /// <param name="username">The username of the requesting user.</param>
+        /// <param name="filename">The local filename of the requested file.</param>
+        /// <returns>The operation context.</returns>
+        public async Task<Transfer> EnqueueAsync(string username, string filename)
+        {
+            if (string.IsNullOrEmpty(username))
+            {
+                throw new ArgumentNullException(nameof(username), "Username is required");
+            }
+
+            if (string.IsNullOrEmpty(filename))
+            {
+                throw new ArgumentNullException(nameof(filename), "Filename is required");
+            }
+
+            var lockName = $"{nameof(EnqueueAsync)}:{username}:{filename}";
+
+            if (!Locks.TryAdd(lockName, true))
+            {
+                Log.Debug("Ignoring concurrent upload enqueue attempt; lock {LockName} already held", lockName);
+                return null;
+            }
+
+            Guid id = Guid.NewGuid();
+
+            try
+            {
+                Log.Debug("Acquired lock {LockName}", lockName);
+
+                Log.Information("Upload of {Filename} to {Username} requested", filename, username);
+
+                using var context = ContextFactory.CreateDbContext();
+
+                /*
+                    first, get all past uploads to this user for this filename
+                */
+                var existingRecords = context.Transfers
+                    .Where(t => t.Direction == TransferDirection.Upload)
+                    .Where(t => t.Username == username)
+                    .Where(t => t.Filename == filename)
+                    .AsNoTracking()
+                    .ToList();
+
+                var existingInProgressRecords = existingRecords
+                    .Where(t => t.EndedAt == null || !t.State.HasFlag(TransferStates.Completed))
+                    .ToList();
+
+                /*
+                    if there are any that haven't ended yet (checking a few ways out of paranoia), then there's already
+                    an existing transfer record covering this file, and we're already enqueued. nothing more to do!
+                */
+                if (existingInProgressRecords.Count != 0)
+                {
+                    Log.Information("Upload of {Filename} to {Username} is already queued or is in progress (ids: {Ids})", filename, username, string.Join(", ", existingInProgressRecords.Select(t => t.Id)));
+                    return null;
+                }
+
+                /*
+                    check the tracked upload dictionary in Soulseek.NET to see if it knows about this already
+                    it shouldn't, if the slskd database doesn't. but things could get desynced
+                */
+                if (Client.Uploads.Any(u => u.Username == username && u.Filename == filename))
+                {
+                    throw new DuplicateTransferException("A duplicate upload of the same file to the same user is already registered");
+                }
+
+                /*
+                    no existing transfers. next, check to see if they are requesting a file we are sharing
+
+                    we do this after checking the database because database I/O is "cheaper" than disk and potentially
+                    network (if we check a relay)
+                */
+                string host = default;
+                string localFilename = default;
+                long localFileLength = default;
+
+                try
+                {
+                    (host, localFilename, localFileLength) = await ResolveFileInfoAsync(remoteFilename: filename);
+                }
+                catch (NotFoundException)
+                {
+                    Log.Information("Upload of {Filename} to {Username} {Rejected}: {Message}", filename, username, "REJECTED", "File not shared.");
+                    throw new DownloadEnqueueException($"File not shared.");
+                }
+
+                Log.Debug("Resolved {Remote} to physical file {Physical} on host '{Host}'", filename, localFilename, host);
+
+                /*
+                    we're cleared to enqueue! create a new transfer record, and automatically mark any existing records
+                    we found as 'removed' to clean up the UI
+                */
+                var transfer = new Transfer()
+                {
+                    Id = id,
+                    Username = username,
+                    Direction = TransferDirection.Upload,
+                    Filename = filename, // important! use the remote filename
+                    Size = localFileLength,
+                    StartOffset = 0, // potentially updated later during handshaking
+                    RequestedAt = DateTime.UtcNow,
+                    State = TransferStates.Queued | TransferStates.Locally,
+                };
+
+                context.Add(transfer);
+
+                foreach (var record in existingRecords.Where(t => !t.Removed))
+                {
+                    record.Removed = true;
+                    context.Update(record);
+                    Log.Debug("Marked existing upload record of {Filename} to {Username} removed (id: {Id})", filename, username, record.Id);
+                }
+
+                context.SaveChanges();
+
+                Log.Information("Successfully enqueued upload of {Filename} to {Username} (id: {Id})", filename, username, id);
+
+                // users with uploads must be watched so that we can keep informed of their online status, privileges, and
+                // statistics. this is so that we can accurately determine their effective group.
+                try
+                {
                     if (!Users.IsWatched(username))
                     {
                         await Users.WatchAsync(username);
                     }
-
-                    var topts = new TransferOptions(
-                        stateChanged: (args) =>
-                        {
-                            Log.Debug("Upload of {Filename} to user {Username} changed state from {Previous} to {New}", localFilename, username, args.PreviousState, args.Transfer.State);
-
-                            if (Application.IsShuttingDown)
-                            {
-                                Log.Debug("Upload update of {Filename} to {Username} not persisted; app is shutting down", filename, username);
-                                return;
-                            }
-
-                            transfer = transfer.WithSoulseekTransfer(args.Transfer);
-
-                            if (args.Transfer.State.HasFlag(TransferStates.Queued))
-                            {
-                                Queue.Enqueue(args.Transfer.Username, args.Transfer.Filename);
-                                transfer.EnqueuedAt = DateTime.UtcNow;
-                            }
-
-                            // todo: broadcast
-                            SynchronizedUpdate(transfer);
-                        },
-                        progressUpdated: (args) => rateLimiter.Invoke(() =>
-                        {
-                            transfer = transfer.WithSoulseekTransfer(args.Transfer);
-
-                            // todo: broadcast
-                            SynchronizedUpdate(transfer);
-                        }),
-                        seekInputStreamAutomatically: false,
-                        disposeInputStreamOnCompletion: true, // note: don't set this to false!
-                        governor: (tx, req, ct) => Governor.GetBytesAsync(tx.Username, req, ct),
-                        reporter: (tx, att, grant, act) => Governor.ReturnBytes(tx.Username, att, grant, act),
-                        slotAwaiter: (tx, ct) => Queue.AwaitStartAsync(tx.Username, tx.Filename),
-                        slotReleased: (tx) => Queue.Complete(tx.Username, tx.Filename));
-
-                    if (host == Program.LocalHostName)
-                    {
-                        var completedTransfer = await Client.UploadAsync(
-                            username,
-                            filename,
-                            size: localFileLength,
-                            inputStreamFactory: (startOffset) =>
-                            {
-#pragma warning disable S2930 // "IDisposables" should be disposed
-                                // disposeInputStreamOnCompletion takes care of this
-                                var stream = new FileStream(localFilename, FileMode.Open, FileAccess.Read);
-#pragma warning restore S2930 // "IDisposables" should be disposed
-
-                                stream.Seek(startOffset, SeekOrigin.Begin);
-                                return Task.FromResult((Stream)stream);
-                            },
-                            options: topts,
-                            cancellationToken: cts.Token);
-
-                        transfer = transfer.WithSoulseekTransfer(completedTransfer);
-                    }
-                    else
-                    {
-                        var completedTransfer = await Client.UploadAsync(
-                            username,
-                            filename,
-                            size: localFileLength,
-                            inputStreamFactory: (startOffset) => Relay.GetFileStreamAsync(agentName: host, filename, startOffset, id),
-                            options: topts,
-                            cancellationToken: cts.Token);
-
-                        Relay.TryCloseFileStream(host, id);
-
-                        transfer = transfer.WithSoulseekTransfer(completedTransfer);
-                    }
-
-                    // explicitly dispose the rate limiter to prevent updates from it beyond this point, which may overwrite the
-                    // final state
-                    rateLimiter.Dispose();
-
-                    // todo: broadcast
-                    SynchronizedUpdate(transfer, cancellable: false);
-
-                    EventBus.Raise(new UploadFileCompleteEvent
-                    {
-                        Timestamp = transfer.EndedAt.Value,
-                        LocalFilename = localFilename,
-                        RemoteFilename = filename,
-                        Transfer = transfer,
-                    });
-                }
-                catch (OperationCanceledException ex)
-                {
-                    transfer.EndedAt = DateTime.UtcNow;
-                    transfer.Exception = ex.Message;
-                    transfer.State = TransferStates.Completed | TransferStates.Cancelled;
-
-                    // todo: broadcast
-                    SynchronizedUpdate(transfer, cancellable: false);
-
-                    Relay.TryCloseFileStream(host, id, ex);
-
-                    throw;
                 }
                 catch (Exception ex)
                 {
-                    Log.Error(ex, "Upload of {Filename} to user {Username} failed: {Message}", filename, username, ex.Message);
+                    Log.Warning(ex, "Failed to watch user {Username}", username);
+                }
 
-                    transfer.EndedAt = DateTime.UtcNow;
-                    transfer.Exception = ex.Message;
-                    transfer.State = TransferStates.Completed | TransferStates.Errored;
+                /*
+                    schedule the upload immediately
 
-                    // todo: broadcast
-                    SynchronizedUpdate(transfer, cancellable: false);
+                    Task.Run can fail due to thread pool exhaustion or OOM, and this *SHOULD* throw up the chain and
+                    fail the enqueue request
+                */
+                _ = Task.Run(() => UploadAsync(transfer)).ContinueWith(task =>
+                {
+                    if (task.IsCompletedSuccessfully)
+                    {
+                        Log.Information("Task for upload of {Filename} to {Username} completed successfully", filename, username);
+                        return;
+                    }
 
-                    Relay.TryCloseFileStream(host, id, ex);
+                    /*
+                        things that can cause us to arrive here:
+
+                        * file not found (moved, deleted somehow)
+                        * transfer record deleted somehow
+                        * transfer record updated so that it's no longer in Queued | Locally
+                        * Soulseek.NET already tracking an identical upload (slskd <> Soulseek.NET desync)
+                    */
+                    Log.Error(task.Exception, "Task for upload of {Filename} to {Username} did not complete successfully: {Error}", filename, username, task.Exception.Message);
+
+                    if (!TryFail(id, task.Exception))
+                    {
+                        Log.Error(task.Exception, "Failed to clean up transfer {Id} after failed execution: {Message}", id, task.Exception.Message);
+                    }
+                });
+
+                return transfer;
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to enqueue upload of {Filename} to {Username}: {Message}", filename, username, ex.Message);
+
+                if (!TryFail(id, exception: ex))
+                {
+                    Log.Error(ex, "Failed to clean up transfer {Id} after failed enqueue: {Message}", id, ex.Message);
                     throw;
                 }
-                finally
+
+                throw;
+            }
+            finally
+            {
+                if (Locks.TryRemove(lockName, out _))
                 {
-                    CancellationTokens.TryRemove(id, out _);
+                    Log.Debug("Released lock {LockName}", lockName);
                 }
-            });
+            }
         }
 
         /// <summary>
@@ -638,6 +877,31 @@ namespace slskd.Transfers.Uploads
         }
 
         /// <summary>
+        ///     Fails the upload matching the specified <paramref name="id"/> with the specified <paramref name="exception"/>,
+        ///     and sets the final state accordingly.
+        /// </summary>
+        /// <remarks>
+        ///     This method is designed to be idempotent, meaning subsequent calls for a given transfer shouldn't change
+        ///     the EndedAt or Exception properties if they have already been set. If the transfer State already includes
+        ///     the terminal Completed flag, it is unchanged.
+        /// </remarks>
+        /// <param name="id">The unique identifier for the upload.</param>
+        /// <param name="exception">The exception that caused the failure.</param>
+        /// <returns>A value indicating whether the upload was successfully failed.</returns>
+        public bool TryFail(Guid id, Exception exception)
+        {
+            var state = exception switch
+            {
+                NotFoundException => TransferStates.Aborted,
+                OperationCanceledException => TransferStates.Cancelled,
+                TimeoutException => TransferStates.TimedOut,
+                _ => TransferStates.Errored,
+            };
+
+            return TryFail(id, exception.Message, state);
+        }
+
+        /// <summary>
         ///     Synchronously updates the specified <paramref name="transfer"/>.
         /// </summary>
         /// <param name="transfer">The transfer to update.</param>
@@ -647,6 +911,127 @@ namespace slskd.Transfers.Uploads
 
             context.Update(transfer);
             context.SaveChanges();
+        }
+
+        private bool TryFail(Guid id, string exception, TransferStates state)
+        {
+            var t = Find(t => t.Id == id);
+
+            if (t is null)
+            {
+                return false;
+            }
+
+            t.EndedAt ??= DateTime.UtcNow;
+            t.Exception ??= exception;
+
+            if (!t.State.HasFlag(TransferStates.Completed))
+            {
+                t.State = TransferStates.Completed | state;
+            }
+
+            try
+            {
+                Update(t);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to update database: {Message}", ex.Message);
+                return false;
+            }
+        }
+
+        /// <summary>
+        ///     Resolves a remote file's location and size from shares and potentially disk.
+        /// </summary>
+        /// <param name="remoteFilename">The file to resolve.</param>
+        /// <returns>The resolved host, filename (on disk), and length.</returns>
+        /// <exception cref="NotFoundException">Thrown if the file can't be located, either in a share or on disk.</exception>
+        private async Task<(string Host, string Filename, long Length)> ResolveFileInfoAsync(string remoteFilename)
+        {
+            string host;
+            string filename;
+            long length;
+
+            /*
+                locate the file and the stored details from shares.
+                the size returned here will be the size the remote client is expecting.
+
+                throws NotFoundException
+            */
+            (host, filename, length) = await Shares.ResolveFileAsync(remoteFilename);
+
+            Log.Debug("Resolved shared file {RemoteFilename} to host {Host} and file {ShareFilename} (length: {ShareLength})", remoteFilename, host, filename, length);
+
+            /*
+                if the file is hosted locally, do some quick I/O to check to see if the file still exists at the location
+                and of the size stored in the scan. the cost is negligible and this will keep transfers that are doomed
+                to fail out of our queue.
+            */
+            if (host == Program.LocalHostName)
+            {
+                var info = Files.ResolveFileInfo(filename);
+
+                // if the file doesn't exist we can't continue; shares have diverged from disk
+                if (!info.Exists)
+                {
+                    Shares.RequestScan();
+                    Log.Warning("The shared file '{File}' could not be located on disk. A share scan should be performed", filename);
+                    throw new NotFoundException($"The file '{filename}' could not be located on disk. A share scan should be performed.");
+                }
+
+                // shares have diverged from disk, but we *MIGHT* be able to upload this file, if the remote client
+                // doesn't care that the size is exact.  we definitely need to re-scan though.
+                if (info.Length != length)
+                {
+                    Log.Warning("The length of shared file '{File}' differs between the share ({ShareSize}) and disk ({DiskSize}). A share scan should be performed", filename, length, info.Length);
+                    Shares.RequestScan();
+                }
+
+                length = info.Length;
+            }
+            else if (!OptionsMonitor.CurrentValue.Flags.OptimisticRelayFileInfo)
+            {
+                /*
+                    if the file is hosted on a relay agent and the user has set the pessimistic flag to true,
+                    get the file info from the agent.
+
+                    this was, at one time, the default behavior, but users complained that it caused a lot of timeouts
+                    so now it is opt-in.
+                */
+                var (exists, relayLength) = await Relay.GetFileInfoAsync(agentName: host, remoteFilename);
+
+                if (!exists || relayLength <= 0)
+                {
+                    // todo: force a remote scan
+                    throw new NotFoundException($"The file '{remoteFilename}' could not be located on Agent {host}. A share scan should be performed.");
+                }
+
+                if (relayLength != length)
+                {
+                    // todo: force a remote scan
+                    Log.Warning("The length of shared file '{File}' on host {Host} differs between the share ({ShareSize}) and disk ({DiskSize}). A share scan should be performed", filename, host, length, relayLength);
+                }
+
+                length = relayLength;
+            }
+
+            return (host, filename, length);
+        }
+
+        private void SynchronizedUpdate(Transfer transfer, SemaphoreSlim semaphore, CancellationToken cancellationToken = default)
+        {
+            semaphore.Wait(cancellationToken);
+
+            try
+            {
+                Update(transfer);
+            }
+            finally
+            {
+                semaphore.Release();
+            }
         }
     }
 }

@@ -1,0 +1,66 @@
+name: Mirror Repository
+
+on:
+  create:
+  push:
+    branches:
+      - '**'  # Trigger on push to any branch
+  delete:
+    branches:
+      - '**'  # Trigger when branches are deleted
+  workflow_dispatch:
+
+concurrency:
+  group: mirror-sync
+  cancel-in-progress: false
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target:
+          - name: GitLab
+            host: gitlab.com
+            repo: git@gitlab.com:slskd/slskd.git
+          - name: Codeberg
+            host: codeberg.org
+            repo: git@codeberg.org:slskd/slskd.git
+      fail-fast: false  # Continue with other mirrors even if one fails
+
+    steps:
+    - name: Configure SSH
+      env:
+        SSH_KEY: ${{ secrets.GIT_MIRROR_SSH_KEY }}
+      run: |
+        if [ -z "$SSH_KEY" ]; then
+          echo "⚠️ SSH key not configured. Skipping mirror sync."
+          echo "Please set GIT_MIRROR_SSH_KEY secret to enable mirroring."
+          exit 1
+        fi
+
+        # Set up SSH key
+        mkdir -p ~/.ssh
+        echo "$SSH_KEY" > ~/.ssh/id_ed25519
+        chmod 600 ~/.ssh/id_ed25519
+
+        # Start SSH agent and add key
+        eval "$(ssh-agent -s)"
+        ssh-add ~/.ssh/id_ed25519
+
+        # Add known host to avoid SSH prompts
+        ssh-keyscan ${{ matrix.target.host }} >> ~/.ssh/known_hosts
+
+        # Configure Git
+        git config --global user.name "GitHub Actions"
+        git config --global user.email "actions@github.com"
+
+    - name: Check out repo
+      run: |
+        git clone --bare https://github.com/slskd/slskd slskd
+
+    - name: Mirror to ${{ matrix.target.name }}
+      working-directory: ./slskd
+      run: |
+        git remote add mirror ${{ matrix.target.repo }}
+        git push --mirror mirror
