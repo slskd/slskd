@@ -136,18 +136,18 @@ public class TelemetryController : ControllerBase
     public IActionResult GetTransferSummaryHistogram(
         [FromQuery] DateTime? start = null,
         [FromQuery] DateTime? end = null,
-        [FromQuery] TimeSpan? interval = null)
+        [FromQuery] int? interval = null)
     {
         start ??= DateTime.UtcNow.AddDays(-7);
         end ??= DateTime.UtcNow;
-        interval ??= TimeSpan.FromHours(1);
+        var intervalTimeSpan = TimeSpan.FromMinutes(interval ?? 60);
 
         if (start >= end)
         {
             return BadRequest("End time must be later than start time");
         }
 
-        return Ok(Telemetry.Statistics.GetTransferSummaryHistogram(start.Value, end.Value, interval.Value));
+        return Ok(Telemetry.Statistics.GetTransferSummaryHistogram(start.Value, end.Value, intervalTimeSpan));
     }
 
     /// <summary>
