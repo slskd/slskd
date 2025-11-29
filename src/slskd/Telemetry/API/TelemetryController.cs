@@ -199,6 +199,17 @@ public class TelemetryController : ControllerBase
         return Ok(dict);
     }
 
+    [HttpGet("statistics/transfers/directories")]
+    [Authorize(Policy = AuthPolicy.Any)]
+    [ProducesResponseType(typeof(Dictionary<string, int>), 200)]
+    public IActionResult GetTransferSummaryByDirectory(
+        [FromQuery] int? limit = null,
+        [FromQuery] int? offset = null)
+    {
+        // todo: get a list of all directories downloaded at least once, along with the number of times downloaded (doesn't matter what status)
+        return null;
+    }
+
     /// <summary>
     ///     Returns the top N errors by total count and direction.
     /// </summary>
