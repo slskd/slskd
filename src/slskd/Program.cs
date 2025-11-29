@@ -903,6 +903,9 @@ namespace slskd
                         },
                     });
 
+                    // allow endpoints marked with multiple content types in [Produces] to generate properly
+                    options.OperationFilter<ContentNegotiationOperationFilter>();
+
                     if (IOFile.Exists(XmlDocumentationFile))
                     {
                         options.IncludeXmlComments(XmlDocumentationFile);
