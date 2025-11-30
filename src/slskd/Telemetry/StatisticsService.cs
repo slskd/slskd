@@ -22,6 +22,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Dapper;
 using Microsoft.Data.Sqlite;
+using Serilog;
 using Soulseek;
 
 /// <summary>
@@ -38,6 +39,7 @@ public class StatisticsService
     }
 
     private ConnectionStringDictionary ConnectionStrings { get; }
+    private ILogger Log { get; } = Serilog.Log.ForContext<MetricsController>();
 
     /// <summary>
     ///     Returns a summary of all transfer data grouped by direction and final transfer state. Includes only
@@ -75,6 +77,7 @@ public class StatisticsService
                 StateDescription,
                 SUM(Size) AS TotalBytes,
                 COUNT(*) AS Count,
+                COUNT(DISTINCT Username) AS DistinctUsers,
                 AVG(AverageSpeed) AS AverageSpeed,
                 AVG(strftime('%s', StartedAt) - strftime('%s', EnqueuedAt)) AS AverageWait,
                 AVG(strftime('%s', EndedAt) - strftime('%s', StartedAt)) AS AverageDuration
@@ -104,6 +107,7 @@ public class StatisticsService
             {
                 TotalBytes = result.TotalBytes,
                 Count = result.Count,
+                DistinctUsers = result.DistinctUsers,
                 AverageSpeed = result.AverageSpeed,
                 AverageWait = result.AverageWait,
                 AverageDuration = result.AverageDuration,
@@ -159,6 +163,7 @@ public class StatisticsService
                 StateDescription,
                 SUM(Size) AS TotalBytes,
                 COUNT(*) AS Count,
+                COUNT(DISTINCT Username) AS Users,
                 AVG(AverageSpeed) AS AverageSpeed,
                 COALESCE(AVG(strftime('%s', StartedAt) - strftime('%s', EnqueuedAt)), 0.0) AS AverageWait,
                 COALESCE(AVG(strftime('%s', EndedAt) - strftime('%s', StartedAt)), 0.0) AS AverageDuration
@@ -190,6 +195,7 @@ public class StatisticsService
             {
                 TotalBytes = result.TotalBytes,
                 Count = result.Count,
+                DistinctUsers = result.DistinctUsers,
                 AverageSpeed = result.AverageSpeed,
                 AverageWait = result.AverageWait,
                 AverageDuration = result.AverageDuration,
@@ -205,6 +211,182 @@ public class StatisticsService
                     intervalDict[result.Direction][result.StateDescription & ~TransferStates.Completed] = record;
                 }
             }
+        }
+
+        return dict;
+    }
+
+    /// <summary>
+    ///     Returns a list of transfer exceptions.
+    /// </summary>
+    /// <param name="start">The optional start time of the summary window.</param>
+    /// <param name="end">The optional end time of the summary window.</param>
+    /// <param name="direction">The direction (Upload or Download) for the summary.</param>
+    /// <param name="username">The optional username by which to filter results.</param>
+    /// <param name="limit">The number of records to return (default: 25).</param>
+    /// <param name="offset">The record offset (if paginating).</param>
+    /// <returns>A dictionary keyed by direction and containing a list of exceptions and the number of times they occurred.</returns>
+    /// <exception cref="ArgumentException">
+    ///     Thrown if end time is not later than start time, or limit is not greater than zero.
+    /// </exception>
+    public Dictionary<TransferDirection, List<TransferExceptionDetail>> GetTransferExceptions(
+        DateTime? start = null,
+        DateTime? end = null,
+        TransferDirection? direction = null,
+        string username = null,
+        int limit = 25,
+        int offset = 0)
+    {
+        start ??= DateTime.MinValue;
+        end ??= DateTime.MaxValue;
+
+        if (end <= start)
+        {
+            throw new ArgumentException("End time must be later than start time");
+        }
+
+        var dict = new Dictionary<TransferDirection, List<TransferExceptionDetail>>()
+        {
+            { TransferDirection.Download, new List<TransferExceptionDetail>() },
+            { TransferDirection.Upload, new List<TransferExceptionDetail>() },
+        };
+
+        var sql = @$"
+            SELECT
+                Id,
+                Username,
+                Direction,
+                Filename,
+                Size,
+                StartOffset,
+                State,
+                RequestedAt
+                EnqueuedAt,
+                StartedAt,
+                EndedAt,
+                BytesTransferred,
+                AverageSpeed,
+                CASE 
+                    WHEN INSTR(Exception, ':') > 0 
+                    THEN SUBSTR(Exception, INSTR(Exception, ':') + 2)
+                    ELSE Exception
+                END as Exception
+            FROM transfers 
+            WHERE state & ~48
+                {(direction is not null ? "AND Direction = @Direction" : string.Empty)}
+                {(username is not null ? "AND Username = @Username" : string.Empty)}
+            GROUP BY Direction
+            ORDER BY EndedAt DESC
+            LIMIT @Limit
+            OFFSET @Offset
+        ";
+
+        using var connection = new SqliteConnection(ConnectionStrings[Database.Transfers]);
+
+        var param = new
+        {
+            Direction = direction.ToString(),
+            Username = username,
+            Start = start,
+            End = end,
+            Limit = limit,
+            Offset = offset,
+        };
+
+        var results = connection.Query<TransferExceptionDetail>(sql, param);
+
+        Log.Debug("Result rows for {Method}, filters: {Params}: {Count}", nameof(GetTransferExceptions), param, results?.Count());
+
+        foreach (var result in results)
+        {
+            dict[result.Direction].Add(result);
+        }
+
+        return dict;
+    }
+
+    /// <summary>
+    ///     Returns a summary of distinct transfer exceptions and the number of times they occurred.
+    /// </summary>
+    /// <param name="start">The optional start time of the summary window.</param>
+    /// <param name="end">The optional end time of the summary window.</param>
+    /// <param name="direction">The direction (Upload or Download) for the summary.</param>
+    /// <param name="username">The optional username by which to filter results.</param>
+    /// <param name="limit">The number of records to return (default: 25).</param>
+    /// <param name="offset">The record offset (if paginating).</param>
+    /// <returns>A dictionary keyed by direction and containing a list of exceptions and the number of times they occurred.</returns>
+    /// <exception cref="ArgumentException">
+    ///     Thrown if end time is not later than start time, or limit is not greater than zero.
+    /// </exception>
+    public Dictionary<TransferDirection, List<TransferExceptionSummary>> GetTransferExceptionsPareto(
+        DateTime? start = null,
+        DateTime? end = null,
+        TransferDirection? direction = null,
+        string username = null,
+        int limit = 25,
+        int offset = 0)
+    {
+        start ??= DateTime.MinValue;
+        end ??= DateTime.MaxValue;
+
+        if (end <= start)
+        {
+            throw new ArgumentException("End time must be later than start time");
+        }
+
+        var dict = new Dictionary<TransferDirection, List<TransferExceptionSummary>>()
+        {
+            { TransferDirection.Download, new List<TransferExceptionSummary>() },
+            { TransferDirection.Upload, new List<TransferExceptionSummary>() },
+        };
+
+        var sql = @$"
+            SELECT 
+                Direction,
+                CASE 
+                    WHEN INSTR(Exception, ':') > 0 
+                    THEN SUBSTR(Exception, INSTR(Exception, ':') + 2)
+                    ELSE Exception
+                END as Exception,
+                COUNT(*) as Count,
+                COUNT(DISTINCT Username) as DistinctUsers
+            FROM transfers 
+            WHERE state & ~48
+                {(direction is not null ? "AND Direction = @Direction" : string.Empty)}
+                {(username is not null ? "AND Username = @Username" : string.Empty)}
+            GROUP BY Direction,
+            CASE 
+                WHEN INSTR(Exception, ':') > 0 
+                THEN SUBSTR(Exception, INSTR(Exception, ':') + 2)
+                ELSE Exception
+            END
+            ORDER BY Count DESC
+            LIMIT @Limit
+            OFFSET @Offset
+        ";
+
+        using var connection = new SqliteConnection(ConnectionStrings[Database.Transfers]);
+
+        var param = new
+        {
+            Direction = direction.ToString(),
+            Username = username,
+            Start = start,
+            End = end,
+            Limit = limit,
+            Offset = offset,
+        };
+
+        var results = connection.Query<ExceptionSummaryRow>(sql, param);
+
+        foreach (var result in results)
+        {
+            dict[result.Direction].Add(new TransferExceptionSummary
+            {
+                Exception = result.Exception,
+                Count = result.Count,
+                DistinctUsers = result.DistinctUsers,
+            });
         }
 
         return dict;
@@ -290,88 +472,6 @@ public class StatisticsService
         return list;
     }
 
-    /// <summary>
-    ///     Returns a summary of distinct transfer errors and the number of times they occurred.
-    /// </summary>
-    /// <param name="start">The optional start time of the summary window.</param>
-    /// <param name="end">The optional end time of the summary window.</param>
-    /// <param name="direction">The direction (Upload or Download) for the summary.</param>
-    /// <param name="username">The optional username by which to filter results.</param>
-    /// <param name="limit">The number of records to return (default: 25).</param>
-    /// <param name="offset">The record offset (if paginating).</param>
-    /// <returns></returns>
-    /// <exception cref="ArgumentException">
-    ///     Thrown if end time is not later than start time, or limit is not greater than zero.
-    /// </exception>
-    public Dictionary<string, long> GetTransferErrorSummary(
-        DateTime? start = null,
-        DateTime? end = null,
-        TransferDirection? direction = null,
-        string username = null,
-        int limit = 25,
-        int offset = 0)
-    {
-        start ??= DateTime.MinValue;
-        end ??= DateTime.MaxValue;
-
-        if (end <= start)
-        {
-            throw new ArgumentException("End time must be later than start time");
-        }
-
-        if (limit <= 0)
-        {
-            throw new ArgumentOutOfRangeException("Limit must be greater than zero");
-        }
-
-        var dict = new Dictionary<string, long>();
-
-        var sql = @$"
-            SELECT 
-                Direction,
-                CASE 
-                    WHEN INSTR(Exception, ':') > 0 
-                    THEN SUBSTR(Exception, INSTR(Exception, ':') + 2)
-                    ELSE Exception
-                END as Exception,
-                COUNT(*) as Count
-            FROM transfers 
-            WHERE state & ~48
-                {(direction is not null ? "AND Direction = @Direction" : string.Empty)}
-                {(username is not null ? "AND Username = @Username" : string.Empty)}
-            GROUP BY Direction,
-            CASE 
-                WHEN INSTR(Exception, ':') > 0 
-                THEN SUBSTR(Exception, INSTR(Exception, ':') + 2)
-                ELSE Exception
-            END
-            ORDER BY Count DESC
-            LIMIT @Limit
-            OFFSET @Offset
-        ";
-
-        using var connection = new SqliteConnection(ConnectionStrings[Database.Transfers]);
-
-        var param = new
-        {
-            Direction = direction.ToString(),
-            Username = username,
-            Start = start,
-            End = end,
-            Limit = limit,
-            Offset = offset,
-        };
-
-        var results = connection.Query<ErrorSummaryRow>(sql, param);
-
-        foreach (var result in results)
-        {
-            dict.Add(result.Exception, result.Count);
-        }
-
-        return dict;
-    }
-
     private record TransferSummaryRow
     {
         public DateTime? Interval { get; init; }
@@ -380,14 +480,17 @@ public class StatisticsService
         public TransferStates StateDescription { get; init; }
         public long TotalBytes { get; init; }
         public long Count { get; init; }
+        public long DistinctUsers { get; init; }
         public double AverageSpeed { get; init; }
         public double AverageWait { get; init; }
         public double AverageDuration { get; init; }
     }
 
-    private record ErrorSummaryRow
+    private record ExceptionSummaryRow
     {
+        public TransferDirection Direction { get; init; }
         public string Exception { get; init; }
         public long Count { get; init; }
+        public long DistinctUsers { get; init; }
     }
 }

@@ -1,4 +1,4 @@
-// <copyright file="TransferSummary.cs" company="slskd Team">
+// <copyright file="TransferExceptionSummary.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -17,13 +17,9 @@
 
 namespace slskd.Telemetry;
 
-public record TransferSummary
+public record TransferExceptionSummary
 {
-    public string Username { get; init; }
-    public long TotalBytes { get; init; }
+    public string Exception { get; init; }
     public long Count { get; init; }
     public long DistinctUsers { get; init; }
-    public double AverageSpeed { get; init; }
-    public double AverageWait { get; init; }
-    public double AverageDuration { get; init; }
 }

@@ -27,7 +27,7 @@ using Serilog;
 using Soulseek;
 
 /// <summary>
-///     Telemetry.
+///     Statistics.
 /// </summary>
 [Route("api/v{version:apiVersion}/telemetry/[controller]")]
 [Tags("Telemetry")]
@@ -52,6 +52,7 @@ public class StatisticsController : ControllerBase
     /// </summary>
     /// <param name="start">The start time (default: 7 days ago).</param>
     /// <param name="end">The end time (default: now).</param>
+    /// <param name="direction">An optional direction by which to filter activity.</param>
     /// <param name="username">An optional username by which to filter activity.</param>
     /// <returns>A dictionary keyed by direction and state and containing summary information.</returns>
     /// <response code="200">The request completed successfully.</response>
@@ -65,6 +66,7 @@ public class StatisticsController : ControllerBase
     public IActionResult GetTransferSummary(
         [FromQuery] DateTime? start = null,
         [FromQuery] DateTime? end = null,
+        [FromQuery] string direction = null,
         [FromQuery] string username = null)
     {
         var now = DateTime.UtcNow;
@@ -77,9 +79,25 @@ public class StatisticsController : ControllerBase
             return BadRequest("End time must be later than start time");
         }
 
+        TransferDirection? transferDirection = null;
+
+        if (!string.IsNullOrWhiteSpace(direction))
+        {
+            if (!Enum.TryParse<TransferDirection>(direction, ignoreCase: true, out var parsedDirection))
+            {
+                return BadRequest($"Invalid direction; expected one of: {string.Join(", ", Enum.GetNames(typeof(TransferDirection)))}");
+            }
+
+            transferDirection = parsedDirection;
+        }
+
         try
         {
-            return Ok(Telemetry.Statistics.GetTransferSummary(start.Value, end, username: username));
+            return Ok(Telemetry.Statistics.GetTransferSummary(
+                start: start.Value,
+                end: end,
+                direction: transferDirection,
+                username: username));
         }
         catch (Exception ex)
         {
@@ -95,12 +113,13 @@ public class StatisticsController : ControllerBase
     /// <param name="start">The start time (default: 7 days ago).</param>
     /// <param name="end">The end time (default: now).</param>
     /// <param name="interval">The interval, in minutes (default: 60).</param>
+    /// <param name="direction">An optional direction by which to filter activity.</param>
     /// <param name="username">An optional username by which to filter activity.</param>
     /// <returns>A dictionary keyed by direction and state and containing summary information.</returns>
     /// <response code="200">The request completed successfully.</response>
     /// <response code="400">Bad request.</response>
     /// <response code="500">An error occurred.</response>
-    [HttpGet("transfers/histogram")]
+    [HttpGet("transfers/summary/histogram")]
     [Authorize(Policy = AuthPolicy.Any)]
     [ProducesResponseType(typeof(Dictionary<DateTime, Dictionary<TransferDirection, Dictionary<TransferStates, TransferSummary>>>), 200)]
     [ProducesResponseType(typeof(string), 400)]
@@ -109,6 +128,7 @@ public class StatisticsController : ControllerBase
         [FromQuery] DateTime? start = null,
         [FromQuery] DateTime? end = null,
         [FromQuery] int interval = 60,
+        [FromQuery] string direction = null,
         [FromQuery] string username = null)
     {
         var now = DateTime.UtcNow;
@@ -128,13 +148,156 @@ public class StatisticsController : ControllerBase
 
         var intervalTimeSpan = TimeSpan.FromMinutes(interval);
 
+        TransferDirection? transferDirection = null;
+
+        if (!string.IsNullOrWhiteSpace(direction))
+        {
+            if (!Enum.TryParse<TransferDirection>(direction, ignoreCase: true, out var parsedDirection))
+            {
+                return BadRequest($"Invalid direction; expected one of: {string.Join(", ", Enum.GetNames(typeof(TransferDirection)))}");
+            }
+
+            transferDirection = parsedDirection;
+        }
+
         try
         {
-            return Ok(Telemetry.Statistics.GetTransferSummaryHistogram(start.Value, end.Value, interval: intervalTimeSpan, username: username));
+            return Ok(Telemetry.Statistics.GetTransferSummaryHistogram(
+                start: start.Value,
+                end: end.Value,
+                interval: intervalTimeSpan,
+                direction: transferDirection,
+                username: username));
         }
         catch (Exception ex)
         {
             Log.Error(ex, "Error fetching transfer histogram over {Start}-{End}/{Interval}: {Message}", start, end, interval, ex.Message);
+            return StatusCode(500, ex.Message);
+        }
+    }
+
+    /// <summary>
+    ///     Returns the top N errors by total count and direction.
+    /// </summary>
+    /// <param name="start">The start time.</param>
+    /// <param name="end">The end time.</param>
+    /// <param name="direction">An optional direction by which to filter activity.</param>
+    /// <param name="username">An optional username by which to filter exceptions.</param>
+    /// <param name="limit">The number of records to return (Default: 25).</param>
+    /// <param name="offset">The record offset (if paginating).</param>
+    /// <returns></returns>
+    /// <response code="200">The request completed successfully.</response>
+    /// <response code="400">Bad request.</response>
+    /// <response code="500">An error occurred.</response>
+    [HttpGet("transfers/exceptions")]
+    [Authorize(Policy = AuthPolicy.Any)]
+    [ProducesResponseType(typeof(Dictionary<TransferDirection, List<TransferExceptionSummary>>), 200)]
+    [ProducesResponseType(typeof(string), 400)]
+    [ProducesResponseType(typeof(string), 500)]
+    public IActionResult GetTransferExceptions(
+        [FromQuery] DateTime? start = null,
+        [FromQuery] DateTime? end = null,
+        [FromQuery] string direction = null,
+        [FromQuery] string username = null,
+        [FromQuery] int limit = 25,
+        [FromQuery] int offset = 0)
+    {
+        start ??= DateTime.MinValue;
+        end ??= DateTime.MaxValue;
+
+        if (start >= end)
+        {
+            return BadRequest("End time must be later than start time");
+        }
+
+        TransferDirection? transferDirection = null;
+
+        if (!string.IsNullOrWhiteSpace(direction))
+        {
+            if (!Enum.TryParse<TransferDirection>(direction, ignoreCase: true, out var parsedDirection))
+            {
+                return BadRequest($"Invalid direction; expected one of: {string.Join(", ", Enum.GetNames(typeof(TransferDirection)))}");
+            }
+
+            transferDirection = parsedDirection;
+        }
+
+        try
+        {
+            return Ok(Telemetry.Statistics.GetTransferExceptions(
+                start: start.Value,
+                end: end.Value,
+                limit: limit,
+                offset: offset,
+                direction: transferDirection,
+                username: username));
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error fetching transfer exceptions over {Start}-{End}: {Message}", start, end, ex.Message);
+            return StatusCode(500, ex.Message);
+        }
+    }
+
+    /// <summary>
+    ///     Returns the top N exceptions by total count and direction.
+    /// </summary>
+    /// <param name="start">The start time.</param>
+    /// <param name="end">The end time.</param>
+    /// <param name="direction">An optional direction by which to filter activity.</param>
+    /// <param name="username">An optional username by which to filter exceptions.</param>
+    /// <param name="limit">The number of records to return (Default: 25).</param>
+    /// <param name="offset">The record offset (if paginating).</param>
+    /// <returns></returns>
+    /// <response code="200">The request completed successfully.</response>
+    /// <response code="400">Bad request.</response>
+    /// <response code="500">An error occurred.</response>
+    [HttpGet("transfers/exceptions/pareto")]
+    [Authorize(Policy = AuthPolicy.Any)]
+    [ProducesResponseType(typeof(Dictionary<TransferDirection, List<TransferExceptionSummary>>), 200)]
+    [ProducesResponseType(typeof(string), 400)]
+    [ProducesResponseType(typeof(string), 500)]
+    public IActionResult GetTransferExceptionsPareto(
+        [FromQuery] DateTime? start = null,
+        [FromQuery] DateTime? end = null,
+        [FromQuery] string direction = null,
+        [FromQuery] string username = null,
+        [FromQuery] int limit = 25,
+        [FromQuery] int offset = 0)
+    {
+        start ??= DateTime.MinValue;
+        end ??= DateTime.MaxValue;
+
+        if (start >= end)
+        {
+            return BadRequest("End time must be later than start time");
+        }
+
+        TransferDirection? transferDirection = null;
+
+        if (!string.IsNullOrWhiteSpace(direction))
+        {
+            if (!Enum.TryParse<TransferDirection>(direction, ignoreCase: true, out var parsedDirection))
+            {
+                return BadRequest($"Invalid direction; expected one of: {string.Join(", ", Enum.GetNames(typeof(TransferDirection)))}");
+            }
+
+            transferDirection = parsedDirection;
+        }
+
+        try
+        {
+            return Ok(Telemetry.Statistics.GetTransferExceptionsPareto(
+                start: start.Value,
+                end: end.Value,
+                limit: limit,
+                offset: offset,
+                direction: transferDirection,
+                username: username));
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error fetching transfer exceptions over {Start}-{End}: {Message}", start, end, ex.Message);
             return StatusCode(500, ex.Message);
         }
     }
@@ -197,54 +360,5 @@ public class StatisticsController : ControllerBase
     {
         // todo: get a list of all directories downloaded at least once, along with the number of times downloaded (doesn't matter what status)
         return null;
-    }
-
-    /// <summary>
-    ///     Returns the top N errors by total count and direction.
-    /// </summary>
-    /// <param name="start">The start time.</param>
-    /// <param name="end">The end time.</param>
-    /// <param name="limit">The number of records to return (Default: 25).</param>
-    /// <param name="offset">The record offset (if paginating).</param>
-    /// <returns></returns>
-    [HttpGet("transfers/errors")]
-    [Authorize(Policy = AuthPolicy.Any)]
-    [ProducesResponseType(typeof(Dictionary<TransferDirection, Dictionary<TransferStates, TransferSummary>>), 200)]
-    public IActionResult GetTransferErrorSummary(
-        [FromQuery] DateTime? start = null,
-        [FromQuery] DateTime? end = null,
-        [FromQuery] int? limit = null,
-        [FromQuery] int? offset = null)
-    {
-        start ??= DateTime.MinValue;
-        end ??= DateTime.MaxValue;
-        limit ??= 25;
-        offset ??= 0;
-
-        if (start >= end)
-        {
-            return BadRequest("End time must be later than start time");
-        }
-
-        if (limit <= 0)
-        {
-            return BadRequest("Limit must be greater than zero");
-        }
-
-        if (offset < 0)
-        {
-            return BadRequest("Offset must be greater than or equal to zero");
-        }
-
-        var downloads = Telemetry.Statistics.GetTransferErrorSummary(start, end, TransferDirection.Download, limit: limit.Value, offset: offset.Value);
-        var uploads = Telemetry.Statistics.GetTransferErrorSummary(start, end, TransferDirection.Upload, limit: limit.Value, offset: offset.Value);
-
-        var dict = new Dictionary<TransferDirection, Dictionary<string, long>>()
-        {
-            { TransferDirection.Download, downloads },
-            { TransferDirection.Upload, uploads },
-        };
-
-        return Ok(dict);
     }
 }

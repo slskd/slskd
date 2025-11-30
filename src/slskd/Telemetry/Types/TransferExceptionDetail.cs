@@ -1,4 +1,4 @@
-// <copyright file="TransferSummary.cs" company="slskd Team">
+// <copyright file="TransferExceptionDetail.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -17,13 +17,23 @@
 
 namespace slskd.Telemetry;
 
-public record TransferSummary
+using System;
+using Soulseek;
+
+public record TransferExceptionDetail
 {
+    public string Id { get; init; }
     public string Username { get; init; }
-    public long TotalBytes { get; init; }
-    public long Count { get; init; }
-    public long DistinctUsers { get; init; }
-    public double AverageSpeed { get; init; }
-    public double AverageWait { get; init; }
-    public double AverageDuration { get; init; }
+    public TransferDirection Direction { get; init; }
+    public string Filename { get; init; }
+    public long Size { get; set; }
+    public long StartOffset { get; init; }
+    public TransferStates State { get; set; } = TransferStates.None;
+    public DateTime RequestedAt { get; set; }
+    public DateTime? EnqueuedAt { get; set; }
+    public DateTime? StartedAt { get; set; }
+    public DateTime? EndedAt { get; set; }
+    public long BytesTransferred { get; set; }
+    public double AverageSpeed { get; set; }
+    public string Exception { get; set; }
 }
