@@ -555,6 +555,7 @@ class App extends Component {
                       this.withTokenCheck(
                         <div className="view">
                           <Searches
+                            pageSize={applicationOptions?.web?.searchPageSize}
                             server={applicationState.server}
                             {...props}
                           />
