@@ -97,3 +97,6 @@ An application directory will be created in either `~/.local/share/slskd` (on Li
 Once running, log in to the web UI using the default username `slskd` and password `slskd` to complete the configuration.
 
 Detailed documentation for configuration options can be found [here](https://github.com/slskd/slskd/blob/master/docs/config.md), and an example of the YAML configuration file can be reviewed [here](https://github.com/slskd/slskd/blob/master/config/slskd.example.yml).
+
+## Reverse Proxy
+SLSKD may require extra configuration when running it behind a reverse proxy. Refer [here](https://github.com/slskd/slskd/blob/master/docs/reverse_proxy.md) for a short guide.
