@@ -25,6 +25,7 @@ using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Serilog;
 
 /// <summary>
 ///     Telemetry.
@@ -45,6 +46,7 @@ public class MetricsController : ControllerBase
     }
 
     private TelemetryService Telemetry { get; }
+    private ILogger Log { get; } = Serilog.Log.ForContext<MetricsController>();
 
     /// <summary>
     ///     Gets KPIs for the app, based on the Prometheus dashboard
@@ -60,8 +62,8 @@ public class MetricsController : ControllerBase
     ///     Other
     ///     * process_start_time_seconds = unix timestamp of start time.
     /// </summary>
-    private List<Regex> KpiRegexes { get; } = new List<Regex>
-    {
+    private List<Regex> KpiRegexes { get; } =
+    [
         new Regex("slskd_.*", RegexOptions.Compiled),
         new Regex("node_(?!cpu)", RegexOptions.Compiled),
         new Regex("process_.*", RegexOptions.Compiled),
@@ -69,42 +71,65 @@ public class MetricsController : ControllerBase
         new Regex("system_runtime_[cpu_usage|working_set|alloc_total]", RegexOptions.Compiled),
         new Regex("system_net_sockets.*", RegexOptions.Compiled),
         new Regex("microsoft_aspnetcore_server_kestrel_[current|total]_connections", RegexOptions.Compiled),
-    };
+    ];
 
     /// <summary>
     ///     Gets all application metrics.
     /// </summary>
     /// <remarks>
-    ///     Returns a list of all application metrics, in Prometheus format.  JSON formatted metrics can be retrieved
-    ///     by setting the 'Accept' header to 'application/json'.
+    ///     If the 'Accept' header is set to 'text/plain', the response is in Prometheus format. Otherwise if 'application/json' is set,
+    ///     the metrics are formatted into a dictionary.
     /// </remarks>
-    /// <returns></returns>
+    /// <returns>A flat Prometheus-formatted list of all metrics given text/plain, a dictionary keyed by metric name otherwise.</returns>
+    /// <response code="200">The request completed successfully.</response>
+    /// <response code="500">An error occurred.</response>
     [HttpGet("")]
     [Authorize(Policy = AuthPolicy.Any)]
     [Produces("text/plain", "application/json")]
     [ProducesResponseType(typeof(string), 200, "text/plain")]
     [ProducesResponseType(typeof(Dictionary<string, PrometheusMetric>), 200, "application/json")]
+    [ProducesResponseType(typeof(string), 500)]
     public async Task<IActionResult> Get()
     {
-        if (Request.Headers.Accept.ToString().Equals("application/json", StringComparison.OrdinalIgnoreCase))
+        try
         {
-            Dictionary<string, PrometheusMetric> dict = await Telemetry.Prometheus.GetMetricsAsObject();
-            return Ok(dict);
-        }
+            if (Request.Headers.Accept.ToString().Equals("application/json", StringComparison.OrdinalIgnoreCase))
+            {
+                Dictionary<string, PrometheusMetric> dict = await Telemetry.Prometheus.GetMetricsAsObject();
+                return Ok(dict);
+            }
 
-        var response = await Telemetry.Prometheus.GetMetricsAsString();
-        return Content(response, "text/plain");
+            var response = await Telemetry.Prometheus.GetMetricsAsString();
+            return Content(response, "text/plain");
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error fetching metrics: {Message}", ex.Message);
+            return StatusCode(500, ex.Message);
+        }
     }
 
     /// <summary>
-    ///     Gets gets key performance indicators for the application.
+    ///     Gets gets key performance indicators (KPIs) for the application.
     /// </summary>
-    /// <returns></returns>
+    /// <returns>A dictionary keyed by metric name.</returns>
+    /// <response code="200">The request completed successfully.</response>
+    /// <response code="500">An error occurred.</response>
     [HttpGet("kpis")]
     [Authorize(Policy = AuthPolicy.Any)]
+    [ProducesResponseType(typeof(Dictionary<string, PrometheusMetric>), 200)]
+    [ProducesResponseType(typeof(string), 500)]
     public async Task<IActionResult> GetKpis()
     {
-        Dictionary<string, PrometheusMetric> dict = await Telemetry.Prometheus.GetMetricsAsObject(include: KpiRegexes);
-        return Ok(dict);
+        try
+        {
+            Dictionary<string, PrometheusMetric> dict = await Telemetry.Prometheus.GetMetricsAsObject(include: KpiRegexes);
+            return Ok(dict);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error fetching KPIs: {Message}", ex.Message);
+            return StatusCode(500, ex.Message);
+        }
     }
 }
