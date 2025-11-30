@@ -23,6 +23,7 @@ using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Serilog;
 using Soulseek;
 
 /// <summary>
@@ -44,20 +45,27 @@ public class StatisticsController : ControllerBase
     }
 
     private TelemetryService Telemetry { get; }
+    private ILogger Log { get; } = Serilog.Log.ForContext<MetricsController>();
 
     /// <summary>
-    ///     Summarizes transfer statistics, grouped by direction and final transfer state, for all users, and for the
-    ///     specified time range.
+    ///     Gets a summary of all transfer activity over the specified timeframe, grouped by direction and final state.
     /// </summary>
-    /// <param name="start">The start time.</param>
-    /// <param name="end">The end time.</param>
+    /// <param name="start">The start time (default: 7 days ago).</param>
+    /// <param name="end">The end time (default: now).</param>
+    /// <param name="username">An optional username by which to filter activity.</param>
     /// <returns>A dictionary keyed by direction and state and containing summary information.</returns>
-    [HttpGet("transfers")]
+    /// <response code="200">The request completed successfully.</response>
+    /// <response code="400">Bad request.</response>
+    /// <response code="500">An error occurred.</response>
+    [HttpGet("transfers/summary")]
     [Authorize(Policy = AuthPolicy.Any)]
     [ProducesResponseType(typeof(Dictionary<TransferDirection, Dictionary<TransferStates, TransferSummary>>), 200)]
+    [ProducesResponseType(typeof(string), 400)]
+    [ProducesResponseType(typeof(string), 500)]
     public IActionResult GetTransferSummary(
         [FromQuery] DateTime? start = null,
-        [FromQuery] DateTime? end = null)
+        [FromQuery] DateTime? end = null,
+        [FromQuery] string username = null)
     {
         var now = DateTime.UtcNow;
 
@@ -69,32 +77,66 @@ public class StatisticsController : ControllerBase
             return BadRequest("End time must be later than start time");
         }
 
-        return Ok(Telemetry.Statistics.GetTransferSummary(start.Value, end));
+        try
+        {
+            return Ok(Telemetry.Statistics.GetTransferSummary(start.Value, end, username: username));
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error fetching transfer summary over {Start}-{End}: {Message}", start, end, ex.Message);
+            return StatusCode(500, ex.Message);
+        }
     }
 
-    [HttpGet("transfers/history")]
+    /// <summary>
+    ///     Gets a histogram of all transfer activity over the specified timeframe, aggregated into fixed size time intervals
+    ///     and grouped by direction and final state.
+    /// </summary>
+    /// <param name="start">The start time (default: 7 days ago).</param>
+    /// <param name="end">The end time (default: now).</param>
+    /// <param name="interval">The interval, in minutes (default: 60).</param>
+    /// <param name="username">An optional username by which to filter activity.</param>
+    /// <returns>A dictionary keyed by direction and state and containing summary information.</returns>
+    /// <response code="200">The request completed successfully.</response>
+    /// <response code="400">Bad request.</response>
+    /// <response code="500">An error occurred.</response>
+    [HttpGet("transfers/histogram")]
     [Authorize(Policy = AuthPolicy.Any)]
-    [ProducesResponseType(typeof(Dictionary<TransferDirection, Dictionary<TransferStates, TransferSummary>>), 200)]
+    [ProducesResponseType(typeof(Dictionary<DateTime, Dictionary<TransferDirection, Dictionary<TransferStates, TransferSummary>>>), 200)]
+    [ProducesResponseType(typeof(string), 400)]
+    [ProducesResponseType(typeof(string), 500)]
     public IActionResult GetTransferSummaryHistogram(
         [FromQuery] DateTime? start = null,
         [FromQuery] DateTime? end = null,
-        [FromQuery] int? interval = null)
+        [FromQuery] int interval = 60,
+        [FromQuery] string username = null)
     {
-        if (start >= end)
-        {
-            return BadRequest("End time must be later than start time");
-        }
+        var now = DateTime.UtcNow;
 
-        start ??= DateTime.UtcNow.AddDays(-7);
-        end ??= DateTime.UtcNow;
-        var intervalTimeSpan = TimeSpan.FromMinutes(interval ?? 60);
+        start ??= now.AddDays(-7);
+        end ??= now;
 
         if (start >= end)
         {
             return BadRequest("End time must be later than start time");
         }
 
-        return Ok(Telemetry.Statistics.GetTransferSummaryHistogram(start.Value, end.Value, intervalTimeSpan));
+        if (interval < 5)
+        {
+            return BadRequest("Interval must be greater than or equal to 5");
+        }
+
+        var intervalTimeSpan = TimeSpan.FromMinutes(interval);
+
+        try
+        {
+            return Ok(Telemetry.Statistics.GetTransferSummaryHistogram(start.Value, end.Value, interval: intervalTimeSpan, username: username));
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error fetching transfer histogram over {Start}-{End}/{Interval}: {Message}", start, end, interval, ex.Message);
+            return StatusCode(500, ex.Message);
+        }
     }
 
     /// <summary>
