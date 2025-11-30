@@ -219,20 +219,20 @@ public class StatisticsService
     /// <summary>
     ///     Returns a list of transfer exceptions.
     /// </summary>
+    /// <param name="direction">The direction (Upload or Download).</param>
     /// <param name="start">The optional start time of the summary window.</param>
     /// <param name="end">The optional end time of the summary window.</param>
-    /// <param name="direction">The direction (Upload or Download) for the summary.</param>
     /// <param name="username">The optional username by which to filter results.</param>
     /// <param name="limit">The number of records to return (default: 25).</param>
     /// <param name="offset">The record offset (if paginating).</param>
-    /// <returns>A dictionary keyed by direction and containing a list of exceptions and the number of times they occurred.</returns>
+    /// <returns>A list of exceptions.</returns>
     /// <exception cref="ArgumentException">
     ///     Thrown if end time is not later than start time, or limit is not greater than zero.
     /// </exception>
-    public Dictionary<TransferDirection, List<TransferExceptionDetail>> GetTransferExceptions(
+    public List<TransferExceptionDetail> GetTransferExceptions(
+        TransferDirection direction,
         DateTime? start = null,
         DateTime? end = null,
-        TransferDirection? direction = null,
         string username = null,
         int limit = 25,
         int offset = 0)
@@ -244,12 +244,6 @@ public class StatisticsService
         {
             throw new ArgumentException("End time must be later than start time");
         }
-
-        var dict = new Dictionary<TransferDirection, List<TransferExceptionDetail>>()
-        {
-            { TransferDirection.Download, new List<TransferExceptionDetail>() },
-            { TransferDirection.Upload, new List<TransferExceptionDetail>() },
-        };
 
         var sql = @$"
             SELECT
@@ -273,9 +267,8 @@ public class StatisticsService
                 END as Exception
             FROM transfers 
             WHERE state & ~48
-                {(direction is not null ? "AND Direction = @Direction" : string.Empty)}
+                AND Direction = @Direction
                 {(username is not null ? "AND Username = @Username" : string.Empty)}
-            GROUP BY Direction
             ORDER BY EndedAt DESC
             LIMIT @Limit
             OFFSET @Offset
@@ -294,15 +287,7 @@ public class StatisticsService
         };
 
         var results = connection.Query<TransferExceptionDetail>(sql, param);
-
-        Log.Debug("Result rows for {Method}, filters: {Params}: {Count}", nameof(GetTransferExceptions), param, results?.Count());
-
-        foreach (var result in results)
-        {
-            dict[result.Direction].Add(result);
-        }
-
-        return dict;
+        return results.ToList();
     }
 
     /// <summary>
