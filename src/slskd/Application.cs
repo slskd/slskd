@@ -47,6 +47,7 @@ namespace slskd
     using slskd.Relay;
     using slskd.Search;
     using slskd.Shares;
+    using slskd.Telemetry;
     using slskd.Transfers;
     using slskd.Users;
     using Soulseek;

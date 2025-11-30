@@ -15,14 +15,16 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-namespace slskd;
+namespace slskd.Telemetry;
 
 public class TelemetryService
 {
-    public TelemetryService(PrometheusService prometheusService)
+    public TelemetryService(PrometheusService prometheusService, StatisticsService statisticsService)
     {
         Prometheus = prometheusService;
+        Statistics = statisticsService;
     }
 
     public PrometheusService Prometheus { get; }
+    public StatisticsService Statistics { get; }
 }

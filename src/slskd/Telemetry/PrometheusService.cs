@@ -15,7 +15,7 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-namespace slskd;
+namespace slskd.Telemetry;
 
 using System;
 using System.Collections.Generic;
@@ -28,6 +28,25 @@ public class PrometheusService
 {
     private static Regex PrometheusLineSplittingRegex { get; } = new Regex(@"([a-zA-Z_:][a-zA-Z0-9_:]*)(?:{(.*)})?\s+([^\s]+)", RegexOptions.Compiled);
     private static Regex PrometheusLabelSplittingRegex { get; } = new Regex("([a-zA-Z_][a-zA-Z0-9_]*)\\s*=\\s*\"([^\"]*)\"", RegexOptions.Compiled);
+
+    /// <summary>
+    ///     These metrics repeat many times with disambiguating labels, and this conflicts with the current approach
+    ///     for building metrics in object format; dictionary entries (keyed by the names seen in this list) conflict,
+    ///     and values are merged and potentially collide. This could be fixed by pulling disambiguating labels up into
+    ///     the names, but these labels are things like HTTP route names, exception types, and server addresses. All of
+    ///     which has very little value to an application that wants to display metrics to an end user (which is why this exists).
+    ///
+    ///     The easy solution is to just ignore these classes of metrics, and that's what I'm going to do.
+    ///
+    ///     This can be revisited if someone feels very strongly.
+    /// </summary>
+    private static Regex[] ExcludedMetrics { get; } = new[]
+    {
+        new Regex("^microsoft_aspnetcore_hosting_http_server_request_duration.*", RegexOptions.Compiled),
+        new Regex("^system_net_http_http_client_request_time_in_queue.*", RegexOptions.Compiled),
+        new Regex("^system_net_http_http_client_request_duration.*", RegexOptions.Compiled),
+        new Regex("^microsoft_aspnetcore_server_kestrel_kestrel_connection_duration.*", RegexOptions.Compiled),
+    };
 
     /// <summary>
     ///     Get the current list of Prometheus metrics in Prometheus exposition format (text based).
@@ -81,6 +100,12 @@ public class PrometheusService
             var help = header[1];
 
             if (include is not null && !include.Any(regex => regex.IsMatch(name)))
+            {
+                continue;
+            }
+
+            // see the note above about excluded metrics and why this is necessary
+            if (ExcludedMetrics.Any(regex => regex.IsMatch(name)))
             {
                 continue;
             }

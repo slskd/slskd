@@ -923,7 +923,11 @@ namespace slskd.Transfers.Uploads
             }
 
             t.EndedAt ??= DateTime.UtcNow;
-            t.Exception ??= exception;
+
+            // Soulseek.NET will include the filename and username in some messages; this is useful for many things but not tracking
+            // exceptions in a database. when we encounter one of these, drop the first segment.
+            var m = exception;
+            t.Exception ??= m.Contains(':') ? m.Substring(m.IndexOf(':') + 1).Trim() : m;
 
             if (!t.State.HasFlag(TransferStates.Completed))
             {
