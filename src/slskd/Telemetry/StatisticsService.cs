@@ -293,9 +293,9 @@ public class StatisticsService
     /// <summary>
     ///     Returns a summary of distinct transfer exceptions and the number of times they occurred.
     /// </summary>
+    /// <param name="direction">The direction (Upload or Download) for the summary.</param>
     /// <param name="start">The optional start time of the summary window.</param>
     /// <param name="end">The optional end time of the summary window.</param>
-    /// <param name="direction">The direction (Upload or Download) for the summary.</param>
     /// <param name="username">The optional username by which to filter results.</param>
     /// <param name="limit">The number of records to return (default: 25).</param>
     /// <param name="offset">The record offset (if paginating).</param>
@@ -303,10 +303,10 @@ public class StatisticsService
     /// <exception cref="ArgumentException">
     ///     Thrown if end time is not later than start time, or limit is not greater than zero.
     /// </exception>
-    public Dictionary<TransferDirection, List<TransferExceptionSummary>> GetTransferExceptionsPareto(
+    public List<TransferExceptionSummary> GetTransferExceptionsPareto(
+        TransferDirection direction,
         DateTime? start = null,
         DateTime? end = null,
-        TransferDirection? direction = null,
         string username = null,
         int limit = 25,
         int offset = 0)
@@ -319,15 +319,8 @@ public class StatisticsService
             throw new ArgumentException("End time must be later than start time");
         }
 
-        var dict = new Dictionary<TransferDirection, List<TransferExceptionSummary>>()
-        {
-            { TransferDirection.Download, new List<TransferExceptionSummary>() },
-            { TransferDirection.Upload, new List<TransferExceptionSummary>() },
-        };
-
         var sql = @$"
             SELECT 
-                Direction,
                 CASE 
                     WHEN INSTR(Exception, ':') > 0 
                     THEN SUBSTR(Exception, INSTR(Exception, ':') + 2)
@@ -337,7 +330,7 @@ public class StatisticsService
                 COUNT(DISTINCT Username) as DistinctUsers
             FROM transfers 
             WHERE state & ~48
-                {(direction is not null ? "AND Direction = @Direction" : string.Empty)}
+                AND Direction = @Direction
                 {(username is not null ? "AND Username = @Username" : string.Empty)}
             GROUP BY Direction,
             CASE 
@@ -362,19 +355,8 @@ public class StatisticsService
             Offset = offset,
         };
 
-        var results = connection.Query<ExceptionSummaryRow>(sql, param);
-
-        foreach (var result in results)
-        {
-            dict[result.Direction].Add(new TransferExceptionSummary
-            {
-                Exception = result.Exception,
-                Count = result.Count,
-                DistinctUsers = result.DistinctUsers,
-            });
-        }
-
-        return dict;
+        var results = connection.Query<TransferExceptionSummary>(sql, param);
+        return results.ToList();
     }
 
     /// <summary>

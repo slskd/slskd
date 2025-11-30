@@ -240,9 +240,9 @@ public class StatisticsController : ControllerBase
     /// <summary>
     ///     Returns the top N exceptions by total count and direction.
     /// </summary>
+    /// <param name="direction">The direction by which to filter activity.</param>
     /// <param name="start">The start time.</param>
     /// <param name="end">The end time.</param>
-    /// <param name="direction">An optional direction by which to filter activity.</param>
     /// <param name="username">An optional username by which to filter exceptions.</param>
     /// <param name="limit">The number of records to return (Default: 25).</param>
     /// <param name="offset">The record offset (if paginating).</param>
@@ -256,13 +256,23 @@ public class StatisticsController : ControllerBase
     [ProducesResponseType(typeof(string), 400)]
     [ProducesResponseType(typeof(string), 500)]
     public IActionResult GetTransferExceptionsPareto(
+        [FromQuery] string direction,
         [FromQuery] DateTime? start = null,
         [FromQuery] DateTime? end = null,
-        [FromQuery] string direction = null,
         [FromQuery] string username = null,
         [FromQuery] int limit = 25,
         [FromQuery] int offset = 0)
     {
+        if (string.IsNullOrWhiteSpace(direction))
+        {
+            return BadRequest("Direction is required");
+        }
+
+        if (!Enum.TryParse<TransferDirection>(direction, ignoreCase: true, out var parsedDirection))
+        {
+            return BadRequest($"Invalid direction; expected one of: {string.Join(", ", Enum.GetNames(typeof(TransferDirection)))}");
+        }
+
         start ??= DateTime.MinValue;
         end ??= DateTime.MaxValue;
 
@@ -271,26 +281,14 @@ public class StatisticsController : ControllerBase
             return BadRequest("End time must be later than start time");
         }
 
-        TransferDirection? transferDirection = null;
-
-        if (!string.IsNullOrWhiteSpace(direction))
-        {
-            if (!Enum.TryParse<TransferDirection>(direction, ignoreCase: true, out var parsedDirection))
-            {
-                return BadRequest($"Invalid direction; expected one of: {string.Join(", ", Enum.GetNames(typeof(TransferDirection)))}");
-            }
-
-            transferDirection = parsedDirection;
-        }
-
         try
         {
             return Ok(Telemetry.Statistics.GetTransferExceptionsPareto(
+                direction: parsedDirection,
                 start: start.Value,
                 end: end.Value,
                 limit: limit,
                 offset: offset,
-                direction: transferDirection,
                 username: username));
         }
         catch (Exception ex)
