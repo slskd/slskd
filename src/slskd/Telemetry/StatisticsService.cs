@@ -120,17 +120,17 @@ public class StatisticsService
     }
 
     /// <summary>
-    ///     Returns a summary of all transfer data grouped by direction and final transfer state. Includes only
-    ///     completed transfers.
+    ///     Returns a histogram of all transfer data, aggregated into fixed size time intervals and grouped by
+    ///     direction and final transfer state. Includes only completed transfers.
     /// </summary>
-    /// <param name="start">The start time of the summary window.</param>
-    /// <param name="end">The end time of the summary window.</param>
+    /// <param name="start">The start time of the histogram window.</param>
+    /// <param name="end">The end time of the histogram window.</param>
     /// <param name="interval">The interval for the histogram.</param>
-    /// <param name="direction">The optional direction (Upload or Download) for the summary.</param>
+    /// <param name="direction">The optional direction (Upload or Download) by which to filter results.</param>
     /// <param name="username">The optional username by which to filter results.</param>
     /// <returns>A nested dictionary keyed by direction and state and containing summary information.</returns>
     /// <exception cref="ArgumentException">Thrown if end time is not later than start time.</exception>
-    public Dictionary<DateTime, Dictionary<TransferDirection, Dictionary<TransferStates, TransferSummary>>> GetTransferSummaryHistogram(
+    public Dictionary<DateTime, Dictionary<TransferDirection, Dictionary<TransferStates, TransferSummary>>> GetTransferHistogram(
         DateTime start,
         DateTime end,
         TimeSpan interval,
@@ -218,12 +218,96 @@ public class StatisticsService
     }
 
     /// <summary>
+    ///     Returns the top N users summaries by count, total bytes, or average speed. Only successful transfers are included in counts.
+    /// </summary>
+    /// <param name="direction">The direction (Upload or Download).</param>
+    /// <param name="start">The optional start time of the summary window.</param>
+    /// <param name="end">The optional end time of the summary window.</param>
+    /// <param name="sortBy">The property by which to sort.</param>
+    /// <param name="sortOrder">The sort order.</param>
+    /// <param name="limit">The number of records to return (default: 25).</param>
+    /// <param name="offset">The record offset (if paginating).</param>
+    /// <returns>A dictionary keyed by username and containing summary information.</returns>
+    /// <exception cref="ArgumentException">
+    ///     Thrown if end time is not later than start time, or limit is not greater than zero.
+    /// </exception>
+    public List<TransferSummary> GetTransferLeaderboard(
+        TransferDirection direction,
+        DateTime? start = null,
+        DateTime? end = null,
+        LeaderboardSortBy sortBy = LeaderboardSortBy.Count,
+        SortOrder sortOrder = SortOrder.DESC,
+        int limit = 25,
+        int offset = 0)
+    {
+        start ??= DateTime.MinValue;
+        end ??= DateTime.MaxValue;
+
+        if (end <= start)
+        {
+            throw new ArgumentException("End time must be later than start time");
+        }
+
+        if (limit <= 0)
+        {
+            throw new ArgumentOutOfRangeException("Limit must be greater than zero");
+        }
+
+        var sql = @$"
+            SELECT
+                Username,
+                Direction,
+                StateDescription,
+                SUM(Size) AS TotalBytes,
+                COUNT(*) AS Count,
+                AVG(AverageSpeed) AS AverageSpeed,
+                AVG(strftime('%s', StartedAt) - strftime('%s', EnqueuedAt)) AS AverageWait,
+                AVG(strftime('%s', EndedAt) - strftime('%s', StartedAt)) AS AverageDuration
+            FROM Transfers
+            WHERE Direction = @Direction
+                AND State = 48
+                AND EndedAt IS NOT NULL
+                AND EndedAt BETWEEN @Start AND @End
+            GROUP BY Username, Direction, StateDescription
+            ORDER BY {sortBy} {sortOrder}, Username DESC
+            LIMIT @Limit
+            OFFSET @Offset
+        ";
+
+        using var connection = new SqliteConnection(ConnectionStrings[Database.Transfers]);
+
+        var param = new
+        {
+            Direction = direction.ToString(),
+            Limit = limit,
+            Offset = offset,
+            Start = start,
+            End = end,
+        };
+
+        var results = connection.Query<TransferSummaryRow>(sql, param);
+
+        var list = results.Select(row => new TransferSummary
+        {
+            Username = row.Username,
+            TotalBytes = row.TotalBytes,
+            Count = row.Count,
+            AverageSpeed = row.AverageSpeed,
+            AverageWait = row.AverageWait,
+            AverageDuration = row.AverageDuration,
+        }).ToList();
+
+        return list;
+    }
+
+    /// <summary>
     ///     Returns a list of transfer exceptions.
     /// </summary>
     /// <param name="direction">The direction (Upload or Download).</param>
     /// <param name="start">The optional start time of the summary window.</param>
     /// <param name="end">The optional end time of the summary window.</param>
     /// <param name="username">The optional username by which to filter results.</param>
+    /// <param name="sortOrder">The sort order.</param>
     /// <param name="limit">The number of records to return (default: 25).</param>
     /// <param name="offset">The record offset (if paginating).</param>
     /// <returns>A list of exceptions.</returns>
@@ -235,6 +319,7 @@ public class StatisticsService
         DateTime? start = null,
         DateTime? end = null,
         string username = null,
+        SortOrder sortOrder = SortOrder.DESC,
         int limit = 25,
         int offset = 0)
     {
@@ -270,7 +355,7 @@ public class StatisticsService
             WHERE state & ~48
                 AND Direction = @Direction
                 {(username is not null ? "AND Username = @Username" : string.Empty)}
-            ORDER BY EndedAt DESC
+            ORDER BY EndedAt {sortOrder}
             LIMIT @Limit
             OFFSET @Offset
         ";
@@ -358,90 +443,6 @@ public class StatisticsService
 
         var results = connection.Query<TransferExceptionSummary>(sql, param);
         return results.ToList();
-    }
-
-    /// <summary>
-    ///     Returns the top <paramref name="limit"/> user summaries by total count and direction, order by total count
-    ///     descending. Only successful transfers are included in counts.
-    /// </summary>
-    /// <param name="direction">The direction (Upload or Download) for the summary.</param>
-    /// <param name="start">The optional start time of the summary window.</param>
-    /// <param name="end">The optional end time of the summary window.</param>
-    /// <param name="sortBy">The property by which to sort.</param>
-    /// <param name="sortOrder">The sort order.</param>
-    /// <param name="limit">The number of records to return (default: 25).</param>
-    /// <param name="offset">The record offset (if paginating).</param>
-    /// <returns>A dictionary keyed by username and containing summary information.</returns>
-    /// <exception cref="ArgumentException">
-    ///     Thrown if end time is not later than start time, or limit is not greater than zero.
-    /// </exception>
-    public List<TransferSummary> GetTransferRanking(
-        TransferDirection direction,
-        DateTime? start = null,
-        DateTime? end = null,
-        LeaderboardSortBy sortBy = LeaderboardSortBy.Count,
-        SortOrder sortOrder = SortOrder.DESC,
-        int limit = 25,
-        int offset = 0)
-    {
-        start ??= DateTime.MinValue;
-        end ??= DateTime.MaxValue;
-
-        if (end <= start)
-        {
-            throw new ArgumentException("End time must be later than start time");
-        }
-
-        if (limit <= 0)
-        {
-            throw new ArgumentOutOfRangeException("Limit must be greater than zero");
-        }
-
-        var sql = @$"
-            SELECT
-                Username,
-                Direction,
-                StateDescription,
-                SUM(Size) AS TotalBytes,
-                COUNT(*) AS Count,
-                AVG(AverageSpeed) AS AverageSpeed,
-                AVG(strftime('%s', StartedAt) - strftime('%s', EnqueuedAt)) AS AverageWait,
-                AVG(strftime('%s', EndedAt) - strftime('%s', StartedAt)) AS AverageDuration
-            FROM Transfers
-            WHERE Direction = @Direction
-                AND State = 48
-                AND EndedAt IS NOT NULL
-                AND EndedAt BETWEEN @Start AND @End
-            GROUP BY Username, Direction, StateDescription
-            ORDER BY {sortBy} {sortOrder}, Username DESC
-            LIMIT @Limit
-            OFFSET @Offset
-        ";
-
-        using var connection = new SqliteConnection(ConnectionStrings[Database.Transfers]);
-
-        var param = new
-        {
-            Direction = direction.ToString(),
-            Limit = limit,
-            Offset = offset,
-            Start = start,
-            End = end,
-        };
-
-        var results = connection.Query<TransferSummaryRow>(sql, param);
-
-        var list = results.Select(row => new TransferSummary
-        {
-            Username = row.Username,
-            TotalBytes = row.TotalBytes,
-            Count = row.Count,
-            AverageSpeed = row.AverageSpeed,
-            AverageWait = row.AverageWait,
-            AverageDuration = row.AverageDuration,
-        }).ToList();
-
-        return list;
     }
 
     private record TransferSummaryRow

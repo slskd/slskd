@@ -50,11 +50,11 @@ public class StatisticsController : ControllerBase
     /// <summary>
     ///     Gets a summary of all transfer activity over the specified timeframe, grouped by direction and final state.
     /// </summary>
-    /// <param name="start">The start time (default: 7 days ago).</param>
-    /// <param name="end">The end time (default: now).</param>
-    /// <param name="direction">An optional direction by which to filter activity.</param>
-    /// <param name="username">An optional username by which to filter activity.</param>
-    /// <returns>A dictionary keyed by direction and state and containing summary information.</returns>
+    /// <param name="start">The start time of the summary window (default: 7 days ago).</param>
+    /// <param name="end">The end time of the summary window (default: now).</param>
+    /// <param name="direction">An optional direction (Upload, Download) by which to filter records.</param>
+    /// <param name="username">An optional username by which to filter records.</param>
+    /// <returns>A nested dictionary keyed by direction and state and containing summary information.</returns>
     /// <response code="200">The request completed successfully.</response>
     /// <response code="400">Bad request.</response>
     /// <response code="500">An error occurred.</response>
@@ -110,12 +110,12 @@ public class StatisticsController : ControllerBase
     ///     Gets a histogram of all transfer activity over the specified timeframe, aggregated into fixed size time intervals
     ///     and grouped by direction and final state.
     /// </summary>
-    /// <param name="start">The start time (default: 7 days ago).</param>
-    /// <param name="end">The end time (default: now).</param>
+    /// <param name="start">The start time of the histogram window (default: 7 days ago).</param>
+    /// <param name="end">The end time of the histogram window (default: now).</param>
     /// <param name="interval">The interval, in minutes (default: 60).</param>
-    /// <param name="direction">An optional direction by which to filter activity.</param>
-    /// <param name="username">An optional username by which to filter activity.</param>
-    /// <returns>A dictionary keyed by direction and state and containing summary information.</returns>
+    /// <param name="direction">An optional direction (Upload, Download) by which to filter records.</param>
+    /// <param name="username">An optional username by which to filter records.</param>
+    /// <returns>A nested dictionary keyed by interval, direction, and state and containing summary information.</returns>
     /// <response code="200">The request completed successfully.</response>
     /// <response code="400">Bad request.</response>
     /// <response code="500">An error occurred.</response>
@@ -124,7 +124,7 @@ public class StatisticsController : ControllerBase
     [ProducesResponseType(typeof(Dictionary<DateTime, Dictionary<TransferDirection, Dictionary<TransferStates, TransferSummary>>>), 200)]
     [ProducesResponseType(typeof(string), 400)]
     [ProducesResponseType(typeof(string), 500)]
-    public IActionResult GetTransferSummaryHistogram(
+    public IActionResult GetTransferHistogram(
         [FromQuery] DateTime? start = null,
         [FromQuery] DateTime? end = null,
         [FromQuery] int interval = 60,
@@ -170,7 +170,7 @@ public class StatisticsController : ControllerBase
 
         try
         {
-            return Ok(Telemetry.Statistics.GetTransferSummaryHistogram(
+            return Ok(Telemetry.Statistics.GetTransferHistogram(
                 start: start.Value,
                 end: end.Value,
                 interval: intervalTimeSpan,
@@ -185,11 +185,11 @@ public class StatisticsController : ControllerBase
     }
 
     /// <summary>
-    ///     Gets the top N user summaries by total count and direction.
+    ///     Gets the top N user summaries by count, total bytes, or average speed.
     /// </summary>
     /// <param name="direction">The direction (Upload, Download).</param>
-    /// <param name="start">The start time.</param>
-    /// <param name="end">The end time.</param>
+    /// <param name="start">The start time of the summary window (default: 12/30/2025).</param>
+    /// <param name="end">The end time of the summary window (default: now).</param>
     /// <param name="sortBy">The property by which to sort (Count, TotalBytes, AverageSpeed. Default: Count).</param>
     /// <param name="sortOrder">The sort order (ASC, DESC. Default: DESC).</param>
     /// <param name="limit">The number of records to return (Default: 25).</param>
@@ -197,7 +197,6 @@ public class StatisticsController : ControllerBase
     /// <returns></returns>
     [HttpGet("transfers/leaderboard")]
     [Authorize(Policy = AuthPolicy.Any)]
-    [ProducesResponseType(typeof(List<UserTransferSummary>), 200)]
     [ProducesResponseType(typeof(List<TransferExceptionSummary>), 200)]
     [ProducesResponseType(typeof(string), 400)]
     [ProducesResponseType(typeof(string), 500)]
@@ -206,7 +205,7 @@ public class StatisticsController : ControllerBase
         [FromQuery] DateTime? start = null,
         [FromQuery] DateTime? end = null,
         [FromQuery] string sortBy = "Count",
-        [FromQuery] string sortOrder = "ASC",
+        [FromQuery] string sortOrder = "DESC",
         [FromQuery] int limit = 25,
         [FromQuery] int offset = 0)
     {
@@ -220,8 +219,8 @@ public class StatisticsController : ControllerBase
             return BadRequest($"Invalid direction; expected one of: {string.Join(", ", Enum.GetNames(typeof(TransferDirection)))}");
         }
 
-        start ??= DateTime.MinValue;
-        end ??= DateTime.MaxValue;
+        start ??= Program.GenesisDateTime;
+        end ??= DateTime.UtcNow;
 
         if (start >= end)
         {
@@ -250,7 +249,7 @@ public class StatisticsController : ControllerBase
 
         try
         {
-            return Ok(Telemetry.Statistics.GetTransferRanking(
+            return Ok(Telemetry.Statistics.GetTransferLeaderboard(
                 direction: parsedDirection,
                 start: start.Value,
                 end: end,
@@ -273,6 +272,7 @@ public class StatisticsController : ControllerBase
     /// <param name="start">The start time.</param>
     /// <param name="end">The end time.</param>
     /// <param name="username">An optional username by which to filter exceptions.</param>
+    /// <param name="sortOrder">The sort order (ASC, DESC. Default: DESC).</param>
     /// <param name="limit">The number of records to return (Default: 25).</param>
     /// <param name="offset">The record offset (if paginating).</param>
     /// <returns></returns>
@@ -281,7 +281,7 @@ public class StatisticsController : ControllerBase
     /// <response code="500">An error occurred.</response>
     [HttpGet("transfers/exceptions")]
     [Authorize(Policy = AuthPolicy.Any)]
-    [ProducesResponseType(typeof(List<TransferExceptionSummary>), 200)]
+    [ProducesResponseType(typeof(List<TransferExceptionDetail>), 200)]
     [ProducesResponseType(typeof(string), 400)]
     [ProducesResponseType(typeof(string), 500)]
     public IActionResult GetTransferExceptions(
@@ -289,6 +289,7 @@ public class StatisticsController : ControllerBase
         [FromQuery] DateTime? start = null,
         [FromQuery] DateTime? end = null,
         [FromQuery] string username = null,
+        [FromQuery] string sortOrder = "DESC",
         [FromQuery] int limit = 25,
         [FromQuery] int offset = 0)
     {
@@ -310,6 +311,11 @@ public class StatisticsController : ControllerBase
             return BadRequest("End time must be later than start time");
         }
 
+        if (!Enum.TryParse<SortOrder>(sortOrder, out var parsedSortOrder))
+        {
+            return BadRequest($"Invalid sortOrder; expected one of: {string.Join(", ", Enum.GetNames(typeof(SortOrder)))}");
+        }
+
         if (limit <= 0)
         {
             return BadRequest("Limit must be greater than zero");
@@ -323,12 +329,13 @@ public class StatisticsController : ControllerBase
         try
         {
             return Ok(Telemetry.Statistics.GetTransferExceptions(
+                direction: parsedDirection,
                 start: start.Value,
                 end: end.Value,
+                username: username,
+                sortOrder: parsedSortOrder,
                 limit: limit,
-                offset: offset,
-                direction: parsedDirection,
-                username: username));
+                offset: offset));
         }
         catch (Exception ex)
         {
@@ -352,7 +359,7 @@ public class StatisticsController : ControllerBase
     /// <response code="500">An error occurred.</response>
     [HttpGet("transfers/exceptions/pareto")]
     [Authorize(Policy = AuthPolicy.Any)]
-    [ProducesResponseType(typeof(Dictionary<TransferDirection, List<TransferExceptionSummary>>), 200)]
+    [ProducesResponseType(typeof(List<TransferExceptionSummary>), 200)]
     [ProducesResponseType(typeof(string), 400)]
     [ProducesResponseType(typeof(string), 500)]
     public IActionResult GetTransferExceptionsPareto(
