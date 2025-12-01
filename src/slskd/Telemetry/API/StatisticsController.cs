@@ -19,6 +19,7 @@ namespace slskd.Telemetry;
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -194,10 +195,13 @@ public class StatisticsController : ControllerBase
     /// <param name="sortOrder">The sort order (ASC, DESC. Default: DESC).</param>
     /// <param name="limit">The number of records to return (Default: 25).</param>
     /// <param name="offset">The record offset (if paginating).</param>
-    /// <returns></returns>
+    /// <returns>A list of user summaries.</returns>
+    /// <response code="200">The request completed successfully.</response>
+    /// <response code="400">Bad request.</response>
+    /// <response code="500">An error occurred.</response>
     [HttpGet("transfers/leaderboard")]
     [Authorize(Policy = AuthPolicy.Any)]
-    [ProducesResponseType(typeof(List<TransferExceptionSummary>), 200)]
+    [ProducesResponseType(typeof(List<TransferSummary>), 200)]
     [ProducesResponseType(typeof(string), 400)]
     [ProducesResponseType(typeof(string), 500)]
     public IActionResult GetSuccessfulTransferSummaryByUsername(
@@ -261,6 +265,84 @@ public class StatisticsController : ControllerBase
         catch (Exception ex)
         {
             Log.Error(ex, "Error fetching transfer leaderboard over {Start}-{End}: {Message}", start, end, ex.Message);
+            return StatusCode(500, ex.Message);
+        }
+    }
+
+    /// <summary>
+    ///     Gets detailed transfer activity for the specified user.
+    /// </summary>
+    /// <param name="username">The username of the user.</param>
+    /// <param name="start">The start time of the summary window (default: 7 days ago).</param>
+    /// <param name="end">The end time of the summary window (default: now).</param>
+    /// <returns>A dictionary keyed by direction and containing a detailed summary.</returns>
+    /// <response code="200">The request completed successfully.</response>
+    /// <response code="400">Bad request.</response>
+    /// <response code="500">An error occurred.</response>
+    [HttpGet("transfers/users/{username}")]
+    [Authorize(Policy = AuthPolicy.Any)]
+    [ProducesResponseType(typeof(Dictionary<TransferDirection, UserDirectionTransferSummary>), 200)]
+    [ProducesResponseType(typeof(string), 400)]
+    [ProducesResponseType(typeof(string), 500)]
+    public IActionResult GetUser(
+        [FromRoute] string username,
+        [FromQuery] DateTime? start = null,
+        [FromQuery] DateTime? end = null)
+    {
+        if (string.IsNullOrWhiteSpace(username))
+        {
+            return BadRequest("Username is required");
+        }
+
+        start ??= Program.GenesisDateTime;
+        end ??= DateTime.UtcNow;
+
+        if (start >= end)
+        {
+            return BadRequest("End time must be later than start time");
+        }
+
+        static UserDirectionTransferStatistics GetStatistics(Dictionary<TransferStates, TransferSummary> summary)
+        {
+            var totalTransfers = summary.Values.Sum(x => x.Count);
+            var successful = summary.Where(x => x.Key == TransferStates.Succeeded).Sum(x => x.Value.Count);
+            var errored = summary.Where(x => new[] { TransferStates.Errored, TransferStates.TimedOut, TransferStates.Rejected, TransferStates.Aborted }.Contains(x.Key)).Sum(x => x.Value.Count);
+            var cancelled = summary.Where(x => x.Key == TransferStates.Cancelled).Sum(x => x.Value.Count);
+
+            return new UserDirectionTransferStatistics
+            {
+                Total = totalTransfers,
+                Successful = successful,
+                Errored = errored,
+                Cancelled = cancelled,
+            };
+        }
+
+        try
+        {
+            var results = new Dictionary<TransferDirection, UserDirectionTransferSummary>();
+
+            var summary = Telemetry.Statistics.GetTransferSummary(start, end, username: username);
+
+            results.Add(TransferDirection.Upload, new UserDirectionTransferSummary
+            {
+                Summary = summary[TransferDirection.Upload],
+                Statistics = GetStatistics(summary[TransferDirection.Upload]),
+                Exceptions = Telemetry.Statistics.GetTransferExceptionsPareto(TransferDirection.Upload, start, end, username: username, limit: 25, offset: 0),
+            });
+
+            results.Add(TransferDirection.Download, new UserDirectionTransferSummary
+            {
+                Summary = summary[TransferDirection.Download],
+                Statistics = GetStatistics(summary[TransferDirection.Download]),
+                Exceptions = Telemetry.Statistics.GetTransferExceptionsPareto(TransferDirection.Download, start, end, username: username, limit: 25, offset: 0),
+            });
+
+            return Ok(results);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error fetching user details for {Username}: {Message}", username, ex.Message);
             return StatusCode(500, ex.Message);
         }
     }
@@ -423,15 +505,6 @@ public class StatisticsController : ControllerBase
     //     [FromQuery] int? offset = null)
     // {
     //     // todo: get a list of all directories downloaded at least once, along with the number of times downloaded (doesn't matter what status)
-    //     return null;
-    // }
-
-    // [HttpGet("users/{base64Name}")]
-    // [Authorize(Policy = AuthPolicy.Any)]
-    // public IActionResult GetUser(
-    //     [FromRoute] string base64Name)
-    // {
-    //     // todo: get everything we can about the user
     //     return null;
     // }
 }

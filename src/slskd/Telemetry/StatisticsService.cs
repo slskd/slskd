@@ -257,7 +257,7 @@ public class StatisticsService
             SELECT
                 Username,
                 Direction,
-                StateDescription,
+                State,
                 SUM(Size) AS TotalBytes,
                 COUNT(*) AS Count,
                 AVG(AverageSpeed) AS AverageSpeed,
