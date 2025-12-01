@@ -144,8 +144,9 @@ public class StatisticsService
 
         var dict = new Dictionary<DateTime, Dictionary<TransferDirection, Dictionary<TransferStates, TransferSummary>>>();
 
-        // Fill the dictionary with gapless intervals and empty dictionaries
+        // fill the dictionary with gapless intervals and empty dictionaries
         var currentInterval = new DateTime(start.Ticks / interval.Ticks * interval.Ticks, DateTimeKind.Utc);
+
         while (currentInterval < end)
         {
             dict[currentInterval] = new Dictionary<TransferDirection, Dictionary<TransferStates, TransferSummary>>()
@@ -203,7 +204,7 @@ public class StatisticsService
 
             if (result.Interval.HasValue)
             {
-                // Normalize the result interval to match the bucket interval
+                // normalize the result interval to match the bucket interval
                 var bucketInterval = new DateTime(result.Interval.Value.Ticks / interval.Ticks * interval.Ticks, DateTimeKind.Utc);
 
                 if (dict.TryGetValue(bucketInterval, out var intervalDict))
@@ -366,6 +367,8 @@ public class StatisticsService
     /// <param name="direction">The direction (Upload or Download) for the summary.</param>
     /// <param name="start">The optional start time of the summary window.</param>
     /// <param name="end">The optional end time of the summary window.</param>
+    /// <param name="sortBy">The property by which to sort.</param>
+    /// <param name="sortOrder">The sort order.</param>
     /// <param name="limit">The number of records to return (default: 25).</param>
     /// <param name="offset">The record offset (if paginating).</param>
     /// <returns>A dictionary keyed by username and containing summary information.</returns>
@@ -376,6 +379,8 @@ public class StatisticsService
         TransferDirection direction,
         DateTime? start = null,
         DateTime? end = null,
+        LeaderboardSortBy sortBy = LeaderboardSortBy.Count,
+        SortOrder sortOrder = SortOrder.DESC,
         int limit = 25,
         int offset = 0)
     {
@@ -408,7 +413,7 @@ public class StatisticsService
                 AND EndedAt IS NOT NULL
                 AND EndedAt BETWEEN @Start AND @End
             GROUP BY Username, Direction, StateDescription
-            ORDER BY Count DESC, TotalBytes DESC, Username ASC
+            ORDER BY {sortBy} {sortOrder}, Username DESC
             LIMIT @Limit
             OFFSET @Offset
         ";
@@ -451,13 +456,5 @@ public class StatisticsService
         public double AverageSpeed { get; init; }
         public double AverageWait { get; init; }
         public double AverageDuration { get; init; }
-    }
-
-    private record ExceptionSummaryRow
-    {
-        public TransferDirection Direction { get; init; }
-        public string Exception { get; init; }
-        public long Count { get; init; }
-        public long DistinctUsers { get; init; }
     }
 }

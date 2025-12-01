@@ -119,7 +119,7 @@ public class StatisticsController : ControllerBase
     /// <response code="200">The request completed successfully.</response>
     /// <response code="400">Bad request.</response>
     /// <response code="500">An error occurred.</response>
-    [HttpGet("transfers/summary/histogram")]
+    [HttpGet("transfers/histogram")]
     [Authorize(Policy = AuthPolicy.Any)]
     [ProducesResponseType(typeof(Dictionary<DateTime, Dictionary<TransferDirection, Dictionary<TransferStates, TransferSummary>>>), 200)]
     [ProducesResponseType(typeof(string), 400)]
@@ -139,6 +139,14 @@ public class StatisticsController : ControllerBase
         if (start >= end)
         {
             return BadRequest("End time must be later than start time");
+        }
+
+        // clamp the start time to the earliest reasonable date to avoid returning a ton of empty intervals
+        // and introducing performance issues client side
+        if (start < Program.GenesisDateTime)
+        {
+            Log.Warning("A start time prior to the genesis date of the application was supplied; the start time has been adjusted to the genesis time {Genesis}", Program.GenesisDateTime);
+            start = Program.GenesisDateTime;
         }
 
         if (interval < 5)
@@ -177,9 +185,91 @@ public class StatisticsController : ControllerBase
     }
 
     /// <summary>
-    ///     Returns a list of transfer exceptions by direction.
+    ///     Gets the top N user summaries by total count and direction.
     /// </summary>
-    /// <param name="direction">The direction by which to filter activity.</param>
+    /// <param name="direction">The direction (Upload, Download).</param>
+    /// <param name="start">The start time.</param>
+    /// <param name="end">The end time.</param>
+    /// <param name="sortBy">The property by which to sort (Count, TotalBytes, AverageSpeed. Default: Count).</param>
+    /// <param name="sortOrder">The sort order (ASC, DESC. Default: DESC).</param>
+    /// <param name="limit">The number of records to return (Default: 25).</param>
+    /// <param name="offset">The record offset (if paginating).</param>
+    /// <returns></returns>
+    [HttpGet("transfers/leaderboard")]
+    [Authorize(Policy = AuthPolicy.Any)]
+    [ProducesResponseType(typeof(List<UserTransferSummary>), 200)]
+    [ProducesResponseType(typeof(List<TransferExceptionSummary>), 200)]
+    [ProducesResponseType(typeof(string), 400)]
+    [ProducesResponseType(typeof(string), 500)]
+    public IActionResult GetSuccessfulTransferSummaryByUsername(
+        [FromQuery] string direction,
+        [FromQuery] DateTime? start = null,
+        [FromQuery] DateTime? end = null,
+        [FromQuery] string sortBy = "Count",
+        [FromQuery] string sortOrder = "ASC",
+        [FromQuery] int limit = 25,
+        [FromQuery] int offset = 0)
+    {
+        if (string.IsNullOrWhiteSpace(direction))
+        {
+            return BadRequest("Direction is required");
+        }
+
+        if (!Enum.TryParse<TransferDirection>(direction, ignoreCase: true, out var parsedDirection))
+        {
+            return BadRequest($"Invalid direction; expected one of: {string.Join(", ", Enum.GetNames(typeof(TransferDirection)))}");
+        }
+
+        start ??= DateTime.MinValue;
+        end ??= DateTime.MaxValue;
+
+        if (start >= end)
+        {
+            return BadRequest("End time must be later than start time");
+        }
+
+        if (!Enum.TryParse<LeaderboardSortBy>(sortBy, out var parsedSortBy))
+        {
+            return BadRequest($"Invalid sortBy; expected one of: {string.Join(", ", Enum.GetNames(typeof(LeaderboardSortBy)))}");
+        }
+
+        if (!Enum.TryParse<SortOrder>(sortOrder, out var parsedSortOrder))
+        {
+            return BadRequest($"Invalid sortOrder; expected one of: {string.Join(", ", Enum.GetNames(typeof(SortOrder)))}");
+        }
+
+        if (limit <= 0)
+        {
+            return BadRequest("Limit must be greater than zero");
+        }
+
+        if (offset < 0)
+        {
+            return BadRequest("Offset must be greater than or equal to zero");
+        }
+
+        try
+        {
+            return Ok(Telemetry.Statistics.GetTransferRanking(
+                direction: parsedDirection,
+                start: start.Value,
+                end: end,
+                sortBy: parsedSortBy,
+                sortOrder: parsedSortOrder,
+                limit: limit,
+                offset: offset));
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error fetching transfer leaderboard over {Start}-{End}: {Message}", start, end, ex.Message);
+            return StatusCode(500, ex.Message);
+        }
+    }
+
+    /// <summary>
+    ///     Gets a list of transfer exceptions by direction.
+    /// </summary>
+    /// <param name="direction">The direction.</param>
     /// <param name="start">The start time.</param>
     /// <param name="end">The end time.</param>
     /// <param name="username">An optional username by which to filter exceptions.</param>
@@ -220,6 +310,16 @@ public class StatisticsController : ControllerBase
             return BadRequest("End time must be later than start time");
         }
 
+        if (limit <= 0)
+        {
+            return BadRequest("Limit must be greater than zero");
+        }
+
+        if (offset < 0)
+        {
+            return BadRequest("Offset must be greater than or equal to zero");
+        }
+
         try
         {
             return Ok(Telemetry.Statistics.GetTransferExceptions(
@@ -238,9 +338,9 @@ public class StatisticsController : ControllerBase
     }
 
     /// <summary>
-    ///     Returns the top N exceptions by total count and direction.
+    ///     Gets the top N exceptions by total count and direction.
     /// </summary>
-    /// <param name="direction">The direction by which to filter activity.</param>
+    /// <param name="direction">The direction.</param>
     /// <param name="start">The start time.</param>
     /// <param name="end">The end time.</param>
     /// <param name="username">An optional username by which to filter exceptions.</param>
@@ -281,6 +381,16 @@ public class StatisticsController : ControllerBase
             return BadRequest("End time must be later than start time");
         }
 
+        if (limit <= 0)
+        {
+            return BadRequest("Limit must be greater than zero");
+        }
+
+        if (offset < 0)
+        {
+            return BadRequest("Offset must be greater than or equal to zero");
+        }
+
         try
         {
             return Ok(Telemetry.Statistics.GetTransferExceptionsPareto(
@@ -298,55 +408,6 @@ public class StatisticsController : ControllerBase
         }
     }
 
-    /// <summary>
-    ///     Returns the top N user summaries by total count and direction.
-    /// </summary>
-    /// <param name="start">The start time.</param>
-    /// <param name="end">The end time.</param>
-    /// <param name="limit">The number of records to return (Default: 25).</param>
-    /// <param name="offset">The record offset (if paginating).</param>
-    /// <returns></returns>
-    [HttpGet("transfers/users")]
-    [Authorize(Policy = AuthPolicy.Any)]
-    [ProducesResponseType(typeof(Dictionary<TransferDirection, List<UserTransferSummary>>), 200)]
-    public IActionResult GetSuccessfulTransferSummaryByUsername(
-        [FromQuery] DateTime? start = null,
-        [FromQuery] DateTime? end = null,
-        [FromQuery] int? limit = null,
-        [FromQuery] int? offset = null)
-    {
-        start ??= DateTime.MinValue;
-        end ??= DateTime.MaxValue;
-        limit ??= 25;
-        offset ??= 0;
-
-        if (start >= end)
-        {
-            return BadRequest("End time must be later than start time");
-        }
-
-        if (limit <= 0)
-        {
-            return BadRequest("Limit must be greater than zero");
-        }
-
-        if (offset < 0)
-        {
-            return BadRequest("Offset must be greater than or equal to zero");
-        }
-
-        var downloads = Telemetry.Statistics.GetTransferRanking(direction: TransferDirection.Download, start.Value, end, limit: limit.Value, offset: offset.Value);
-        var uploads = Telemetry.Statistics.GetTransferRanking(direction: TransferDirection.Upload, start.Value, end, limit: limit.Value, offset: offset.Value);
-
-        var dict = new Dictionary<TransferDirection, List<TransferSummary>>()
-        {
-            { TransferDirection.Download, downloads },
-            { TransferDirection.Upload, uploads },
-        };
-
-        return Ok(dict);
-    }
-
     [HttpGet("transfers/directories")]
     [Authorize(Policy = AuthPolicy.Any)]
     [ProducesResponseType(typeof(Dictionary<string, int>), 200)]
@@ -355,6 +416,15 @@ public class StatisticsController : ControllerBase
         [FromQuery] int? offset = null)
     {
         // todo: get a list of all directories downloaded at least once, along with the number of times downloaded (doesn't matter what status)
+        return null;
+    }
+
+    [HttpGet("users/{base64Name}")]
+    [Authorize(Policy = AuthPolicy.Any)]
+    public IActionResult GetUser(
+        [FromRoute] string base64Name)
+    {
+        // todo: get everything we can about the user
         return null;
     }
 }
