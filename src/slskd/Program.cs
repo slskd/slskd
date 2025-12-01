@@ -90,6 +90,11 @@ namespace slskd
         public static readonly string AppName = "slskd";
 
         /// <summary>
+        ///     The DateTime of the 'genesis' of the application (the initial commit).
+        /// </summary>
+        public static readonly DateTime GenesisDateTime = new(2025, 12, 30, 6, 22, 0, DateTimeKind.Utc);
+
+        /// <summary>
         ///     The name of the local share host.
         /// </summary>
         public static readonly string LocalHostName = "local";
