@@ -415,23 +415,23 @@ public class StatisticsController : ControllerBase
         }
     }
 
-    [HttpGet("transfers/directories")]
-    [Authorize(Policy = AuthPolicy.Any)]
-    [ProducesResponseType(typeof(Dictionary<string, int>), 200)]
-    public IActionResult GetTransferSummaryByDirectory(
-        [FromQuery] int? limit = null,
-        [FromQuery] int? offset = null)
-    {
-        // todo: get a list of all directories downloaded at least once, along with the number of times downloaded (doesn't matter what status)
-        return null;
-    }
+    // [HttpGet("transfers/directories")]
+    // [Authorize(Policy = AuthPolicy.Any)]
+    // [ProducesResponseType(typeof(Dictionary<string, int>), 200)]
+    // public IActionResult GetTransferSummaryByDirectory(
+    //     [FromQuery] int? limit = null,
+    //     [FromQuery] int? offset = null)
+    // {
+    //     // todo: get a list of all directories downloaded at least once, along with the number of times downloaded (doesn't matter what status)
+    //     return null;
+    // }
 
-    [HttpGet("users/{base64Name}")]
-    [Authorize(Policy = AuthPolicy.Any)]
-    public IActionResult GetUser(
-        [FromRoute] string base64Name)
-    {
-        // todo: get everything we can about the user
-        return null;
-    }
+    // [HttpGet("users/{base64Name}")]
+    // [Authorize(Policy = AuthPolicy.Any)]
+    // public IActionResult GetUser(
+    //     [FromRoute] string base64Name)
+    // {
+    //     // todo: get everything we can about the user
+    //     return null;
+    // }
 }
