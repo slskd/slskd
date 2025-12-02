@@ -2,7 +2,7 @@ import * as userActions from './userActions';
 
 /**
  * Creates context menu handlers that can be used in class components
- * @param {object} component - The component instance (this)
+ * @param {object} component - The component instance (component)
  * @param {object} options - Configuration options
  * @param {Function} options.getMessageRef - Function that returns the message input ref
  * @param {Function} options.focusInput - Function to focus the input
@@ -20,19 +20,19 @@ export const createContextMenuHandlers = (component, options = {}) => {
     getContextMenuActions() {
       return [
         {
-          handleClick: this.handleReply,
+          handleClick: component.handleReply,
           label: 'Reply',
         },
         {
-          handleClick: this.handleUserProfile,
+          handleClick: component.handleUserProfile,
           label: 'User Profile',
         },
         {
-          handleClick: this.handleBrowseShares,
+          handleClick: component.handleBrowseShares,
           label: 'Browse Shares',
         },
         {
-          handleClick: this.handleIgnoreUser,
+          handleClick: component.handleIgnoreUser,
           label: 'Ignore User',
         },
       ];
@@ -42,7 +42,7 @@ export const createContextMenuHandlers = (component, options = {}) => {
       const username = component.state.contextMenu?.message?.username;
       if (!username) return;
       userActions.navigateToBrowseShares(component.props.history, username);
-      this.handleCloseContextMenu();
+      component.handleCloseContextMenu();
     },
 
     handleCloseContextMenu() {
@@ -70,7 +70,7 @@ export const createContextMenuHandlers = (component, options = {}) => {
       const username = component.state.contextMenu?.message?.username;
       if (!username) return;
       await userActions.ignoreUser(username);
-      this.handleCloseContextMenu();
+      component.handleCloseContextMenu();
     },
 
     handleReply() {
@@ -81,14 +81,14 @@ export const createContextMenuHandlers = (component, options = {}) => {
       }
 
       focusInput();
-      this.handleCloseContextMenu();
+      component.handleCloseContextMenu();
     },
 
     handleUserProfile() {
       const username = component.state.contextMenu?.message?.username;
       if (!username) return;
       userActions.navigateToUserProfile(component.props.history, username);
-      this.handleCloseContextMenu();
+      component.handleCloseContextMenu();
     },
   };
 };
