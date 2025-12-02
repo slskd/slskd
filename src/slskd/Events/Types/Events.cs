@@ -28,6 +28,7 @@ public enum EventType
     DownloadFileComplete = 2,
     DownloadDirectoryComplete = 3,
     UploadFileComplete = 4,
+
     // UploadDirectoryComplete = 5,
     PrivateMessageReceived = 6,
     RoomMessageReceived = 7,

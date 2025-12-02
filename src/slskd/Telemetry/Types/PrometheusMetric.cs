@@ -1,4 +1,4 @@
-// <copyright file="Types.cs" company="slskd Team">
+// <copyright file="PrometheusMetric.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify

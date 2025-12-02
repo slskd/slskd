@@ -25,7 +25,6 @@ public class EventsDbContext : DbContext
     public EventsDbContext(DbContextOptions<EventsDbContext> options)
         : base(options)
     {
-        Database.EnsureCreated();
     }
 
     public DbSet<EventRecord> Events { get; set; }

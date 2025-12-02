@@ -1,5 +1,6 @@
 .vs
 .vscode
+.idea/
 .DS_Store
 /src/slskd/bin/
 /src/slskd/obj/
