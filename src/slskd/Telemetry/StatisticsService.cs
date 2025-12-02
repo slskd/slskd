@@ -331,6 +331,11 @@ public class StatisticsService
             throw new ArgumentException("End time must be later than start time");
         }
 
+        if (limit <= 0)
+        {
+            throw new ArgumentOutOfRangeException("Limit must be greater than zero");
+        }
+
         var sql = @$"
             SELECT
                 Id,
@@ -405,6 +410,11 @@ public class StatisticsService
             throw new ArgumentException("End time must be later than start time");
         }
 
+        if (limit <= 0)
+        {
+            throw new ArgumentOutOfRangeException("Limit must be greater than zero");
+        }
+
         var sql = @$"
             SELECT 
                 CASE 
@@ -442,6 +452,77 @@ public class StatisticsService
         };
 
         var results = connection.Query<TransferExceptionSummary>(sql, param);
+        return results.ToList();
+    }
+
+    /// <summary>
+    ///     Returns a list of directories and the frequency at which they have been downloaded.
+    /// </summary>
+    /// <param name="start"></param>
+    /// <param name="end"></param>
+    /// <param name="username"></param>
+    /// <param name="sortOrder"></param>
+    /// <param name="limit"></param>
+    /// <param name="offset"></param>
+    /// <returns></returns>
+    /// <exception cref="ArgumentException">
+    ///     Thrown if end time is not later than start time, or limit is not greater than zero.
+    /// </exception>
+    public List<TransferDirectorySummary> GetTransferDirectoryFrequency(
+        DateTime? start = null,
+        DateTime? end = null,
+        string username = null,
+        SortOrder sortOrder = SortOrder.DESC,
+        int limit = 25,
+        int offset = 0)
+    {
+        start ??= DateTime.MinValue;
+        end ??= DateTime.MaxValue;
+
+        if (end <= start)
+        {
+            throw new ArgumentException("End time must be later than start time");
+        }
+
+        if (limit <= 0)
+        {
+            throw new ArgumentOutOfRangeException("Limit must be greater than zero");
+        }
+
+        var sql = @$"
+            WITH directories AS (
+                SELECT
+                    RTRIM(
+                        RTRIM(filename, REPLACE(REPLACE(filename, '/', ''), '\', '')), '/\'
+                    ) AS Directory,
+                    Username
+                FROM transfers 
+                WHERE Direction = 'Upload'
+                AND State = 48
+                AND EndedAt IS NOT NULL
+                AND EndedAt BETWEEN @Start AND @End
+                {(username is not null ? "AND Username = @Username" : string.Empty)}
+            )
+            SELECT Directory, COUNT(*) AS Count, COUNT(DISTINCT Username) AS DistinctUsers
+            FROM directories
+            GROUP BY Directory
+            ORDER BY DistinctUsers DESC, Count DESC
+            LIMIT @Limit
+            OFFSET @Offset
+        ";
+
+        using var connection = new SqliteConnection(ConnectionStrings[Database.Transfers]);
+
+        var param = new
+        {
+            Start = start,
+            End = end,
+            Limit = limit,
+            Offset = offset,
+            Username = username,
+        };
+
+        var results = connection.Query<TransferDirectorySummary>(sql, param);
         return results.ToList();
     }
 

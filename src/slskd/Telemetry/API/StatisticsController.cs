@@ -51,11 +51,11 @@ public class StatisticsController : ControllerBase
     /// <summary>
     ///     Gets a summary of all transfer activity over the specified timeframe, grouped by direction and final state.
     /// </summary>
-    /// <param name="start">The start time of the summary window (default: 7 days ago).</param>
-    /// <param name="end">The end time of the summary window (default: now).</param>
+    /// <param name="start">The start time of the window (default: 7 days ago).</param>
+    /// <param name="end">The end time of the window (default: now).</param>
     /// <param name="direction">An optional direction (Upload, Download) by which to filter records.</param>
     /// <param name="username">An optional username by which to filter records.</param>
-    /// <returns>A nested dictionary keyed by direction and state and containing summary information.</returns>
+    /// <returns></returns>
     /// <response code="200">The request completed successfully.</response>
     /// <response code="400">Bad request.</response>
     /// <response code="500">An error occurred.</response>
@@ -111,12 +111,12 @@ public class StatisticsController : ControllerBase
     ///     Gets a histogram of all transfer activity over the specified timeframe, aggregated into fixed size time intervals
     ///     and grouped by direction and final state.
     /// </summary>
-    /// <param name="start">The start time of the histogram window (default: 7 days ago).</param>
-    /// <param name="end">The end time of the histogram window (default: now).</param>
+    /// <param name="start">The start time of the window (default: 7 days ago).</param>
+    /// <param name="end">The end time of the window (default: now).</param>
     /// <param name="interval">The interval, in minutes (default: 60).</param>
     /// <param name="direction">An optional direction (Upload, Download) by which to filter records.</param>
     /// <param name="username">An optional username by which to filter records.</param>
-    /// <returns>A nested dictionary keyed by interval, direction, and state and containing summary information.</returns>
+    /// <returns></returns>
     /// <response code="200">The request completed successfully.</response>
     /// <response code="400">Bad request.</response>
     /// <response code="500">An error occurred.</response>
@@ -189,13 +189,13 @@ public class StatisticsController : ControllerBase
     ///     Gets the top N user summaries by count, total bytes, or average speed.
     /// </summary>
     /// <param name="direction">The direction (Upload, Download).</param>
-    /// <param name="start">The start time of the summary window (default: 12/30/2025).</param>
-    /// <param name="end">The end time of the summary window (default: now).</param>
+    /// <param name="start">The start time of the window (default: 12/30/2025).</param>
+    /// <param name="end">The end time of the window (default: now).</param>
     /// <param name="sortBy">The property by which to sort (Count, TotalBytes, AverageSpeed. Default: Count).</param>
     /// <param name="sortOrder">The sort order (ASC, DESC. Default: DESC).</param>
     /// <param name="limit">The number of records to return (Default: 25).</param>
     /// <param name="offset">The record offset (if paginating).</param>
-    /// <returns>A list of user summaries.</returns>
+    /// <returns></returns>
     /// <response code="200">The request completed successfully.</response>
     /// <response code="400">Bad request.</response>
     /// <response code="500">An error occurred.</response>
@@ -204,7 +204,7 @@ public class StatisticsController : ControllerBase
     [ProducesResponseType(typeof(List<TransferSummary>), 200)]
     [ProducesResponseType(typeof(string), 400)]
     [ProducesResponseType(typeof(string), 500)]
-    public IActionResult GetSuccessfulTransferSummaryByUsername(
+    public IActionResult GetTransferLeaderboard(
         [FromQuery] string direction,
         [FromQuery] DateTime? start = null,
         [FromQuery] DateTime? end = null,
@@ -275,7 +275,7 @@ public class StatisticsController : ControllerBase
     /// <param name="username">The username of the user.</param>
     /// <param name="start">The start time of the summary window (default: 7 days ago).</param>
     /// <param name="end">The end time of the summary window (default: now).</param>
-    /// <returns>A dictionary keyed by direction and containing a detailed summary.</returns>
+    /// <returns></returns>
     /// <response code="200">The request completed successfully.</response>
     /// <response code="400">Bad request.</response>
     /// <response code="500">An error occurred.</response>
@@ -284,7 +284,7 @@ public class StatisticsController : ControllerBase
     [ProducesResponseType(typeof(Dictionary<TransferDirection, UserDirectionTransferSummary>), 200)]
     [ProducesResponseType(typeof(string), 400)]
     [ProducesResponseType(typeof(string), 500)]
-    public IActionResult GetUser(
+    public IActionResult GetUserDetails(
         [FromRoute] string username,
         [FromQuery] DateTime? start = null,
         [FromQuery] DateTime? end = null)
@@ -497,14 +497,61 @@ public class StatisticsController : ControllerBase
         }
     }
 
-    // [HttpGet("transfers/directories")]
-    // [Authorize(Policy = AuthPolicy.Any)]
-    // [ProducesResponseType(typeof(Dictionary<string, int>), 200)]
-    // public IActionResult GetTransferSummaryByDirectory(
-    //     [FromQuery] int? limit = null,
-    //     [FromQuery] int? offset = null)
-    // {
-    //     // todo: get a list of all directories downloaded at least once, along with the number of times downloaded (doesn't matter what status)
-    //     return null;
-    // }
+    /// <summary>
+    ///     Gets the top N most frequently downloaded directories by total count and distinct users.
+    /// </summary>
+    /// <param name="start">The start time of the window (default: 12/30/2025).</param>
+    /// <param name="end">The end time of the window (default: now).</param>
+    /// <param name="username">An optional username by which to filter records.</param>
+    /// <param name="limit">The number of records to return (Default: 25).</param>
+    /// <param name="offset">The record offset (if paginating).</param>
+    /// <returns></returns>
+    /// <response code="200">The request completed successfully.</response>
+    /// <response code="400">Bad request.</response>
+    /// <response code="500">An error occurred.</response>
+    [HttpGet("transfers/directories")]
+    [Authorize(Policy = AuthPolicy.Any)]
+    [ProducesResponseType(typeof(List<TransferDirectorySummary>), 200)]
+    [ProducesResponseType(typeof(string), 400)]
+    [ProducesResponseType(typeof(string), 500)]
+    public IActionResult GetTransferDirectoryFrequency(
+        [FromQuery] DateTime? start = null,
+        [FromQuery] DateTime? end = null,
+        [FromQuery] string username = null,
+        [FromQuery] int limit = 25,
+        [FromQuery] int offset = 0)
+    {
+        start ??= Program.GenesisDateTime;
+        end ??= DateTime.MaxValue;
+
+        if (start >= end)
+        {
+            return BadRequest("End time must be later than start time");
+        }
+
+        if (limit <= 0)
+        {
+            return BadRequest("Limit must be greater than zero");
+        }
+
+        if (offset < 0)
+        {
+            return BadRequest("Offset must be greater than or equal to zero");
+        }
+
+        try
+        {
+            return Ok(Telemetry.Statistics.GetTransferDirectoryFrequency(
+                start: start,
+                end: end,
+                username: username,
+                limit: limit,
+                offset: offset));
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error fetching transfer directories over {Start}-{End}: {Message}", start, end, ex.Message);
+            return StatusCode(500, ex.Message);
+        }
+    }
 }
