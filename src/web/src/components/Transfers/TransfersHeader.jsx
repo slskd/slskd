@@ -2,7 +2,7 @@ import { isStateCancellable, isStateRetryable } from '../../lib/transfers';
 import { Div, Nbsp } from '../Shared';
 import ShrinkableDropdownButton from '../Shared/ShrinkableDropdownButton';
 import React, { useMemo, useState } from 'react';
-import { Icon, Segment } from 'semantic-ui-react';
+import { Checkbox, Icon, Popup, Segment } from 'semantic-ui-react';
 
 const getRetryableFiles = ({ files, retryOption }) => {
   switch (retryOption) {
@@ -60,8 +60,11 @@ const getRemovableFiles = ({ files, removeOption }) => {
 };
 
 const TransfersHeader = ({
+  autoReplaceEnabled = false,
+  autoReplaceThreshold = 5,
   cancelling = false,
   direction,
+  onAutoReplaceChange,
   onCancelAll,
   onRemoveAll,
   onRetryAll,
@@ -162,6 +165,22 @@ const TransfersHeader = ({
         >
           {`Remove All ${removeOption}`}
         </ShrinkableDropdownButton>
+        <Nbsp />
+        <Popup
+          content={`Automatically find and replace stuck downloads with alternative sources. Replacements must be within ${autoReplaceThreshold}% file size.`}
+          position="bottom right"
+          trigger={
+            <Checkbox
+              checked={autoReplaceEnabled}
+              className="auto-replace-toggle"
+              disabled={!server.isConnected}
+              hidden={direction === 'upload'}
+              label="Auto-Replace"
+              onChange={(_, data) => onAutoReplaceChange?.(data.checked)}
+              toggle
+            />
+          }
+        />
       </Div>
     </Segment>
   );

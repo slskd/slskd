@@ -664,6 +664,7 @@ namespace slskd
             services.AddSingleton<IDownloadService, DownloadService>();
             services.AddSingleton<IUploadService, UploadService>();
             services.AddSingleton<FileService>();
+            services.AddSingleton<Transfers.AutoReplace.IAutoReplaceService, Transfers.AutoReplace.AutoReplaceService>();
 
             services.AddSingleton<IRelayService, RelayService>();
 

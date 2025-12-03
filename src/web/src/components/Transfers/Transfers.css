@@ -50,4 +50,14 @@
 .transfers-header-buttons {
   display: inline;
   margin-left: auto;
+  align-items: center;
+}
+
+.auto-replace-toggle {
+  margin-left: 1em !important;
+  vertical-align: middle !important;
+}
+
+.auto-replace-toggle label {
+  font-weight: 500 !important;
 }

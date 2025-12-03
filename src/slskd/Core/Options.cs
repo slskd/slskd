@@ -963,6 +963,32 @@ namespace slskd
                 [Description("the total download speed limit")]
                 [Range(1, int.MaxValue)]
                 public int SpeedLimit { get; init; } = int.MaxValue;
+
+                /// <summary>
+                ///     Gets a value indicating whether auto-replace for stuck downloads is enabled.
+                /// </summary>
+                [Argument(default, "auto-replace-stuck")]
+                [EnvironmentVariable("AUTO_REPLACE_STUCK")]
+                [Description("automatically replace stuck downloads with alternative sources")]
+                public bool AutoReplaceStuck { get; init; } = false;
+
+                /// <summary>
+                ///     Gets the maximum size difference percentage for auto-replacement.
+                /// </summary>
+                [Argument(default, "auto-replace-threshold")]
+                [EnvironmentVariable("AUTO_REPLACE_THRESHOLD")]
+                [Description("maximum size difference percentage for auto-replacement (e.g. 5.0 for 5%)")]
+                [Range(0.1, 50.0)]
+                public double AutoReplaceThreshold { get; init; } = 5.0;
+
+                /// <summary>
+                ///     Gets the interval in seconds between auto-replace checks.
+                /// </summary>
+                [Argument(default, "auto-replace-interval")]
+                [EnvironmentVariable("AUTO_REPLACE_INTERVAL")]
+                [Description("interval in seconds between auto-replace checks")]
+                [Range(10, 3600)]
+                public int AutoReplaceInterval { get; init; } = 60;
             }
         }
 

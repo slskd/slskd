@@ -29,6 +29,7 @@ namespace slskd.Transfers.API
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
     using Serilog;
+    using slskd.Transfers.AutoReplace;
 
     /// <summary>
     ///     Transfers.
@@ -45,17 +46,21 @@ namespace slskd.Transfers.API
         /// </summary>
         /// <param name="optionsSnapshot"></param>
         /// <param name="transferService"></param>
+        /// <param name="autoReplaceService"></param>
         public TransfersController(
             ITransferService transferService,
-            IOptionsSnapshot<Options> optionsSnapshot)
+            IOptionsSnapshot<Options> optionsSnapshot,
+            IAutoReplaceService autoReplaceService)
         {
             Transfers = transferService;
             OptionsSnapshot = optionsSnapshot;
+            AutoReplace = autoReplaceService;
         }
 
         private static SemaphoreSlim DownloadRequestLimiter { get; } = new SemaphoreSlim(2, 2);
         private ITransferService Transfers { get; }
         private IOptionsSnapshot<Options> OptionsSnapshot { get; }
+        private IAutoReplaceService AutoReplace { get; }
         private ILogger Log { get; set; } = Serilog.Log.ForContext<TransfersController>();
 
         /// <summary>
@@ -475,6 +480,125 @@ namespace slskd.Transfers.API
             }
 
             return Ok(upload);
+        }
+
+        /// <summary>
+        ///     Gets all stuck downloads (candidates for auto-replacement).
+        /// </summary>
+        /// <returns></returns>
+        /// <response code="200">The request completed successfully.</response>
+        [HttpGet("downloads/stuck")]
+        [Authorize(Policy = AuthPolicy.Any)]
+        [ProducesResponseType(200)]
+        public IActionResult GetStuckDownloads()
+        {
+            if (Program.IsRelayAgent)
+            {
+                return Forbid();
+            }
+
+            var stuckDownloads = AutoReplace.GetStuckDownloads();
+            return Ok(stuckDownloads);
+        }
+
+        /// <summary>
+        ///     Finds alternative sources for a stuck download.
+        /// </summary>
+        /// <param name="request">The find alternative request.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        /// <returns></returns>
+        /// <response code="200">Alternatives were found successfully.</response>
+        [HttpPost("downloads/find-alternative")]
+        [Authorize(Policy = AuthPolicy.Any)]
+        [ProducesResponseType(200)]
+        public async Task<IActionResult> FindAlternativeAsync(
+            [FromBody] FindAlternativeRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            if (Program.IsRelayAgent)
+            {
+                return Forbid();
+            }
+
+            var alternatives = await AutoReplace.FindAlternativesAsync(request, cancellationToken);
+            return Ok(alternatives);
+        }
+
+        /// <summary>
+        ///     Replaces a stuck download with an alternative source.
+        /// </summary>
+        /// <param name="request">The replace download request.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        /// <returns></returns>
+        /// <response code="200">The download was replaced successfully.</response>
+        /// <response code="500">Failed to replace the download.</response>
+        [HttpPost("downloads/replace")]
+        [Authorize(Policy = AuthPolicy.Any)]
+        [ProducesResponseType(200)]
+        [ProducesResponseType(500)]
+        public async Task<IActionResult> ReplaceDownloadAsync(
+            [FromBody] ReplaceDownloadRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            if (Program.IsRelayAgent)
+            {
+                return Forbid();
+            }
+
+            var success = await AutoReplace.ReplaceDownloadAsync(request, cancellationToken);
+            if (success)
+            {
+                return Ok(new { success = true });
+            }
+
+            return StatusCode(500, new { success = false, error = "Failed to replace download" });
+        }
+
+        /// <summary>
+        ///     Processes all stuck downloads and attempts auto-replacement.
+        /// </summary>
+        /// <param name="request">The auto-replace request.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        /// <returns></returns>
+        /// <response code="200">The auto-replace process completed.</response>
+        [HttpPost("downloads/auto-replace")]
+        [Authorize(Policy = AuthPolicy.Any)]
+        [ProducesResponseType(typeof(AutoReplaceResult), 200)]
+        public async Task<IActionResult> AutoReplaceAsync(
+            [FromBody] AutoReplaceRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            if (Program.IsRelayAgent)
+            {
+                return Forbid();
+            }
+
+            var result = await AutoReplace.ProcessStuckDownloadsAsync(request, cancellationToken);
+            return Ok(result);
+        }
+
+        /// <summary>
+        ///     Gets the auto-replace status.
+        /// </summary>
+        /// <returns></returns>
+        /// <response code="200">The request completed successfully.</response>
+        [HttpGet("downloads/auto-replace/status")]
+        [Authorize(Policy = AuthPolicy.Any)]
+        [ProducesResponseType(200)]
+        public IActionResult GetAutoReplaceStatus()
+        {
+            if (Program.IsRelayAgent)
+            {
+                return Forbid();
+            }
+
+            var options = OptionsSnapshot.Value;
+            return Ok(new
+            {
+                enabled = options.Global.Download.AutoReplaceStuck,
+                threshold = options.Global.Download.AutoReplaceThreshold,
+                interval = options.Global.Download.AutoReplaceInterval,
+            });
         }
     }
 }
