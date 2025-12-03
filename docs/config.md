@@ -806,14 +806,14 @@ The content path can be used to force the application to serve static web conten
 
 Logging of HTTP requests is disabled by default.
 
-| Command-Line      | Environment Variable       | Description                                       |
-| ----------------- | -------------------------- | ------------------------------------------------- |
-| `-l\|--http-port` | `SLSKD_HTTP_PORT`          | The HTTP listen port                              |
+| Command-Line               | Environment Variable           | Description                                         |
+| -------------------------- | ------------------------------ | --------------------------------------------------- |
+| `-l\|--http-port`          | `SLSKD_HTTP_PORT`              | The HTTP listen port                                |
 | `--http-listen-ip-address` | `SLSKD_HTTP_LISTEN_IP_ADDRESS` | The IP address on which to listen for HTTP requests |
-| `--http-socket`   | `SLSKD_HTTP_SOCKET`        | The HTTP listen unix domain socket (UDS) path     |
-| `--url-base`      | `SLSKD_URL_BASE`           | The base url for web requests                     |
-| `--content-path`  | `SLSKD_CONTENT_PATH`       | The path to static web content                    |
-| `--http-logging`  | `SLSKD_HTTP_LOGGING`       | Determines whether HTTP requests are to be logged |
+| `--http-socket`            | `SLSKD_HTTP_SOCKET`            | The HTTP listen unix domain socket (UDS) path       |
+| `--url-base`               | `SLSKD_URL_BASE`               | The base url for web requests                       |
+| `--content-path`           | `SLSKD_CONTENT_PATH`           | The path to static web content                      |
+| `--http-logging`           | `SLSKD_HTTP_LOGGING`           | Determines whether HTTP requests are to be logged   |
 
 #### **YAML**
 ```yaml
@@ -833,14 +833,14 @@ By default, the application generates a new, self-signed X509 certificate at eac
 
 The application can produce a self-signed `.pfx` file and random password using the `--generate-cert` command.
 
-| Command-Line            | Environment Variable        | Description                                                    |
-| ----------------------- | --------------------------- | -------------------------------------------------------------- |
-| `-L\|--https-port`      | `SLSKD_HTTPS_PORT`          | The HTTPS listen port                                          |
-| `--https-listen-ip-address` | `SLSKD_HTTPS_LISTEN_IP_ADDRESS` | The IP address on which to listen for HTTPS requests |
-| `-f\|--force-https`     | `SLSKD_HTTPS_FORCE`         | Determines whether HTTP requests are to be redirected to HTTPS |
-| `--https-cert-pfx`      | `SLSKD_HTTPS_CERT_PFX`      | The path to the X509 certificate .pfx file                     |
-| `--https-cert-password` | `SLSKD_HTTPS_CERT_PASSWORD` | The password for the X509 certificate                          |
-| `--no-https`            | `SLSKD_NO_HTTPS`            | Determines whether HTTPS is to be disabled                     |
+| Command-Line                | Environment Variable            | Description                                                    |
+| --------------------------- | ------------------------------- | -------------------------------------------------------------- |
+| `-L\|--https-port`          | `SLSKD_HTTPS_PORT`              | The HTTPS listen port                                          |
+| `--https-listen-ip-address` | `SLSKD_HTTPS_LISTEN_IP_ADDRESS` | The IP address on which to listen for HTTPS requests           |
+| `-f\|--force-https`         | `SLSKD_HTTPS_FORCE`             | Determines whether HTTP requests are to be redirected to HTTPS |
+| `--https-cert-pfx`          | `SLSKD_HTTPS_CERT_PFX`          | The path to the X509 certificate .pfx file                     |
+| `--https-cert-password`     | `SLSKD_HTTPS_CERT_PASSWORD`     | The password for the X509 certificate                          |
+| `--no-https`                | `SLSKD_NO_HTTPS`                | Determines whether HTTPS is to be disabled                     |
 
 #### **YAML**
 ```yaml
