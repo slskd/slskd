@@ -1,4 +1,10 @@
-import { formatBytes, formatBytesAsUnit, getFileName } from '../../lib/util';
+import {
+  formatBytes,
+  formatBytesAsUnit,
+  formatRemainingTime,
+  formatSpeed,
+  getFileName,
+} from '../../lib/util';
 import React, { Component } from 'react';
 import {
   Button,
@@ -114,6 +120,12 @@ class TransferList extends Component {
                     <Table.HeaderCell className="transferlist-size">
                       Size
                     </Table.HeaderCell>
+                    <Table.HeaderCell className="transferlist-speed">
+                      Speed
+                    </Table.HeaderCell>
+                    <Table.HeaderCell className="transferlist-eta">
+                      ETA
+                    </Table.HeaderCell>
                   </Table.Row>
                 </Table.Header>
                 <Table.Body>
@@ -176,6 +188,16 @@ class TransferList extends Component {
                             size: f.size,
                             transferred: f.bytesTransferred,
                           })}
+                        </Table.Cell>
+                        <Table.Cell className="transferlist-speed">
+                          {f.state === 'InProgress'
+                            ? formatSpeed(f.averageSpeed)
+                            : ''}
+                        </Table.Cell>
+                        <Table.Cell className="transferlist-eta">
+                          {f.state === 'InProgress'
+                            ? formatRemainingTime(f.remainingTime)
+                            : ''}
                         </Table.Cell>
                       </Table.Row>
                     ))}

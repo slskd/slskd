@@ -33,6 +33,28 @@ export const formatBytes = (bytes, decimals = 2) => {
   );
 };
 
+export const formatSpeed = (bytesPerSecond) => {
+  if (!bytesPerSecond || bytesPerSecond === 0) return '';
+  return formatBytes(bytesPerSecond, 1) + '/s';
+};
+
+export const formatRemainingTime = (milliseconds) => {
+  if (!milliseconds || milliseconds <= 0) return '';
+
+  const totalSeconds = Math.floor(milliseconds / 1_000);
+  const hours = Math.floor(totalSeconds / 3_600);
+  const minutes = Math.floor((totalSeconds % 3_600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (hours > 0) {
+    return `${hours}h ${minutes}m`;
+  } else if (minutes > 0) {
+    return `${minutes}m ${seconds}s`;
+  } else {
+    return `${seconds}s`;
+  }
+};
+
 export const formatDate = (date) => {
   return new Date(date).toLocaleString();
 };
