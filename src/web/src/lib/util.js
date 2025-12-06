@@ -47,7 +47,7 @@ export const formatRemainingTime = (milliseconds) => {
   const seconds = totalSeconds % 60;
 
   if (hours > 0) {
-    return `${hours}h ${minutes}m`;
+    return `${hours}h ${minutes.toString().padStart(2, '0')}m`;
   } else if (minutes > 0) {
     return `${minutes}m ${seconds}s`;
   } else {

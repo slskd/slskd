@@ -26,7 +26,7 @@ describe('formatSpeed', () => {
 
 describe('formatRemainingTime', () => {
   it('formats hours and minutes', () => {
-    expect(utils.formatRemainingTime(3_661_000)).toBe('1h 1m');
+    expect(utils.formatRemainingTime(3_661_000)).toBe('1h 01m');
   });
 
   it('formats minutes and seconds', () => {
