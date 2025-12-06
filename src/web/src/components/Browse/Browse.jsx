@@ -306,7 +306,7 @@ class Browse extends Component {
               <div className="browse-container">
                 {emptyTree ? (
                   <PlaceholderSegment
-                    caption="No user share to display"
+                    caption="User is not sharing any files"
                     icon="folder open"
                   />
                 ) : (
