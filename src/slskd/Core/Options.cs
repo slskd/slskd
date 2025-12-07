@@ -1252,6 +1252,12 @@ namespace slskd
                     return results;
                 }
 
+                if (string.IsNullOrWhiteSpace(File))
+                {
+                    results.Add(new ValidationResult("The Enabled field is true, but no File has been specified"));
+                    return results;
+                }
+
                 // loading/validating the entire list will be costly on low spec systems
                 // just make sure that we can detect a valid format and leave it at that
                 // if there's a problem with any of the entries, the load will fail and
