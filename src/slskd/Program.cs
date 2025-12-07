@@ -357,6 +357,13 @@ namespace slskd
                 Log.Warning("This can happen when running with insufficient permissions");
                 Log.Warning("The application will continue, but multiple instances may be able to run simultaneously");
             }
+            catch (AbandonedMutexException ex)
+            {
+                Log.Warning($"Acquired an abandoned mutex: {ex.Message}");
+                Log.Warning("A previous instance may have terminated unexpectedly");
+
+                // The mutex is now owned by this thread, so we can continue
+            }
 
             // derive the application directory value and defaults that are dependent upon it
             AppDirectory ??= DefaultAppDirectory;
