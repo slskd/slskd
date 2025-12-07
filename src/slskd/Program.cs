@@ -347,13 +347,13 @@ namespace slskd
             }
             catch (IOException ex)
             {
-                Log.Fatal($"Failed to acquire the application singleton mutex: {ex.Message}");
+                Log.Warning($"Failed to acquire the application singleton mutex: {ex.Message}");
                 Log.Warning("This can happen when running in a restricted environment (e.g., Kubernetes with readOnlyRootFilesystem)");
                 Log.Warning("The application will continue, but multiple instances may be able to run simultaneously");
             }
             catch (UnauthorizedAccessException ex)
             {
-                Log.Fatal($"Failed to acquire the application singleton mutex: {ex.Message}");
+                Log.Warning($"Failed to acquire the application singleton mutex: {ex.Message}");
                 Log.Warning("This can happen when running with insufficient permissions");
                 Log.Warning("The application will continue, but multiple instances may be able to run simultaneously");
             }
