@@ -126,6 +126,8 @@ const Explorer = ({ remoteFileManagement, root }) => {
   const [directory, setDirectory] = useState({ directories: [], files: [] });
   const [subdirectory, setSubdirectory] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [sortColumn, setSortColumn] = useState('name');
+  const [sortDirection, setSortDirection] = useState('ascending');
 
   const fetch = async () => {
     setLoading(true);
@@ -155,11 +157,45 @@ const Explorer = ({ remoteFileManagement, root }) => {
     setSubdirectory(copy);
   };
 
+  const handleSort = (column) => {
+    if (sortColumn === column) {
+      setSortDirection(
+        sortDirection === 'ascending' ? 'descending' : 'ascending',
+      );
+    } else {
+      setSortColumn(column);
+      setSortDirection('ascending');
+    }
+  };
+
+  const sortItems = (items) => {
+    if (!items || items.length === 0) return items;
+
+    return [...items].sort((a, b) => {
+      let compareValue = 0;
+
+      if (sortColumn === 'name') {
+        compareValue = a.name.localeCompare(b.name, undefined, {
+          numeric: true,
+          sensitivity: 'base',
+        });
+      } else if (sortColumn === 'date') {
+        const dateA = new Date(a.modifiedAt);
+        const dateB = new Date(b.modifiedAt);
+        compareValue = dateA - dateB;
+      }
+
+      return sortDirection === 'ascending' ? compareValue : -compareValue;
+    });
+  };
+
   if (loading) {
     return <LoaderSegment />;
   }
 
   const total = directory?.directories?.length + directory?.files?.length ?? 0;
+  const sortedDirectories = sortItems(directory?.directories);
+  const sortedFiles = sortItems(directory?.files);
 
   return (
     <>
@@ -176,11 +212,37 @@ const Explorer = ({ remoteFileManagement, root }) => {
       >
         <Table.Header>
           <Table.Row>
-            <Table.HeaderCell className="explorer-list-name">
+            <Table.HeaderCell
+              className="explorer-list-name"
+              onClick={() => handleSort('name')}
+              style={{ cursor: 'pointer' }}
+            >
               Name
+              {sortColumn === 'name' && (
+                <Icon
+                  name={
+                    sortDirection === 'ascending'
+                      ? 'chevron up'
+                      : 'chevron down'
+                  }
+                />
+              )}
             </Table.HeaderCell>
-            <Table.HeaderCell className="explorer-list-date">
+            <Table.HeaderCell
+              className="explorer-list-date"
+              onClick={() => handleSort('date')}
+              style={{ cursor: 'pointer' }}
+            >
               Date Modified
+              {sortColumn === 'date' && (
+                <Icon
+                  name={
+                    sortDirection === 'ascending'
+                      ? 'chevron up'
+                      : 'chevron down'
+                  }
+                />
+              )}
             </Table.HeaderCell>
             <Table.HeaderCell className="explorer-list-size">
               Size
@@ -215,7 +277,7 @@ const Explorer = ({ remoteFileManagement, root }) => {
                   subdirectory={subdirectory}
                 />
               )}
-              {directory?.directories?.map((d) => (
+              {sortedDirectories?.map((d) => (
                 <DirectoryRow
                   key={d.name}
                   onClick={() => select({ path: d.name })}
@@ -225,7 +287,7 @@ const Explorer = ({ remoteFileManagement, root }) => {
                   {...d}
                 />
               ))}
-              {directory?.files?.map((f) => (
+              {sortedFiles?.map((f) => (
                 <FileRow
                   key={f.name}
                   remoteFileManagement={remoteFileManagement}
