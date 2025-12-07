@@ -44,11 +44,16 @@ const formatBytesTransferred = ({ size, transferred }) => {
   return `${t}/${s} ${sExtension}`;
 };
 
+// Regex patterns for field name formatting
+const UPPERCASE_PATTERN = /([A-Z])/gu;
+const FIRST_CHAR_PATTERN = /^./u;
+const DURATION_PATTERN = /^\d{2}:\d{2}:\d{2}/u;
+
 // Convert camelCase to Title Case with spaces
 const formatFieldName = (fieldName) => {
   return fieldName
-    .replaceAll(/([A-Z])/gu, ' $1')
-    .replace(/^./u, (string) => string.toUpperCase())
+    .replaceAll(UPPERCASE_PATTERN, ' $1')
+    .replace(FIRST_CHAR_PATTERN, (string) => string.toUpperCase())
     .trim();
 };
 
@@ -58,14 +63,16 @@ const formatValue = (key, value) => {
     return 'N/A';
   }
 
+  const lowerKey = key.toLowerCase();
+
   // Format datetime fields
   if (
-    (key.toLowerCase().includes('at') || key.toLowerCase().includes('time')) &&
+    (lowerKey.includes('at') || lowerKey.includes('time')) &&
     typeof value === 'string' &&
     value.includes(':')
   ) {
     // Check if it's a duration (HH:MM:SS format)
-    if (/^\d{2}:\d{2}:\d{2}/u.test(value)) {
+    if (DURATION_PATTERN.test(value)) {
       return value;
     }
 
@@ -74,21 +81,25 @@ const formatValue = (key, value) => {
   }
 
   // Format byte-related fields
-  if (key.toLowerCase().includes('bytes') || key === 'size') {
+  if (lowerKey.includes('bytes') || key === 'size') {
     return formatBytes(value);
   }
 
   // Format speed
-  if (key.toLowerCase().includes('speed')) {
+  if (lowerKey.includes('speed')) {
     return `${formatBytes(value)}/s`;
   }
 
   // Format percentage
-  if (key.toLowerCase().includes('percent')) {
-    return `${value.toFixed(2)}%`;
+  if (lowerKey.includes('percent')) {
+    if (typeof value === 'number') {
+      return `${value.toFixed(2)}%`;
+    }
+
+    return String(value);
   }
 
-  return value.toString();
+  return String(value);
 };
 
 class TransferList extends Component {
