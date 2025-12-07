@@ -1,4 +1,9 @@
-import { formatBytes, formatBytesAsUnit, getFileName } from '../../lib/util';
+import {
+  formatBytes,
+  formatBytesAsUnit,
+  formatDate,
+  getFileName,
+} from '../../lib/util';
 import React, { Component } from 'react';
 import {
   Button,
@@ -6,6 +11,7 @@ import {
   Header,
   Icon,
   List,
+  Popup,
   Progress,
   Table,
 } from 'semantic-ui-react';
@@ -38,6 +44,53 @@ const formatBytesTransferred = ({ size, transferred }) => {
   return `${t}/${s} ${sExtension}`;
 };
 
+// Convert camelCase to Title Case with spaces
+const formatFieldName = (fieldName) => {
+  return fieldName
+    .replaceAll(/([A-Z])/gu, ' $1')
+    .replace(/^./u, (string) => string.toUpperCase())
+    .trim();
+};
+
+// Format value based on field type
+const formatValue = (key, value) => {
+  if (value === null || value === undefined) {
+    return 'N/A';
+  }
+
+  // Format datetime fields
+  if (
+    (key.toLowerCase().includes('at') || key.toLowerCase().includes('time')) &&
+    typeof value === 'string' &&
+    value.includes(':')
+  ) {
+    // Check if it's a duration (HH:MM:SS format)
+    if (/^\d{2}:\d{2}:\d{2}/u.test(value)) {
+      return value;
+    }
+
+    // Otherwise it's a datetime
+    return formatDate(value);
+  }
+
+  // Format byte-related fields
+  if (key.toLowerCase().includes('bytes') || key === 'size') {
+    return formatBytes(value);
+  }
+
+  // Format speed
+  if (key.toLowerCase().includes('speed')) {
+    return `${formatBytes(value)}/s`;
+  }
+
+  // Format percentage
+  if (key.toLowerCase().includes('percent')) {
+    return `${value.toFixed(2)}%`;
+  }
+
+  return value.toString();
+};
+
 class TransferList extends Component {
   constructor(props) {
     super(props);
@@ -65,6 +118,52 @@ class TransferList extends Component {
 
   toggleFolded = () => {
     this.setState((previousState) => ({ isFolded: !previousState.isFolded }));
+  };
+
+  renderTransferDetails = (file) => {
+    // Fields to display in the popup
+    const fields = [
+      'id',
+      'username',
+      'direction',
+      'filename',
+      'size',
+      'startOffset',
+      'state',
+      'stateDescription',
+      'requestedAt',
+      'enqueuedAt',
+      'startedAt',
+      'endedAt',
+      'bytesTransferred',
+      'averageSpeed',
+      'bytesRemaining',
+      'elapsedTime',
+      'percentComplete',
+      'remainingTime',
+    ];
+
+    return (
+      <Table
+        basic="very"
+        compact
+        size="small"
+      >
+        <Table.Body>
+          {fields.map((field) => {
+            const value = file[field];
+            return (
+              <Table.Row key={field}>
+                <Table.Cell style={{ fontWeight: 'bold', paddingRight: '1em' }}>
+                  {formatFieldName(field)}
+                </Table.Cell>
+                <Table.Cell>{formatValue(field, value)}</Table.Cell>
+              </Table.Row>
+            );
+          })}
+        </Table.Body>
+      </Table>
+    );
   };
 
   render() {
@@ -172,10 +271,35 @@ class TransferList extends Component {
                           )}
                         </Table.Cell>
                         <Table.Cell className="transferlist-size">
-                          {formatBytesTransferred({
-                            size: f.size,
-                            transferred: f.bytesTransferred,
-                          })}
+                          <div
+                            style={{
+                              alignItems: 'center',
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                            }}
+                          >
+                            <span>
+                              {formatBytesTransferred({
+                                size: f.size,
+                                transferred: f.bytesTransferred,
+                              })}
+                            </span>
+                            <Popup
+                              content={this.renderTransferDetails(f)}
+                              on="click"
+                              position="left center"
+                              style={{ maxWidth: '600px' }}
+                              trigger={
+                                <Icon
+                                  color="grey"
+                                  link
+                                  name="info circle"
+                                  style={{ margin: 0 }}
+                                />
+                              }
+                              wide="very"
+                            />
+                          </div>
                         </Table.Cell>
                       </Table.Row>
                     ))}
