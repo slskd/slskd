@@ -337,9 +337,10 @@ namespace slskd
             // only one long-running instance.
             try
             {
-                Mutex = new Mutex(initiallyOwned: true, Compute.Sha256Hash(AppName));
+                bool createdNew;
+                Mutex = new Mutex(initiallyOwned: true, Compute.Sha256Hash(AppName), out createdNew);
 
-                if (!Mutex.WaitOne(millisecondsTimeout: 0, exitContext: false))
+                if (!createdNew)
                 {
                     Log.Fatal($"An instance of {AppName} is already running");
                     return;
@@ -564,7 +565,15 @@ namespace slskd
             }
             finally
             {
-                Mutex?.Dispose();
+                try
+                {
+                    Mutex?.Dispose();
+                }
+                catch
+                {
+                    // Ignore disposal errors to prevent masking other exceptions
+                }
+
                 Serilog.Log.CloseAndFlush();
             }
         }
