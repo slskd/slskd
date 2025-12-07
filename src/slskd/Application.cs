@@ -768,6 +768,12 @@ namespace slskd
         {
             Metrics.Browse.RequestsReceived.Inc(1);
 
+            if (!Options.Shares.Enabled)
+            {
+                Log.Information("Returned empty browse listing because sharing is disabled");
+                return new BrowseResponse();
+            }
+
             if (Users.IsBlacklisted(username, endpoint.Address))
             {
                 Log.Information("Returned empty browse listing for blacklisted user {Username} ({IP})", username, endpoint.Address);
@@ -1270,6 +1276,12 @@ namespace slskd
         /// <returns>A Task resolving an instance of Soulseek.Directory containing the contents of the requested directory.</returns>
         private async Task<IEnumerable<Soulseek.Directory>> DirectoryContentsResponseResolver(string username, IPEndPoint endpoint, int token, string directory)
         {
+            if (!Options.Shares.Enabled)
+            {
+                Log.Information("Returned empty directory listing because sharing is disabled");
+                return [new Soulseek.Directory(directory)];
+            }
+
             if (Users.IsBlacklisted(username, endpoint.Address))
             {
                 Log.Information("Returned empty directory listing for blacklisted user {Username} ({IP})", username, endpoint.Address);
@@ -1474,6 +1486,11 @@ namespace slskd
         {
             Metrics.Search.RequestsReceived.Inc(1);
             Metrics.Search.CurrentRequestReceiveRate.CountUp(1);
+
+            if (!Options.Shares.Enabled)
+            {
+                return null;
+            }
 
             if (Users.IsBlacklisted(username))
             {

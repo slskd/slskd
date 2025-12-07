@@ -44,6 +44,7 @@
 #   incomplete: ~
 #   downloads: ~
 # shares:
+#   enabled: true
 #   directories:
 #     - ~
 #   filters:

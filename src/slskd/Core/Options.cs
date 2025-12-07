@@ -744,6 +744,14 @@ namespace slskd
         public class SharesOptions : IValidatableObject
         {
             /// <summary>
+            ///     Gets a value indicating whether sharing is enabled.
+            /// </summary>
+            [Argument(default, "shares-enabled")]
+            [EnvironmentVariable("SHARES_ENABLED")]
+            [Description("enable file sharing")]
+            public bool Enabled { get; init; } = true;
+
+            /// <summary>
             ///     Gets the list of paths to shared files.
             /// </summary>
             [Argument('s', "shared")]
