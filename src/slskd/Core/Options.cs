@@ -1254,7 +1254,7 @@ namespace slskd
 
                 if (string.IsNullOrWhiteSpace(File))
                 {
-                    results.Add(new ValidationResult("The Enabled field is true, but no File has been specified"));
+                    results.Add(new ValidationResult("The Enabled field is true, but no File has been specified."));
                     return results;
                 }
 
