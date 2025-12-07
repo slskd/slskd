@@ -1489,6 +1489,7 @@ namespace slskd
 
             if (!Options.Shares.Enabled)
             {
+                Log.Information("Returned empty search response because sharing is disabled");
                 return null;
             }
 
