@@ -237,7 +237,7 @@ namespace slskd
         private static IConfigurationRoot Configuration { get; set; }
         private static OptionsAtStartup OptionsAtStartup { get; } = new OptionsAtStartup();
         private static ILogger Log { get; set; } = new ConsoleWriteLineLogger();
-        private static Mutex Mutex { get; } = new Mutex(initiallyOwned: true, Compute.Sha256Hash(AppName));
+        private static Mutex Mutex { get; set; }
         private static IDisposable DotNetRuntimeStats { get; set; }
 
         [Argument('g', "generate-cert", "generate X509 certificate and password for HTTPs")]
@@ -335,10 +335,21 @@ namespace slskd
 
             // the application isn't being run in command mode. check the mutex to ensure
             // only one long-running instance.
-            if (!Mutex.WaitOne(millisecondsTimeout: 0, exitContext: false))
+            try
             {
-                Log.Fatal($"An instance of {AppName} is already running");
-                return;
+                Mutex = new Mutex(initiallyOwned: true, Compute.Sha256Hash(AppName));
+
+                if (!Mutex.WaitOne(millisecondsTimeout: 0, exitContext: false))
+                {
+                    Log.Fatal($"An instance of {AppName} is already running");
+                    return;
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Fatal($"Failed to acquire the application singleton mutex: {ex.Message}");
+                Log.Warning("This can happen when running in a restricted environment (e.g., Kubernetes with readOnlyRootFilesystem)");
+                Log.Warning("The application will continue, but multiple instances may be able to run simultaneously");
             }
 
             // derive the application directory value and defaults that are dependent upon it
