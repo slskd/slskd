@@ -1,4 +1,4 @@
-// <copyright file="PrometheusMetric.cs" company="slskd Team">
+// <copyright file="UserDirectionTransferSummary.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -18,21 +18,19 @@
 namespace slskd.Telemetry;
 
 using System.Collections.Generic;
+using Soulseek;
 
-public class PrometheusMetric
+public record UserDirectionTransferSummary
 {
-    public string Name { get; set; }
-    public string Help { get; set; }
-    public string Type { get; set; }
-    public double? Sum { get; set; }
-    public double? Count { get; set; }
-    public List<PrometheusMetricSample> Samples { get; set; }
-    public Dictionary<string, PrometheusMetricSample> Buckets { get; set; }
-    public Dictionary<string, double> Quantiles { get; set; }
+    public Dictionary<TransferStates, TransferSummary> Summary { get; init; }
+    public UserDirectionTransferStatistics Statistics { get; init; }
+    public List<TransferExceptionSummary> Exceptions { get; init; }
 }
 
-public class PrometheusMetricSample
+public record UserDirectionTransferStatistics
 {
-    public double? Value { get; set; }
-    public Dictionary<string, string> Labels { get; set; }
+    public long Total { get; init; }
+    public long Successful { get; init; }
+    public long Errored { get; init; }
+    public long Cancelled { get; init; }
 }
