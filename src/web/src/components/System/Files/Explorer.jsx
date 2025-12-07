@@ -180,8 +180,8 @@ const Explorer = ({ remoteFileManagement, root }) => {
           sensitivity: 'base',
         });
       } else if (sortColumn === 'date') {
-        const dateA = new Date(a.modifiedAt);
-        const dateB = new Date(b.modifiedAt);
+        const dateA = a.modifiedAt ? new Date(a.modifiedAt) : new Date(0);
+        const dateB = b.modifiedAt ? new Date(b.modifiedAt) : new Date(0);
         compareValue = dateA - dateB;
       }
 
