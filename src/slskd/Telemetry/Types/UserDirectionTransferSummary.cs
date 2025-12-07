@@ -33,7 +33,4 @@ public record UserDirectionTransferStatistics
     public long Successful { get; init; }
     public long Errored { get; init; }
     public long Cancelled { get; init; }
-    public double SuccessRate => Successful / (double)Total;
-    public double ErrorRate => Errored / (double)Total;
-    public double CancelRate => Cancelled / (double)Total;
 }
