@@ -1077,9 +1077,7 @@ namespace slskd
                 allUsernames.AddRange(Blacklisted.Members ?? Array.Empty<string>());
 
                 // Check if any username appears more than once
-                var distinctUsernames = allUsernames.Distinct().ToList();
-
-                if (allUsernames.Count != distinctUsernames.Count)
+                if (allUsernames.Count != allUsernames.Distinct().Count())
                 {
                     results.Add(new ValidationResult("One or more users are defined in more than one group. Each user can only belong to a single group."));
                 }
