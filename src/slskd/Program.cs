@@ -569,7 +569,7 @@ namespace slskd
                 {
                     Mutex?.Dispose();
                 }
-                catch
+                catch (Exception)
                 {
                     // Ignore disposal errors to prevent masking other exceptions
                 }
