@@ -644,7 +644,7 @@ namespace slskd
             services.AddSingleton<EventBus>();
 
             services.AddSingleton<PrometheusService>();
-            services.AddSingleton<StatisticsService>();
+            services.AddSingleton<ReportsService>();
             services.AddSingleton<TelemetryService>();
 
             services.AddSingleton<ScriptService>();

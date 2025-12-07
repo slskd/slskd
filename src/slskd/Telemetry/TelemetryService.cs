@@ -19,12 +19,12 @@ namespace slskd.Telemetry;
 
 public class TelemetryService
 {
-    public TelemetryService(PrometheusService prometheusService, StatisticsService statisticsService)
+    public TelemetryService(PrometheusService prometheusService, ReportsService reportsService)
     {
         Prometheus = prometheusService;
-        Statistics = statisticsService;
+        Reports = reportsService;
     }
 
     public PrometheusService Prometheus { get; }
-    public StatisticsService Statistics { get; }
+    public ReportsService Reports { get; }
 }

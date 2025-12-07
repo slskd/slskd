@@ -1,4 +1,4 @@
-﻿// <copyright file="StatisticsController.cs" company="slskd Team">
+﻿// <copyright file="ReportsController.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -28,25 +28,25 @@ using Serilog;
 using Soulseek;
 
 /// <summary>
-///     Statistics.
+///     Reports.
 /// </summary>
 [Route("api/v{version:apiVersion}/telemetry/[controller]")]
 [Tags("Telemetry")]
 [ApiVersion("0")]
 [ApiController]
 [Produces("application/json")]
-public class StatisticsController : ControllerBase
+public class ReportsController : ControllerBase
 {
     /// <summary>
-    ///     Initializes a new instance of the <see cref="StatisticsController"/> class.
+    ///     Initializes a new instance of the <see cref="ReportsController"/> class.
     /// </summary>
-    public StatisticsController(TelemetryService telemetryService)
+    public ReportsController(TelemetryService telemetryService)
     {
         Telemetry = telemetryService;
     }
 
     private TelemetryService Telemetry { get; }
-    private ILogger Log { get; } = Serilog.Log.ForContext<MetricsController>();
+    private ILogger Log { get; } = Serilog.Log.ForContext<ReportsController>();
 
     /// <summary>
     ///     Gets a summary of all transfer activity over the specified timeframe, grouped by direction and final state.
@@ -94,7 +94,7 @@ public class StatisticsController : ControllerBase
 
         try
         {
-            return Ok(Telemetry.Statistics.GetTransferSummary(
+            return Ok(Telemetry.Reports.GetTransferSummary(
                 start: start.Value,
                 end: end,
                 direction: transferDirection,
@@ -171,7 +171,7 @@ public class StatisticsController : ControllerBase
 
         try
         {
-            return Ok(Telemetry.Statistics.GetTransferHistogram(
+            return Ok(Telemetry.Reports.GetTransferHistogram(
                 start: start.Value,
                 end: end.Value,
                 interval: intervalTimeSpan,
@@ -253,7 +253,7 @@ public class StatisticsController : ControllerBase
 
         try
         {
-            return Ok(Telemetry.Statistics.GetTransferLeaderboard(
+            return Ok(Telemetry.Reports.GetTransferLeaderboard(
                 direction: parsedDirection,
                 start: start.Value,
                 end: end,
@@ -322,20 +322,20 @@ public class StatisticsController : ControllerBase
         {
             var results = new Dictionary<TransferDirection, UserDirectionTransferSummary>();
 
-            var summary = Telemetry.Statistics.GetTransferSummary(start, end, username: username);
+            var summary = Telemetry.Reports.GetTransferSummary(start, end, username: username);
 
             results.Add(TransferDirection.Upload, new UserDirectionTransferSummary
             {
                 Summary = summary[TransferDirection.Upload],
                 Statistics = GetStatistics(summary[TransferDirection.Upload]),
-                Exceptions = Telemetry.Statistics.GetTransferExceptionsPareto(TransferDirection.Upload, start, end, username: username, limit: 25, offset: 0),
+                Exceptions = Telemetry.Reports.GetTransferExceptionsPareto(TransferDirection.Upload, start, end, username: username, limit: 25, offset: 0),
             });
 
             results.Add(TransferDirection.Download, new UserDirectionTransferSummary
             {
                 Summary = summary[TransferDirection.Download],
                 Statistics = GetStatistics(summary[TransferDirection.Download]),
-                Exceptions = Telemetry.Statistics.GetTransferExceptionsPareto(TransferDirection.Download, start, end, username: username, limit: 25, offset: 0),
+                Exceptions = Telemetry.Reports.GetTransferExceptionsPareto(TransferDirection.Download, start, end, username: username, limit: 25, offset: 0),
             });
 
             return Ok(results);
@@ -410,7 +410,7 @@ public class StatisticsController : ControllerBase
 
         try
         {
-            return Ok(Telemetry.Statistics.GetTransferExceptions(
+            return Ok(Telemetry.Reports.GetTransferExceptions(
                 direction: parsedDirection,
                 start: start.Value,
                 end: end.Value,
@@ -482,7 +482,7 @@ public class StatisticsController : ControllerBase
 
         try
         {
-            return Ok(Telemetry.Statistics.GetTransferExceptionsPareto(
+            return Ok(Telemetry.Reports.GetTransferExceptionsPareto(
                 direction: parsedDirection,
                 start: start.Value,
                 end: end.Value,
@@ -541,7 +541,7 @@ public class StatisticsController : ControllerBase
 
         try
         {
-            return Ok(Telemetry.Statistics.GetTransferDirectoryFrequency(
+            return Ok(Telemetry.Reports.GetTransferDirectoryFrequency(
                 start: start,
                 end: end,
                 username: username,

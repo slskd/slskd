@@ -1,4 +1,4 @@
-// <copyright file="StatisticsService.cs" company="slskd Team">
+// <copyright file="ReportsService.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -26,20 +26,20 @@ using Serilog;
 using Soulseek;
 
 /// <summary>
-///     Statistics.
+///     Reports.
 /// </summary>
-public class StatisticsService
+public class ReportsService
 {
     /// <summary>
-    ///     Initializes a new instance of the <see cref="StatisticsService"/> class.
+    ///     Initializes a new instance of the <see cref="ReportsService"/> class.
     /// </summary>
-    public StatisticsService(ConnectionStringDictionary connectionStringDictionary)
+    public ReportsService(ConnectionStringDictionary connectionStringDictionary)
     {
         ConnectionStrings = connectionStringDictionary;
     }
 
     private ConnectionStringDictionary ConnectionStrings { get; }
-    private ILogger Log { get; } = Serilog.Log.ForContext<MetricsController>();
+    private ILogger Log { get; } = Serilog.Log.ForContext<ReportsService>();
 
     /// <summary>
     ///     Returns a summary of all transfer data grouped by direction and final transfer state. Includes only
