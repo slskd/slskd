@@ -23,8 +23,6 @@ namespace slskd
     using System.Collections.Generic;
     using System.ComponentModel;
     using System.ComponentModel.DataAnnotations;
-    using System.Diagnostics;
-
     using System.IO;
     using System.Linq;
     using System.Net;
@@ -70,6 +68,7 @@ namespace slskd
     using slskd.Search;
     using slskd.Search.API;
     using slskd.Shares;
+    using slskd.Telemetry;
     using slskd.Transfers;
     using slskd.Transfers.Downloads;
     using slskd.Transfers.Uploads;
@@ -89,6 +88,11 @@ namespace slskd
         ///     The name of the application.
         /// </summary>
         public static readonly string AppName = "slskd";
+
+        /// <summary>
+        ///     The DateTime of the 'genesis' of the application (the initial commit).
+        /// </summary>
+        public static readonly DateTime GenesisDateTime = new(2020, 12, 30, 6, 22, 0, DateTimeKind.Utc);
 
         /// <summary>
         ///     The name of the local share host.
@@ -610,9 +614,11 @@ namespace slskd
             var connectionStringDictionary = new ConnectionStringDictionary(Database.List
                 .Select(database =>
                 {
+                    var pooling = OptionsAtStartup.Flags.NoSqlitePooling ? "False" : "True"; // don't invert and ToString this it is confusing
+
                     var connStr = OptionsAtStartup.Flags.Volatile
-                        ? $"Data Source=file:{database}?mode=memory;Cache=shared;Pooling=True;"
-                        : $"Data Source={Path.Combine(DataDirectory, $"{database}.db")};Cache=shared;Pooling=True;";
+                        ? $"Data Source=file:{database}?mode=memory;Pooling={pooling};"
+                        : $"Data Source={Path.Combine(DataDirectory, $"{database}.db")};Pooling={pooling}";
 
                     return new KeyValuePair<Database, ConnectionString>(database, connStr);
                 })
@@ -637,8 +643,9 @@ namespace slskd
             services.AddSingleton<EventService>();
             services.AddSingleton<EventBus>();
 
-            services.AddSingleton<TelemetryService>();
             services.AddSingleton<PrometheusService>();
+            services.AddSingleton<ReportsService>();
+            services.AddSingleton<TelemetryService>();
 
             services.AddSingleton<ScriptService>();
             services.AddSingleton<WebhookService>();
@@ -901,6 +908,9 @@ namespace slskd
                         },
                     });
 
+                    // allow endpoints marked with multiple content types in [Produces] to generate properly
+                    options.OperationFilter<ContentNegotiationOperationFilter>();
+
                     if (IOFile.Exists(XmlDocumentationFile))
                     {
                         options.IncludeXmlComments(XmlDocumentationFile);
@@ -1140,12 +1150,15 @@ namespace slskd
                 }))
                 .CreateLogger();
 
-            // // occurs when a faulted task's unobserved exception is about to trigger exception escalation policy, which, by default, would terminate the process.
-            // TaskScheduler.UnobservedTaskException += (sender, e) =>
-            // {
-            //     Serilog.Log.Logger.Error(e.Exception, "Unobserved exception: {Message}", e.Exception.Message);
-            //     e.SetObserved();
-            // };
+            if (OptionsAtStartup.Flags.LogUnobservedExceptions)
+            {
+                // log Exceptions raised on fired-and-forgotten tasks, which adds very little value but might help debug someday
+                TaskScheduler.UnobservedTaskException += (sender, e) =>
+                {
+                    Serilog.Log.Logger.Error(e.Exception, "Unobserved exception: {Message}", e.Exception.Message);
+                    e.SetObserved();
+                };
+            }
 
             AppDomain.CurrentDomain.UnhandledException += (sender, e) =>
             {
@@ -1206,6 +1219,7 @@ namespace slskd
                 services.AddDbContextFactory<T>(options =>
                 {
                     options.UseSqlite(connectionString);
+                    options.AddInterceptors(new SqliteConnectionOpenedInterceptor());
 
                     if (OptionsAtStartup.Debug && OptionsAtStartup.Flags.LogSQL)
                     {
@@ -1213,10 +1227,49 @@ namespace slskd
                     }
                 });
 
+                /*
+                    instantiate the DbContext and make sure it is created
+                */
                 using var ctx = services
                     .BuildServiceProvider()
                     .GetRequiredService<IDbContextFactory<T>>()
                     .CreateDbContext();
+
+                Log.Debug("Ensuring {Contex} is created", typeof(T).Name);
+                ctx.Database.EnsureCreated();
+
+                /*
+                    set (and validate) our desired PRAGMAs
+
+                    synchronous mode is also set upon every connection via SqliteConnectionOpenedInterceptor.
+                */
+                ctx.Database.OpenConnection();
+                var conn = ctx.Database.GetDbConnection();
+
+                Log.Debug("Setting PRAGMAs for {Contex}", typeof(T).Name);
+                using var initCommand = conn.CreateCommand();
+                initCommand.CommandText = "PRAGMA journal_mode=WAL; PRAGMA synchronous=1; PRAGMA optimize;";
+                initCommand.ExecuteNonQuery();
+
+                using var journalCmd = conn.CreateCommand();
+                journalCmd.CommandText = "PRAGMA journal_mode;";
+                var journalMode = journalCmd.ExecuteScalar()?.ToString();
+
+                if (!journalMode.Equals("WAL", StringComparison.OrdinalIgnoreCase))
+                {
+                    Log.Warning("Failed to set database {Type} journal_mode PRAGMA to WAL; performance may be reduced", typeof(T).Name);
+                }
+
+                using var syncCmd = conn.CreateCommand();
+                syncCmd.CommandText = "PRAGMA synchronous;";
+                var sync = syncCmd.ExecuteScalar()?.ToString();
+
+                if (!sync.Equals("1", StringComparison.OrdinalIgnoreCase))
+                {
+                    Log.Warning("Failed to set database {Type} synchronous PRAGMA to 1; performance may be reduced", typeof(T).Name);
+                }
+
+                Log.Debug("PRAGMAs for {Context}: journal_mode={JournalMode}, synchronous={Synchronous}", typeof(T).Name, journalMode, sync);
 
                 return services;
             }

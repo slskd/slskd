@@ -1,3 +1,10 @@
+> [!IMPORTANT]
+> **Issues, Pull Requests, Discussions, And Comments Are Temporarily Disabled Until 1/5/26**
+>
+> The maintainers need some quiet time to enjoy the holidays, work through old and stale issues and PRs, and establish better contribution guidelines.
+>
+> In the meantime, enjoy the free software.  Or don't.
+
 # slskd
 
 [![Build](https://img.shields.io/github/actions/workflow/status/slskd/slskd/ci.yml?branch=master&logo=github)](https://github.com/slskd/slskd/actions/workflows/ci.yml)

@@ -203,9 +203,9 @@ class Response extends Component {
                 >
                   <Icon
                     loading={fetchingDirectoryContents}
-                    name={fetchingDirectoryContents ? 'circle notch' : 'folder'}
+                    name={fetchingDirectoryContents ? 'circle notch' : 'search'}
                   />
-                  Get Full Directory Contents
+                  Search for Additional Files in This Directory
                 </button>
               }
               key={directory}

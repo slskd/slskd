@@ -33,7 +33,9 @@ const RoomJoinModal = ({ joinRoom: parentJoinRoom, ...modalOptions }) => {
   }, [open]);
 
   const sortedAvailable = useMemo(() => {
-    const sorted = [...available].filter((room) => room.name.includes(filter));
+    const sorted = [...available].filter((room) =>
+      room.name.toLowerCase().includes(filter.toLowerCase()),
+    );
 
     sorted.sort((a, b) => {
       if (sortOrder === 'asc') {

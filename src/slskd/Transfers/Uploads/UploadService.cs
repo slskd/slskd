@@ -126,6 +126,20 @@ namespace slskd.Transfers.Uploads
         bool TryCancel(Guid id);
 
         /// <summary>
+        ///     Fails the upload matching the specified <paramref name="id"/> with the specified <paramref name="exception"/>,
+        ///     and sets the final state accordingly.
+        /// </summary>
+        /// <remarks>
+        ///     This method is designed to be idempotent, meaning subsequent calls for a given transfer shouldn't change
+        ///     the EndedAt or Exception properties if they have already been set. If the transfer State already includes
+        ///     the terminal Completed flag, it is unchanged.
+        /// </remarks>
+        /// <param name="id">The unique identifier for the upload.</param>
+        /// <param name="exception">The exception that caused the failure.</param>
+        /// <returns>A value indicating whether the upload was successfully failed.</returns>
+        bool TryFail(Guid id, Exception exception);
+
+        /// <summary>
         ///     Synchronously updates the specified <paramref name="transfer"/>.
         /// </summary>
         /// <param name="transfer">The transfer to update.</param>
@@ -418,28 +432,22 @@ namespace slskd.Transfers.Uploads
 
                 return transfer;
             }
-            catch (NotFoundException)
+            catch (NotFoundException ex)
             {
-                transfer.EndedAt = DateTime.Now;
-                transfer.Exception = "File could not be found";
-                transfer.State = TransferStates.Completed | TransferStates.Aborted;
+                Log.Error(ex, "Upload of {Filename} to user {Username} failed: {Message}", transfer.Filename, transfer.Username, ex.Message);
 
+                TryFail(transfer.Id, "File could not be found", TransferStates.Completed | TransferStates.Aborted);
+
+                // todo: broadcast
                 SynchronizedUpdate(transfer, semaphore: syncRoot, cancellationToken: CancellationToken.None);
 
                 throw;
             }
             catch (Exception ex) when (ex is OperationCanceledException || ex is TimeoutException)
             {
-                transfer.EndedAt = DateTime.UtcNow;
-                transfer.Exception = ex.Message;
-                transfer.State = TransferStates.Completed;
+                Log.Error(ex, "Upload of {Filename} to user {Username} failed: {Message}", transfer.Filename, transfer.Username, ex.Message);
 
-                transfer.State |= ex switch
-                {
-                    OperationCanceledException => TransferStates.Cancelled,
-                    TimeoutException => TransferStates.TimedOut,
-                    _ => TransferStates.Errored,
-                };
+                TryFail(transfer.Id, exception: ex);
 
                 // todo: broadcast
                 SynchronizedUpdate(transfer, semaphore: syncRoot, cancellationToken: CancellationToken.None);
@@ -450,9 +458,7 @@ namespace slskd.Transfers.Uploads
             {
                 Log.Error(ex, "Upload of {Filename} to user {Username} failed: {Message}", transfer.Filename, transfer.Username, ex.Message);
 
-                transfer.EndedAt = DateTime.UtcNow;
-                transfer.Exception = ex.Message;
-                transfer.State = TransferStates.Completed | TransferStates.Errored;
+                TryFail(transfer.Id, exception: ex);
 
                 // todo: broadcast
                 SynchronizedUpdate(transfer, semaphore: syncRoot, cancellationToken: CancellationToken.None);
@@ -488,7 +494,6 @@ namespace slskd.Transfers.Uploads
                 catch (Exception ex)
                 {
                     Log.Error(ex, "Failed to finalize upload of {Filename} to {Username}: {Message}", transfer.Filename, transfer.Username, ex.Message);
-                    throw;
                 }
             }
         }
@@ -651,23 +656,9 @@ namespace slskd.Transfers.Uploads
                     */
                     Log.Error(task.Exception, "Task for upload of {Filename} to {Username} did not complete successfully: {Error}", filename, username, task.Exception.Message);
 
-                    try
+                    if (!TryFail(id, task.Exception))
                     {
-                        var transfer = Find(t => t.Id == id);
-
-                        if (transfer is not null)
-                        {
-                            transfer.EndedAt ??= DateTime.UtcNow;
-                            transfer.Exception ??= task.Exception.Message;
-                            transfer.State = TransferStates.Completed | transfer.State;
-
-                            Update(transfer);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.Error(ex, "Failed to clean up transfer {Id} after failed execution: {Message}", id, ex.Message);
-                        throw;
+                        Log.Error(task.Exception, "Failed to clean up transfer {Id} after failed execution: {Message}", id, task.Exception.Message);
                     }
                 });
 
@@ -677,22 +668,9 @@ namespace slskd.Transfers.Uploads
             {
                 Log.Error(ex, "Failed to enqueue upload of {Filename} to {Username}: {Message}", filename, username, ex.Message);
 
-                try
+                if (!TryFail(id, exception: ex))
                 {
-                    var transfer = Find(t => t.Id == id);
-
-                    if (transfer is not null)
-                    {
-                        transfer.EndedAt ??= DateTime.UtcNow;
-                        transfer.Exception ??= ex.Message;
-                        transfer.State = TransferStates.Completed | transfer.State;
-
-                        Update(transfer);
-                    }
-                }
-                catch (Exception innerEx)
-                {
-                    Log.Error(innerEx, "Failed to clean up transfer {Id} after failed enqueue: {Message}", id, innerEx.Message);
+                    Log.Error(ex, "Failed to clean up transfer {Id} after failed enqueue: {Message}", id, ex.Message);
                     throw;
                 }
 
@@ -899,6 +877,31 @@ namespace slskd.Transfers.Uploads
         }
 
         /// <summary>
+        ///     Fails the upload matching the specified <paramref name="id"/> with the specified <paramref name="exception"/>,
+        ///     and sets the final state accordingly.
+        /// </summary>
+        /// <remarks>
+        ///     This method is designed to be idempotent, meaning subsequent calls for a given transfer shouldn't change
+        ///     the EndedAt or Exception properties if they have already been set. If the transfer State already includes
+        ///     the terminal Completed flag, it is unchanged.
+        /// </remarks>
+        /// <param name="id">The unique identifier for the upload.</param>
+        /// <param name="exception">The exception that caused the failure.</param>
+        /// <returns>A value indicating whether the upload was successfully failed.</returns>
+        public bool TryFail(Guid id, Exception exception)
+        {
+            var state = exception switch
+            {
+                NotFoundException => TransferStates.Aborted,
+                OperationCanceledException => TransferStates.Cancelled,
+                TimeoutException => TransferStates.TimedOut,
+                _ => TransferStates.Errored,
+            };
+
+            return TryFail(id, exception.Message, state);
+        }
+
+        /// <summary>
         ///     Synchronously updates the specified <paramref name="transfer"/>.
         /// </summary>
         /// <param name="transfer">The transfer to update.</param>
@@ -908,6 +911,39 @@ namespace slskd.Transfers.Uploads
 
             context.Update(transfer);
             context.SaveChanges();
+        }
+
+        private bool TryFail(Guid id, string exception, TransferStates state)
+        {
+            var t = Find(t => t.Id == id);
+
+            if (t is null)
+            {
+                return false;
+            }
+
+            t.EndedAt ??= DateTime.UtcNow;
+
+            // Soulseek.NET will include the filename and username in some messages; this is useful for many things but not tracking
+            // exceptions in a database. when we encounter one of these, drop the first segment.
+            var m = exception;
+            t.Exception ??= m.Contains(':') ? m.Substring(m.IndexOf(':') + 1).Trim() : m;
+
+            if (!t.State.HasFlag(TransferStates.Completed))
+            {
+                t.State = TransferStates.Completed | state;
+            }
+
+            try
+            {
+                Update(t);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to update database: {Message}", ex.Message);
+                return false;
+            }
         }
 
         /// <summary>

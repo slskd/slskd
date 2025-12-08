@@ -8,6 +8,10 @@
   margin-bottom: 16px;
 }
 
+.system .menu.tabular {
+    overflow: auto hidden;
+}
+
 .logs-table, .events-table {
   font-size: smaller;
 }

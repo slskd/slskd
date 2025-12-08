@@ -418,6 +418,15 @@ namespace slskd
             public bool LogSQL { get; init; } = false;
 
             /// <summary>
+            ///     Gets a value indicating whether to log unobserved Exceptions.
+            /// </summary>
+            [Argument(default, "log-unobserved-exceptions")]
+            [EnvironmentVariable("LOG_UNOBSERVED_EXCEPTIONS")]
+            [Description("log unobserved exceptions (caution: verbose)")]
+            [RequiresRestart]
+            public bool LogUnobservedExceptions { get; init; } = false;
+
+            /// <summary>
             ///     Gets a value indicating whether the application should run in experimental mode.
             /// </summary>
             [Argument(default, "experimental")]
@@ -461,6 +470,14 @@ namespace slskd
             [EnvironmentVariable("OPTIMISTIC_RELAY_FILE_INFO")]
             [Description("use uploaded relay shares as source of truth for file existence and size")]
             public bool OptimisticRelayFileInfo { get; init; } = false;
+
+            /// <summary>
+            ///     Gets a value indicating whether SQLite pooling should be disabled.
+            /// </summary>
+            [Argument(default, "no-sqlite-pooling")]
+            [EnvironmentVariable("NO_SQLITE_POOLING")]
+            [Description("disable SQLite pooling")]
+            public bool NoSqlitePooling { get; init; } = false;
         }
 
         /// <summary>
@@ -1235,6 +1252,12 @@ namespace slskd
                     return results;
                 }
 
+                if (string.IsNullOrWhiteSpace(File))
+                {
+                    results.Add(new ValidationResult("The Enabled field is true, but no File has been specified."));
+                    return results;
+                }
+
                 // loading/validating the entire list will be costly on low spec systems
                 // just make sure that we can detect a valid format and leave it at that
                 // if there's a problem with any of the entries, the load will fail and
@@ -1821,7 +1844,6 @@ namespace slskd
             [Argument(default, "http-socket")]
             [EnvironmentVariable("HTTP_SOCKET")]
             [Description("HTTP listen unix domain socket (UDS) path for web UI")]
-            [FileDoesNotExist]
             [AbsoluteFilePath]
             [RequiresRestart]
             public string Socket { get; init; }
