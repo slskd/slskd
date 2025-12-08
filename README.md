@@ -6,7 +6,7 @@
 > * Platform-specific archives located in [Releases](https://github.com/slskd/slskd/releases/)
 > * Docker images published to [Docker Hub](https://hub.docker.com/r/slskd/slskd) and [GitHub Container Registry](https://github.com/slskd/slskd/pkgs/container/slskd)
 >
-> The name associated with official releases `slskd`. Any change to this will be clearly communicated here.
+> The name associated with official releases is `slskd`. Any change to this will be clearly communicated here.
 >
 > If you encounter binaries with different names claiming to be slskd or an alternative, they are not affiliated with this project.
 > 
