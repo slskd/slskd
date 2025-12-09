@@ -116,6 +116,12 @@ class TransferList extends Component {
                     <Table.HeaderCell className="transferlist-size">
                       Size
                     </Table.HeaderCell>
+                    <Table.HeaderCell className="transferlist-detail">
+                      <Icon
+                        name="info circle"
+                        size="small"
+                      />
+                    </Table.HeaderCell>
                   </Table.Row>
                 </Table.Header>
                 <Table.Body>
@@ -187,22 +193,24 @@ class TransferList extends Component {
                                 transferred: f.bytesTransferred,
                               })}
                             </span>
-                            <Popup
-                              content={<TransferDetails file={f} />}
-                              on="click"
-                              position="left center"
-                              style={{ maxWidth: '600px' }}
-                              trigger={
-                                <Icon
-                                  color="grey"
-                                  link
-                                  name="info circle"
-                                  style={{ margin: 0 }}
-                                />
-                              }
-                              wide="very"
-                            />
                           </div>
+                        </Table.Cell>
+                        <Table.Cell className="transferlist-detail">
+                          <Popup
+                            content={<TransferDetails file={f} />}
+                            on="click"
+                            position="left center"
+                            style={{ maxWidth: '600px' }}
+                            trigger={
+                              <Icon
+                                color="grey"
+                                link
+                                name="info circle"
+                                size="small"
+                              />
+                            }
+                            wide="very"
+                          />
                         </Table.Cell>
                       </Table.Row>
                     ))}
