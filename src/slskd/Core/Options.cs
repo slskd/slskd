@@ -1844,7 +1844,7 @@ namespace slskd
             [Argument(default, "http-ip-address")]
             [EnvironmentVariable("HTTP_IP_ADDRESS")]
             [Description("IP addresses on which to listen for HTTP requests")]
-            [IPAddress]
+            [IPAddress(allowCommaSeparatedValues: true)]
             [RequiresRestart]
             public string IpAddress { get; init; }
 
