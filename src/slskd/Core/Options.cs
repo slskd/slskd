@@ -1839,14 +1839,14 @@ namespace slskd
             public int Port { get; init; } = 5030;
 
             /// <summary>
-            ///     Gets the IP address on which to listen for HTTP requests.
+            ///     Gets the comma separated list of IPv4 or IPv6 IP addresses on which to listen for HTTP requests.
             /// </summary>
-            [Argument(default, "http-listen-ip-address")]
-            [EnvironmentVariable("HTTP_LISTEN_IP_ADDRESS")]
-            [Description("IP address on which to listen for HTTP requests")]
+            [Argument(default, "http-ip-address")]
+            [EnvironmentVariable("HTTP_IP_ADDRESS")]
+            [Description("IP addresses on which to listen for HTTP requests")]
             [IPAddress]
             [RequiresRestart]
-            public string ListenIpAddress { get; init; } = "0.0.0.0";
+            public string IpAddress { get; init; }
 
             /// <summary>
             ///     Gets the HTTP listen unix domain socket (UDS) path.
@@ -2048,17 +2048,17 @@ namespace slskd
                 [Range(1, 65535)]
                 [RequiresRestart]
                 public int Port { get; init; } = 5031;
-    
+
                 /// <summary>
-                ///     Gets the IP address on which to listen for HTTPS requests.
+                ///     Gets the comma separated list of IPv4 or IPv6 IP addresses on which to listen for HTTPS requests.
                 /// </summary>
-                [Argument(default, "https-listen-ip-address")]
-                [EnvironmentVariable("HTTPS_LISTEN_IP_ADDRESS")]
-                [Description("IP address on which to listen for HTTPS requests")]
-                [IPAddress]
+                [Argument(default, "https-ip-address")]
+                [EnvironmentVariable("HTTPS_IP_ADDRESS")]
+                [Description("IP addresses on which to listen for HTTPS requests")]
+                [IPAddress(allowCommaSeparatedValues: true)]
                 [RequiresRestart]
-                public string ListenIpAddress { get; init; } = "0.0.0.0";
-    
+                public string IpAddress { get; init; }
+
                 /// <summary>
                 ///     Gets a value indicating whether HTTP requests should be redirected to HTTPS.
                 /// </summary>
