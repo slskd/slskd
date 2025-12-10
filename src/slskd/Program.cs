@@ -478,8 +478,9 @@ namespace slskd
                     .UseUrls()
                     .UseKestrel(options =>
                     {
-                        Log.Information($"Listening for HTTP requests at http://{IPAddress.Any}:{OptionsAtStartup.Web.Port}/");
-                        options.Listen(IPAddress.Any, OptionsAtStartup.Web.Port);
+                        var httpIpAddress = IPAddress.Parse(OptionsAtStartup.Web.ListenIpAddress);
+                        Log.Information($"Listening for HTTP requests at http://{httpIpAddress}:{OptionsAtStartup.Web.Port}/");
+                        options.Listen(httpIpAddress, OptionsAtStartup.Web.Port);
 
                         if (OptionsAtStartup.Web.Socket != null)
                         {
@@ -489,8 +490,9 @@ namespace slskd
 
                         if (!OptionsAtStartup.Web.Https.Disabled)
                         {
-                            Log.Information($"Listening for HTTPS requests at https://{IPAddress.Any}:{OptionsAtStartup.Web.Https.Port}/");
-                            options.Listen(IPAddress.Any, OptionsAtStartup.Web.Https.Port, listenOptions =>
+                            var httpsIpAddress = IPAddress.Parse(OptionsAtStartup.Web.Https.ListenIpAddress);
+                            Log.Information($"Listening for HTTPS requests at https://{httpsIpAddress}:{OptionsAtStartup.Web.Https.Port}/");
+                            options.Listen(httpsIpAddress, OptionsAtStartup.Web.Https.Port, listenOptions =>
                             {
                                 var cert = OptionsAtStartup.Web.Https.Certificate;
 

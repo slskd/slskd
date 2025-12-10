@@ -1839,6 +1839,16 @@ namespace slskd
             public int Port { get; init; } = 5030;
 
             /// <summary>
+            ///     Gets the IP address on which to listen for HTTP requests.
+            /// </summary>
+            [Argument(default, "http-listen-ip-address")]
+            [EnvironmentVariable("HTTP_LISTEN_IP_ADDRESS")]
+            [Description("IP address on which to listen for HTTP requests")]
+            [IPAddress]
+            [RequiresRestart]
+            public string ListenIpAddress { get; init; } = "0.0.0.0";
+
+            /// <summary>
             ///     Gets the HTTP listen unix domain socket (UDS) path.
             /// </summary>
             [Argument(default, "http-socket")]
@@ -2038,7 +2048,17 @@ namespace slskd
                 [Range(1, 65535)]
                 [RequiresRestart]
                 public int Port { get; init; } = 5031;
-
+    
+                /// <summary>
+                ///     Gets the IP address on which to listen for HTTPS requests.
+                /// </summary>
+                [Argument(default, "https-listen-ip-address")]
+                [EnvironmentVariable("HTTPS_LISTEN_IP_ADDRESS")]
+                [Description("IP address on which to listen for HTTPS requests")]
+                [IPAddress]
+                [RequiresRestart]
+                public string ListenIpAddress { get; init; } = "0.0.0.0";
+    
                 /// <summary>
                 ///     Gets a value indicating whether HTTP requests should be redirected to HTTPS.
                 /// </summary>
