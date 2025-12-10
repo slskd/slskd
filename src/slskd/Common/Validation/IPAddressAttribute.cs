@@ -25,6 +25,13 @@ namespace slskd.Validation
     /// </summary>
     public class IPAddressAttribute : ValidationAttribute
     {
+        public IPAddressAttribute(bool allowCommaSeparatedValues = false)
+        {
+            AllowCommaSeparatedValues = allowCommaSeparatedValues;
+        }
+
+        private bool AllowCommaSeparatedValues { get; set; }
+
         protected override ValidationResult IsValid(object value, ValidationContext validationContext)
         {
             if (value != null)
@@ -36,9 +43,29 @@ namespace slskd.Validation
                     return fail;
                 }
 
-                if (!IPAddress.TryParse(valueAsString, out _))
+                if (!valueAsString.Contains(','))
                 {
-                    return fail;
+                    if (!IPAddress.TryParse(valueAsString, out _))
+                    {
+                        return fail;
+                    }
+                }
+                else
+                {
+                    if (!AllowCommaSeparatedValues)
+                    {
+                        return new ValidationResult($"The {validationContext.DisplayName} field accepts a single value only (a comma separated list was specified)");
+                    }
+
+                    var values = valueAsString.Split(',');
+
+                    foreach (var currentValue in values)
+                    {
+                        if (!IPAddress.TryParse(currentValue, out _))
+                        {
+                            return new ValidationResult($"The {validationContext.DisplayName} field contains one or more invalid IPv4 or IPv6 IP addresses.");
+                        }
+                    }
                 }
             }
 
