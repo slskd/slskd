@@ -137,12 +137,12 @@
 #       - ^.{1,2}$
 # web:
 #   port: 5030
-#   listen_ip_address: 0.0.0.0
+#   ip_address: 0.0.0.0,[::]
 #   socket: ~
 #   https:
 #     disabled: false
 #     port: 5031
-#     listen_ip_address: 0.0.0.0
+#     ip_address: 0.0.0.0,[::]
 #     force: false
 #     certificate:
 #       pfx: ~
