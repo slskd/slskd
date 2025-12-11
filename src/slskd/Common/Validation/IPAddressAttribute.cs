@@ -18,6 +18,7 @@
 namespace slskd.Validation
 {
     using System.ComponentModel.DataAnnotations;
+    using System.Linq;
     using System.Net;
 
     /// <summary>
@@ -57,7 +58,7 @@ namespace slskd.Validation
                         return new ValidationResult($"The {validationContext.DisplayName} field accepts a single value only (a comma separated list was specified)");
                     }
 
-                    var values = valueAsString.Split(',');
+                    var values = valueAsString.Split(',').Select(v => v.Trim());
 
                     foreach (var currentValue in values)
                     {
