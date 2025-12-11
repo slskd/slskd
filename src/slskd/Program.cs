@@ -488,7 +488,10 @@ namespace slskd
                         }
                         else
                         {
-                            var httpIps = OptionsAtStartup.Web.IpAddress.Split(',').Select(ip => IPAddress.Parse(ip));
+                            var httpIps = OptionsAtStartup.Web.IpAddress
+                                .Split(',')
+                                .Select(ip => ip.Trim())
+                                .Select(ip => IPAddress.Parse(ip));
 
                             foreach (var ip in httpIps)
                             {
@@ -506,7 +509,7 @@ namespace slskd
 
                         // configure HTTPS, again listening on any IP or on a list of supplied IPs
                         // use a local function because Microsoft can't get enough of the obtuse builder pattern
-                        void ListenHttps(KestrelServerOptions o, IPAddress ip)
+                        static void ListenHttps(KestrelServerOptions o, IPAddress ip)
                         {
                             o.Listen(ip, OptionsAtStartup.Web.Https.Port, listenOptions =>
                             {
@@ -534,7 +537,10 @@ namespace slskd
                             }
                             else
                             {
-                                var httpsIps = OptionsAtStartup.Web.Https.IpAddress.Split(',').Select(ip => IPAddress.Parse(ip));
+                                var httpsIps = OptionsAtStartup.Web.Https.IpAddress
+                                    .Split(',')
+                                    .Select(ip => ip.Trim())
+                                    .Select(ip => IPAddress.Parse(ip));
 
                                 foreach (var ip in httpsIps)
                                 {
