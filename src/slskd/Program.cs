@@ -40,6 +40,7 @@ namespace slskd
     using Microsoft.AspNetCore.Diagnostics;
     using Microsoft.AspNetCore.Hosting;
     using Microsoft.AspNetCore.Http;
+    using Microsoft.AspNetCore.Server.Kestrel.Core;
     using Microsoft.EntityFrameworkCore;
     using Microsoft.Extensions.Configuration;
     using Microsoft.Extensions.DependencyInjection;
@@ -478,19 +479,39 @@ namespace slskd
                     .UseUrls()
                     .UseKestrel(options =>
                     {
-                        Log.Information($"Listening for HTTP requests at http://{IPAddress.Any}:{OptionsAtStartup.Web.Port}/");
-                        options.Listen(IPAddress.Any, OptionsAtStartup.Web.Port);
+                        // configure HTTP, either by listening at any IP or by each of the IPs provided in the
+                        // config (note: they've already been validated at this point!)
+                        if (string.IsNullOrWhiteSpace(OptionsAtStartup.Web.IpAddress))
+                        {
+                            Log.Information("Listening for HTTP requests at http://{IP}:{Port}/", IPAddress.IPv6Any, OptionsAtStartup.Web.Port);
+                            options.Listen(IPAddress.IPv6Any, OptionsAtStartup.Web.Port); // [::]; any IPv4 or IPv6 address
+                        }
+                        else
+                        {
+                            var httpIps = OptionsAtStartup.Web.IpAddress
+                                .Split(',')
+                                .Select(ip => ip.Trim())
+                                .Select(ip => IPAddress.Parse(ip));
 
+                            foreach (var ip in httpIps)
+                            {
+                                Log.Information("Listening for HTTP requests at http://{IP}:{Port}/", ip, OptionsAtStartup.Web.Port);
+                                options.Listen(ip, OptionsAtStartup.Web.Port);
+                            }
+                        }
+
+                        // configure UDS, if supplied
                         if (OptionsAtStartup.Web.Socket != null)
                         {
                             Log.Information($"Listening for HTTP requests on unix domain socket (UDS) {OptionsAtStartup.Web.Socket}");
                             options.ListenUnixSocket(OptionsAtStartup.Web.Socket);
                         }
 
-                        if (!OptionsAtStartup.Web.Https.Disabled)
+                        // configure HTTPS, again listening on any IP or on a list of supplied IPs
+                        // use a local function because Microsoft can't get enough of the obtuse builder pattern
+                        static void ListenHttps(KestrelServerOptions o, IPAddress ip)
                         {
-                            Log.Information($"Listening for HTTPS requests at https://{IPAddress.Any}:{OptionsAtStartup.Web.Https.Port}/");
-                            options.Listen(IPAddress.Any, OptionsAtStartup.Web.Https.Port, listenOptions =>
+                            o.Listen(ip, OptionsAtStartup.Web.Https.Port, listenOptions =>
                             {
                                 var cert = OptionsAtStartup.Web.Https.Certificate;
 
@@ -505,6 +526,28 @@ namespace slskd
                                     listenOptions.UseHttps(X509.Generate(subject: AppName));
                                 }
                             });
+                        }
+
+                        if (!OptionsAtStartup.Web.Https.Disabled)
+                        {
+                            if (string.IsNullOrWhiteSpace(OptionsAtStartup.Web.Https.IpAddress))
+                            {
+                                Log.Information("Listening for HTTPS requests at https://{IP}:{Port}/", IPAddress.IPv6Any, OptionsAtStartup.Web.Https.Port);
+                                ListenHttps(options, IPAddress.IPv6Any);
+                            }
+                            else
+                            {
+                                var httpsIps = OptionsAtStartup.Web.Https.IpAddress
+                                    .Split(',')
+                                    .Select(ip => ip.Trim())
+                                    .Select(ip => IPAddress.Parse(ip));
+
+                                foreach (var ip in httpsIps)
+                                {
+                                    Log.Information("Listening for HTTPS requests at https://{IP}:{Port}/", ip, OptionsAtStartup.Web.Https.Port);
+                                    ListenHttps(options, ip);
+                                }
+                            }
                         }
                     });
 

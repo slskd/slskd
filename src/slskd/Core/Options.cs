@@ -1839,6 +1839,16 @@ namespace slskd
             public int Port { get; init; } = 5030;
 
             /// <summary>
+            ///     Gets the comma separated list of IPv4 or IPv6 IP addresses on which to listen for HTTP requests.
+            /// </summary>
+            [Argument(default, "http-ip-address")]
+            [EnvironmentVariable("HTTP_IP_ADDRESS")]
+            [Description("IP addresses on which to listen for HTTP requests")]
+            [IPAddress(allowCommaSeparatedValues: true)]
+            [RequiresRestart]
+            public string IpAddress { get; init; }
+
+            /// <summary>
             ///     Gets the HTTP listen unix domain socket (UDS) path.
             /// </summary>
             [Argument(default, "http-socket")]
@@ -2038,6 +2048,16 @@ namespace slskd
                 [Range(1, 65535)]
                 [RequiresRestart]
                 public int Port { get; init; } = 5031;
+
+                /// <summary>
+                ///     Gets the comma separated list of IPv4 or IPv6 IP addresses on which to listen for HTTPS requests.
+                /// </summary>
+                [Argument(default, "https-ip-address")]
+                [EnvironmentVariable("HTTPS_IP_ADDRESS")]
+                [Description("IP addresses on which to listen for HTTPS requests")]
+                [IPAddress(allowCommaSeparatedValues: true)]
+                [RequiresRestart]
+                public string IpAddress { get; init; }
 
                 /// <summary>
                 ///     Gets a value indicating whether HTTP requests should be redirected to HTTPS.

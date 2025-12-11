@@ -798,6 +798,8 @@ soulseek:
 
 The default HTTP listen port is 5030, but can be anything between 1 and 65535.
 
+The default HTTP IP address is `[::]` which corresponds to any IPv4 or IPv6 IP address; all network interfaces on the host.  Specifying an IP address will cause the application to listen only on the specified network interface.  Multiple IP addresses can be supplied in a comma-separated list, and both IPv4 and IPv6 formats can be supplied.
+
 A [unix domain socket](https://en.wikipedia.org/wiki/Unix_domain_socket) can be used on both unix-like operating systems and Windows. The specified socket file path must be absolute, and must point to a file that does not exist (slskd will manage it automatically).
 
 The URL base option allows the application to operate behind a reverse proxy. Setting a base of "slskd" would make the web UI accessible at `http://<host>:<port>/slskd`.
@@ -806,18 +808,20 @@ The content path can be used to force the application to serve static web conten
 
 Logging of HTTP requests is disabled by default.
 
-| Command-Line      | Environment Variable       | Description                                       |
-| ----------------- | -------------------------- | ------------------------------------------------- |
-| `-l\|--http-port` | `SLSKD_HTTP_PORT`          | The HTTP listen port                              |
-| `--http-socket`   | `SLSKD_HTTP_SOCKET`        | The HTTP listen unix domain socket (UDS) path     |
-| `--url-base`      | `SLSKD_URL_BASE`           | The base url for web requests                     |
-| `--content-path`  | `SLSKD_CONTENT_PATH`       | The path to static web content                    |
-| `--http-logging`  | `SLSKD_HTTP_LOGGING`       | Determines whether HTTP requests are to be logged |
+| Command-Line               | Environment Variable           | Description                                         |
+| -------------------------- | ------------------------------ | --------------------------------------------------- |
+| `-l\|--http-port`          | `SLSKD_HTTP_PORT`              | The HTTP listen port                                |
+| `--http-listen-ip-address` | `SLSKD_HTTP_IP_ADDRESS`        | The IP address on which to listen for HTTP requests |
+| `--http-socket`            | `SLSKD_HTTP_SOCKET`            | The HTTP listen unix domain socket (UDS) path       |
+| `--url-base`               | `SLSKD_URL_BASE`               | The base url for web requests                       |
+| `--content-path`           | `SLSKD_CONTENT_PATH`           | The path to static web content                      |
+| `--http-logging`           | `SLSKD_HTTP_LOGGING`           | Determines whether HTTP requests are to be logged   |
 
 #### **YAML**
 ```yaml
 web:
   port: 5030
+  ip_address: "[::]" // any IPv4 or IPv6 address
   socket: ~
   url_base: /
   content_path: wwwroot
@@ -828,17 +832,20 @@ web:
 
 The default HTTPS port is 5031, but can be anything between 1 and 65535.
 
+The default HTTPS IP address is `[::]` which corresponds to any IPv4 or IPv6 IP address; all network interfaces on the host.  Specifying an IP address will cause the application to listen only on the specified network interface.  Multiple IP addresses can be supplied in a comma-separated list, and both IPv4 and IPv6 formats can be supplied.
+
 By default, the application generates a new, self-signed X509 certificate at each startup. If, for whatever reason, a self-signed certificate isn't sufficient, or if the certificate needs to be shared among systems or applications, a certificate `.pfx` and password can be defined.
 
 The application can produce a self-signed `.pfx` file and random password using the `--generate-cert` command.
 
-| Command-Line            | Environment Variable        | Description                                                    |
-| ----------------------- | --------------------------- | -------------------------------------------------------------- |
-| `-L\|--https-port`      | `SLSKD_HTTPS_PORT`          | The HTTPS listen port                                          |
-| `-f\|--force-https`     | `SLSKD_HTTPS_FORCE`         | Determines whether HTTP requests are to be redirected to HTTPS |
-| `--https-cert-pfx`      | `SLSKD_HTTPS_CERT_PFX`      | The path to the X509 certificate .pfx file                     |
-| `--https-cert-password` | `SLSKD_HTTPS_CERT_PASSWORD` | The password for the X509 certificate                          |
-| `--no-https`            | `SLSKD_NO_HTTPS`            | Determines whether HTTPS is to be disabled                     |
+| Command-Line                | Environment Variable            | Description                                                    |
+| --------------------------- | ------------------------------- | -------------------------------------------------------------- |
+| `-L\|--https-port`          | `SLSKD_HTTPS_PORT`              | The HTTPS listen port                                          |
+| `--https-ip-address`        | `SLSKD_HTTPS_IP_ADDRESS`        | The IP address on which to listen for HTTPS requests           |
+| `-f\|--force-https`         | `SLSKD_HTTPS_FORCE`             | Determines whether HTTP requests are to be redirected to HTTPS |
+| `--https-cert-pfx`          | `SLSKD_HTTPS_CERT_PFX`          | The path to the X509 certificate .pfx file                     |
+| `--https-cert-password`     | `SLSKD_HTTPS_CERT_PASSWORD`     | The password for the X509 certificate                          |
+| `--no-https`                | `SLSKD_NO_HTTPS`                | Determines whether HTTPS is to be disabled                     |
 
 #### **YAML**
 ```yaml
@@ -846,6 +853,7 @@ web:
   https:
     disabled: false
     port: 5031
+    ip_address: "[::]" // any IPv4 or IPv6 address
     force: false
     certificate:
       pfx: ~
