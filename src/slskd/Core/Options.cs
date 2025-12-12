@@ -115,7 +115,7 @@ namespace slskd
         /// <summary>
         ///     Gets a value indicating whether to display a list of configuration environment variables.
         /// </summary>
-        [Argument('e', "envars")]
+        [Argument(default, "envars")]
         [Description("display environment variables")]
         [Obsolete("Used only for documentation; see Program for actual implementation")]
         [JsonIgnore]
@@ -125,7 +125,7 @@ namespace slskd
         /// <summary>
         ///     Gets a value indicating whether to generate an X509 certificate and password.
         /// </summary>
-        [Argument('g', "generate-cert")]
+        [Argument(default, "generate-cert")]
         [Description("generate X509 certificate and password for HTTPS")]
         [Obsolete("Used only for documentation; see Program for actual implementation")]
         [JsonIgnore]
@@ -135,7 +135,7 @@ namespace slskd
         /// <summary>
         ///     Gets a value indicating whether to generate a random secret.
         /// </summary>
-        [Argument('k', "generate-secret")]
+        [Argument(default, "generate-secret")]
         [Description("generate random secret of the specified length")]
         [Obsolete("Used only for documentation; see Program for actual implementation")]
         [JsonIgnore]
