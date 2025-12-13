@@ -1944,6 +1944,8 @@ namespace slskd
                 ///     Gets the primary API key.  Defaults to 'Administrator' role and CIDR '0.0.0.0/0,::/0'.
                 ///     role and CIDR can be supplied by prefixing the key with 'role=[role];cidr=[cidrs];[key]'.
                 /// </summary>
+                [Argument('k', "api-key")]
+                [EnvironmentVariable("API_KEY")]
                 [Description("Administrative API key value")]
                 [Secret]
                 [RequiresRestart]
@@ -1957,7 +1959,6 @@ namespace slskd
 
                 public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
                 {
-                    // TODO: test me!
                     var results = new List<ValidationResult>();
 
                     if (string.IsNullOrWhiteSpace(ApiKey))
@@ -1976,15 +1977,24 @@ namespace slskd
                         {
                             results.Add(new ValidationResult("API key must be between 16 and 255 characters"));
                         }
+
+                        return results;
                     }
 
+                    /*
+                        if multiple tuples are supplied, verify that:
+
+                        * if a tuple starts with 'role=', it's defining a role and it must match one of the Role enum values
+                        * if a tuple starts with 'cidr=', it's defining a list of CIDRs which need to be valid
+                        * if a tuple doesn't start with a prefix, it's the API key itself and it must be between 16 and 255 characters
+                    */
                     foreach (var tuple in tuples)
                     {
                         if (tuple.StartsWith("role=", StringComparison.OrdinalIgnoreCase))
                         {
                             var role = tuple.Split('=').LastOrDefault();
 
-                            if (!Enum.TryParse(typeof(Role), role, out _))
+                            if (!Enum.TryParse(typeof(Role), value: role, ignoreCase: true, out _))
                             {
                                 results.Add(new ValidationResult($"API key role must be one of: {string.Join(", ", Enum.GetNames(typeof(Role)))}"));
                             }
