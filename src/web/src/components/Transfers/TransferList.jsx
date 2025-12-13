@@ -1,4 +1,5 @@
 import { formatBytes, formatBytesAsUnit, getFileName } from '../../lib/util';
+import TransferDetails from './TransferDetails';
 import React, { Component } from 'react';
 import {
   Button,
@@ -6,6 +7,7 @@ import {
   Header,
   Icon,
   List,
+  Popup,
   Progress,
   Table,
 } from 'semantic-ui-react';
@@ -114,6 +116,12 @@ class TransferList extends Component {
                     <Table.HeaderCell className="transferlist-size">
                       Size
                     </Table.HeaderCell>
+                    <Table.HeaderCell className="transferlist-detail">
+                      <Icon
+                        name="info circle"
+                        size="small"
+                      />
+                    </Table.HeaderCell>
                   </Table.Row>
                 </Table.Header>
                 <Table.Body>
@@ -172,10 +180,37 @@ class TransferList extends Component {
                           )}
                         </Table.Cell>
                         <Table.Cell className="transferlist-size">
-                          {formatBytesTransferred({
-                            size: f.size,
-                            transferred: f.bytesTransferred,
-                          })}
+                          <div
+                            style={{
+                              alignItems: 'center',
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                            }}
+                          >
+                            <span>
+                              {formatBytesTransferred({
+                                size: f.size,
+                                transferred: f.bytesTransferred,
+                              })}
+                            </span>
+                          </div>
+                        </Table.Cell>
+                        <Table.Cell className="transferlist-detail">
+                          <Popup
+                            content={<TransferDetails file={f} />}
+                            on="click"
+                            position="left center"
+                            style={{ maxWidth: '600px' }}
+                            trigger={
+                              <Icon
+                                color="grey"
+                                link
+                                name="info circle"
+                                size="small"
+                              />
+                            }
+                            wide="very"
+                          />
                         </Table.Cell>
                       </Table.Row>
                     ))}
