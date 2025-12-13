@@ -45,16 +45,68 @@ namespace slskd
             JwtSigningKey = jwtSigningKey;
             OptionsAtStartup = optionsAtStartup;
             OptionsMonitor = optionsMonitor;
+
+            var adminApiKeyString = OptionsMonitor.CurrentValue.Web.Authentication.ApiKey;
+
+            if (!string.IsNullOrWhiteSpace(adminApiKeyString))
+            {
+                if (!adminApiKeyString.Contains(';'))
+                {
+                    AdministrativeApiKey = new Options.WebOptions.WebAuthenticationOptions.ApiKeyOptions
+                    {
+                        Key = adminApiKeyString,
+                    };
+                }
+
+                var tuples = adminApiKeyString.Split(';');
+
+                string key = null;
+                string role = null;
+                string cidr = null;
+
+                foreach (var tuple in tuples)
+                {
+                    if (tuple.StartsWith("role=", StringComparison.OrdinalIgnoreCase))
+                    {
+                        role = tuple.Split('=').LastOrDefault();
+                    }
+                    else if (tuple.StartsWith("cidr=", StringComparison.OrdinalIgnoreCase))
+                    {
+                        cidr = tuple.Split('=').LastOrDefault();
+                    }
+                    else
+                    {
+                        key = tuple;
+                    }
+                }
+
+                if (!string.IsNullOrEmpty(key))
+                {
+                    AdministrativeApiKey = new Options.WebOptions.WebAuthenticationOptions.ApiKeyOptions
+                    {
+                        Key = key,
+                        Role = role,
+                        Cidr = cidr,
+                    };
+                }
+            }
         }
 
         private SymmetricSecurityKey JwtSigningKey { get; }
         private OptionsAtStartup OptionsAtStartup { get; }
         private IOptionsMonitor<Options> OptionsMonitor { get; }
+        private Options.WebOptions.WebAuthenticationOptions.ApiKeyOptions AdministrativeApiKey { get; } = null;
 
         public (string Name, Role Role) AuthenticateWithApiKey(string key, IPAddress callerIpAddress)
         {
-            var record = OptionsMonitor.CurrentValue.Web.Authentication.ApiKeys
-                .FirstOrDefault(k => k.Value.Key == key);
+            var keys = OptionsMonitor.CurrentValue.Web.Authentication.ApiKeys.AsEnumerable();
+
+            if (AdministrativeApiKey is not null)
+            {
+                keys = keys.Prepend(new KeyValuePair<string, Options.WebOptions.WebAuthenticationOptions.ApiKeyOptions>(nameof(AdministrativeApiKey), AdministrativeApiKey));
+            }
+
+            var record = keys.FirstOrDefault(k => k.Value.Key == key);
 
             if (record.Key == null)
             {
