@@ -1946,7 +1946,7 @@ namespace slskd
                 /// </summary>
                 [Argument('k', "api-key")]
                 [EnvironmentVariable("API_KEY")]
-                [Description("Administrative API key value")]
+                [Description("primary API key value")]
                 [Secret]
                 [RequiresRestart]
                 public string ApiKey { get; init; }
