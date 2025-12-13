@@ -41,7 +41,7 @@ public class SecurityService
         OptionsMonitor = optionsMonitor;
 
         // parse the configured string into an instance of ApiKeyOptions and assign it to
-        // AdministrativeApiKey, if a string is provided.
+        // PrimaryApiKey, if a string is provided.
         // this is kind of expensive in terms of allocations, so do it once at instantiation
         // and mark the option with [RequiresRestart]
         var adminApiKeyString = OptionsMonitor.CurrentValue.Web.Authentication.ApiKey;
@@ -50,7 +50,7 @@ public class SecurityService
         {
             if (!adminApiKeyString.Contains(';'))
             {
-                AdministrativeApiKey = new Options.WebOptions.WebAuthenticationOptions.ApiKeyOptions
+                PrimaryApiKey = new Options.WebOptions.WebAuthenticationOptions.ApiKeyOptions
                 {
                     Key = adminApiKeyString,
                 };
@@ -80,11 +80,11 @@ public class SecurityService
 
             if (!string.IsNullOrEmpty(key))
             {
-                AdministrativeApiKey = new Options.WebOptions.WebAuthenticationOptions.ApiKeyOptions
+                PrimaryApiKey = new Options.WebOptions.WebAuthenticationOptions.ApiKeyOptions
                 {
                     Key = key,
-                    Role = role,
-                    Cidr = cidr,
+                    Role = string.IsNullOrWhiteSpace(role) ? Role.Administrator.ToString() : role,
+                    Cidr = string.IsNullOrWhiteSpace(cidr) ? "0.0.0.0/0,::/0" : cidr,
                 };
             }
         }
@@ -93,15 +93,15 @@ public class SecurityService
     private SymmetricSecurityKey JwtSigningKey { get; }
     private OptionsAtStartup OptionsAtStartup { get; }
     private IOptionsMonitor<Options> OptionsMonitor { get; }
-    private Options.WebOptions.WebAuthenticationOptions.ApiKeyOptions AdministrativeApiKey { get; } = null;
+    private Options.WebOptions.WebAuthenticationOptions.ApiKeyOptions PrimaryApiKey { get; } = null;
 
     public (string Name, Role Role) AuthenticateWithApiKey(string key, IPAddress callerIpAddress)
     {
         var keys = OptionsMonitor.CurrentValue.Web.Authentication.ApiKeys.AsEnumerable();
 
-        if (AdministrativeApiKey is not null)
+        if (PrimaryApiKey is not null)
         {
-            keys = keys.Prepend(new KeyValuePair<string, Options.WebOptions.WebAuthenticationOptions.ApiKeyOptions>(nameof(AdministrativeApiKey), AdministrativeApiKey));
+            keys = keys.Prepend(new KeyValuePair<string, Options.WebOptions.WebAuthenticationOptions.ApiKeyOptions>(nameof(PrimaryApiKey), PrimaryApiKey));
         }
 
         var record = keys.FirstOrDefault(k => k.Value.Key == key);
