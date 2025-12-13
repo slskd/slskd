@@ -768,7 +768,7 @@ namespace slskd
             var jwtSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(OptionsAtStartup.Web.Authentication.Jwt.Key));
 
             services.AddSingleton(jwtSigningKey);
-            services.AddSingleton<ISecurityService, SecurityService>();
+            services.AddSingleton<SecurityService>();
 
             if (!OptionsAtStartup.Web.Authentication.Disabled)
             {
@@ -835,7 +835,7 @@ namespace slskd
                                         try
                                         {
                                             // check to see if the provided value is a valid API key
-                                            var service = services.BuildServiceProvider().GetRequiredService<ISecurityService>();
+                                            var service = services.BuildServiceProvider().GetRequiredService<SecurityService>();
                                             var (name, role) = service.AuthenticateWithApiKey(token, callerIpAddress: context.HttpContext.Connection.RemoteIpAddress);
 
                                             // the API key is valid. create a new, short lived jwt for the key name and role
