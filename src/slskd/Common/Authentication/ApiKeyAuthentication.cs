@@ -88,7 +88,7 @@ namespace slskd.Authentication
             }
             catch (Exception ex)
             {
-                Log.Warning(ex, "Unauthorized: {Message}", ex.Message);
+                Log.Warning("Unauthorized request from IP address {IP}: {Message}", Request.HttpContext.Connection.RemoteIpAddress, ex.Message);
                 return AuthenticateResult.Fail(ex);
             }
         }

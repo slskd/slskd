@@ -115,7 +115,7 @@ public class SecurityService
             .Select(cidr => IPAddressRange.Parse(cidr))
             .Any(range => range.Contains(callerIpAddress)))
         {
-            throw new OutOfRangeException($"IP Address {callerIpAddress} not included in CIDR(s) for API key {record.Key}: {record.Value.Cidr}");
+            throw new OutOfRangeException($"IP address {callerIpAddress} not included in CIDR range(s) for API key {record.Key}; allowed: {record.Value.Cidr}");
         }
 
         return (record.Key, record.Value.Role.ToEnum<Role>());
