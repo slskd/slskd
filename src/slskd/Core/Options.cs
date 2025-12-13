@@ -1903,7 +1903,7 @@ namespace slskd
             /// <summary>
             ///     Authentication options.
             /// </summary>
-            public class WebAuthenticationOptions
+            public class WebAuthenticationOptions : IValidatableObject
             {
                 /// <summary>
                 ///     Gets a value indicating whether authentication should be disabled.
@@ -1941,10 +1941,77 @@ namespace slskd
                 public JwtOptions Jwt { get; init; } = new JwtOptions();
 
                 /// <summary>
+                ///     Gets the primary API key.  Defaults to 'Administrator' role and CIDR '0.0.0.0/0,::/0'.
+                ///     role and CIDR can be supplied by prefixing the key with 'role=[role];cidr=[cidrs];[key]'.
+                /// </summary>
+                [Description("Administrative API key value")]
+                [Secret]
+                [RequiresRestart]
+                public string ApiKey { get; init; }
+
+                /// <summary>
                 ///     Gets API keys.
                 /// </summary>
                 [Validate]
                 public Dictionary<string, ApiKeyOptions> ApiKeys { get; init; } = new Dictionary<string, ApiKeyOptions>();
+
+                public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+                {
+                    var results = new List<ValidationResult>();
+
+                    if (string.IsNullOrWhiteSpace(ApiKey))
+                    {
+                        return results;
+                    }
+
+                    var tuples = ApiKey.Split(';');
+
+                    // if only one tuple is supplied, it's just the key, no role or list of CIDRs
+                    if (tuples.Length == 1)
+                    {
+                        var key = tuples.FirstOrDefault();
+
+                        if (key?.Length < 16 || key?.Length > 255)
+                        {
+                            results.Add(new ValidationResult("API key must be between 16 and 255 characters"));
+                        }
+                    }
+
+                    foreach (var tuple in tuples)
+                    {
+                        if (tuple.StartsWith("role=", StringComparison.OrdinalIgnoreCase))
+                        {
+                            var role = tuple.Split('=').LastOrDefault();
+
+                            if (!Enum.TryParse(typeof(Role), role, out _))
+                            {
+                                results.Add(new ValidationResult($"API key role must be one of: {string.Join(", ", Enum.GetNames(typeof(Role)))}"));
+                            }
+                        }
+                        else if (tuple.StartsWith("cidr=", StringComparison.OrdinalIgnoreCase))
+                        {
+                            var cidrs = tuple.Split('=').LastOrDefault();
+
+                            foreach (var cidr in cidrs.Split(','))
+                            {
+                                try
+                                {
+                                    _ = IPAddressRange.Parse(cidr);
+                                }
+                                catch (Exception ex)
+                                {
+                                    results.Add(new ValidationResult($"API key CIDR {cidr} is invalid: {ex.Message}"));
+                                }
+                            }
+                        }
+                        else if (tuple?.Length < 16 || tuple?.Length > 255)
+                        {
+                            results.Add(new ValidationResult("API key must be between 16 and 255 characters"));
+                        }
+                    }
+
+                    return results;
+                }
 
                 /// <summary>
                 ///     JWT options.
