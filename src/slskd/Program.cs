@@ -23,8 +23,6 @@ namespace slskd
     using System.Collections.Generic;
     using System.ComponentModel;
     using System.ComponentModel.DataAnnotations;
-    using System.Diagnostics;
-
     using System.IO;
     using System.Linq;
     using System.Net;
@@ -337,10 +335,9 @@ namespace slskd
             // only one long-running instance.
             try
             {
-                bool createdNew;
-                Mutex = new Mutex(initiallyOwned: true, Compute.Sha256Hash(AppName), out createdNew);
+                Mutex = new Mutex(initiallyOwned: true, Compute.Sha256Hash(AppName), out bool created);
 
-                if (!createdNew)
+                if (!created)
                 {
                     Log.Fatal($"An instance of {AppName} is already running");
                     return;
@@ -348,22 +345,18 @@ namespace slskd
             }
             catch (IOException ex)
             {
-                Log.Warning($"Failed to acquire the application singleton mutex: {ex.Message}");
-                Log.Warning("This can happen when running in a restricted environment (e.g., Kubernetes with readOnlyRootFilesystem)");
-                Log.Warning("The application will continue, but multiple instances may be able to run simultaneously");
+                Log.Fatal($"I/O exception attempting to acquire the application singleton mutex; this can happen when running in a restricted environment (such as a read-only filesystem or container). Exception: {ex.Message}");
+                return;
             }
             catch (UnauthorizedAccessException ex)
             {
-                Log.Warning($"Failed to acquire the application singleton mutex: {ex.Message}");
-                Log.Warning("This can happen when running with insufficient permissions");
-                Log.Warning("The application will continue, but multiple instances may be able to run simultaneously");
+                Log.Fatal($"Unauthorized access attempting to acquire the application singleton mutex; this can happen when running with insuffucent permissions. Exception: {ex.Message}");
+                return;
             }
-            catch (AbandonedMutexException ex)
+            catch (Exception ex)
             {
-                Log.Warning($"Acquired an abandoned mutex: {ex.Message}");
-                Log.Warning("A previous instance may have terminated unexpectedly");
-
-                // The mutex is now owned by this thread, so we can continue
+                Log.Fatal($"Failed to acquire the application singleton mutex: {ex.Message}");
+                return;
             }
 
             // derive the application directory value and defaults that are dependent upon it
