@@ -1,4 +1,4 @@
-// <copyright file="PrometheusMetric.cs" company="slskd Team">
+// <copyright file="TransferExceptionDetail.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -17,22 +17,23 @@
 
 namespace slskd.Telemetry;
 
-using System.Collections.Generic;
+using System;
+using Soulseek;
 
-public class PrometheusMetric
+public record TransferExceptionDetail
 {
-    public string Name { get; set; }
-    public string Help { get; set; }
-    public string Type { get; set; }
-    public double? Sum { get; set; }
-    public double? Count { get; set; }
-    public List<PrometheusMetricSample> Samples { get; set; }
-    public Dictionary<string, PrometheusMetricSample> Buckets { get; set; }
-    public Dictionary<string, double> Quantiles { get; set; }
-}
-
-public class PrometheusMetricSample
-{
-    public double? Value { get; set; }
-    public Dictionary<string, string> Labels { get; set; }
+    public string Id { get; init; }
+    public string Username { get; init; }
+    public TransferDirection Direction { get; init; }
+    public string Filename { get; init; }
+    public long Size { get; set; }
+    public long StartOffset { get; init; }
+    public TransferStates State { get; set; } = TransferStates.None;
+    public DateTime RequestedAt { get; set; }
+    public DateTime? EnqueuedAt { get; set; }
+    public DateTime? StartedAt { get; set; }
+    public DateTime? EndedAt { get; set; }
+    public long BytesTransferred { get; set; }
+    public double AverageSpeed { get; set; }
+    public string Exception { get; set; }
 }
