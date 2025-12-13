@@ -40,6 +40,7 @@ namespace slskd
     using Microsoft.AspNetCore.Diagnostics;
     using Microsoft.AspNetCore.Hosting;
     using Microsoft.AspNetCore.Http;
+    using Microsoft.AspNetCore.Server.Kestrel.Core;
     using Microsoft.EntityFrameworkCore;
     using Microsoft.Extensions.Configuration;
     using Microsoft.Extensions.DependencyInjection;
@@ -68,6 +69,7 @@ namespace slskd
     using slskd.Search;
     using slskd.Search.API;
     using slskd.Shares;
+    using slskd.Telemetry;
     using slskd.Transfers;
     using slskd.Transfers.Downloads;
     using slskd.Transfers.Uploads;
@@ -87,6 +89,11 @@ namespace slskd
         ///     The name of the application.
         /// </summary>
         public static readonly string AppName = "slskd";
+
+        /// <summary>
+        ///     The DateTime of the 'genesis' of the application (the initial commit).
+        /// </summary>
+        public static readonly DateTime GenesisDateTime = new(2020, 12, 30, 6, 22, 0, DateTimeKind.Utc);
 
         /// <summary>
         ///     The name of the local share host.
@@ -492,19 +499,39 @@ namespace slskd
                     .UseUrls()
                     .UseKestrel(options =>
                     {
-                        Log.Information($"Listening for HTTP requests at http://{IPAddress.Any}:{OptionsAtStartup.Web.Port}/");
-                        options.Listen(IPAddress.Any, OptionsAtStartup.Web.Port);
+                        // configure HTTP, either by listening at any IP or by each of the IPs provided in the
+                        // config (note: they've already been validated at this point!)
+                        if (string.IsNullOrWhiteSpace(OptionsAtStartup.Web.IpAddress))
+                        {
+                            Log.Information("Listening for HTTP requests at http://{IP}:{Port}/", IPAddress.IPv6Any, OptionsAtStartup.Web.Port);
+                            options.Listen(IPAddress.IPv6Any, OptionsAtStartup.Web.Port); // [::]; any IPv4 or IPv6 address
+                        }
+                        else
+                        {
+                            var httpIps = OptionsAtStartup.Web.IpAddress
+                                .Split(',')
+                                .Select(ip => ip.Trim())
+                                .Select(ip => IPAddress.Parse(ip));
 
+                            foreach (var ip in httpIps)
+                            {
+                                Log.Information("Listening for HTTP requests at http://{IP}:{Port}/", ip, OptionsAtStartup.Web.Port);
+                                options.Listen(ip, OptionsAtStartup.Web.Port);
+                            }
+                        }
+
+                        // configure UDS, if supplied
                         if (OptionsAtStartup.Web.Socket != null)
                         {
                             Log.Information($"Listening for HTTP requests on unix domain socket (UDS) {OptionsAtStartup.Web.Socket}");
                             options.ListenUnixSocket(OptionsAtStartup.Web.Socket);
                         }
 
-                        if (!OptionsAtStartup.Web.Https.Disabled)
+                        // configure HTTPS, again listening on any IP or on a list of supplied IPs
+                        // use a local function because Microsoft can't get enough of the obtuse builder pattern
+                        static void ListenHttps(KestrelServerOptions o, IPAddress ip)
                         {
-                            Log.Information($"Listening for HTTPS requests at https://{IPAddress.Any}:{OptionsAtStartup.Web.Https.Port}/");
-                            options.Listen(IPAddress.Any, OptionsAtStartup.Web.Https.Port, listenOptions =>
+                            o.Listen(ip, OptionsAtStartup.Web.Https.Port, listenOptions =>
                             {
                                 var cert = OptionsAtStartup.Web.Https.Certificate;
 
@@ -519,6 +546,28 @@ namespace slskd
                                     listenOptions.UseHttps(X509.Generate(subject: AppName));
                                 }
                             });
+                        }
+
+                        if (!OptionsAtStartup.Web.Https.Disabled)
+                        {
+                            if (string.IsNullOrWhiteSpace(OptionsAtStartup.Web.Https.IpAddress))
+                            {
+                                Log.Information("Listening for HTTPS requests at https://{IP}:{Port}/", IPAddress.IPv6Any, OptionsAtStartup.Web.Https.Port);
+                                ListenHttps(options, IPAddress.IPv6Any);
+                            }
+                            else
+                            {
+                                var httpsIps = OptionsAtStartup.Web.Https.IpAddress
+                                    .Split(',')
+                                    .Select(ip => ip.Trim())
+                                    .Select(ip => IPAddress.Parse(ip));
+
+                                foreach (var ip in httpsIps)
+                                {
+                                    Log.Information("Listening for HTTPS requests at https://{IP}:{Port}/", ip, OptionsAtStartup.Web.Https.Port);
+                                    ListenHttps(options, ip);
+                                }
+                            }
                         }
                     });
 
@@ -666,8 +715,9 @@ namespace slskd
             services.AddSingleton<EventService>();
             services.AddSingleton<EventBus>();
 
-            services.AddSingleton<TelemetryService>();
             services.AddSingleton<PrometheusService>();
+            services.AddSingleton<ReportsService>();
+            services.AddSingleton<TelemetryService>();
 
             services.AddSingleton<ScriptService>();
             services.AddSingleton<WebhookService>();
@@ -747,7 +797,7 @@ namespace slskd
             var jwtSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(OptionsAtStartup.Web.Authentication.Jwt.Key));
 
             services.AddSingleton(jwtSigningKey);
-            services.AddSingleton<ISecurityService, SecurityService>();
+            services.AddSingleton<SecurityService>();
 
             if (!OptionsAtStartup.Web.Authentication.Disabled)
             {
@@ -814,7 +864,7 @@ namespace slskd
                                         try
                                         {
                                             // check to see if the provided value is a valid API key
-                                            var service = services.BuildServiceProvider().GetRequiredService<ISecurityService>();
+                                            var service = services.BuildServiceProvider().GetRequiredService<SecurityService>();
                                             var (name, role) = service.AuthenticateWithApiKey(token, callerIpAddress: context.HttpContext.Connection.RemoteIpAddress);
 
                                             // the API key is valid. create a new, short lived jwt for the key name and role
@@ -929,6 +979,9 @@ namespace slskd
                             Url = new Uri("https://github.com/slskd/slskd/blob/master/LICENSE"),
                         },
                     });
+
+                    // allow endpoints marked with multiple content types in [Produces] to generate properly
+                    options.OperationFilter<ContentNegotiationOperationFilter>();
 
                     if (IOFile.Exists(XmlDocumentationFile))
                     {

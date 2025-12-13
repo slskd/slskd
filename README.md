@@ -1,9 +1,17 @@
-> [!IMPORTANT]
-> **Issues, Pull Requests, Discussions, And Comments Are Temporarily Disabled Until 1/5/26**
+> [!WARNING]
+> This is the only official repository for slskd.
 >
-> The maintainers need some quiet time to enjoy the holidays, work through old and stale issues and PRs, and establish better contribution guidelines.
+> Official releases are published via:
+> * Build artifacts from the [GitHub Actions](github.com/slskd/slskd/actions) of this repository
+> * Platform-specific archives located in [Releases](https://github.com/slskd/slskd/releases/)
+> * Docker images published to [Docker Hub](https://hub.docker.com/r/slskd/slskd) and [GitHub Container Registry](https://github.com/slskd/slskd/pkgs/container/slskd)
 >
-> In the meantime, enjoy the free software.  Or don't.
+> The name associated with official releases is `slskd`. Any change to this will be clearly communicated here.
+>
+> If you encounter binaries with different names claiming to be slskd or an alternative, they are not affiliated with this project.
+> 
+> Be cautious of unaffiliated forks that automatically mirror this repository and re-release binaries under different names. These forks are not reviewed, endorsed, or supported by the slskd maintainers, and may introduce changes that compromise security, privacy, or network integrity.
+> As with any software, verify the source of binaries before running them. Supply chain attacks via unofficial forks are a real risk—if you didn't get it from this repository, you can't be certain what you're running.
 
 # slskd
 
@@ -104,3 +112,6 @@ An application directory will be created in either `~/.local/share/slskd` (on Li
 Once running, log in to the web UI using the default username `slskd` and password `slskd` to complete the configuration.
 
 Detailed documentation for configuration options can be found [here](https://github.com/slskd/slskd/blob/master/docs/config.md), and an example of the YAML configuration file can be reviewed [here](https://github.com/slskd/slskd/blob/master/config/slskd.example.yml).
+
+## Reverse Proxy
+SLSKD may require extra configuration when running it behind a reverse proxy. Refer [here](https://github.com/slskd/slskd/blob/master/docs/reverse_proxy.md) for a short guide.

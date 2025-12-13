@@ -43,6 +43,11 @@
   min-width: 150px;
 }
 
+.transferlist-detail {
+  width: 5px;
+  min-width: 5px;
+}
+
 .transferlist-filename {
   word-wrap: break-word !important;
 }
