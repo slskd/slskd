@@ -46,6 +46,10 @@ namespace slskd
             OptionsAtStartup = optionsAtStartup;
             OptionsMonitor = optionsMonitor;
 
+            // parse the configured string into an instance of ApiKeyOptions and assign it to
+            // AdministrativeApiKey, if a string is provided.
+            // this is kind of expensive in terms of allocations, so do it once at instantiation
+            // and mark the option with [RequiresRestart]
             var adminApiKeyString = OptionsMonitor.CurrentValue.Web.Authentication.ApiKey;
 
             if (!string.IsNullOrWhiteSpace(adminApiKeyString))
@@ -101,6 +105,7 @@ namespace slskd
         {
             var keys = OptionsMonitor.CurrentValue.Web.Authentication.ApiKeys.AsEnumerable();
 
+            // TODO: test me!
             if (AdministrativeApiKey is not null)
             {
                 keys = keys.Prepend(new KeyValuePair<string, Options.WebOptions.WebAuthenticationOptions.ApiKeyOptions>(nameof(AdministrativeApiKey), AdministrativeApiKey));

@@ -1957,6 +1957,7 @@ namespace slskd
 
                 public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
                 {
+                    // TODO: test me!
                     var results = new List<ValidationResult>();
 
                     if (string.IsNullOrWhiteSpace(ApiKey))
