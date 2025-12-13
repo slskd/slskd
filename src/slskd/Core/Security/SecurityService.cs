@@ -27,7 +27,6 @@ using System.Net;
 using System.Security.Claims;
 using Microsoft.IdentityModel.Tokens;
 using NetTools;
-using Serilog;
 using slskd.Authentication;
 
 public class SecurityService
@@ -91,7 +90,6 @@ public class SecurityService
         }
     }
 
-    private ILogger Log { get; } = Serilog.Log.ForContext<SecurityService>();
     private SymmetricSecurityKey JwtSigningKey { get; }
     private OptionsAtStartup OptionsAtStartup { get; }
     private IOptionsMonitor<Options> OptionsMonitor { get; }
@@ -110,16 +108,14 @@ public class SecurityService
 
         if (record.Key == null)
         {
-            Log.Warning("Unauthorized access attempt: unknown API key beginning with {FirstFourCharacters}", key.Substring(0, 4));
-            throw new NotFoundException($"The provided API key does not match an existing key");
+            throw new NotFoundException($"Unknown API key beginning with: {key.Substring(0, 4)}");
         }
 
         if (!record.Value.Cidr.Split(',')
             .Select(cidr => IPAddressRange.Parse(cidr))
             .Any(range => range.Contains(callerIpAddress)))
         {
-            Log.Warning("Unauthorized access attempt: IP Address {IP} not included in CIDR(s) for API key {Name}: {CIDR}", callerIpAddress, record.Key, record.Value.Cidr);
-            throw new OutOfRangeException("The remote IP address is not within the range specified for the key");
+            throw new OutOfRangeException($"IP Address {callerIpAddress} not included in CIDR(s) for API key {record.Key}: {record.Value.Cidr}");
         }
 
         return (record.Key, record.Value.Role.ToEnum<Role>());
