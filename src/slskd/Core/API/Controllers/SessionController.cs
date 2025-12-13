@@ -36,7 +36,7 @@ namespace slskd.Core.API
     public class SessionController : ControllerBase
     {
         public SessionController(
-            ISecurityService securityService,
+            SecurityService securityService,
             IOptionsSnapshot<Options> optionsSnapshot,
             OptionsAtStartup optionsAtStartup)
         {
@@ -47,7 +47,7 @@ namespace slskd.Core.API
 
         private IOptionsSnapshot<Options> OptionsSnapshot { get; set; }
         private OptionsAtStartup OptionsAtStartup { get; set; }
-        private ISecurityService Security { get; }
+        private SecurityService Security { get; }
         private ILogger Log { get; } = Serilog.Log.ForContext<SessionController>();
 
         /// <summary>
