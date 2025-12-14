@@ -242,7 +242,7 @@ namespace slskd
         private static IConfigurationRoot Configuration { get; set; }
         private static OptionsAtStartup OptionsAtStartup { get; } = new OptionsAtStartup();
         private static ILogger Log { get; set; } = new ConsoleWriteLineLogger();
-        private static Mutex Mutex { get; } = new Mutex(initiallyOwned: true, Compute.Sha256Hash(AppName));
+        private static Mutex Mutex { get; set; }
         private static IDisposable DotNetRuntimeStats { get; set; }
 
         [Argument('g', "generate-cert", "generate X509 certificate and password for HTTPs")]
@@ -340,9 +340,29 @@ namespace slskd
 
             // the application isn't being run in command mode. check the mutex to ensure
             // only one long-running instance.
-            if (!Mutex.WaitOne(millisecondsTimeout: 0, exitContext: false))
+            try
             {
-                Log.Fatal($"An instance of {AppName} is already running");
+                Mutex = new Mutex(initiallyOwned: true, Compute.Sha256Hash(AppName), out bool created);
+
+                if (!created)
+                {
+                    Log.Fatal($"An instance of {AppName} is already running");
+                    return;
+                }
+            }
+            catch (IOException ex)
+            {
+                Log.Fatal($"I/O exception attempting to acquire the application singleton mutex; this can happen when running in a restricted environment (such as a read-only filesystem or container). Exception: {ex.Message}");
+                return;
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                Log.Fatal($"Unauthorized access attempting to acquire the application singleton mutex; this can happen when running with insuffucent permissions. Exception: {ex.Message}");
+                return;
+            }
+            catch (Exception ex)
+            {
+                Log.Fatal($"Failed to acquire the application singleton mutex: {ex.Message}");
                 return;
             }
 
@@ -587,6 +607,15 @@ namespace slskd
             }
             finally
             {
+                try
+                {
+                    Mutex?.Dispose();
+                }
+                catch (Exception)
+                {
+                    // Ignore disposal errors to prevent masking other exceptions
+                }
+
                 Serilog.Log.CloseAndFlush();
             }
         }
