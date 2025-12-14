@@ -49,6 +49,7 @@ export const ignoreUser = async (username) => {
         const key = YAML.CST.resolveAsScalar(item.key);
         return key?.value === 'groups';
       }
+
       return false;
     });
 
@@ -57,6 +58,7 @@ export const ignoreUser = async (username) => {
         const key = YAML.CST.resolveAsScalar(item.key);
         return key?.value === 'blacklisted';
       }
+
       return false;
     });
 
@@ -65,6 +67,7 @@ export const ignoreUser = async (username) => {
         const key = YAML.CST.resolveAsScalar(item.key);
         return key?.value === 'members';
       }
+
       return false;
     });
 
@@ -82,6 +85,7 @@ export const ignoreUser = async (username) => {
         const resolved = YAML.CST.resolveAsScalar(seqItem.value);
         return resolved?.value === username;
       }
+
       return false;
     });
 
