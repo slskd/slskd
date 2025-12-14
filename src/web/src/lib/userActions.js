@@ -86,12 +86,13 @@ export const ignoreUser = async (username) => {
             if (!lastItem.value.end) {
               lastItem.value.end = [];
             }
+
             if (!lastItem.value.end.some((t) => t.type === 'newline')) {
               lastItem.value.end.push({
-                type: 'newline',
-                offset: -1,
                 indent: indent + 2,
+                offset: -1,
                 source: '\n',
+                type: 'newline',
               });
             }
           }
@@ -100,22 +101,22 @@ export const ignoreUser = async (username) => {
           items.push({
             start: [
               { indent: 0, offset: -1, source: spaces, type: 'space' },
-              { indent: indent, offset: -1, source: '-', type: 'seq-item-ind' },
+              { indent, offset: -1, source: '-', type: 'seq-item-ind' },
               { indent: indent + 1, offset: -1, source: ' ', type: 'space' },
             ],
             value: {
+              end: [
+                {
+                  indent: indent + 2,
+                  offset: -1,
+                  source: '\n',
+                  type: 'newline',
+                },
+              ],
               indent: indent + 2,
               offset: -1,
               source: username,
               type: 'scalar',
-              end: [
-                {
-                  type: 'newline',
-                  offset: -1,
-                  indent: indent + 2,
-                  source: '\n',
-                },
-              ],
             },
           });
 
