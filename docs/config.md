@@ -923,7 +923,7 @@ web:
 
 ## Theming
 
-Custom themes are applied by adding CSS stylesheet to the statically served files. After build these are located in `wwwroot/theme.css` or `src/web/public/theme.css` before build. Docker users can mount their theme file directly into `wwwroot/theme.css`.
+Custom themes are applied by adding CSS stylesheet to the statically served files. After build these are located in `wwwroot/theme.css` or `src/web/public/theme.css` before build. Docker users can mount their theme file directly into `/slskd/wwwroot/theme.css`.
 
 ### Included Themes
 
