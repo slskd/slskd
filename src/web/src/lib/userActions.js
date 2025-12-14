@@ -44,105 +44,106 @@ export const ignoreUser = async (username) => {
       return false;
     }
 
-    let membersFound = false;
-    let userAdded = false;
-
-    YAML.CST.visit(cstDocument, (item) => {
+    const groupsPair = cstDocument.value.items?.find((item) => {
       if (item.key && YAML.CST.isScalar(item.key)) {
-        const keyResolved = YAML.CST.resolveAsScalar(item.key);
-
-        if (keyResolved?.value === 'members' && item.value?.items) {
-          membersFound = true;
-          const items = item.value.items;
-          const existingUser = items.some((seqItem) => {
-            if (seqItem.value && YAML.CST.isScalar(seqItem.value)) {
-              const resolved = YAML.CST.resolveAsScalar(seqItem.value);
-              return resolved?.value === username;
-            }
-
-            return false;
-          });
-
-          if (existingUser) {
-            toast.info(`User '${username}' is already in the blacklist.`);
-            return YAML.CST.visit.BREAK;
-          }
-
-          const lastItem = items[items.length - 1];
-
-          let indent = 6;
-          let spaces = '      ';
-
-          if (lastItem?.start) {
-            const spaceToken = lastItem.start.find((t) => t.type === 'space');
-            if (spaceToken) {
-              spaces = spaceToken.source;
-              indent = spaceToken.source.length - 2;
-            }
-          }
-
-          // Add newline to the end of the last item if it doesn't have one
-          if (lastItem.value) {
-            if (!lastItem.value.end) {
-              lastItem.value.end = [];
-            }
-
-            if (!lastItem.value.end.some((t) => t.type === 'newline')) {
-              lastItem.value.end.push({
-                indent: indent + 2,
-                offset: -1,
-                source: '\n',
-                type: 'newline',
-              });
-            }
-          }
-
-          // Add new user entry
-          items.push({
-            start: [
-              { indent: 0, offset: -1, source: spaces, type: 'space' },
-              { indent, offset: -1, source: '-', type: 'seq-item-ind' },
-              { indent: indent + 1, offset: -1, source: ' ', type: 'space' },
-            ],
-            value: {
-              end: [
-                {
-                  indent: indent + 2,
-                  offset: -1,
-                  source: '\n',
-                  type: 'newline',
-                },
-              ],
-              indent: indent + 2,
-              offset: -1,
-              source: username,
-              type: 'scalar',
-            },
-          });
-
-          userAdded = true;
-          return YAML.CST.visit.BREAK;
-        }
+        const key = YAML.CST.resolveAsScalar(item.key);
+        return key?.value === 'groups';
       }
-
-      return undefined;
+      return false;
     });
 
-    if (!membersFound) {
+    const blacklistedPair = groupsPair?.value?.items?.find((item) => {
+      if (item.key && YAML.CST.isScalar(item.key)) {
+        const key = YAML.CST.resolveAsScalar(item.key);
+        return key?.value === 'blacklisted';
+      }
+      return false;
+    });
+
+    const membersPair = blacklistedPair?.value?.items?.find((item) => {
+      if (item.key && YAML.CST.isScalar(item.key)) {
+        const key = YAML.CST.resolveAsScalar(item.key);
+        return key?.value === 'members';
+      }
+      return false;
+    });
+
+    if (!membersPair?.value?.items) {
       toast.error(
         'Could not find groups.blacklisted.members in YAML configuration. Please add the structure manually first.',
       );
       return false;
     }
 
-    const newYamlText = YAML.CST.stringify(cstDocument);
-    if (userAdded) {
-      await optionsApi.updateYaml({ yaml: newYamlText });
-      toast.success(`User '${username}' added to blacklist.`);
-      return true;
-    } else {
+    const items = membersPair.value.items;
+
+    const existingUser = items.some((seqItem) => {
+      if (seqItem.value && YAML.CST.isScalar(seqItem.value)) {
+        const resolved = YAML.CST.resolveAsScalar(seqItem.value);
+        return resolved?.value === username;
+      }
+      return false;
+    });
+
+    if (existingUser) {
+      toast.info(`User '${username}' is already in the blacklist.`);
       return false;
     }
+
+    const lastItem = items[items.length - 1];
+
+    let indent = 6;
+    let spaces = '      ';
+
+    if (lastItem?.start) {
+      const spaceToken = lastItem.start.find((t) => t.type === 'space');
+      if (spaceToken) {
+        spaces = spaceToken.source;
+        indent = spaceToken.source.length - 2;
+      }
+    }
+
+    if (lastItem.value) {
+      if (!lastItem.value.end) {
+        lastItem.value.end = [];
+      }
+
+      if (!lastItem.value.end.some((t) => t.type === 'newline')) {
+        lastItem.value.end.push({
+          indent: indent + 2,
+          offset: -1,
+          source: '\n',
+          type: 'newline',
+        });
+      }
+    }
+
+    items.push({
+      start: [
+        { indent: 0, offset: -1, source: spaces, type: 'space' },
+        { indent, offset: -1, source: '-', type: 'seq-item-ind' },
+        { indent: indent + 1, offset: -1, source: ' ', type: 'space' },
+      ],
+      value: {
+        end: [
+          {
+            indent: indent + 2,
+            offset: -1,
+            source: '\n',
+            type: 'newline',
+          },
+        ],
+        indent: indent + 2,
+        offset: -1,
+        source: username,
+        type: 'scalar',
+      },
+    });
+
+    const newYamlText = YAML.CST.stringify(cstDocument);
+    await optionsApi.updateYaml({ yaml: newYamlText });
+    toast.success(`User '${username}' added to blacklist.`);
+    return true;
   } catch (error) {
     toast.error('Failed to ignore user: ' + error);
     console.error('Error ignoring user:', error);
