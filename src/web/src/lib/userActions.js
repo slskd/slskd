@@ -81,7 +81,6 @@ export const ignoreUser = async (username) => {
 
           items.push({
             start: [
-              { indent: 0, offset: -1, source: '\n', type: 'newline' },
               { indent: 0, offset: -1, source: spaces, type: 'space' },
               { indent: 0, offset: -1, source: '-', type: 'seq-item-ind' },
               { indent: 0, offset: -1, source: ' ', type: 'space' },
