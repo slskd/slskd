@@ -159,52 +159,5 @@ namespace slskd.Core.API
             Log.Information("Loopback POST: {Body}", body);
             return Ok();
         }
-
-        /// <summary>
-        ///     Gets custom CSS content if configured.
-        /// </summary>
-        /// <returns></returns>
-        [HttpGet("theme")]
-        [AllowAnonymous]
-        [Produces("text/css")]
-        public IActionResult GetCustomCss()
-        {
-            var customCssPath = OptionsMonitor.CurrentValue.Web.CustomCssPath;
-
-            if (string.IsNullOrWhiteSpace(customCssPath))
-            {
-                return Content(string.Empty, "text/css");
-            }
-
-            try
-            {
-                if (!System.IO.File.Exists(customCssPath))
-                {
-                    Log.Warning("Custom CSS file not found: {Path}", customCssPath);
-                    return Content(string.Empty, "text/css");
-                }
-
-                var fileInfo = new System.IO.FileInfo(customCssPath);
-                var etag = $"\"{fileInfo.LastWriteTimeUtc.Ticks}\"";
-
-                if (Request.Headers.IfNoneMatch == etag)
-                {
-                    return StatusCode(304);
-                }
-
-                var css = System.IO.File.ReadAllText(customCssPath);
-
-                Response.Headers.ETag = etag;
-                Response.Headers.CacheControl = "public, max-age=31536000"; // 1 year
-                Response.Headers.LastModified = fileInfo.LastWriteTimeUtc.ToString("R");
-
-                return Content(css, "text/css");
-            }
-            catch (Exception ex)
-            {
-                Log.Warning(ex, "Failed to read custom CSS file: {Path}", customCssPath);
-                return Content(string.Empty, "text/css");
-            }
-        }
     }
 }

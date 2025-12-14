@@ -923,11 +923,7 @@ web:
 
 ## Theming
 
-Custom themes are applied by specifying the path to a CSS file in the application configuration.
-
-| Command-Line | Environment Variable | Description |
-| ------------ | -------------------- | ----------- |
-| `--custom-css-path` | `SLSKD_CUSTOM_CSS_PATH` | The path to a custom CSS file for theme customization |
+Custom themes are applied by adding CSS stylesheet to the statically served files. After build these are located in `wwwroot/theme.css` or `src/web/public/theme.css` before build. Docker users can mount their theme file directly into `wwwroot/theme.css`.
 
 ### Included Themes
 
