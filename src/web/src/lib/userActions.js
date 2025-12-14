@@ -44,6 +44,7 @@ export const ignoreUser = async (username) => {
       return false;
     }
 
+    let membersFound = false;
     let userAdded = false;
 
     YAML.CST.visit(cstDocument, (item) => {
@@ -51,6 +52,7 @@ export const ignoreUser = async (username) => {
         const keyResolved = YAML.CST.resolveAsScalar(item.key);
 
         if (keyResolved?.value === 'members' && item.value?.items) {
+          membersFound = true;
           const items = item.value.items;
           const existingUser = items.some((seqItem) => {
             if (seqItem.value && YAML.CST.isScalar(seqItem.value)) {
@@ -96,7 +98,7 @@ export const ignoreUser = async (username) => {
       return undefined;
     });
 
-    if (!userAdded) {
+    if (!membersFound) {
       toast.error(
         'Could not find groups.blacklisted.members in YAML configuration. Please add the structure manually first.',
       );
@@ -104,9 +106,13 @@ export const ignoreUser = async (username) => {
     }
 
     const newYamlText = YAML.CST.stringify(cstDocument);
-    await optionsApi.updateYaml({ yaml: newYamlText });
-    toast.success(`User '${username}' added to blacklist.`);
-    return true;
+    if (userAdded) {
+      await optionsApi.updateYaml({ yaml: newYamlText });
+      toast.success(`User '${username}' added to blacklist.`);
+      return true;
+    } else {
+      return false;
+    }
   } catch (error) {
     toast.error('Failed to ignore user: ' + error);
     console.error('Error ignoring user:', error);
