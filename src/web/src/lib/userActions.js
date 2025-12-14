@@ -81,13 +81,42 @@ export const ignoreUser = async (username) => {
             }
           }
 
+          // Add newline to the end of the last item if it doesn't have one
+          if (lastItem.value) {
+            if (!lastItem.value.end) {
+              lastItem.value.end = [];
+            }
+            if (!lastItem.value.end.some((t) => t.type === 'newline')) {
+              lastItem.value.end.push({
+                type: 'newline',
+                offset: -1,
+                indent: indent + 2,
+                source: '\n',
+              });
+            }
+          }
+
+          // Add new user entry
           items.push({
             start: [
               { indent: 0, offset: -1, source: spaces, type: 'space' },
-              { indent: 0, offset: -1, source: '-', type: 'seq-item-ind' },
-              { indent: 0, offset: -1, source: ' ', type: 'space' },
+              { indent: indent, offset: -1, source: '-', type: 'seq-item-ind' },
+              { indent: indent + 1, offset: -1, source: ' ', type: 'space' },
             ],
-            value: { indent, offset: -1, source: username, type: 'scalar' },
+            value: {
+              indent: indent + 2,
+              offset: -1,
+              source: username,
+              type: 'scalar',
+              end: [
+                {
+                  type: 'newline',
+                  offset: -1,
+                  indent: indent + 2,
+                  source: '\n',
+                },
+              ],
+            },
           });
 
           userAdded = true;
