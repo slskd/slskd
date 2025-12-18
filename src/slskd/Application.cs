@@ -40,7 +40,6 @@ namespace slskd
     using Serilog.Events;
     using slskd.Configuration;
     using slskd.Core.API;
-    using slskd.Events;
     using slskd.Files;
     using slskd.Integrations.Pushbullet;
     using slskd.Messaging;
@@ -82,6 +81,12 @@ namespace slskd
         public const string BlacklistedGroup = "blacklisted";
 
         private static readonly string ApplicationShutdownTransferExceptionMessage = "Application shut down";
+
+#pragma warning disable SA1306 // Field names should begin with lower-case letter
+
+        private static int EnqueueRequestQueueDepth = 0;
+#pragma warning restore SA1306 // Field names should begin with lower-case letter
+
 
         public Application(
             OptionsAtStartup optionsAtStartup,
@@ -537,20 +542,28 @@ namespace slskd
         // todo: consider moving this somewhere else; it's pretty long and complicated
         private async Task EnqueueDownload(string username, IPEndPoint endpoint, string filename)
         {
+            Metrics.Enqueue.RequestsReceived.Inc(1);
+
+            if (Users.IsBlacklisted(username, endpoint.Address))
+            {
+                Log.Information("Rejected enqueue request for blacklisted user {Username} ({IP})", username, endpoint.Address);
+                throw new DownloadEnqueueException("File not shared.");
+            }
+
             var stopwatch = new Stopwatch();
             var decisionStopwatch = new Stopwatch();
+
+            Interlocked.Increment(ref EnqueueRequestQueueDepth);
 
             await EnqueueRequestRateLimiter.WaitAsync();
 
             try
             {
-                stopwatch.Start();
+                Interlocked.Decrement(ref EnqueueRequestQueueDepth);
 
-                if (Users.IsBlacklisted(username, endpoint.Address))
-                {
-                    Log.Information("Rejected enqueue request for blacklisted user {Username} ({IP})", username, endpoint.Address);
-                    throw new DownloadEnqueueException("File not shared.");
-                }
+                Metrics.Enqueue.CurrentRequestQueueDepth.Set(EnqueueRequestQueueDepth);
+
+                stopwatch.Start();
 
                 // in order to properly determine if the requested file would exceed any limits, we need to know the size of the file
                 // it helps, too, that this will tell us whether the file is even shared.
@@ -747,12 +760,21 @@ namespace slskd
                 }
 
                 await Transfers.Uploads.EnqueueAsync(username, filename);
+
+                Metrics.Enqueue.RequestsAccepted.Inc(1);
+
+                decisionStopwatch.Stop();
+
+                Metrics.Enqueue.DecisionLatency.Observe(decisionStopwatch.ElapsedMilliseconds);
+                Metrics.Enqueue.CurrentDecisionLatency.Update(decisionStopwatch.ElapsedMilliseconds);
+
+                stopwatch.Stop();
+
+                Metrics.Enqueue.ResponseLatency.Observe(stopwatch.ElapsedMilliseconds);
+                Metrics.Enqueue.CurrentResponseLatency.Update(stopwatch.ElapsedMilliseconds);
             }
             finally
             {
-                decisionStopwatch.Stop();
-                stopwatch.Stop();
-
                 EnqueueRequestRateLimiter.Release();
 
                 Log.Debug("EnqueueDownload for {Username}/{Filename} completed in {ElapsedOverall}ms, decision made in {ElapsedDecision}ms", username, filename, stopwatch.ElapsedMilliseconds, decisionStopwatch.ElapsedMilliseconds);
