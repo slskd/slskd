@@ -210,7 +210,7 @@ class Browse extends Component {
 
     const children = depthMap
       .get(depth)
-      .filter((d) => d.name.startsWith(root.name));
+      .filter((d) => d.name.startsWith(root.name + separator));
 
     return {
       ...root,
