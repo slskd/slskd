@@ -115,7 +115,7 @@ namespace slskd.Transfers.API
                 return Forbid();
             }
 
-            var transfers = Transfers.Downloads.List(t => t.State.HasFlag(Soulseek.TransferStates.Completed));
+            var transfers = Transfers.Downloads.List(t => TransferStateCategories.Completed.Contains((int)t.State));
 
             foreach (var id in transfers.Select(t => t.Id))
             {
@@ -184,7 +184,7 @@ namespace slskd.Transfers.API
 
             // get all the transfers that aren't removed
             var transfers = Transfers.Uploads
-                .List(t => t.State.HasFlag(Soulseek.TransferStates.Completed), includeRemoved: false);
+                .List(t => TransferStateCategories.Completed.Contains((int)t.State), includeRemoved: false);
 
             foreach (var id in transfers.Select(t => t.Id))
             {
