@@ -91,14 +91,4 @@ public static class TransferStateCategories
         (int)TransferStates.Initializing,
         (int)TransferStates.InProgress,
     ];
-
-    /// <summary>
-    ///     All states lacking the <see cref="TransferStates.Completed"/> flag; the inverse of <see cref="Completed"/>.
-    /// </summary>
-    public static readonly HashSet<int> Incomplete = [
-        .. Queued,
-        .. InProgress,
-        (int)TransferStates.None,
-        (int)TransferStates.Requested
-    ];
 }
