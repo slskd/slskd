@@ -797,19 +797,12 @@ namespace slskd.Transfers.Uploads
 
                 var cutoffDateTime = DateTime.UtcNow.AddMinutes(-age);
 
-                var expired = context.Transfers
+                var pruned = context.Transfers
                     .Where(t => t.Direction == TransferDirection.Upload)
                     .Where(t => !t.Removed)
                     .Where(t => t.EndedAt.HasValue && t.EndedAt.Value < cutoffDateTime)
                     .Where(t => statesSet.Contains((int)t.State))
-                    .ToList();
-
-                foreach (var tx in expired)
-                {
-                    tx.Removed = true;
-                }
-
-                var pruned = context.SaveChanges();
+                    .ExecuteUpdate(r => r.SetProperty(c => c.Removed, true));
 
                 if (pruned > 0)
                 {
