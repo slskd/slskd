@@ -36,7 +36,10 @@ public static class TransferStateCategories
     ///         <item><see cref="TransferStates.Succeeded"/></item>
     ///     </list>
     /// </summary>
-    public static readonly HashSet<int> Successful = [(int)(TransferStates.Completed | TransferStates.Succeeded)];
+    public static readonly HashSet<int> Successful = [
+        (int)TransferStates.Completed,
+        (int)(TransferStates.Completed | TransferStates.Succeeded)
+    ];
 
     /// <summary>
     ///     All states representing a failed transfer:
@@ -87,5 +90,15 @@ public static class TransferStateCategories
     public static readonly HashSet<int> InProgress = [
         (int)TransferStates.Initializing,
         (int)TransferStates.InProgress,
+    ];
+
+    /// <summary>
+    ///     All states lacking the <see cref="TransferStates.Completed"/> flag; the inverse of <see cref="Completed"/>.
+    /// </summary>
+    public static readonly HashSet<int> Incomplete = [
+        .. Queued,
+        .. InProgress,
+        (int)TransferStates.None,
+        (int)TransferStates.Requested
     ];
 }
