@@ -116,7 +116,16 @@ namespace slskd.Transfers.Uploads
         /// </summary>
         /// <remarks>This is a soft delete; the record is retained for historical retrieval.</remarks>
         /// <param name="id">The unique identifier of the upload.</param>
-        void Remove(Guid id);
+        /// <returns>A value indicating whether the record was removed.</returns>
+        bool Remove(Guid id);
+
+        /// <summary>
+        ///     Removes all uploads matching the specified <paramref name="expression"/>.
+        /// </summary>
+        /// <remarks>This is a soft delete; the record is retained for historical retrieval.</remarks>
+        /// <param name="expression">The expression used to match uploads.</param>
+        /// <returns>The number of records removed.</returns>
+        int Remove(Expression<Func<Transfer, bool>> expression);
 
         /// <summary>
         ///     Cancels the upload matching the specified <paramref name="id"/>, if it is in progress.
@@ -823,34 +832,35 @@ namespace slskd.Transfers.Uploads
         /// </summary>
         /// <remarks>This is a soft delete; the record is retained for historical retrieval.</remarks>
         /// <param name="id">The unique identifier of the upload.</param>
-        public void Remove(Guid id)
+        /// <returns>A value indicating whether the record was removed.</returns>
+        public bool Remove(Guid id)
+        {
+            return Remove(t => t.Id == id) > 0;
+        }
+
+        /// <summary>
+        ///     Removes all uploads matching the specified <paramref name="expression"/>.
+        /// </summary>
+        /// <remarks>This is a soft delete; the record is retained for historical retrieval.</remarks>
+        /// <param name="expression">The expression used to match uploads.</param>
+        /// <returns>The number of records removed.</returns>
+        public int Remove(Expression<Func<Transfer, bool>> expression)
         {
             try
             {
                 using var context = ContextFactory.CreateDbContext();
 
-                var transfer = context.Transfers
+                var count = context.Transfers
                     .Where(t => t.Direction == TransferDirection.Upload)
-                    .Where(t => t.Id == id)
-                    .FirstOrDefault();
+                    .Where(expression)
+                    .ExecuteUpdate(r => r.SetProperty(c => c.Removed, true));
 
-                if (transfer == default)
-                {
-                    throw new NotFoundException($"No upload matching id ${id}");
-                }
-
-                if (!transfer.State.HasFlag(TransferStates.Completed))
-                {
-                    throw new InvalidOperationException($"Invalid attempt to remove an upload before it is complete");
-                }
-
-                transfer.Removed = true;
-
-                context.SaveChanges();
+                Log.Debug("Removed {Count} uploads by expression", count);
+                return count;
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "Failed to remove upload {Id}: {Message}", id, ex.Message);
+                Log.Error(ex, "Failed to remove uploads by expression: {Message}", ex.Message);
                 throw;
             }
         }
