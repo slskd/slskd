@@ -1178,7 +1178,7 @@ namespace slskd
             {
                 if (age.HasValue)
                 {
-                    Transfers.Uploads.Prune(age.Value, TransferStates.Completed | state);
+                    Transfers.Uploads.Prune(age.Value, (int)(TransferStates.Completed | state));
                 }
             }
 
@@ -1186,7 +1186,7 @@ namespace slskd
             {
                 if (age.HasValue)
                 {
-                    Transfers.Downloads.Prune(age.Value, TransferStates.Completed | state);
+                    Transfers.Downloads.Prune(age.Value, (int)(TransferStates.Completed | state));
                 }
             }
 

@@ -107,9 +107,9 @@ namespace slskd.Transfers.Uploads
         ///     Removes <see cref="TransferStates.Completed"/> uploads older than the specified <paramref name="age"/>.
         /// </summary>
         /// <param name="age">The age after which uploads are eligible for pruning, in minutes.</param>
-        /// <param name="stateHasFlag">An optional, additional state by which uploads are filtered for pruning.</param>
+        /// <param name="states">One or more states by which uploads are filtered for pruning.</param>
         /// <returns>The number of pruned uploads.</returns>
-        int Prune(int age, TransferStates stateHasFlag = TransferStates.Completed);
+        int Prune(int age, params int[] states);
 
         /// <summary>
         ///     Removes the upload matching the specified <paramref name="id"/>.
@@ -780,13 +780,15 @@ namespace slskd.Transfers.Uploads
         ///     Removes <see cref="TransferStates.Completed"/> uploads older than the specified <paramref name="age"/>.
         /// </summary>
         /// <param name="age">The age after which uploads are eligible for pruning, in minutes.</param>
-        /// <param name="stateHasFlag">An optional, additional state by which uploads are filtered for pruning.</param>
+        /// <param name="states">One or more states by which uploads are filtered for pruning.</param>
         /// <returns>The number of pruned uploads.</returns>
-        public int Prune(int age, TransferStates stateHasFlag = TransferStates.Completed)
+        public int Prune(int age, params int[] states)
         {
-            if (!stateHasFlag.HasFlag(TransferStates.Completed))
+            var statesSet = new HashSet<int>(states);
+
+            if (!statesSet.All(s => ((TransferStates)s).HasFlag(TransferStates.Completed)))
             {
-                throw new ArgumentException($"State must include {TransferStates.Completed}", nameof(stateHasFlag));
+                throw new ArgumentException($"Each state must include {TransferStates.Completed}", nameof(states));
             }
 
             try
@@ -799,7 +801,7 @@ namespace slskd.Transfers.Uploads
                     .Where(t => t.Direction == TransferDirection.Upload)
                     .Where(t => !t.Removed)
                     .Where(t => t.EndedAt.HasValue && t.EndedAt.Value < cutoffDateTime)
-                    .Where(t => t.State.HasFlag(stateHasFlag))
+                    .Where(t => statesSet.Contains((int)t.State))
                     .ToList();
 
                 foreach (var tx in expired)
@@ -811,7 +813,7 @@ namespace slskd.Transfers.Uploads
 
                 if (pruned > 0)
                 {
-                    Log.Debug("Pruned {Count} expired uploads with state {State}", pruned, stateHasFlag);
+                    Log.Debug("Pruned {Count} expired uploads with states {States}", pruned, statesSet);
                 }
 
                 return pruned;
