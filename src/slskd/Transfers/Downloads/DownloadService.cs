@@ -307,17 +307,22 @@ namespace slskd.Transfers.Downloads
                 using var context = ContextFactory.CreateDbContext();
 
                 /*
-                    get all past downloads from this user.  this list will remain stable throughout this process because
+                    get existing downloads from this user.  this list will remain stable throughout this process because
                     we have exclusive access for this user.  we'll be adding new records, but we've already deduplicated
                     them so we don't have to worry about duplicate records being created in the critical section
+
+                    we are looking for:
+                    1. anything that's not yet complete (we need to disallow the enqueue)
+                    2. anything complete, but not yet removed from the UI (we need to supersede it)
                 */
-                var existingRecords = context.Transfers
+                var existingRecordsNotYetRemoved = context.Transfers
                     .Where(t => t.Direction == TransferDirection.Download)
                     .Where(t => t.Username == username)
+                    .Where(t => !t.Removed || TransferStateCategories.Incomplete.Contains((int)t.State))
                     .AsNoTracking()
                     .ToList();
 
-                var existingInProgressRecords = existingRecords
+                var existingInProgressRecords = existingRecordsNotYetRemoved
                     .Where(t => t.EndedAt == null || !t.State.HasFlag(TransferStates.Completed))
                     .ToDictionary(t => t.Filename, t => t);
 
@@ -401,7 +406,7 @@ namespace slskd.Transfers.Downloads
 
                         Log.Debug("Added Transfer record for download of {Filename} from {Username} (id: {Id})", transfer.Filename, transfer.Username, transfer.Id);
 
-                        foreach (var record in existingRecords.Where(t => t.Filename == file.Filename && !t.Removed))
+                        foreach (var record in existingRecordsNotYetRemoved.Where(t => t.Filename == file.Filename && !t.Removed))
                         {
                             record.Removed = true;
                             context.Update(record);
