@@ -37,7 +37,6 @@ public static class TransferStateCategories
     ///     </list>
     /// </summary>
     public static readonly HashSet<int> Successful = [
-        (int)TransferStates.Completed,
         (int)(TransferStates.Completed | TransferStates.Succeeded)
     ];
 
@@ -63,7 +62,11 @@ public static class TransferStateCategories
     /// <summary>
     ///     All states containing the <see cref="TransferStates.Completed"/> flag.
     /// </summary>
-    public static readonly HashSet<int> Completed = [.. Successful, .. Failed];
+    public static readonly HashSet<int> Completed = [
+        (int)TransferStates.Completed, // in case some sort of a malfunction or regression
+        .. Successful,
+        .. Failed
+    ];
 
     /// <summary>
     ///     All states representing a queued transfer:
