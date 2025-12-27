@@ -112,7 +112,7 @@ namespace slskd.Transfers.Uploads
         int Prune(int age, params TransferStates[] states);
 
         /// <summary>
-        ///     Removes the upload matching the specified <paramref name="id"/>.
+        ///     Removes the completed upload matching the specified <paramref name="id"/>.
         /// </summary>
         /// <remarks>This is a soft delete; the record is retained for historical retrieval.</remarks>
         /// <param name="id">The unique identifier of the upload.</param>
@@ -120,7 +120,7 @@ namespace slskd.Transfers.Uploads
         bool Remove(Guid id);
 
         /// <summary>
-        ///     Removes all uploads matching the specified <paramref name="expression"/>.
+        ///     Removes all completed uploads matching the specified <paramref name="expression"/>.
         /// </summary>
         /// <remarks>This is a soft delete; the record is retained for historical retrieval.</remarks>
         /// <param name="expression">The expression used to match uploads.</param>
@@ -828,7 +828,7 @@ namespace slskd.Transfers.Uploads
         }
 
         /// <summary>
-        ///     Removes the upload matching the specified <paramref name="id"/>.
+        ///     Removes the completed upload matching the specified <paramref name="id"/>.
         /// </summary>
         /// <remarks>This is a soft delete; the record is retained for historical retrieval.</remarks>
         /// <param name="id">The unique identifier of the upload.</param>
@@ -839,7 +839,7 @@ namespace slskd.Transfers.Uploads
         }
 
         /// <summary>
-        ///     Removes all uploads matching the specified <paramref name="expression"/>.
+        ///     Removes all completed uploads matching the specified <paramref name="expression"/>.
         /// </summary>
         /// <remarks>This is a soft delete; the record is retained for historical retrieval.</remarks>
         /// <param name="expression">The expression used to match uploads.</param>
@@ -852,6 +852,7 @@ namespace slskd.Transfers.Uploads
 
                 var count = context.Transfers
                     .Where(t => t.Direction == TransferDirection.Upload)
+                    .Where(t => TransferStateCategories.Completed.Contains((int)t.State))
                     .Where(expression)
                     .ExecuteUpdate(r => r.SetProperty(c => c.Removed, true));
 

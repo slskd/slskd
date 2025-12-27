@@ -94,7 +94,7 @@ namespace slskd.Transfers.Downloads
         int Prune(int age, params TransferStates[] states);
 
         /// <summary>
-        ///     Removes the download matching the specified <paramref name="id"/>.
+        ///     Removes the completed download matching the specified <paramref name="id"/>.
         /// </summary>
         /// <remarks>This is a soft delete; the record is retained for historical retrieval.</remarks>
         /// <param name="id">The unique identifier of the download.</param>
@@ -102,7 +102,7 @@ namespace slskd.Transfers.Downloads
         bool Remove(Guid id);
 
         /// <summary>
-        ///     Removes all downloads matching the specified <paramref name="expression"/>.
+        ///     Removes all completed downloads matching the specified <paramref name="expression"/>.
         /// </summary>
         /// <remarks>This is a soft delete; the record is retained for historical retrieval.</remarks>
         /// <param name="expression">The expression used to match downloads.</param>
@@ -716,7 +716,7 @@ namespace slskd.Transfers.Downloads
         }
 
         /// <summary>
-        ///     Removes the download matching the specified <paramref name="id"/>.
+        ///     Removes the completed download matching the specified <paramref name="id"/>.
         /// </summary>
         /// <remarks>This is a soft delete; the record is retained for historical retrieval.</remarks>
         /// <param name="id">The unique identifier of the download.</param>
@@ -727,7 +727,7 @@ namespace slskd.Transfers.Downloads
         }
 
         /// <summary>
-        ///     Removes all downloads matching the specified <paramref name="expression"/>.
+        ///     Removes all completed downloads matching the specified <paramref name="expression"/>.
         /// </summary>
         /// <remarks>This is a soft delete; the record is retained for historical retrieval.</remarks>
         /// <param name="expression">The expression used to match downloads.</param>
@@ -740,6 +740,7 @@ namespace slskd.Transfers.Downloads
 
                 var count = context.Transfers
                     .Where(t => t.Direction == TransferDirection.Download)
+                    .Where(t => TransferStateCategories.Completed.Contains((int)t.State))
                     .Where(expression)
                     .ExecuteUpdate(r => r.SetProperty(c => c.Removed, true));
 
