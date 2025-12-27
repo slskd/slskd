@@ -1,0 +1,27 @@
+{
+  "background_color": "#1b1c1d",
+  "description": "A modern web client for the Soulseek file sharing network",
+  "display": "standalone",
+  "icons": [
+    {
+      "sizes": "64x64 32x32 24x24 16x16",
+      "src": "favicon.ico",
+      "type": "image/x-icon"
+    },
+    {
+      "sizes": "192x192",
+      "src": "logo192.png",
+      "type": "image/png"
+    },
+    {
+      "sizes": "512x512",
+      "src": "logo512.png",
+      "type": "image/png"
+    }
+  ],
+  "name": "slskd - Soulseek Daemon",
+  "orientation": "any",
+  "short_name": "slskd",
+  "start_url": ".",
+  "theme_color": "#1b1c1d"
+}
