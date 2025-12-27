@@ -24,7 +24,7 @@ using Soulseek;
 ///     A collection of transfer state integers, grouped into sets that represent common states.
 /// </summary>
 /// <remarks>
-///     SQLite can't take advantage of indexes when using bitwise operations, which is what Entity Franework
+///     SQLite can't take advantage of indexes when using bitwise operations, which is what Entity Framework
 ///     turns HasFlag() expressions into.  These hash sets allow us to use IN expressions instead of bitwise.
 /// </remarks>
 public static class TransferStateCategories
