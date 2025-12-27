@@ -91,7 +91,7 @@ namespace slskd.Transfers.Downloads
         /// <param name="age">The age after which downloads are eligible for pruning, in hours.</param>
         /// <param name="states">One or more states by which downloads are filtered for pruning.</param>
         /// <returns>The number of pruned downloads.</returns>
-        int Prune(int age, params int[] states);
+        int Prune(int age, params TransferStates[] states);
 
         /// <summary>
         ///     Removes the download matching the specified <paramref name="id"/>.
@@ -679,9 +679,9 @@ namespace slskd.Transfers.Downloads
         /// <param name="age">The age after which downloads are eligible for pruning, in hours.</param>
         /// <param name="states">One or more states by which downloads are filtered for pruning.</param>
         /// <returns>The number of pruned downloads.</returns>
-        public int Prune(int age, params int[] states)
+        public int Prune(int age, params TransferStates[] states)
         {
-            var statesSet = new HashSet<int>(states);
+            var statesSet = new HashSet<int>(states.Select(s => (int)s));
 
             if (!statesSet.All(s => ((TransferStates)s).HasFlag(TransferStates.Completed)))
             {

@@ -87,7 +87,6 @@ namespace slskd
         private static int EnqueueRequestQueueDepth = 0;
 #pragma warning restore SA1306 // Field names should begin with lower-case letter
 
-
         public Application(
             OptionsAtStartup optionsAtStartup,
             IOptionsMonitor<Options> optionsMonitor,
@@ -1178,7 +1177,7 @@ namespace slskd
             {
                 if (age.HasValue)
                 {
-                    Transfers.Uploads.Prune(age.Value, (int)(TransferStates.Completed | state));
+                    Transfers.Uploads.Prune(age.Value, TransferStates.Completed | state);
                 }
             }
 
@@ -1186,7 +1185,7 @@ namespace slskd
             {
                 if (age.HasValue)
                 {
-                    Transfers.Downloads.Prune(age.Value, (int)(TransferStates.Completed | state));
+                    Transfers.Downloads.Prune(age.Value, TransferStates.Completed | state);
                 }
             }
 

@@ -109,7 +109,7 @@ namespace slskd.Transfers.Uploads
         /// <param name="age">The age after which uploads are eligible for pruning, in minutes.</param>
         /// <param name="states">One or more states by which uploads are filtered for pruning.</param>
         /// <returns>The number of pruned uploads.</returns>
-        int Prune(int age, params int[] states);
+        int Prune(int age, params TransferStates[] states);
 
         /// <summary>
         ///     Removes the upload matching the specified <paramref name="id"/>.
@@ -791,9 +791,9 @@ namespace slskd.Transfers.Uploads
         /// <param name="age">The age after which uploads are eligible for pruning, in minutes.</param>
         /// <param name="states">One or more states by which uploads are filtered for pruning.</param>
         /// <returns>The number of pruned uploads.</returns>
-        public int Prune(int age, params int[] states)
+        public int Prune(int age, params TransferStates[] states)
         {
-            var statesSet = new HashSet<int>(states);
+            var statesSet = new HashSet<int>(states.Select(s => (int)s));
 
             if (!statesSet.All(s => ((TransferStates)s).HasFlag(TransferStates.Completed)))
             {
