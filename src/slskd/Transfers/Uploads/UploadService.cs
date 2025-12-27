@@ -107,16 +107,25 @@ namespace slskd.Transfers.Uploads
         ///     Removes <see cref="TransferStates.Completed"/> uploads older than the specified <paramref name="age"/>.
         /// </summary>
         /// <param name="age">The age after which uploads are eligible for pruning, in minutes.</param>
-        /// <param name="stateHasFlag">An optional, additional state by which uploads are filtered for pruning.</param>
+        /// <param name="states">One or more states by which uploads are filtered for pruning.</param>
         /// <returns>The number of pruned uploads.</returns>
-        int Prune(int age, TransferStates stateHasFlag = TransferStates.Completed);
+        int Prune(int age, params TransferStates[] states);
 
         /// <summary>
-        ///     Removes the upload matching the specified <paramref name="id"/>.
+        ///     Removes the completed upload matching the specified <paramref name="id"/>.
         /// </summary>
         /// <remarks>This is a soft delete; the record is retained for historical retrieval.</remarks>
         /// <param name="id">The unique identifier of the upload.</param>
-        void Remove(Guid id);
+        /// <returns>A value indicating whether the record was removed.</returns>
+        bool Remove(Guid id);
+
+        /// <summary>
+        ///     Removes all completed uploads matching the specified <paramref name="expression"/>.
+        /// </summary>
+        /// <remarks>This is a soft delete; the record is retained for historical retrieval.</remarks>
+        /// <param name="expression">The expression used to match uploads.</param>
+        /// <returns>The number of records removed.</returns>
+        int Remove(Expression<Func<Transfer, bool>> expression);
 
         /// <summary>
         ///     Cancels the upload matching the specified <paramref name="id"/>, if it is in progress.
@@ -780,13 +789,15 @@ namespace slskd.Transfers.Uploads
         ///     Removes <see cref="TransferStates.Completed"/> uploads older than the specified <paramref name="age"/>.
         /// </summary>
         /// <param name="age">The age after which uploads are eligible for pruning, in minutes.</param>
-        /// <param name="stateHasFlag">An optional, additional state by which uploads are filtered for pruning.</param>
+        /// <param name="states">One or more states by which uploads are filtered for pruning.</param>
         /// <returns>The number of pruned uploads.</returns>
-        public int Prune(int age, TransferStates stateHasFlag = TransferStates.Completed)
+        public int Prune(int age, params TransferStates[] states)
         {
-            if (!stateHasFlag.HasFlag(TransferStates.Completed))
+            var statesSet = new HashSet<int>(states.Select(s => (int)s));
+
+            if (!statesSet.All(s => ((TransferStates)s).HasFlag(TransferStates.Completed)))
             {
-                throw new ArgumentException($"State must include {TransferStates.Completed}", nameof(stateHasFlag));
+                throw new ArgumentException($"Each state must include {TransferStates.Completed}", nameof(states));
             }
 
             try
@@ -795,23 +806,16 @@ namespace slskd.Transfers.Uploads
 
                 var cutoffDateTime = DateTime.UtcNow.AddMinutes(-age);
 
-                var expired = context.Transfers
+                var pruned = context.Transfers
                     .Where(t => t.Direction == TransferDirection.Upload)
                     .Where(t => !t.Removed)
                     .Where(t => t.EndedAt.HasValue && t.EndedAt.Value < cutoffDateTime)
-                    .Where(t => t.State.HasFlag(stateHasFlag))
-                    .ToList();
-
-                foreach (var tx in expired)
-                {
-                    tx.Removed = true;
-                }
-
-                var pruned = context.SaveChanges();
+                    .Where(t => statesSet.Contains((int)t.State))
+                    .ExecuteUpdate(r => r.SetProperty(c => c.Removed, true));
 
                 if (pruned > 0)
                 {
-                    Log.Debug("Pruned {Count} expired uploads with state {State}", pruned, stateHasFlag);
+                    Log.Debug("Pruned {Count} expired uploads with states {States}", pruned, statesSet);
                 }
 
                 return pruned;
@@ -824,38 +828,40 @@ namespace slskd.Transfers.Uploads
         }
 
         /// <summary>
-        ///     Removes the upload matching the specified <paramref name="id"/>.
+        ///     Removes the completed upload matching the specified <paramref name="id"/>.
         /// </summary>
         /// <remarks>This is a soft delete; the record is retained for historical retrieval.</remarks>
         /// <param name="id">The unique identifier of the upload.</param>
-        public void Remove(Guid id)
+        /// <returns>A value indicating whether the record was removed.</returns>
+        public bool Remove(Guid id)
+        {
+            return Remove(t => t.Id == id) > 0;
+        }
+
+        /// <summary>
+        ///     Removes all completed uploads matching the specified <paramref name="expression"/>.
+        /// </summary>
+        /// <remarks>This is a soft delete; the record is retained for historical retrieval.</remarks>
+        /// <param name="expression">The expression used to match uploads.</param>
+        /// <returns>The number of records removed.</returns>
+        public int Remove(Expression<Func<Transfer, bool>> expression)
         {
             try
             {
                 using var context = ContextFactory.CreateDbContext();
 
-                var transfer = context.Transfers
+                var count = context.Transfers
                     .Where(t => t.Direction == TransferDirection.Upload)
-                    .Where(t => t.Id == id)
-                    .FirstOrDefault();
+                    .Where(t => TransferStateCategories.Completed.Contains((int)t.State))
+                    .Where(expression)
+                    .ExecuteUpdate(r => r.SetProperty(c => c.Removed, true));
 
-                if (transfer == default)
-                {
-                    throw new NotFoundException($"No upload matching id ${id}");
-                }
-
-                if (!transfer.State.HasFlag(TransferStates.Completed))
-                {
-                    throw new InvalidOperationException($"Invalid attempt to remove an upload before it is complete");
-                }
-
-                transfer.Removed = true;
-
-                context.SaveChanges();
+                Log.Debug("Removed {Count} uploads by expression", count);
+                return count;
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "Failed to remove upload {Id}: {Message}", id, ex.Message);
+                Log.Error(ex, "Failed to remove uploads by expression: {Message}", ex.Message);
                 throw;
             }
         }

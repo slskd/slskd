@@ -87,7 +87,6 @@ namespace slskd
         private static int EnqueueRequestQueueDepth = 0;
 #pragma warning restore SA1306 // Field names should begin with lower-case letter
 
-
         public Application(
             OptionsAtStartup optionsAtStartup,
             IOptionsMonitor<Options> optionsMonitor,
