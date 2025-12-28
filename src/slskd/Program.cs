@@ -1295,7 +1295,10 @@ namespace slskd
 
                     if (OptionsAtStartup.Debug && OptionsAtStartup.Flags.LogSQL)
                     {
-                        options.LogTo(Log.Debug, LogLevel.Information);
+                        options
+                            .EnableSensitiveDataLogging()
+                            .EnableDetailedErrors()
+                            .LogTo(Log.Debug, LogLevel.Information);
                     }
                 });
 
