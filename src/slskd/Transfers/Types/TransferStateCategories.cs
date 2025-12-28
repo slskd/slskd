@@ -36,8 +36,8 @@ public static class TransferStateCategories
     ///         <item><see cref="TransferStates.Succeeded"/> (16 | 32 = 48)</item>
     ///     </list>
     /// </summary>
-    public static readonly HashSet<int> Successful = [
-        (int)(TransferStates.Completed | TransferStates.Succeeded) // 16 | 32 = 48
+    public static readonly HashSet<TransferStates> Successful = [
+        TransferStates.Completed | TransferStates.Succeeded // 16 | 32 = 48
     ];
 
     /// <summary>
@@ -51,12 +51,12 @@ public static class TransferStateCategories
     ///         <item><see cref="TransferStates.Aborted"/> (16 | 1024 = 1040)</item>
     ///     </list>
     /// </summary>
-    public static readonly HashSet<int> Failed = [
-        (int)(TransferStates.Completed | TransferStates.Cancelled), // 16 | 64 = 80
-        (int)(TransferStates.Completed | TransferStates.TimedOut), // 16 | 128 = 144
-        (int)(TransferStates.Completed | TransferStates.Errored), // 16 | 256 = 272
-        (int)(TransferStates.Completed | TransferStates.Rejected), // 16 | 512 = 528
-        (int)(TransferStates.Completed | TransferStates.Aborted), // 16 | 1024 = 1040
+    public static readonly HashSet<TransferStates> Failed = [
+        TransferStates.Completed | TransferStates.Cancelled, // 16 | 64 = 80
+        TransferStates.Completed | TransferStates.TimedOut, // 16 | 128 = 144
+        TransferStates.Completed | TransferStates.Errored, // 16 | 256 = 272
+        TransferStates.Completed | TransferStates.Rejected, // 16 | 512 = 528
+        TransferStates.Completed | TransferStates.Aborted, // 16 | 1024 = 1040
     ];
 
     /// <summary>
@@ -80,8 +80,8 @@ public static class TransferStateCategories
     ///         <item><see cref="TransferStates.Aborted"/> (16 | 1024 = 1040)</item>
     ///     </list>
     /// </summary>
-    public static readonly HashSet<int> Completed = [
-        (int)TransferStates.Completed, // 16, in case of some sort of a malfunction or regression
+    public static readonly HashSet<TransferStates> Completed = [
+        TransferStates.Completed, // 16, in case of some sort of a malfunction or regression
         .. Successful,
         .. Failed
     ];
@@ -95,10 +95,10 @@ public static class TransferStateCategories
     ///         <item><see cref="TransferStates.Remotely"/>(2 | 4096 = 4098)</item>
     ///     </list>
     /// </summary>
-    public static readonly HashSet<int> Queued = [
-        (int)TransferStates.Queued, // 2, in case of some sort of a malfunction or regression
-        (int)(TransferStates.Queued | TransferStates.Locally), // 2 | 2048 = 2050
-        (int)(TransferStates.Queued | TransferStates.Remotely), // 2 | 4096 = 4098
+    public static readonly HashSet<TransferStates> Queued = [
+        TransferStates.Queued, // 2, in case of some sort of a malfunction or regression
+        TransferStates.Queued | TransferStates.Locally, // 2 | 2048 = 2050
+        TransferStates.Queued | TransferStates.Remotely, // 2 | 4096 = 4098
     ];
 
     /// <summary>
@@ -109,8 +109,8 @@ public static class TransferStateCategories
     ///         <item><see cref="TransferStates.InProgress"/> (8)</item>
     ///     </list>
     /// </summary>
-    public static readonly HashSet<int> InProgress = [
-        (int)TransferStates.Initializing, // 4
-        (int)TransferStates.InProgress, // 8
+    public static readonly HashSet<TransferStates> InProgress = [
+        TransferStates.Initializing, // 4
+        TransferStates.InProgress, // 8
     ];
 }

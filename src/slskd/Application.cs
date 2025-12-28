@@ -316,7 +316,7 @@ namespace slskd
             // records to be updated if the application has started to shut down so that we can do this cleanup and properly
             // disposition them as having failed due to an application shutdown, instead of some random exception thrown while
             // things are being disposed.
-            var activeUploads = Transfers.Uploads.List(t => t.EndedAt == null || !t.State.HasFlag(TransferStates.Completed), includeRemoved: true);
+            var activeUploads = Transfers.Uploads.List(t => t.EndedAt == null || !TransferStateCategories.Completed.Contains(t.State), includeRemoved: true);
 
             foreach (var upload in activeUploads)
             {
@@ -327,7 +327,7 @@ namespace slskd
                 Transfers.Uploads.Update(upload);
             }
 
-            var activeDownloads = Transfers.Downloads.List(t => t.EndedAt == null || !t.State.HasFlag(TransferStates.Completed), includeRemoved: true);
+            var activeDownloads = Transfers.Downloads.List(t => t.EndedAt == null || !TransferStateCategories.Completed.Contains(t.State), includeRemoved: true);
 
             foreach (var download in activeDownloads)
             {

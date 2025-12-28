@@ -852,7 +852,7 @@ namespace slskd.Transfers.Uploads
 
                 var count = context.Transfers
                     .Where(t => t.Direction == TransferDirection.Upload)
-                    .Where(t => TransferStateCategories.Completed.Contains((int)t.State))
+                    .Where(t => TransferStateCategories.Completed.Contains(t.State))
                     .Where(expression)
                     .ExecuteUpdate(r => r.SetProperty(c => c.Removed, true));
 
