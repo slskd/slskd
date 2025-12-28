@@ -96,6 +96,14 @@ namespace slskd.Transfers.Uploads
         (int Files, long Bytes) Summarize(Expression<Func<Transfer, bool>> expression);
 
         /// <summary>
+        ///     Gets upload statistics for the specified <paramref name="username"/>.
+        /// </summary>
+        /// <param name="username">The username of the user.</param>
+        /// <param name="utcNow">An optional timestamp representing the current time in UTC.</param>
+        /// <returns>The gathered statistics.</returns>
+        UserUploadStatistics GetUserStatistics(string username, DateTime? utcNow = null);
+
+        /// <summary>
         ///     Returns a list of all uploads matching the optional <paramref name="expression"/>.
         /// </summary>
         /// <param name="expression">An optional expression used to match uploads.</param>
@@ -917,6 +925,49 @@ namespace slskd.Transfers.Uploads
 
             context.Update(transfer);
             context.SaveChanges();
+        }
+
+        /// <summary>
+        ///     Gets upload statistics for the specified <paramref name="username"/>.
+        /// </summary>
+        /// <param name="username">The username of the user.</param>
+        /// <param name="utcNow">An optional timestamp representing the current time in UTC.</param>
+        /// <returns>The gathered statistics.</returns>
+        public UserUploadStatistics GetUserStatistics(string username, DateTime? utcNow = null)
+        {
+            utcNow ??= DateTime.UtcNow;
+            var dailyCutoff = utcNow.Value.AddDays(-1);
+            var weeklyCutoff = utcNow.Value.AddDays(-7);
+
+            var failedStateIds = TransferStateCategories.Failed.ToList();
+            var successState = TransferStates.Completed | TransferStates.Succeeded;
+
+            using var context = ContextFactory.CreateDbContext();
+
+            var stats = context.Transfers
+                .AsNoTracking()
+                .Where(t => t.Username == username)
+                .Where(t => t.Direction == TransferDirection.Upload)
+                .Where(t => t.EndedAt == null || t.StartedAt >= weeklyCutoff)
+                .GroupBy(t => 1) // aggregate everything into one row
+                .Select(g => new UserUploadStatistics
+                {
+                    QueuedFiles = g.Count(t => t.EndedAt == null),
+                    QueuedBytes = g.Where(t => t.EndedAt == null).Sum(t => (long?)t.Size) ?? 0,
+
+                    WeeklyFailedFiles = g.Count(t => t.StartedAt >= weeklyCutoff && failedStateIds.Contains(t.State)),
+
+                    WeeklySucceededFiles = g.Count(t => t.StartedAt >= weeklyCutoff && (t.State == successState)),
+                    WeeklySucceededBytes = g.Where(t => t.StartedAt >= weeklyCutoff && (t.State == successState)).Sum(t => (long?)t.Size) ?? 0,
+
+                    DailyFailedFiles = g.Count(t => t.StartedAt >= dailyCutoff && failedStateIds.Contains(t.State)),
+
+                    DailySucceededFiles = g.Count(t => t.StartedAt >= dailyCutoff && t.State == successState),
+                    DailySucceededBytes = g.Where(t => t.StartedAt >= dailyCutoff && t.State == successState).Sum(t => (long?)t.Size) ?? 0,
+                })
+                .FirstOrDefault();
+
+            return stats ?? new UserUploadStatistics();
         }
 
         private bool TryFail(Guid id, string exception, TransferStates state)
