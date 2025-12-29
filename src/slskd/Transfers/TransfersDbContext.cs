@@ -70,6 +70,21 @@ namespace slskd.Transfers
                 .Entity<Transfer>()
                 .HasIndex(t => t.State)
                 .HasDatabaseName("IDX_Transfers_State");
+
+            modelBuilder
+                .Entity<Transfer>()
+                .HasIndex(t => t.Username)
+                .HasDatabaseName("IDX_Transfers_Username");
+
+            modelBuilder
+                .Entity<Transfer>()
+                .HasIndex(t => t.Removed)
+                .HasDatabaseName("IDX_Transfers_Removed");
+
+            modelBuilder
+                .Entity<Transfer>()
+                .HasIndex(e => new { e.Username, e.Direction, e.EndedAt, e.StartedAt, e.State, e.Size })
+                .HasDatabaseName("IDX_Transfers_UserUploadStatistics");
         }
     }
 }
