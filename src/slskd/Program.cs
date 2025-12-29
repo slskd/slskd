@@ -1293,12 +1293,12 @@ namespace slskd
                     options.UseSqlite(connectionString);
                     options.AddInterceptors(new SqliteConnectionOpenedInterceptor());
 
-                    if (OptionsAtStartup.Debug && OptionsAtStartup.Flags.LogSQL)
+                    if (OptionsAtStartup.Flags.LogSQL)
                     {
                         options
                             .EnableSensitiveDataLogging()
                             .EnableDetailedErrors()
-                            .LogTo(Log.Debug, LogLevel.Information);
+                            .LogTo(OptionsAtStartup.Debug ? Log.Debug : Log.Information, LogLevel.Information);
                     }
                 });
 
