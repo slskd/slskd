@@ -939,10 +939,10 @@ namespace slskd.Transfers.Uploads
             var dailyCutoff = utcNow.Value.AddDays(-1);
             var weeklyCutoff = utcNow.Value.AddDays(-7);
 
-            var failedStateIds = TransferStateCategories.Failed.ToList();
-            var successState = TransferStates.Completed | TransferStates.Succeeded;
-
             using var context = ContextFactory.CreateDbContext();
+
+            var failedStates = TransferStateCategories.Failed.ToList();
+            var successState = TransferStates.Completed | TransferStates.Succeeded;
 
             var stats = context.Transfers
                 .AsNoTracking()
@@ -955,15 +955,20 @@ namespace slskd.Transfers.Uploads
                     QueuedFiles = g.Count(t => t.EndedAt == null),
                     QueuedBytes = g.Where(t => t.EndedAt == null).Sum(t => (long?)t.Size) ?? 0,
 
-                    WeeklyFailedFiles = g.Count(t => t.StartedAt >= weeklyCutoff && failedStateIds.Contains(t.State)),
+                    // note: this generates some funky json_each() expression under the hood; it's an EF optimization
+                    // that helps with optimization of query plans. i've tried expanding this out to force an IN
+                    // and there's either no difference, or there's a slight improvement with the json_each method.
+                    WeeklyFailedFiles = g.Count(t => t.StartedAt >= weeklyCutoff && failedStates.Contains(t.State)),
 
-                    WeeklySucceededFiles = g.Count(t => t.StartedAt >= weeklyCutoff && (t.State == successState)),
-                    WeeklySucceededBytes = g.Where(t => t.StartedAt >= weeklyCutoff && (t.State == successState)).Sum(t => (long?)t.Size) ?? 0,
+                    WeeklySucceededFiles = g.Count(t => t.StartedAt >= weeklyCutoff && t.State == successState),
+                    WeeklySucceededBytes = g.Where(t => t.StartedAt >= weeklyCutoff && t.State == successState)
+                        .Sum(t => (long?)t.Size) ?? 0,
 
-                    DailyFailedFiles = g.Count(t => t.StartedAt >= dailyCutoff && failedStateIds.Contains(t.State)),
+                    DailyFailedFiles = g.Count(t => t.StartedAt >= dailyCutoff && failedStates.Contains(t.State)),
 
                     DailySucceededFiles = g.Count(t => t.StartedAt >= dailyCutoff && t.State == successState),
-                    DailySucceededBytes = g.Where(t => t.StartedAt >= dailyCutoff && t.State == successState).Sum(t => (long?)t.Size) ?? 0,
+                    DailySucceededBytes = g.Where(t => t.StartedAt >= dailyCutoff && t.State == successState)
+                        .Sum(t => (long?)t.Size) ?? 0,
                 })
                 .FirstOrDefault();
 
