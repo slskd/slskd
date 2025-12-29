@@ -538,7 +538,6 @@ namespace slskd
             }
         }
 
-        // todo: consider moving this somewhere else; it's pretty long and complicated
         private async Task EnqueueDownload(string username, IPEndPoint endpoint, string filename)
         {
             Metrics.Enqueue.RequestsReceived.Inc(1);
@@ -623,45 +622,48 @@ namespace slskd
                  * 3) that did not end due to an error (state includes errored, exception column is set)
                 */
                 (bool Files, bool Megabytes) OverLimits(
-                    (int Files, long Bytes) stats,
+                    int files,
+                    long bytes,
                     Options.LimitsOptions.Limits options,
                     Options.LimitsOptions.Limits defaults,
                     long size)
                 {
-                    var files = false;
-                    var megabytes = false;
+                    var filesOver = false;
+                    var megabytesOver = false;
                     var byteLimitInMegabytes = options?.Megabytes ?? defaults?.Megabytes;
 
-                    if (byteLimitInMegabytes is not null && (stats.Bytes + size) > (byteLimitInMegabytes * 1000L * 1000L))
+                    if (byteLimitInMegabytes is not null && (bytes + size) > (byteLimitInMegabytes * 1000L * 1000L))
                     {
-                        Log.Debug("Projected bytes {Bytes} exceeds limit {Limit}", stats.Bytes + size, byteLimitInMegabytes * 1000L * 1000L);
-                        megabytes = true;
+                        Log.Debug("Projected bytes {Bytes} exceeds limit {Limit}", bytes + size, byteLimitInMegabytes * 1000L * 1000L);
+                        megabytesOver = true;
                     }
 
                     var fileLimit = options?.Files ?? defaults?.Files;
 
-                    if (fileLimit is not null && (stats.Files + 1) > fileLimit)
+                    if (fileLimit is not null && (files + 1) > fileLimit)
                     {
-                        Log.Debug("Projected file count {Files} exceeds limit {Limit}", stats.Files + 1, fileLimit);
-                        files = true;
+                        Log.Debug("Projected file count {Files} exceeds limit {Limit}", files + 1, fileLimit);
+                        filesOver = true;
                     }
 
-                    return (files, megabytes);
+                    return (filesOver, megabytesOver);
                 }
 
                 decisionStopwatch.Start();
+
+                var stats = Transfers.Uploads.GetUserStatistics(username, DateTime.UtcNow);
 
                 // start with the queue, since that should contain the fewest files and should be the least expensive to check
                 // "queued" includes both queued and in progress; records with a null EndedAt property, which is guaranteed to be set
                 // for terminal transfers.
                 if (!IsNull(limits?.Queued, global?.Queued))
                 {
-                    var queued = Transfers.Uploads.Summarize(
-                        expression: t => t.Username == username && t.EndedAt == null);
-
-                    Log.Debug("Fetched queue stats: files: {Files}, bytes: {Bytes} ({Time}ms)", queued.Files, queued.Bytes, decisionStopwatch.ElapsedMilliseconds);
-
-                    var over = OverLimits(queued, limits?.Queued, global?.Queued, resolved.Size);
+                    var over = OverLimits(
+                        files: stats.QueuedFiles,
+                        bytes: stats.QueuedBytes,
+                        options: limits?.Queued,
+                        defaults: global?.Queued,
+                        size: resolved.Size);
 
                     if (over.Files || over.Megabytes)
                     {
@@ -680,35 +682,20 @@ namespace slskd
                 // * that were not errored
                 if (!IsNull(limits?.Weekly, global?.Weekly))
                 {
-                    var erroredState = TransferStates.Completed | TransferStates.Errored;
-                    var cutoffDateTime = DateTime.UtcNow.AddDays(-7);
-
-                    var failures = Transfers.Uploads.Summarize(
-                        expression: t =>
-                            t.Username == username
-                            && t.StartedAt >= cutoffDateTime
-                            && (t.State.HasFlag(erroredState) || t.Exception != null));
-
-                    Log.Debug("Fetched weekly failures: {Failures} ({Time}ms)", failures.Files, decisionStopwatch.ElapsedMilliseconds);
-
                     var failureLimit = limits?.Weekly?.Failures ?? global?.Weekly?.Failures;
 
-                    if (failureLimit is not null && failures.Files >= failureLimit)
+                    if (failureLimit is not null && stats.WeeklyFailedFiles >= failureLimit)
                     {
                         Log.Information("Rejected enqueue request for user {Username}: Weekly failure limit met or exceeded", username);
                         throw new DownloadEnqueueException("Too many failed transfers this week");
                     }
 
-                    var weekly = Transfers.Uploads.Summarize(
-                        expression: t =>
-                            t.Username == username
-                            && t.StartedAt >= cutoffDateTime
-                            && !t.State.HasFlag(erroredState)
-                            && t.Exception == null);
-
-                    Log.Debug("Fetched weekly stats: files: {Files}, bytes: {Bytes} ({Time}ms)", weekly.Files, weekly.Bytes, decisionStopwatch.ElapsedMilliseconds);
-
-                    var over = OverLimits(weekly, limits?.Weekly, global?.Weekly, resolved.Size);
+                    var over = OverLimits(
+                        files: stats.WeeklySucceededFiles,
+                        bytes: stats.WeeklySucceededBytes,
+                        options: limits?.Weekly,
+                        defaults: global?.Weekly,
+                        size: resolved.Size);
 
                     if (over.Files || over.Megabytes)
                     {
@@ -721,35 +708,20 @@ namespace slskd
                 // of the previous 7.
                 if (!IsNull(limits?.Daily, global?.Daily))
                 {
-                    var erroredState = TransferStates.Completed | TransferStates.Errored;
-                    var cutoffDateTime = DateTime.UtcNow.AddDays(-1);
-
-                    var failures = Transfers.Uploads.Summarize(
-                        expression: t =>
-                            t.Username == username
-                            && t.StartedAt >= cutoffDateTime
-                            && (t.State.HasFlag(erroredState) || t.Exception != null));
-
-                    Log.Debug("Fetched daily failures: {Failures} ({Time}ms)", failures.Files, decisionStopwatch.ElapsedMilliseconds);
-
                     var failureLimit = limits?.Daily?.Failures ?? global?.Daily?.Failures;
 
-                    if (failureLimit is not null && failures.Files >= failureLimit)
+                    if (failureLimit is not null && stats.DailyFailedFiles >= failureLimit)
                     {
                         Log.Information("Rejected enqueue request for user {Username}: Daily failure limit met or exceeded", username);
                         throw new DownloadEnqueueException("Too many failed transfers today");
                     }
 
-                    var daily = Transfers.Uploads.Summarize(
-                        expression: t =>
-                            t.Username == username
-                            && t.StartedAt >= cutoffDateTime
-                            && !t.State.HasFlag(erroredState)
-                            && t.Exception == null);
-
-                    Log.Debug("Fetched daily stats: files: {Files}, bytes: {Bytes} ({Time}ms)", daily.Files, daily.Bytes, decisionStopwatch.ElapsedMilliseconds);
-
-                    var over = OverLimits(daily, limits?.Daily, global?.Daily, resolved.Size);
+                    var over = OverLimits(
+                        files: stats.DailySucceededFiles,
+                        bytes: stats.DailySucceededBytes,
+                        options: limits?.Daily,
+                        defaults: global?.Daily,
+                        size: resolved.Size);
 
                     if (over.Files || over.Megabytes)
                     {
@@ -758,17 +730,16 @@ namespace slskd
                     }
                 }
 
-                await Transfers.Uploads.EnqueueAsync(username, filename);
-
-                Metrics.Enqueue.RequestsAccepted.Inc(1);
-
                 decisionStopwatch.Stop();
 
                 Metrics.Enqueue.DecisionLatency.Observe(decisionStopwatch.ElapsedMilliseconds);
                 Metrics.Enqueue.CurrentDecisionLatency.Update(decisionStopwatch.ElapsedMilliseconds);
 
+                await Transfers.Uploads.EnqueueAsync(username, filename);
+
                 stopwatch.Stop();
 
+                Metrics.Enqueue.RequestsAccepted.Inc(1);
                 Metrics.Enqueue.ResponseLatency.Observe(stopwatch.ElapsedMilliseconds);
                 Metrics.Enqueue.CurrentResponseLatency.Update(stopwatch.ElapsedMilliseconds);
             }
