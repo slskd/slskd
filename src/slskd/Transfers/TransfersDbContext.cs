@@ -81,6 +81,14 @@ namespace slskd.Transfers
                 .HasIndex(t => t.Removed)
                 .HasDatabaseName("IDX_Transfers_Removed");
 
+            // covers the ckeck for existing records when enqueueing uploads and downloads
+            modelBuilder
+                .Entity<Transfer>()
+                .HasIndex(t => new { t.Username, t.Filename })
+                .HasDatabaseName("IDX_Transfers_UsernameFilename");
+
+            // covers the GetUserStatistics method that backs limit checks
+            // check every so often with EXPLAIN to make sure it's being shown as a covering index
             modelBuilder
                 .Entity<Transfer>()
                 .HasIndex(e => new { e.Username, e.Direction, e.EndedAt, e.StartedAt, e.State, e.Size })
