@@ -43,9 +43,10 @@ public class Z12282025_AdditionalTransferIndexesMigration : IMigration
 
         var usernameExists = txfers.Any(c => c.Name.Equals("IDX_Transfers_Username", StringComparison.OrdinalIgnoreCase));
         var removedExists = txfers.Any(c => c.Name.Equals("IDX_Transfers_Removed", StringComparison.OrdinalIgnoreCase));
+        var usernameFilenameExists = txfers.Any(c => c.Name.Equals("IDX_Transfers_UsernameFilename", StringComparison.OrdinalIgnoreCase));
         var statsExist = txfers.Any(c => c.Name.Equals("IDX_Transfers_UserUploadStatistics", StringComparison.OrdinalIgnoreCase));
 
-        if (usernameExists && removedExists && statsExist)
+        if (usernameExists && removedExists && usernameFilenameExists && statsExist)
         {
             return false;
         }
@@ -68,22 +69,18 @@ public class Z12282025_AdditionalTransferIndexesMigration : IMigration
 
         try
         {
+            void Exec(string sql)
+            {
+                using var command = new SqliteCommand(sql, connection, transaction);
+                command.ExecuteNonQuery();
+            }
+
             Log.Information("> Adding missing index(es) on the Transfers table...");
 
-            var usernameCommand = new SqliteCommand(@"
-                CREATE INDEX IF NOT EXISTS IDX_Transfers_Username ON Transfers (Username)
-            ", connection, transaction);
-            usernameCommand.ExecuteNonQuery();
-
-            var removedCommand = new SqliteCommand(@"
-                CREATE INDEX IF NOT EXISTS IDX_Transfers_Removed ON Transfers (Removed)
-            ", connection, transaction);
-            removedCommand.ExecuteNonQuery();
-
-            var statsCommand = new SqliteCommand(@"
-                CREATE INDEX IF NOT EXISTS IDX_Transfers_UserUploadStatistics ON Transfers (Username, Direction, EndedAt, StartedAt, State, Size)
-            ", connection, transaction);
-            statsCommand.ExecuteNonQuery();
+            Exec("CREATE INDEX IF NOT EXISTS IDX_Transfers_Username ON Transfers (Username)");
+            Exec("CREATE INDEX IF NOT EXISTS IDX_Transfers_Removed ON Transfers (Removed)");
+            Exec("CREATE INDEX IF NOT EXISTS IDX_Transfers_UsernameFilename ON Transfers (Username, Filename)");
+            Exec("CREATE INDEX IF NOT EXISTS IDX_Transfers_UserUploadStatistics ON Transfers (Username, Direction, EndedAt, StartedAt, State, Size)");
 
             Log.Information("> Index(es) created");
             transaction.Commit();
