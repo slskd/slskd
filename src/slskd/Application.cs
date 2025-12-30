@@ -742,12 +742,12 @@ namespace slskd
                 Metrics.Enqueue.RequestsAccepted.Inc(1);
                 Metrics.Enqueue.ResponseLatency.Observe(stopwatch.ElapsedMilliseconds);
                 Metrics.Enqueue.CurrentResponseLatency.Update(stopwatch.ElapsedMilliseconds);
+
+                Log.Information("Enqueue of {Filename} to {Username} completed in {ElapsedOverall}ms, decision made in {ElapsedDecision}ms", filename, username, stopwatch.ElapsedMilliseconds, decisionStopwatch.ElapsedMilliseconds);
             }
             finally
             {
                 EnqueueRequestRateLimiter.Release();
-
-                Log.Debug("EnqueueDownload for {Username}/{Filename} completed in {ElapsedOverall}ms, decision made in {ElapsedDecision}ms", username, filename, stopwatch.ElapsedMilliseconds, decisionStopwatch.ElapsedMilliseconds);
             }
         }
 
