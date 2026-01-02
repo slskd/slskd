@@ -803,7 +803,15 @@ namespace slskd
             }
             finally
             {
-                EnqueueRequestRateLimiter.Release();
+                if (userSemaphoreAcquired)
+                {
+                    userSemaphore.Release();
+                }
+
+                if (enqueueRequestsSemaphoreAcquired)
+                {
+                    GlobalEnqueueSemaphore.Release();
+                }
             }
         }
 
