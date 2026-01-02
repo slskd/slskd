@@ -224,8 +224,8 @@ namespace slskd
         private OptionsAtStartup OptionsAtStartup { get; set; }
         private IOptionsMonitor<Options> OptionsMonitor { get; set; }
         private SemaphoreSlim OptionsSyncRoot { get; } = new SemaphoreSlim(1, 1);
-        private SemaphoreSlim EnqueueSemaphore { get; } = new SemaphoreSlim(10, 10);
-        private SemaphoreSlim tUserEnqueueSemaphoreSyncRoot { get; } = new SemaphoreSlim(1, 1);
+        private SemaphoreSlim GlobalEnqueueSemaphore { get; } = new SemaphoreSlim(10, 10);
+        private SemaphoreSlim UserEnqueueSemaphoreSyncRoot { get; } = new SemaphoreSlim(1, 1);
         private ConcurrentDictionary<string, SemaphoreSlim> UserEnqueueSemaphores { get; } = new ConcurrentDictionary<string, SemaphoreSlim>();
         private Options PreviousOptions { get; set; }
         private IPushbulletService Pushbullet { get; }
@@ -544,24 +544,78 @@ namespace slskd
         {
             Metrics.Enqueue.RequestsReceived.Inc(1);
 
-            if (Users.IsBlacklisted(username, endpoint.Address))
+            /*
+                circuit breaker/failsafe:
+
+                if it would take longer than three minutes to process this request based on the number of waiting requests
+                and the average processing latency, reject the request automatically to alleviate pressure on the system.
+
+                the requesting client will almost certainly consider any file for which it hasn't gotten confirmation
+                in over a minute to be failed, over 3 minutes is a safety buffer.
+            */
+            if (EnqueueQueueDepth * CurrentEnqueueLatency > 180_000)
             {
-                Log.Information("Rejected enqueue request for blacklisted user {Username} ({IP})", username, endpoint.Address);
-                throw new DownloadEnqueueException("File not shared.");
+                Metrics.Enqueue.RequestsDropped.Inc(1);
+                throw new DownloadEnqueueException("Overwhelmed with requests; try again later.");
             }
 
             var stopwatch = new Stopwatch();
             var decisionStopwatch = new Stopwatch();
 
-            Interlocked.Increment(ref EnqueueRequestQueueDepth);
+            SemaphoreSlim userSemaphore = null;
+            Task userSemaphoreWaitTask;
+            bool userSemaphoreAcquired = false;
 
-            await EnqueueRequestRateLimiter.WaitAsync();
+            bool enqueueRequestsSemaphoreAcquired = false;
 
             try
             {
-                Interlocked.Decrement(ref EnqueueRequestQueueDepth);
+                if (Users.IsBlacklisted(username, endpoint.Address))
+                {
+                    Log.Information("Rejected enqueue request for blacklisted user {Username} ({IP})", username, endpoint.Address);
+                    throw new DownloadEnqueueException("File not shared.");
+                }
 
-                Metrics.Enqueue.CurrentRequestQueueDepth.Set(EnqueueRequestQueueDepth);
+                /*
+                    for limits to work properly (and to help alleviate strain from the db, make incoming requests 'fair' among competing users),
+                    we need to ensure that we process only one request per user at a time.
+
+                    it's important that we obtain the user semaphore FIRST (before the global semaphore) to prevent one user
+                    from monopolizing the request queue; users must 'go to the back of the line' for each request
+
+                    hopefully this process takes < 10ms on most systems, but on low-spec systems with high traffic, this
+                    round-robin approach helps guarantee the best QoS for peers
+                */
+                Interlocked.Increment(ref EnqueueQueueDepth); // any request waiting on any semaphore counts
+
+                try
+                {
+                    // obtain exclusive access over the user dictionary. if this blocks it'll only be for a few ns
+                    // we should also only be holding it for a few ns per request
+                    await UserEnqueueSemaphoreSyncRoot.WaitAsync();
+
+                    try
+                    {
+                        // get the user's semaphore and START waiting; if we wait we'll tie up the sync root
+                        userSemaphore = UserEnqueueSemaphores.GetOrAdd(username, new SemaphoreSlim(initialCount: 1, maxCount: 1));
+                        userSemaphoreWaitTask = userSemaphore.WaitAsync();
+                    }
+                    finally
+                    {
+                        UserEnqueueSemaphoreSyncRoot.Release();
+                    }
+
+                    await userSemaphoreWaitTask;
+                    userSemaphoreAcquired = true;
+
+                    await GlobalEnqueueSemaphore.WaitAsync();
+                    enqueueRequestsSemaphoreAcquired = true;
+                }
+                finally
+                {
+                    Interlocked.Decrement(ref EnqueueQueueDepth);
+                    Metrics.Enqueue.CurrentQueueDepth.Set(EnqueueQueueDepth);
+                }
 
                 stopwatch.Start();
 
@@ -1034,6 +1088,9 @@ namespace slskd
         {
             Metrics.DistributedNetwork.BroadcastLatency.Observe(Client.DistributedNetwork.AverageBroadcastLatency ?? 0);
             Metrics.DistributedNetwork.CurrentBroadcastLatency.Set(Client.DistributedNetwork.AverageBroadcastLatency ?? 0);
+
+            _ = Task.Run(() => CleanupUserEnqueueSemaphoresAsync())
+                .ContinueWith(task => Log.Error(task.Exception, "Failed to clean up user enqueue semaphore(s): {Message}", task.Exception?.Message), TaskContinuationOptions.OnlyOnFaulted);
         }
 
         private void Clock_EveryFiveMinutes(object sender, ClockEventArgs e)
@@ -1742,6 +1799,32 @@ namespace slskd
             {
                 Log.Warning(ex, "Failed to resolve user info: {Message}", ex.Message);
                 throw;
+            }
+        }
+
+        private async Task CleanupUserEnqueueSemaphoresAsync()
+        {
+            // don't wait if we can't get exclusive access immediately; we'll get it eventually
+            if (await UserEnqueueSemaphoreSyncRoot.WaitAsync(0).ConfigureAwait(false))
+            {
+                try
+                {
+                    foreach (var kvp in UserEnqueueSemaphores)
+                    {
+                        // if we're able to obtain the semaphore immediately, there's nothing waiting on it
+                        // and we're safe to dispose of it.  the sync root saves us from concurrency issues here
+                        if (await kvp.Value.WaitAsync(0).ConfigureAwait(false))
+                        {
+                            UserEnqueueSemaphores.TryRemove(kvp.Key, out var removed);
+                            removed.Dispose();
+                            Log.Debug($"Cleaned up enqueue semaphore for user {kvp.Key}");
+                        }
+                    }
+                }
+                finally
+                {
+                    UserEnqueueSemaphoreSyncRoot.Release();
+                }
             }
         }
     }
