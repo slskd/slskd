@@ -41,12 +41,11 @@ public class Z12282025_AdditionalTransferIndexesMigration : IMigration
         var idxes = SchemaInspector.GetDatabaseIndexes(ConnectionString);
         var txfers = idxes["Transfers"];
 
-        var usernameExists = txfers.Any(c => c.Name.Equals("IDX_Transfers_Username", StringComparison.OrdinalIgnoreCase));
         var removedExists = txfers.Any(c => c.Name.Equals("IDX_Transfers_Removed", StringComparison.OrdinalIgnoreCase));
         var usernameFilenameExists = txfers.Any(c => c.Name.Equals("IDX_Transfers_UsernameFilename", StringComparison.OrdinalIgnoreCase));
         var statsExist = txfers.Any(c => c.Name.Equals("IDX_Transfers_UserUploadStatistics", StringComparison.OrdinalIgnoreCase));
 
-        if (usernameExists && removedExists && usernameFilenameExists && statsExist)
+        if (removedExists && usernameFilenameExists && statsExist)
         {
             return false;
         }
@@ -77,7 +76,6 @@ public class Z12282025_AdditionalTransferIndexesMigration : IMigration
 
             Log.Information("> Adding missing index(es) on the Transfers table...");
 
-            Exec("CREATE INDEX IF NOT EXISTS IDX_Transfers_Username ON Transfers (Username)");
             Exec("CREATE INDEX IF NOT EXISTS IDX_Transfers_Removed ON Transfers (Removed)");
             Exec("CREATE INDEX IF NOT EXISTS IDX_Transfers_UsernameFilename ON Transfers (Username, Filename)");
             Exec("CREATE INDEX IF NOT EXISTS IDX_Transfers_UserUploadStatistics ON Transfers (Username, Direction, EndedAt, StartedAt, State, Size)");
