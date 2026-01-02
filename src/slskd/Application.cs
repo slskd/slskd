@@ -803,6 +803,16 @@ namespace slskd
             }
             finally
             {
+                if (decisionStopwatch.IsRunning)
+                {
+                    decisionStopwatch.Stop();
+                }
+
+                // decision latency is reported here so that we can track both successes and failures; they do the same
+                // work so lumping them together gives us the clearest picture
+                Metrics.Enqueue.DecisionLatency.Observe(decisionStopwatch.ElapsedMilliseconds);
+                Metrics.Enqueue.CurrentDecisionLatency.Update(decisionStopwatch.ElapsedMilliseconds);
+
                 if (userSemaphoreAcquired)
                 {
                     userSemaphore.Release();
