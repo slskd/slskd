@@ -788,16 +788,16 @@ namespace slskd
 
                 decisionStopwatch.Stop();
 
-                Metrics.Enqueue.DecisionLatency.Observe(decisionStopwatch.ElapsedMilliseconds);
-                Metrics.Enqueue.CurrentDecisionLatency.Update(decisionStopwatch.ElapsedMilliseconds);
-
                 await Transfers.Uploads.EnqueueAsync(username, filename);
 
                 stopwatch.Stop();
 
+                // we only report metrics for successes so that each value is guaranteed to include the enqueue latency
                 Metrics.Enqueue.RequestsAccepted.Inc(1);
-                Metrics.Enqueue.ResponseLatency.Observe(stopwatch.ElapsedMilliseconds);
-                Metrics.Enqueue.CurrentResponseLatency.Update(stopwatch.ElapsedMilliseconds);
+                Metrics.Enqueue.Latency.Observe(stopwatch.ElapsedMilliseconds);
+                Metrics.Enqueue.CurrentLatency.Update(stopwatch.ElapsedMilliseconds);
+
+                Interlocked.Exchange(ref CurrentEnqueueLatency, Metrics.Enqueue.CurrentLatency.Value);
 
                 Log.Information("Enqueue of {Filename} to {Username} completed in {ElapsedOverall}ms, decision made in {ElapsedDecision}ms", filename, username, stopwatch.ElapsedMilliseconds, decisionStopwatch.ElapsedMilliseconds);
             }
