@@ -224,7 +224,9 @@ namespace slskd
         private OptionsAtStartup OptionsAtStartup { get; set; }
         private IOptionsMonitor<Options> OptionsMonitor { get; set; }
         private SemaphoreSlim OptionsSyncRoot { get; } = new SemaphoreSlim(1, 1);
-        private SemaphoreSlim EnqueueRequestRateLimiter { get; } = new SemaphoreSlim(10, 10);
+        private SemaphoreSlim EnqueueSemaphore { get; } = new SemaphoreSlim(10, 10);
+        private SemaphoreSlim tUserEnqueueSemaphoreSyncRoot { get; } = new SemaphoreSlim(1, 1);
+        private ConcurrentDictionary<string, SemaphoreSlim> UserEnqueueSemaphores { get; } = new ConcurrentDictionary<string, SemaphoreSlim>();
         private Options PreviousOptions { get; set; }
         private IPushbulletService Pushbullet { get; }
         private DateTime SharesRefreshStarted { get; set; }
