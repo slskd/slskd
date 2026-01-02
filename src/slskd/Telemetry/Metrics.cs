@@ -139,7 +139,7 @@ public static class Metrics
         /// <summary>
         ///     Gets an EMA representing the average total time taken to resolve a response to an incoming request to enqueue a file, in milliseconds.
         /// </summary>
-        public static ExponentialMovingAverage CurrentLatency { get; } = new ExponentialMovingAverage(smoothingFactor: 0.5, onUpdate: value => CurrentResponseLatencyGauge.Set(value));
+        public static ExponentialMovingAverage CurrentLatency { get; } = new ExponentialMovingAverage(smoothingFactor: 0.5, onUpdate: value => CurrentLatencyGauge.Set(value));
 
         /// <summary>
         ///     Gets a counter representing the total number of incoming enqueue requests received.
