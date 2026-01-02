@@ -83,8 +83,8 @@ namespace slskd
         private static readonly string ApplicationShutdownTransferExceptionMessage = "Application shut down";
 
 #pragma warning disable SA1306 // Field names should begin with lower-case letter
-
-        private static int EnqueueRequestQueueDepth = 0;
+        private static int EnqueueQueueDepth = 0;
+        private static double CurrentEnqueueLatency = 0;
 #pragma warning restore SA1306 // Field names should begin with lower-case letter
 
         public Application(
