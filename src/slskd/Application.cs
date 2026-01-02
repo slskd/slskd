@@ -801,6 +801,11 @@ namespace slskd
 
                 Log.Information("Enqueue of {Filename} to {Username} completed in {ElapsedOverall}ms, decision made in {ElapsedDecision}ms", filename, username, stopwatch.ElapsedMilliseconds, decisionStopwatch.ElapsedMilliseconds);
             }
+            catch (DownloadEnqueueException)
+            {
+                Metrics.Enqueue.RequestsRejected.Inc(1);
+                throw;
+            }
             finally
             {
                 if (decisionStopwatch.IsRunning)
