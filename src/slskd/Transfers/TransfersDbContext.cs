@@ -73,11 +73,6 @@ namespace slskd.Transfers
 
             modelBuilder
                 .Entity<Transfer>()
-                .HasIndex(t => t.Username)
-                .HasDatabaseName("IDX_Transfers_Username");
-
-            modelBuilder
-                .Entity<Transfer>()
                 .HasIndex(t => t.Removed)
                 .HasDatabaseName("IDX_Transfers_Removed");
 
