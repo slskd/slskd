@@ -92,7 +92,7 @@ public static class TransferStateCategories
     ///     <list type="bullet">
     ///         <item><see cref="TransferStates.Queued"/> (2)</item>
     ///         <item><see cref="TransferStates.Locally"/> (2 | 2048 = 2050)</item>
-    ///         <item><see cref="TransferStates.Remotely"/>(2 | 4096 = 4098)</item>
+    ///         <item><see cref="TransferStates.Remotely"/> (2 | 4096 = 4098)</item>
     ///     </list>
     /// </summary>
     public static readonly HashSet<TransferStates> Queued = [
