@@ -76,7 +76,7 @@ namespace slskd.Transfers
                 .HasIndex(t => t.Removed)
                 .HasDatabaseName("IDX_Transfers_Removed");
 
-            // covers the ckeck for existing records when enqueueing uploads and downloads
+            // covers the check for existing records when enqueueing uploads and downloads
             modelBuilder
                 .Entity<Transfer>()
                 .HasIndex(t => new { t.Username, t.Filename })
