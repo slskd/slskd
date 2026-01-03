@@ -23,7 +23,7 @@ using Microsoft.Data.Sqlite;
 using Serilog;
 
 /// <summary>
-///     Updates the Transfers table to add indexes on the Direction and State columns.
+///     Adds additional indexes to the Transfers table for Removed, Username/Filename, and user upload statistics.
 /// </summary>
 public class Z12282025_AdditionalTransferIndexesMigration : IMigration
 {
