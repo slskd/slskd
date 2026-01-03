@@ -327,7 +327,7 @@ namespace slskd.Transfers.Downloads
                 var existingRecordsNotYetRemoved = context.Transfers
                     .Where(t => t.Direction == TransferDirection.Download)
                     .Where(t => t.Username == username)
-                    .Where(t => !t.Removed || !TransferStateCategories.Completed.Contains((int)t.State))
+                    .Where(t => !t.Removed || !TransferStateCategories.Completed.Contains(t.State))
                     .AsNoTracking()
                     .ToList();
 
@@ -740,7 +740,7 @@ namespace slskd.Transfers.Downloads
 
                 var count = context.Transfers
                     .Where(t => t.Direction == TransferDirection.Download)
-                    .Where(t => TransferStateCategories.Completed.Contains((int)t.State))
+                    .Where(t => TransferStateCategories.Completed.Contains(t.State))
                     .Where(expression)
                     .ExecuteUpdate(r => r.SetProperty(c => c.Removed, true));
 
