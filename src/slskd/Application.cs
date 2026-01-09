@@ -1226,19 +1226,19 @@ namespace slskd
         {
             var options = OptionsMonitor.CurrentValue.Retention;
 
-            void PruneUpload(int? age, TransferStates state)
+            void PruneUpload(int? age, params TransferStates[] states)
             {
                 if (age.HasValue)
                 {
-                    Transfers.Uploads.Prune(age.Value, TransferStates.Completed | state);
+                    Transfers.Uploads.Prune(age.Value, [.. states.Select(s => TransferStates.Completed | s)]);
                 }
             }
 
-            void PruneDownload(int? age, TransferStates state)
+            void PruneDownload(int? age, params TransferStates[] states)
             {
                 if (age.HasValue)
                 {
-                    Transfers.Downloads.Prune(age.Value, TransferStates.Completed | state);
+                    Transfers.Downloads.Prune(age.Value, [.. states.Select(s => TransferStates.Completed | s)]);
                 }
             }
 
@@ -1246,11 +1246,13 @@ namespace slskd
             {
                 PruneUpload(options.Transfers.Upload.Succeeded, TransferStates.Succeeded);
                 PruneUpload(options.Transfers.Upload.Cancelled, TransferStates.Cancelled);
-                PruneUpload(options.Transfers.Upload.Errored, TransferStates.Errored);
+                PruneUpload(options.Transfers.Upload.Errored, TransferStates.Errored, TransferStates.Aborted, TransferStates.Rejected, TransferStates.TimedOut);
+                PruneUpload(options.Transfers.Upload.Failed, [.. TransferStateCategories.Failed]);
 
                 PruneDownload(options.Transfers.Download.Succeeded, TransferStates.Succeeded);
                 PruneDownload(options.Transfers.Download.Cancelled, TransferStates.Cancelled);
-                PruneDownload(options.Transfers.Download.Errored, TransferStates.Errored);
+                PruneDownload(options.Transfers.Download.Errored, TransferStates.Errored, TransferStates.Aborted, TransferStates.TimedOut);
+                PruneDownload(options.Transfers.Download.Failed, [.. TransferStateCategories.Failed]);
             }
             catch
             {
