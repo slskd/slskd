@@ -33,37 +33,55 @@ public static class TransferStateCategories
     ///     All states representing a successful transfer:
     ///
     ///     <list type="bullet">
-    ///         <item><see cref="TransferStates.Succeeded"/></item>
+    ///         <item><see cref="TransferStates.Succeeded"/> (16 | 32 = 48)</item>
     ///     </list>
     /// </summary>
-    public static readonly HashSet<int> Successful = [
-        (int)(TransferStates.Completed | TransferStates.Succeeded)
+    public static readonly HashSet<TransferStates> Successful = [
+        TransferStates.Completed | TransferStates.Succeeded // 16 | 32 = 48
     ];
 
     /// <summary>
     ///     All states representing a failed transfer:
     ///
     ///     <list type="bullet">
-    ///         <item><see cref="TransferStates.Cancelled"/></item>
-    ///         <item><see cref="TransferStates.TimedOut"/></item>
-    ///         <item><see cref="TransferStates.Errored"/></item>
-    ///         <item><see cref="TransferStates.Rejected"/></item>
-    ///         <item><see cref="TransferStates.Aborted"/></item>
+    ///         <item><see cref="TransferStates.Cancelled"/> (16 | 64 = 80)</item>
+    ///         <item><see cref="TransferStates.TimedOut"/> (16 | 128 = 144)</item>
+    ///         <item><see cref="TransferStates.Errored"/> (16 | 256 = 272)</item>
+    ///         <item><see cref="TransferStates.Rejected"/> (16 | 512 = 528)</item>
+    ///         <item><see cref="TransferStates.Aborted"/> (16 | 1024 = 1040)</item>
     ///     </list>
     /// </summary>
-    public static readonly HashSet<int> Failed = [
-        (int)(TransferStates.Completed | TransferStates.Cancelled),
-        (int)(TransferStates.Completed | TransferStates.TimedOut),
-        (int)(TransferStates.Completed | TransferStates.Errored),
-        (int)(TransferStates.Completed | TransferStates.Rejected),
-        (int)(TransferStates.Completed | TransferStates.Aborted),
+    public static readonly HashSet<TransferStates> Failed = [
+        TransferStates.Completed | TransferStates.Cancelled, // 16 | 64 = 80
+        TransferStates.Completed | TransferStates.TimedOut, // 16 | 128 = 144
+        TransferStates.Completed | TransferStates.Errored, // 16 | 256 = 272
+        TransferStates.Completed | TransferStates.Rejected, // 16 | 512 = 528
+        TransferStates.Completed | TransferStates.Aborted, // 16 | 1024 = 1040
     ];
 
     /// <summary>
     ///     All states containing the <see cref="TransferStates.Completed"/> flag.
+    ///
+    ///     <list type="bullet">
+    ///         <item><see cref="TransferStates.Completed"/> (16)</item>
+    ///     </list>
+    ///
+    ///     Successful:
+    ///     <list type="bullet">
+    ///         <item><see cref="TransferStates.Succeeded"/> (16 | 32 = 48)</item>
+    ///     </list>
+    ///
+    ///     Failed:
+    ///     <list type="bullet">
+    ///         <item><see cref="TransferStates.Cancelled"/> (16 | 64 = 80)</item>
+    ///         <item><see cref="TransferStates.TimedOut"/> (16 | 128 = 144)</item>
+    ///         <item><see cref="TransferStates.Errored"/> (16 | 256 = 272)</item>
+    ///         <item><see cref="TransferStates.Rejected"/> (16 | 512 = 528)</item>
+    ///         <item><see cref="TransferStates.Aborted"/> (16 | 1024 = 1040)</item>
+    ///     </list>
     /// </summary>
-    public static readonly HashSet<int> Completed = [
-        (int)TransferStates.Completed, // in case some sort of a malfunction or regression
+    public static readonly HashSet<TransferStates> Completed = [
+        TransferStates.Completed, // 16, in case of some sort of a malfunction or regression
         .. Successful,
         .. Failed
     ];
@@ -72,26 +90,27 @@ public static class TransferStateCategories
     ///     All states representing a queued transfer:
     ///
     ///     <list type="bullet">
-    ///         <item><see cref="TransferStates.Locally"/></item>
-    ///         <item><see cref="TransferStates.Remotely"/></item>
+    ///         <item><see cref="TransferStates.Queued"/> (2)</item>
+    ///         <item><see cref="TransferStates.Locally"/> (2 | 2048 = 2050)</item>
+    ///         <item><see cref="TransferStates.Remotely"/> (2 | 4096 = 4098)</item>
     ///     </list>
     /// </summary>
-    public static readonly HashSet<int> Queued = [
-        (int)TransferStates.Queued,
-        (int)(TransferStates.Queued | TransferStates.Locally),
-        (int)(TransferStates.Queued | TransferStates.Remotely),
+    public static readonly HashSet<TransferStates> Queued = [
+        TransferStates.Queued, // 2, in case of some sort of a malfunction or regression
+        TransferStates.Queued | TransferStates.Locally, // 2 | 2048 = 2050
+        TransferStates.Queued | TransferStates.Remotely, // 2 | 4096 = 4098
     ];
 
     /// <summary>
     ///     All states representing a transfer that is in progress:
     ///
     ///     <list type="bullet">
-    ///         <item><see cref="TransferStates.Initializing"/></item>
-    ///         <item><see cref="TransferStates.InProgress"/></item>
+    ///         <item><see cref="TransferStates.Initializing"/> (4)</item>
+    ///         <item><see cref="TransferStates.InProgress"/> (8)</item>
     ///     </list>
     /// </summary>
-    public static readonly HashSet<int> InProgress = [
-        (int)TransferStates.Initializing,
-        (int)TransferStates.InProgress,
+    public static readonly HashSet<TransferStates> InProgress = [
+        TransferStates.Initializing, // 4
+        TransferStates.InProgress, // 8
     ];
 }

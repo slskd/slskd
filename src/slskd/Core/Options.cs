@@ -1423,6 +1423,12 @@ namespace slskd
                     /// </summary>
                     [Range(5, maximum: int.MaxValue)]
                     public int? Cancelled { get; init; } = null;
+
+                    /// <summary>
+                    ///     Gets the time to retain unsuccessful (including errored and cancelled) transfers, in minutes.
+                    /// </summary>
+                    [Range(5, maximum: int.MaxValue)]
+                    public int? Failed { get; init; } = null;
                 }
             }
 
