@@ -849,7 +849,7 @@ namespace slskd
             services.AddRouting(options => options.LowercaseUrls = true);
             services.AddControllers(options =>
             {
-                options.ModelBinderProviders.Insert(0, new FromRouteUnsafeModelBinder());
+                options.ModelBinderProviders.Insert(0, new UrlEncodingModelBinderProvider());
             })
                 .ConfigureApiBehaviorOptions(options =>
                 {
