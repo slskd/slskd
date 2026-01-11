@@ -96,6 +96,14 @@ namespace slskd.Transfers.Uploads
         (int Files, long Bytes) Summarize(Expression<Func<Transfer, bool>> expression);
 
         /// <summary>
+        ///     Gets upload statistics for the specified <paramref name="username"/>.
+        /// </summary>
+        /// <param name="username">The username of the user.</param>
+        /// <param name="utcNow">An optional timestamp representing the current time in UTC.</param>
+        /// <returns>The gathered statistics.</returns>
+        UserUploadStatistics GetUserStatistics(string username, DateTime? utcNow = null);
+
+        /// <summary>
         ///     Returns a list of all uploads matching the optional <paramref name="expression"/>.
         /// </summary>
         /// <param name="expression">An optional expression used to match uploads.</param>
@@ -107,16 +115,25 @@ namespace slskd.Transfers.Uploads
         ///     Removes <see cref="TransferStates.Completed"/> uploads older than the specified <paramref name="age"/>.
         /// </summary>
         /// <param name="age">The age after which uploads are eligible for pruning, in minutes.</param>
-        /// <param name="stateHasFlag">An optional, additional state by which uploads are filtered for pruning.</param>
+        /// <param name="states">One or more states by which uploads are filtered for pruning.</param>
         /// <returns>The number of pruned uploads.</returns>
-        int Prune(int age, TransferStates stateHasFlag = TransferStates.Completed);
+        int Prune(int age, params TransferStates[] states);
 
         /// <summary>
-        ///     Removes the upload matching the specified <paramref name="id"/>.
+        ///     Removes the completed upload matching the specified <paramref name="id"/>.
         /// </summary>
         /// <remarks>This is a soft delete; the record is retained for historical retrieval.</remarks>
         /// <param name="id">The unique identifier of the upload.</param>
-        void Remove(Guid id);
+        /// <returns>A value indicating whether the record was removed.</returns>
+        bool Remove(Guid id);
+
+        /// <summary>
+        ///     Removes all completed uploads matching the specified <paramref name="expression"/>.
+        /// </summary>
+        /// <remarks>This is a soft delete; the record is retained for historical retrieval.</remarks>
+        /// <param name="expression">The expression used to match uploads.</param>
+        /// <returns>The number of records removed.</returns>
+        int Remove(Expression<Func<Transfer, bool>> expression);
 
         /// <summary>
         ///     Cancels the upload matching the specified <paramref name="id"/>, if it is in progress.
@@ -780,13 +797,15 @@ namespace slskd.Transfers.Uploads
         ///     Removes <see cref="TransferStates.Completed"/> uploads older than the specified <paramref name="age"/>.
         /// </summary>
         /// <param name="age">The age after which uploads are eligible for pruning, in minutes.</param>
-        /// <param name="stateHasFlag">An optional, additional state by which uploads are filtered for pruning.</param>
+        /// <param name="states">One or more states by which uploads are filtered for pruning.</param>
         /// <returns>The number of pruned uploads.</returns>
-        public int Prune(int age, TransferStates stateHasFlag = TransferStates.Completed)
+        public int Prune(int age, params TransferStates[] states)
         {
-            if (!stateHasFlag.HasFlag(TransferStates.Completed))
+            var statesSet = new HashSet<int>(states.Select(s => (int)s));
+
+            if (!statesSet.All(s => ((TransferStates)s).HasFlag(TransferStates.Completed)))
             {
-                throw new ArgumentException($"State must include {TransferStates.Completed}", nameof(stateHasFlag));
+                throw new ArgumentException($"Each state must include {TransferStates.Completed}", nameof(states));
             }
 
             try
@@ -795,23 +814,16 @@ namespace slskd.Transfers.Uploads
 
                 var cutoffDateTime = DateTime.UtcNow.AddMinutes(-age);
 
-                var expired = context.Transfers
+                var pruned = context.Transfers
                     .Where(t => t.Direction == TransferDirection.Upload)
                     .Where(t => !t.Removed)
                     .Where(t => t.EndedAt.HasValue && t.EndedAt.Value < cutoffDateTime)
-                    .Where(t => t.State.HasFlag(stateHasFlag))
-                    .ToList();
-
-                foreach (var tx in expired)
-                {
-                    tx.Removed = true;
-                }
-
-                var pruned = context.SaveChanges();
+                    .Where(t => statesSet.Contains((int)t.State))
+                    .ExecuteUpdate(r => r.SetProperty(c => c.Removed, true));
 
                 if (pruned > 0)
                 {
-                    Log.Debug("Pruned {Count} expired uploads with state {State}", pruned, stateHasFlag);
+                    Log.Debug("Pruned {Count} expired uploads with states {States}", pruned, statesSet);
                 }
 
                 return pruned;
@@ -824,38 +836,40 @@ namespace slskd.Transfers.Uploads
         }
 
         /// <summary>
-        ///     Removes the upload matching the specified <paramref name="id"/>.
+        ///     Removes the completed upload matching the specified <paramref name="id"/>.
         /// </summary>
         /// <remarks>This is a soft delete; the record is retained for historical retrieval.</remarks>
         /// <param name="id">The unique identifier of the upload.</param>
-        public void Remove(Guid id)
+        /// <returns>A value indicating whether the record was removed.</returns>
+        public bool Remove(Guid id)
+        {
+            return Remove(t => t.Id == id) > 0;
+        }
+
+        /// <summary>
+        ///     Removes all completed uploads matching the specified <paramref name="expression"/>.
+        /// </summary>
+        /// <remarks>This is a soft delete; the record is retained for historical retrieval.</remarks>
+        /// <param name="expression">The expression used to match uploads.</param>
+        /// <returns>The number of records removed.</returns>
+        public int Remove(Expression<Func<Transfer, bool>> expression)
         {
             try
             {
                 using var context = ContextFactory.CreateDbContext();
 
-                var transfer = context.Transfers
+                var count = context.Transfers
                     .Where(t => t.Direction == TransferDirection.Upload)
-                    .Where(t => t.Id == id)
-                    .FirstOrDefault();
+                    .Where(t => TransferStateCategories.Completed.Contains(t.State))
+                    .Where(expression)
+                    .ExecuteUpdate(r => r.SetProperty(c => c.Removed, true));
 
-                if (transfer == default)
-                {
-                    throw new NotFoundException($"No upload matching id ${id}");
-                }
-
-                if (!transfer.State.HasFlag(TransferStates.Completed))
-                {
-                    throw new InvalidOperationException($"Invalid attempt to remove an upload before it is complete");
-                }
-
-                transfer.Removed = true;
-
-                context.SaveChanges();
+                Log.Debug("Removed {Count} uploads by expression", count);
+                return count;
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "Failed to remove upload {Id}: {Message}", id, ex.Message);
+                Log.Error(ex, "Failed to remove uploads by expression: {Message}", ex.Message);
                 throw;
             }
         }
@@ -911,6 +925,54 @@ namespace slskd.Transfers.Uploads
 
             context.Update(transfer);
             context.SaveChanges();
+        }
+
+        /// <summary>
+        ///     Gets upload statistics for the specified <paramref name="username"/>.
+        /// </summary>
+        /// <param name="username">The username of the user.</param>
+        /// <param name="utcNow">An optional timestamp representing the current time in UTC.</param>
+        /// <returns>The gathered statistics.</returns>
+        public UserUploadStatistics GetUserStatistics(string username, DateTime? utcNow = null)
+        {
+            utcNow ??= DateTime.UtcNow;
+            var dailyCutoff = utcNow.Value.AddDays(-1);
+            var weeklyCutoff = utcNow.Value.AddDays(-7);
+
+            using var context = ContextFactory.CreateDbContext();
+
+            var failedStates = TransferStateCategories.Failed.ToList();
+            var successState = TransferStates.Completed | TransferStates.Succeeded;
+
+            var stats = context.Transfers
+                .AsNoTracking()
+                .Where(t => t.Username == username)
+                .Where(t => t.Direction == TransferDirection.Upload)
+                .Where(t => t.EndedAt == null || t.StartedAt >= weeklyCutoff)
+                .GroupBy(t => 1) // aggregate everything into one row
+                .Select(g => new UserUploadStatistics
+                {
+                    QueuedFiles = g.Count(t => t.EndedAt == null),
+                    QueuedBytes = g.Where(t => t.EndedAt == null).Sum(t => (long?)t.Size) ?? 0,
+
+                    // note: this generates some funky json_each() expression under the hood; it's an EF optimization
+                    // that helps with optimization of query plans. i've tried expanding this out to force an IN
+                    // and there's either no difference, or there's a slight improvement with the json_each method.
+                    WeeklyFailedFiles = g.Count(t => t.StartedAt >= weeklyCutoff && failedStates.Contains(t.State)),
+
+                    WeeklySucceededFiles = g.Count(t => t.StartedAt >= weeklyCutoff && t.State == successState),
+                    WeeklySucceededBytes = g.Where(t => t.StartedAt >= weeklyCutoff && t.State == successState)
+                        .Sum(t => (long?)t.Size) ?? 0,
+
+                    DailyFailedFiles = g.Count(t => t.StartedAt >= dailyCutoff && failedStates.Contains(t.State)),
+
+                    DailySucceededFiles = g.Count(t => t.StartedAt >= dailyCutoff && t.State == successState),
+                    DailySucceededBytes = g.Where(t => t.StartedAt >= dailyCutoff && t.State == successState)
+                        .Sum(t => (long?)t.Size) ?? 0,
+                })
+                .FirstOrDefault();
+
+            return stats ?? new UserUploadStatistics();
         }
 
         private bool TryFail(Guid id, string exception, TransferStates state)

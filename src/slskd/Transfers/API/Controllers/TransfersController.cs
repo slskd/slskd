@@ -115,14 +115,16 @@ namespace slskd.Transfers.API
                 return Forbid();
             }
 
-            var transfers = Transfers.Downloads.List(t => t.State.HasFlag(Soulseek.TransferStates.Completed));
-
-            foreach (var id in transfers.Select(t => t.Id))
+            try
             {
-                Transfers.Downloads.Remove(id);
+                Transfers.Downloads.Remove(t => !t.Removed && TransferStateCategories.Completed.Contains(t.State));
+                return NoContent();
             }
-
-            return NoContent();
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to remove completed downloads: {Message}", ex.Message);
+                return StatusCode(500, ex.Message);
+            }
         }
 
         /// <summary>
@@ -182,16 +184,16 @@ namespace slskd.Transfers.API
                 return Forbid();
             }
 
-            // get all the transfers that aren't removed
-            var transfers = Transfers.Uploads
-                .List(t => t.State.HasFlag(Soulseek.TransferStates.Completed), includeRemoved: false);
-
-            foreach (var id in transfers.Select(t => t.Id))
+            try
             {
-                Transfers.Uploads.Remove(id);
+                Transfers.Uploads.Remove(t => !t.Removed && TransferStateCategories.Completed.Contains(t.State));
+                return NoContent();
             }
-
-            return NoContent();
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to remove completed uploads: {Message}", ex.Message);
+                return StatusCode(500, ex.Message);
+            }
         }
 
         /// <summary>

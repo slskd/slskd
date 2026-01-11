@@ -1,10 +1,3 @@
-> [!IMPORTANT]
-> **Issues, Pull Requests, Discussions, And Comments Are Temporarily Disabled Until 1/5/26**
->
-> The maintainers need some quiet time to enjoy the holidays, work through old and stale issues and PRs, and establish better contribution guidelines.
->
-> In the meantime, enjoy the free software.  Or don't.
-
 # slskd
 
 [![Build](https://img.shields.io/github/actions/workflow/status/slskd/slskd/ci.yml?branch=master&logo=github)](https://github.com/slskd/slskd/actions/workflows/ci.yml)
@@ -104,3 +97,6 @@ An application directory will be created in either `~/.local/share/slskd` (on Li
 Once running, log in to the web UI using the default username `slskd` and password `slskd` to complete the configuration.
 
 Detailed documentation for configuration options can be found [here](https://github.com/slskd/slskd/blob/master/docs/config.md), and an example of the YAML configuration file can be reviewed [here](https://github.com/slskd/slskd/blob/master/config/slskd.example.yml).
+
+## Reverse Proxy
+SLSKD may require extra configuration when running it behind a reverse proxy. Refer [here](https://github.com/slskd/slskd/blob/master/docs/reverse_proxy.md) for a short guide.
