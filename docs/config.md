@@ -811,7 +811,7 @@ Logging of HTTP requests is disabled by default.
 | Command-Line               | Environment Variable           | Description                                         |
 | -------------------------- | ------------------------------ | --------------------------------------------------- |
 | `-l\|--http-port`          | `SLSKD_HTTP_PORT`              | The HTTP listen port                                |
-| `--http-listen-ip-address` | `SLSKD_HTTP_IP_ADDRESS`        | The IP address on which to listen for HTTP requests |
+| `--http-ip-address`        | `SLSKD_HTTP_IP_ADDRESS`        | The IP address on which to listen for HTTP requests |
 | `--http-socket`            | `SLSKD_HTTP_SOCKET`            | The HTTP listen unix domain socket (UDS) path       |
 | `--url-base`               | `SLSKD_URL_BASE`               | The base url for web requests                       |
 | `--content-path`           | `SLSKD_CONTENT_PATH`           | The path to static web content                      |
