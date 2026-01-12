@@ -177,6 +177,10 @@ namespace slskd.Shares
             conn.ExecuteNonQuery("CREATE TABLE IF NOT EXISTS files " +
                 "(maskedFilename TEXT PRIMARY KEY, originalFilename TEXT NOT NULL, size BIGINT NOT NULL, touchedAt TEXT NOT NULL, code INTEGER DEFAULT 1 NOT NULL, " +
                 "extension TEXT, attributeJson TEXT NOT NULL, timestamp INTEGER NOT NULL);");
+
+            conn.ExecuteNonQuery("CREATE INDEX IF NOT EXISTS idx_files_timestamp ON files(timestamp)");
+            conn.ExecuteNonQuery("CREATE INDEX IF NOT EXISTS idx_directories_timestamp ON directories(timestamp)");
+            conn.ExecuteNonQuery("CREATE INDEX IF NOT EXISTS idx_scans_timestamp ON scans(timestamp DESC)");
         }
 
         /// <summary>

@@ -40,7 +40,6 @@ namespace slskd
     using Serilog.Events;
     using slskd.Configuration;
     using slskd.Core.API;
-    using slskd.Events;
     using slskd.Files;
     using slskd.Integrations.Pushbullet;
     using slskd.Messaging;
@@ -82,6 +81,11 @@ namespace slskd
         public const string BlacklistedGroup = "blacklisted";
 
         private static readonly string ApplicationShutdownTransferExceptionMessage = "Application shut down";
+
+#pragma warning disable SA1306 // Field names should begin with lower-case letter
+        private static int EnqueueQueueDepth = 0;
+        private static double CurrentEnqueueLatency = 0;
+#pragma warning restore SA1306 // Field names should begin with lower-case letter
 
         public Application(
             OptionsAtStartup optionsAtStartup,
@@ -220,7 +224,9 @@ namespace slskd
         private OptionsAtStartup OptionsAtStartup { get; set; }
         private IOptionsMonitor<Options> OptionsMonitor { get; set; }
         private SemaphoreSlim OptionsSyncRoot { get; } = new SemaphoreSlim(1, 1);
-        private SemaphoreSlim EnqueueRequestRateLimiter { get; } = new SemaphoreSlim(20, 20);
+        private SemaphoreSlim GlobalEnqueueSemaphore { get; } = new SemaphoreSlim(10, 10);
+        private SemaphoreSlim UserEnqueueSemaphoreSyncRoot { get; } = new SemaphoreSlim(1, 1);
+        private ConcurrentDictionary<string, SemaphoreSlim> UserEnqueueSemaphores { get; } = new ConcurrentDictionary<string, SemaphoreSlim>();
         private Options PreviousOptions { get; set; }
         private IPushbulletService Pushbullet { get; }
         private DateTime SharesRefreshStarted { get; set; }
@@ -312,7 +318,7 @@ namespace slskd
             // records to be updated if the application has started to shut down so that we can do this cleanup and properly
             // disposition them as having failed due to an application shutdown, instead of some random exception thrown while
             // things are being disposed.
-            var activeUploads = Transfers.Uploads.List(t => t.EndedAt == null || !t.State.HasFlag(TransferStates.Completed), includeRemoved: true);
+            var activeUploads = Transfers.Uploads.List(t => t.EndedAt == null || !TransferStateCategories.Completed.Contains(t.State), includeRemoved: true);
 
             foreach (var upload in activeUploads)
             {
@@ -323,7 +329,7 @@ namespace slskd
                 Transfers.Uploads.Update(upload);
             }
 
-            var activeDownloads = Transfers.Downloads.List(t => t.EndedAt == null || !t.State.HasFlag(TransferStates.Completed), includeRemoved: true);
+            var activeDownloads = Transfers.Downloads.List(t => t.EndedAt == null || !TransferStateCategories.Completed.Contains(t.State), includeRemoved: true);
 
             foreach (var download in activeDownloads)
             {
@@ -534,23 +540,84 @@ namespace slskd
             }
         }
 
-        // todo: consider moving this somewhere else; it's pretty long and complicated
         private async Task EnqueueDownload(string username, IPEndPoint endpoint, string filename)
         {
+            Metrics.Enqueue.RequestsReceived.Inc(1);
+
+            /*
+                circuit breaker/failsafe:
+
+                if it would take longer than three minutes to process this request based on the number of waiting requests
+                and the average processing latency, reject the request automatically to alleviate pressure on the system.
+
+                the requesting client will almost certainly consider any file for which it hasn't gotten confirmation
+                in over a minute to be failed, over 3 minutes is a safety buffer.
+            */
+            if (EnqueueQueueDepth * CurrentEnqueueLatency > 180_000)
+            {
+                Metrics.Enqueue.RequestsDropped.Inc(1);
+                throw new DownloadEnqueueException("Overwhelmed with requests; try again later.");
+            }
+
             var stopwatch = new Stopwatch();
             var decisionStopwatch = new Stopwatch();
 
-            await EnqueueRequestRateLimiter.WaitAsync();
+            SemaphoreSlim userSemaphore = null;
+            Task userSemaphoreWaitTask;
+            bool userSemaphoreAcquired = false;
+
+            bool enqueueRequestsSemaphoreAcquired = false;
 
             try
             {
-                stopwatch.Start();
-
                 if (Users.IsBlacklisted(username, endpoint.Address))
                 {
                     Log.Information("Rejected enqueue request for blacklisted user {Username} ({IP})", username, endpoint.Address);
                     throw new DownloadEnqueueException("File not shared.");
                 }
+
+                /*
+                    for limits to work properly (and to help alleviate strain from the db, make incoming requests 'fair' among competing users),
+                    we need to ensure that we process only one request per user at a time.
+
+                    it's important that we obtain the user semaphore FIRST (before the global semaphore) to prevent one user
+                    from monopolizing the request queue; users must 'go to the back of the line' for each request
+
+                    hopefully this process takes < 10ms on most systems, but on low-spec systems with high traffic, this
+                    round-robin approach helps guarantee the best QoS for peers
+                */
+                Interlocked.Increment(ref EnqueueQueueDepth); // any request waiting on any semaphore counts
+
+                try
+                {
+                    // obtain exclusive access over the user dictionary. if this blocks it'll only be for a few ns
+                    // we should also only be holding it for a few ns per request
+                    await UserEnqueueSemaphoreSyncRoot.WaitAsync();
+
+                    try
+                    {
+                        // get the user's semaphore and START waiting; if we wait we'll tie up the sync root
+                        userSemaphore = UserEnqueueSemaphores.GetOrAdd(username, new SemaphoreSlim(initialCount: 1, maxCount: 1));
+                        userSemaphoreWaitTask = userSemaphore.WaitAsync();
+                    }
+                    finally
+                    {
+                        UserEnqueueSemaphoreSyncRoot.Release();
+                    }
+
+                    await userSemaphoreWaitTask;
+                    userSemaphoreAcquired = true;
+
+                    await GlobalEnqueueSemaphore.WaitAsync();
+                    enqueueRequestsSemaphoreAcquired = true;
+                }
+                finally
+                {
+                    Interlocked.Decrement(ref EnqueueQueueDepth);
+                    Metrics.Enqueue.CurrentQueueDepth.Set(EnqueueQueueDepth);
+                }
+
+                stopwatch.Start();
 
                 // in order to properly determine if the requested file would exceed any limits, we need to know the size of the file
                 // it helps, too, that this will tell us whether the file is even shared.
@@ -611,45 +678,48 @@ namespace slskd
                  * 3) that did not end due to an error (state includes errored, exception column is set)
                 */
                 (bool Files, bool Megabytes) OverLimits(
-                    (int Files, long Bytes) stats,
+                    int files,
+                    long bytes,
                     Options.LimitsOptions.Limits options,
                     Options.LimitsOptions.Limits defaults,
                     long size)
                 {
-                    var files = false;
-                    var megabytes = false;
+                    var filesOver = false;
+                    var megabytesOver = false;
                     var byteLimitInMegabytes = options?.Megabytes ?? defaults?.Megabytes;
 
-                    if (byteLimitInMegabytes is not null && (stats.Bytes + size) > (byteLimitInMegabytes * 1000L * 1000L))
+                    if (byteLimitInMegabytes is not null && (bytes + size) > (byteLimitInMegabytes * 1000L * 1000L))
                     {
-                        Log.Debug("Projected bytes {Bytes} exceeds limit {Limit}", stats.Bytes + size, byteLimitInMegabytes * 1000L * 1000L);
-                        megabytes = true;
+                        Log.Debug("Projected bytes {Bytes} exceeds limit {Limit}", bytes + size, byteLimitInMegabytes * 1000L * 1000L);
+                        megabytesOver = true;
                     }
 
                     var fileLimit = options?.Files ?? defaults?.Files;
 
-                    if (fileLimit is not null && (stats.Files + 1) > fileLimit)
+                    if (fileLimit is not null && (files + 1) > fileLimit)
                     {
-                        Log.Debug("Projected file count {Files} exceeds limit {Limit}", stats.Files + 1, fileLimit);
-                        files = true;
+                        Log.Debug("Projected file count {Files} exceeds limit {Limit}", files + 1, fileLimit);
+                        filesOver = true;
                     }
 
-                    return (files, megabytes);
+                    return (filesOver, megabytesOver);
                 }
 
                 decisionStopwatch.Start();
+
+                var stats = Transfers.Uploads.GetUserStatistics(username, DateTime.UtcNow);
 
                 // start with the queue, since that should contain the fewest files and should be the least expensive to check
                 // "queued" includes both queued and in progress; records with a null EndedAt property, which is guaranteed to be set
                 // for terminal transfers.
                 if (!IsNull(limits?.Queued, global?.Queued))
                 {
-                    var queued = Transfers.Uploads.Summarize(
-                        expression: t => t.Username == username && t.EndedAt == null);
-
-                    Log.Debug("Fetched queue stats: files: {Files}, bytes: {Bytes} ({Time}ms)", queued.Files, queued.Bytes, decisionStopwatch.ElapsedMilliseconds);
-
-                    var over = OverLimits(queued, limits?.Queued, global?.Queued, resolved.Size);
+                    var over = OverLimits(
+                        files: stats.QueuedFiles,
+                        bytes: stats.QueuedBytes,
+                        options: limits?.Queued,
+                        defaults: global?.Queued,
+                        size: resolved.Size);
 
                     if (over.Files || over.Megabytes)
                     {
@@ -668,35 +738,20 @@ namespace slskd
                 // * that were not errored
                 if (!IsNull(limits?.Weekly, global?.Weekly))
                 {
-                    var erroredState = TransferStates.Completed | TransferStates.Errored;
-                    var cutoffDateTime = DateTime.UtcNow.AddDays(-7);
-
-                    var failures = Transfers.Uploads.Summarize(
-                        expression: t =>
-                            t.Username == username
-                            && t.StartedAt >= cutoffDateTime
-                            && (t.State.HasFlag(erroredState) || t.Exception != null));
-
-                    Log.Debug("Fetched weekly failures: {Failures} ({Time}ms)", failures.Files, decisionStopwatch.ElapsedMilliseconds);
-
                     var failureLimit = limits?.Weekly?.Failures ?? global?.Weekly?.Failures;
 
-                    if (failureLimit is not null && failures.Files >= failureLimit)
+                    if (failureLimit is not null && stats.WeeklyFailedFiles >= failureLimit)
                     {
                         Log.Information("Rejected enqueue request for user {Username}: Weekly failure limit met or exceeded", username);
                         throw new DownloadEnqueueException("Too many failed transfers this week");
                     }
 
-                    var weekly = Transfers.Uploads.Summarize(
-                        expression: t =>
-                            t.Username == username
-                            && t.StartedAt >= cutoffDateTime
-                            && !t.State.HasFlag(erroredState)
-                            && t.Exception == null);
-
-                    Log.Debug("Fetched weekly stats: files: {Files}, bytes: {Bytes} ({Time}ms)", weekly.Files, weekly.Bytes, decisionStopwatch.ElapsedMilliseconds);
-
-                    var over = OverLimits(weekly, limits?.Weekly, global?.Weekly, resolved.Size);
+                    var over = OverLimits(
+                        files: stats.WeeklySucceededFiles,
+                        bytes: stats.WeeklySucceededBytes,
+                        options: limits?.Weekly,
+                        defaults: global?.Weekly,
+                        size: resolved.Size);
 
                     if (over.Files || over.Megabytes)
                     {
@@ -709,35 +764,20 @@ namespace slskd
                 // of the previous 7.
                 if (!IsNull(limits?.Daily, global?.Daily))
                 {
-                    var erroredState = TransferStates.Completed | TransferStates.Errored;
-                    var cutoffDateTime = DateTime.UtcNow.AddDays(-1);
-
-                    var failures = Transfers.Uploads.Summarize(
-                        expression: t =>
-                            t.Username == username
-                            && t.StartedAt >= cutoffDateTime
-                            && (t.State.HasFlag(erroredState) || t.Exception != null));
-
-                    Log.Debug("Fetched daily failures: {Failures} ({Time}ms)", failures.Files, decisionStopwatch.ElapsedMilliseconds);
-
                     var failureLimit = limits?.Daily?.Failures ?? global?.Daily?.Failures;
 
-                    if (failureLimit is not null && failures.Files >= failureLimit)
+                    if (failureLimit is not null && stats.DailyFailedFiles >= failureLimit)
                     {
                         Log.Information("Rejected enqueue request for user {Username}: Daily failure limit met or exceeded", username);
                         throw new DownloadEnqueueException("Too many failed transfers today");
                     }
 
-                    var daily = Transfers.Uploads.Summarize(
-                        expression: t =>
-                            t.Username == username
-                            && t.StartedAt >= cutoffDateTime
-                            && !t.State.HasFlag(erroredState)
-                            && t.Exception == null);
-
-                    Log.Debug("Fetched daily stats: files: {Files}, bytes: {Bytes} ({Time}ms)", daily.Files, daily.Bytes, decisionStopwatch.ElapsedMilliseconds);
-
-                    var over = OverLimits(daily, limits?.Daily, global?.Daily, resolved.Size);
+                    var over = OverLimits(
+                        files: stats.DailySucceededFiles,
+                        bytes: stats.DailySucceededBytes,
+                        options: limits?.Daily,
+                        defaults: global?.Daily,
+                        size: resolved.Size);
 
                     if (over.Files || over.Megabytes)
                     {
@@ -746,16 +786,47 @@ namespace slskd
                     }
                 }
 
+                decisionStopwatch.Stop();
+
                 await Transfers.Uploads.EnqueueAsync(username, filename);
+
+                stopwatch.Stop();
+
+                // we only report metrics for successes so that each value is guaranteed to include the enqueue latency
+                Metrics.Enqueue.RequestsAccepted.Inc(1);
+                Metrics.Enqueue.Latency.Observe(stopwatch.ElapsedMilliseconds);
+                Metrics.Enqueue.CurrentLatency.Update(stopwatch.ElapsedMilliseconds);
+
+                Interlocked.Exchange(ref CurrentEnqueueLatency, Metrics.Enqueue.CurrentLatency.Value);
+
+                Log.Information("Enqueue of {Filename} to {Username} completed in {ElapsedOverall}ms, decision made in {ElapsedDecision}ms", filename, username, stopwatch.ElapsedMilliseconds, decisionStopwatch.ElapsedMilliseconds);
+            }
+            catch (DownloadEnqueueException)
+            {
+                Metrics.Enqueue.RequestsRejected.Inc(1);
+                throw;
             }
             finally
             {
-                decisionStopwatch.Stop();
-                stopwatch.Stop();
+                if (decisionStopwatch.IsRunning)
+                {
+                    decisionStopwatch.Stop();
+                }
 
-                EnqueueRequestRateLimiter.Release();
+                // decision latency is reported here so that we can track both successes and failures; they do the same
+                // work so lumping them together gives us the clearest picture
+                Metrics.Enqueue.DecisionLatency.Observe(decisionStopwatch.ElapsedMilliseconds);
+                Metrics.Enqueue.CurrentDecisionLatency.Update(decisionStopwatch.ElapsedMilliseconds);
 
-                Log.Debug("EnqueueDownload for {Username}/{Filename} completed in {ElapsedOverall}ms, decision made in {ElapsedDecision}ms", username, filename, stopwatch.ElapsedMilliseconds, decisionStopwatch.ElapsedMilliseconds);
+                if (userSemaphoreAcquired)
+                {
+                    userSemaphore.Release();
+                }
+
+                if (enqueueRequestsSemaphoreAcquired)
+                {
+                    GlobalEnqueueSemaphore.Release();
+                }
             }
         }
 
@@ -1040,6 +1111,9 @@ namespace slskd
         {
             Metrics.DistributedNetwork.BroadcastLatency.Observe(Client.DistributedNetwork.AverageBroadcastLatency ?? 0);
             Metrics.DistributedNetwork.CurrentBroadcastLatency.Set(Client.DistributedNetwork.AverageBroadcastLatency ?? 0);
+
+            _ = Task.Run(() => CleanupUserEnqueueSemaphoresAsync())
+                .ContinueWith(task => Log.Error(task.Exception, "Failed to clean up user enqueue semaphore(s): {Message}", task.Exception?.Message), TaskContinuationOptions.OnlyOnFaulted);
         }
 
         private void Clock_EveryFiveMinutes(object sender, ClockEventArgs e)
@@ -1152,19 +1226,19 @@ namespace slskd
         {
             var options = OptionsMonitor.CurrentValue.Retention;
 
-            void PruneUpload(int? age, TransferStates state)
+            void PruneUpload(int? age, params TransferStates[] states)
             {
                 if (age.HasValue)
                 {
-                    Transfers.Uploads.Prune(age.Value, TransferStates.Completed | state);
+                    Transfers.Uploads.Prune(age.Value, [.. states.Select(s => TransferStates.Completed | s)]);
                 }
             }
 
-            void PruneDownload(int? age, TransferStates state)
+            void PruneDownload(int? age, params TransferStates[] states)
             {
                 if (age.HasValue)
                 {
-                    Transfers.Downloads.Prune(age.Value, TransferStates.Completed | state);
+                    Transfers.Downloads.Prune(age.Value, [.. states.Select(s => TransferStates.Completed | s)]);
                 }
             }
 
@@ -1172,11 +1246,13 @@ namespace slskd
             {
                 PruneUpload(options.Transfers.Upload.Succeeded, TransferStates.Succeeded);
                 PruneUpload(options.Transfers.Upload.Cancelled, TransferStates.Cancelled);
-                PruneUpload(options.Transfers.Upload.Errored, TransferStates.Errored);
+                PruneUpload(options.Transfers.Upload.Errored, TransferStates.Errored, TransferStates.Aborted, TransferStates.Rejected, TransferStates.TimedOut);
+                PruneUpload(options.Transfers.Upload.Failed, [.. TransferStateCategories.Failed]);
 
                 PruneDownload(options.Transfers.Download.Succeeded, TransferStates.Succeeded);
                 PruneDownload(options.Transfers.Download.Cancelled, TransferStates.Cancelled);
-                PruneDownload(options.Transfers.Download.Errored, TransferStates.Errored);
+                PruneDownload(options.Transfers.Download.Errored, TransferStates.Errored, TransferStates.Aborted, TransferStates.TimedOut);
+                PruneDownload(options.Transfers.Download.Failed, [.. TransferStateCategories.Failed]);
             }
             catch
             {
@@ -1748,6 +1824,32 @@ namespace slskd
             {
                 Log.Warning(ex, "Failed to resolve user info: {Message}", ex.Message);
                 throw;
+            }
+        }
+
+        private async Task CleanupUserEnqueueSemaphoresAsync()
+        {
+            // don't wait if we can't get exclusive access immediately; we'll get it eventually
+            if (await UserEnqueueSemaphoreSyncRoot.WaitAsync(0).ConfigureAwait(false))
+            {
+                try
+                {
+                    foreach (var kvp in UserEnqueueSemaphores)
+                    {
+                        // if we're able to obtain the semaphore immediately, there's nothing waiting on it
+                        // and we're safe to dispose of it.  the sync root saves us from concurrency issues here
+                        if (await kvp.Value.WaitAsync(0).ConfigureAwait(false))
+                        {
+                            UserEnqueueSemaphores.TryRemove(kvp.Key, out var removed);
+                            removed.Dispose();
+                            Log.Debug($"Cleaned up enqueue semaphore for user {kvp.Key}");
+                        }
+                    }
+                }
+                finally
+                {
+                    UserEnqueueSemaphoreSyncRoot.Release();
+                }
             }
         }
     }

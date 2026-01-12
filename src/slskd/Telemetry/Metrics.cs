@@ -83,7 +83,7 @@ public static class Metrics
             "The time taken to resolve a response to an incoming browse request, in milliseconds",
             new HistogramConfiguration
             {
-                Buckets = Histogram.ExponentialBuckets(1, 2, 10),
+                Buckets = Histogram.ExponentialBuckets(start: 1, factor: 2, count: 10),
             });
 
         /// <summary>
@@ -102,6 +102,72 @@ public static class Metrics
         public static Counter ResponsesSent { get; } = Prometheus.Metrics.CreateCounter("slskd_browse_responses_sent", "Total number of browse responses sent");
 
         private static Gauge CurrentResponseLatencyGauge { get; } = Prometheus.Metrics.CreateGauge("slskd_browse_response_latency_current", "The average time taken to resolve a response to an incoming browse request, in milliseconds");
+    }
+
+    /// <summary>
+    ///     Metrics related to incoming enqueue requests and responses.
+    /// </summary>
+    public static class Enqueue
+    {
+        /// <summary>
+        ///     Gets a histogram representing the time taken to evaluate an incoming request to enqueue a file against configured limits, in milliseconds.
+        /// </summary>
+        public static Histogram DecisionLatency { get; } = Prometheus.Metrics.CreateHistogram(
+            "slskd_enqueue_decision_latency",
+            "The time taken to evaluate an incoming request to enqueue a file against configured limits, in milliseconds",
+            new HistogramConfiguration
+            {
+                Buckets = Histogram.ExponentialBuckets(start: 1, factor: 2, count: 16), // up to ~2 seconds
+            });
+
+        /// <summary>
+        ///     Gets an EMA representing the average time taken to evaluate an incoming request to enqueue a file against configured limits, in milliseconds.
+        /// </summary>
+        public static ExponentialMovingAverage CurrentDecisionLatency { get; } = new ExponentialMovingAverage(smoothingFactor: 0.5, onUpdate: value => CurrentDecisionLatencyGauge.Set(value));
+
+        /// <summary>
+        ///     Gets a histogram representing the total time taken to resolve a response to an incoming request to enqueue a file, in milliseconds.
+        /// </summary>
+        public static Histogram Latency { get; } = Prometheus.Metrics.CreateHistogram(
+            "slskd_enqueue_latency",
+            "The total time taken to resolve a response to an incoming request to enqueue a file, in milliseconds",
+            new HistogramConfiguration
+            {
+                Buckets = Histogram.ExponentialBuckets(start: 1, factor: 2, count: 16), // up to ~2 seconds
+            });
+
+        /// <summary>
+        ///     Gets an EMA representing the average total time taken to resolve a response to an incoming request to enqueue a file, in milliseconds.
+        /// </summary>
+        public static ExponentialMovingAverage CurrentLatency { get; } = new ExponentialMovingAverage(smoothingFactor: 0.5, onUpdate: value => CurrentLatencyGauge.Set(value));
+
+        /// <summary>
+        ///     Gets a counter representing the total number of incoming enqueue requests received.
+        /// </summary>
+        public static Counter RequestsReceived { get; } = Prometheus.Metrics.CreateCounter("slskd_enqueue_requests_received", "Total number of incoming enqueue requests received");
+
+        /// <summary>
+        ///     Gets a counter representing the total number of incoming enqueue requests dropped due to processing pressure.
+        /// </summary>
+        public static Counter RequestsDropped { get; } = Prometheus.Metrics.CreateCounter("slskd_enqueue_requests_dropped", "Total number of incoming enqueue requests dropped due to processing pressure");
+
+        /// <summary>
+        ///     Gets a counter representing the total number of incoming enqueue requests rejected.
+        /// </summary>
+        public static Counter RequestsRejected { get; } = Prometheus.Metrics.CreateCounter("slskd_enqueue_requests_rejected", "Total number of incoming enqueue requests rejected");
+
+        /// <summary>
+        ///     Gets a counter representing the total number of incoming enqueue requests accepted.
+        /// </summary>
+        public static Counter RequestsAccepted { get; } = Prometheus.Metrics.CreateCounter("slskd_enqueue_requests_accepted", "Total number of incoming enqueue requests accepted");
+
+        /// <summary>
+        ///     Gets a gauge representing the number of incoming enqueue requests waiting to be processed.
+        /// </summary>
+        public static Gauge CurrentQueueDepth { get; } = Prometheus.Metrics.CreateGauge("slskd_enqueue_queue_depth_current", "The number of incoming enqueue requests waiting to be processed");
+
+        private static Gauge CurrentDecisionLatencyGauge { get; } = Prometheus.Metrics.CreateGauge("slskd_enqueue_decision_latency_current", "The average time taken to evaluate an incoming request to enqueue a file against configured limits, in milliseconds");
+        private static Gauge CurrentLatencyGauge { get; } = Prometheus.Metrics.CreateGauge("slskd_enqueue_latency_current", "The average total time taken to resolve a response to an incoming request to enqueue a file, in milliseconds");
     }
 
     /// <summary>
