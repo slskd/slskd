@@ -20,6 +20,7 @@ namespace slskd;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.AspNetCore.Mvc.ModelBinding.Binders;
 using Microsoft.AspNetCore.Mvc.ModelBinding.Metadata;
@@ -42,27 +43,51 @@ public class UrlEncodingModelBinder : IModelBinder
     /// <inheritdoc/>
     public Task BindModelAsync(ModelBindingContext bindingContext)
     {
+        /*
+            given the information in the provided ModelBindingContext,
+
+            1. determine which 'model' (named route parameter) we're trying to bind a value for (e.g. 'foo')
+            2. from the full route template (e.g. api/v{version:apiVersion}/foo/{bar}), determine the index of
+               the model we are looking for in the template, segmented by forward slashes (e.g. 3rd in example above)
+            3. from the raw, unmanipulated request URL, extract the Nth forward-slash-separated value; this will be our
+               url encoded value as provided by the client
+            4. decode this value and assign it to ModelBindingContext.Result
+
+
+            template: api/v{version:apiVersion}/foo/{bar}
+            model: bar
+            index: 3
+            raw url: api/v0/foo/hello%20world
+            raw value: 'hello%20world' (3rd index in split string)
+            result: 'hello world'
+        */
         try
         {
-            // get the raw value that was passed, if any
-            var potentiallyUrlEncodedResult = bindingContext.ValueProvider.GetValue(bindingContext.ModelName);
+            var model = $"{{{bindingContext.ModelName}}}";
+            var template = bindingContext.ActionContext.ActionDescriptor.AttributeRouteInfo?.Template ?? string.Empty;
+            var index = template
+                .Split('/', StringSplitOptions.RemoveEmptyEntries)
+                .Select((segment, index) => new { Segment = segment, Index = index })
+                .Single(x => x.Segment.Equals(model, StringComparison.OrdinalIgnoreCase)).Index;
 
-            if (potentiallyUrlEncodedResult == ValueProviderResult.None)
+            // get the raw URL, *before* any sort of processing or default url-decoding is applied
+            // this is necessary to avoid double-decoding issues; using HttpContext.Request.Path gives us
+            // a value that's already had one pass of url decoding applied
+            var rawUrl = bindingContext.HttpContext.Features.Get<IHttpRequestFeature>()?.RawTarget ?? string.Empty;
+
+            var request = bindingContext.HttpContext.Request;
+            var rawValue = new Uri($"{request.Scheme}://{request.Host}{rawUrl}").AbsolutePath // discard query string
+                .Split('/', StringSplitOptions.RemoveEmptyEntries)
+                .ElementAtOrDefault(index);
+
+            if (rawValue is null)
             {
+                bindingContext.ModelState.TryAddModelError(bindingContext.ModelName, "Could not extract URL encoded value from URL");
                 return Task.CompletedTask;
             }
 
-            var value = potentiallyUrlEncodedResult.FirstValue;
-
-            if (string.IsNullOrEmpty(value))
-            {
-                return Task.CompletedTask;
-            }
-
-            // a value was provided; decode it
-            var decodedValue = Uri.UnescapeDataString(value);
-
-            bindingContext.Result = ModelBindingResult.Success(decodedValue);
+            var decoded = Uri.UnescapeDataString(rawValue);
+            bindingContext.Result = ModelBindingResult.Success(decoded);
             return Task.CompletedTask;
         }
         catch (Exception ex)
