@@ -919,7 +919,10 @@ namespace slskd
             }
 
             services.AddRouting(options => options.LowercaseUrls = true);
-            services.AddControllers()
+            services.AddControllers(options =>
+            {
+                options.ModelBinderProviders.Insert(0, new UrlEncodingModelBinderProvider());
+            })
                 .ConfigureApiBehaviorOptions(options =>
                 {
                     options.SuppressInferBindingSourcesForParameters = true; // explicit [FromRoute], etc
