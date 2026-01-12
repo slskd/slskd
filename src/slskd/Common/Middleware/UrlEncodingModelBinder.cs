@@ -31,7 +31,7 @@ using Microsoft.AspNetCore.Mvc.ModelBinding.Metadata;
 ///     For this to work as intended, method parameters must:
 ///
 ///     <list>
-///         <item>Use either Path binding (e.g [FromRoute])</item>
+///         <item>Use Path binding (e.g [FromRoute])</item>
 ///         <item>Have a backing type of string</item>
 ///         <item>Be decorated with the [UrlEncoded] attribute</item>
 ///     </list>
@@ -46,7 +46,7 @@ public class UrlEncodingModelBinder : IModelBinder
         /*
             given the information in the provided ModelBindingContext,
 
-            1. determine which 'model' (named route parameter) we're trying to bind a value for (e.g. 'foo')
+            1. determine which 'model' (named route parameter) we're trying to bind a value for (e.g. 'bar')
             2. from the full route template (e.g. api/v{version:apiVersion}/foo/{bar}), determine the index of
                the model we are looking for in the template, segmented by forward slashes (e.g. 3rd in example above)
             3. from the raw, unmanipulated request URL, extract the Nth forward-slash-separated value; this will be our
