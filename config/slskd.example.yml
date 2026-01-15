@@ -169,10 +169,12 @@
 #       succeeded: 1440 # 1 day, in minutes
 #       errored: 30
 #       cancelled: 5
+#       failed: 180 # any unsuccessful transfer, including errored and cancelled
 #     download:
 #       succeeded: 1440 # 1 day, in minutes
 #       errored: 20160 # 2 weeks, in minutes
 #       cancelled: 5
+#       failed: 180 # any unsuccessful transfer, including errored and cancelled
 #   files:
 #     complete: 20160 # 2 weeks, in minutes
 #     incomplete: 43200 # 30 days, in minutes

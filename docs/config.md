@@ -811,7 +811,7 @@ Logging of HTTP requests is disabled by default.
 | Command-Line               | Environment Variable           | Description                                         |
 | -------------------------- | ------------------------------ | --------------------------------------------------- |
 | `-l\|--http-port`          | `SLSKD_HTTP_PORT`              | The HTTP listen port                                |
-| `--http-listen-ip-address` | `SLSKD_HTTP_IP_ADDRESS`        | The IP address on which to listen for HTTP requests |
+| `--http-ip-address`        | `SLSKD_HTTP_IP_ADDRESS`        | The IP address on which to listen for HTTP requests |
 | `--http-socket`            | `SLSKD_HTTP_SOCKET`            | The HTTP listen unix domain socket (UDS) path       |
 | `--url-base`               | `SLSKD_URL_BASE`               | The base url for web requests                       |
 | `--content-path`           | `SLSKD_CONTENT_PATH`           | The path to static web content                      |
@@ -966,7 +966,7 @@ By default, most things created by the application are retained indefinitely; th
 
 Completed searches can be configured to be removed from the UI and 'hard' deleted from the database.  It's a good idea to set this to something relatively short, as old searches have diminishing value as they age and the records contain a lot of data.
 
-Transfers can be configured to be removed from the UI after they are complete by specifying retention periods for uploads and downloads separately, and by transfer state; succeeded, errored, and cancelled.
+Transfers can be configured to be removed from the UI after they are complete by specifying retention periods for uploads and downloads separately, and by transfer state; succeeded, errored, and cancelled.  The 'failed' setting can be used instead of 'errored' and 'cancelled' to clean up all transfers that were not successful, regardless of reason.
 
 Files (on disk) can be configured to be deleted after the age of their last access time exceeds the configured time.  Completed and incomplete files can be configured separately.
 
@@ -983,10 +983,12 @@ retention:
       succeeded: 1440 # 1 day
       errored: 30
       cancelled: 5
+      failed: 180
     download:
       succeeded: 1440 # 1 day
       errored: 20160 # 2 weeks 
       cancelled: 5
+      failed: 180
   files:
     complete: 20160 # 2 weeks
     incomplete: 43200 # 30 days

@@ -43,6 +43,7 @@ public class Migrator
             { nameof(Z04012025_TransferStateMigration), new Z04012025_TransferStateMigration(connectionStrings: Databases) },
             { nameof(Z07062025_TransferIndexesMigration), new Z07062025_TransferIndexesMigration(connectionStrings: Databases) },
             { nameof(Z07262025_PrivateMessageWasReplayedMigration), new Z07262025_PrivateMessageWasReplayedMigration(connectionStrings: Databases) },
+            { nameof(Z12282025_AdditionalTransferIndexesMigration), new Z12282025_AdditionalTransferIndexesMigration(connectionStrings: Databases) },
         };
     }
 

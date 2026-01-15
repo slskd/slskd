@@ -919,7 +919,10 @@ namespace slskd
             }
 
             services.AddRouting(options => options.LowercaseUrls = true);
-            services.AddControllers()
+            services.AddControllers(options =>
+            {
+                options.ModelBinderProviders.Insert(0, new UrlEncodingModelBinderProvider());
+            })
                 .ConfigureApiBehaviorOptions(options =>
                 {
                     options.SuppressInferBindingSourcesForParameters = true; // explicit [FromRoute], etc
@@ -1293,9 +1296,12 @@ namespace slskd
                     options.UseSqlite(connectionString);
                     options.AddInterceptors(new SqliteConnectionOpenedInterceptor());
 
-                    if (OptionsAtStartup.Debug && OptionsAtStartup.Flags.LogSQL)
+                    if (OptionsAtStartup.Flags.LogSQL)
                     {
-                        options.LogTo(Log.Debug, LogLevel.Information);
+                        options
+                            .EnableSensitiveDataLogging()
+                            .EnableDetailedErrors()
+                            .LogTo(OptionsAtStartup.Debug ? Log.Debug : Log.Information, LogLevel.Information);
                     }
                 });
 

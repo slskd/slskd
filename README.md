@@ -1,18 +1,3 @@
-> [!WARNING]
-> This is the only official repository for slskd.
->
-> Official releases are published via:
-> * Build artifacts from the [GitHub Actions](github.com/slskd/slskd/actions) of this repository
-> * Platform-specific archives located in [Releases](https://github.com/slskd/slskd/releases/)
-> * Docker images published to [Docker Hub](https://hub.docker.com/r/slskd/slskd) and [GitHub Container Registry](https://github.com/slskd/slskd/pkgs/container/slskd)
->
-> The name associated with official releases is `slskd`. Any change to this will be clearly communicated here.
->
-> If you encounter binaries with different names claiming to be slskd or an alternative, they are not affiliated with this project.
-> 
-> Be cautious of unaffiliated forks that automatically mirror this repository and re-release binaries under different names. These forks are not reviewed, endorsed, or supported by the slskd maintainers, and may introduce changes that compromise security, privacy, or network integrity.
-> As with any software, verify the source of binaries before running them. Supply chain attacks via unofficial forks are a real risk—if you didn't get it from this repository, you can't be certain what you're running.
-
 # slskd
 
 [![Build](https://img.shields.io/github/actions/workflow/status/slskd/slskd/ci.yml?branch=master&logo=github)](https://github.com/slskd/slskd/actions/workflows/ci.yml)

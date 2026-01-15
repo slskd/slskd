@@ -285,7 +285,7 @@ public class ReportsController : ControllerBase
     [ProducesResponseType(typeof(string), 400)]
     [ProducesResponseType(typeof(string), 500)]
     public IActionResult GetUserDetails(
-        [FromRoute] string username,
+        [FromRoute, UrlEncoded] string username,
         [FromQuery] DateTime? start = null,
         [FromQuery] DateTime? end = null)
     {

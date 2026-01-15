@@ -490,6 +490,7 @@ namespace slskd
             var options = new JsonSerializerOptions();
             options.Converters.Add(new IPAddressConverter());
             options.Converters.Add(new JsonStringEnumConverter());
+            options.Converters.Add(new TypeConverter());
             options.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
             options.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
             return options;

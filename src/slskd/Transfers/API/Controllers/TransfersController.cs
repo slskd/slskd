@@ -71,7 +71,7 @@ namespace slskd.Transfers.API
         [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(204)]
         [ProducesResponseType(404)]
-        public IActionResult CancelDownloadAsync([FromRoute, Required] string username, [FromRoute, Required] string id, [FromQuery] bool remove = false)
+        public IActionResult CancelDownloadAsync([FromRoute, UrlEncoded, Required] string username, [FromRoute, Required] string id, [FromQuery] bool remove = false)
         {
             if (Program.IsRelayAgent)
             {
@@ -115,14 +115,16 @@ namespace slskd.Transfers.API
                 return Forbid();
             }
 
-            var transfers = Transfers.Downloads.List(t => t.State.HasFlag(Soulseek.TransferStates.Completed));
-
-            foreach (var id in transfers.Select(t => t.Id))
+            try
             {
-                Transfers.Downloads.Remove(id);
+                Transfers.Downloads.Remove(t => !t.Removed && TransferStateCategories.Completed.Contains(t.State));
+                return NoContent();
             }
-
-            return NoContent();
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to remove completed downloads: {Message}", ex.Message);
+                return StatusCode(500, ex.Message);
+            }
         }
 
         /// <summary>
@@ -138,7 +140,7 @@ namespace slskd.Transfers.API
         [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(204)]
         [ProducesResponseType(404)]
-        public IActionResult CancelUpload([FromRoute, Required] string username, [FromRoute, Required] string id, [FromQuery] bool remove = false)
+        public IActionResult CancelUpload([FromRoute, UrlEncoded, Required] string username, [FromRoute, Required] string id, [FromQuery] bool remove = false)
         {
             if (Program.IsRelayAgent)
             {
@@ -182,16 +184,16 @@ namespace slskd.Transfers.API
                 return Forbid();
             }
 
-            // get all the transfers that aren't removed
-            var transfers = Transfers.Uploads
-                .List(t => t.State.HasFlag(Soulseek.TransferStates.Completed), includeRemoved: false);
-
-            foreach (var id in transfers.Select(t => t.Id))
+            try
             {
-                Transfers.Uploads.Remove(id);
+                Transfers.Uploads.Remove(t => !t.Removed && TransferStateCategories.Completed.Contains(t.State));
+                return NoContent();
             }
-
-            return NoContent();
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to remove completed uploads: {Message}", ex.Message);
+                return StatusCode(500, ex.Message);
+            }
         }
 
         /// <summary>
@@ -210,7 +212,7 @@ namespace slskd.Transfers.API
         [ProducesResponseType(typeof(string), 500)]
 #pragma warning disable CS1573 // Parameter has no matching param tag in the XML comment (but other parameters do)
 #pragma warning disable SA1611 // Element parameters should be documented
-        public async Task<IActionResult> EnqueueAsync([FromRoute, Required] string username, [FromBody] IEnumerable<QueueDownloadRequest> requests, CancellationToken cancellationToken = default)
+        public async Task<IActionResult> EnqueueAsync([FromRoute, UrlEncoded, Required] string username, [FromBody] IEnumerable<QueueDownloadRequest> requests, CancellationToken cancellationToken = default)
 #pragma warning restore SA1611 // Element parameters should be documented
 #pragma warning restore CS1573 // Parameter has no matching param tag in the XML comment (but other parameters do)
         {
@@ -281,7 +283,7 @@ namespace slskd.Transfers.API
         [HttpGet("downloads/{username}")]
         [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(200)]
-        public IActionResult GetDownloadsAsync([FromRoute, Required] string username)
+        public IActionResult GetDownloadsAsync([FromRoute, UrlEncoded, Required] string username)
         {
             if (Program.IsRelayAgent)
             {
@@ -313,7 +315,7 @@ namespace slskd.Transfers.API
         [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(typeof(API.Transfer), 200)]
         [ProducesResponseType(404)]
-        public IActionResult GetDownload([FromRoute, Required] string username, [FromRoute, Required] string id)
+        public IActionResult GetDownload([FromRoute, UrlEncoded, Required] string username, [FromRoute, Required] string id)
         {
             if (Program.IsRelayAgent)
             {
@@ -348,7 +350,7 @@ namespace slskd.Transfers.API
         [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(typeof(API.Transfer), 200)]
         [ProducesResponseType(404)]
-        public async Task<IActionResult> GetPlaceInQueueAsync([FromRoute, Required] string username, [FromRoute, Required] string id)
+        public async Task<IActionResult> GetPlaceInQueueAsync([FromRoute, UrlEncoded, Required] string username, [FromRoute, Required] string id)
         {
             if (Program.IsRelayAgent)
             {
@@ -417,7 +419,7 @@ namespace slskd.Transfers.API
         [HttpGet("uploads/{username}")]
         [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(200)]
-        public IActionResult GetUploads([FromRoute, Required] string username)
+        public IActionResult GetUploads([FromRoute, UrlEncoded, Required] string username)
         {
             if (Program.IsRelayAgent)
             {
@@ -455,7 +457,7 @@ namespace slskd.Transfers.API
         [HttpGet("uploads/{username}/{id}")]
         [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(200)]
-        public IActionResult GetUploads([FromRoute, Required] string username, [FromRoute, Required] string id)
+        public IActionResult GetUploads([FromRoute, UrlEncoded, Required] string username, [FromRoute, Required] string id)
         {
             if (Program.IsRelayAgent)
             {
