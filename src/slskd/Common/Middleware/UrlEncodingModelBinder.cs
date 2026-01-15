@@ -76,7 +76,17 @@ public class UrlEncodingModelBinder : IModelBinder
             var rawUrl = bindingContext.HttpContext.Features.Get<IHttpRequestFeature>()?.RawTarget ?? string.Empty;
 
             var request = bindingContext.HttpContext.Request;
-            var rawValue = new Uri($"{request.Scheme}://{request.Host}{rawUrl}").AbsolutePath // discard query string
+            var absolutePath = new Uri($"{request.Scheme}://{request.Host}{rawUrl}").AbsolutePath; // discard query string
+
+            // if the application is running with a base path (e.g., /slskd), we need to remove it
+            // from the absolute path before splitting, as the route template doesn't include it
+            var pathBase = request.PathBase.Value ?? string.Empty;
+            if (!string.IsNullOrEmpty(pathBase) && absolutePath.StartsWith(pathBase, StringComparison.OrdinalIgnoreCase))
+            {
+                absolutePath = absolutePath.Substring(pathBase.Length);
+            }
+
+            var rawValue = absolutePath
                 .Split('/', StringSplitOptions.RemoveEmptyEntries)
                 .ElementAtOrDefault(index);
 
