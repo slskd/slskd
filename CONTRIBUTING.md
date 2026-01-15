@@ -1,26 +1,36 @@
 # Contributing
 
-When contributing to this repository, please first discuss the change you wish to make via issue,
-email, or any other method with the owners of this repository before making a change. 
+All contributions must have first been discussed within an Issue or Discussion.  Pull Requests opened without an accompanying Issue are considered to be unsolicited, and unsolicited Pull Requests may be rejected without review and/or converted into an Issue.
 
-We don't maintain a Contributor License Agreement (CLA) but we do require that anyone that wishes to contribute agrees to the following:
+## Copyright
 
-* You have the right to assign the copyright of your contribution.
-* By making your contribution, you are giving up copyright of your contribution.
+By submitting a contribution to this project, you agree to the following:
 
-This application is released under the [AGPL 3.0](https://github.com/slskd/slskd/blob/master/LICENSE) license, and no single individual or entity owns
-or will ever own the copyright.
+* You have the legal right to make this contribution and to assign its copyright.
+* You irrevocably assign all copyright and related rights in your contribution to the project maintainer(s).
+* You grant the project maintainer(s) the right to use, modify, distribute, and relicense your contribution under any license of their choosing.
+
+This application is currently released under the [AGPL 3.0](https://github.com/slskd/slskd/blob/master/LICENSE) license.
+
+## Use of AI in Contributions
+
+If you used AI tools (such as ChatGPT, Copilot, Claude, etc.) to assist with your contribution, you must clearly disclose this in your Pull Request, including:
+
+* Which AI tool(s) you used
+* How you used them (e.g., code generation, refactoring suggestions, documentation help)
+* Which parts of your contribution were AI-assisted
+
+Contributors are expected to fully understand and take responsibility for all code they submit, regardless of how it was produced.  Contributions made entirely by AI are not welcome and will be rejected.
 
 ## Contribution Workflow
 
-1. Assign yourself to the issue that you'll be working on.  If you'd like to contribute something for which there is no 
-   existing issue, consider creating one before you start so we can discuss.
-1. Clone the repository and `git checkout master` to ensure you are on the master branch.
+1. Comment on the Issue you'll be working on so others know you're working on it.  You may also ask a maintainer to assign it to you.
+1. Fork the repository, then clone it and run `git checkout master` to ensure you are on the master branch.
 1. Create a new branch for your change with `git checkout -b <your-branch-name>` be descriptive, but terse.
 1. Make your changes.  When finished, push your branch with `git push origin --set-upstream <your-branch-name>`.
-1. Create a pull request to merge `<your-branch-name>` into `master`.
-1. A maintainer will review your pull request and may make comments, ask questions, or request changes.  When all
-   feedback has been addressed the pull request will be approved, and after all checks have passed it will be merged by
+1. Create a Pull Request in the source repository to merge `<your-branch-name>` into `master`.
+1. A maintainer will review your Pull Request and may make comments, ask questions, or request changes.  When all
+   feedback has been addressed the Pull Request will be approved, and after all checks have passed it will be merged by
    a maintainer, or you may merge it yourself if you have the necessary access.
 1. Delete your branch, unless you plan to submit additional pull request from it.
 

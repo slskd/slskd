@@ -71,7 +71,7 @@ namespace slskd.Users.API
         [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(typeof(IPEndPoint), 200)]
         [ProducesResponseType(404)]
-        public async Task<IActionResult> Endpoint([FromRoute, Required] string username)
+        public async Task<IActionResult> Endpoint([FromRoute, UrlEncoded, Required] string username)
         {
             if (Program.IsRelayAgent)
             {
@@ -98,7 +98,7 @@ namespace slskd.Users.API
         [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(typeof(IEnumerable<Directory>), 200)]
         [ProducesResponseType(404)]
-        public async Task<IActionResult> Browse([FromRoute, Required] string username)
+        public async Task<IActionResult> Browse([FromRoute, UrlEncoded, Required] string username)
         {
             if (Program.IsRelayAgent)
             {
@@ -132,7 +132,7 @@ namespace slskd.Users.API
         [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(typeof(decimal), 200)]
         [ProducesResponseType(404)]
-        public IActionResult BrowseStatus([FromRoute, Required] string username)
+        public IActionResult BrowseStatus([FromRoute, UrlEncoded, Required] string username)
         {
             if (Program.IsRelayAgent)
             {
@@ -157,7 +157,7 @@ namespace slskd.Users.API
         [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(typeof(IEnumerable<Directory>), 200)]
         [ProducesResponseType(404)]
-        public async Task<IActionResult> Directory([FromRoute, Required] string username, [FromBody, Required] DirectoryContentsRequest request)
+        public async Task<IActionResult> Directory([FromRoute, UrlEncoded, Required] string username, [FromBody, Required] DirectoryContentsRequest request)
         {
             if (Program.IsRelayAgent)
             {
@@ -192,7 +192,7 @@ namespace slskd.Users.API
         [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(typeof(Info), 200)]
         [ProducesResponseType(404)]
-        public async Task<IActionResult> Info([FromRoute, Required] string username)
+        public async Task<IActionResult> Info([FromRoute, UrlEncoded, Required] string username)
         {
             if (Program.IsRelayAgent)
             {
@@ -219,7 +219,7 @@ namespace slskd.Users.API
         [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(typeof(Status), 200)]
         [ProducesResponseType(404)]
-        public async Task<IActionResult> Status([FromRoute, Required] string username)
+        public async Task<IActionResult> Status([FromRoute, UrlEncoded, Required] string username)
         {
             if (Program.IsRelayAgent)
             {
