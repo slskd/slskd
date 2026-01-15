@@ -63,8 +63,18 @@ public class UrlEncodingModelBinder : IModelBinder
         */
         try
         {
+            var request = bindingContext.HttpContext.Request;
+
             var model = $"{{{bindingContext.ModelName}}}";
             var template = bindingContext.ActionContext.ActionDescriptor.AttributeRouteInfo?.Template ?? string.Empty;
+
+            // if the application is running with a base path (e.g., /slskd), we need to add it to the template
+            // as it isn't included out of the box
+            if (request.PathBase.HasValue)
+            {
+                template = $"{request.PathBase.Value.Trim('/')}/{template}";
+            }
+
             var index = template
                 .Split('/', StringSplitOptions.RemoveEmptyEntries)
                 .Select((segment, index) => new { Segment = segment, Index = index })
@@ -75,7 +85,6 @@ public class UrlEncodingModelBinder : IModelBinder
             // a value that's already had one pass of url decoding applied
             var rawUrl = bindingContext.HttpContext.Features.Get<IHttpRequestFeature>()?.RawTarget ?? string.Empty;
 
-            var request = bindingContext.HttpContext.Request;
             var rawValue = new Uri($"{request.Scheme}://{request.Host}{rawUrl}").AbsolutePath // discard query string
                 .Split('/', StringSplitOptions.RemoveEmptyEntries)
                 .ElementAtOrDefault(index);
