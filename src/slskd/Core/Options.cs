@@ -648,6 +648,11 @@ namespace slskd
                     {
                         try
                         {
+                            if (cidr.StartsWith("::ffff", StringComparison.OrdinalIgnoreCase))
+                            {
+                                throw new Exception("IPv4 mapped IPv6 addresses are not allowed");
+                            }
+
                             _ = IPAddressRange.Parse(cidr);
                         }
                         catch (Exception ex)
@@ -1116,6 +1121,11 @@ namespace slskd
                     {
                         try
                         {
+                            if (cidr.StartsWith("::ffff", StringComparison.OrdinalIgnoreCase))
+                            {
+                                throw new Exception("IPv4 mapped IPv6 addresses are not allowed");
+                            }
+
                             _ = IPAddressRange.Parse(cidr);
                         }
                         catch (Exception ex)
@@ -2013,6 +2023,11 @@ namespace slskd
                             {
                                 try
                                 {
+                                    if (cidr.StartsWith("::ffff", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        throw new Exception("IPv4 mapped IPv6 addresses are not allowed");
+                                    }
+
                                     _ = IPAddressRange.Parse(cidr);
                                 }
                                 catch (Exception ex)
@@ -2096,6 +2111,11 @@ namespace slskd
                         {
                             try
                             {
+                                if (cidr.StartsWith("::ffff", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    throw new Exception("IPv4 mapped IPv6 addresses are not allowed");
+                                }
+
                                 _ = IPAddressRange.Parse(cidr);
                             }
                             catch (Exception ex)

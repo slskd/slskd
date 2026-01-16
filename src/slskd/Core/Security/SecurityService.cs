@@ -27,6 +27,7 @@ using System.Net;
 using System.Security.Claims;
 using Microsoft.IdentityModel.Tokens;
 using NetTools;
+using Serilog;
 using slskd.Authentication;
 
 public class SecurityService
@@ -90,6 +91,7 @@ public class SecurityService
         }
     }
 
+    private ILogger Log { get; } = Serilog.Log.ForContext<SecurityService>();
     private SymmetricSecurityKey JwtSigningKey { get; }
     private OptionsAtStartup OptionsAtStartup { get; }
     private IOptionsMonitor<Options> OptionsMonitor { get; }
@@ -109,6 +111,12 @@ public class SecurityService
         if (record.Key == null)
         {
             throw new NotFoundException($"Unknown API key beginning with: {key.Substring(0, 4)}");
+        }
+
+        // looks like '::ffff:127.0.0.1'; not compatible with CIDR.Contains(), so convert it back to IPv4
+        if (callerIpAddress.IsIPv4MappedToIPv6)
+        {
+            callerIpAddress = callerIpAddress.MapToIPv4();
         }
 
         if (!record.Value.Cidr.Split(',')
