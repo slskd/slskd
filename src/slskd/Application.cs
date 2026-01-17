@@ -1552,6 +1552,9 @@ namespace slskd
             Metrics.Search.RequestsReceived.Inc(1);
             Metrics.Search.CurrentRequestReceiveRate.CountUp(1);
 
+            var sw = new Stopwatch();
+            sw.Start();
+
             if (Users.IsBlacklisted(username))
             {
                 return null;
@@ -1569,21 +1572,23 @@ namespace slskd
                 return null;
             }
 
+            var filterLatency = sw.ElapsedMilliseconds;
+            Metrics.Search.Filter.Latency.Observe(filterLatency);
+            Metrics.Search.Filter.CurrentLatency.Update(filterLatency);
+
             try
             {
-                var sw = new Stopwatch();
-                sw.Start();
-
                 // append the list of excluded search phrases supplied by the server
                 // see https://github.com/jpdillingham/Soulseek.NET/issues/803
                 var queryWithExclusionsApplied = new SearchQuery(terms: query.Terms, exclusions: query.Exclusions.Concat(ExcludedSearchPhrases).Distinct());
 
                 var results = await Shares.SearchAsync(queryWithExclusionsApplied);
 
-                sw.Stop();
+                var queryLatency = sw.ElapsedMilliseconds - filterLatency;
+                Metrics.Search.Query.Latency.Observe(queryLatency);
+                Metrics.Search.Query.CurrentLatency.Update(queryLatency);
 
-                Metrics.Search.ResponseLatency.Observe(sw.ElapsedMilliseconds);
-                Metrics.Search.CurrentResponseLatency.Update(sw.ElapsedMilliseconds);
+                SearchResponse response = null;
 
                 if (results.Any())
                 {
@@ -1611,7 +1616,7 @@ namespace slskd
 
                     Metrics.Search.ResponsesSent.Inc(1);
 
-                    return new SearchResponse(
+                    response = new SearchResponse(
                         Client.Username,
                         token,
                         uploadSpeed: State.CurrentValue.User.Statistics.AverageSpeed,
@@ -1620,9 +1625,20 @@ namespace slskd
                         fileList: results);
                 }
 
+                sw.Stop();
+
+                Metrics.Search.ResponseLatency.Observe(sw.ElapsedMilliseconds);
+                Metrics.Search.CurrentResponseLatency.Update(sw.ElapsedMilliseconds);
+
+                if (response is not null)
+                {
+                    Metrics.Search.ResponsesSent.Inc(1);
+                    Metrics.Search.CurrentResponseSendRate.CountUp(1);
+                }
+
                 // if no results, either return null or an instance of SearchResponse with a fileList of length 0 in either case, no
                 // response will be sent to the requestor.
-                return null;
+                return response;
             }
             catch (Exception ex)
             {
