@@ -1484,20 +1484,20 @@ namespace slskd
             public class SearchThrottlingOptions
             {
                 /// <summary>
-                ///     Gets search response throttling options.
+                ///     Gets incoming search throttling options.
                 /// </summary>
                 [Validate]
-                public SearchResponseThrottlingOptions Response { get; init; } = new SearchResponseThrottlingOptions();
+                public IncomingSearchThrottlingOptions Incoming { get; init; } = new IncomingSearchThrottlingOptions();
 
                 /// <summary>
                 ///     Search response throttling options.
                 /// </summary>
-                public class SearchResponseThrottlingOptions
+                public class IncomingSearchThrottlingOptions
                 {
                     /// <summary>
                     ///     Gets the limit for the number of concurrent search response operations.
                     /// </summary>
-                    [EnvironmentVariable("THROTTLING_SEARCH_RESPONSE_CONCURRENCY")]
+                    [EnvironmentVariable("THROTTLING_SEARCH_INCOMING_CONCURRENCY")]
                     [Range(1, 100)]
                     [RequiresRestart]
                     public int Concurrency { get; init; } = 10;
@@ -1505,10 +1505,17 @@ namespace slskd
                     /// <summary>
                     ///     Gets the limit for the number of queued search response operations, after which requests will be discarded.
                     /// </summary>
-                    [EnvironmentVariable("THROTTLING_SEARCH_RESPONSE_CIRCUIT_BREAKER")]
+                    [EnvironmentVariable("THROTTLING_SEARCH_INCOMING_CIRCUIT_BREAKER")]
                     [Range(100, 10000)]
                     [RequiresRestart]
                     public int CircuitBreaker { get; init; } = 500;
+
+                    /// <summary>
+                    ///     Gets the limit for the number of files that can be returned in a single search request.
+                    /// </summary>
+                    [EnvironmentVariable("THROTTLING_SEARCH_INCOMING_RESPONSE_FILE_LIMIT")]
+                    [Range(100, 5000)]
+                    public int ResponseFileLimit { get; init; } = 500;
                 }
             }
         }
