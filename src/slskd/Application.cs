@@ -130,7 +130,9 @@ namespace slskd
             OptionsMonitor = optionsMonitor;
             OptionsMonitor.OnChange(async options => await OptionsMonitor_OnChange(options));
 
-            SearchResponseSemaphore = new SemaphoreSlim(initialCount: OptionsAtStartup.Throttling.Search.Response.Concurrency, maxCount: OptionsAtStartup.Throttling.Search.Response.Concurrency);
+            IncomingSearchRequestSemaphore = new SemaphoreSlim(
+                initialCount: OptionsAtStartup.Throttling.Search.Incoming.Concurrency,
+                maxCount: OptionsAtStartup.Throttling.Search.Incoming.Concurrency);
 
             PreviousOptions = OptionsMonitor.CurrentValue;
 
@@ -247,7 +249,7 @@ namespace slskd
         private IReadOnlyList<Guid> ActiveDownloadIdsAtPreviousShutdown { get; set; } = [];
         private Options.FlagsOptions Flags { get; set; }
         private IReadOnlyList<string> ExcludedSearchPhrases { get; set; } = [];
-        private SemaphoreSlim SearchResponseSemaphore { get; set; }
+        private SemaphoreSlim IncomingSearchRequestSemaphore { get; set; }
 
         public void CollectGarbage()
         {
@@ -1588,7 +1590,7 @@ namespace slskd
                 search requests arrive very consistently at a rate of about 30 per second, so we have about ~33 milliseconds
                 to process each request on average before we get into trouble.
             */
-            if (IncomingSearchRequestQueueDepth > OptionsAtStartup.Throttling.Search.Response.CircuitBreaker)
+            if (IncomingSearchRequestQueueDepth > OptionsAtStartup.Throttling.Search.Incoming.CircuitBreaker)
             {
                 Metrics.Search.Incoming.RequestsDropped.Inc(1);
                 Metrics.Search.Incoming.CurrentRequestDropRate.CountUp(1);
@@ -1600,7 +1602,7 @@ namespace slskd
 
             try
             {
-                await SearchResponseSemaphore.WaitAsync();
+                await IncomingSearchRequestSemaphore.WaitAsync();
             }
             finally
             {
@@ -1640,7 +1642,7 @@ namespace slskd
                     // see https://github.com/jpdillingham/Soulseek.NET/issues/803
                     var queryWithExclusionsApplied = new SearchQuery(terms: query.Terms, exclusions: query.Exclusions.Concat(ExcludedSearchPhrases).Distinct());
 
-                    var results = await Shares.SearchAsync(queryWithExclusionsApplied);
+                    var results = await Shares.SearchAsync(queryWithExclusionsApplied, limit: Options.Throttling.Search.Incoming.ResponseFileLimit);
 
                     var queryLatency = sw.ElapsedMilliseconds - filterLatency;
                     Metrics.Search.Incoming.Query.Latency.Observe(queryLatency);
@@ -1704,7 +1706,7 @@ namespace slskd
             }
             finally
             {
-                SearchResponseSemaphore.Release();
+                IncomingSearchRequestSemaphore.Release();
             }
         }
 

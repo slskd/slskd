@@ -181,9 +181,10 @@
 #   logs: 180 # days
 # throttling:
 #   search:
-#     response:
+#     incoming:
 #       concurrency: 10 # number of search requests to process at the same time
 #       circuit_breaker: 500 # maximum number of pending search requests
+#       response_file_limit: 500 # maximum number of files to return in a single search response
 # logger:
 #   disk: false
 #   no_color: false
