@@ -283,6 +283,12 @@ namespace slskd
         public RetentionOptions Retention { get; init; } = new RetentionOptions();
 
         /// <summary>
+        ///     Gets throttling options.
+        /// </summary>
+        [Validate]
+        public ThrottlingOptions Throttling { get; init; } = new ThrottlingOptions();
+
+        /// <summary>
         ///     Gets logger options.
         /// </summary>
         [Validate]
@@ -1458,6 +1464,52 @@ namespace slskd
                 /// </summary>
                 [Range(30, maximum: int.MaxValue)]
                 public int? Incomplete { get; init; } = null;
+            }
+        }
+
+        /// <summary>
+        ///     Throttling options.
+        /// </summary>
+        public class ThrottlingOptions
+        {
+            /// <summary>
+            ///     Gets search throttling options.
+            /// </summary>
+            [Validate]
+            public SearchThrottlingOptions Search { get; init; } = new SearchThrottlingOptions();
+
+            /// <summary>
+            ///     Search throttling options.
+            /// </summary>
+            public class SearchThrottlingOptions
+            {
+                /// <summary>
+                ///     Gets search response throttling options.
+                /// </summary>
+                [Validate]
+                public SearchResponseThrottlingOptions Response { get; init; } = new SearchResponseThrottlingOptions();
+
+                /// <summary>
+                ///     Search response throttling options.
+                /// </summary>
+                public class SearchResponseThrottlingOptions
+                {
+                    /// <summary>
+                    ///     Gets the limit for the number of concurrent search response operations.
+                    /// </summary>
+                    [EnvironmentVariable("THROTTLING_SEARCH_RESPONSE_CONCURRENCY")]
+                    [Range(1, 100)]
+                    [RequiresRestart]
+                    public int Concurrency { get; init; } = 10;
+
+                    /// <summary>
+                    ///     Gets the limit for the number of queued search response operations, after which requests will be discarded.
+                    /// </summary>
+                    [EnvironmentVariable("THROTTLING_SEARCH_RESPONSE_CIRCUIT_BREAKER")]
+                    [Range(100, 10000)]
+                    [RequiresRestart]
+                    public int CircuitBreaker { get; init; } = 500;
+                }
             }
         }
 
