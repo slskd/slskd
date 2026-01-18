@@ -1509,7 +1509,6 @@ namespace slskd
                     [Argument(default, "throttling-search-incoming-circuit-breaker")]
                     [EnvironmentVariable("THROTTLING_SEARCH_INCOMING_CIRCUIT_BREAKER")]
                     [Range(100, 10000)]
-                    [RequiresRestart]
                     public int CircuitBreaker { get; init; } = 500;
 
                     /// <summary>

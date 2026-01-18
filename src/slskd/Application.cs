@@ -1590,7 +1590,7 @@ namespace slskd
                 search requests arrive very consistently at a rate of about 30 per second, so we have about ~33 milliseconds
                 to process each request on average before we get into trouble.
             */
-            if (IncomingSearchRequestQueueDepth > OptionsAtStartup.Throttling.Search.Incoming.CircuitBreaker)
+            if (IncomingSearchRequestQueueDepth > OptionsMonitor.CurrentValue.Throttling.Search.Incoming.CircuitBreaker)
             {
                 Metrics.Search.Incoming.RequestsDropped.Inc(1);
                 Metrics.Search.Incoming.CurrentRequestDropRate.CountUp(1);
@@ -1642,7 +1642,7 @@ namespace slskd
                     // see https://github.com/jpdillingham/Soulseek.NET/issues/803
                     var queryWithExclusionsApplied = new SearchQuery(terms: query.Terms, exclusions: query.Exclusions.Concat(ExcludedSearchPhrases).Distinct());
 
-                    var results = await Shares.SearchAsync(queryWithExclusionsApplied, limit: Options.Throttling.Search.Incoming.ResponseFileLimit);
+                    var results = await Shares.SearchAsync(queryWithExclusionsApplied, limit: OptionsMonitor.CurrentValue.Throttling.Search.Incoming.ResponseFileLimit);
 
                     var queryLatency = sw.ElapsedMilliseconds - filterLatency;
                     Metrics.Search.Incoming.Query.Latency.Observe(queryLatency);
