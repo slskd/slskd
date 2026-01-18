@@ -46,6 +46,16 @@ public static class Metrics
         public static TimedCounter CurrentRequestReceiveRate { get; } = new TimedCounter(TimeSpan.FromMinutes(1), onElapsed: count => CurrentRequestReceiveRateGauge.Set(count));
 
         /// <summary>
+        ///     Gets a counter representing the total number of search requests dropped due to processing pressure.
+        /// </summary>
+        public static Counter RequestsDropped { get; } = Prometheus.Metrics.CreateCounter("slskd_search_requests_dropped", "Total number of search requests dropped due to processing pressure");
+
+        /// <summary>
+        ///     Gets an automatically resetting counter of the number of search requests dropped due to processing pressure.
+        /// </summary>
+        public static TimedCounter CurrentRequestDropRate { get; } = new TimedCounter(TimeSpan.FromMinutes(1), onElapsed: count => CurrentRequestDropRateGauge.Set(count));
+
+        /// <summary>
         ///     Gets a counter representing the total number of search responses sent.
         /// </summary>
         public static Counter ResponsesSent { get; } = Prometheus.Metrics.CreateCounter("slskd_search_responses_sent", "Total number of search responses sent");
@@ -75,6 +85,8 @@ public static class Metrics
             Prometheus.Metrics.CreateGauge("slskd_search_response_latency_current", "The average time taken to resolve and send a response to an incoming search request, in milliseconds");
         private static Gauge CurrentRequestReceiveRateGauge { get; } =
             Prometheus.Metrics.CreateGauge("slskd_search_request_receive_rate_current", "Number of search requests received in the last minute");
+        private static Gauge CurrentRequestDropRateGauge { get; } =
+            Prometheus.Metrics.CreateGauge("slskd_search_request_drop_rate_current", "Number of search requests dropped in the last minute");
         private static Gauge CurrentResponseSendRateGauge { get; } =
             Prometheus.Metrics.CreateGauge("slskd_search_response_send_rate_current", "Number of search responses sent in the last minute");
 
