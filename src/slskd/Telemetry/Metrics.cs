@@ -81,6 +81,11 @@ public static class Metrics
         /// </summary>
         public static ExponentialMovingAverage CurrentResponseLatency { get; } = new ExponentialMovingAverage(smoothingFactor: 0.5, onUpdate: value => CurrentResponseLatencyGauge.Set(value));
 
+        /// <summary>
+        ///     Gets a gauge representing the number of incoming search requests waiting to be processed.
+        /// </summary>
+        public static Gauge CurrentRequestQueueDepth { get; } = Prometheus.Metrics.CreateGauge("slskd_search_response_queue_depth_current", "The number of incoming search requests waiting to be processed");
+
         private static Gauge CurrentResponseLatencyGauge { get; } =
             Prometheus.Metrics.CreateGauge("slskd_search_response_latency_current", "The average time taken to resolve and return a response to an incoming search request, in milliseconds");
         private static Gauge CurrentRequestReceiveRateGauge { get; } =
