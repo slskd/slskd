@@ -1497,6 +1497,7 @@ namespace slskd
                     /// <summary>
                     ///     Gets the limit for the number of concurrent search response operations.
                     /// </summary>
+                    [Argument(default, "throttling-search-incoming-concurrency")]
                     [EnvironmentVariable("THROTTLING_SEARCH_INCOMING_CONCURRENCY")]
                     [Range(1, 100)]
                     [RequiresRestart]
@@ -1505,6 +1506,7 @@ namespace slskd
                     /// <summary>
                     ///     Gets the limit for the number of queued search response operations, after which requests will be discarded.
                     /// </summary>
+                    [Argument(default, "throttling-search-incoming-circuit-breaker")]
                     [EnvironmentVariable("THROTTLING_SEARCH_INCOMING_CIRCUIT_BREAKER")]
                     [Range(100, 10000)]
                     [RequiresRestart]
@@ -1513,6 +1515,7 @@ namespace slskd
                     /// <summary>
                     ///     Gets the limit for the number of files that can be returned in a single search request.
                     /// </summary>
+                    [Argument(default, "throttling-search-incoming-response-file-limit")]
                     [EnvironmentVariable("THROTTLING_SEARCH_INCOMING_RESPONSE_FILE_LIMIT")]
                     [Range(100, 5000)]
                     public int ResponseFileLimit { get; init; } = 500;
