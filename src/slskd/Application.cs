@@ -85,7 +85,7 @@ namespace slskd
 #pragma warning disable SA1306 // Field names should begin with lower-case letter
         private static int EnqueueQueueDepth = 0;
         private static double CurrentEnqueueLatency = 0;
-        private static int SearchResponseQueueDepth = 0;
+        private static int IncomingSearchRequestQueueDepth = 0;
 #pragma warning restore SA1306 // Field names should begin with lower-case letter
 
         public Application(
@@ -203,6 +203,7 @@ namespace slskd
             ConnectionWatchdog = connectionWatchdog;
 
             Clock.EveryMinute += Clock_EveryMinute;
+            Clock.EveryThirtySeconds += Clock_EveryThirtySeconds;
             Clock.EveryFiveMinutes += Clock_EveryFiveMinutes;
             Clock.EveryThirtyMinutes += Clock_EveryThirtyMinutes;
             Clock.EveryHour += Clock_EveryHour;
@@ -1120,6 +1121,25 @@ namespace slskd
                 .ContinueWith(task => Log.Error(task.Exception, "Failed to clean up user enqueue semaphore(s): {Message}", task.Exception?.Message), TaskContinuationOptions.OnlyOnFaulted);
         }
 
+        private void Clock_EveryThirtySeconds(object sender, ClockEventArgs e)
+        {
+            State.SetValue(state => state with
+            {
+                Health = state.Health with
+                {
+                    Search = state.Health.Search with
+                    {
+                        Incoming = state.Health.Search.Incoming with
+                        {
+                            Latency = Metrics.Search.Incoming.CurrentResponseLatency.Value,
+                            QueueDepth = IncomingSearchRequestQueueDepth,
+                            DropRate = Metrics.Search.Incoming.CurrentRequestDropRate.Count,
+                        },
+                    },
+                },
+            });
+        }
+
         private void Clock_EveryFiveMinutes(object sender, ClockEventArgs e)
         {
             _ = Task.Run(() => PruneSearches());
@@ -1553,8 +1573,8 @@ namespace slskd
         /// <returns>A Task resolving a SearchResponse, or null.</returns>
         private async Task<SearchResponse> SearchResponseResolver(string username, int token, SearchQuery query)
         {
-            Metrics.Search.RequestsReceived.Inc(1);
-            Metrics.Search.CurrentRequestReceiveRate.CountUp(1);
+            Metrics.Search.Incoming.RequestsReceived.Inc(1);
+            Metrics.Search.Incoming.CurrentRequestReceiveRate.CountUp(1);
 
             /*
                 if the host is struggling to process incoming search results in a timely manner, requests will back up
@@ -1568,15 +1588,15 @@ namespace slskd
                 search requests arrive very consistently at a rate of about 30 per second, so we have about ~33 milliseconds
                 to process each request on average before we get into trouble.
             */
-            if (SearchResponseQueueDepth > OptionsAtStartup.Throttling.Search.Response.CircuitBreaker)
+            if (IncomingSearchRequestQueueDepth > OptionsAtStartup.Throttling.Search.Response.CircuitBreaker)
             {
-                Metrics.Search.RequestsDropped.Inc(1);
-                Metrics.Search.CurrentRequestDropRate.CountUp(1);
+                Metrics.Search.Incoming.RequestsDropped.Inc(1);
+                Metrics.Search.Incoming.CurrentRequestDropRate.CountUp(1);
 
                 return null;
             }
 
-            Interlocked.Increment(ref SearchResponseQueueDepth);
+            Interlocked.Increment(ref IncomingSearchRequestQueueDepth);
 
             try
             {
@@ -1584,8 +1604,8 @@ namespace slskd
             }
             finally
             {
-                Interlocked.Decrement(ref SearchResponseQueueDepth);
-                Metrics.Search.CurrentRequestQueueDepth.Set(SearchResponseQueueDepth);
+                Interlocked.Decrement(ref IncomingSearchRequestQueueDepth);
+                Metrics.Search.Incoming.CurrentRequestQueueDepth.Set(IncomingSearchRequestQueueDepth);
             }
 
             try
@@ -1611,8 +1631,8 @@ namespace slskd
                 }
 
                 var filterLatency = sw.ElapsedMilliseconds;
-                Metrics.Search.Filter.Latency.Observe(filterLatency);
-                Metrics.Search.Filter.CurrentLatency.Update(filterLatency);
+                Metrics.Search.Incoming.Filter.Latency.Observe(filterLatency);
+                Metrics.Search.Incoming.Filter.CurrentLatency.Update(filterLatency);
 
                 try
                 {
@@ -1623,8 +1643,8 @@ namespace slskd
                     var results = await Shares.SearchAsync(queryWithExclusionsApplied);
 
                     var queryLatency = sw.ElapsedMilliseconds - filterLatency;
-                    Metrics.Search.Query.Latency.Observe(queryLatency);
-                    Metrics.Search.Query.CurrentLatency.Update(queryLatency);
+                    Metrics.Search.Incoming.Query.Latency.Observe(queryLatency);
+                    Metrics.Search.Incoming.Query.CurrentLatency.Update(queryLatency);
 
                     SearchResponse response = null;
 
@@ -1663,13 +1683,13 @@ namespace slskd
 
                     sw.Stop();
 
-                    Metrics.Search.ResponseLatency.Observe(sw.ElapsedMilliseconds);
-                    Metrics.Search.CurrentResponseLatency.Update(sw.ElapsedMilliseconds);
+                    Metrics.Search.Incoming.ResponseLatency.Observe(sw.ElapsedMilliseconds);
+                    Metrics.Search.Incoming.CurrentResponseLatency.Update(sw.ElapsedMilliseconds);
 
                     if (response is not null)
                     {
-                        Metrics.Search.ResponsesSent.Inc(1);
-                        Metrics.Search.CurrentResponseSendRate.CountUp(1);
+                        Metrics.Search.Incoming.ResponsesSent.Inc(1);
+                        Metrics.Search.Incoming.CurrentResponseSendRate.CountUp(1);
                     }
 
                     // if no results, either return null or an instance of SearchResponse with a fileList of length 0 in either case, no
