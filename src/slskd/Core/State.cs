@@ -37,11 +37,29 @@ namespace slskd
         public ServerState Server { get; init; } = new ServerState();
         public ServerConnectionWatchdogState ConnectionWatchdog { get; init; } = new ServerConnectionWatchdogState();
         public RelayState Relay { get; init; } = new RelayState();
+        public HealthState Health { get; init; } = new HealthState();
         public UserState User { get; init; } = new UserState();
         public DistributedNetworkState DistributedNetwork { get; init; } = new DistributedNetworkState();
         public ShareState Shares { get; init; } = new ShareState();
         public string[] Rooms { get; init; } = Array.Empty<string>();
         public User[] Users { get; init; } = Array.Empty<User>();
+    }
+
+    public record HealthState
+    {
+        public SearchHealthState Search { get; init; } = new();
+
+        public record SearchHealthState
+        {
+            public IncomingSearchHealthState Incoming { get; init; } = new();
+
+            public record IncomingSearchHealthState
+            {
+                public double Latency { get; init; }
+                public int QueueDepth { get; init; }
+                public double DropRate { get; init; }
+            }
+        }
     }
 
     public record VersionState
