@@ -180,14 +180,10 @@
 #     incomplete: 43200 # 30 days, in minutes
 #   logs: 180 # days
 # throttling:
-#   download:
-#     concurrency: 5 # number of remote enqueue requests at a time, per user
-#   upload:
-#     circuit_breaker: 120 # not implemented yet
 #   search:
 #     response:
-#       concurrency: 10 # number of responses in flight
-#       circuit_breaker: 100 # drop requests after semaphore backs up this far
+#       concurrency: 10 # number of search requests to process at the same time
+#       circuit_breaker: 500 # maximum number of pending search requests
 # logger:
 #   disk: false
 #   no_color: false
