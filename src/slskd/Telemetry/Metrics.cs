@@ -66,11 +66,11 @@ public static class Metrics
         public static TimedCounter CurrentResponseSendRate { get; } = new TimedCounter(TimeSpan.FromMinutes(1), onElapsed: count => CurrentResponseSendRateGauge.Set(count));
 
         /// <summary>
-        ///     Gets a histogram representing the time taken to resolve a response to an incoming search request, in milliseconds.
+        ///     Gets a histogram representing the time taken to resolve and return a response to an incoming search request, in milliseconds.
         /// </summary>
         public static Histogram ResponseLatency { get; } = Prometheus.Metrics.CreateHistogram(
             "slskd_search_response_latency",
-            "The time taken to resolve a response to an incoming search request, in milliseconds",
+            "The time taken to resolve and return a response to an incoming search request, in milliseconds",
             new HistogramConfiguration
             {
                 Buckets = Histogram.ExponentialBuckets(0.1, 2, 11),
@@ -82,7 +82,7 @@ public static class Metrics
         public static ExponentialMovingAverage CurrentResponseLatency { get; } = new ExponentialMovingAverage(smoothingFactor: 0.5, onUpdate: value => CurrentResponseLatencyGauge.Set(value));
 
         private static Gauge CurrentResponseLatencyGauge { get; } =
-            Prometheus.Metrics.CreateGauge("slskd_search_response_latency_current", "The average time taken to resolve and send a response to an incoming search request, in milliseconds");
+            Prometheus.Metrics.CreateGauge("slskd_search_response_latency_current", "The average time taken to resolve and return a response to an incoming search request, in milliseconds");
         private static Gauge CurrentRequestReceiveRateGauge { get; } =
             Prometheus.Metrics.CreateGauge("slskd_search_request_receive_rate_current", "Number of search requests received in the last minute");
         private static Gauge CurrentRequestDropRateGauge { get; } =
@@ -120,7 +120,7 @@ public static class Metrics
         public static class Query
         {
             /// <summary>
-            ///     Gets a histogram representing the time taken to perform a share search, in milliseconds.
+            ///     Gets a histogram representing the time taken to query share database(s) for results, in milliseconds.
             /// </summary>
             public static Histogram Latency { get; } = Prometheus.Metrics.CreateHistogram(
                 "slskd_search_query_latency",
@@ -131,7 +131,7 @@ public static class Metrics
                 });
 
             /// <summary>
-            ///     Gets an EMA representing the average time taken to resolve a response to an incoming search request, in milliseconds.
+            ///     Gets an EMA representing the average time taken to query share database(s) for results, in milliseconds.
             /// </summary>
             public static ExponentialMovingAverage CurrentLatency { get; } = new ExponentialMovingAverage(smoothingFactor: 0.5, onUpdate: value => CurrentLatencyGauge.Set(value));
             private static Gauge CurrentLatencyGauge { get; } = Prometheus.Metrics.CreateGauge("slskd_search_query_latency_current", "The average time taken to query share database(s) for results, in milliseconds");
