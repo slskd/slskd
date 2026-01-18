@@ -979,6 +979,28 @@ retention:
   logs: 180 # days
 ```
 
+# Throttling
+
+> [!WARNING]
+> **Application Stability Risk**: The options in this section control the behavior of the application at the limits of the hosting environment's performance.  Increasing values can result in unintended behavior and crashes. Support for users that increase these values will be limited.
+
+slskd is a multi-threaded application and the logic is highly concurrent, but is mostly bound by disk and network I/O rather than CPU.
+
+The `concurrency` option controls how many threads (.NET `Task`s to be specific) can perform work at the same time, limiting I/O contention.  Raising the number _can_ improve throughput on capable machines but defaults are generally set in such a way that improvements will be negligible.  Lowering the number will reduce throughput but alleviate I/O contention and improve stability on lower-spec hardware.
+
+Lower values of `concurrency` or slow processing of individual messages may cause the application to process messages at a slower rate than they are received, causing messages to be 'backed up' in internal queues.  The `circuit_breaker` option controls the number of messages that can be enqueued.  Once the circuit breaker is hit, the application will drop or discard messages without processing them.
+
+The latency, queue depth and rate at which messages are being dropped can be monitored by reviewing the application state or Prometheus metrics.
+
+#### **YAML**
+```yaml
+throttling:
+  search:
+    response:
+      concurrency: 10 # number of search requests to process at the same time
+      circuit_breaker: 500 # maximum number of pending search requests
+```
+
 # Integrations
 
 ## User-Defined
