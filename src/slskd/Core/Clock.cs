@@ -29,6 +29,7 @@ namespace slskd
         static Clock()
         {
             EveryMinuteTimer.Elapsed += (_, _) => Fire(EveryMinute);
+            EveryThirtySecondsTimer.Elapsed += (_, _) => Fire(EveryThirtySeconds);
             EveryFiveMinutesTimer.Elapsed += (_, _) => Fire(EveryFiveMinutes);
             EveryThirtyMinutesTimer.Elapsed += (_, _) => Fire(EveryThirtyMinutes);
             EveryHourTimer.Elapsed += (_, _) => Fire(EveryHour);
@@ -50,6 +51,11 @@ namespace slskd
         public static event EventHandler<ClockEventArgs> EveryMinute;
 
         /// <summary>
+        ///     Fires every 30 seconds.
+        /// </summary>
+        public static event EventHandler<ClockEventArgs> EveryThirtySeconds;
+
+        /// <summary>
         ///     Fires every 30 minutes.
         /// </summary>
         public static event EventHandler<ClockEventArgs> EveryThirtyMinutes;
@@ -57,6 +63,7 @@ namespace slskd
         private static Timer EveryFiveMinutesTimer { get; } = CreateTimer(interval: 1000 * 60 * 5);
         private static Timer EveryHourTimer { get; } = CreateTimer(interval: 1000 * 60 * 60);
         private static Timer EveryMinuteTimer { get; } = CreateTimer(interval: 1000 * 60);
+        private static Timer EveryThirtySecondsTimer { get; } = CreateTimer(interval: 1000 * 30);
         private static Timer EveryThirtyMinutesTimer { get; } = CreateTimer(interval: 1000 * 60 * 30);
 
         /// <summary>
@@ -66,6 +73,7 @@ namespace slskd
         public static Task StartAsync()
         {
             EveryMinuteTimer.Enabled = true;
+            EveryThirtySecondsTimer.Enabled = true;
             EveryFiveMinutesTimer.Enabled = true;
             EveryThirtyMinutesTimer.Enabled = true;
             EveryHourTimer.Enabled = true;
@@ -74,6 +82,7 @@ namespace slskd
 
             return Task.WhenAll(
                 Task.Run(() => Fire(EveryMinute, firstRunArgs)),
+                Task.Run(() => Fire(EveryThirtySeconds, firstRunArgs)),
                 Task.Run(() => Fire(EveryFiveMinutes, firstRunArgs)),
                 Task.Run(() => Fire(EveryThirtyMinutes, firstRunArgs)),
                 Task.Run(() => Fire(EveryHour, firstRunArgs)));
@@ -85,6 +94,7 @@ namespace slskd
         public static void Stop()
         {
             EveryMinuteTimer.Stop();
+            EveryThirtySecondsTimer.Stop();
             EveryFiveMinutesTimer.Stop();
             EveryThirtyMinutesTimer.Stop();
             EveryHourTimer.Stop();

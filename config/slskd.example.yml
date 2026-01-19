@@ -179,6 +179,12 @@
 #     complete: 20160 # 2 weeks, in minutes
 #     incomplete: 43200 # 30 days, in minutes
 #   logs: 180 # days
+# throttling:
+#   search:
+#     incoming:
+#       concurrency: 10 # number of search requests to process at the same time
+#       circuit_breaker: 500 # maximum number of pending search requests
+#       response_file_limit: 500 # maximum number of files to return in a single search response
 # logger:
 #   disk: false
 #   no_color: false

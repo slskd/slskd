@@ -471,7 +471,7 @@ Users added to the blacklist will be blocked from enqueueing any new files.  Any
 
 A managed blacklist file may also be used to achieve the same effects.  Read more about this in the [Managed Blacklist](#managed-blacklist) section below.
 
-**YAML**
+#### **YAML**
 ```yaml
 groups:
   blacklisted:
@@ -640,7 +640,7 @@ Child connections should generally only be disabled on low spec systems or situa
 Depending on the current state, changing these values may require the server connection to be reset.
 
 | Command-Line              | Environment Variable    | Description                                                                                                                                                                           |
-| ------------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ------------------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `--slsk-no-dnet`          | `SLSKD_SLSK_NO_DNET`          | Determines whether the distributed network is disabled. If disabled, the client will not obtain a parent or any child connections, and will not receive distributed search requests. |
 | `--slsk-dnet-no-children` | `SLSKD_SLSK_DNET_NO_CHILDREN` | Determines whether to disallow distributed children                                                                                                                                   |
 | `--slsk-dnet-children`    | `SLSKD_SLSK_DNET_CHILDREN`    | The maximum number of distributed children to accept                                                                                                                                  |
@@ -977,6 +977,35 @@ retention:
     complete: 20160 # 2 weeks
     incomplete: 43200 # 30 days
   logs: 180 # days
+```
+
+# Throttling
+
+> [!WARNING]
+> **Application Stability Risk**: The options in this section control the behavior of the application at the limits of the hosting environment's performance.  Increasing values can result in unintended behavior and crashes. Support for users that increase these values will be limited.
+
+slskd is a multi-threaded application and the logic is highly concurrent, but is mostly bound by disk and network I/O rather than CPU.
+
+The `concurrency` option controls how many threads (.NET `Task`s to be specific) can perform work at the same time, limiting I/O contention.  Raising the number _can_ improve throughput on capable machines but defaults are generally set in such a way that improvements will be negligible.  Lowering the number will reduce throughput but alleviate I/O contention and improve stability on lower-spec hardware.
+
+Lower values of `concurrency` or slow processing of individual messages may cause the application to process messages at a slower rate than they are received, causing messages to be 'backed up' in internal queues.  The `circuit_breaker` option controls the number of messages that can be enqueued.  Once the circuit breaker is hit, the application will drop or discard messages without processing them.
+
+The latency, queue depth and rate at which messages are being dropped can be monitored by reviewing the application state or Prometheus metrics.
+
+| Command Line                                       | Environment Variable                                   | Description                                                                                           |
+| -------------------------------------------------- | ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
+| `--throttling-search-incoming-concurrency`         | `SLSKD_THROTTLING_SEARCH_INCOMING_CONCURRENCY`         | The limit for the number of concurrent search response operations                                     |
+| `--throttling-search-incoming-circuit-breaker`     | `SLSKD_THROTTLING_SEARCH_INCOMING_CIRCUIT_BREAKER`     | The limit for the number of queued search response operations, after which requests will be discarded |
+| `--throttling-search-incoming-response-file-limit` | `SLSKD_THROTTLING_SEARCH_INCOMING_RESPONSE_FILE_LIMIT` | The limit for the number of files that can be returned in a single search request                     |
+
+#### **YAML**
+```yaml
+throttling:
+  search:
+    incoming:
+      concurrency: 10 # number of search requests to process at the same time
+      circuit_breaker: 500 # maximum number of pending search requests
+      response_file_limit: 500 # maximum number of files to return in a single search response
 ```
 
 # Integrations

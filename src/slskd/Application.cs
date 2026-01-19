@@ -85,6 +85,7 @@ namespace slskd
 #pragma warning disable SA1306 // Field names should begin with lower-case letter
         private static int EnqueueQueueDepth = 0;
         private static double CurrentEnqueueLatency = 0;
+        private static int IncomingSearchRequestQueueDepth = 0;
 #pragma warning restore SA1306 // Field names should begin with lower-case letter
 
         public Application(
@@ -128,6 +129,10 @@ namespace slskd
 
             OptionsMonitor = optionsMonitor;
             OptionsMonitor.OnChange(async options => await OptionsMonitor_OnChange(options));
+
+            IncomingSearchRequestSemaphore = new SemaphoreSlim(
+                initialCount: OptionsAtStartup.Throttling.Search.Incoming.Concurrency,
+                maxCount: OptionsAtStartup.Throttling.Search.Incoming.Concurrency);
 
             PreviousOptions = OptionsMonitor.CurrentValue;
 
@@ -200,6 +205,7 @@ namespace slskd
             ConnectionWatchdog = connectionWatchdog;
 
             Clock.EveryMinute += Clock_EveryMinute;
+            Clock.EveryThirtySeconds += Clock_EveryThirtySeconds;
             Clock.EveryFiveMinutes += Clock_EveryFiveMinutes;
             Clock.EveryThirtyMinutes += Clock_EveryThirtyMinutes;
             Clock.EveryHour += Clock_EveryHour;
@@ -243,6 +249,7 @@ namespace slskd
         private IReadOnlyList<Guid> ActiveDownloadIdsAtPreviousShutdown { get; set; } = [];
         private Options.FlagsOptions Flags { get; set; }
         private IReadOnlyList<string> ExcludedSearchPhrases { get; set; } = [];
+        private SemaphoreSlim IncomingSearchRequestSemaphore { get; set; }
 
         public void CollectGarbage()
         {
@@ -1116,6 +1123,25 @@ namespace slskd
                 .ContinueWith(task => Log.Error(task.Exception, "Failed to clean up user enqueue semaphore(s): {Message}", task.Exception?.Message), TaskContinuationOptions.OnlyOnFaulted);
         }
 
+        private void Clock_EveryThirtySeconds(object sender, ClockEventArgs e)
+        {
+            State.SetValue(state => state with
+            {
+                Health = state.Health with
+                {
+                    Search = state.Health.Search with
+                    {
+                        Incoming = state.Health.Search.Incoming with
+                        {
+                            Latency = Metrics.Search.Incoming.CurrentResponseLatency.Value,
+                            QueueDepth = IncomingSearchRequestQueueDepth,
+                            DropRate = Metrics.Search.Incoming.CurrentRequestDropRate.Count,
+                        },
+                    },
+                },
+            });
+        }
+
         private void Clock_EveryFiveMinutes(object sender, ClockEventArgs e)
         {
             _ = Task.Run(() => PruneSearches());
@@ -1549,24 +1575,39 @@ namespace slskd
         /// <returns>A Task resolving a SearchResponse, or null.</returns>
         private async Task<SearchResponse> SearchResponseResolver(string username, int token, SearchQuery query)
         {
-            Metrics.Search.RequestsReceived.Inc(1);
-            Metrics.Search.CurrentRequestReceiveRate.CountUp(1);
+            Metrics.Search.Incoming.RequestsReceived.Inc(1);
+            Metrics.Search.Incoming.CurrentRequestReceiveRate.CountUp(1);
 
-            if (Users.IsBlacklisted(username))
+            /*
+                if the host is struggling to process incoming search results in a timely manner, requests will back up
+                behind the SearchResponseSemaphore, potentially infinitely until the application runs out of memory and
+                crashes.
+
+                to prevent this from happening we must count the number of waiting requests in SearchResponseQueueDepth,
+                and if that count exceeds the configured CircuitBreaker, we drop the search request and don't attempt
+                to resolve a response.
+
+                search requests arrive very consistently at a rate of about 30 per second, so we have about ~33 milliseconds
+                to process each request on average before we get into trouble.
+            */
+            if (IncomingSearchRequestQueueDepth > OptionsMonitor.CurrentValue.Throttling.Search.Incoming.CircuitBreaker)
             {
+                Metrics.Search.Incoming.RequestsDropped.Inc(1);
+                Metrics.Search.Incoming.CurrentRequestDropRate.CountUp(1);
+
                 return null;
             }
 
-            if (CompiledSearchRequestFilters.Any(filter => filter.IsMatch(query.SearchText)))
-            {
-                return null;
-            }
+            Interlocked.Increment(ref IncomingSearchRequestQueueDepth);
 
-            // sometimes clients send search queries consisting only of exclusions; drop them.
-            // no other clients send search results for these, even though it is technically possible.
-            if (query.Terms.Count == 0)
+            try
             {
-                return null;
+                await IncomingSearchRequestSemaphore.WaitAsync();
+            }
+            finally
+            {
+                Interlocked.Decrement(ref IncomingSearchRequestQueueDepth);
+                Metrics.Search.Incoming.CurrentRequestQueueDepth.Set(IncomingSearchRequestQueueDepth);
             }
 
             try
@@ -1574,60 +1615,105 @@ namespace slskd
                 var sw = new Stopwatch();
                 sw.Start();
 
-                // append the list of excluded search phrases supplied by the server
-                // see https://github.com/jpdillingham/Soulseek.NET/issues/803
-                var queryWithExclusionsApplied = new SearchQuery(terms: query.Terms, exclusions: query.Exclusions.Concat(ExcludedSearchPhrases).Distinct());
-
-                var results = await Shares.SearchAsync(queryWithExclusionsApplied);
-
-                sw.Stop();
-
-                Metrics.Search.ResponseLatency.Observe(sw.ElapsedMilliseconds);
-                Metrics.Search.CurrentResponseLatency.Update(sw.ElapsedMilliseconds);
-
-                if (results.Any())
+                if (Users.IsBlacklisted(username))
                 {
-                    // fetch the user's IP address so that we can check whether it's blacklisted.
-                    // it's unfortunate that we have to do this to get the IP, but we have to do it
-                    // anyway to send the results, and the information is cached. whether we do it here
-                    // or Soulseek.NET does it under the hood doesn't really matter.
-                    var endpoint = await Client.GetUserEndPointAsync(username);
-
-                    if (Users.IsBlacklisted(username, endpoint.Address))
-                    {
-                        return null;
-                    }
-
-                    // make sure our average speed (as reported by the server) is reasonably up to date
-                    // we do this because we send the information along with the search response
-                    await RefreshUserStatistics();
-
-                    // note: the following uses cached user data to determine group, so if the user's data
-                    // isn't cached they may get a forecast based on the wrong group.  this is a hot path though,
-                    // and we don't want to incur the massive penalties that would caching data for each request.
-                    var forecastedPosition = Transfers.Uploads.Queue.ForecastPosition(username);
-
-                    Log.Debug("Sending search response with {Count} files to {Username} for query '{Query}'", results.Count(), username, query.SearchText);
-
-                    Metrics.Search.ResponsesSent.Inc(1);
-
-                    return new SearchResponse(
-                        Client.Username,
-                        token,
-                        uploadSpeed: State.CurrentValue.User.Statistics.AverageSpeed,
-                        hasFreeUploadSlot: forecastedPosition == 0,
-                        queueLength: forecastedPosition,
-                        fileList: results);
+                    return null;
                 }
 
-                // if no results, either return null or an instance of SearchResponse with a fileList of length 0 in either case, no
-                // response will be sent to the requestor.
-                return null;
+                if (CompiledSearchRequestFilters.Any(filter => filter.IsMatch(query.SearchText)))
+                {
+                    return null;
+                }
+
+                // sometimes clients send search queries consisting only of exclusions; drop them.
+                // no other clients send search results for these, even though it is technically possible.
+                if (query.Terms.Count == 0)
+                {
+                    return null;
+                }
+
+                var filterLatency = sw.ElapsedMilliseconds;
+                Metrics.Search.Incoming.Filter.Latency.Observe(filterLatency);
+                Metrics.Search.Incoming.Filter.CurrentLatency.Update(filterLatency);
+
+                try
+                {
+                    // append the list of excluded search phrases supplied by the server
+                    // see https://github.com/jpdillingham/Soulseek.NET/issues/803
+                    var queryWithExclusionsApplied = new SearchQuery(terms: query.Terms, exclusions: query.Exclusions.Concat(ExcludedSearchPhrases).Distinct());
+
+                    var results = await Shares.SearchAsync(queryWithExclusionsApplied, limit: OptionsMonitor.CurrentValue.Throttling.Search.Incoming.ResponseFileLimit);
+
+                    var queryLatency = sw.ElapsedMilliseconds - filterLatency;
+                    Metrics.Search.Incoming.Query.Latency.Observe(queryLatency);
+                    Metrics.Search.Incoming.Query.CurrentLatency.Update(queryLatency);
+
+                    SearchResponse response = null;
+
+                    if (results.Any())
+                    {
+                        // fetch the user's IP address so that we can check whether it's blacklisted.
+                        // it's unfortunate that we have to do this to get the IP, but we have to do it
+                        // anyway to send the results, and the information is cached. whether we do it here
+                        // or Soulseek.NET does it under the hood doesn't really matter.
+                        try
+                        {
+                            var endpoint = await Client.GetUserEndPointAsync(username);
+
+                            if (Users.IsBlacklisted(username, endpoint.Address))
+                            {
+                                return null;
+                            }
+                        }
+                        catch (Soulseek.UserOfflineException)
+                        {
+                            return null;
+                        }
+
+                        // make sure our average speed (as reported by the server) is reasonably up to date
+                        // we do this because we send the information along with the search response
+                        await RefreshUserStatistics();
+
+                        // note: the following uses cached user data to determine group, so if the user's data
+                        // isn't cached they may get a forecast based on the wrong group.  this is a hot path though,
+                        // and we don't want to incur the massive penalties that would caching data for each request.
+                        var forecastedPosition = Transfers.Uploads.Queue.ForecastPosition(username);
+
+                        Log.Debug("Sending search response with {Count} files to {Username} for query '{Query}'", results.Count(), username, query.SearchText);
+
+                        response = new SearchResponse(
+                            Client.Username,
+                            token,
+                            uploadSpeed: State.CurrentValue.User.Statistics.AverageSpeed,
+                            hasFreeUploadSlot: forecastedPosition == 0,
+                            queueLength: forecastedPosition,
+                            fileList: results);
+                    }
+
+                    sw.Stop();
+
+                    Metrics.Search.Incoming.ResponseLatency.Observe(sw.ElapsedMilliseconds);
+                    Metrics.Search.Incoming.CurrentResponseLatency.Update(sw.ElapsedMilliseconds);
+
+                    if (response is not null)
+                    {
+                        Metrics.Search.Incoming.ResponsesSent.Inc(1);
+                        Metrics.Search.Incoming.CurrentResponseSendRate.CountUp(1);
+                    }
+
+                    // if no results, either return null or an instance of SearchResponse with a fileList of length 0 in either case, no
+                    // response will be sent to the requestor.
+                    return response;
+                }
+                catch (Exception ex)
+                {
+                    Log.Warning(ex, "Failed to resolve search response: {Message}", ex.Message);
+                    throw;
+                }
             }
-            catch (Exception ex)
+            finally
             {
-                Log.Warning(ex, "Failed to resolve search response: {Message}", ex.Message);
-                throw;
+                IncomingSearchRequestSemaphore.Release();
             }
         }
 
