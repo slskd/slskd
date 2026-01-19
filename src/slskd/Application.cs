@@ -1584,7 +1584,7 @@ namespace slskd
                 crashes.
 
                 to prevent this from happening we must count the number of waiting requests in SearchResponseQueueDepth,
-                and if that count exceeds the configured CicruitBreaker, we drop the search request and don't attempt
+                and if that count exceeds the configured CircuitBreaker, we drop the search request and don't attempt
                 to resolve a response.
 
                 search requests arrive very consistently at a rate of about 30 per second, so we have about ~33 milliseconds
