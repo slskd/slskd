@@ -1656,9 +1656,16 @@ namespace slskd
                         // it's unfortunate that we have to do this to get the IP, but we have to do it
                         // anyway to send the results, and the information is cached. whether we do it here
                         // or Soulseek.NET does it under the hood doesn't really matter.
-                        var endpoint = await Client.GetUserEndPointAsync(username);
+                        try
+                        {
+                            var endpoint = await Client.GetUserEndPointAsync(username);
 
-                        if (Users.IsBlacklisted(username, endpoint.Address))
+                            if (Users.IsBlacklisted(username, endpoint.Address))
+                            {
+                                return null;
+                            }
+                        }
+                        catch (Soulseek.UserOfflineException)
                         {
                             return null;
                         }
