@@ -46,7 +46,9 @@ public static class Metrics
             public static Counter RequestsReceived { get; } = Prometheus.Metrics.CreateCounter("slskd_search_incoming_requests_received", "Total number of search requests received");
 
             /// <summary>
-            ///     Gets an automatically resetting counter of the number of search requests received.
+            ///     Gets an automatically resetting counter of the number of search requests received per minute.
+            ///     This metric previously represented a per-second rate; changing the period to one minute is a
+            ///     breaking change for consumers that assumed requests per second.
             /// </summary>
             public static TimedCounter CurrentRequestReceiveRate { get; } = new TimedCounter(TimeSpan.FromMinutes(1), onElapsed: count => CurrentRequestReceiveRateGauge.Set(count));
 
