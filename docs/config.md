@@ -1005,7 +1005,7 @@ throttling:
     incoming:
       concurrency: 10 # number of search requests to process at the same time
       circuit_breaker: 500 # maximum number of pending search requests
-      file_limit: 500 # maximum number of files to return in a single search response
+      response_file_limit: 500 # maximum number of files to return in a single search response
 ```
 
 # Integrations
