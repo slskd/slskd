@@ -47,8 +47,6 @@ public static class Metrics
 
             /// <summary>
             ///     Gets an automatically resetting counter of the number of search requests received per minute.
-            ///     This metric previously represented a per-second rate; changing the period to one minute is a
-            ///     breaking change for consumers that assumed requests per second.
             /// </summary>
             public static TimedCounter CurrentRequestReceiveRate { get; } = new TimedCounter(TimeSpan.FromMinutes(1), onElapsed: count => CurrentRequestReceiveRateGauge.Set(count));
 
@@ -58,7 +56,7 @@ public static class Metrics
             public static Counter RequestsDropped { get; } = Prometheus.Metrics.CreateCounter("slskd_search_incoming_requests_dropped", "Total number of search requests dropped due to processing pressure");
 
             /// <summary>
-            ///     Gets an automatically resetting counter of the number of search requests dropped due to processing pressure.
+            ///     Gets an automatically resetting counter of the number of search requests dropped due to processing pressure per minute.
             /// </summary>
             public static TimedCounter CurrentRequestDropRate { get; } = new TimedCounter(TimeSpan.FromMinutes(1), onElapsed: count => CurrentRequestDropRateGauge.Set(count));
 
@@ -68,7 +66,7 @@ public static class Metrics
             public static Counter ResponsesSent { get; } = Prometheus.Metrics.CreateCounter("slskd_search_incoming_responses_sent", "Total number of search responses sent");
 
             /// <summary>
-            ///     Gets an automatically resetting counter of the number of search responses sent.
+            ///     Gets an automatically resetting counter of the number of search responses sent per minute.
             /// </summary>
             public static TimedCounter CurrentResponseSendRate { get; } = new TimedCounter(TimeSpan.FromMinutes(1), onElapsed: count => CurrentResponseSendRateGauge.Set(count));
 
