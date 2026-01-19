@@ -992,11 +992,11 @@ Lower values of `concurrency` or slow processing of individual messages may caus
 
 The latency, queue depth and rate at which messages are being dropped can be monitored by reviewing the application state or Prometheus metrics.
 
-| Command Line                                       | Environment Variable                                  | Description                                                                                           |
-| -------------------------------------------------- | ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| `--throttling-search-incoming-concurrency`         | `SLSKD_THROTTING_SEARCH_INCOMING_CONCURRENCY`         | The limit for the number of concurrent search response operations                                     |
-| `--throttling-search-incoming-circuit-breaker`     | `SLSKD_THROTTING_SEARCH_INCOMING_CIRCUIT_BREAKER`     | The limit for the number of queued search response operations, after which requests will be discarded |
-| `--throttling-search-incoming-response-file-limit` | `SLSKD_THROTTING_SEARCH_INCOMING_RESPONSE_FILE_LIMIT` | The limit for the number of files that can be returned in a single search request                     |
+| Command Line                                       | Environment Variable                                   | Description                                                                                           |
+| -------------------------------------------------- | ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
+| `--throttling-search-incoming-concurrency`         | `SLSKD_THROTTLING_SEARCH_INCOMING_CONCURRENCY`         | The limit for the number of concurrent search response operations                                     |
+| `--throttling-search-incoming-circuit-breaker`     | `SLSKD_THROTTLING_SEARCH_INCOMING_CIRCUIT_BREAKER`     | The limit for the number of queued search response operations, after which requests will be discarded |
+| `--throttling-search-incoming-response-file-limit` | `SLSKD_THROTTLING_SEARCH_INCOMING_RESPONSE_FILE_LIMIT` | The limit for the number of files that can be returned in a single search request                     |
 
 #### **YAML**
 ```yaml
