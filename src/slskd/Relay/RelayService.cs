@@ -190,9 +190,10 @@ namespace slskd.Relay
         /// <summary>
         ///     Notifies the caller of <see cref="GetFileStreamAsync"/> of a failure to obtain a file stream from the requested agent.
         /// </summary>
+        /// <param name="agentName">The name of the agent.</param>
         /// <param name="id">The unique ID for the stream.</param>
         /// <param name="exception">The remote exception that caused the failure.</param>
-        void NotifyFileStreamException(Guid id, Exception exception);
+        void NotifyFileStreamException(string agentName, Guid id, Exception exception);
 
         /// <summary>
         ///     Registers the specified <paramref name="agent"/> with the specified <paramref name="connectionId"/>.
@@ -656,11 +657,12 @@ namespace slskd.Relay
         /// <summary>
         ///     Notifies the caller of <see cref="GetFileStreamAsync"/> of a failure to obtain a file stream from the requested agent.
         /// </summary>
+        /// <param name="agentName">The name of the agent.</param>
         /// <param name="id">The unique ID for the stream.</param>
         /// <param name="exception">The remote exception that caused the failure.</param>
-        public void NotifyFileStreamException(Guid id, Exception exception)
+        public void NotifyFileStreamException(string agentName, Guid id, Exception exception)
         {
-            var key = new WaitKey(nameof(GetFileStreamAsync), id);
+            var key = new WaitKey(nameof(GetFileStreamAsync), agentName, id);
             Waiter.Throw(key, exception);
         }
 
