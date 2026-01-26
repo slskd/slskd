@@ -22,6 +22,7 @@ namespace slskd.Core.API
     using System;
     using System.IO;
     using System.Reflection;
+    using System.Text.RegularExpressions;
     using Asp.Versioning;
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
@@ -41,19 +42,22 @@ namespace slskd.Core.API
     public class OptionsController : ControllerBase
     {
         public OptionsController(
+            IApplication application,
             OptionsAtStartup optionsAtStartup,
             IOptionsSnapshot<Options> optionsSnapshot,
             IStateMutator<State> stateMutator)
         {
+            Application = application;
             OptionsAtStartup = optionsAtStartup;
             OptionsSnapshot = optionsSnapshot;
             StateMutator = stateMutator;
         }
 
+        private IApplication Application { get; }
         private IOptionsSnapshot<Options> OptionsSnapshot { get; }
         private OptionsAtStartup OptionsAtStartup { get; }
         private IStateMutator<State> StateMutator { get; }
-        private ILogger Logger { get; } = Log.ForContext(typeof(OptionsController));
+        private ILogger Logger { get; } = Log.ForContext<OptionsController>();
 
         /// <summary>
         ///     Gets the current application options.
@@ -64,6 +68,41 @@ namespace slskd.Core.API
         [ProducesResponseType(typeof(Options), 200)]
         public IActionResult Current()
         {
+            return Ok(OptionsSnapshot.Value.Redact());
+        }
+
+        /// <summary>
+        ///     Patch the application options with new values.
+        /// </summary>
+        /// <param name="patch">The patch to apply.</param>
+        /// <returns></returns>
+        [HttpPatch]
+        [Authorize(Policy = AuthPolicy.Any)]
+        [ProducesResponseType(typeof(Options), 200)]
+        public IActionResult Patch([FromBody] OptionsPatch patch)
+        {
+            if (patch is null)
+            {
+                return NoContent();
+            }
+
+            if (!patch.TryValidate(out var result))
+            {
+                var error = Regex.Replace(result.GetResultView().ToString(), @"\s+", " ").Trim();
+                Logger.Warning("Options patch validation failed: {Message}", error);
+                return BadRequest(error);
+            }
+
+            try
+            {
+                Application.ApplyOptionsPatchAsync(patch);
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "Failed to apply options patch: {Message}", ex.Message);
+                return StatusCode(500, $"Failed to apply options patch: {ex.Message}");
+            }
+
             return Ok(OptionsSnapshot.Value.Redact());
         }
 
