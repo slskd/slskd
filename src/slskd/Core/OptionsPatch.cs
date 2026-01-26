@@ -20,9 +20,31 @@ namespace slskd
     using System.ComponentModel.DataAnnotations;
     using slskd.Validation;
 
+    /// <summary>
+    ///     Run-time patch for application <see cref="Options"/>.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         The values specified in this patch are applied at run-time only, are volatile (lost when the application restarts),
+    ///         and take precedence over all other options, regardless of which method was used to define them.
+    ///     </para>
+    ///     <para>
+    ///         Only options that can be applied while the application is running can be patched, given the nature of how
+    ///         a patch is applied.
+    ///     </para>
+    ///     <para>
+    ///         Every property in this class must be nullable, and must have a null default value; the application
+    ///         selectively applies the patch using only information explicitly supplied.
+    ///     </para>
+    /// </remarks>
     public class OptionsPatch
     {
+        public static OptionsPatch Current { get; private set; } = new();
+
+        [Validate]
         public SoulseekOptionsPatch Soulseek { get; init; } = null;
+
+        public static void SetCurrent(OptionsPatch patch) => Current = patch;
 
         /// <summary>
         ///     Soulseek client options.
@@ -33,13 +55,15 @@ namespace slskd
             ///     Gets the local IP address on which to listen for incoming connections.
             /// </summary>
             [IPAddress]
-            public string? ListenIpAddress { get; init; } = "0.0.0.0";
+#pragma warning disable CS8632 // The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+            public string? ListenIpAddress { get; init; } = null;
+#pragma warning restore CS8632 // The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
 
             /// <summary>
             ///     Gets the port on which to listen for incoming connections.
             /// </summary>
             [Range(1024, 65535)]
-            public int? ListenPort { get; init; } = 50300;
+            public int? ListenPort { get; init; } = null;
         }
     }
 }

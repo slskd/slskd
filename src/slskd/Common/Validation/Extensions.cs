@@ -44,5 +44,25 @@ namespace slskd.Validation
 
             return true;
         }
+
+        /// <summary>
+        ///     Validates options.
+        /// </summary>
+        /// <param name="patch">The options patch instance to validate.</param>
+        /// <param name="result">The result of the validation, if invalid.</param>
+        /// <returns>A value indicating whether the instance is valid.</returns>
+        public static bool TryValidate(this OptionsPatch patch, out CompositeValidationResult result)
+        {
+            result = null;
+            var results = new List<ValidationResult>();
+
+            if (!Validator.TryValidateObject(patch, new ValidationContext(patch), results, true))
+            {
+                result = new CompositeValidationResult("Invalid configuration", results);
+                return false;
+            }
+
+            return true;
+        }
     }
 }
