@@ -79,7 +79,7 @@ namespace slskd.Core.API
         [HttpPatch]
         [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(typeof(Options), 200)]
-        public IActionResult Patch([FromBody] OptionsPatch patch)
+        public IActionResult Patch([FromBody] OptionsOverlay patch)
         {
             if (patch is null)
             {
@@ -95,7 +95,7 @@ namespace slskd.Core.API
 
             try
             {
-                Application.ApplyOptionsPatchAsync(patch);
+                Program.ApplyConfigurationOverlay(patch);
             }
             catch (Exception ex)
             {

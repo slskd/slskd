@@ -1,4 +1,4 @@
-// <copyright file="OptionsPatch.cs" company="slskd Team">
+// <copyright file="OptionsOverlay.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -21,30 +21,29 @@ namespace slskd
     using slskd.Validation;
 
     /// <summary>
-    ///     Run-time patch for application <see cref="Options"/>.
+    ///     Volatile run-time overlay for application <see cref="Options"/>.
     /// </summary>
     /// <remarks>
     ///     <para>
-    ///         The values specified in this patch are applied at run-time only, are volatile (lost when the application restarts),
+    ///         The values specified in this overlay are applied at run-time only, are volatile (lost when the application restarts),
     ///         and take precedence over all other options, regardless of which method was used to define them.
     ///     </para>
     ///     <para>
-    ///         Only options that can be applied while the application is running can be patched, given the nature of how
-    ///         a patch is applied.
+    ///         Only options that can be applied while the application is running can be overlaid, given the nature of how
+    ///         an overlay is applied.
     ///     </para>
     ///     <para>
     ///         Every property in this class must be nullable, and must have a null default value; the application
-    ///         selectively applies the patch using only information explicitly supplied.
+    ///         selectively applies the patch overlay only information explicitly supplied.
     ///     </para>
     /// </remarks>
-    public class OptionsPatch
+    public class OptionsOverlay
     {
-        public static OptionsPatch Current { get; private set; } = new();
-
+        /// <summary>
+        ///     Gets options for the Soulseek client.
+        /// </summary>
         [Validate]
         public SoulseekOptionsPatch Soulseek { get; init; } = null;
-
-        public static void SetCurrent(OptionsPatch patch) => Current = patch;
 
         /// <summary>
         ///     Soulseek client options.
@@ -55,9 +54,7 @@ namespace slskd
             ///     Gets the local IP address on which to listen for incoming connections.
             /// </summary>
             [IPAddress]
-#pragma warning disable CS8632 // The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
-            public string? ListenIpAddress { get; init; } = null;
-#pragma warning restore CS8632 // The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+            public string ListenIpAddress { get; init; } = null;
 
             /// <summary>
             ///     Gets the port on which to listen for incoming connections.
