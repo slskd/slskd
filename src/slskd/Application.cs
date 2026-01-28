@@ -56,7 +56,6 @@ namespace slskd
     {
         public Task CheckVersionAsync();
         public void CollectGarbage();
-        public Task ApplyOptionsPatchAsync(OptionsPatch patch);
     }
 
     public sealed class Application : IApplication
@@ -229,7 +228,6 @@ namespace slskd
         private ConcurrentDictionary<string, ILogger> Loggers { get; } = new ConcurrentDictionary<string, ILogger>();
         private Options Options => OptionsMonitor.CurrentValue;
         private OptionsAtStartup OptionsAtStartup { get; set; }
-        private OptionsPatch OptionsPatch { get; set; }
         private IOptionsMonitor<Options> OptionsMonitor { get; set; }
         private SemaphoreSlim OptionsSyncRoot { get; } = new SemaphoreSlim(1, 1);
         private SemaphoreSlim GlobalEnqueueSemaphore { get; } = new SemaphoreSlim(10, 10);
@@ -316,8 +314,6 @@ namespace slskd
                 throw;
             }
         }
-
-        public Task ApplyOptionsPatchAsync(OptionsPatch patch) => PatchOptions(patch);
 
         async Task IHostedService.StartAsync(CancellationToken cancellationToken)
         {
@@ -1395,26 +1391,7 @@ namespace slskd
             }
         }
 
-        private Task OptionsMonitor_OnChange(Options newOptions)
-        {
-            return UpdateOptions(newOptions);
-        }
-
-        private async Task PatchOptions(OptionsPatch patch)
-        {
-            await OptionsSyncRoot.WaitAsync();
-
-            try
-            {
-                OptionsPatch = patch;
-            }
-            finally
-            {
-                OptionsSyncRoot.Release();
-            }
-        }
-
-        private async Task UpdateOptions(Options newOptions)
+        private async Task OptionsMonitor_OnChange(Options newOptions)
         {
             // this code is known to fire more than once per update. i'm not sure whether these might be executed concurrently.
             // lock to be safe, because we need to accurately track the last value of Options for diffing purposes. threading
@@ -1543,29 +1520,8 @@ namespace slskd
                             inactivityTimeout: connection.Timeout.Transfer);
                     }
 
-                    /*
-                        apply options from the run-time options patch
-
-                        if options are present (are not null), they take precedent over any other options, regardless of
-                        how they were defined (command line, envar, yaml)
-
-                        this needs to be done for every single property in OptionsPatch, or the next time options are updated
-                        the value may be overwritten
-                    */
-                    IPAddress listenIPAddress = !string.IsNullOrEmpty(OptionsPatch?.Soulseek?.ListenIpAddress)
-                        ? IPAddress.Parse(OptionsPatch.Soulseek.ListenIpAddress)
-                        : old.ListenIpAddress == update.ListenIpAddress
-                            ? null
-                            : IPAddress.Parse(update.ListenIpAddress);
-
-                    int? listenPort = (OptionsPatch?.Soulseek?.ListenPort.HasValue ?? false)
-                        ? OptionsPatch.Soulseek.ListenPort.Value
-                        : old.ListenPort == update.ListenPort
-                            ? null
-                            : update.ListenPort;
-
                     var patch = new SoulseekClientOptionsPatch(
-                        listenIPAddress: listenIPAddress,
+                        listenIPAddress: old.ListenIpAddress == update.ListenIpAddress ? null : IPAddress.Parse(update.ListenIpAddress),
                         listenPort: old.ListenPort == update.ListenPort ? null : update.ListenPort,
                         enableDistributedNetwork: old.DistributedNetwork.Disabled == update.DistributedNetwork.Disabled ? null : !update.DistributedNetwork.Disabled,
                         distributedChildLimit: old.DistributedNetwork.ChildLimit == update.DistributedNetwork.ChildLimit ? null : update.DistributedNetwork.ChildLimit,
