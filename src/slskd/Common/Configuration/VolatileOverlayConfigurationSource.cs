@@ -28,15 +28,6 @@ namespace slskd.Configuration
     /// </summary>
     public class VolatileOverlayConfigurationProvider<T> : ConfigurationProvider
     {
-        // /// <summary>
-        // ///     Initializes a new instance of the <see cref="VolatileOverlayConfigurationProvider"/> class.
-        // /// </summary>
-        // /// <param name="source">The source settings.</param>
-        // public VolatileOverlayConfigurationProvider(VolatileOverlayConfigurationSource source)
-        // {
-        //     TargetType = source.TargetType;
-        //     Namespace = TargetType.Namespace.Split('.').First();
-        // }
         public VolatileOverlayConfigurationProvider()
         {
             TargetType = typeof(T);
@@ -54,7 +45,7 @@ namespace slskd.Configuration
                 return;
             }
 
-            void Map(Type type, string path)
+            void Map(Type type, string path, object instance)
             {
                 var props = type.GetProperties(BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
 
@@ -64,7 +55,7 @@ namespace slskd.Configuration
 
                     if (property.PropertyType.Namespace.StartsWith(Namespace))
                     {
-                        Map(property.PropertyType, key);
+                        Map(property.PropertyType, key, property.GetValue(instance));
                     }
                     else
                     {
@@ -72,7 +63,7 @@ namespace slskd.Configuration
                         // and the default value from the class is "stuck", so adding them again results in duplicates.
                         if (!property.PropertyType.IsArray)
                         {
-                            var value = property.GetValue(Current);
+                            var value = property.GetValue(instance);
 
                             if (value != null)
                             {
@@ -85,19 +76,13 @@ namespace slskd.Configuration
                             // (not indexed by array position).  this value is "stuck", and
                             // we want to show that in the config debug view.  this isn't really
                             // functional, just illustrative.
-                            Data[key] = JsonSerializer.Serialize(property.GetValue(Current));
+                            Data[key] = JsonSerializer.Serialize(property.GetValue(instance));
                         }
                     }
                 }
             }
 
-            Map(TargetType, Namespace);
-
-            Console.WriteLine("load called!");
-            // Data["slskd:soulseek:listenport"] = Current.Soulseek.ListenPort.ToString();
-
-            // todo: take the current patch value and stuff the options into Data[key]
-            Console.WriteLine(Data.ToJson());
+            Map(TargetType, Namespace, Current);
         }
 
         public void Apply(T overlay)
