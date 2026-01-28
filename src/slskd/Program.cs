@@ -244,6 +244,7 @@ namespace slskd
         private static ILogger Log { get; set; } = new ConsoleWriteLineLogger();
         private static Mutex Mutex { get; set; }
         private static IDisposable DotNetRuntimeStats { get; set; }
+        private static VolatileOverlayConfigurationSource<OptionsOverlay> VolatileOverlayConfigurationSource { get; set; } = new VolatileOverlayConfigurationSource<OptionsOverlay>();
 
         [Argument('g', "generate-cert", "generate X509 certificate and password for HTTPs")]
         private static bool GenerateCertificate { get; set; }
@@ -268,6 +269,8 @@ namespace slskd
         /// </summary>
         /// <param name="code">An optional exit code.</param>
         public static void Exit(int code = 1) => Environment.Exit(code);
+
+        public static void ApplyConfigurationOverlay(OptionsOverlay overlay) => VolatileOverlayConfigurationSource.Apply(overlay);
 
         /// <summary>
         ///     Entrypoint.
@@ -1281,7 +1284,8 @@ namespace slskd
                 .AddCommandLine(
                     targetType: typeof(Options),
                     multiValuedArguments,
-                    commandLine: Environment.CommandLine);
+                    commandLine: Environment.CommandLine)
+                .Add(VolatileOverlayConfigurationSource);
         }
 
         private static IServiceCollection AddDbContext<T>(this IServiceCollection services, string connectionString)
