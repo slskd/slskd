@@ -24,27 +24,44 @@ namespace slskd.Configuration
     using Microsoft.Extensions.Configuration;
 
     /// <summary>
-    ///     A runtime patch <see cref="ConfigurationProvider"/>.
+    ///     A <see cref="ConfigurationProvider"/> that provides a volatile, run-time overlay that supersedes other configuration
+    ///     sources.
     /// </summary>
+    /// <remarks>
+    ///     To use this provider as intended, the application must instantiate and store an instance of either <see cref="VolatileOverlayConfigurationProvider{T}"/>
+    ///     or <see cref="VolatileOverlayConfigurationSource{T}"/>, and then invoke <see cref="Apply"/> with the desired overlay object.
+    /// </remarks>
+    /// <typeparam name="T">The Type of the overlay.</typeparam>
     public class VolatileOverlayConfigurationProvider<T> : ConfigurationProvider
     {
+        /// <summary>
+        ///     Initializes a new instance of the <see cref="VolatileOverlayConfigurationProvider{T}"/> class.
+        /// </summary>
         public VolatileOverlayConfigurationProvider()
         {
             TargetType = typeof(T);
             Namespace = TargetType.Namespace.Split('.').First();
         }
 
-        private T Current { get; set; }
+        /// <summary>
+        ///     Gets the current overlay value.
+        /// </summary>
+        public T CurrentValue { get; private set; }
+
         private string Namespace { get; set; }
         private Type TargetType { get; set; }
 
+        /// <summary>
+        ///     Loads values from the <see cref="CurrentValue"/> overlay.
+        /// </summary>
         public override void Load()
         {
-            if (Current is null)
+            if (CurrentValue is null)
             {
                 return;
             }
 
+            // note: pretty much the same as DefaultValueConfigurationProvider; the two should be updated in lockstep
             void Map(Type type, string path, object instance)
             {
                 var props = type.GetProperties(BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
@@ -82,28 +99,57 @@ namespace slskd.Configuration
                 }
             }
 
-            Map(TargetType, Namespace, Current);
+            Map(TargetType, Namespace, CurrentValue);
         }
 
+        /// <summary>
+        ///     Applies the goven <paramref name="overlay"/>.
+        /// </summary>
+        /// <param name="overlay">An object containing the values to overlay.</param>
         public void Apply(T overlay)
         {
-            Current = overlay;
+            CurrentValue = overlay;
             Load();
             OnReload();
         }
     }
 
+    /// <summary>
+    ///     Represents values that are provided at run-time as an <see cref="IConfigurationSource"/>.
+    /// </summary>
+    /// <remarks>
+    ///     To use this provider as intended, the application must instantiate and store an instance of either <see cref="VolatileOverlayConfigurationProvider{T}"/>
+    ///     or <see cref="VolatileOverlayConfigurationSource{T}"/>, and then invoke <see cref="Apply"/> with the desired overlay object.
+    /// </remarks>
+    /// <typeparam name="T">The Type of the overlay.</typeparam>
     public class VolatileOverlayConfigurationSource<T> : IConfigurationSource
     {
+        /// <summary>
+        ///     Initializes a new instance of the <see cref="VolatileOverlayConfigurationSource{T}"/> class.
+        /// </summary>
         public VolatileOverlayConfigurationSource()
         {
             Provider = new VolatileOverlayConfigurationProvider<T>();
         }
 
+        /// <summary>
+        ///     Gets the current overlay value.
+        /// </summary>
+        public T CurrentValue => Provider.CurrentValue;
+
         private VolatileOverlayConfigurationProvider<T> Provider { get; set; }
 
+        /// <summary>
+        ///     Applies the given <paramref name="overlay"/> to the underlying <see cref="VolatileOverlayConfigurationProvider{T}"/>.
+        /// </summary>
+        /// <param name="overlay">An object containing the values to overlay.</param>
         public void Apply(T overlay) => Provider.Apply(overlay);
 
+        /// <summary>
+        ///     Builds the <see cref="VolatileOverlayConfigurationSource{T}"/> for this source.
+        /// </summary>
+        /// <param name="builder">The <see cref="IConfigurationBuilder"/>.</param>
+        /// <returns>A <see cref="VolatileOverlayConfigurationProvider{T}"/>.</returns>
         public IConfigurationProvider Build(IConfigurationBuilder builder)
         {
             return Provider;

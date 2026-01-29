@@ -85,6 +85,7 @@ namespace slskd.Configuration
         /// </summary>
         public override void Load()
         {
+            // note: pretty much the same as VolatileOverlayConfigurationProvider; the two should be updated in lockstep
             void Map(Type type, string path)
             {
                 var defaults = Activator.CreateInstance(type);
