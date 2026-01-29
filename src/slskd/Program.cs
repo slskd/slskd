@@ -270,6 +270,10 @@ namespace slskd
         /// <param name="code">An optional exit code.</param>
         public static void Exit(int code = 1) => Environment.Exit(code);
 
+        /// <summary>
+        ///     Apply an instance of <see cref="OptionsOverlay"/> on top of the existing application configuration.
+        /// </summary>
+        /// <param name="overlay">The overlay containing the property values to be overlaid.</param>
         public static void ApplyConfigurationOverlay(OptionsOverlay overlay) => VolatileOverlayConfigurationSource.Apply(overlay);
 
         /// <summary>
@@ -1285,7 +1289,7 @@ namespace slskd
                     targetType: typeof(Options),
                     multiValuedArguments,
                     commandLine: Environment.CommandLine)
-                .Add(VolatileOverlayConfigurationSource);
+                .Add(VolatileOverlayConfigurationSource); // this must come last in order to supersede all other sources
         }
 
         private static IServiceCollection AddDbContext<T>(this IServiceCollection services, string connectionString)
