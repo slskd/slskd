@@ -34,7 +34,7 @@ namespace slskd
     ///     </para>
     ///     <para>
     ///         Every property in this class must be nullable, and must have a null default value; the application
-    ///         selectively applies the patch overlay only information explicitly supplied.
+    ///         selectively applies the patch overlay only to information that is explicitly supplied.
     ///     </para>
     /// </remarks>
     public class OptionsOverlay
