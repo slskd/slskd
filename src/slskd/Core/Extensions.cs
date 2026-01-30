@@ -42,12 +42,12 @@ namespace slskd
         }
 
         /// <summary>
-        ///     Redacts this instance of Options, replacing properties marked with <see cref="SecretAttribute"/> with '*****'.
+        ///     Redacts this instance of OptionsOverlay, replacing properties marked with <see cref="SecretAttribute"/> with '*****'.
         /// </summary>
         /// <remarks>
         ///     Creates a deep clone before redacting.
         /// </remarks>
-        /// <param name="options">The Options instance to redact.</param>
+        /// <param name="options">The OptionsOverlay instance to redact.</param>
         /// <returns>A redacted instance.</returns>
         public static OptionsOverlay Redact(this OptionsOverlay options)
         {
