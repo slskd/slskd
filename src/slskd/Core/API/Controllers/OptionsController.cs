@@ -74,7 +74,7 @@ namespace slskd.Core.API
         /// <returns></returns>
         [HttpPatch]
         [Authorize(Policy = AuthPolicy.Any, Roles = AuthRole.AdministratorOnly)]
-        [ProducesResponseType(typeof(Options), 200)]
+        [ProducesResponseType(typeof(OptionsOverlay), 200)]
         public IActionResult ApplyOverlay([FromBody] OptionsOverlay overlay)
         {
             if (!OptionsSnapshot.Value.RemoteConfiguration)
