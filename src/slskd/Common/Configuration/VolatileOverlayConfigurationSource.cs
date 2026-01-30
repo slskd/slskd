@@ -103,7 +103,7 @@ namespace slskd.Configuration
         }
 
         /// <summary>
-        ///     Applies the goven <paramref name="overlay"/>.
+        ///     Applies the given <paramref name="overlay"/>.
         /// </summary>
         /// <param name="overlay">An object containing the values to overlay.</param>
         public void Apply(T overlay)
