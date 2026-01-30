@@ -192,7 +192,7 @@ namespace slskd
         /// <summary>
         ///     Gets the current configuration overlay, if one has been applied.
         /// </summary>
-        public static OptionsOverlay ConfigurationOverlay { get; private set; } = VolatileOverlayConfigurationSource?.CurrentValue;
+        public static OptionsOverlay ConfigurationOverlay => VolatileOverlayConfigurationSource?.CurrentValue;
 
         /// <summary>
         ///     Gets the path where persistent data is saved.
