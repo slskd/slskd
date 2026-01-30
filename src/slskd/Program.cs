@@ -190,6 +190,11 @@ namespace slskd
         public static string ConfigurationFile { get; private set; } = null;
 
         /// <summary>
+        ///     Gets the current configuration overlay, if one has been applied.
+        /// </summary>
+        public static OptionsOverlay ConfigurationOverlay { get; private set; } = VolatileOverlayConfigurationSource?.CurrentValue;
+
+        /// <summary>
         ///     Gets the path where persistent data is saved.
         /// </summary>
         public static string DataDirectory { get; private set; } = null;

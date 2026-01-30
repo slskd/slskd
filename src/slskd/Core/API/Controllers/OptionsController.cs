@@ -42,18 +42,15 @@ namespace slskd.Core.API
     public class OptionsController : ControllerBase
     {
         public OptionsController(
-            IApplication application,
             OptionsAtStartup optionsAtStartup,
             IOptionsSnapshot<Options> optionsSnapshot,
             IStateMutator<State> stateMutator)
         {
-            Application = application;
             OptionsAtStartup = optionsAtStartup;
             OptionsSnapshot = optionsSnapshot;
             StateMutator = stateMutator;
         }
 
-        private IApplication Application { get; }
         private IOptionsSnapshot<Options> OptionsSnapshot { get; }
         private OptionsAtStartup OptionsAtStartup { get; }
         private IStateMutator<State> StateMutator { get; }
@@ -72,21 +69,21 @@ namespace slskd.Core.API
         }
 
         /// <summary>
-        ///     Patch the application options with new values.
+        ///     Overlay the application options with new values.
         /// </summary>
-        /// <param name="patch">The patch to apply.</param>
+        /// <param name="overlay">The overlay to apply.</param>
         /// <returns></returns>
-        [HttpPatch]
+        [HttpPut("overlay")]
         [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(typeof(Options), 200)]
-        public IActionResult Patch([FromBody] OptionsOverlay patch)
+        public IActionResult ApplyOverlay([FromBody] OptionsOverlay overlay)
         {
-            if (patch is null)
+            if (overlay is null)
             {
                 return NoContent();
             }
 
-            if (!patch.TryValidate(out var result))
+            if (!overlay.TryValidate(out var result))
             {
                 var error = Regex.Replace(result.GetResultView().ToString(), @"\s+", " ").Trim();
                 Logger.Warning("Options patch validation failed: {Message}", error);
@@ -95,15 +92,14 @@ namespace slskd.Core.API
 
             try
             {
-                Program.ApplyConfigurationOverlay(patch);
+                Program.ApplyConfigurationOverlay(overlay);
+                return Ok(OptionsSnapshot.Value.Redact());
             }
             catch (Exception ex)
             {
                 Logger.Error(ex, "Failed to apply options patch: {Message}", ex.Message);
                 return StatusCode(500, $"Failed to apply options patch: {ex.Message}");
             }
-
-            return Ok(OptionsSnapshot.Value.Redact());
         }
 
         /// <summary>
@@ -117,6 +113,19 @@ namespace slskd.Core.API
         public IActionResult Startup()
         {
             return Ok(OptionsAtStartup.Redact());
+        }
+
+        /// <summary>
+        ///     Gets the current application option overlay, if one has been applied.
+        /// </summary>
+        /// <returns></returns>
+        [HttpGet]
+        [Route("overlay")]
+        [Authorize(Policy = AuthPolicy.Any)]
+        [ProducesResponseType(typeof(OptionsOverlay), 200)]
+        public IActionResult GetOverlay()
+        {
+            return Ok(Program.ConfigurationOverlay?.Redact());
         }
 
         /// <summary>
