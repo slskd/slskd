@@ -64,6 +64,11 @@ namespace slskd.Configuration
             // note: pretty much the same as DefaultValueConfigurationProvider; the two should be updated in lockstep
             void Map(Type type, string path, object instance)
             {
+                if (instance is null)
+                {
+                    return;
+                }
+
                 var props = type.GetProperties(BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
 
                 foreach (PropertyInfo property in props)
