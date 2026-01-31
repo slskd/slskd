@@ -44,5 +44,25 @@ namespace slskd.Validation
 
             return true;
         }
+
+        /// <summary>
+        ///     Validates options.
+        /// </summary>
+        /// <param name="overlay">The options overlay instance to validate.</param>
+        /// <param name="result">The result of the validation, if invalid.</param>
+        /// <returns>A value indicating whether the instance is valid.</returns>
+        public static bool TryValidate(this OptionsOverlay overlay, out CompositeValidationResult result)
+        {
+            result = null;
+            var results = new List<ValidationResult>();
+
+            if (!Validator.TryValidateObject(overlay, new ValidationContext(overlay), results, true))
+            {
+                result = new CompositeValidationResult("Invalid configuration", results);
+                return false;
+            }
+
+            return true;
+        }
     }
 }

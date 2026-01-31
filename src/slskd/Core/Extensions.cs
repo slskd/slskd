@@ -42,6 +42,21 @@ namespace slskd
         }
 
         /// <summary>
+        ///     Redacts this instance of OptionsOverlay, replacing properties marked with <see cref="SecretAttribute"/> with '*****'.
+        /// </summary>
+        /// <remarks>
+        ///     Creates a deep clone before redacting.
+        /// </remarks>
+        /// <param name="options">The OptionsOverlay instance to redact.</param>
+        /// <returns>A redacted instance.</returns>
+        public static OptionsOverlay Redact(this OptionsOverlay options)
+        {
+            var redacted = options.ToJson().FromJson<OptionsOverlay>();
+            Redactor.Redact(redacted, redactWith: "*****");
+            return redacted;
+        }
+
+        /// <summary>
         ///     Creates a copy of this instance with the specified parameters changed.
         /// </summary>
         /// <param name="o">The options instance to copy.</param>

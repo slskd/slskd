@@ -190,6 +190,11 @@ namespace slskd
         public static string ConfigurationFile { get; private set; } = null;
 
         /// <summary>
+        ///     Gets the current configuration overlay, if one has been applied.
+        /// </summary>
+        public static OptionsOverlay ConfigurationOverlay => VolatileOverlayConfigurationSource?.CurrentValue;
+
+        /// <summary>
         ///     Gets the path where persistent data is saved.
         /// </summary>
         public static string DataDirectory { get; private set; } = null;
@@ -244,6 +249,7 @@ namespace slskd
         private static ILogger Log { get; set; } = new ConsoleWriteLineLogger();
         private static Mutex Mutex { get; set; }
         private static IDisposable DotNetRuntimeStats { get; set; }
+        private static VolatileOverlayConfigurationSource<OptionsOverlay> VolatileOverlayConfigurationSource { get; set; } = new VolatileOverlayConfigurationSource<OptionsOverlay>();
 
         [Argument('g', "generate-cert", "generate X509 certificate and password for HTTPs")]
         private static bool GenerateCertificate { get; set; }
@@ -268,6 +274,12 @@ namespace slskd
         /// </summary>
         /// <param name="code">An optional exit code.</param>
         public static void Exit(int code = 1) => Environment.Exit(code);
+
+        /// <summary>
+        ///     Apply an instance of <see cref="OptionsOverlay"/> on top of the existing application configuration.
+        /// </summary>
+        /// <param name="overlay">The overlay containing the property values to be overlaid.</param>
+        public static void ApplyConfigurationOverlay(OptionsOverlay overlay) => VolatileOverlayConfigurationSource.Apply(overlay);
 
         /// <summary>
         ///     Entrypoint.
@@ -1281,7 +1293,8 @@ namespace slskd
                 .AddCommandLine(
                     targetType: typeof(Options),
                     multiValuedArguments,
-                    commandLine: Environment.CommandLine);
+                    commandLine: Environment.CommandLine)
+                .Add(VolatileOverlayConfigurationSource); // this must come last in order to supersede all other sources
         }
 
         private static IServiceCollection AddDbContext<T>(this IServiceCollection services, string connectionString)

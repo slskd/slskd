@@ -26,6 +26,9 @@ namespace slskd.Validation
     /// </summary>
     public static class ValidationExtensions
     {
+        public static string GetResultString(this CompositeValidationResult result)
+            => string.Join(' ', result.GetResultView(0).Select(s => s.Trim()));
+
         public static string GetResultView(this CompositeValidationResult result)
             => string.Join("\n", result.GetResultView(0));
 
