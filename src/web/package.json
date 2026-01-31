@@ -29,6 +29,11 @@
     "semantic-ui-react": "^2.1.0",
     "signalr": "^2.4.1",
     "uuid": "^8.3.0",
+    "workbox-core": "^7.4.0",
+    "workbox-expiration": "^7.4.0",
+    "workbox-precaching": "^7.4.0",
+    "workbox-routing": "^7.4.0",
+    "workbox-strategies": "^7.4.0",
     "yaml": "^1.10.2"
   },
   "devDependencies": {
