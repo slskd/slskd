@@ -78,6 +78,8 @@ curl --location --request PATCH 'http://localhost:5030/api/v0/options' \
 }'
 ```
 
+Note: the Soulseek server is updated to reflect changes in `listenPort` automatically; there is no need to reconnect.
+
 # Remote Configuration
 
 The application contains APIs for retrieving and updating the YAML configuration file. By default, this option is disabled. Applications run within untrusted networks, especially those where the application is internet-facing, should consider the risks of enabling this option.
