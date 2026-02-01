@@ -33,6 +33,7 @@ namespace slskd
     using slskd.Authentication;
     using slskd.Configuration;
     using slskd.Events;
+    using slskd.Integrations.VPN;
     using slskd.Relay;
     using slskd.Shares;
     using slskd.Validation;
@@ -2275,6 +2276,12 @@ namespace slskd
         public class IntegrationOptions
         {
             /// <summary>
+            ///     Gets VPN options.
+            /// </summary>
+            [Validate]
+            public VpnOptions Vpn { get; init; } = new();
+
+            /// <summary>
             ///     Gets webhook configuration.
             /// </summary>
             [Validate]
@@ -2297,6 +2304,87 @@ namespace slskd
             /// </summary>
             [Validate]
             public PushbulletOptions Pushbullet { get; init; } = new PushbulletOptions();
+
+            /// <summary>
+            ///     VPN options.
+            /// </summary>
+            public class VpnOptions
+            {
+                /// <summary>
+                ///     Gets a value indicating whether the VPN integration is enabled.
+                /// </summary>
+                public bool Enabled { get; init; } = false;
+
+                /// <summary>
+                ///     Gets Gluetun options.
+                /// </summary>
+                public GluetunVpnOptions Gluetun { get; init; } = new GluetunVpnOptions();
+
+                /// <summary>
+                ///     Gluetun options.
+                /// </summary>
+                public class GluetunVpnOptions : IValidatableObject
+                {
+                    /// <summary>
+                    ///     Gets the Gluetun integration version.
+                    /// </summary>
+                    /// <remarks>
+                    ///     Only v1 of the Gluetun API exists right now; this is to ease a transition if there's ever a v2.
+                    /// </remarks>
+                    [Range(1, 1)]
+                    public int Version { get; init; } = 1;
+
+                    /// <summary>
+                    ///     Gets the fully qualified root URL for the Gluetun control server.
+                    /// </summary>
+                    [NotNullOrWhiteSpace]
+                    public string Url { get; init; }
+
+                    /// <summary>
+                    ///     Gets the Gluetun control server authentication method.
+                    /// </summary>
+                    [Enum(typeof(GluetunClientAuthOptions), ignoreCase: true)]
+                    public string Auth { get; init; }
+
+                    /// <summary>
+                    ///     Gets the username used for basic auth.
+                    /// </summary>
+                    public string Username { get; init; }
+
+                    /// <summary>
+                    ///     Gets the password used for basic auth.
+                    /// </summary>
+                    public string Password { get; init; }
+
+                    /// <summary>
+                    ///     Gets the API key used for API key auth.
+                    /// </summary>
+                    public string ApiKey { get; init; }
+
+                    public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+                    {
+                        var results = new List<ValidationResult>();
+
+                        if (string.Equals(Auth, GluetunClientAuthOptions.Basic.ToString(), StringComparison.OrdinalIgnoreCase))
+                        {
+                            if (string.IsNullOrWhiteSpace(Username) || string.IsNullOrWhiteSpace(Password))
+                            {
+                                results.Add(new ValidationResult("Username and Password are required when using Basic auth"));
+                            }
+                        }
+
+                        if (string.Equals(Auth, GluetunClientAuthOptions.ApiKey.ToString(), StringComparison.OrdinalIgnoreCase))
+                        {
+                            if (string.IsNullOrWhiteSpace(ApiKey))
+                            {
+                                results.Add(new ValidationResult("ApiKey is required when using ApiKey auth"));
+                            }
+                        }
+
+                        return results;
+                    }
+                }
+            }
 
             /// <summary>
             ///     Webhook configuration.
