@@ -2316,6 +2316,16 @@ namespace slskd
                 public bool Enabled { get; init; } = false;
 
                 /// <summary>
+                ///     Gets a value indicating whether a VPN connection is required before connecting to the Soulseek network.
+                /// </summary>
+                public bool Required { get; init; } = false;
+
+                /// <summary>
+                ///     Gets a value indicating whether the configured VPN supports port forwarding.
+                /// </summary>
+                public bool PortForwarding { get; init; } = false;
+
+                /// <summary>
                 ///     Gets Gluetun options.
                 /// </summary>
                 public GluetunVpnOptions Gluetun { get; init; } = new GluetunVpnOptions();
@@ -2343,8 +2353,8 @@ namespace slskd
                     /// <summary>
                     ///     Gets the Gluetun control server authentication method.
                     /// </summary>
-                    [Enum(typeof(GluetunClientAuthOptions), ignoreCase: true)]
-                    public string Auth { get; init; }
+                    [Enum(typeof(GluetunClientAuthenticationMethod), ignoreCase: true)]
+                    public string Auth { get; init; } = GluetunClientAuthenticationMethod.None.ToString();
 
                     /// <summary>
                     ///     Gets the username used for basic auth.
@@ -2365,7 +2375,7 @@ namespace slskd
                     {
                         var results = new List<ValidationResult>();
 
-                        if (string.Equals(Auth, GluetunClientAuthOptions.Basic.ToString(), StringComparison.OrdinalIgnoreCase))
+                        if (string.Equals(Auth, GluetunClientAuthenticationMethod.Basic.ToString(), StringComparison.OrdinalIgnoreCase))
                         {
                             if (string.IsNullOrWhiteSpace(Username) || string.IsNullOrWhiteSpace(Password))
                             {
@@ -2373,7 +2383,7 @@ namespace slskd
                             }
                         }
 
-                        if (string.Equals(Auth, GluetunClientAuthOptions.ApiKey.ToString(), StringComparison.OrdinalIgnoreCase))
+                        if (string.Equals(Auth, GluetunClientAuthenticationMethod.ApiKey.ToString(), StringComparison.OrdinalIgnoreCase))
                         {
                             if (string.IsNullOrWhiteSpace(ApiKey))
                             {
