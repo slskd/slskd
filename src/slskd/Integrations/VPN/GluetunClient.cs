@@ -26,8 +26,9 @@ using System.Threading.Tasks;
 using Serilog;
 using static slskd.Options.IntegrationOptions.VpnOptions;
 
-public enum GluetunClientAuthOptions
+public enum GluetunClientAuthenticationMethod
 {
+    None,
     Basic,
     ApiKey,
 }
@@ -93,7 +94,7 @@ public class GluetunClient : IVPNClient
 
     private void ConfigureAuth(HttpClient client)
     {
-        if (Options.Auth.Equals(GluetunClientAuthOptions.Basic.ToString(), StringComparison.OrdinalIgnoreCase))
+        if (Options.Auth.Equals(GluetunClientAuthenticationMethod.Basic.ToString(), StringComparison.OrdinalIgnoreCase))
         {
             var creds = $"{Options.Username}:{Options.Password}".ToBase64();
             client.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", $"Basic {creds}");
