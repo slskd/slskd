@@ -22,8 +22,10 @@ namespace slskd.Integrations.VPN;
 using System;
 using System.Net.Http;
 using System.Threading;
+using System.Threading.Tasks;
 using Serilog;
 using slskd.Events;
+using Soulseek;
 using static slskd.Options.IntegrationOptions;
 
 public class VPNService : IDisposable
@@ -41,12 +43,25 @@ public class VPNService : IDisposable
             AutoReset = true,
         };
 
-        Timer.Elapsed += Timer_Elapsed;
+        Timer.Elapsed += async (_, _) => await CheckConnection();
 
         EventBus = eventBus;
-        EventBus.Subscribe<SoulseekClientDisconnectedEvent>(nameof(VPNService), e =>
+        EventBus.Subscribe<SoulseekClientDisconnectedEvent>(nameof(VPNService), async e =>
         {
-            Timer.Interval = TimeSpan.FromSeconds(1).TotalMilliseconds;
+            await SyncRoot.WaitAsync();
+
+            try
+            {
+                var cts = ConnectedTaskCompletionSource;
+                ConnectedTaskCompletionSource = new();
+                cts.TrySetException(new SoulseekClientException("Client disconnected"));
+
+                Timer.Interval = TimeSpan.FromSeconds(1).TotalMilliseconds;
+            }
+            finally
+            {
+                SyncRoot.Release();
+            }
         });
 
         if (Options.Enabled)
@@ -70,6 +85,28 @@ public class VPNService : IDisposable
     private IOptionsMonitor<Options> OptionsMonitor { get; }
     private VpnOptions Options => OptionsMonitor.CurrentValue.Integration.Vpn;
     private bool Disposed { get; set; }
+    private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1, 1);
+    private SemaphoreSlim TimerElapsedLock { get; } = new SemaphoreSlim(1, 1);
+    private TaskCompletionSource ConnectedTaskCompletionSource { get; set; } = new();
+
+    public async Task WaitForConnectionAsync()
+    {
+        await SyncRoot.WaitAsync();
+
+        Task task = default;
+
+        try
+        {
+            task = ConnectedTaskCompletionSource.Task;
+        }
+        finally
+        {
+            SyncRoot.Release();
+        }
+
+        _ = CheckConnection();
+        await task;
+    }
 
     public void Dispose()
     {
@@ -90,23 +127,31 @@ public class VPNService : IDisposable
         }
     }
 
-    private async void Timer_Elapsed(object sender, EventArgs args)
+    private async Task CheckConnection()
     {
+        // only one connection process at a time
+        await TimerElapsedLock.WaitAsync(0);
+
         try
         {
             var isConnected = await Client.GetConnectionStatusAsync();
 
             if (isConnected)
             {
-                var port = await Client.GetForwardedPortAsync();
-
-                Program.ApplyConfigurationOverlay(Program.ConfigurationOverlay with
+                if (Options.PortForwarding)
                 {
-                    Soulseek = Program.ConfigurationOverlay.Soulseek with
+                    var port = await Client.GetForwardedPortAsync();
+
+                    Program.ApplyConfigurationOverlay(Program.ConfigurationOverlay with
                     {
-                        ListenPort = 123,
-                    },
-                });
+                        Soulseek = Program.ConfigurationOverlay.Soulseek with
+                        {
+                            ListenPort = port,
+                        },
+                    });
+                }
+
+                ConnectedTaskCompletionSource.TrySetResult();
 
                 Timer.Interval = TimeSpan.FromMinutes(5).TotalMilliseconds;
             }
@@ -114,6 +159,10 @@ public class VPNService : IDisposable
         catch (Exception ex)
         {
             Log.Error(ex, "Failed to communicate with VPN client: {Message}", ex.Message);
+        }
+        finally
+        {
+            TimerElapsedLock.Release();
         }
     }
 }
