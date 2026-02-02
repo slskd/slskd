@@ -231,6 +231,16 @@
 #       username: ~
 #       password: ~
 # integration:
+#   vpn:
+#     enabled: false
+#     required: false # wait for the VPN to connect before connecting to Soulseek
+#     port_forwarding: false
+#     gluetun:
+#       url: http://localhost:8000
+#       auth: apikey
+#       api_key: <gluetun API key>
+#       username: <username if using basic auth>
+#       password: <password if using basic auth>#       
 #   webhooks:
 #     my_webhook:
 #       on:
