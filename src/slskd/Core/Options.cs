@@ -2313,11 +2313,13 @@ namespace slskd
                 /// <summary>
                 ///     Gets a value indicating whether the VPN integration is enabled.
                 /// </summary>
+                [RequiresRestart]
                 public bool Enabled { get; init; } = false;
 
                 /// <summary>
                 ///     Gets a value indicating whether a VPN connection is required before connecting to the Soulseek network.
                 /// </summary>
+                [RequiresRestart]
                 public bool Required { get; init; } = false;
 
                 /// <summary>
@@ -2328,6 +2330,7 @@ namespace slskd
                 /// <summary>
                 ///     Gets Gluetun options.
                 /// </summary>
+                [Validate]
                 public GluetunVpnOptions Gluetun { get; init; } = new GluetunVpnOptions();
 
                 /// <summary>
