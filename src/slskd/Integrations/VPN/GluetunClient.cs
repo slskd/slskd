@@ -46,7 +46,11 @@ public class GluetunClient : IVPNClient
     private IOptionsMonitor<Options> OptionsMonitor { get; }
     private GluetunVpnOptions Options => OptionsMonitor.CurrentValue.Integration.Vpn.Gluetun;
 
-    public async Task<bool> GetConnectionStatusAsync()
+    /// <summary>
+    ///     Fetch the VPN connection status from the Gluetun control server.
+    /// </summary>
+    /// <returns>A value indicating whether the VPN is connected.</returns>
+    public async Task<bool> GetIsConnectedAsync()
     {
         using var http = HttpClientFactory.CreateClient();
         http.Timeout = TimeSpan.FromMilliseconds(1000);
@@ -69,7 +73,11 @@ public class GluetunClient : IVPNClient
         }
     }
 
-    public async Task<int> GetForwardedPortAsync()
+    /// <summary>
+    ///     Fetch the forwarded port from the Gluetun control server.
+    /// </summary>
+    /// <returns>The forwarded port, or null if one hasn't been provided yet.</returns>
+    public async Task<int?> GetForwardedPortAsync()
     {
         using var http = HttpClientFactory.CreateClient();
         http.Timeout = TimeSpan.FromMilliseconds(1000);
@@ -83,7 +91,8 @@ public class GluetunClient : IVPNClient
             var port = await response.Content.ReadFromJsonAsync<GluetunPortForwardResponse>()
                 ?? throw new Exception($"Failed to deserialize Gluetun port forward response; got: {await response.Content.ReadAsStringAsync()}");
 
-            return port.Port;
+            // Gluetun will return 0 if the port hasn't been retrieved yet, or if port forwarding is turned off
+            return port.Port == 0 ? null : port.Port;
         }
         catch (Exception ex)
         {
@@ -99,9 +108,13 @@ public class GluetunClient : IVPNClient
             var creds = $"{Options.Username}:{Options.Password}".ToBase64();
             client.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", $"Basic {creds}");
         }
-        else
+        else if (Options.Auth.Equals(GluetunClientAuthenticationMethod.ApiKey.ToString(), StringComparison.OrdinalIgnoreCase))
         {
             client.DefaultRequestHeaders.TryAddWithoutValidation("X-API-Key", Options.ApiKey);
+        }
+        else
+        {
+            // no auth
         }
     }
 
@@ -112,6 +125,6 @@ public class GluetunClient : IVPNClient
 
     private class GluetunPortForwardResponse
     {
-        public int Port { get; init; }
+        public int? Port { get; init; }
     }
 }

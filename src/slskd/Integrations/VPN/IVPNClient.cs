@@ -28,11 +28,11 @@ public interface IVPNClient
     ///     Fetch the VPN connection status from the provider.
     /// </summary>
     /// <returns>A value indicating whether the VPN is connected.</returns>
-    public Task<bool> GetConnectionStatusAsync();
+    public Task<bool> GetIsConnectedAsync();
 
     /// <summary>
     ///     Fetch the forwarded port configured with the provider, if enabled.
     /// </summary>
-    /// <returns>The forwarded port.</returns>
-    public Task<int> GetForwardedPortAsync();
+    /// <returns>The forwarded port, or null if one hasn't been provided yet.</returns>
+    public Task<int?> GetForwardedPortAsync();
 }
