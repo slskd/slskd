@@ -36,6 +36,7 @@ namespace slskd
         public bool PendingRestart { get; init; }
         public ServerState Server { get; init; } = new ServerState();
         public ServerConnectionWatchdogState ConnectionWatchdog { get; init; } = new ServerConnectionWatchdogState();
+        public VpnState Vpn { get; init; } = new VpnState();
         public RelayState Relay { get; init; } = new RelayState();
         public HealthState Health { get; init; } = new HealthState();
         public UserState User { get; init; } = new UserState();
@@ -91,6 +92,13 @@ namespace slskd
         public bool IsEnabled { get; init; } = false;
         public bool IsAttemptingConnection { get; init; } = false;
         public DateTime? NextAttemptAt { get; init; }
+    }
+
+    public record VpnState
+    {
+        public bool IsConnected { get; init; } = false;
+        public int? ForwardedPort { get; init; } = null;
+        public bool IsReady { get; init; } = false;
     }
 
     public record RelayState
