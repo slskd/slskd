@@ -25,48 +25,36 @@ using System.Threading;
 using System.Threading.Tasks;
 using Serilog;
 using slskd.Events;
-using Soulseek;
-using static slskd.Options.IntegrationOptions;
 
 public class VPNService : IDisposable
 {
     public VPNService(
+        OptionsAtStartup optionsAtStartup,
         IOptionsMonitor<Options> optionsMonitor,
         EventBus eventBus,
+        IStateMonitor<State> stateMonitor,
+        IStateMutator<State> stateMutator,
         IHttpClientFactory httpClientFactory)
     {
+        OptionsAtStartup = optionsAtStartup;
         OptionsMonitor = optionsMonitor;
+        EventBus = eventBus;
+        StateMutator = stateMutator;
+        StateMonitor = stateMonitor;
         HttpClientFactory = httpClientFactory;
 
-        Timer = new System.Timers.Timer(interval: 1000)
+        if (OptionsAtStartup.Integration.Vpn.Enabled)
         {
-            AutoReset = true,
-        };
-
-        Timer.Elapsed += async (_, _) => await CheckConnection();
-
-        EventBus = eventBus;
-        EventBus.Subscribe<SoulseekClientDisconnectedEvent>(nameof(VPNService), async e =>
-        {
-            await SyncRoot.WaitAsync();
-
-            try
+            Timer = new System.Timers.Timer(interval: 2500)
             {
-                var cts = ConnectedTaskCompletionSource;
-                ConnectedTaskCompletionSource = new();
-                cts.TrySetException(new SoulseekClientException("Client disconnected"));
+                AutoReset = true,
+            };
 
-                Timer.Interval = TimeSpan.FromSeconds(1).TotalMilliseconds;
-            }
-            finally
-            {
-                SyncRoot.Release();
-            }
-        });
+            Timer.Elapsed += async (_, _) => await CheckConnection();
 
-        if (Options.Enabled)
-        {
-            if (!string.IsNullOrEmpty(Options.Gluetun.Url))
+            // detect VPN based on the configuration provided; this logic will determine the order
+            // we can revisit this if/when we add other options besides gluetun
+            if (!string.IsNullOrEmpty(OptionsMonitor.CurrentValue.Integration.Vpn.Gluetun.Url))
             {
                 Client = new GluetunClient(HttpClientFactory, OptionsMonitor);
                 Timer.Start();
@@ -77,19 +65,25 @@ public class VPNService : IDisposable
         }
     }
 
-    private EventBus EventBus { get; }
+    public bool IsConnected { get; private set; }
+    public int? ForwardedPort { get; private set; }
+    public bool IsReady { get; private set; }
+
     private IVPNClient Client { get; set; }
     private System.Timers.Timer Timer { get; }
+    private EventBus EventBus { get; }
+    private IStateMutator<State> StateMutator { get; }
+    private IStateMonitor<State> StateMonitor { get; }
     private ILogger Log { get; } = Serilog.Log.ForContext<VPNService>();
     private IHttpClientFactory HttpClientFactory { get; }
     private IOptionsMonitor<Options> OptionsMonitor { get; }
-    private VpnOptions Options => OptionsMonitor.CurrentValue.Integration.Vpn;
+    private OptionsAtStartup OptionsAtStartup { get; }
     private bool Disposed { get; set; }
     private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1, 1);
     private SemaphoreSlim TimerElapsedLock { get; } = new SemaphoreSlim(1, 1);
-    private TaskCompletionSource ConnectedTaskCompletionSource { get; set; } = new();
+    private TaskCompletionSource ReadyTaskCompletionSource { get; set; } = new();
 
-    public async Task WaitForConnectionAsync()
+    public async Task WaitForReadyAsync()
     {
         await SyncRoot.WaitAsync();
 
@@ -97,7 +91,7 @@ public class VPNService : IDisposable
 
         try
         {
-            task = ConnectedTaskCompletionSource.Task;
+            task = ReadyTaskCompletionSource.Task;
         }
         finally
         {
@@ -129,31 +123,116 @@ public class VPNService : IDisposable
 
     private async Task CheckConnection()
     {
-        // only one connection process at a time
+        var initialIsReady = IsReady;
+        bool isConnected = false;
+        int? port = null;
+
+        // one at a time!
         await TimerElapsedLock.WaitAsync(0);
 
         try
         {
-            var isConnected = await Client.GetConnectionStatusAsync();
+            /*
+                step one: fetch status from the VPN client
 
-            if (isConnected)
+                this step performs I/O with the VPN client, so do it before obtaining the SyncRoot to avoid
+                unnecessary lock contention
+            */
+            Log.Debug("Checking VPN status using {Client}", Client.GetType());
+
+            isConnected = await Client.GetIsConnectedAsync();
+
+            if (isConnected && OptionsMonitor.CurrentValue.Integration.Vpn.PortForwarding)
             {
-                if (Options.PortForwarding)
-                {
-                    var port = await Client.GetForwardedPortAsync();
+                Log.Debug("Fetching forwarded port from {Client}", Client.GetType());
 
-                    Program.ApplyConfigurationOverlay(Program.ConfigurationOverlay with
+                port = await Client.GetForwardedPortAsync();
+
+                if (port.HasValue && (port < 1024 || port > 65535))
+                {
+                    Log.Warning("VPN client provided a forwarded port outside of the supported range of 1024-65535 (given: {Port})", ForwardedPort);
+                    port = null;
+                }
+            }
+
+            // synchronize access to the TaskCompletionSource so we don't swap it out while something is trying to access it
+            await SyncRoot.WaitAsync();
+
+            try
+            {
+                /*
+                    step two:
+                    * update VPNService state
+                    * apply a configuration overlay to set the forwarded port (if there is one)
+                    * update application state (via StateMutator)
+                    * if IsReady changed during this invocation, disposition the ReadyTaskCompletionSource
+                */
+                if (!isConnected)
+                {
+                    IsConnected = false;
+                    IsReady = false;
+                    ForwardedPort = null;
+                }
+                else
+                {
+                    IsConnected = true;
+
+                    if (OptionsMonitor.CurrentValue.Integration.Vpn.PortForwarding)
                     {
-                        Soulseek = Program.ConfigurationOverlay.Soulseek with
+                        if (port.HasValue)
                         {
-                            ListenPort = port,
-                        },
-                    });
+                            ForwardedPort = port;
+                            IsReady = true;
+
+                            // always apply the provided port, as it may change while the app is running
+                            Program.ApplyConfigurationOverlay(Program.ConfigurationOverlay with
+                            {
+                                Soulseek = Program.ConfigurationOverlay.Soulseek with
+                                {
+                                    ListenPort = ForwardedPort,
+                                },
+                            });
+                        }
+                    }
+                    else
+                    {
+                        IsReady = true;
+                    }
                 }
 
-                ConnectedTaskCompletionSource.TrySetResult();
+                // if we weren't ready before and now we are, signal to anyone waiting that we're good to go
+                if (!initialIsReady && IsReady)
+                {
+                    // complete the TCS so anything waiting for ready can progress.  don't replace it; VPN should be assumed
+                    // to stay ready until we check and find that it is no longer ready
+                    ReadyTaskCompletionSource.SetResult();
+                }
 
-                Timer.Interval = TimeSpan.FromMinutes(5).TotalMilliseconds;
+                // if we were previously ready and now we aren't, the VPN has disconnected or stopped providing a port
+                if (initialIsReady && !IsReady)
+                {
+                    var tcs = ReadyTaskCompletionSource;
+
+                    // replace the TCS with a new one; anything that waits on it needs to wait for a new transition to ready
+                    ReadyTaskCompletionSource = new TaskCompletionSource();
+
+                    // throw the existing TCS so anything waiting for it dies (otherwise risk of waiting forever)
+                    tcs.SetException(new VPNClientException("VPN client is no longer ready"));
+                }
+            }
+            finally
+            {
+                StateMutator.SetValue(state => state with
+                {
+                    Vpn = new VpnState()
+                    {
+                        IsConnected = IsConnected,
+                        ForwardedPort = ForwardedPort,
+                        IsReady = IsReady,
+                    },
+                });
+
+                SyncRoot.Release();
             }
         }
         catch (Exception ex)
