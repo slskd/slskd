@@ -23,6 +23,7 @@ namespace slskd
     using System.Threading;
     using System.Threading.Tasks;
     using Serilog;
+    using slskd.Integrations.VPN;
     using Soulseek;
 
     /// <summary>
@@ -41,15 +42,21 @@ namespace slskd
         ///     Initializes a new instance of the <see cref="ConnectionWatchdog"/> class.
         /// </summary>
         /// <param name="soulseekClient"></param>
+        /// <param name="vpnService"></param>
         /// <param name="optionsMonitor"></param>
+        /// <param name="optionsAtStartup"></param>
         /// <param name="applicationState"></param>
         public ConnectionWatchdog(
             ISoulseekClient soulseekClient,
+            VPNService vpnService,
             IOptionsMonitor<Options> optionsMonitor,
+            OptionsAtStartup optionsAtStartup,
             IManagedState<State> applicationState)
         {
             Client = soulseekClient;
+            VPN = vpnService;
             OptionsMonitor = optionsMonitor;
+            OptionsAtStartup = optionsAtStartup;
             ApplicationState = applicationState;
 
             WatchdogTimer = new System.Timers.Timer()
@@ -77,9 +84,11 @@ namespace slskd
         public bool IsAttemptingConnection => SyncRoot.CurrentCount == 0;
 
         private ISoulseekClient Client { get; }
+        private VPNService VPN { get; }
         private bool Disposed { get; set; }
         private ILogger Log { get; } = Serilog.Log.ForContext<Application>();
         private IOptionsMonitor<Options> OptionsMonitor { get; set; }
+        private OptionsAtStartup OptionsAtStartup { get; set; }
         private IManagedState<State> ApplicationState { get; }
         private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1, 1);
         private object StateLock { get; } = new object();
@@ -229,6 +238,12 @@ namespace slskd
                         // connects the client. highly unlikely but that might change if someone inadvertently adds some logic.
                         if (ApplicationState.CurrentValue.Server.IsConnected)
                         {
+                            return;
+                        }
+
+                        if (OptionsAtStartup.Integration.Vpn.Required && !VPN.IsReady)
+                        {
+                            Log.Debug("AttemptConnection aborted; VPN is not yet ready (status: {Status})", VPN.Status);
                             return;
                         }
 
