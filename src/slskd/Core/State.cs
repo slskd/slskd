@@ -96,9 +96,11 @@ namespace slskd
 
     public record VpnState
     {
-        public bool IsConnected { get; init; } = false;
-        public int? ForwardedPort { get; init; } = null;
         public bool IsReady { get; init; } = false;
+        public bool IsConnected { get; init; } = false;
+        public IPAddress PublicIPAddress { get; init; } = null;
+        public string Location { get; init; } = null;
+        public int? ForwardedPort { get; init; } = null;
     }
 
     public record RelayState
