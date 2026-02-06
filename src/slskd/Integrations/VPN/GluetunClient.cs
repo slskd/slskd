@@ -20,8 +20,10 @@ using Microsoft.Extensions.Options;
 namespace slskd.Integrations.VPN;
 
 using System;
+using System.Net;
 using System.Net.Http;
 using System.Net.Http.Json;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Serilog;
 using static slskd.Options.IntegrationOptions.VpnOptions;
@@ -50,72 +52,73 @@ public class GluetunClient : IVPNClient
     ///     Fetch the VPN connection status from the Gluetun control server.
     /// </summary>
     /// <returns>A value indicating whether the VPN is connected.</returns>
-    public async Task<bool> GetIsConnectedAsync()
+    public async Task<VPNStatus> GetStatusAsync()
     {
         using var http = HttpClientFactory.CreateClient();
+
         http.Timeout = TimeSpan.FromMilliseconds(1000);
-        ConfigureAuth(http);
 
-        try
-        {
-            using var response = await http.GetAsync($"{Options.Url.TrimEnd('/')}/v1/vpn/status");
-            response.EnsureSuccessStatusCode();
-
-            var status = await response.Content.ReadFromJsonAsync<GluetunStatusResponse>()
-                ?? throw new Exception($"Failed to deserialize Gluetun status response; got: {await response.Content.ReadAsStringAsync()}");
-
-            return status.Status.Equals("running", StringComparison.OrdinalIgnoreCase);
-        }
-        catch (Exception ex)
-        {
-            Log.Warning(ex, "Failed to retrieve status from Gluetun: {Message}", ex.Message);
-            throw new VPNClientException($"Failed to retrieve status from Gluetun: {ex.Message}", ex);
-        }
-    }
-
-    /// <summary>
-    ///     Fetch the forwarded port from the Gluetun control server.
-    /// </summary>
-    /// <returns>The forwarded port, or null if one hasn't been provided yet.</returns>
-    public async Task<int?> GetForwardedPortAsync()
-    {
-        using var http = HttpClientFactory.CreateClient();
-        http.Timeout = TimeSpan.FromMilliseconds(1000);
-        ConfigureAuth(http);
-
-        try
-        {
-            using var response = await http.GetAsync($"{Options.Url.TrimEnd('/')}/v1/portforward");
-            response.EnsureSuccessStatusCode();
-
-            var port = await response.Content.ReadFromJsonAsync<GluetunPortForwardResponse>()
-                ?? throw new Exception($"Failed to deserialize Gluetun port forward response; got: {await response.Content.ReadAsStringAsync()}");
-
-            // Gluetun will return 0 if the port hasn't been retrieved yet, or if port forwarding is turned off
-            return port.Port == 0 ? null : port.Port;
-        }
-        catch (Exception ex)
-        {
-            Log.Warning(ex, "Failed to retrieve status from Gluetun: {Message}", ex.Message);
-            throw new VPNClientException($"Failed to retrieve status from Gluetun: {ex.Message}", ex);
-        }
-    }
-
-    private void ConfigureAuth(HttpClient client)
-    {
         if (Options.Auth.Equals(GluetunClientAuthenticationMethod.Basic.ToString(), StringComparison.OrdinalIgnoreCase))
         {
             var creds = $"{Options.Username}:{Options.Password}".ToBase64();
-            client.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", $"Basic {creds}");
+            http.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", $"Basic {creds}");
         }
         else if (Options.Auth.Equals(GluetunClientAuthenticationMethod.ApiKey.ToString(), StringComparison.OrdinalIgnoreCase))
         {
-            client.DefaultRequestHeaders.TryAddWithoutValidation("X-API-Key", Options.ApiKey);
+            http.DefaultRequestHeaders.TryAddWithoutValidation("X-API-Key", Options.ApiKey);
         }
         else
         {
             // no auth
         }
+
+        try
+        {
+            var publicIp = await MakeRequest<GluetunPublicIpResponse>(http, "/v1/publicip/ip");
+
+            // per the gluetun docs/discussions, the public ip field will be an empty string if the VPN isn't up
+            if (string.IsNullOrEmpty(publicIp.PublicIp))
+            {
+                return new VPNStatus { IsConnected = false };
+            }
+
+            int? port = null;
+
+            if (OptionsMonitor.CurrentValue.Integration.Vpn.PortForwarding)
+            {
+                port = (await MakeRequest<GluetunPortForwardResponse>(http, "/v1/portforward"))?.Port;
+
+                // port will be 0 if port forwarding isn't enabled or ready
+                if (port == 0)
+                {
+                    port = null;
+                }
+            }
+
+            return new VPNStatus
+            {
+                IsConnected = true,
+                PublicIPAddress = IPAddress.Parse(publicIp.PublicIp),
+                Location = string.Join(", ", [publicIp.City, publicIp.Country]),
+                ForwardedPort = port,
+            };
+        }
+        catch (Exception ex)
+        {
+            Log.Warning("Failed to retrieve status from Gluetun: {Message}", ex.Message);
+            throw new VPNClientException($"Failed to retrieve status from Gluetun: {ex.Message}", ex);
+        }
+    }
+
+    private async Task<T> MakeRequest<T>(HttpClient http, string url)
+    {
+        using var response = await http.GetAsync($"{Options.Url.TrimEnd('/')}{url}");
+        response.EnsureSuccessStatusCode();
+
+        var result = await response.Content.ReadFromJsonAsync<T>()
+            ?? throw new Exception($"Failed to deserialize Gluetun response; expected: {nameof(T)},  got: {await response.Content.ReadAsStringAsync()}");
+
+        return result;
     }
 
     private class GluetunStatusResponse
@@ -126,5 +129,20 @@ public class GluetunClient : IVPNClient
     private class GluetunPortForwardResponse
     {
         public int? Port { get; init; }
+    }
+
+    private class GluetunPublicIpResponse
+    {
+        [JsonPropertyName("public_ip")]
+        public string PublicIp { get; init; }
+        public string Region { get; init; }
+        public string Country { get; init; }
+        public string City { get; init; }
+        public string Location { get; init; }
+        public string Organization { get; init; }
+
+        [JsonPropertyName("postal_code")]
+        public string PostalCode { get; init; }
+        public string Timezone { get; init; }
     }
 }
