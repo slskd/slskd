@@ -77,7 +77,6 @@ public class VPNService : IDisposable
     private IOptionsMonitor<Options> OptionsMonitor { get; }
     private OptionsAtStartup OptionsAtStartup { get; }
     private bool Disposed { get; set; }
-    private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1, 1);
     private SemaphoreSlim TimerElapsedLock { get; } = new SemaphoreSlim(1, 1);
 
     public void Dispose()
@@ -117,105 +116,89 @@ public class VPNService : IDisposable
             */
             Log.Verbose("Checking VPN status using {Client}", Client.GetType());
 
-            status = await Client.GetStatusAsync();
-
-            // synchronize access to the TaskCompletionSource so we don't swap it out while something is trying to access it
-            await SyncRoot.WaitAsync();
-
             try
             {
-                /*
-                    step two:
-                    * update VPNService state
-                    * apply a configuration overlay to set the forwarded port (if there is one)
-                    * update application state (via StateMutator)
-                    * if IsReady changed during this invocation, disposition the ReadyTaskCompletionSource
-                */
-                if (!status.IsConnected)
+                status = await Client.GetStatusAsync();
+            }
+            catch (Exception ex)
+            {
+                // log, but don't throw. an exception here is treated as if the VPN is down; we have to assume it is
+                Log.Warning("Failed to fetch status from VPN client: {Message}", ex.Message);
+            }
+
+            /*
+                step two:
+                * update VPNService state
+                * apply a configuration overlay to set the forwarded port (if there is one)
+                * update application state (via StateMutator)
+                * if IsReady changed during this invocation, disposition the ReadyTaskCompletionSource
+            */
+            if (!status.IsConnected)
+            {
+                isReadyNow = false;
+            }
+            else
+            {
+                if (OptionsMonitor.CurrentValue.Integration.Vpn.PortForwarding)
                 {
-                    isReadyNow = false;
+                    if (status.ForwardedPort.HasValue)
+                    {
+                        isReadyNow = true;
+
+                        var overlay = Program.ConfigurationOverlay ?? new OptionsOverlay();
+                        overlay = overlay with { Soulseek = overlay.Soulseek ?? new OptionsOverlay.SoulseekOptionsPatch() };
+
+                        // avoid incessant updates
+                        if (overlay.Soulseek.ListenPort != status.ForwardedPort)
+                        {
+                            Program.ApplyConfigurationOverlay(overlay with
+                            {
+                                Soulseek = overlay.Soulseek with
+                                {
+                                    ListenPort = status.ForwardedPort,
+                                },
+                            });
+                        }
+                    }
                 }
                 else
                 {
-                    if (OptionsMonitor.CurrentValue.Integration.Vpn.PortForwarding)
-                    {
-                        if (status.ForwardedPort.HasValue)
-                        {
-                            isReadyNow = true;
-
-                            var overlay = Program.ConfigurationOverlay ?? new OptionsOverlay();
-                            overlay = overlay with { Soulseek = overlay.Soulseek ?? new OptionsOverlay.SoulseekOptionsPatch() };
-
-                            // avoid incessant updates
-                            if (overlay.Soulseek.ListenPort != status.ForwardedPort)
-                            {
-                                Program.ApplyConfigurationOverlay(overlay with
-                                {
-                                    Soulseek = overlay.Soulseek with
-                                    {
-                                        ListenPort = status.ForwardedPort,
-                                    },
-                                });
-                            }
-                        }
-                    }
-                    else
-                    {
-                        isReadyNow = true;
-                    }
-                }
-
-                Status = status;
-
-                // if we weren't ready before and now we are, signal to anyone waiting that we're good to go
-                if (!IsReady && isReadyNow)
-                {
-                    // complete the TCS so anything waiting for ready can progress.  don't replace it; VPN should be assumed
-                    // to stay ready until we check and find that it is no longer ready
-                    if (status.ForwardedPort.HasValue)
-                    {
-                        Log.Information("VPN client connected and ready! IP: {PublicIP} ({Location}); forwarding port {Port}", status.PublicIPAddress, status.Location, status.ForwardedPort);
-                    }
-                    else
-                    {
-                        Log.Information("VPN client connected and ready! IP: {PublicIP} ({Location})", status.PublicIPAddress, status.Location);
-                    }
-
-                    IsReady = isReadyNow;
-                }
-
-                // if we were previously ready and now we aren't, the VPN has disconnected or stopped providing a port
-                if (IsReady && !isReadyNow)
-                {
-                    IsReady = isReadyNow;
-                    Log.Warning("VPN client disconnected");
-
-                    if (OptionsAtStartup.Integration.Vpn.Required)
-                    {
-                        SoulseekClient.Disconnect("VPN client disconnected", new VPNClientException("VPN client disconnected"));
-                    }
+                    isReadyNow = true;
                 }
             }
-            finally
+
+            if (!IsReady && isReadyNow)
             {
-                StateMutator.SetValue(state => state with
-                {
-                    Vpn = new VpnState()
-                    {
-                        IsReady = IsReady,
-                        IsConnected = status.IsConnected,
-                        PublicIPAddress = status.PublicIPAddress,
-                        Location = status.Location,
-                        ForwardedPort = status.ForwardedPort,
-                    },
-                });
-
-                SyncRoot.Release();
+                Log.Information("VPN client connected and ready! IP: {PublicIP} ({Location}), Forwarded port: {Port}", status.PublicIPAddress, status.Location, status.ForwardedPort.ToString() ?? "N/A");
             }
+            else if (IsReady && !isReadyNow)
+            {
+                Log.Warning("VPN client disconnected");
+
+                if (OptionsAtStartup.Integration.Vpn.Required)
+                {
+                    SoulseekClient.Disconnect("VPN client disconnected", new VPNClientException("VPN client disconnected"));
+                }
+            }
+
+            IsReady = isReadyNow;
+            Status = status;
+
+            StateMutator.SetValue(state => state with
+            {
+                Vpn = new VpnState()
+                {
+                    IsReady = IsReady,
+                    IsConnected = status.IsConnected,
+                    PublicIPAddress = status.PublicIPAddress,
+                    Location = status.Location,
+                    ForwardedPort = status.ForwardedPort,
+                },
+            });
         }
         catch (Exception ex)
         {
-            Log.Warning("Failed to communicate with VPN client: {Message}", ex.Message);
+            Log.Warning("VPN client status check failed: {Message}", ex.Message);
         }
         finally
         {
