@@ -154,7 +154,7 @@ namespace slskd
         {
             // if the VPN is required, we have to keep polling in the background so we can disconnect if it drops
             // this is a belt-and-suspenders effort to ensure maximum protection in case someone doesn't have a kill switch
-            if (OptionsAtStartup.Integration.Vpn.Required)
+            if (!OptionsAtStartup.Integration.Vpn.Required)
             {
                 VPN.StopPolling();
             }
