@@ -115,6 +115,11 @@ namespace slskd
         /// <remarks>This should be called at application startup.</remarks>
         public virtual void Start()
         {
+            if (OptionsAtStartup.Integration.Vpn.Enabled)
+            {
+                VPN.StartPolling();
+            }
+
             WatchdogTimer.Enabled = true;
             UpdateApplicationState();
 
@@ -147,6 +152,13 @@ namespace slskd
         /// <remarks>This should be called when the application is reasonably certain that the connection is connected.</remarks>
         public virtual void Stop(bool abortReconnect = false)
         {
+            // if the VPN is required, we have to keep polling in the background so we can disconnect if it drops
+            // this is a belt-and-suspenders effort to ensure maximum protection in case someone doesn't have a kill switch
+            if (OptionsAtStartup.Integration.Vpn.Required)
+            {
+                VPN.StopPolling();
+            }
+
             // stop the timer first to avoid having it start the connection process again when the cts is cancelled
             WatchdogTimer.Enabled = false;
             UpdateApplicationState();
