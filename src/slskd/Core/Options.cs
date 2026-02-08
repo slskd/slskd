@@ -2361,6 +2361,12 @@ namespace slskd
                     public string Url { get; init; }
 
                     /// <summary>
+                    ///     Gets the timeout for HTTP requests to the Gluetun control server, in milliseconds.
+                    /// </summary>
+                    [Range(500, 10_000)]
+                    public int Timeout { get; init; } = 1000;
+
+                    /// <summary>
                     ///     Gets the Gluetun control server authentication method.
                     /// </summary>
                     [Enum(typeof(GluetunClientAuthenticationMethod), ignoreCase: true)]

@@ -1,4 +1,4 @@
-// <copyright file="GluetunClient.cs" company="slskd Team">
+// <copyright file="Gluetun.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -28,15 +28,37 @@ using System.Threading.Tasks;
 using Serilog;
 using static slskd.Options.IntegrationOptions.VpnOptions;
 
+/// <summary>
+///     Gluetun VPN client authentication methods.
+/// </summary>
 public enum GluetunClientAuthenticationMethod
 {
+    /// <summary>
+    ///     The Gluetun control server allows unauthenticated requests.
+    /// </summary>
     None,
+
+    /// <summary>
+    ///     The Glueton control server is configured to use HTTP Basic authentication; username and password are required.
+    /// </summary>
     Basic,
+
+    /// <summary>
+    ///     The Gluetun control server is configured to use API key authentication; apiKey is required.
+    /// </summary>
     ApiKey,
 }
 
+/// <summary>
+///     Gluetun VPN client.
+/// </summary>
 public class Gluetun : IVPNClient
 {
+    /// <summary>
+    ///     Initializes a new instance of the <see cref="Gluetun"/> class.
+    /// </summary>
+    /// <param name="httpClientFactory"></param>
+    /// <param name="optionsMonitor"></param>
     public Gluetun(IHttpClientFactory httpClientFactory, IOptionsMonitor<Options> optionsMonitor)
     {
         HttpClientFactory = httpClientFactory;
@@ -56,7 +78,7 @@ public class Gluetun : IVPNClient
     {
         using var http = HttpClientFactory.CreateClient();
 
-        http.Timeout = TimeSpan.FromMilliseconds(1000);
+        http.Timeout = TimeSpan.FromMilliseconds(Options.Timeout);
 
         if (Options.Auth.Equals(GluetunClientAuthenticationMethod.Basic.ToString(), StringComparison.OrdinalIgnoreCase))
         {
