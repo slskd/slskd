@@ -78,8 +78,23 @@ public class VPNService : IDisposable
     private bool Disposed { get; set; }
     private SemaphoreSlim TimerElapsedLock { get; } = new SemaphoreSlim(1, 1);
 
-    public void StartPolling() => Timer?.Start();
-    public void StopPolling() => Timer?.Stop();
+    public void StartPolling()
+    {
+        if (Timer is not null && !Timer.Enabled)
+        {
+            Timer.Start();
+            Log.Information("VPN client status polling enabled (interval: {Interval}ms)", Timer.Interval);
+        }
+    }
+
+    public void StopPolling()
+    {
+        if (Timer is not null && Timer.Enabled)
+        {
+            Timer.Stop();
+            Log.Information("VPN client status polling stopped");
+        }
+    }
 
     public void Dispose()
     {
