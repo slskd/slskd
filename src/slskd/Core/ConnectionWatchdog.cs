@@ -83,6 +83,11 @@ namespace slskd
         /// </summary>
         public bool IsAttemptingConnection => SyncRoot.CurrentCount == 0;
 
+        /// <summary>
+        ///     Gets a value indicating whether the watchdog is waiting for the VPN client to connect.
+        /// </summary>
+        public bool IsAwaitingVpn { get; private set; }
+
         private ISoulseekClient Client { get; }
         private VPNService VPN { get; }
         private bool Disposed { get; set; }
@@ -193,6 +198,7 @@ namespace slskd
                     {
                         IsEnabled = IsEnabled,
                         IsAttemptingConnection = IsAttemptingConnection,
+                        IsAwaitingVpn = IsAwaitingVpn,
                         NextAttemptAt = IsAttemptingConnection ? nextAttemptAt ?? state.ConnectionWatchdog.NextAttemptAt : null, // only null this if we're not attempting, otherwise it sticks
                     },
                 });
@@ -218,8 +224,6 @@ namespace slskd
             {
                 try
                 {
-                    Log.Debug("AttemptConnection initiated by {Source}", source);
-
                     /*
                         go until we connect and break, or something stops the watchdog. why don't we just use the timer here?
                         good question. we could, but a loop gives us more control and precision.  at the expensive of needing to
@@ -243,9 +247,11 @@ namespace slskd
 
                         if (OptionsAtStartup.Integration.Vpn.Required && !VPN.IsReady)
                         {
-                            Log.Debug("AttemptConnection aborted; VPN is not yet ready (status: {Status})", VPN.Status);
+                            IsAwaitingVpn = true;
                             return;
                         }
+
+                        IsAwaitingVpn = false;
 
                         CancellationTokenSource = new CancellationTokenSource();
 
