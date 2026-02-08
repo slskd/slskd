@@ -2317,12 +2317,6 @@ namespace slskd
                 public bool Enabled { get; init; } = false;
 
                 /// <summary>
-                ///     Gets a value indicating whether a VPN connection is required before connecting to the Soulseek network.
-                /// </summary>
-                [RequiresRestart]
-                public bool Required { get; init; } = false;
-
-                /// <summary>
                 ///     Gets a value indicating whether the configured VPN supports port forwarding.
                 /// </summary>
                 public bool PortForwarding { get; init; } = false;

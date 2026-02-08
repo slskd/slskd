@@ -149,6 +149,7 @@ public class VPNService : IDisposable
 
     private async Task CheckConnection()
     {
+        var options = OptionsMonitor.CurrentValue.Integration.Vpn;
         bool isReadyNow = false;
         VPNStatus status = new VPNStatus();
 
@@ -172,7 +173,7 @@ public class VPNService : IDisposable
 
             if (status is not null && status.IsConnected)
             {
-                if (OptionsMonitor.CurrentValue.Integration.Vpn.PortForwarding)
+                if (options.PortForwarding)
                 {
                     if (status.ForwardedPort.HasValue)
                     {
@@ -202,8 +203,14 @@ public class VPNService : IDisposable
 
             if (!IsReady && isReadyNow)
             {
-                string port = OptionsMonitor.CurrentValue.Integration.Vpn.PortForwarding ? status.ForwardedPort.ToString() : "N/A";
-                Log.Information("VPN client connected and ready. IP: {PublicIP} ({Location}), Forwarded port: {Port}", status.PublicIPAddress, status.Location, status.ForwardedPort.ToString() ?? "N/A");
+                if (options.PortForwarding)
+                {
+                    Log.Information("VPN client connected and ready. IP: {PublicIP} ({Location}), Forwarded port: {Port}", status.PublicIPAddress, status.Location, status.ForwardedPort);
+                }
+                else
+                {
+                    Log.Information("VPN client connected and ready. IP: {PublicIP} ({Location})", status.PublicIPAddress, status.Location);
+                }
             }
             else if (IsReady && !isReadyNow)
             {
@@ -211,17 +218,23 @@ public class VPNService : IDisposable
             }
             else if (!IsReady && !isReadyNow)
             {
-                string port = OptionsMonitor.CurrentValue.Integration.Vpn.PortForwarding ? status.ForwardedPort.ToString() : "N/A";
-                port = string.IsNullOrEmpty(port) ? "?" : port;
-
-                string ip = status.PublicIPAddress == default ? "?" : status.PublicIPAddress.ToString();
-                Log.Information("Waiting for VPN client; IP: {PublicIP}, Forwarded port: {Port}", ip, port);
+                if (!options.PortForwarding)
+                {
+                    Log.Information("Waiting for VPN client; IP: ?");
+                }
+                else
+                {
+                    // port could possibly come first, if the client allows the user to specify it
+                    string port = status.ForwardedPort.HasValue ? status.ForwardedPort.ToString() : "?";
+                    string ip = status.PublicIPAddress == default ? "?" : status.PublicIPAddress.ToString();
+                    Log.Information("Waiting for VPN client; IP: {PublicIP}, Forwarded port: {Port}", ip, port);
+                }
             }
 
             IsReady = isReadyNow;
             Status = status ?? new VPNStatus();
 
-            if (OptionsAtStartup.Integration.Vpn.Required && !IsReady)
+            if (!IsReady)
             {
                 SoulseekClient.Disconnect("VPN client disconnected", new VPNClientException("VPN client disconnected"));
             }

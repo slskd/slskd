@@ -233,7 +233,6 @@
 # integration:
 #   vpn:
 #     enabled: false
-#     required: false # wait for the VPN to connect before connecting to Soulseek
 #     port_forwarding: false
 #     polling_interval: 2500
 #     gluetun:
