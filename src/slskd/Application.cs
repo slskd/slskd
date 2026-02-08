@@ -962,6 +962,11 @@ namespace slskd
             {
                 Log.Error("Disconnected from the Soulseek server: another client logged in using the same username");
             }
+            else if (args.Exception is VPNClientException)
+            {
+                Log.Error("Disconnected from the Soulseek server; VPN is required and the VPN client has gone down");
+                ConnectionWatchdog.Start();
+            }
             else
             {
                 Log.Error("Disconnected from the Soulseek server: {Message}", args.Exception?.Message ?? args.Message);
