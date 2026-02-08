@@ -157,17 +157,12 @@ public class VPNService : IDisposable
 
         try
         {
-            /*
-                step one: fetch status from the VPN client
-
-                this step performs I/O with the VPN client, so do it before obtaining the SyncRoot to avoid
-                unnecessary lock contention
-            */
             Log.Verbose("Checking VPN status using {Client}", Client.GetType());
 
             try
             {
-                status = await Client.GetStatusAsync();
+                status = await Client.GetStatusAsync()
+                    ?? throw new VPNClientException("VPN client returned an invalid response");
             }
             catch (Exception ex)
             {
@@ -175,17 +170,7 @@ public class VPNService : IDisposable
                 Log.Warning("Failed to fetch status from VPN client {Client}: {Message}", Client.GetType().Name, ex.Message);
             }
 
-            /*
-                step two:
-                * update VPNService state
-                * apply a configuration overlay to set the forwarded port (if there is one)
-                * update application state (via StateMutator)
-            */
-            if (status is null || !status.IsConnected)
-            {
-                isReadyNow = false;
-            }
-            else
+            if (status is not null && status.IsConnected)
             {
                 if (OptionsMonitor.CurrentValue.Integration.Vpn.PortForwarding)
                 {
@@ -234,7 +219,7 @@ public class VPNService : IDisposable
             }
 
             IsReady = isReadyNow;
-            Status = status;
+            Status = status ?? new VPNStatus();
 
             if (OptionsAtStartup.Integration.Vpn.Required && !IsReady)
             {
@@ -247,9 +232,9 @@ public class VPNService : IDisposable
                 {
                     IsReady = IsReady,
                     IsConnected = Status?.IsConnected ?? false,
-                    PublicIPAddress = status?.PublicIPAddress,
-                    Location = status?.Location,
-                    ForwardedPort = status?.ForwardedPort,
+                    PublicIPAddress = Status?.PublicIPAddress,
+                    Location = Status?.Location,
+                    ForwardedPort = Status?.ForwardedPort,
                 },
             });
         }
