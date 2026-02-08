@@ -2328,6 +2328,13 @@ namespace slskd
                 public bool PortForwarding { get; init; } = false;
 
                 /// <summary>
+                ///     Gets the rate at which to poll the configured VPN client for status updates, in milliseconds.
+                /// </summary>
+                [Range(500, int.MaxValue)]
+                [RequiresRestart]
+                public int PollingInterval { get; init; } = 2500;
+
+                /// <summary>
                 ///     Gets Gluetun options.
                 /// </summary>
                 [Validate]
