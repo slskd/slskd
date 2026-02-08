@@ -35,15 +35,15 @@ public enum GluetunClientAuthenticationMethod
     ApiKey,
 }
 
-public class GluetunClient : IVPNClient
+public class Gluetun : IVPNClient
 {
-    public GluetunClient(IHttpClientFactory httpClientFactory, IOptionsMonitor<Options> optionsMonitor)
+    public Gluetun(IHttpClientFactory httpClientFactory, IOptionsMonitor<Options> optionsMonitor)
     {
         HttpClientFactory = httpClientFactory;
         OptionsMonitor = optionsMonitor;
     }
 
-    private ILogger Log { get; } = Serilog.Log.ForContext<GluetunClient>();
+    private ILogger Log { get; } = Serilog.Log.ForContext<Gluetun>();
     private IHttpClientFactory HttpClientFactory { get; }
     private IOptionsMonitor<Options> OptionsMonitor { get; }
     private GluetunVpnOptions Options => OptionsMonitor.CurrentValue.Integration.Vpn.Gluetun;

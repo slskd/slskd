@@ -26,8 +26,19 @@ using System.Threading.Tasks;
 using Serilog;
 using Soulseek;
 
+/// <summary>
+///     VPN integration.
+/// </summary>
 public class VPNService : IDisposable
 {
+    /// <summary>
+    ///     Initializes a new instance of the <see cref="VPNService"/> class.
+    /// </summary>
+    /// <param name="optionsAtStartup"></param>
+    /// <param name="optionsMonitor"></param>
+    /// <param name="stateMutator"></param>
+    /// <param name="soulseekClient"></param>
+    /// <param name="httpClientFactory"></param>
     public VPNService(
         OptionsAtStartup optionsAtStartup,
         IOptionsMonitor<Options> optionsMonitor,
@@ -54,9 +65,9 @@ public class VPNService : IDisposable
             // we can revisit this if/when we add other options besides gluetun
             if (!string.IsNullOrEmpty(OptionsMonitor.CurrentValue.Integration.Vpn.Gluetun.Url))
             {
-                Client = new GluetunClient(HttpClientFactory, OptionsMonitor);
+                Client = new Gluetun(HttpClientFactory, OptionsMonitor);
 
-                Log.Information("VPN integration enabled using {Client}", typeof(GluetunClient).Name);
+                Log.Information("VPN integration enabled using {Client}", typeof(Gluetun).Name);
                 return;
             }
 
@@ -64,7 +75,15 @@ public class VPNService : IDisposable
         }
     }
 
+    /// <summary>
+    ///     Gets a value indicating whether the configured VPN client is ready (connected, and if port forwarding
+    ///     is configured, a port has been provided).
+    /// </summary>
     public bool IsReady { get; private set; } = false;
+
+    /// <summary>
+    ///     Gets the most recent VPN client status.
+    /// </summary>
     public VPNStatus Status { get; private set; } = new VPNStatus();
 
     private ISoulseekClient SoulseekClient { get; }
@@ -78,6 +97,9 @@ public class VPNService : IDisposable
     private bool Disposed { get; set; }
     private SemaphoreSlim TimerElapsedLock { get; } = new SemaphoreSlim(1, 1);
 
+    /// <summary>
+    ///     Starts polling the configured VPN client for status updates.
+    /// </summary>
     public void StartPolling()
     {
         if (Timer is not null && !Timer.Enabled)
@@ -87,6 +109,9 @@ public class VPNService : IDisposable
         }
     }
 
+    /// <summary>
+    ///     Stops polling the configured VPN client for status updates.
+    /// </summary>
     public void StopPolling()
     {
         if (Timer is not null && Timer.Enabled)
@@ -96,12 +121,19 @@ public class VPNService : IDisposable
         }
     }
 
+    /// <summary>
+    ///     Disposes this instance.
+    /// </summary>
     public void Dispose()
     {
         Dispose(disposing: true);
         GC.SuppressFinalize(this);
     }
 
+    /// <summary>
+    ///     Disposes this instance.
+    /// </summary>
+    /// <param name="disposing"></param>
     protected virtual void Dispose(bool disposing)
     {
         if (!Disposed)
@@ -148,7 +180,6 @@ public class VPNService : IDisposable
                 * update VPNService state
                 * apply a configuration overlay to set the forwarded port (if there is one)
                 * update application state (via StateMutator)
-                * if IsReady changed during this invocation, disposition the ReadyTaskCompletionSource
             */
             if (status is null || !status.IsConnected)
             {

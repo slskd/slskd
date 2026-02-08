@@ -238,10 +238,10 @@
 #     polling_interval: 2500
 #     gluetun:
 #       url: http://localhost:8000
-#       auth: apikey
+#       auth: apikey # or basic or none
 #       api_key: <gluetun API key>
 #       username: <username if using basic auth>
-#       password: <password if using basic auth>#       
+#       password: <password if using basic auth>
 #   webhooks:
 #     my_webhook:
 #       on:
