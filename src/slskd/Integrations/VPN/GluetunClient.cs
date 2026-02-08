@@ -105,8 +105,8 @@ public class GluetunClient : IVPNClient
         }
         catch (Exception ex)
         {
-            Log.Warning("Failed to retrieve status from Gluetun: {Message}", ex.Message);
-            throw new VPNClientException($"Failed to retrieve status from Gluetun: {ex.Message}", ex);
+            Log.Debug("Failed to retrieve status from Gluetun: {Message}", ex.Message);
+            throw new VPNClientException(ex.Message, ex);
         }
     }
 
@@ -116,7 +116,7 @@ public class GluetunClient : IVPNClient
         response.EnsureSuccessStatusCode();
 
         var result = await response.Content.ReadFromJsonAsync<T>()
-            ?? throw new Exception($"Failed to deserialize Gluetun response; expected: {nameof(T)},  got: {await response.Content.ReadAsStringAsync()}");
+            ?? throw new Exception($"Unexpected Gluetun response; expected: {nameof(T)},  got: {await response.Content.ReadAsStringAsync()}");
 
         return result;
     }
