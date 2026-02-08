@@ -91,7 +91,8 @@ namespace slskd
     {
         public bool IsEnabled { get; init; } = false;
         public bool IsAttemptingConnection { get; init; } = false;
-        public DateTime? NextAttemptAt { get; init; }
+        public bool IsAwaitingVpn { get; init; } = false;
+        public DateTime? NextAttemptAt { get; init; } = null;
     }
 
     public record VpnState
