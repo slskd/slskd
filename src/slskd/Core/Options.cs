@@ -2345,10 +2345,19 @@ namespace slskd
 
                 public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
                 {
-                    // as/if more VPN clients are added, update this logic to ensure that exactly one is configured
-                    if (Enabled && string.IsNullOrWhiteSpace(Gluetun?.Url))
+                    if (Enabled)
                     {
-                        yield return new ValidationResult("VPN is enabled but no client is configured");
+                        // as/if more VPN clients are added, update this logic to ensure that exactly one is configured
+                        if (string.IsNullOrWhiteSpace(Gluetun?.Url))
+                        {
+                            yield return new ValidationResult("VPN is enabled but no client is configured");
+                            yield break;
+                        }
+
+                        if (!Uri.TryCreate(Gluetun.Url, UriKind.Absolute, out _))
+                        {
+                            yield return new ValidationResult("The gluetun URL must be absolute, e.g. 'http://127.0.0.1:8000'");
+                        }
                     }
                 }
 
@@ -2372,7 +2381,6 @@ namespace slskd
                     [Argument(default, "vpn-gluetun-url")]
                     [EnvironmentVariable("VPN_GLUETUN_URL")]
                     [Description("URL for gluetun control server")]
-                    [NotNullOrWhiteSpace]
                     public string Url { get; init; }
 
                     /// <summary>
