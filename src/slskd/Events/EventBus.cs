@@ -119,6 +119,24 @@ public class EventBus
     /// <typeparam name="T">The Type of the event.</typeparam>
     /// <exception cref="ArgumentException">Thrown if the specified <paramref name="subscriber"/> is null or whitespace.</exception>
     /// <exception cref="ArgumentNullException">Thrown if the specified <paramref name="callback"/> is null.</exception>
+    public virtual void Subscribe<T>(string subscriber, Action<T> callback)
+        where T : Event
+    {
+        Subscribe<T>(subscriber, e =>
+        {
+            callback(e);
+            return Task.CompletedTask;
+        });
+    }
+
+    /// <summary>
+    ///     Subscribes a <paramref name="subscriber"/>'s <paramref name="callback"/> to an event.
+    /// </summary>
+    /// <param name="subscriber">The unique name of the subscriber.</param>
+    /// <param name="callback">The callback function to execute when an event is raised.</param>
+    /// <typeparam name="T">The Type of the event.</typeparam>
+    /// <exception cref="ArgumentException">Thrown if the specified <paramref name="subscriber"/> is null or whitespace.</exception>
+    /// <exception cref="ArgumentNullException">Thrown if the specified <paramref name="callback"/> is null.</exception>
     public virtual void Subscribe<T>(string subscriber, Func<T, Task> callback)
         where T : Event
     {

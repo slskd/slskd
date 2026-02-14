@@ -63,6 +63,7 @@ namespace slskd
     using slskd.Integrations.FTP;
     using slskd.Integrations.Pushbullet;
     using slskd.Integrations.Scripts;
+    using slskd.Integrations.VPN;
     using slskd.Integrations.Webhooks;
     using slskd.Messaging;
     using slskd.Relay;
@@ -601,6 +602,7 @@ namespace slskd
                 //       and are thus never instantiated.  force a reference here so they are created.
                 _ = app.Services.GetService<ScriptService>();
                 _ = app.Services.GetService<WebhookService>();
+                _ = app.Services.GetService<VPNService>();
 
                 app.ConfigureAspDotNetPipeline();
 
@@ -731,6 +733,7 @@ namespace slskd
             services.AddSingleton<ReportsService>();
             services.AddSingleton<TelemetryService>();
 
+            services.AddSingleton<VPNService>();
             services.AddSingleton<ScriptService>();
             services.AddSingleton<WebhookService>();
 

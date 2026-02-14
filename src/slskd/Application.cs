@@ -40,6 +40,7 @@ namespace slskd
     using Serilog.Events;
     using slskd.Configuration;
     using slskd.Core.API;
+    using slskd.Events;
     using slskd.Files;
     using slskd.Integrations.Pushbullet;
     using slskd.Messaging;
@@ -105,7 +106,8 @@ namespace slskd
             IPushbulletService pushbulletService,
             IRelayService relayService,
             IHubContext<ApplicationHub> applicationHub,
-            IHubContext<LogsHub> logHub)
+            IHubContext<LogsHub> logHub,
+            EventBus eventBus)
         {
             Console.CancelKeyPress += (_, args) =>
             {
@@ -129,6 +131,8 @@ namespace slskd
 
             OptionsMonitor = optionsMonitor;
             OptionsMonitor.OnChange(async options => await OptionsMonitor_OnChange(options));
+
+            EventBus = eventBus;
 
             IncomingSearchRequestSemaphore = new SemaphoreSlim(
                 initialCount: OptionsAtStartup.Throttling.Search.Incoming.Concurrency,
@@ -240,6 +244,7 @@ namespace slskd
         private ITransferService Transfers { get; init; }
         private IHubContext<ApplicationHub> ApplicationHub { get; set; }
         private IHubContext<LogsHub> LogHub { get; set; }
+        private EventBus EventBus { get; }
         private IUserService Users { get; set; }
         private IShareService Shares { get; set; }
         private ISearchService Search { get; set; }
@@ -900,6 +905,8 @@ namespace slskd
         {
             ConnectionWatchdog.Stop();
             Log.Information("Connected to the Soulseek server");
+
+            EventBus.Raise(new SoulseekClientConnectedEvent());
         }
 
         private void Client_DiagnosticGenerated(object sender, DiagnosticEventArgs args)
@@ -955,11 +962,22 @@ namespace slskd
             {
                 Log.Error("Disconnected from the Soulseek server: another client logged in using the same username");
             }
+            else if (args.Exception is VPNClientException)
+            {
+                Log.Error("Disconnected from the Soulseek server; VPN is required and the VPN client has gone down");
+                ConnectionWatchdog.Start();
+            }
             else
             {
                 Log.Error("Disconnected from the Soulseek server: {Message}", args.Exception?.Message ?? args.Message);
                 ConnectionWatchdog.Start();
             }
+
+            EventBus.Raise(new SoulseekClientDisconnectedEvent()
+            {
+                Message = args.Message,
+                Exception = args.Exception,
+            });
         }
 
         private async Task RefreshUserStatistics(bool force = false)

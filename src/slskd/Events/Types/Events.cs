@@ -32,6 +32,10 @@ public enum EventType
     // UploadDirectoryComplete = 5,
     PrivateMessageReceived = 6,
     RoomMessageReceived = 7,
+
+    SoulseekClientConnected = 50,
+    SoulseekClientDisconnected = 51,
+
     Noop = int.MaxValue,
 }
 
@@ -41,6 +45,20 @@ public abstract record Event
     public DateTime Timestamp { get; init; } = DateTime.UtcNow;
     public abstract EventType Type { get; }
     public abstract int Version { get; }
+}
+
+public sealed record SoulseekClientConnectedEvent : Event
+{
+    public override EventType Type => EventType.SoulseekClientConnected;
+    public override int Version { get; } = 0;
+}
+
+public sealed record SoulseekClientDisconnectedEvent : Event
+{
+    public override EventType Type => EventType.SoulseekClientDisconnected;
+    public override int Version { get; } = 0;
+    public required string Message { get; init; }
+    public required Exception Exception { get; init; }
 }
 
 public sealed record DownloadFileCompleteEvent : Event

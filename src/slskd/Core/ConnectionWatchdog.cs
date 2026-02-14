@@ -23,6 +23,7 @@ namespace slskd
     using System.Threading;
     using System.Threading.Tasks;
     using Serilog;
+    using slskd.Integrations.VPN;
     using Soulseek;
 
     /// <summary>
@@ -41,15 +42,21 @@ namespace slskd
         ///     Initializes a new instance of the <see cref="ConnectionWatchdog"/> class.
         /// </summary>
         /// <param name="soulseekClient"></param>
+        /// <param name="vpnService"></param>
         /// <param name="optionsMonitor"></param>
+        /// <param name="optionsAtStartup"></param>
         /// <param name="applicationState"></param>
         public ConnectionWatchdog(
             ISoulseekClient soulseekClient,
+            VPNService vpnService,
             IOptionsMonitor<Options> optionsMonitor,
+            OptionsAtStartup optionsAtStartup,
             IManagedState<State> applicationState)
         {
             Client = soulseekClient;
+            VPN = vpnService;
             OptionsMonitor = optionsMonitor;
+            OptionsAtStartup = optionsAtStartup;
             ApplicationState = applicationState;
 
             WatchdogTimer = new System.Timers.Timer()
@@ -76,10 +83,17 @@ namespace slskd
         /// </summary>
         public bool IsAttemptingConnection => SyncRoot.CurrentCount == 0;
 
+        /// <summary>
+        ///     Gets a value indicating whether the watchdog is waiting for the VPN client to connect.
+        /// </summary>
+        public bool IsAwaitingVpn { get; private set; }
+
         private ISoulseekClient Client { get; }
+        private VPNService VPN { get; }
         private bool Disposed { get; set; }
         private ILogger Log { get; } = Serilog.Log.ForContext<Application>();
         private IOptionsMonitor<Options> OptionsMonitor { get; set; }
+        private OptionsAtStartup OptionsAtStartup { get; set; }
         private IManagedState<State> ApplicationState { get; }
         private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1, 1);
         private object StateLock { get; } = new object();
@@ -101,6 +115,11 @@ namespace slskd
         /// <remarks>This should be called at application startup.</remarks>
         public virtual void Start()
         {
+            if (OptionsAtStartup.Integration.Vpn.Enabled)
+            {
+                VPN.StartPolling();
+            }
+
             WatchdogTimer.Enabled = true;
             UpdateApplicationState();
 
@@ -184,6 +203,7 @@ namespace slskd
                     {
                         IsEnabled = IsEnabled,
                         IsAttemptingConnection = IsAttemptingConnection,
+                        IsAwaitingVpn = IsAwaitingVpn,
                         NextAttemptAt = IsAttemptingConnection ? nextAttemptAt ?? state.ConnectionWatchdog.NextAttemptAt : null, // only null this if we're not attempting, otherwise it sticks
                     },
                 });
@@ -209,8 +229,6 @@ namespace slskd
             {
                 try
                 {
-                    Log.Debug("AttemptConnection initiated by {Source}", source);
-
                     /*
                         go until we connect and break, or something stops the watchdog. why don't we just use the timer here?
                         good question. we could, but a loop gives us more control and precision.  at the expensive of needing to
@@ -231,6 +249,14 @@ namespace slskd
                         {
                             return;
                         }
+
+                        if (OptionsAtStartup.Integration.Vpn.Enabled && !VPN.IsReady)
+                        {
+                            IsAwaitingVpn = true;
+                            return;
+                        }
+
+                        IsAwaitingVpn = false;
 
                         CancellationTokenSource = new CancellationTokenSource();
 

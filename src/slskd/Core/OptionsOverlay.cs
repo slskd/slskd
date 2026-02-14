@@ -37,7 +37,7 @@ namespace slskd
     ///         selectively applies the patch overlay only to information that is explicitly supplied.
     ///     </para>
     /// </remarks>
-    public class OptionsOverlay
+    public record OptionsOverlay
     {
         /// <summary>
         ///     Gets options for the Soulseek client.
@@ -48,7 +48,7 @@ namespace slskd
         /// <summary>
         ///     Soulseek client options.
         /// </summary>
-        public class SoulseekOptionsPatch
+        public record SoulseekOptionsPatch
         {
             /// <summary>
             ///     Gets the local IP address on which to listen for incoming connections.

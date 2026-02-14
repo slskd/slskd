@@ -1168,6 +1168,53 @@ integration:
 
 System-defined integrations are part of the application logic.  Users can configure settings, but don't have any control over behavior.
 
+### VPN
+
+> [!CAUTION]
+> **Configuring a VPN integration does not change how network traffic to the Soulseek server or other peers is routed**.
+> 
+> Users wishing to use a VPN are responsible for ensuring slskd is connecting through their VPN's network interface and therefore routing traffic through the VPN.  This integration simply provides visibility; a way to easily apply dynamically forwarded ports, and some extremely light protection for users who do not use a "kill switch" to drop internet connectivity entirely if their VPN client disconnects.
+
+The VPN integration can poll an external service/application for VPN status (connectivity, forwarded port, etc) and connect or disconnect the connection to the Soulseek server according to status.
+
+Upon first start slskd will begin polling the configured VPN and will delay connection to the Soulseek server until the VPN returns a status that indicates it is connected.  If `port_forwarding` is enabled, the VPN must also provide the forwarded port for slskd to consider it "ready".
+
+slskd will disconnect from the Soulseek server if the VPN client fails to return a response, or returns a response that indicates that the VPN is no longer connected.  The VPN client will continue to be polled on the configured interval, and if/when it returns a status that indicates it is "ready", the connection to the Soulseek server will be re-established.
+
+The polling interval can be adjusted from the default 2.5 seconds.  A longer interval will produce less traffic between slskd and the client (and less "noise" in logs), but will delay the response to VPN changes.
+
+If the VPN is enabled, exactly one VPN client must be configured.
+
+[Gluetun](https://github.com/qdm12/gluetun) is natively supported.  When configured, slskd will poll gluetun's [control server](https://github.com/qdm12/gluetun-wiki/blob/main/setup/advanced/control-server.md) for the status of the VPN connection and forwarded port (if port forwarding is enabled).  The fully qualified (e.g. `http://127.0.0.1:8000`) URL for the control server must be provided.  If an API key is configured, `apikey` authentication is used.  If no API key is configured but a username is, `basic` authentication is used.  If neither an API key nor a username is configured, requests to the gluetun control server are unauthenticated.
+
+| Command-Line                 | Environment Variable              | Description                                                        |
+| ---------------------------- | --------------------------------- | ------------------------------------------------------------------ |
+| `--vpn`                      | `SLSKD_VPN`                       | Enable VPN integration                                             |
+| `--vpn-port-forwarding`      | `SLSKD_VPN_PORT_FORWARDING`       | VPN supports dynamic port forwarding (port provided after connect) |
+| `--vpn-polling-interval`     | `SLSKD_VPN_POLLING_INTERVAL`      | VPN client status polling interval                                 |
+| `--vpn-gluetun-url`          | `SLSKD_VPN_GLUETUN_URL`           | URL for gluetun control server                                     |
+| `--vpn-gluetun-timeout`      | `SLSKD_VPN_GLUETUN_TIMEOUT`       | Timeout for HTTP requests to gluetun control server                |
+| `--vpn-gluetun-username`     | `SLSKD_VPN_GLUETUN_USERNAME`      | Username for gluetun control server                                |
+| `--vpn-gluetun-password`     | `SLSKD_VPN_GLUETUN_PASSWORD`      | Password for gluetun control server                                |
+| `--vpn-gluetun-api-key`      | `SLSKD_VPN_GLUETUN_API_KEY`       | API key for gluetun control server                                 |
+
+#### **YAML****
+```yaml
+integration:
+  vpn:
+    enabled: false
+    port_forwarding: false
+    polling_interval: 2500
+    gluetun:
+      url: http://localhost:8000
+      timeout: 1000
+      api_key: <gluetun API key>
+      username: <username if using basic auth>
+      password: <password if using basic auth>
+```
+
+
+
 ### FTP
 
 Files can be uploaded to a remote FTP server upon completion. Files are uploaded to the server and remote path specified using the directory and filename with which they were downloaded; the FTP will match the layout of the local disk.
