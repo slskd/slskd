@@ -29,27 +29,6 @@ using Serilog;
 using static slskd.Options.IntegrationOptions.VpnOptions;
 
 /// <summary>
-///     Gluetun VPN client authentication methods.
-/// </summary>
-public enum GluetunClientAuthenticationMethod
-{
-    /// <summary>
-    ///     The Gluetun control server allows unauthenticated requests.
-    /// </summary>
-    None,
-
-    /// <summary>
-    ///     The Glueton control server is configured to use HTTP Basic authentication; username and password are required.
-    /// </summary>
-    Basic,
-
-    /// <summary>
-    ///     The Gluetun control server is configured to use API key authentication; apiKey is required.
-    /// </summary>
-    ApiKey,
-}
-
-/// <summary>
 ///     Gluetun VPN client.
 /// </summary>
 public class Gluetun : IVPNClient
@@ -80,14 +59,14 @@ public class Gluetun : IVPNClient
 
         http.Timeout = TimeSpan.FromMilliseconds(Options.Timeout);
 
-        if (Options.Auth.Equals(GluetunClientAuthenticationMethod.Basic.ToString(), StringComparison.OrdinalIgnoreCase))
+        if (!string.IsNullOrWhiteSpace(Options.ApiKey))
+        {
+            http.DefaultRequestHeaders.TryAddWithoutValidation("X-API-Key", Options.ApiKey);
+        }
+        else if (!string.IsNullOrWhiteSpace(Options.Username))
         {
             var creds = $"{Options.Username}:{Options.Password}".ToBase64();
             http.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", $"Basic {creds}");
-        }
-        else if (Options.Auth.Equals(GluetunClientAuthenticationMethod.ApiKey.ToString(), StringComparison.OrdinalIgnoreCase))
-        {
-            http.DefaultRequestHeaders.TryAddWithoutValidation("X-API-Key", Options.ApiKey);
         }
         else
         {
