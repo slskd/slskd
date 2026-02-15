@@ -213,6 +213,9 @@ public class VPNService : IDisposable
                 }
             }
 
+            // if the VPN client returned null, swap it for a default instance to prevent null refs
+            status ??= new VPNStatus();
+
             if (!IsReady && isReadyNow)
             {
                 if (options.PortForwarding)
