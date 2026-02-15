@@ -159,7 +159,10 @@ public class VPNService : IDisposable
         VPNStatus status = new VPNStatus();
 
         // one at a time!
-        await TimerElapsedLock.WaitAsync(0);
+        if (!await TimerElapsedLock.WaitAsync(0))
+        {
+            return;
+        }
 
         try
         {
