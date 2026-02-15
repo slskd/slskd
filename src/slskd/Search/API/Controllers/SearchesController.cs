@@ -71,9 +71,9 @@ namespace slskd.Search.API
                 return Forbid();
             }
 
-            if (string.IsNullOrWhiteSpace(request.SearchText))
+            if (!ModelState.IsValid)
             {
-                return BadRequest("SearchText may not be null or empty");
+                return BadRequest(ModelState.GetReadableString());
             }
 
             if (!SearchRequestLimiter.Wait(0))
