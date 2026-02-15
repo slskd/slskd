@@ -533,7 +533,7 @@ namespace slskd.Transfers.Downloads
 
                                     if (!TryFail(transferId, exception: ex))
                                     {
-                                        Log.Error(ex, "Failed to clean up transfer {Id} after failed enqueue", transferId);
+                                        Log.Error(ex, "Failed to clean up transfer {Id} after failed download", transferId);
                                     }
                                 }, cancellationToken: CancellationToken.None); // end downloadTask.Run();
 
