@@ -114,7 +114,7 @@ namespace slskd.Search.API
             // todo: adjust this when additional search inputs are made available
             if (string.IsNullOrWhiteSpace(SearchText))
             {
-                yield return new ValidationResult("SearchText can not be null, empty, or consist of only whitespace");
+                yield return new ValidationResult("The field SearchText can not be null, empty, or consist of only whitespace", [nameof(SearchText)]);
             }
         }
     }
