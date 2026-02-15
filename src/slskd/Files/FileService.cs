@@ -407,7 +407,7 @@ namespace slskd.Files
             {
                 if (!OperatingSystem.IsWindows() && unixCreateMode.HasValue)
                 {
-                    Directory.CreateDirectory(destinationDirectory, OptionsMonitor.CurrentValue.Permissions.File.Mode.ToUnixFileMode());
+                    Directory.CreateDirectory(destinationDirectory, unixCreateMode.Value);
                 }
                 else
                 {
