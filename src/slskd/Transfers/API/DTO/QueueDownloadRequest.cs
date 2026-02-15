@@ -15,7 +15,7 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-using slskd.Validation;
+using System.ComponentModel.DataAnnotations;
 
 namespace slskd.Transfers.API
 {
@@ -24,7 +24,7 @@ namespace slskd.Transfers.API
         /// <summary>
         ///     Gets or sets the filename to download.
         /// </summary>
-        [NotNullOrWhiteSpace]
+        [Required]
         public string Filename { get; set; }
 
         /// <summary>
