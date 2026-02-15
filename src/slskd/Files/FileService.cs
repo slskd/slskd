@@ -407,7 +407,14 @@ namespace slskd.Files
 
             if (!Directory.Exists(destinationDirectory))
             {
-                Directory.CreateDirectory(destinationDirectory);
+                if (!OperatingSystem.IsWindows())
+                {
+                    Directory.CreateDirectory(destinationDirectory, OptionsMonitor.CurrentValue.Permissions.File.Mode.ToUnixFileMode());
+                }
+                else
+                {
+                    Directory.CreateDirectory(destinationDirectory);
+                }
             }
 
             var destinationFilename = Path.Combine(destinationDirectory, Path.GetFileName(sourceFilename));
