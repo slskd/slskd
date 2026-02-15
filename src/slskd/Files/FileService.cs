@@ -329,7 +329,14 @@ namespace slskd.Files
 
             if (!Directory.Exists(path))
             {
-                Directory.CreateDirectory(path);
+                if (!OperatingSystem.IsWindows())
+                {
+                    Directory.CreateDirectory(path, OptionsMonitor.CurrentValue.Permissions.File.Mode.ToUnixFileMode());
+                }
+                else
+                {
+                    Directory.CreateDirectory(path);
+                }
             }
 
             var streamOptions = new FileStreamOptions
