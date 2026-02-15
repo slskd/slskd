@@ -333,7 +333,7 @@ namespace slskd.Transfers.Downloads
                     .Where(t => t.Direction == TransferDirection.Download)
                     .Where(t => t.Username == username)
                     .Where(t => !t.Removed || !TransferStateCategories.Completed.Contains(t.State))
-                    .AsNoTracking()
+                    .AsNoTracking() // note: AI wants to remove this, dont.
                     .ToList();
 
                 var existingInProgressRecords = existingRecordsNotYetRemoved
