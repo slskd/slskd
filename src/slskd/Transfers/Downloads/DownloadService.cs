@@ -246,11 +246,16 @@ namespace slskd.Transfers.Downloads
                 throw new ArgumentException("Username is required", nameof(username));
             }
 
-            var fileList = files.ToList();
+            var fileList = files?.ToList() ?? [];
 
             if (fileList.Count == 0)
             {
                 throw new ArgumentException("At least one file is required", nameof(files));
+            }
+
+            if (fileList.Any(f => string.IsNullOrWhiteSpace(f.Filename)))
+            {
+                throw new ArgumentException("At least one filename is null, empty, or consists of only whitespace", nameof(files));
             }
 
             if (fileList.Count != fileList.Distinct().Count())
