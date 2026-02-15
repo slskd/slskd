@@ -462,6 +462,14 @@ namespace slskd.Transfers.Downloads
 
                         Log.Debug("Scheduling Task for enqueue of {Filename} from {Username}", file.Filename, username);
 
+                        /*
+                            rip off one task for each file in the batch, leaving each to internally wait their turn
+                            to proceed with the actual enqueue request and subsequent download, orchestrated by the
+                            concurrent enqueue request semaphore
+
+                            we don't wait for any of them; as long as the Task is successfully scheduled (Task.Run doesn't throw),
+                            we consider it a success.
+                        */
                         var downloadEnqueueTask = Task.Run(async () =>
                         {
                             Log.Debug("Awaiting download enqueue semaphore for {Filename} from {Username}", transfer.Filename, transfer.Username);
