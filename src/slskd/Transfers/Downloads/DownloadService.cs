@@ -527,9 +527,9 @@ namespace slskd.Transfers.Downloads
                                     }
 
                                     Exception ex = task.IsCanceled ? new OperationCanceledException("Task was cancelled") : task.Exception;
-                                    ex ??= new Exception("Unknown error");
+                                    ex = ex?.InnerException ?? ex ?? new Exception("Unknown error");
 
-                                    Log.Error(ex, "Task for download of {Filename} from {Username} did not complete successfully: {Error}", file.Filename, username, ex.InnerException?.Message ?? ex.Message);
+                                    Log.Error(ex, "Task for download of {Filename} from {Username} did not complete successfully: {Error}", file.Filename, username, ex.Message);
 
                                     if (!TryFail(transferId, exception: ex))
                                     {
@@ -574,9 +574,9 @@ namespace slskd.Transfers.Downloads
                             }
 
                             Exception ex = task.IsCanceled ? new OperationCanceledException("Task was cancelled") : task.Exception;
-                            ex ??= new Exception("Unknown error");
+                            ex = ex?.InnerException ?? ex ?? new Exception("Unknown error");
 
-                            Log.Error(ex, "Task for enqueue of {Filename} from {Username} did not complete successfully: {Error}", file.Filename, username, ex.InnerException?.Message ?? ex.Message);
+                            Log.Error(ex, "Task for enqueue of {Filename} from {Username} did not complete successfully: {Error}", file.Filename, username, ex.Message);
 
                             if (!TryFail(transferId, exception: ex))
                             {
