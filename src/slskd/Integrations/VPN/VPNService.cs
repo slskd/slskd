@@ -149,6 +149,11 @@ public class VPNService : IDisposable
 
     private async Task CheckConnection()
     {
+        if (Client is null)
+        {
+            throw new VPNClientException("VPN client not properly initialized; something went seriously wrong! Please report to GitHub.");
+        }
+
         var options = OptionsMonitor.CurrentValue.Integration.Vpn;
         bool isReadyNow = false;
         VPNStatus status = new VPNStatus();
