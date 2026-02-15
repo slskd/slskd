@@ -327,7 +327,7 @@ namespace slskd.Files
 
             var path = Path.GetDirectoryName(filename);
 
-            UnixFileMode? unixCreateMode = options.UnixCreateMode ?? OptionsMonitor.CurrentValue.Permissions.File.Mode?.ToUnixFileMode();
+            UnixFileMode? unixCreateMode = options?.UnixCreateMode ?? OptionsMonitor.CurrentValue.Permissions.File.Mode?.ToUnixFileMode();
 
             if (!Directory.Exists(path))
             {
