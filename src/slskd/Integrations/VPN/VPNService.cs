@@ -140,7 +140,7 @@ public class VPNService : IDisposable
         {
             if (disposing)
             {
-                Timer.Dispose();
+                Timer?.Dispose();
             }
 
             Disposed = true;
@@ -149,12 +149,20 @@ public class VPNService : IDisposable
 
     private async Task CheckConnection()
     {
+        if (Client is null)
+        {
+            throw new VPNClientException("VPN client not properly initialized; something went seriously wrong! Please report to GitHub.");
+        }
+
         var options = OptionsMonitor.CurrentValue.Integration.Vpn;
         bool isReadyNow = false;
         VPNStatus status = new VPNStatus();
 
         // one at a time!
-        await TimerElapsedLock.WaitAsync(0);
+        if (!await TimerElapsedLock.WaitAsync(0))
+        {
+            return;
+        }
 
         try
         {
@@ -162,8 +170,12 @@ public class VPNService : IDisposable
 
             try
             {
-                status = await Client.GetStatusAsync()
-                    ?? throw new VPNClientException("VPN client returned an invalid response");
+                status = await Client.GetStatusAsync();
+
+                if (status is null)
+                {
+                    throw new VPNClientException("VPN client returned an invalid response");
+                }
             }
             catch (Exception ex)
             {
@@ -200,6 +212,9 @@ public class VPNService : IDisposable
                     isReadyNow = true;
                 }
             }
+
+            // if the VPN client returned null, swap it for a default instance to prevent null refs
+            status ??= new VPNStatus();
 
             if (!IsReady && isReadyNow)
             {
