@@ -246,11 +246,16 @@ namespace slskd.Transfers.Downloads
                 throw new ArgumentException("Username is required", nameof(username));
             }
 
-            var fileList = files.ToList();
+            var fileList = files?.ToList() ?? [];
 
             if (fileList.Count == 0)
             {
                 throw new ArgumentException("At least one file is required", nameof(files));
+            }
+
+            if (fileList.Any(f => string.IsNullOrEmpty(f.Filename)))
+            {
+                throw new ArgumentException("At least one filename is null or empty", nameof(files));
             }
 
             if (fileList.Count != fileList.Distinct().Count())
@@ -328,7 +333,7 @@ namespace slskd.Transfers.Downloads
                     .Where(t => t.Direction == TransferDirection.Download)
                     .Where(t => t.Username == username)
                     .Where(t => !t.Removed || !TransferStateCategories.Completed.Contains(t.State))
-                    .AsNoTracking()
+                    .AsNoTracking() // note: AI wants to remove this, dont.
                     .ToList();
 
                 var existingInProgressRecords = existingRecordsNotYetRemoved
@@ -378,15 +383,24 @@ namespace slskd.Transfers.Downloads
                         /*
                             if there are any that haven't ended yet (checking a few ways out of paranoia), then there's already
                             an existing transfer record covering this file, and we're already enqueued. nothing more to do!
-
-                            check the tracked download dictionary in Soulseek.NET to see if it knows about this already
-                            it shouldn't, if the slskd database doesn't. but things could get desynced
                         */
                         existingInProgressRecords.TryGetValue(file.Filename, out var existingInProgressRecord);
 
-                        if (existingInProgressRecord is not null || Client.Downloads.Any(u => u.Username == username && u.Filename == file.Filename))
+                        if (existingInProgressRecord is not null)
                         {
                             Log.Debug("Ignoring concurrent download enqueue attempt; transfer for {Filename} from {Username} already in progress (id: {Id})", file.Filename, username, existingInProgressRecord.Id);
+                            failed.Add(file.Filename);
+                            continue;
+                        }
+
+                        /*
+                            check the tracked download dictionary in Soulseek.NET to see if it knows about this already
+                            it shouldn't, if the slskd database doesn't. but things could get desynced, which is likely a bug
+                            and we'd like to know about it
+                        */
+                        if (Client.Downloads?.Any(u => u.Username == username && u.Filename == file.Filename) ?? false)
+                        {
+                            Log.Warning("Ignoring concurrent download enqueue attempt; transfer for {Filename} from {Username} is tracked by the Soulseek client but not slskd", file.Filename, username);
                             failed.Add(file.Filename);
                             continue;
                         }
@@ -448,6 +462,14 @@ namespace slskd.Transfers.Downloads
 
                         Log.Debug("Scheduling Task for enqueue of {Filename} from {Username}", file.Filename, username);
 
+                        /*
+                            rip off one task for each file in the batch, leaving each to internally wait their turn
+                            to proceed with the actual enqueue request and subsequent download, orchestrated by the
+                            concurrent enqueue request semaphore
+
+                            we don't wait for any of them; as long as the Task is successfully scheduled (Task.Run doesn't throw),
+                            we consider it a success.
+                        */
                         var downloadEnqueueTask = Task.Run(async () =>
                         {
                             Log.Debug("Awaiting download enqueue semaphore for {Filename} from {Username}", transfer.Filename, transfer.Username);
@@ -504,11 +526,14 @@ namespace slskd.Transfers.Downloads
                                         return;
                                     }
 
-                                    Log.Error(task.Exception, "Task for download of {Filename} from {Username} did not complete successfully: {Error}", file.Filename, username, task.Exception.InnerException?.Message ?? task.Exception.Message);
+                                    Exception ex = task.IsCanceled ? new OperationCanceledException("Task was cancelled") : task.Exception;
+                                    ex = ex?.InnerException ?? ex ?? new Exception("Unknown error");
 
-                                    if (!TryFail(transferId, exception: task.Exception))
+                                    Log.Error(ex, "Task for download of {Filename} from {Username} did not complete successfully: {Error}", file.Filename, username, ex.Message);
+
+                                    if (!TryFail(transferId, exception: ex))
                                     {
-                                        Log.Error(task.Exception, "Failed to clean up transfer {Id} after failed enqueue: {Message}", transfer.Id, task.Exception.Message);
+                                        Log.Error(ex, "Failed to clean up transfer {Id} after failed download", transferId);
                                     }
                                 }, cancellationToken: CancellationToken.None); // end downloadTask.Run();
 
@@ -548,16 +573,19 @@ namespace slskd.Transfers.Downloads
                                 return;
                             }
 
-                            Log.Error(task.Exception, "Task for enqueue of {Filename} from {Username} did not complete successfully: {Error}", file.Filename, username, task.Exception.InnerException?.Message ?? task.Exception.Message);
+                            Exception ex = task.IsCanceled ? new OperationCanceledException("Task was cancelled") : task.Exception;
+                            ex = ex?.InnerException ?? ex ?? new Exception("Unknown error");
 
-                            if (!TryFail(transferId, exception: task.Exception))
+                            Log.Error(ex, "Task for enqueue of {Filename} from {Username} did not complete successfully: {Error}", file.Filename, username, ex.Message);
+
+                            if (!TryFail(transferId, exception: ex))
                             {
-                                Log.Error(task.Exception, "Failed to clean up transfer {Id} after failed enqueue: {Message}", transfer.Id, task.Exception.Message);
+                                Log.Error(ex, "Failed to clean up transfer {Id} after failed enqueue", transferId);
                             }
                         }, cancellationToken: CancellationToken.None); // end downloadEnqueueTask.Run();
 
                         Log.Debug("Download enqueue Task status for {Filename} from {Username}: {Status}", file.Filename, username, downloadEnqueueTask.Status);
-                        Log.Information("Successfully locally enqueued download of {Filename} from {Username} (id: {Id})", file.Filename, username, transfer.Id);
+                        Log.Information("Successfully locally enqueued download of {Filename} from {Username} (id: {Id})", file.Filename, username, transferId);
                         enqueued.Add(transfer);
                     }
                     catch (Exception ex)
