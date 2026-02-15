@@ -18,12 +18,14 @@
 namespace slskd.Search.API
 {
     using System;
+    using System.Collections.Generic;
+    using System.ComponentModel.DataAnnotations;
     using Soulseek;
 
     /// <summary>
     ///     A search request.
     /// </summary>
-    public class SearchRequest
+    public class SearchRequest : IValidatableObject
     {
         /// <summary>
         ///     Gets or sets the unique search identifier.
@@ -33,6 +35,7 @@ namespace slskd.Search.API
         /// <summary>
         ///     Gets or sets the maximum number of file results to accept before the search is considered complete. (Default = 10,000).
         /// </summary>
+        [Range(0, int.MaxValue)]
         public int? FileLimit { get; set; }
 
         /// <summary>
@@ -43,21 +46,25 @@ namespace slskd.Search.API
         /// <summary>
         ///     Gets or sets the maximum queue depth a peer may have in order for a response to be processed. (Default = 1000000).
         /// </summary>
+        [Range(0, int.MaxValue)]
         public int? MaximumPeerQueueLength { get; set; }
 
         /// <summary>
         ///     Gets or sets the minimum upload speed a peer must have in order for a response to be processed. (Default = 0).
         /// </summary>
+        [Range(0, int.MaxValue)]
         public int? MinimumPeerUploadSpeed { get; set; }
 
         /// <summary>
         ///     Gets or sets the minimum number of files a response must contain in order to be processed. (Default = 1).
         /// </summary>
+        [Range(0, int.MaxValue)]
         public int? MinimumResponseFileCount { get; set; }
 
         /// <summary>
         ///     Gets or sets the maximum number of search results to accept before the search is considered complete. (Default = 100).
         /// </summary>
+        [Range(0, int.MaxValue)]
         public int? ResponseLimit { get; set; }
 
         /// <summary>
@@ -69,12 +76,8 @@ namespace slskd.Search.API
         ///     Gets or sets the search timeout value, in seconds, used to determine when the search is complete. (Default = 15).
         /// </summary>
         /// <remarks>The timeout duration is from the time of the last response.</remarks>
+        [Range(5, int.MaxValue)]
         public int? SearchTimeout { get; set; }
-
-        /// <summary>
-        ///     Gets or sets the search token.
-        /// </summary>
-        public int? Token { get; set; }
 
         /// <summary>
         ///     Maps to a new instance of <see cref="SearchOptions"/>.
@@ -104,6 +107,15 @@ namespace slskd.Search.API
                 fileFilter: fileFilter,
                 responseReceived: responseReceived,
                 stateChanged: stateChanged);
+        }
+
+        public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+        {
+            // todo: adjust this when additional search inputs are made available
+            if (string.IsNullOrWhiteSpace(SearchText))
+            {
+                yield return new ValidationResult("SearchText can not be null, empty, or consist of only whitespace");
+            }
         }
     }
 }
