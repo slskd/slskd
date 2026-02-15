@@ -29,6 +29,7 @@ namespace slskd
     using System.Text.RegularExpressions;
     using System.Threading;
     using System.Threading.Tasks;
+    using Microsoft.AspNetCore.Mvc.ModelBinding;
     using YamlDotNet.Serialization;
     using YamlDotNet.Serialization.NamingConventions;
 
@@ -447,6 +448,39 @@ namespace slskd
             }
 
             return sanitized;
+        }
+
+        /// <summary>
+        ///     Converts a ModelStateDictionary into a human-readable format.
+        /// </summary>
+        /// <param name="dictionary">The ModelStateDictionary to format.</param>
+        /// <returns>The formatted error string.</returns>
+        public static string GetReadableString(this ModelStateDictionary dictionary)
+        {
+            if (dictionary == null || dictionary.IsValid)
+            {
+                return string.Empty;
+            }
+
+            return dictionary.Values
+                .Where(v => v.Errors.Any())
+                .Select(v =>
+                    v.Errors
+                        .Select(e => GetErrorAndOrExceptionMessage(e))
+                        .Aggregate((a, b) => string.Join(", ", new[] { a, b })))
+                .Aggregate((a, b) => string.Join(" ", new[] { a, b }));
+        }
+
+        /// <summary>
+        ///     Returns the <see cref="ModelError.ErrorMessage"/>, the <see cref="Exception.Message"/> for the ModelError, or both if both are present.
+        /// </summary>
+        /// <param name="error">The ModelError from which to retrieve the error message.</param>
+        /// <returns>The retrieved error message.</returns>
+        public static string GetErrorAndOrExceptionMessage(this ModelError error)
+        {
+            var ex = error?.Exception?.Message;
+            return string.IsNullOrEmpty(error?.ErrorMessage) ? ex :
+                string.IsNullOrEmpty(ex) ? error?.ErrorMessage : $"{error?.ErrorMessage} ({ex})";
         }
 
         /// <summary>
