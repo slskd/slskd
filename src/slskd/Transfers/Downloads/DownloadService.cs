@@ -398,7 +398,7 @@ namespace slskd.Transfers.Downloads
                             it shouldn't, if the slskd database doesn't. but things could get desynced, which is likely a bug
                             and we'd like to know about it
                         */
-                        if (Client.Downloads.Any(u => u.Username == username && u.Filename == file.Filename))
+                        if (Client.Downloads?.Any(u => u.Username == username && u.Filename == file.Filename) ?? false)
                         {
                             Log.Warning("Ignoring concurrent download enqueue attempt; transfer for {Filename} from {Username} is tracked by the Soulseek client but not slskd", file.Filename, username);
                             failed.Add(file.Filename);
