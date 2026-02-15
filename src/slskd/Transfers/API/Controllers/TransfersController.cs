@@ -221,7 +221,7 @@ namespace slskd.Transfers.API
                 return BadRequest(ModelState.GetReadableString());
             }
 
-            if (!requests.Any())
+            if (!requests?.Any() ?? true)
             {
                 return BadRequest("At least one file is required");
             }
