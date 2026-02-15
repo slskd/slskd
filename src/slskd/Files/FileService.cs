@@ -327,11 +327,13 @@ namespace slskd.Files
 
             var path = Path.GetDirectoryName(filename);
 
+            UnixFileMode? unixCreateMode = options.UnixCreateMode ?? OptionsMonitor.CurrentValue.Permissions.File.Mode?.ToUnixFileMode();
+
             if (!Directory.Exists(path))
             {
-                if (!OperatingSystem.IsWindows())
+                if (!OperatingSystem.IsWindows() && unixCreateMode.HasValue)
                 {
-                    Directory.CreateDirectory(path, OptionsMonitor.CurrentValue.Permissions.File.Mode.ToUnixFileMode());
+                    Directory.CreateDirectory(path, unixCreateMode.Value);
                 }
                 else
                 {
@@ -351,17 +353,11 @@ namespace slskd.Files
 
             // attempting to use UnixCreateMode on Windows raises an Exception
             // we *MUST* check the OS and skip this on Windows
-            if (!OperatingSystem.IsWindows())
+            // if we omit this on *nix systems, the application's UMASK is used
+            if (!OperatingSystem.IsWindows() && unixCreateMode.HasValue)
             {
-                var appOption = OptionsMonitor.CurrentValue.Permissions.File.Mode;
-
-                // if options haven't been passed in and none have been set in app config, omit this
-                // so that the application's umask will be applied, saving users the hassle of setting it twice.
-                if (options?.UnixCreateMode != null || !string.IsNullOrWhiteSpace(appOption))
-                {
-                    streamOptions.UnixCreateMode = options?.UnixCreateMode ?? appOption?.ToUnixFileMode();
-                    Log.Debug("Setting Unix file mode to {Mode}", streamOptions.UnixCreateMode);
-                }
+                streamOptions.UnixCreateMode = unixCreateMode;
+                Log.Debug("Setting Unix file mode to {Mode}", streamOptions.UnixCreateMode);
             }
 
             try
@@ -405,9 +401,11 @@ namespace slskd.Files
                 throw new FileNotFoundException($"The specified source file does not exist", fileName: sourceFilename);
             }
 
+            UnixFileMode? unixCreateMode = unixFileMode ?? OptionsMonitor.CurrentValue.Permissions.File.Mode?.ToUnixFileMode();
+
             if (!Directory.Exists(destinationDirectory))
             {
-                if (!OperatingSystem.IsWindows())
+                if (!OperatingSystem.IsWindows() && unixCreateMode.HasValue)
                 {
                     Directory.CreateDirectory(destinationDirectory, OptionsMonitor.CurrentValue.Permissions.File.Mode.ToUnixFileMode());
                 }
@@ -442,18 +440,10 @@ namespace slskd.Files
 
                 // attempting to use UnixCreateMode on Windows raises an Exception
                 // we *MUST* check the OS and skip this on Windows
-                if (!OperatingSystem.IsWindows())
+                if (!OperatingSystem.IsWindows() && unixCreateMode.HasValue)
                 {
-                    var appOption = OptionsMonitor.CurrentValue.Permissions.File.Mode;
-                    var mode = unixFileMode ?? appOption?.ToUnixFileMode();
-
-                    // if options haven't been passed in and none have been set in app config, omit this
-                    // so that the application's umask will be applied, saving users the hassle of setting it twice.
-                    if (mode.HasValue)
-                    {
-                        File.SetUnixFileMode(destinationFilename, mode.Value);
-                        Log.Debug("Successfully set Unix file mode to {Mode}", mode);
-                    }
+                    File.SetUnixFileMode(destinationFilename, unixCreateMode.Value);
+                    Log.Debug("Successfully set Unix file mode to {Mode}", unixCreateMode);
                 }
 
                 // if the parent directory is empty after the move, delete it
