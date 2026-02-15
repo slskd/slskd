@@ -15,6 +15,8 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
+using System.ComponentModel.DataAnnotations;
+
 namespace slskd.Transfers.API
 {
     public class QueueDownloadRequest
@@ -22,6 +24,8 @@ namespace slskd.Transfers.API
         /// <summary>
         ///     Gets or sets the filename to download.
         /// </summary>
+        [Required]
+        [StringLength(maximumLength: int.MaxValue, MinimumLength = 1)]
         public string Filename { get; set; }
 
         /// <summary>

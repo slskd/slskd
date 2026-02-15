@@ -35,7 +35,6 @@ namespace slskd.Transfers.API
     /// </summary>
     [Route("api/v{version:apiVersion}/[controller]")]
     [ApiVersion("0")]
-    [ApiController]
     [Produces("application/json")]
     [Consumes("application/json")]
     public class TransfersController : ControllerBase
@@ -210,15 +209,21 @@ namespace slskd.Transfers.API
         [ProducesResponseType(201)]
         [ProducesResponseType(typeof(string), 403)]
         [ProducesResponseType(typeof(string), 500)]
-#pragma warning disable CS1573 // Parameter has no matching param tag in the XML comment (but other parameters do)
-#pragma warning disable SA1611 // Element parameters should be documented
-        public async Task<IActionResult> EnqueueAsync([FromRoute, UrlEncoded, Required] string username, [FromBody] IEnumerable<QueueDownloadRequest> requests, CancellationToken cancellationToken = default)
-#pragma warning restore SA1611 // Element parameters should be documented
-#pragma warning restore CS1573 // Parameter has no matching param tag in the XML comment (but other parameters do)
+        public async Task<IActionResult> EnqueueAsync([FromRoute, UrlEncoded, Required] string username, [FromBody] IEnumerable<QueueDownloadRequest> requests)
         {
             if (Program.IsRelayAgent)
             {
                 return Forbid();
+            }
+
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState.GetReadableString());
+            }
+
+            if (!requests.Any())
+            {
+                return BadRequest("At least one file is required");
             }
 
             if (!DownloadRequestLimiter.Wait(0))
@@ -228,7 +233,7 @@ namespace slskd.Transfers.API
 
             try
             {
-                var (enqueued, failed) = await Transfers.Downloads.EnqueueAsync(username, requests.Select(r => (r.Filename, r.Size)), cancellationToken);
+                var (enqueued, failed) = await Transfers.Downloads.EnqueueAsync(username, requests.Select(r => (r.Filename, r.Size)));
 
                 return StatusCode(201, new { Enqueued = enqueued, Failed = failed });
             }
