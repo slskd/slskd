@@ -140,7 +140,7 @@ public class VPNService : IDisposable
         {
             if (disposing)
             {
-                Timer.Dispose();
+                Timer?.Dispose();
             }
 
             Disposed = true;
