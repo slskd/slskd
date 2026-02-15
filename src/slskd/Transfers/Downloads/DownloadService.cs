@@ -585,7 +585,7 @@ namespace slskd.Transfers.Downloads
                         }, cancellationToken: CancellationToken.None); // end downloadEnqueueTask.Run();
 
                         Log.Debug("Download enqueue Task status for {Filename} from {Username}: {Status}", file.Filename, username, downloadEnqueueTask.Status);
-                        Log.Information("Successfully locally enqueued download of {Filename} from {Username} (id: {Id})", file.Filename, username, transfer.Id);
+                        Log.Information("Successfully locally enqueued download of {Filename} from {Username} (id: {Id})", file.Filename, username, transferId);
                         enqueued.Add(transfer);
                     }
                     catch (Exception ex)
