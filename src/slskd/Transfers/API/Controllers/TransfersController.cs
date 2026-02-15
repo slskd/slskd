@@ -226,6 +226,11 @@ namespace slskd.Transfers.API
                 return BadRequest("At least one file is required");
             }
 
+            if (requests.Any(r => r is null))
+            {
+                return BadRequest("One or more records in the request are null");
+            }
+
             if (!DownloadRequestLimiter.Wait(0))
             {
                 return StatusCode(429, "Only one concurrent operation is permitted. Wait until the previous request completes");
