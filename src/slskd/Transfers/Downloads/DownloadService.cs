@@ -253,9 +253,9 @@ namespace slskd.Transfers.Downloads
                 throw new ArgumentException("At least one file is required", nameof(files));
             }
 
-            if (fileList.Any(f => string.IsNullOrWhiteSpace(f.Filename)))
+            if (fileList.Any(f => string.IsNullOrEmpty(f.Filename)))
             {
-                throw new ArgumentException("At least one filename is null, empty, or consists of only whitespace", nameof(files));
+                throw new ArgumentException("At least one filename is null or empty", nameof(files));
             }
 
             if (fileList.Count != fileList.Distinct().Count())
