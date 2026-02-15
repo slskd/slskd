@@ -170,8 +170,12 @@ public class VPNService : IDisposable
 
             try
             {
-                status = await Client.GetStatusAsync()
-                    ?? throw new VPNClientException("VPN client returned an invalid response");
+                status = await Client.GetStatusAsync();
+
+                if (status is null)
+                {
+                    throw new VPNClientException("VPN client returned an invalid response");
+                }
             }
             catch (Exception ex)
             {
