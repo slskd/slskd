@@ -383,15 +383,24 @@ namespace slskd.Transfers.Downloads
                         /*
                             if there are any that haven't ended yet (checking a few ways out of paranoia), then there's already
                             an existing transfer record covering this file, and we're already enqueued. nothing more to do!
-
-                            check the tracked download dictionary in Soulseek.NET to see if it knows about this already
-                            it shouldn't, if the slskd database doesn't. but things could get desynced
                         */
                         existingInProgressRecords.TryGetValue(file.Filename, out var existingInProgressRecord);
 
-                        if (existingInProgressRecord is not null || Client.Downloads.Any(u => u.Username == username && u.Filename == file.Filename))
+                        if (existingInProgressRecord is not null)
                         {
                             Log.Debug("Ignoring concurrent download enqueue attempt; transfer for {Filename} from {Username} already in progress (id: {Id})", file.Filename, username, existingInProgressRecord.Id);
+                            failed.Add(file.Filename);
+                            continue;
+                        }
+
+                        /*
+                            check the tracked download dictionary in Soulseek.NET to see if it knows about this already
+                            it shouldn't, if the slskd database doesn't. but things could get desynced, which is likely a bug
+                            and we'd like to know about it
+                        */
+                        if (Client.Downloads.Any(u => u.Username == username && u.Filename == file.Filename))
+                        {
+                            Log.Warning("Ignoring concurrent download enqueue attempt; transfer for {Filename} from {Username} is tracked by the Soulseek client but not slskd", file.Filename, username);
                             failed.Add(file.Filename);
                             continue;
                         }
