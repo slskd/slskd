@@ -50,11 +50,15 @@ const LoginForm = ({ error, loading, onLoginAttempt }) => {
 
   return (
     <Grid
-      style={{ height: '100vh' }}
+      className="login-grid"
+      style={{ height: '100vh', margin: 0 }}
       textAlign="center"
       verticalAlign="middle"
     >
-      <Grid.Column style={{ maxWidth: 372 }}>
+      <Grid.Column
+        style={{ maxWidth: 372 }}
+        width={16}
+      >
         <Header
           as="h2"
           style={{
