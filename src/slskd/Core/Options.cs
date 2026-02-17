@@ -33,7 +33,6 @@ namespace slskd
     using slskd.Authentication;
     using slskd.Configuration;
     using slskd.Events;
-    using slskd.Integrations.VPN;
     using slskd.Relay;
     using slskd.Shares;
     using slskd.Validation;
@@ -2406,6 +2405,7 @@ namespace slskd
                     [Argument(default, "vpn-gluetun-password")]
                     [EnvironmentVariable("VPN_GLUETUN_PASSWORD")]
                     [Description("password for gluetun control server")]
+                    [Secret]
                     public string Password { get; init; }
 
                     /// <summary>
@@ -2414,6 +2414,7 @@ namespace slskd
                     [Argument(default, "vpn-gluetun-api-key")]
                     [EnvironmentVariable("VPN_GLUETUN_API_KEY")]
                     [Description("API key for gluetun control server")]
+                    [Secret]
                     public string ApiKey { get; init; }
                 }
             }
