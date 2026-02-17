@@ -1,0 +1,301 @@
+/**
+ * Bubblegum Theme for slskd
+ * 
+ * Light mode: Hot pink, bubblegum, and sparkles 💕
+ * Dark mode: Goth vibes with dark purples and blacks 🖤
+ * 
+ * Usage:
+ *   1. Save this file (e.g., /config/bubblegum.css)
+ *   2. Add to slskd.yml:
+ *      web:
+ *        custom_css_path: /config/bubblegum.css
+ *   3. Refresh browser cache
+ */
+
+/* ============================================================
+   Bubblegum LIGHT
+   ============================================================ */
+
+:root {
+  /* === Backgrounds === */
+  --background-color: #ffe6f7 !important;
+  --slskd-primary-background: #ffe6f7;
+  --slskd-secondary-background: #ffc7ea;
+  --slskd-overlay-background: #ffe6f7;
+  --slskd-tertiary-background: #ffb3e0;
+  --slskd-tertiary-border-color: rgba(255, 105, 180, 0.2);
+  --slskd-subtle-background: rgba(255, 20, 147, 0.1);
+  
+  /* === Text === */
+  --slskd-color: #cc0066;
+  --slskd-color-subtle: #ff69b4;
+  --slskd-hover-background: #ffb3e0;
+  --slskd-color-inset: #fff0fa;
+  --slskd-emphasis-background: #ff1493;
+
+  /* === Site globals === */
+  --smui-site-body-text-color: #cc0066;
+  --smui-site-input-color: #cc0066;
+  --smui-site-link-color: #ff1493;
+  --smui-site-link-hover-color: #ff69b4;
+  --slskd-browse-folderlist-header-color: #cc0066;
+  --slskd-browse-folderlist-header-selected-color: #ff1493;
+
+  /* === Buttons === */
+  --smui-button-background-color: #ffc7ea;
+  --smui-button-text-color: #cc0066;
+  --smui-button-border: 1px solid rgba(255, 105, 180, 0.3);
+  --smui-button-hover-background-color: #ff99d6;
+
+  /* === Inputs === */
+  --smui-input-background: #fff0fa;
+  --smui-input-border-color: #ffb3e0;
+  --smui-input-color: #cc0066;
+  --smui-input-placeholder-color: #ff99d6;
+  --smui-input-focus-color: #cc0066;
+
+  /* === Labels === */
+  --smui-label-background-color: #ffc7ea;
+  --smui-label-color: #cc0066;
+
+  /* === Menus === */
+  --smui-menu-inverted-background: #ffc7ea;
+  --smui-menu-active-item-text-color: #cc0066;
+  --smui-menu-background: #ffc7ea;
+  --smui-menu-item-color: #cc0066;
+  --smui-menu-hovered-item-background: #ff99d6;
+  --smui-menu-hovered-item-color: #990050;
+
+  /* === Segments === */
+  --smui-segment-background: #ffe6f7;
+  --smui-segment-ui-header-color: #cc0066;
+  --smui-segment-border: 1px solid rgba(255, 105, 180, 0.2);
+
+  /* === Headers === */
+  --smui-header-text-color: #cc0066;
+
+  /* === Cards === */
+  --smui-card-background: #ffe6f7;
+  --smui-card-border-shadow: 0px 0px 0px 1px rgba(255, 105, 180, 0.3);
+  --smui-card-floating-shadow: 0px 3px 12px rgba(255, 20, 147, 0.15);
+  --smui-card-text-color: #cc0066;
+  --smui-card-meta-color: #ff69b4;
+
+  /* === Tables === */
+  --smui-table-background: #ffe6f7;
+  --smui-table-color: #cc0066;
+  --smui-table-border-color: #ffc7ea;
+  --smui-table-header-background: #ffc7ea;
+  --smui-table-header-color: #cc0066;
+  --smui-table-footer-background: #ffc7ea;
+  --smui-table-footer-color: #cc0066;
+  --smui-table-selectable-background-color: rgba(255, 20, 147, 0.15);
+  --smui-table-row-disabled-color: #ff99d6;
+  --smui-table-row-negative-color: #cc0066;
+  --smui-table-row-negative-background-color: rgba(255, 0, 100, 0.15);
+  --smui-table-row-negative-border-color: rgba(255, 0, 100, 0.4);
+  --smui-table-row-negative-background-hover-color: #ff0064;
+  --smui-table-row-warning-color: #cc0066;
+  --smui-table-row-warning-background-color: rgba(255, 165, 0, 0.15);
+  --smui-table-row-warning-border-color: rgba(255, 165, 0, 0.4);
+  --smui-table-row-warning-background-hover-color: #ffa500;
+
+  /* === Modals === */
+  --smui-modal-background: #ffe6f7;
+  --smui-modal-color: #cc0066;
+  --smui-modal-border: 1px solid rgba(255, 105, 180, 0.2);
+
+  /* === Items === */
+  --smui-item-meta-color: #ff69b4;
+  --smui-item-description-color: #cc0066;
+
+  /* === Semantic colors === */
+  --smui-positive-color: #ff69b4;
+  --smui-warning-color: #ffa500;
+  --smui-negative-color: #ff0064;
+  --smui-info-color: #ff1493;
+
+  /* === Chat === */
+  --slskd-room-message-color: #cc0066;
+  --slskd-room-message-self-color: #ff1493;
+  --slskd-chat-color: #cc0066;
+  --slskd-self-message-background-color: rgba(255, 20, 147, 0.15);
+  --slskd-self-room-message-background-color: rgba(255, 20, 147, 0.15);
+
+  /* === Scrollbar === */
+  scrollbar-color: #ff99d6 #ffc7ea;
+}
+
+/* Light mode scrollbars (Webkit) */
+:root ::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+:root ::-webkit-scrollbar-track {
+  background: #ffc7ea;
+}
+
+:root ::-webkit-scrollbar-thumb {
+  background: #ff99d6;
+  border-radius: 6px;
+}
+
+:root ::-webkit-scrollbar-thumb:hover {
+  background: #ff69b4;
+}
+
+:root ::selection {
+  background: #ff1493;
+  color: #fff0fa;
+}
+
+/* Light mode CodeMirror */
+:root div.cm-content {
+  background-color: #ffe6f7 !important;
+  color: #cc0066 !important;
+}
+
+/* ============================================================
+   Bubblegum DARK
+   ============================================================ */
+
+:root.dark {
+  /* === Backgrounds === */
+  --background-color: #0a0a0a !important;
+  --slskd-primary-background: #0a0a0a;
+  --slskd-secondary-background: #1a0d1a;
+  --slskd-overlay-background: #0a0a0a;
+  --slskd-tertiary-background: #2d1a2d;
+  --slskd-tertiary-border-color: rgba(138, 43, 226, 0.2);
+  --slskd-subtle-background: rgba(75, 0, 130, 0.2);
+  
+  /* === Text === */
+  --slskd-color: #d8b3d8;
+  --slskd-color-subtle: #9966b8;
+  --slskd-hover-background: #2d1a2d;
+  --slskd-color-inset: #1a0d1a;
+  --slskd-emphasis-background: #8b00ff;
+
+  /* === Site globals === */
+  --smui-site-body-text-color: #d8b3d8;
+  --smui-site-input-color: #d8b3d8;
+  --smui-site-link-color: #bf40bf;
+  --smui-site-link-hover-color: #da70d6;
+  --slskd-browse-folderlist-header-color: #d8b3d8;
+  --slskd-browse-folderlist-header-selected-color: #bf40bf;
+
+  /* === Buttons === */
+  --smui-button-background-color: #2d1a2d;
+  --smui-button-text-color: #d8b3d8;
+  --smui-button-border: 1px solid rgba(138, 43, 226, 0.3);
+  --smui-button-hover-background-color: #3d2a3d;
+
+  /* === Inputs === */
+  --smui-input-background: #1a0d1a;
+  --smui-input-border-color: #2d1a2d;
+  --smui-input-color: #d8b3d8;
+  --smui-input-placeholder-color: #9966b8;
+  --smui-input-focus-color: #d8b3d8;
+
+  /* === Labels === */
+  --smui-label-background-color: #2d1a2d;
+  --smui-label-color: #d8b3d8;
+
+  /* === Menus === */
+  --smui-menu-inverted-background: #1a0d1a;
+  --smui-menu-active-item-text-color: #d8b3d8;
+  --smui-menu-background: #1a0d1a;
+  --smui-menu-item-color: #d8b3d8;
+  --smui-menu-hovered-item-background: #2d1a2d;
+  --smui-menu-hovered-item-color: #e6c3e6;
+
+  /* === Segments === */
+  --smui-segment-background: #0a0a0a;
+  --smui-segment-ui-header-color: #d8b3d8;
+  --smui-segment-border: 1px solid rgba(138, 43, 226, 0.2);
+
+  /* === Headers === */
+  --smui-header-text-color: #d8b3d8;
+
+  /* === Cards === */
+  --smui-card-background: #0a0a0a;
+  --smui-card-border-shadow: 0px 0px 0px 1px #2d1a2d;
+  --smui-card-floating-shadow: 0px 2px 4px 0px rgba(138, 43, 226, 0.3);
+  --smui-card-text-color: #d8b3d8;
+  --smui-card-meta-color: #9966b8;
+
+  /* === Tables === */
+  --smui-table-background: #0a0a0a;
+  --smui-table-color: #d8b3d8;
+  --smui-table-border-color: #2d1a2d;
+  --smui-table-header-background: #1a0d1a;
+  --smui-table-header-color: #d8b3d8;
+  --smui-table-footer-background: #1a0d1a;
+  --smui-table-footer-color: #d8b3d8;
+  --smui-table-selectable-background-color: rgba(75, 0, 130, 0.2);
+  --smui-table-row-disabled-color: #9966b8;
+  --smui-table-row-negative-color: #d8b3d8;
+  --smui-table-row-negative-background-color: rgba(139, 0, 0, 0.3);
+  --smui-table-row-negative-border-color: rgba(139, 0, 0, 0.5);
+  --smui-table-row-negative-background-hover-color: #8b0000;
+  --smui-table-row-warning-color: #d8b3d8;
+  --smui-table-row-warning-background-color: rgba(128, 0, 128, 0.3);
+  --smui-table-row-warning-border-color: rgba(128, 0, 128, 0.5);
+  --smui-table-row-warning-background-hover-color: #800080;
+
+  /* === Modals === */
+  --smui-modal-background: #0a0a0a;
+  --smui-modal-color: #d8b3d8;
+  --smui-modal-border: 1px solid rgba(138, 43, 226, 0.2);
+
+  /* === Items === */
+  --smui-item-meta-color: #9966b8;
+  --smui-item-description-color: #d8b3d8;
+
+  /* === Semantic colors === */
+  --smui-positive-color: #ba55d3;
+  --smui-warning-color: #9370db;
+  --smui-negative-color: #8b0000;
+  --smui-info-color: #bf40bf;
+
+  /* === Chat === */
+  --slskd-room-message-color: #d8b3d8;
+  --slskd-room-message-self-color: #da70d6;
+  --slskd-chat-color: #d8b3d8;
+  --slskd-self-message-background-color: rgba(218, 112, 214, 0.2);
+  --slskd-self-room-message-background-color: rgba(218, 112, 214, 0.2);
+
+  /* === Scrollbar === */
+  scrollbar-color: #2d1a2d #0a0a0a;
+}
+
+/* Dark mode scrollbars (Webkit) */
+:root.dark ::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+:root.dark ::-webkit-scrollbar-track {
+  background: #0a0a0a;
+}
+
+:root.dark ::-webkit-scrollbar-thumb {
+  background: #2d1a2d;
+  border-radius: 6px;
+}
+
+:root.dark ::-webkit-scrollbar-thumb:hover {
+  background: #3d2a3d;
+}
+
+:root.dark ::selection {
+  background: #8b00ff;
+  color: #0a0a0a;
+}
+
+/* Dark mode CodeMirror */
+:root.dark div.cm-content {
+  background-color: #0a0a0a !important;
+  color: #d8b3d8 !important;
+}

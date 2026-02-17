@@ -1,7 +1,102 @@
 :root {
-    --background-color: #c8c8c8 !important;
-    --slskd-browse-folderlist-header-color:  black;
+    --background-color: white;
+    --slskd-browse-folderlist-header-color: #24292f;
     --slskd-browse-folderlist-header-selected-color: #0E6EB8;
+
+    /* Primary/Secondary/Tertiary backgrounds */
+    --slskd-primary-background: initial;
+    --slskd-secondary-background: initial;
+    --slskd-overlay-background: initial;
+    --slskd-tertiary-background: initial;
+    --slskd-tertiary-border-color: initial;
+    --slskd-subtle-background: initial;
+    
+    /* Text colors */
+    --slskd-color: initial;
+    --slskd-color-subtle: initial;
+    --slskd-hover-background: initial;
+    --slskd-color-inset: initial;
+    --slskd-emphasis-background: initial;
+
+    /* globals/site */
+    --smui-site-body-text-color: initial;
+    --smui-site-input-color: initial;
+    --smui-site-link-color: initial;
+    --smui-site-link-hover-underline: initial;
+
+    /* element/button */
+    --smui-button-background-color: initial;
+    --smui-button-text-color: initial;
+    --smui-button-border: initial;
+    --smui-button-hover-background-color: initial;
+
+    /* element/input */
+    --smui-input-background: initial;
+    --smui-input-focus-color: initial;
+
+    /* element/label */
+    --smui-label-background-color: initial;
+    --smui-label-color: initial;
+
+    /* collections/menu */
+    --smui-menu-inverted-background: initial;
+    --smui-menu-active-item-text-color: initial;
+
+    /* element/segment */
+    --smui-segment-background: initial;
+    --smui-segment-ui-header-color: initial;
+    --smui-segment-border: initial;
+
+    /* elements/header */
+    --smui-header-text-color: initial;
+
+    /* view/card */
+    --smui-card-background: initial;
+    --smui-card-border-shadow: initial;
+    --smui-card-floating-shadow: initial;
+    --smui-card-text-color: initial;
+    --smui-card-meta-color: initial;
+
+    /* collections/table */
+    --smui-table-background: initial;
+    --smui-table-color: initial;
+    --smui-table-border-color: initial;
+    --smui-table-header-background: initial;
+    --smui-table-header-color: initial;
+    --smui-table-footer-background: initial;
+    --smui-table-footer-color: initial;
+    --smui-table-selectable-background-color: initial;
+    --smui-table-row-disabled-color: initial;
+    --smui-table-row-negative-color: initial;
+    --smui-table-row-negative-background-color: initial;
+    --smui-table-row-negative-border-color: initial;
+    --smui-table-row-negative-background-hover-color: initial;
+    --smui-table-row-warning-color: initial;
+    --smui-table-row-warning-background-color: initial;
+    --smui-table-row-warning-border-color: initial;
+    --smui-table-row-warning-background-hover-color: initial;
+
+    /* modules/modal */
+    --smui-modal-background: initial;
+    --smui-modal-color: initial;
+    --smui-modal-border: initial;
+
+    /* views/item */
+    --smui-item-meta-color: initial;
+    --smui-item-description-color: initial;
+
+    /* modules/dropdown */
+    --smui-menu-background: initial;
+    --smui-menu-item-color: initial;
+    --smui-menu-hovered-item-background: initial;
+    --smui-menu-hovered-item-color: initial;
+
+    /* Chat colors */
+    --slskd-room-message-color: initial;
+    --slskd-room-message-self-color: initial;
+    --slskd-chat-color: initial;
+    --slskd-self-message-background-color: initial;
+    --slskd-self-room-message-background-color: initial;
 }
 
 :root.dark {
@@ -57,7 +152,7 @@
     /* view/card */
     --smui-card-background: var(--slskd-primary-background);
     --smui-card-border-shadow: 0px 0px 0px 1px #2b2b2a;
-    --smui-card-floating-shadow: 0px 2px 4px 0px rgb(221, 219, 217 / 12%), 0px 2px 10px 0px rgb(221, 219, 217 / 15%);
+    --smui-card-floating-shadow: 0px 2px 4px 0px rgba(221,219,217,0.12), 0px 2px 10px 0px rgba(221,219,217,0.15);
     --smui-card-text-color: var(--smui-site-body-text-color);
     --smui-card-meta-color: var(--slskd-color-subtle);
 
@@ -73,10 +168,10 @@
     --smui-table-row-disabled-color: var(--slskd-color-subtle);
     --smui-table-row-negative-color: var(--smui-site-body-text-color);
     --smui-table-row-negative-background-color: rgba(248,81,73,0.15);
-    --smui-table-row-negative-border-color:rgba(248,81,73,0.4);
-    --smui-table-row-negative-background-hover-color:#da3633;
+    --smui-table-row-negative-border-color: rgba(248,81,73,0.4);
+    --smui-table-row-negative-background-hover-color: #da3633;
     --smui-table-row-warning-color: var(--smui-site-body-text-color);
-    --smui-table-row-warning-background-color:rgba(187,128,9,0.15);
+    --smui-table-row-warning-background-color: rgba(187,128,9,0.15);
     --smui-table-row-warning-border-color: rgba(187,128,9,0.4);
     --smui-table-row-warning-background-hover-color: #9e6a03;
 
@@ -235,6 +330,10 @@ body {
 
 .loader-segment.ui.placeholder > :before {
     background-color: transparent !important;
+}
+
+.ui.inverted.dimmer {
+    background-color: var(--slskd-primary-background) !important;
 }
 
 .view {
