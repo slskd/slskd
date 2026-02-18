@@ -26,14 +26,14 @@ namespace slskd
     /// </summary>
     public static class Compute
     {
-        public static (int Delay, int Jitter) ExponentialBackoffDelay(int iteration, int maxDelayInMilliseconds = int.MaxValue)
+        public static (int Delay, int Jitter) ExponentialBackoffDelay(int iteration, int baseDelayInMilliseconds = 1000, int maxDelayInMilliseconds = int.MaxValue)
         {
             iteration = Math.Min(100, iteration);
 
-            var computedDelay = Math.Floor((Math.Pow(2, iteration) - 1) / 2) * 1000;
+            var computedDelay = Math.Floor((Math.Pow(2, iteration) - 1) / 2) * baseDelayInMilliseconds;
             var clampedDelay = (int)Math.Min(computedDelay, maxDelayInMilliseconds);
 
-            var jitter = new Random().Next(1000);
+            var jitter = Random.Shared.Next(baseDelayInMilliseconds);
 
             return (clampedDelay, jitter);
         }
