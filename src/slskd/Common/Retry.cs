@@ -35,6 +35,7 @@ namespace slskd
         /// <param name="onRetry">An action to execute before beginning a retry attempt.</param>
         /// <param name="onFailure">An action to execute on failure.</param>
         /// <param name="maxAttempts">The maximum number of retry attempts.</param>
+        /// <param name="baseDelayInMilliseconds">The base delay in milliseconds.</param>
         /// <param name="maxDelayInMilliseconds">The maximum delay in milliseconds.</param>
         /// <param name="cancellationToken">The token to monitor for cancellation requests.</param>
         /// <returns>The execution context.</returns>
@@ -63,6 +64,7 @@ namespace slskd
         /// <param name="onRetry">An action to execute before beginning a retry attempt.</param>
         /// <param name="onFailure">An action to execute on failure.</param>
         /// <param name="maxAttempts">The maximum number of retry attempts.</param>
+        /// <param name="baseDelayInMilliseconds">The base delay in milliseconds.</param>
         /// <param name="maxDelayInMilliseconds">The maximum delay in milliseconds.</param>
         /// <param name="cancellationToken">The token to monitor for cancellation requests.</param>
         /// <typeparam name="T">The Type of the logic return value.</typeparam>
