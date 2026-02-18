@@ -76,6 +76,16 @@ namespace slskd.Transfers
                 .HasIndex(t => t.Removed)
                 .HasDatabaseName("IDX_Transfers_Removed");
 
+            modelBuilder
+                .Entity<Transfer>()
+                .Property(e => e.Attempts)
+                .HasDefaultValue(0); // force EF to match the migration
+
+            modelBuilder
+                .Entity<Transfer>()
+                .HasIndex(t => t.GroupId)
+                .HasDatabaseName("IDX_Transfers_GroupId");
+
             // covers the check for existing records when enqueueing uploads and downloads
             modelBuilder
                 .Entity<Transfer>()

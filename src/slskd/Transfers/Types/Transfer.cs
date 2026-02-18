@@ -25,6 +25,8 @@ namespace slskd.Transfers
 
     public class Transfer
     {
+        public Guid? GroupId { get; init; } = null;
+
         [Key]
         public Guid Id { get; init; }
         public string Username { get; init; }
@@ -64,6 +66,8 @@ namespace slskd.Transfers
 
         public int? PlaceInQueue { get; set; }
         public string Exception { get; set; }
+
+        public int Attempts { get; set; } = 0;
 
         [JsonIgnore]
         public bool Removed { get; set; }

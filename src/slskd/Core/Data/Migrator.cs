@@ -40,10 +40,11 @@ public class Migrator
 
         Migrations = new()
         {
-            { nameof(Z04012025_TransferStateMigration), new Z04012025_TransferStateMigration(connectionStrings: Databases) },
-            { nameof(Z07062025_TransferIndexesMigration), new Z07062025_TransferIndexesMigration(connectionStrings: Databases) },
-            { nameof(Z07262025_PrivateMessageWasReplayedMigration), new Z07262025_PrivateMessageWasReplayedMigration(connectionStrings: Databases) },
-            { nameof(Z12282025_AdditionalTransferIndexesMigration), new Z12282025_AdditionalTransferIndexesMigration(connectionStrings: Databases) },
+            { nameof(Z2025_04_01_TransferStateMigration), new Z2025_04_01_TransferStateMigration(connectionStrings: Databases) },
+            { nameof(Z2025_07_06_TransferIndexesMigration), new Z2025_07_06_TransferIndexesMigration(connectionStrings: Databases) },
+            { nameof(Z2025_07_26_PrivateMessageWasReplayedMigration), new Z2025_07_26_PrivateMessageWasReplayedMigration(connectionStrings: Databases) },
+            { nameof(Z2025_12_28_AdditionalTransferIndexesMigration), new Z2025_12_28_AdditionalTransferIndexesMigration(connectionStrings: Databases) },
+            { nameof(Z2026_02_17_TransferAttemptsAndGroupIdMigration), new Z2026_02_17_TransferAttemptsAndGroupIdMigration(connectionStrings: Databases) },
         };
     }
 
