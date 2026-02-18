@@ -20,6 +20,7 @@ namespace slskd.Users
     using System.Collections.Generic;
     using System.Net;
     using System.Threading.Tasks;
+    using Soulseek;
 
     /// <summary>
     ///     Provides information and operations for network peers.
@@ -67,6 +68,11 @@ namespace slskd.Users
         ///     Gets the list of watched usernames.
         /// </summary>
         IReadOnlyList<string> WatchedUsernames { get; }
+
+        /// <summary>
+        ///     Gets the presence monitor for the service.
+        /// </summary>
+        IStateMonitor<UserPresence> PresenceMonitor { get; }
 
         /// <summary>
         ///     Gets the name of the group for the specified <paramref name="username"/>.
@@ -152,5 +158,12 @@ namespace slskd.Users
         /// <param name="username">The username of the peer.</param>
         /// <returns>The operation context.</returns>
         Task WatchAsync(string username);
+
+        /// <summary>
+        ///     Sets the <paramref name="presence"/> status for the current user.
+        /// </summary>
+        /// <param name="presence">The new presence status.</param>
+        /// <returns>The operation context.</returns>
+        Task SetPresenceAsync(UserPresence presence);
     }
 }

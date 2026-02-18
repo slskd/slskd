@@ -27,3 +27,7 @@ export const getDirectoryContents = async ({ username, directory }) => {
     })
   ).data;
 };
+
+export const setPresence = async ({ presence }) => {
+  return await api.put(`/users/presence`, presence);
+};

@@ -702,17 +702,19 @@ soulseek:
 
 ## Other
 
-Users can configure "profile" information for other users on the network to view, including a description and a photo.  Note that Soulseek NS doesn't support .PNG,
+Users can configure "profile" information for other users on the network to view, including a description, presence status and a photo.  Note that Soulseek NS doesn't support .PNG,
 so formats .JPG/.JPEG, .GIF, and .BMP are advised.
 
-| Command-Line         | Environment Variable       | Description                                   |
-| -------------------- | -------------------------- | --------------------------------------------- |
-| `--slsk-description` | `SLSKD_SLSK_DESCRIPTION`   | The user description for the Soulseek network |
-| `--slsk-picture`     | `SLSKD_SLSK_PICTURE`       | The user picture for the Soulseek network     |
+| Command-Line         | Environment Variable     | Description                                   |
+|----------------------|--------------------------|-----------------------------------------------|
+| `--slsk-presence`    | `SLSKD_SLSK_PRESENCE`    | The user presence for the Soulseek network    |
+| `--slsk-description` | `SLSKD_SLSK_DESCRIPTION` | The user description for the Soulseek network |
+| `--slsk-picture`     | `SLSKD_SLSK_PICTURE`     | The user picture for the Soulseek network     |
 
 #### **YAML**
 ```yaml
 soulseek:
+  presence: online
   description: A slskd user. https://github.com/slskd/slskd
   picture: path/to/slsk-profile-picture.jpg
 ```

@@ -203,6 +203,7 @@
 #   port: 2271
 #   username: ~
 #   password: ~
+#   presence: online
 #   description: |
 #     A slskd user. https://github.com/slskd/slskd
 #   picture: path/to/slsk-profile-picture.jpg
