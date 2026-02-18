@@ -1,4 +1,4 @@
-// <copyright file="Z12282025_AdditionalTransferIndexesMigration.cs" company="slskd Team">
+// <copyright file="Z2025_07_06_TransferIndexesMigration.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -23,16 +23,16 @@ using Microsoft.Data.Sqlite;
 using Serilog;
 
 /// <summary>
-///     Adds additional indexes to the Transfers table for Removed, Username/Filename, and user upload statistics.
+///     Updates the Transfers table to add indexes on the Direction and State columns.
 /// </summary>
-public class Z12282025_AdditionalTransferIndexesMigration : IMigration
+public class Z2025_07_06_TransferIndexesMigration : IMigration
 {
-    public Z12282025_AdditionalTransferIndexesMigration(ConnectionStringDictionary connectionStrings)
+    public Z2025_07_06_TransferIndexesMigration(ConnectionStringDictionary connectionStrings)
     {
         ConnectionString = connectionStrings[Database.Transfers];
     }
 
-    private ILogger Log { get; } = Serilog.Log.ForContext<Z12282025_AdditionalTransferIndexesMigration>();
+    private ILogger Log { get; } = Serilog.Log.ForContext<Z2025_07_06_TransferIndexesMigration>();
     private string ConnectionString { get; }
 
     public bool NeedsToBeApplied()
@@ -41,11 +41,10 @@ public class Z12282025_AdditionalTransferIndexesMigration : IMigration
         var idxes = SchemaInspector.GetDatabaseIndexes(ConnectionString);
         var txfers = idxes["Transfers"];
 
-        var removedExists = txfers.Any(c => c.Name.Equals("IDX_Transfers_Removed", StringComparison.OrdinalIgnoreCase));
-        var usernameFilenameExists = txfers.Any(c => c.Name.Equals("IDX_Transfers_UsernameFilename", StringComparison.OrdinalIgnoreCase));
-        var statsExist = txfers.Any(c => c.Name.Equals("IDX_Transfers_UserUploadStatistics", StringComparison.OrdinalIgnoreCase));
+        var directionExists = txfers.Any(c => c.Name.Equals("IDX_Transfers_Direction", StringComparison.OrdinalIgnoreCase));
+        var stateExists = txfers.Any(c => c.Name.Equals("IDX_Transfers_State", StringComparison.OrdinalIgnoreCase));
 
-        if (removedExists && usernameFilenameExists && statsExist)
+        if (directionExists && stateExists)
         {
             return false;
         }
@@ -57,7 +56,7 @@ public class Z12282025_AdditionalTransferIndexesMigration : IMigration
     {
         if (!NeedsToBeApplied())
         {
-            Log.Information("> Migration {Name} is not necessary or has already been applied", nameof(Z12282025_AdditionalTransferIndexesMigration));
+            Log.Information("> Migration {Name} is not necessary or has already been applied", nameof(Z2025_07_06_TransferIndexesMigration));
             return;
         }
 
@@ -68,17 +67,17 @@ public class Z12282025_AdditionalTransferIndexesMigration : IMigration
 
         try
         {
-            void Exec(string sql)
-            {
-                using var command = new SqliteCommand(sql, connection, transaction);
-                command.ExecuteNonQuery();
-            }
-
             Log.Information("> Adding missing index(es) on the Transfers table...");
 
-            Exec("CREATE INDEX IF NOT EXISTS IDX_Transfers_Removed ON Transfers (Removed)");
-            Exec("CREATE INDEX IF NOT EXISTS IDX_Transfers_UsernameFilename ON Transfers (Username, Filename)");
-            Exec("CREATE INDEX IF NOT EXISTS IDX_Transfers_UserUploadStatistics ON Transfers (Username, Direction, EndedAt, StartedAt, State, Size)");
+            var directionCommand = new SqliteCommand(@"
+                CREATE INDEX IF NOT EXISTS IDX_Transfers_Direction ON Transfers (Direction)
+            ", connection, transaction);
+            directionCommand.ExecuteNonQuery();
+
+            var stateCommand = new SqliteCommand(@"
+                CREATE INDEX IF NOT EXISTS IDX_Transfers_State ON Transfers (State)
+            ", connection, transaction);
+            stateCommand.ExecuteNonQuery();
 
             Log.Information("> Index(es) created");
             transaction.Commit();

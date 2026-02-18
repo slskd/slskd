@@ -1,4 +1,4 @@
-// <copyright file="Z04012025_TransferStateMigration.cs" company="slskd Team">
+// <copyright file="Z2025_04_01_TransferStateMigration.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -37,14 +37,14 @@ using slskd.Transfers;
 ///     as strings; it tries to use bitwise operators to apply HasFlags(), and these obviously don't
 ///     work against strings. Not sure why EF didn't complain about this, but here we are.
 /// </summary>
-public class Z04012025_TransferStateMigration : IMigration
+public class Z2025_04_01_TransferStateMigration : IMigration
 {
-    public Z04012025_TransferStateMigration(ConnectionStringDictionary connectionStrings)
+    public Z2025_04_01_TransferStateMigration(ConnectionStringDictionary connectionStrings)
     {
         ConnectionString = connectionStrings[Database.Transfers];
     }
 
-    private ILogger Log { get; } = Serilog.Log.ForContext<Z04012025_TransferStateMigration>();
+    private ILogger Log { get; } = Serilog.Log.ForContext<Z2025_04_01_TransferStateMigration>();
     private string ConnectionString { get; }
 
     public bool NeedsToBeApplied()
@@ -61,7 +61,7 @@ public class Z04012025_TransferStateMigration : IMigration
     {
         if (!NeedsToBeApplied())
         {
-            Log.Information("> Migration {Name} is not necessary or has already been applied", nameof(Z04012025_TransferStateMigration));
+            Log.Information("> Migration {Name} is not necessary or has already been applied", nameof(Z2025_04_01_TransferStateMigration));
             return;
         }
 
