@@ -125,6 +125,7 @@ public class WebhookService
                             }
                         },
                         maxAttempts: webhook.Value.Retry.Attempts,
+                        baseDelayInMilliseconds: 1000,
                         maxDelayInMilliseconds: 30000);
 
                     sw.Stop();

@@ -153,6 +153,7 @@ namespace slskd.Integrations.Pushbullet
                     isRetryable: (attempts, ex) => true,
                     onFailure: (attempts, ex) => Log.LogWarning("Failed attempt #{Attempts} to send Pushbullet notification {Title} {Body}: {Message}", attempts, title, body, ex.Message),
                     maxAttempts: PushbulletOptions.RetryAttempts,
+                    baseDelayInMilliseconds: 1000,
                     maxDelayInMilliseconds: 30000);
 
                 Log.LogInformation("Sent Pushbullet notification {Title} {Body}", title, body);
