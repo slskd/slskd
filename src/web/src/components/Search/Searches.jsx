@@ -12,7 +12,9 @@ import { toast } from 'react-toastify';
 import { Button, Icon, Input, Segment } from 'semantic-ui-react';
 import { v4 as uuidv4 } from 'uuid';
 
-const Searches = ({ server } = {}) => {
+const DEFAULT_PAGE_SIZE = 5;
+
+const Searches = ({ pageSize = DEFAULT_PAGE_SIZE, server } = {}) => {
   const [connecting, setConnecting] = useState(true);
   const [error, setError] = useState(undefined);
   const [searches, setSearches] = useState({});
@@ -188,6 +190,7 @@ const Searches = ({ server } = {}) => {
           onCreate={create}
           onRemove={remove}
           onStop={stop}
+          pageSize={pageSize}
           removing={removing}
           search={searches[searchId]}
           stopping={stopping}
