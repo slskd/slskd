@@ -1068,10 +1068,32 @@ namespace slskd
             /// <returns></returns>
             public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
             {
+                var results = new List<ValidationResult>();
+
                 var builtInGroups = new[] { Application.PrivilegedGroup, Application.DefaultGroup, Application.LeecherGroup };
                 var intersection = UserDefined.Keys.Intersect(builtInGroups);
 
-                return intersection.Select(group => new ValidationResult($"User defined group '{group}' collides with a built in group.  Choose a different name."));
+                results.AddRange(intersection.Select(group => new ValidationResult($"User defined group '{group}' collides with a built in group.  Choose a different name.")));
+
+                // Collect all usernames from all groups that have Members
+                var allUsernames = new List<string>();
+
+                // Add usernames from UserDefined groups
+                foreach (var group in UserDefined.Values)
+                {
+                    allUsernames.AddRange(group.Members ?? Array.Empty<string>());
+                }
+
+                // Add usernames from Blacklisted group
+                allUsernames.AddRange(Blacklisted.Members ?? Array.Empty<string>());
+
+                // Check if any username appears more than once
+                if (allUsernames.Count != allUsernames.Distinct().Count())
+                {
+                    results.Add(new ValidationResult("One or more users are defined in more than one group. Each user can only belong to a single group."));
+                }
+
+                return results;
             }
 
             /// <summary>
