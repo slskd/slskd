@@ -32,18 +32,21 @@
             {
                 var options = new Options()
                 {
-                    Groups = new Options.GroupsOptions()
+                    Transfers = new Options.TransfersOptions
                     {
-                        UserDefined = new Dictionary<string, Options.GroupsOptions.UserDefinedOptions>()
-                    {
+                        Groups = new Options.TransfersOptions.GroupsOptions()
                         {
-                            group,
-                            new Options.GroupsOptions.UserDefinedOptions()
+                            UserDefined = new Dictionary<string, Options.TransfersOptions.GroupsOptions.UserDefinedOptions>()
                             {
-                                Members = new[] { username },
+                                {
+                                    group,
+                                    new Options.TransfersOptions.GroupsOptions.UserDefinedOptions()
+                                    {
+                                        Members = new[] { username },
+                                    }
+                                },
                             }
-                        },
-                    }
+                        }
                     }
                 };
 
@@ -60,15 +63,21 @@
             {
                 var options = new Options()
                 {
-                    Groups = new Options.GroupsOptions()
+                    Transfers = new Options.TransfersOptions
                     {
-                        UserDefined = new Dictionary<string, Options.GroupsOptions.UserDefinedOptions>()
-                    {
-                        { group, new Options.GroupsOptions.UserDefinedOptions()
+                        Groups = new Options.TransfersOptions.GroupsOptions()
                         {
-                            Members = new[] { user },
-                        } },
-                    }
+                            UserDefined = new Dictionary<string, Options.TransfersOptions.GroupsOptions.UserDefinedOptions>()
+                            {
+                                {
+                                    group,
+                                    new Options.TransfersOptions.GroupsOptions.UserDefinedOptions()
+                                    {
+                                        Members = new[] { user },
+                                    }
+                                },
+                            }
+                        }
                     }
                 };
 
@@ -89,26 +98,29 @@
             {
                 var options = new Options()
                 {
-                    Groups = new Options.GroupsOptions()
+                    Transfers = new Options.TransfersOptions
                     {
-                        UserDefined = new Dictionary<string, Options.GroupsOptions.UserDefinedOptions>()
+                        Groups = new Options.TransfersOptions.GroupsOptions()
                         {
+                            UserDefined = new Dictionary<string, Options.TransfersOptions.GroupsOptions.UserDefinedOptions>()
                             {
-                                group100,
-                                new Options.GroupsOptions.UserDefinedOptions()
                                 {
-                                    Upload = new Options.GroupsOptions.UploadOptions() { Priority = 100 },
-                                    Members = new[] { user },
-                                }
-                            },
-                            {
-                                group0,
-                                new Options.GroupsOptions.UserDefinedOptions()
+                                    group100,
+                                    new Options.TransfersOptions.GroupsOptions.UserDefinedOptions()
+                                    {
+                                        Upload = new Options.TransfersOptions.GroupsOptions.BaseGroupOptions.GroupUploadOptions() { Priority = 100 },
+                                        Members = new[] { user },
+                                    }
+                                },
                                 {
-                                    Upload = new Options.GroupsOptions.UploadOptions() { Priority = 0 },
-                                    Members = new[] { user },
-                                }
-                            },
+                                    group0,
+                                    new Options.TransfersOptions.GroupsOptions.UserDefinedOptions()
+                                    {
+                                        Upload = new Options.TransfersOptions.GroupsOptions.BaseGroupOptions.GroupUploadOptions() { Priority = 0 },
+                                        Members = new[] { user },
+                                    }
+                                },
+                            }
                         }
                     }
                 };

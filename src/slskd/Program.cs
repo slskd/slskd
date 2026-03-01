@@ -681,8 +681,8 @@ namespace slskd
             // complete configuration at startup.
             services.AddSingleton<ISoulseekClient, SoulseekClient>(_ =>
                 new SoulseekClient(options: new SoulseekClientOptions(
-                    maximumConcurrentUploads: OptionsAtStartup.Global.Upload.Slots,
-                    maximumConcurrentDownloads: OptionsAtStartup.Global.Download.Slots,
+                    maximumConcurrentUploads: OptionsAtStartup.Transfers.Upload.Slots,
+                    maximumConcurrentDownloads: OptionsAtStartup.Transfers.Download.Slots,
                     minimumDiagnosticLevel: OptionsAtStartup.Soulseek.DiagnosticLevel.ToEnum<Soulseek.Diagnostics.DiagnosticLevel>(),
                     maximumConcurrentSearches: 2,
                     raiseEventsAsynchronously: true)));

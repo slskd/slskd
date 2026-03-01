@@ -139,9 +139,9 @@ namespace slskd.Transfers
                 return new(capacity, interval: intervalInMs);
             }
 
-            var optionsHash = Compute.Sha1Hash(options.Groups.ToJson());
+            var optionsHash = Compute.Sha1Hash(options.Transfers.Groups.ToJson());
 
-            if (optionsHash == LastOptionsHash && options.Global.Upload.SpeedLimit == LastGlobalSpeedLimit)
+            if (optionsHash == LastOptionsHash && options.Transfers.Upload.SpeedLimit == LastGlobalSpeedLimit)
             {
                 return;
             }
@@ -153,19 +153,19 @@ namespace slskd.Transfers
             // also, so transfers in progress will briefly exceed the intended speeds.
             var tokenBuckets = new Dictionary<string, ITokenBucket>()
             {
-                { Application.PrivilegedGroup, CreateBucket(speedInKiB: options.Global.Upload.SpeedLimit) },
-                { Application.DefaultGroup, CreateBucket(speedInKiB: options.Groups.Default.Upload.SpeedLimit) },
-                { Application.LeecherGroup, CreateBucket(speedInKiB: options.Groups.Leechers.Upload.SpeedLimit) },
+                { Application.PrivilegedGroup, CreateBucket(speedInKiB: options.Transfers.Upload.SpeedLimit) },
+                { Application.DefaultGroup, CreateBucket(speedInKiB: options.Transfers.Groups.Default.Upload.SpeedLimit) },
+                { Application.LeecherGroup, CreateBucket(speedInKiB: options.Transfers.Groups.Leechers.Upload.SpeedLimit) },
             };
 
-            foreach (var group in options.Groups.UserDefined)
+            foreach (var group in options.Transfers.Groups.UserDefined)
             {
                 tokenBuckets.Add(group.Key, CreateBucket(group.Value.Upload.SpeedLimit));
             }
 
             TokenBuckets = tokenBuckets;
 
-            LastGlobalSpeedLimit = options.Global.Upload.SpeedLimit;
+            LastGlobalSpeedLimit = options.Transfers.Upload.SpeedLimit;
             LastOptionsHash = optionsHash;
         }
     }
