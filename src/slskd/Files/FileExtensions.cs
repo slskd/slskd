@@ -59,4 +59,32 @@ public static class FileExtensions
 
         return (UnixFileMode)mode;
     }
+
+    /// <summary>
+    ///     Returns the specified <paramref name="unixFileMode"/> with execute flags added for each read flag, ensuring that the resulting
+    ///     mask can be used for directories (which require the execute flag for traversal).
+    /// </summary>
+    /// <param name="unixFileMode">The existing mode.</param>
+    /// <returns>The updated mode.</returns>
+    public static UnixFileMode WithExecuteFlagsForEachReadFlag(this UnixFileMode unixFileMode)
+    {
+        var u = unixFileMode;
+
+        if (u.HasFlag(UnixFileMode.UserRead))
+        {
+            u |= UnixFileMode.UserExecute;
+        }
+
+        if (u.HasFlag(UnixFileMode.GroupRead))
+        {
+            u |= UnixFileMode.GroupExecute;
+        }
+
+        if (u.HasFlag(UnixFileMode.OtherRead))
+        {
+            u |= UnixFileMode.OtherExecute;
+        }
+
+        return u;
+    }
 }
