@@ -333,7 +333,7 @@ namespace slskd.Files
             {
                 if (!OperatingSystem.IsWindows() && unixCreateMode.HasValue)
                 {
-                    Directory.CreateDirectory(path, unixCreateMode.Value);
+                    Directory.CreateDirectory(path, unixCreateMode.Value.WithExecuteFlagsForEachReadFlag());
                 }
                 else
                 {
@@ -407,7 +407,7 @@ namespace slskd.Files
             {
                 if (!OperatingSystem.IsWindows() && unixCreateMode.HasValue)
                 {
-                    Directory.CreateDirectory(destinationDirectory, unixCreateMode.Value);
+                    Directory.CreateDirectory(destinationDirectory, unixCreateMode.Value.WithExecuteFlagsForEachReadFlag());
                 }
                 else
                 {
