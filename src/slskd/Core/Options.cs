@@ -988,7 +988,7 @@ namespace slskd
                 ///     and have not been added as a member of any group.
                 /// </remarks>
                 [Validate]
-                public GroupOptions Default { get; init; } = new GroupOptions();
+                public BaseGroupOptions Default { get; init; } = new BaseGroupOptions();
 
                 /// <summary>
                 ///     Gets options for the leecher user group.
@@ -1027,7 +1027,7 @@ namespace slskd
                 /// <summary>
                 ///     Options that are common to all groups.
                 /// </summary>
-                public class GroupOptions
+                public class BaseGroupOptions
                 {
                     /// <summary>
                     ///     Gets upload options.
@@ -1075,7 +1075,7 @@ namespace slskd
                 /// <summary>
                 ///     Built in leecher group options.
                 /// </summary>
-                public class LeecherOptions : GroupOptions
+                public class LeecherOptions : BaseGroupOptions
                 {
                     /// <summary>
                     ///     Gets leecher threshold options.
@@ -1150,7 +1150,7 @@ namespace slskd
                 /// <summary>
                 ///     User defined user group options.
                 /// </summary>
-                public class UserDefinedOptions : GroupOptions
+                public class UserDefinedOptions : BaseGroupOptions
                 {
                     /// <summary>
                     ///     Gets the list of group member usernames.
