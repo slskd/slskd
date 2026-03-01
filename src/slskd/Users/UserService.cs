@@ -172,7 +172,7 @@ namespace slskd.Users
                     return user.Group;
                 }
 
-                var thresholds = OptionsMonitor.CurrentValue.Groups.Leechers.Thresholds;
+                var thresholds = OptionsMonitor.CurrentValue.Transfers.Groups.Leechers.Thresholds;
 
                 if (user.Statistics?.FileCount < thresholds.Files || user.Statistics?.DirectoryCount < thresholds.Directories)
                 {
@@ -276,7 +276,7 @@ namespace slskd.Users
         /// <returns>A value indicating whether the specified user and/or IP are blacklisted.</returns>
         public bool IsBlacklisted(string username, IPAddress ipAddress = null)
         {
-            var blacklist = OptionsMonitor.CurrentValue.Groups.Blacklisted;
+            var blacklist = OptionsMonitor.CurrentValue.Transfers.Groups.Blacklisted;
 
             if (blacklist.Members.Contains(username))
             {
@@ -364,14 +364,14 @@ namespace slskd.Users
 
         private void Configure(Options options, bool force = false)
         {
-            var optionsHash = Compute.Sha1Hash(options.Groups.UserDefined.ToJson());
+            var optionsHash = Compute.Sha1Hash(options.Transfers.Groups.UserDefined.ToJson());
 
             if (optionsHash != LastOptionsHash || force)
             {
                 // get a list of tracked names that haven't been explicitly added to any group, including those that were previously
                 // configured but have now been removed
                 var usernamesBeforeUpdate = UserDictionary.Keys.ToList();
-                var usernamesAfterUpdate = options.Groups.UserDefined.SelectMany(g => g.Value.Members);
+                var usernamesAfterUpdate = options.Transfers.Groups.UserDefined.SelectMany(g => g.Value.Members);
                 var usernamesRemoved = usernamesBeforeUpdate.Except(usernamesAfterUpdate);
 
                 // clear the configured group for anyone that was removed from config, or that was added transiently
@@ -385,7 +385,7 @@ namespace slskd.Users
 
                 // sort by priority, descending. this will cause the highest priority group for the user to be persisted when the
                 // operation is complete.
-                foreach (var group in options.Groups.UserDefined.OrderByDescending(kvp => kvp.Value.Upload.Priority))
+                foreach (var group in options.Transfers.Groups.UserDefined.OrderByDescending(kvp => kvp.Value.Upload.Priority))
                 {
                     foreach (var username in group.Value.Members)
                     {
