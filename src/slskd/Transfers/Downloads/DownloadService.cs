@@ -998,30 +998,63 @@ namespace slskd.Transfers.Downloads
                     }),
                     disposeOutputStreamOnCompletion: true);
 
+                var retryOptions = OptionsMonitor.CurrentValue.Transfers.Download.Retry;
+
                 System.IO.UnixFileMode? unixFileMode = !string.IsNullOrEmpty(OptionsMonitor.CurrentValue.Permissions.File.Mode)
                     ? OptionsMonitor.CurrentValue.Permissions.File.Mode.ToUnixFileMode()
                     : null;
 
-                Log.Debug("Invoking Soulseek DownloadAsync() for {Filename} from {Username}", transfer.Filename, transfer.Username);
+                var incompleteFilename = transfer.Filename.ToLocalFilename(baseDirectory: OptionsMonitor.CurrentValue.Directories.Incomplete);
+                var incompleteFileInfo = Files.ResolveFileInfo(incompleteFilename);
+                var incompleteStrategy = retryOptions.Incomplete.ToEnum<RetryIncompleteStrategy>();
 
-                var completedTransfer = await Client.DownloadAsync(
-                    username: transfer.Username,
-                    remoteFilename: transfer.Filename,
-                    outputStreamFactory: () => Task.FromResult(
-                        Files.CreateFile(
-                            filename: transfer.Filename.ToLocalFilename(baseDirectory: OptionsMonitor.CurrentValue.Directories.Incomplete),
-                            options: new CreateFileOptions
-                            {
-                                Access = System.IO.FileAccess.Write,
-                                Mode = System.IO.FileMode.Create, // overwrites file if it exists
-                                Share = System.IO.FileShare.None, // exclusive access for the duration of the download
-                                UnixCreateMode = unixFileMode,
-                            })),
-                    size: transfer.Size,
-                    startOffset: 0,
-                    token: null,
-                    cancellationToken: cancellationToken,
-                    options: topts);
+                bool shouldResume = incompleteFileInfo.Exists && incompleteFileInfo.Length > 0 && incompleteStrategy == RetryIncompleteStrategy.Resume;
+
+                Log.Debug("Invoking Soulseek DownloadAsync() for {Filename} from {Username}", transfer.Filename, transfer.Username);
+                transfer.Attempts = 1;
+                SynchronizedUpdate(transfer, semaphore: updateSyncRoot, cancellationToken: CancellationToken.None);
+
+
+                var completedTransfer = await Retry.Do(() => Client.DownloadAsync(
+                        username: transfer.Username,
+                        remoteFilename: transfer.Filename,
+                        outputStreamFactory: () => Task.FromResult(
+                            Files.CreateFile(
+                                filename: incompleteFilename,
+                                options: new CreateFileOptions
+                                {
+                                    Access = System.IO.FileAccess.Write,
+                                    Mode = shouldResume ? System.IO.FileMode.Append : System.IO.FileMode.Create,
+                                    Share = System.IO.FileShare.None, // exclusive access for the duration of the download
+                                    UnixCreateMode = unixFileMode,
+                                })),
+                        size: transfer.Size,
+                        startOffset: shouldResume ? incompleteFileInfo.Length : 0,
+                        token: null,
+                        cancellationToken: cancellationToken,
+                        options: topts),
+                    isRetryable: (attempts, ex) =>
+                        ex is not OperationCanceledException
+                        && ex is not TransferRejectedException
+                        && ex is not DuplicateTransferException
+                        && ex is not TransferSizeMismatchException,
+                    onRetry: (attempts, delay) =>
+                    {
+                        Log.Information("Waiting about {Delay} second(s) to retry attempt #{Attempt} to download {Filename} from user {Username} in {Delay}ms", (int)Math.Ceiling((double)delay / 1000), attempts, transfer.Filename, transfer.Username);
+
+                        transfer.Attempts = attempts;
+                        transfer.State = TransferStates.Queued | TransferStates.Locally;
+                        SynchronizedUpdate(transfer, updateSyncRoot);
+                    },
+                    onFailure: (attempts, ex) =>
+                    {
+                        Console.WriteLine($"---------------------------------------------{ex.GetType()}");
+                        Log.Warning("Failed attempt #{Attempts} to download {Filename} from user {Username}: {Message}", attempts, transfer.Filename, transfer.Username, ex.Message);
+                    },
+                    maxAttempts: retryOptions.Attempts,
+                    baseDelayInMilliseconds: retryOptions.Delay,
+                    maxDelayInMilliseconds: retryOptions.MaxDelay,
+                    cancellationToken: cancellationToken);
 
                 Log.Debug("Invocation of Soulseek DownloadAsync() for {Filename} from user {Username} completed successfully", transfer.Filename, transfer.Username);
 
