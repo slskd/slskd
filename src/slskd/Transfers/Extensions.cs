@@ -23,7 +23,7 @@ namespace slskd.Transfers
         {
             return new Transfer()
             {
-                GroupId = transfer.GroupId,
+                BatchId = transfer.BatchId,
                 Id = transfer.Id,
                 Username = transfer.Username,
                 Direction = transfer.Direction,

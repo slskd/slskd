@@ -83,8 +83,8 @@ namespace slskd.Transfers
 
             modelBuilder
                 .Entity<Transfer>()
-                .HasIndex(t => t.GroupId)
-                .HasDatabaseName("IDX_Transfers_GroupId");
+                .HasIndex(t => t.BatchId)
+                .HasDatabaseName("IDX_Transfers_BatchId");
 
             // covers the check for existing records when enqueueing uploads and downloads
             modelBuilder

@@ -25,7 +25,7 @@ namespace slskd.Transfers
 
     public class Transfer
     {
-        public Guid? GroupId { get; init; } = null;
+        public Guid? BatchId { get; init; } = null;
 
         [Key]
         public Guid Id { get; init; }
