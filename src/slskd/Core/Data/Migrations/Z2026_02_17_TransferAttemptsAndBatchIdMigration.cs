@@ -1,4 +1,4 @@
-// <copyright file="Z2026_02_17_TransferAttemptsAndGroupIdMigration.cs" company="slskd Team">
+// <copyright file="Z2026_02_17_TransferAttemptsAndBatchIdMigration.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -24,16 +24,16 @@ using Serilog;
 using slskd.Transfers;
 
 /// <summary>
-///     Updates the Transfers table to add Attempts and GroupId columns.
+///     Updates the Transfers table to add Attempts and BatchId columns.
 /// </summary>
-public class Z2026_02_17_TransferAttemptsAndGroupIdMigration : IMigration
+public class Z2026_02_17_TransferAttemptsAndBatchIdMigration : IMigration
 {
-    public Z2026_02_17_TransferAttemptsAndGroupIdMigration(ConnectionStringDictionary connectionStrings)
+    public Z2026_02_17_TransferAttemptsAndBatchIdMigration(ConnectionStringDictionary connectionStrings)
     {
         ConnectionString = connectionStrings[Database.Transfers];
     }
 
-    private ILogger Log { get; } = Serilog.Log.ForContext<Z2026_02_17_TransferAttemptsAndGroupIdMigration>();
+    private ILogger Log { get; } = Serilog.Log.ForContext<Z2026_02_17_TransferAttemptsAndBatchIdMigration>();
     private string ConnectionString { get; }
 
     public bool NeedsToBeApplied()
@@ -44,10 +44,10 @@ public class Z2026_02_17_TransferAttemptsAndGroupIdMigration : IMigration
         var columns = schema["Transfers"];
         var indexes = idxes["Transfers"];
 
-        // check to see if the Attempts and GroupId columns exist
+        // check to see if the Attempts and BatchId columns exist
         if (columns.Any(c => c.Name == nameof(Transfer.Attempts))
-            && columns.Any(c => c.Name == nameof(Transfer.GroupId))
-            && indexes.Any(i => i.Name.Equals("IDX_Transfers_GroupId", StringComparison.OrdinalIgnoreCase)))
+            && columns.Any(c => c.Name == nameof(Transfer.BatchId))
+            && indexes.Any(i => i.Name.Equals("IDX_Transfers_BatchId", StringComparison.OrdinalIgnoreCase)))
         {
             return false;
         }
@@ -59,7 +59,7 @@ public class Z2026_02_17_TransferAttemptsAndGroupIdMigration : IMigration
     {
         if (!NeedsToBeApplied())
         {
-            Log.Information("> Migration {Name} is not necessary or has already been applied", nameof(Z2026_02_17_TransferAttemptsAndGroupIdMigration));
+            Log.Information("> Migration {Name} is not necessary or has already been applied", nameof(Z2026_02_17_TransferAttemptsAndBatchIdMigration));
             return;
         }
 
@@ -78,11 +78,11 @@ public class Z2026_02_17_TransferAttemptsAndGroupIdMigration : IMigration
                 command.ExecuteNonQuery();
             }
 
-            Log.Information("> Adding GroupId and Attempts columns to the Transfers table...");
+            Log.Information("> Adding BatchId and Attempts columns to the Transfers table...");
 
-            if (!columns.Any(c => c.Name == nameof(Transfer.GroupId)))
+            if (!columns.Any(c => c.Name == nameof(Transfer.BatchId)))
             {
-                Exec("ALTER TABLE Transfers ADD COLUMN GroupId TEXT NULL;");
+                Exec("ALTER TABLE Transfers ADD COLUMN BatchId TEXT NULL;");
             }
 
             if (!columns.Any(c => c.Name == nameof(Transfer.Attempts)))
@@ -94,7 +94,7 @@ public class Z2026_02_17_TransferAttemptsAndGroupIdMigration : IMigration
 
             Log.Information("> Adding missing index(es) on the Transfers table...");
 
-            Exec("CREATE INDEX IF NOT EXISTS IDX_Transfers_GroupId ON Transfers (GroupId)");
+            Exec("CREATE INDEX IF NOT EXISTS IDX_Transfers_BatchId ON Transfers (BatchId)");
 
             Log.Information("> Index(es) created");
             transaction.Commit();
