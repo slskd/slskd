@@ -162,8 +162,9 @@ namespace slskd.Relay
                         Log.Warning("Failed attempt #{Attempts} to connect to relay controller: {Message}", attempts, ex.Message);
                     },
                     maxAttempts: int.MaxValue,
+                    baseDelayInMilliseconds: 1000,
                     maxDelayInMilliseconds: 30000,
-                    StartCancellationTokenSource.Token);
+                    cancellationToken: StartCancellationTokenSource.Token);
             }
             finally
             {
@@ -482,6 +483,7 @@ namespace slskd.Relay
                 isRetryable: (_, _) => true,
                 onFailure: (_, ex) => Log.Error(ex, "Failed to handle file download notification for {Filename} ({Token})", filename, token),
                 maxAttempts: 3,
+                baseDelayInMilliseconds: 1000,
                 maxDelayInMilliseconds: 60000);
 
                 Log.Information("File {Filename} successfully downloaded to {Destination}", filename, destinationFile);
@@ -592,8 +594,9 @@ namespace slskd.Relay
                     isRetryable: (_, _) => true,
                     onFailure: (count, ex) => Log.Warning("Failed attempt #{Attempts} to obtain share upload token: {Message}", count, ex.Message),
                     maxAttempts: 3,
+                    baseDelayInMilliseconds: 1000,
                     maxDelayInMilliseconds: 5000,
-                    cancellationToken);
+                    cancellationToken: cancellationToken);
 
                 Log.Debug("Share upload token {Token}", token);
 
