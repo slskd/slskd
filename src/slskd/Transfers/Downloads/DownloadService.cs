@@ -922,6 +922,7 @@ namespace slskd.Transfers.Downloads
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, cancellationTokenSource?.Token ?? CancellationToken.None);
             cancellationToken = cts.Token;
 
+            var retryOptions = OptionsMonitor.CurrentValue.Transfers.Download.Retry;
             var updateSyncRoot = new SemaphoreSlim(1, 1);
 
             try
@@ -950,6 +951,16 @@ namespace slskd.Transfers.Downloads
                             if (args.Transfer.State.HasFlag(TransferStates.Queued) && args.Transfer.State.HasFlag(TransferStates.Remotely))
                             {
                                 transfer.EnqueuedAt ??= DateTime.UtcNow;
+                            }
+
+                            // important! the transfer on the Soulseek.NET side may have completed, but the slskd transfer
+                            // *might* still have remaining retry attempts. leave this non-committal for now, and allow
+                            // the final update after all retry attempts have been exhausted to add it.
+                            // this means that the ONLY way to check whether a transfer is really 'dead' inclusive of all
+                            // retries is to look for this flag
+                            if (transfer.Attempts < retryOptions.Attempts)
+                            {
+                                transfer.State &= ~TransferStates.Completed; // remove the Completed flag
                             }
 
                             // todo: broadcast
@@ -998,8 +1009,6 @@ namespace slskd.Transfers.Downloads
                     }),
                     disposeOutputStreamOnCompletion: true);
 
-                var retryOptions = OptionsMonitor.CurrentValue.Transfers.Download.Retry;
-
                 System.IO.UnixFileMode? unixFileMode = !string.IsNullOrEmpty(OptionsMonitor.CurrentValue.Permissions.File.Mode)
                     ? OptionsMonitor.CurrentValue.Permissions.File.Mode.ToUnixFileMode()
                     : null;
@@ -1013,7 +1022,6 @@ namespace slskd.Transfers.Downloads
                 Log.Debug("Invoking Soulseek DownloadAsync() for {Filename} from {Username}", transfer.Filename, transfer.Username);
                 transfer.Attempts = 1;
                 SynchronizedUpdate(transfer, semaphore: updateSyncRoot, cancellationToken: CancellationToken.None);
-
 
                 var completedTransfer = await Retry.Do(() => Client.DownloadAsync(
                         username: transfer.Username,
@@ -1048,7 +1056,6 @@ namespace slskd.Transfers.Downloads
                     },
                     onFailure: (attempts, ex) =>
                     {
-                        Console.WriteLine($"---------------------------------------------{ex.GetType()}");
                         Log.Warning("Failed attempt #{Attempts} to download {Filename} from user {Username}: {Message}", attempts, transfer.Filename, transfer.Username, ex.Message);
                     },
                     maxAttempts: retryOptions.Attempts,
@@ -1177,6 +1184,7 @@ namespace slskd.Transfers.Downloads
 
             try
             {
+                Log.Warning("-------------------> Synchronized update for transfer: {Filename}; state: {State}, attempts: {Attempts}, endedAt: {EndedAt}, exception: {Exception}", transfer.Filename, transfer.State, transfer.Attempts, transfer.EndedAt, transfer.Exception);
                 Update(transfer);
             }
             finally
