@@ -45,7 +45,6 @@ services:
       - WIREGUARD_PRIVATE_KEY=<your key>
       - SERVER_COUNTRIES=Netherlands
       - VPN_PORT_FORWARDING=on
-      - GLUETUN_HTTP_CONTROL_SERVER_ENABLE=on
       - HTTP_CONTROL_SERVER_AUTH_DEFAULT_ROLE='{"auth":"apikey","apikey":"abcd123"}'
     restart: unless-stopped
   slskd:
