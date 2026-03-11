@@ -1014,33 +1014,52 @@ namespace slskd.Transfers.Downloads
                     : null;
 
                 var incompleteFilename = transfer.Filename.ToLocalFilename(baseDirectory: OptionsMonitor.CurrentValue.Directories.Incomplete);
-                var incompleteFileInfo = Files.ResolveFileInfo(incompleteFilename);
-                var incompleteStrategy = retryOptions.Incomplete.ToEnum<RetryIncompleteStrategy>();
-
-                bool shouldResume = incompleteFileInfo.Exists && incompleteFileInfo.Length > 0 && incompleteStrategy == RetryIncompleteStrategy.Resume;
 
                 Log.Debug("Invoking Soulseek DownloadAsync() for {Filename} from {Username}", transfer.Filename, transfer.Username);
                 transfer.Attempts = 1;
                 SynchronizedUpdate(transfer, semaphore: updateSyncRoot, cancellationToken: CancellationToken.None);
 
-                var completedTransfer = await Retry.Do(() => Client.DownloadAsync(
-                        username: transfer.Username,
-                        remoteFilename: transfer.Filename,
-                        outputStreamFactory: () => Task.FromResult(
-                            Files.CreateFile(
-                                filename: incompleteFilename,
-                                options: new CreateFileOptions
-                                {
-                                    Access = System.IO.FileAccess.Write,
-                                    Mode = shouldResume ? System.IO.FileMode.Append : System.IO.FileMode.Create,
-                                    Share = System.IO.FileShare.None, // exclusive access for the duration of the download
-                                    UnixCreateMode = unixFileMode,
-                                })),
-                        size: transfer.Size,
-                        startOffset: shouldResume ? incompleteFileInfo.Length : 0,
-                        token: null,
-                        cancellationToken: cancellationToken,
-                        options: topts),
+                var completedTransfer = await Retry.Do(() =>
+                    {
+                        var incompleteFileInfo = Files.ResolveFileInfo(incompleteFilename);
+                        var incompleteStrategy = retryOptions.Incomplete.ToEnum<RetryIncompleteStrategy>();
+
+                        var shouldResume = false;
+                        var startOffset = 0L;
+
+                        if (incompleteFileInfo.Exists && incompleteFileInfo.Length > 0)
+                        {
+                            if (incompleteStrategy == RetryIncompleteStrategy.Resume)
+                            {
+                                shouldResume = true;
+                                startOffset = incompleteFileInfo.Length;
+                                Log.Information("Resuming download of {Filename} from user {Username} at offset {Offet}", transfer.Filename, transfer.Username, incompleteFileInfo.Length);
+                            }
+                            else
+                            {
+                                Log.Information("Overwriting partial download of {Length} bytes for download of {Filename} from user {Username} at offset {Offet}", incompleteFileInfo.Length, transfer.Filename, transfer.Username);
+                            }
+                        }
+
+                        return Client.DownloadAsync(
+                            username: transfer.Username,
+                            remoteFilename: transfer.Filename,
+                            outputStreamFactory: () => Task.FromResult(
+                                Files.CreateFile(
+                                    filename: incompleteFilename,
+                                    options: new CreateFileOptions
+                                    {
+                                        Access = System.IO.FileAccess.Write,
+                                        Mode = shouldResume ? System.IO.FileMode.Append : System.IO.FileMode.Create,
+                                        Share = System.IO.FileShare.None, // exclusive access for the duration of the download
+                                        UnixCreateMode = unixFileMode,
+                                    })),
+                            size: transfer.Size,
+                            startOffset: startOffset,
+                            token: null,
+                            cancellationToken: cancellationToken,
+                            options: topts);
+                    },
                     isRetryable: (attempts, ex) =>
                         ex is not OperationCanceledException
                         && ex is not TransferRejectedException
