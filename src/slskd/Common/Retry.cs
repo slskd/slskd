@@ -37,6 +37,7 @@ namespace slskd
         /// <param name="maxAttempts">The maximum number of retry attempts.</param>
         /// <param name="baseDelayInMilliseconds">The base delay in milliseconds.</param>
         /// <param name="maxDelayInMilliseconds">The maximum delay in milliseconds.</param>
+        /// <param name="exceptionHistoryLimit">The maximum number of Exceptions to keep in history.</param>
         /// <param name="cancellationToken">The token to monitor for cancellation requests.</param>
         /// <returns>The execution context.</returns>
         public static async Task Do(
@@ -47,13 +48,14 @@ namespace slskd
             int maxAttempts = 3,
             int baseDelayInMilliseconds = 1000,
             int maxDelayInMilliseconds = int.MaxValue,
+            int exceptionHistoryLimit = 5,
             CancellationToken cancellationToken = default)
         {
             await Do<object>(async () =>
             {
                 await task();
                 return Task.FromResult<object>(null);
-            }, isRetryable, onRetry, onFailure, maxAttempts, baseDelayInMilliseconds, maxDelayInMilliseconds, cancellationToken);
+            }, isRetryable, onRetry, onFailure, maxAttempts, baseDelayInMilliseconds, maxDelayInMilliseconds, exceptionHistoryLimit, cancellationToken);
         }
 
         /// <summary>
@@ -66,6 +68,7 @@ namespace slskd
         /// <param name="maxAttempts">The maximum number of retry attempts.</param>
         /// <param name="baseDelayInMilliseconds">The base delay in milliseconds.</param>
         /// <param name="maxDelayInMilliseconds">The maximum delay in milliseconds.</param>
+        /// <param name="exceptionHistoryLimit">The maximum number of Exceptions to keep in history.</param>
         /// <param name="cancellationToken">The token to monitor for cancellation requests.</param>
         /// <typeparam name="T">The Type of the logic return value.</typeparam>
         /// <returns>The execution context.</returns>
@@ -77,11 +80,12 @@ namespace slskd
             int maxAttempts = 3,
             int baseDelayInMilliseconds = 1000,
             int maxDelayInMilliseconds = int.MaxValue,
+            int exceptionHistoryLimit = 5,
             CancellationToken cancellationToken = default)
         {
             isRetryable ??= (_, _) => true;
 
-            var exceptions = new List<Exception>();
+            var exceptions = new Queue<Exception>();
 
             for (int attempts = 0; attempts < maxAttempts; attempts++)
             {
@@ -104,7 +108,12 @@ namespace slskd
                 }
                 catch (Exception ex)
                 {
-                    exceptions.Add(ex);
+                    exceptions.Enqueue(ex);
+
+                    if (exceptions.Count > exceptionHistoryLimit)
+                    {
+                        exceptions.Dequeue();
+                    }
 
                     try
                     {
