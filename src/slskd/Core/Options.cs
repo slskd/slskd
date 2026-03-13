@@ -36,6 +36,7 @@ namespace slskd
     using slskd.Relay;
     using slskd.Shares;
     using slskd.Validation;
+    using Soulseek;
     using Utility.CommandLine;
     using Utility.EnvironmentVariables;
     using YamlDotNet.Serialization;
@@ -1591,7 +1592,7 @@ namespace slskd
         /// <summary>
         ///     Soulseek client options.
         /// </summary>
-        public class SoulseekOptions
+        public class SoulseekOptions : IValidatableObject
         {
             /// <summary>
             ///     Gets the address of the Soulseek server.
@@ -1630,6 +1631,15 @@ namespace slskd
             [Secret]
             [RequiresReconnect]
             public string Password { get; init; } = null;
+
+            /// <summary>
+            ///     Gets the presence status of the Soulseek user.
+            /// </summary>
+            [Argument(default, "slsk-presence")]
+            [EnvironmentVariable("SLSK_PRESENCE")]
+            [Description("presence status for the Soulseek network")]
+            [Validate]
+            public UserPresence Presence { get; init; } = UserPresence.Online;
 
             /// <summary>
             ///     Gets the description of the Soulseek user.
@@ -1687,6 +1697,23 @@ namespace slskd
             /// </summary>
             [Validate]
             public ConnectionOptions Connection { get; init; } = new ConnectionOptions();
+
+            /// <summary>
+            ///     Extended validation.
+            /// </summary>
+            /// <param name="validationContext"></param>
+            /// <returns></returns>
+            public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+            {
+                var results = new List<ValidationResult>();
+
+                if (Presence == UserPresence.Offline)
+                {
+                    results.Add(new ValidationResult("Presence cannot be Offline."));
+                }
+
+                return results;
+            }
 
             /// <summary>
             ///     Connection options.
