@@ -487,7 +487,7 @@ Blacklisted users are prevented from:
 
 Private and chat room messages from blacklisted users are also ignored.
 
-Users can be blacklisted by adding their username to the `members` list. Additionally, users can be blacklisted by IP address, or range of addresses by adding a CIDR entry to the `cidrs` list.
+Users can be blacklisted by adding their username to the `members` list or by right clicking on their message in chat and selecting 'Ignore'. Additionally, users can be blacklisted by IP address, or range of addresses by adding a CIDR entry to the `cidrs` list.
 
 Users added to the blacklist will be blocked from enqueueing any new files.  Any existing active or queued transfers will need to be cancelled manually.
 
