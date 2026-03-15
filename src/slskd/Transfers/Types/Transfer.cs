@@ -69,6 +69,8 @@ namespace slskd.Transfers
 
         public int Attempts { get; set; } = 0;
 
+        public DateTime? NextAttemptAt { get; set; } = null;
+
         [JsonIgnore]
         public bool Removed { get; set; }
 
