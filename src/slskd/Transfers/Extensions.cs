@@ -38,6 +38,7 @@ namespace slskd.Transfers
                 BytesTransferred = t.BytesTransferred,
                 AverageSpeed = t.AverageSpeed,
                 Exception = t.Exception?.Message,
+                Attempts = transfer.Attempts,
             };
         }
     }

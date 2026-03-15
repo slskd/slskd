@@ -23,6 +23,7 @@ using System.Linq;
 using Dapper;
 using Microsoft.Data.Sqlite;
 using Serilog;
+using slskd.Transfers;
 using Soulseek;
 
 /// <summary>
@@ -84,6 +85,7 @@ public class ReportsService
             FROM Transfers
             WHERE EndedAt IS NOT NULL
                 AND EndedAt BETWEEN @Start AND @End
+                AND State IN ({string.Join(", ", TransferStateCategories.Completed.Select(s => (int)s))})
                 {(direction is not null ? "AND Direction = @Direction" : string.Empty)}
                 {(username is not null ? "AND Username = @Username" : string.Empty)}
             GROUP BY Direction, StateDescription
@@ -171,6 +173,7 @@ public class ReportsService
             FROM Transfers
             WHERE EndedAt IS NOT NULL
                 AND EndedAt BETWEEN @Start AND @End
+                AND State IN ({string.Join(", ", TransferStateCategories.Completed.Select(s => (int)s))})
                 {(direction is not null ? "AND Direction = @Direction" : string.Empty)}
                 {(username is not null ? "AND Username = @Username" : string.Empty)}
             GROUP BY Interval, Direction, StateDescription
