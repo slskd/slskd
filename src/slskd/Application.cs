@@ -1482,9 +1482,12 @@ namespace slskd
 
                 // determine whether any Soulseek options changed. if so, we need to construct a patch and invoke ReconfigureOptionsAsync().
                 var slskDiff = PreviousOptions.Soulseek.DiffWith(newOptions.Soulseek);
-                var globalDiff = PreviousOptions.Transfers.DiffWith(newOptions.Transfers);
 
-                if (slskDiff.Any() || globalDiff.Any())
+                // determine whether any global upload or download options changed
+                var transfersUploadDiff = PreviousOptions.Transfers.DiffWith(newOptions.Transfers.Upload);
+                var transfersDownloadDiff = PreviousOptions.Transfers.DiffWith(newOptions.Transfers.Download);
+
+                if (slskDiff.Any() || transfersUploadDiff.Any() || transfersDownloadDiff.Any())
                 {
                     var old = PreviousOptions.Soulseek;
                     var update = newOptions.Soulseek;
