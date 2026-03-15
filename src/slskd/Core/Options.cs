@@ -239,16 +239,10 @@ namespace slskd
         public SharesOptions Shares { get; init; } = new SharesOptions();
 
         /// <summary>
-        ///     Gets global options.
+        ///     Gets transfer options.
         /// </summary>
         [Validate]
-        public GlobalOptions Global { get; init; } = new GlobalOptions();
-
-        /// <summary>
-        ///     Gets user groups.
-        /// </summary>
-        [Validate]
-        public GroupsOptions Groups { get; init; } = new GroupsOptions();
+        public TransfersOptions Transfers { get; init; } = new TransfersOptions();
 
         /// <summary>
         ///     Gets blacklist options.
@@ -319,7 +313,7 @@ namespace slskd
         ///     Gets options for external integrations.
         /// </summary>
         [Validate]
-        public IntegrationOptions Integration { get; init; } = new IntegrationOptions();
+        public IntegrationsOptions Integrations { get; init; } = new IntegrationsOptions();
 
         /// <summary>
         ///     Handles top-level validation that doesn't fit anywhere else.
@@ -904,9 +898,9 @@ namespace slskd
         }
 
         /// <summary>
-        ///     Global options.
+        ///     Transfer options.
         /// </summary>
-        public class GlobalOptions
+        public class TransfersOptions
         {
             /// <summary>
             ///     Gets global upload options.
@@ -915,16 +909,16 @@ namespace slskd
             public GlobalUploadOptions Upload { get; init; } = new GlobalUploadOptions();
 
             /// <summary>
-            ///     Gets global limits.
-            /// </summary>
-            [Validate]
-            public LimitsOptions Limits { get; init; } = new LimitsOptions();
-
-            /// <summary>
             ///     Gets global download options.
             /// </summary>
             [Validate]
             public GlobalDownloadOptions Download { get; init; } = new GlobalDownloadOptions();
+
+            /// <summary>
+            ///     Gets user groups.
+            /// </summary>
+            [Validate]
+            public GroupsOptions Groups { get; init; } = new GroupsOptions();
 
             /// <summary>
             ///     Global upload options.
@@ -949,6 +943,12 @@ namespace slskd
                 [Description("the total upload speed limit")]
                 [Range(1, int.MaxValue)]
                 public int SpeedLimit { get; init; } = int.MaxValue;
+
+                /// <summary>
+                ///     Gets global limits.
+                /// </summary>
+                [Validate]
+                public LimitsOptions Limits { get; init; } = new LimitsOptions();
             }
 
             /// <summary>
@@ -975,144 +975,42 @@ namespace slskd
                 [Range(1, int.MaxValue)]
                 public int SpeedLimit { get; init; } = int.MaxValue;
             }
-        }
-
-        /// <summary>
-        ///     Limit options.
-        /// </summary>
-        public class LimitsOptions
-        {
-            /// <summary>
-            ///     Gets limits for queued transfers.
-            /// </summary>
-            [Validate]
-            public Limits Queued { get; init; } = new Limits();
 
             /// <summary>
-            ///     Gets daily limits for transfers.
+            ///     User groups.
             /// </summary>
-            [Validate]
-            public Limits Daily { get; init; } = new Limits();
-
-            /// <summary>
-            ///     Gets weekly limits for transfers.
-            /// </summary>
-            [Validate]
-            public Limits Weekly { get; init; } = new Limits();
-
-            /// <summary>
-            ///     Limits.
-            /// </summary>
-            public class Limits
+            public class GroupsOptions : IValidatableObject
             {
                 /// <summary>
-                ///     Gets the limit for number of files.
+                ///     Gets options for the default user group.
                 /// </summary>
-                [Range(1, int.MaxValue)]
-                public int? Files { get; init; } = null;
+                /// <remarks>
+                ///     These options apply to users that are not privileged, have not been identified as leechers,
+                ///     and have not been added as a member of any group.
+                /// </remarks>
+                [Validate]
+                public BaseGroupOptions Default { get; init; } = new BaseGroupOptions();
 
                 /// <summary>
-                ///     Gets the limit for number of megabytes.
+                ///     Gets options for the leecher user group.
                 /// </summary>
-                [Range(1, int.MaxValue)]
-                public int? Megabytes { get; init; } = null;
+                /// <remarks>
+                ///     These options apply to users that have been identified as leechers, and have not been added as a member of any group.
+                /// </remarks>
+                [Validate]
+                public LeecherOptions Leechers { get; init; } = new LeecherOptions();
 
                 /// <summary>
-                ///     Gets the limit for number of failures.
-                /// </summary>
-                [Range(1, int.MaxValue)]
-                public int? Failures { get; init; } = null;
-            }
-        }
-
-        /// <summary>
-        ///     User groups.
-        /// </summary>
-        public class GroupsOptions : IValidatableObject
-        {
-            /// <summary>
-            ///     Gets options for the default user group.
-            /// </summary>
-            /// <remarks>
-            ///     These options apply to users that are not privileged, have not been identified as leechers,
-            ///     and have not been added as a member of any group.
-            /// </remarks>
-            [Validate]
-            public BuiltInOptions Default { get; init; } = new BuiltInOptions();
-
-            /// <summary>
-            ///     Gets options for the leecher user group.
-            /// </summary>
-            /// <remarks>
-            ///     These options apply to users that have been identified as leechers, and have not been added as a member of any group.
-            /// </remarks>
-            [Validate]
-            public LeecherOptions Leechers { get; init; } = new LeecherOptions();
-
-            /// <summary>
-            ///     Gets options for the blacklisted user group.
-            /// </summary>
-            [Validate]
-            public BlacklistedOptions Blacklisted { get; init; } = new BlacklistedOptions();
-
-            /// <summary>
-            ///     Gets user defined groups and options.
-            /// </summary>
-            [Validate]
-            public Dictionary<string, UserDefinedOptions> UserDefined { get; init; } = new Dictionary<string, UserDefinedOptions>();
-
-            /// <summary>
-            ///     Extended validation.
-            /// </summary>
-            /// <param name="validationContext"></param>
-            /// <returns></returns>
-            public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
-            {
-                var builtInGroups = new[] { Application.PrivilegedGroup, Application.DefaultGroup, Application.LeecherGroup };
-                var intersection = UserDefined.Keys.Intersect(builtInGroups);
-
-                return intersection.Select(group => new ValidationResult($"User defined group '{group}' collides with a built in group.  Choose a different name."));
-            }
-
-            /// <summary>
-            ///     Options that are common to all groups.
-            /// </summary>
-            public class GroupOptions
-            {
-                /// <summary>
-                ///     Gets upload options.
+                ///     Gets options for the blacklisted user group.
                 /// </summary>
                 [Validate]
-                public UploadOptions Upload { get; init; } = new UploadOptions();
+                public BlacklistedOptions Blacklisted { get; init; } = new BlacklistedOptions();
 
                 /// <summary>
-                ///     Gets limit options.
+                ///     Gets user defined groups and options.
                 /// </summary>
                 [Validate]
-                public LimitsOptions Limits { get; init; } = new LimitsOptions();
-            }
-
-            /// <summary>
-            ///     Built in user group options.
-            /// </summary>
-            public class BuiltInOptions : GroupOptions
-            {
-            }
-
-            /// <summary>
-            ///     Built in blacklisted group options.
-            /// </summary>
-            public class BlacklistedOptions : IValidatableObject
-            {
-                /// <summary>
-                ///     Gets the list of group member usernames.
-                /// </summary>
-                public string[] Members { get; init; } = Array.Empty<string>();
-
-                /// <summary>
-                ///     Gets the list of group CIDRs.
-                /// </summary>
-                public string[] Cidrs { get; init; } = Array.Empty<string>();
+                public Dictionary<string, UserDefinedOptions> UserDefined { get; init; } = new Dictionary<string, UserDefinedOptions>();
 
                 /// <summary>
                 ///     Extended validation.
@@ -1121,98 +1019,193 @@ namespace slskd
                 /// <returns></returns>
                 public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
                 {
-                    var results = new List<ValidationResult>();
+                    var builtInGroups = new[] { Application.PrivilegedGroup, Application.DefaultGroup, Application.LeecherGroup };
+                    var intersection = UserDefined.Keys.Intersect(builtInGroups);
 
-                    foreach (var cidr in Cidrs ?? Array.Empty<string>())
+                    return intersection.Select(group => new ValidationResult($"User defined group '{group}' collides with a built in group.  Choose a different name."));
+                }
+
+                /// <summary>
+                ///     Options that are common to all groups.
+                /// </summary>
+                public class BaseGroupOptions
+                {
+                    /// <summary>
+                    ///     Gets upload options.
+                    /// </summary>
+                    [Validate]
+                    public GroupUploadOptions Upload { get; init; } = new GroupUploadOptions();
+
+                    /// <summary>
+                    ///     User group upload options.
+                    /// </summary>
+                    public class GroupUploadOptions
                     {
-                        try
-                        {
-                            if (cidr.StartsWith("::ffff", StringComparison.OrdinalIgnoreCase))
-                            {
-                                throw new Exception("IPv4 mapped IPv6 addresses are not allowed");
-                            }
+                        /// <summary>
+                        ///     Gets the priority of the group.
+                        /// </summary>
+                        [Range(1, int.MaxValue)]
+                        public int Priority { get; init; } = 1;
 
-                            _ = IPAddressRange.Parse(cidr);
-                        }
-                        catch (Exception ex)
-                        {
-                            results.Add(new ValidationResult($"CIDR {cidr} is invalid: {ex.Message}"));
-                        }
+                        /// <summary>
+                        ///     Gets the queue strategy for the group.
+                        /// </summary>
+                        [Enum(typeof(Transfers.QueueStrategy))]
+                        public string Strategy { get; init; } = slskd.Transfers.QueueStrategy.RoundRobin.ToString().ToLowerInvariant();
+
+                        /// <summary>
+                        ///     Gets the limit for the total number of upload slots for the group.
+                        /// </summary>
+                        [Range(1, int.MaxValue)]
+                        public int Slots { get; init; } = int.MaxValue;
+
+                        /// <summary>
+                        ///     Gets the total upload speed limit for the group, in kibibytes.
+                        /// </summary>
+                        [Range(1, int.MaxValue)]
+                        public int SpeedLimit { get; init; } = int.MaxValue;
+
+                        /// <summary>
+                        ///     Gets limit options.
+                        /// </summary>
+                        [Validate]
+                        public LimitsOptions Limits { get; init; } = new LimitsOptions();
                     }
+                }
 
-                    return results;
+                /// <summary>
+                ///     Built in leecher group options.
+                /// </summary>
+                public class LeecherOptions : BaseGroupOptions
+                {
+                    /// <summary>
+                    ///     Gets leecher threshold options.
+                    /// </summary>
+                    [Validate]
+                    public ThresholdOptions Thresholds { get; init; } = new ThresholdOptions();
+
+                    /// <summary>
+                    ///     Leecher threshold options.
+                    /// </summary>
+                    public class ThresholdOptions
+                    {
+                        /// <summary>
+                        ///     Gets the minimum number of shared files required to avoid being classified as a leecher.
+                        /// </summary>
+                        [Range(1, int.MaxValue)]
+                        public int Files { get; init; } = 1;
+
+                        /// <summary>
+                        ///     Gets the minimum number of shared directories required to avoid being classified as a leecher.
+                        /// </summary>
+                        [Range(1, int.MaxValue)]
+                        public int Directories { get; init; } = 1;
+                    }
+                }
+
+                /// <summary>
+                ///     Built in blacklisted group options.
+                /// </summary>
+                public class BlacklistedOptions : IValidatableObject
+                {
+                    /// <summary>
+                    ///     Gets the list of group member usernames.
+                    /// </summary>
+                    public string[] Members { get; init; } = Array.Empty<string>();
+
+                    /// <summary>
+                    ///     Gets the list of group CIDRs.
+                    /// </summary>
+                    public string[] Cidrs { get; init; } = Array.Empty<string>();
+
+                    /// <summary>
+                    ///     Extended validation.
+                    /// </summary>
+                    /// <param name="validationContext"></param>
+                    /// <returns></returns>
+                    public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+                    {
+                        var results = new List<ValidationResult>();
+
+                        foreach (var cidr in Cidrs ?? Array.Empty<string>())
+                        {
+                            try
+                            {
+                                if (cidr.StartsWith("::ffff", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    throw new Exception("IPv4 mapped IPv6 addresses are not allowed");
+                                }
+
+                                _ = IPAddressRange.Parse(cidr);
+                            }
+                            catch (Exception ex)
+                            {
+                                results.Add(new ValidationResult($"CIDR {cidr} is invalid: {ex.Message}"));
+                            }
+                        }
+
+                        return results;
+                    }
+                }
+
+                /// <summary>
+                ///     User defined user group options.
+                /// </summary>
+                public class UserDefinedOptions : BaseGroupOptions
+                {
+                    /// <summary>
+                    ///     Gets the list of group member usernames.
+                    /// </summary>
+                    public string[] Members { get; init; } = Array.Empty<string>();
                 }
             }
 
             /// <summary>
-            ///     Built in leecher group options.
+            ///     Limit options.
             /// </summary>
-            public class LeecherOptions : GroupOptions
+            public class LimitsOptions
             {
                 /// <summary>
-                ///     Gets leecher threshold options.
+                ///     Gets limits for queued transfers.
                 /// </summary>
                 [Validate]
-                public ThresholdOptions Thresholds { get; init; } = new ThresholdOptions();
-            }
-
-            /// <summary>
-            ///     Leecher threshold options.
-            /// </summary>
-            public class ThresholdOptions
-            {
-                /// <summary>
-                ///     Gets the minimum number of shared files required to avoid being classified as a leecher.
-                /// </summary>
-                [Range(1, int.MaxValue)]
-                public int Files { get; init; } = 1;
+                public Limits Queued { get; init; } = new Limits();
 
                 /// <summary>
-                ///     Gets the minimum number of shared directories required to avoid being classified as a leecher.
+                ///     Gets daily limits for transfers.
                 /// </summary>
-                [Range(1, int.MaxValue)]
-                public int Directories { get; init; } = 1;
-            }
-
-            /// <summary>
-            ///     User defined user group options.
-            /// </summary>
-            public class UserDefinedOptions : GroupOptions
-            {
-                /// <summary>
-                ///     Gets the list of group member usernames.
-                /// </summary>
-                public string[] Members { get; init; } = Array.Empty<string>();
-            }
-
-            /// <summary>
-            ///     User group upload options.
-            /// </summary>
-            public class UploadOptions
-            {
-                /// <summary>
-                ///     Gets the priority of the group.
-                /// </summary>
-                [Range(1, int.MaxValue)]
-                public int Priority { get; init; } = 1;
+                [Validate]
+                public Limits Daily { get; init; } = new Limits();
 
                 /// <summary>
-                ///     Gets the queue strategy for the group.
+                ///     Gets weekly limits for transfers.
                 /// </summary>
-                [Enum(typeof(Transfers.QueueStrategy))]
-                public string Strategy { get; init; } = Transfers.QueueStrategy.RoundRobin.ToString().ToLowerInvariant();
+                [Validate]
+                public Limits Weekly { get; init; } = new Limits();
 
                 /// <summary>
-                ///     Gets the limit for the total number of upload slots for the group.
+                ///     Limits.
                 /// </summary>
-                [Range(1, int.MaxValue)]
-                public int Slots { get; init; } = int.MaxValue;
+                public class Limits
+                {
+                    /// <summary>
+                    ///     Gets the limit for number of files.
+                    /// </summary>
+                    [Range(1, int.MaxValue)]
+                    public int? Files { get; init; } = null;
 
-                /// <summary>
-                ///     Gets the total upload speed limit for the group, in kibibytes.
-                /// </summary>
-                [Range(1, int.MaxValue)]
-                public int SpeedLimit { get; init; } = int.MaxValue;
+                    /// <summary>
+                    ///     Gets the limit for number of megabytes.
+                    /// </summary>
+                    [Range(1, int.MaxValue)]
+                    public int? Megabytes { get; init; } = null;
+
+                    /// <summary>
+                    ///     Gets the limit for number of failures.
+                    /// </summary>
+                    [Range(1, int.MaxValue)]
+                    public int? Failures { get; init; } = null;
+                }
             }
         }
 
@@ -2272,7 +2265,7 @@ namespace slskd
         /// <summary>
         ///     Options for external integrations.
         /// </summary>
-        public class IntegrationOptions
+        public class IntegrationsOptions
         {
             /// <summary>
             ///     Gets VPN options.

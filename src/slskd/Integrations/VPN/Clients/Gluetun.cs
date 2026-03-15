@@ -26,7 +26,7 @@ using System.Net.Http.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Serilog;
-using static slskd.Options.IntegrationOptions.VpnOptions;
+using static slskd.Options.IntegrationsOptions.VpnOptions;
 
 /// <summary>
 ///     Gluetun VPN client.
@@ -47,7 +47,7 @@ public class Gluetun : IVPNClient
     private ILogger Log { get; } = Serilog.Log.ForContext<Gluetun>();
     private IHttpClientFactory HttpClientFactory { get; }
     private IOptionsMonitor<Options> OptionsMonitor { get; }
-    private GluetunVpnOptions Options => OptionsMonitor.CurrentValue.Integration.Vpn.Gluetun;
+    private GluetunVpnOptions Options => OptionsMonitor.CurrentValue.Integrations.Vpn.Gluetun;
 
     /// <summary>
     ///     Fetch the VPN connection status from the Gluetun control server.
@@ -85,7 +85,7 @@ public class Gluetun : IVPNClient
 
             int? port = null;
 
-            if (OptionsMonitor.CurrentValue.Integration.Vpn.PortForwarding)
+            if (OptionsMonitor.CurrentValue.Integrations.Vpn.PortForwarding)
             {
                 port = (await MakeRequest<GluetunPortForwardResponse>(http, "/v1/portforward"))?.Port;
 

@@ -73,7 +73,7 @@ public class WebhookService
         bool EqualsLiterallyAnyEvent(string type) => type.Equals(EventType.Any.ToString(), StringComparison.OrdinalIgnoreCase);
 
         var options = OptionsMonitor.CurrentValue;
-        var webhooksTriggeredByThisEventType = options.Integration.Webhooks
+        var webhooksTriggeredByThisEventType = options.Integrations.Webhooks
             .Where(kvp => kvp.Value.On.Any(EqualsThisEvent) || kvp.Value.On.Any(EqualsLiterallyAnyEvent));
 
         foreach (var webhook in webhooksTriggeredByThisEventType)

@@ -421,8 +421,8 @@ namespace slskd
                 distributedChildLimit: OptionsAtStartup.Soulseek.DistributedNetwork.ChildLimit,
                 enableDistributedNetwork: !OptionsAtStartup.Soulseek.DistributedNetwork.Disabled,
                 acceptDistributedChildren: !OptionsAtStartup.Soulseek.DistributedNetwork.DisableChildren,
-                maximumUploadSpeed: OptionsAtStartup.Global.Upload.SpeedLimit,
-                maximumDownloadSpeed: OptionsAtStartup.Global.Download.SpeedLimit,
+                maximumUploadSpeed: OptionsAtStartup.Transfers.Upload.SpeedLimit,
+                maximumDownloadSpeed: OptionsAtStartup.Transfers.Download.SpeedLimit,
                 autoAcknowledgePrivateMessages: false,
                 acceptPrivateRoomInvitations: true,
                 serverConnectionOptions: serverOptions,
@@ -660,26 +660,26 @@ namespace slskd
                 }
 
                 // we'll fall back to global limits for any limit that isn't set at the group level
-                var global = Options.Global.Limits;
+                var global = Options.Transfers.Upload.Limits;
 
                 // resolve the limits for this user's group.
-                Options.LimitsOptions limits;
+                Options.TransfersOptions.LimitsOptions limits;
 
-                if (Options.Groups.UserDefined.TryGetValue(group, out var userDefinedOptions))
+                if (Options.Transfers.Groups.UserDefined.TryGetValue(group, out var userDefinedOptions))
                 {
-                    limits = userDefinedOptions.Limits;
+                    limits = userDefinedOptions.Upload.Limits;
                 }
                 else
                 {
                     limits = group switch
                     {
-                        DefaultGroup => Options.Groups.Default.Limits,
-                        LeecherGroup => Options.Groups.Leechers.Limits,
-                        _ => Options.Groups.Default.Limits, // that's weird! we'll just go with defaults..
+                        DefaultGroup => Options.Transfers.Groups.Default.Upload.Limits,
+                        LeecherGroup => Options.Transfers.Groups.Leechers.Upload.Limits,
+                        _ => Options.Transfers.Groups.Default.Upload.Limits, // that's weird! we'll just go with defaults..
                     };
                 }
 
-                bool IsNull(Options.LimitsOptions.Limits lim, Options.LimitsOptions.Limits global)
+                bool IsNull(Options.TransfersOptions.LimitsOptions.Limits lim, Options.TransfersOptions.LimitsOptions.Limits global)
                     => (lim is null && global is null) || ((lim?.Files ?? global?.Files ?? lim?.Megabytes ?? global?.Megabytes ?? lim.Failures ?? global.Failures) is null);
 
                 /*
@@ -692,8 +692,8 @@ namespace slskd
                 (bool Files, bool Megabytes) OverLimits(
                     int files,
                     long bytes,
-                    Options.LimitsOptions.Limits options,
-                    Options.LimitsOptions.Limits defaults,
+                    Options.TransfersOptions.LimitsOptions.Limits options,
+                    Options.TransfersOptions.LimitsOptions.Limits defaults,
                     long size)
                 {
                     var filesOver = false;
@@ -1068,7 +1068,7 @@ namespace slskd
 
             Messaging.Conversations.HandleMessageAsync(args.Username, PrivateMessage.FromEventArgs(args));
 
-            if (Options.Integration.Pushbullet.Enabled && !args.Replayed)
+            if (Options.Integrations.Pushbullet.Enabled && !args.Replayed)
             {
                 _ = Pushbullet.PushAsync($"Private Message from {args.Username}", args.Username, args.Message);
             }
@@ -1086,7 +1086,7 @@ namespace slskd
 
             var message = RoomMessage.FromEventArgs(args, DateTime.UtcNow);
 
-            if (Options.Integration.Pushbullet.Enabled && message.Message.Contains(Client.Username))
+            if (Options.Integrations.Pushbullet.Enabled && message.Message.Contains(Client.Username))
             {
                 _ = Pushbullet.PushAsync($"Room Mention by {message.Username} in {message.RoomName}", message.RoomName, message.Message);
             }
@@ -1482,9 +1482,12 @@ namespace slskd
 
                 // determine whether any Soulseek options changed. if so, we need to construct a patch and invoke ReconfigureOptionsAsync().
                 var slskDiff = PreviousOptions.Soulseek.DiffWith(newOptions.Soulseek);
-                var globalDiff = PreviousOptions.Global.DiffWith(newOptions.Global);
 
-                if (slskDiff.Any() || globalDiff.Any())
+                // determine whether any global upload or download options changed
+                var transfersUploadDiff = PreviousOptions.Transfers.DiffWith(newOptions.Transfers.Upload);
+                var transfersDownloadDiff = PreviousOptions.Transfers.DiffWith(newOptions.Transfers.Download);
+
+                if (slskDiff.Any() || transfersUploadDiff.Any() || transfersDownloadDiff.Any())
                 {
                     var old = PreviousOptions.Soulseek;
                     var update = newOptions.Soulseek;
@@ -1544,8 +1547,8 @@ namespace slskd
                         enableDistributedNetwork: old.DistributedNetwork.Disabled == update.DistributedNetwork.Disabled ? null : !update.DistributedNetwork.Disabled,
                         distributedChildLimit: old.DistributedNetwork.ChildLimit == update.DistributedNetwork.ChildLimit ? null : update.DistributedNetwork.ChildLimit,
                         acceptDistributedChildren: old.DistributedNetwork.DisableChildren == update.DistributedNetwork.DisableChildren ? null : !update.DistributedNetwork.DisableChildren,
-                        maximumUploadSpeed: newOptions.Global.Upload.SpeedLimit,
-                        maximumDownloadSpeed: newOptions.Global.Download.SpeedLimit,
+                        maximumUploadSpeed: newOptions.Transfers.Upload.SpeedLimit,
+                        maximumDownloadSpeed: newOptions.Transfers.Download.SpeedLimit,
                         serverConnectionOptions: serverPatch,
                         peerConnectionOptions: connectionPatch,
                         transferConnectionOptions: transferPatch,

@@ -1089,7 +1089,7 @@ namespace slskd.Transfers.Downloads
                         });
                     }
 
-                    if (OptionsMonitor.CurrentValue.Integration.Ftp.Enabled)
+                    if (OptionsMonitor.CurrentValue.Integrations.Ftp.Enabled)
                     {
                         _ = FTP.UploadAsync(finalFilename);
                     }
