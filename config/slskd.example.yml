@@ -106,7 +106,7 @@
 #           queued:
 #             files: 15
 #             megabytes: 150
-#           daily:            
+#           daily:
 #             files: 30
 #             megabytes: 300
 #             failures: 10
@@ -235,7 +235,7 @@
 #       port: ~
 #       username: ~
 #       password: ~
-# integration:
+# integrations:
 #   vpn:
 #     enabled: false
 #     port_forwarding: false

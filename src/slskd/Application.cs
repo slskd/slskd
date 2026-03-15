@@ -1068,7 +1068,7 @@ namespace slskd
 
             Messaging.Conversations.HandleMessageAsync(args.Username, PrivateMessage.FromEventArgs(args));
 
-            if (Options.Integration.Pushbullet.Enabled && !args.Replayed)
+            if (Options.Integrations.Pushbullet.Enabled && !args.Replayed)
             {
                 _ = Pushbullet.PushAsync($"Private Message from {args.Username}", args.Username, args.Message);
             }
@@ -1086,7 +1086,7 @@ namespace slskd
 
             var message = RoomMessage.FromEventArgs(args, DateTime.UtcNow);
 
-            if (Options.Integration.Pushbullet.Enabled && message.Message.Contains(Client.Username))
+            if (Options.Integrations.Pushbullet.Enabled && message.Message.Contains(Client.Username))
             {
                 _ = Pushbullet.PushAsync($"Room Mention by {message.Username} in {message.RoomName}", message.RoomName, message.Message);
             }
@@ -1482,9 +1482,12 @@ namespace slskd
 
                 // determine whether any Soulseek options changed. if so, we need to construct a patch and invoke ReconfigureOptionsAsync().
                 var slskDiff = PreviousOptions.Soulseek.DiffWith(newOptions.Soulseek);
-                var globalDiff = PreviousOptions.Transfers.DiffWith(newOptions.Transfers);
 
-                if (slskDiff.Any() || globalDiff.Any())
+                // determine whether any global upload or download options changed
+                var transfersUploadDiff = PreviousOptions.Transfers.DiffWith(newOptions.Transfers.Upload);
+                var transfersDownloadDiff = PreviousOptions.Transfers.DiffWith(newOptions.Transfers.Download);
+
+                if (slskDiff.Any() || transfersUploadDiff.Any() || transfersDownloadDiff.Any())
                 {
                     var old = PreviousOptions.Soulseek;
                     var update = newOptions.Soulseek;

@@ -52,9 +52,9 @@ public class VPNService : IDisposable
         SoulseekClient = soulseekClient;
         HttpClientFactory = httpClientFactory;
 
-        if (OptionsAtStartup.Integration.Vpn.Enabled)
+        if (OptionsAtStartup.Integrations.Vpn.Enabled)
         {
-            Timer = new System.Timers.Timer(interval: OptionsAtStartup.Integration.Vpn.PollingInterval)
+            Timer = new System.Timers.Timer(interval: OptionsAtStartup.Integrations.Vpn.PollingInterval)
             {
                 AutoReset = true,
             };
@@ -63,7 +63,7 @@ public class VPNService : IDisposable
 
             // detect VPN based on the configuration provided; this logic will determine the order
             // we can revisit this if/when we add other options besides gluetun
-            if (!string.IsNullOrEmpty(OptionsMonitor.CurrentValue.Integration.Vpn.Gluetun.Url))
+            if (!string.IsNullOrEmpty(OptionsMonitor.CurrentValue.Integrations.Vpn.Gluetun.Url))
             {
                 Client = new Gluetun(HttpClientFactory, OptionsMonitor);
 
@@ -154,7 +154,7 @@ public class VPNService : IDisposable
             throw new VPNClientException("VPN client not properly initialized; something went seriously wrong! Please report to GitHub.");
         }
 
-        var options = OptionsMonitor.CurrentValue.Integration.Vpn;
+        var options = OptionsMonitor.CurrentValue.Integrations.Vpn;
         bool isReadyNow = false;
         VPNStatus status = new VPNStatus();
 
