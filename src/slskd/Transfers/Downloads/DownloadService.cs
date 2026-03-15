@@ -1203,7 +1203,6 @@ namespace slskd.Transfers.Downloads
 
             try
             {
-                Log.Warning("-------------------> Synchronized update for transfer: {Filename}; state: {State}, attempts: {Attempts}, endedAt: {EndedAt}, exception: {Exception}", transfer.Filename, transfer.State, transfer.Attempts, transfer.EndedAt, transfer.Exception);
                 Update(transfer);
             }
             finally
