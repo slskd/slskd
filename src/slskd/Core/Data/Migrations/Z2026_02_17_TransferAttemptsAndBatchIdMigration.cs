@@ -46,6 +46,7 @@ public class Z2026_02_17_TransferAttemptsAndBatchIdMigration : IMigration
 
         // check to see if the Attempts and BatchId columns exist
         if (columns.Any(c => c.Name == nameof(Transfer.Attempts))
+            && columns.Any(c => c.Name == nameof(Transfer.NextAttemptAt))
             && columns.Any(c => c.Name == nameof(Transfer.BatchId))
             && indexes.Any(i => i.Name.Equals("IDX_Transfers_BatchId", StringComparison.OrdinalIgnoreCase)))
         {
@@ -78,7 +79,7 @@ public class Z2026_02_17_TransferAttemptsAndBatchIdMigration : IMigration
                 command.ExecuteNonQuery();
             }
 
-            Log.Information("> Adding BatchId and Attempts columns to the Transfers table...");
+            Log.Information("> Adding BatchId, Attempts, and NextAttemptAt columns to the Transfers table...");
 
             if (!columns.Any(c => c.Name == nameof(Transfer.BatchId)))
             {
@@ -88,6 +89,11 @@ public class Z2026_02_17_TransferAttemptsAndBatchIdMigration : IMigration
             if (!columns.Any(c => c.Name == nameof(Transfer.Attempts)))
             {
                 Exec("ALTER TABLE Transfers ADD COLUMN Attempts INTEGER NOT NULL DEFAULT 0;");
+            }
+
+            if (!columns.Any(c => c.Name == nameof(Transfer.NextAttemptAt)))
+            {
+                Exec("ALTER TABLE Transfers ADD COLUMN NextAttemptAt TEXT NULL;");
             }
 
             Log.Information("> New columns added");
