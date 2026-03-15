@@ -39,7 +39,7 @@
 
             Assert.Equal(Application.PrivilegedGroup, p.Name);
             Assert.Equal(0, p.Priority);
-            Assert.Equal(new Options().Global.Upload.Slots, p.Slots);
+            Assert.Equal(new Options().Transfers.Upload.Slots, p.Slots);
             Assert.Equal(0, p.UsedSlots);
             Assert.Equal(QueueStrategy.FirstInFirstOut, p.Strategy);
         }
@@ -49,25 +49,25 @@
         {
             var (queue, _) = GetFixture(new Options()
             {
-                Global = new Options.GlobalOptions
+                Transfers = new Options.TransfersOptions
                 {
-                    Upload = new Options.GlobalOptions.GlobalUploadOptions
+                    Upload = new Options.TransfersOptions.GlobalUploadOptions
                     {
                         Slots = int.MaxValue,
                     },
-                },
-                Groups = new Options.GroupsOptions()
-                {
-                    Default = new Options.GroupsOptions.BuiltInOptions()
+                    Groups = new Options.TransfersOptions.GroupsOptions()
                     {
-                        Upload = new Options.GroupsOptions.UploadOptions()
+                        Default = new Options.TransfersOptions.GroupsOptions.BaseGroupOptions()
                         {
-                            Priority = priority,
-                            Slots = slots,
-                            Strategy = strategy.ToString(),
+                            Upload = new Options.TransfersOptions.GroupsOptions.BaseGroupOptions.GroupUploadOptions()
+                            {
+                                Priority = priority,
+                                Slots = slots,
+                                Strategy = strategy.ToString(),
+                            }
                         }
                     }
-                }
+                },
             });
 
             var groups = queue.GetProperty<Dictionary<string, UploadGroup>>("Groups");
@@ -86,23 +86,23 @@
         {
             var (queue, _) = GetFixture(new Options()
             {
-                Global = new Options.GlobalOptions
+                Transfers = new Options.TransfersOptions
                 {
-                    Upload = new Options.GlobalOptions.GlobalUploadOptions
+                    Upload = new Options.TransfersOptions.GlobalUploadOptions
                     {
                         Slots = int.MaxValue,
                     },
-                },
-                Groups = new Options.GroupsOptions()
-                {
-                    Leechers = new Options.GroupsOptions.LeecherOptions()
+                    Groups = new Options.TransfersOptions.GroupsOptions()
                     {
-                        Thresholds = new Options.GroupsOptions.ThresholdOptions(),
-                        Upload = new Options.GroupsOptions.UploadOptions()
+                        Leechers = new Options.TransfersOptions.GroupsOptions.LeecherOptions()
                         {
-                            Priority = priority,
-                            Slots = slots,
-                            Strategy = strategy.ToString(),
+                            Thresholds = new Options.TransfersOptions.GroupsOptions.LeecherOptions.ThresholdOptions(),
+                            Upload = new Options.TransfersOptions.GroupsOptions.BaseGroupOptions.GroupUploadOptions()
+                            {
+                                Priority = priority,
+                                Slots = slots,
+                                Strategy = strategy.ToString(),
+                            }
                         }
                     }
                 }
@@ -124,38 +124,38 @@
         {
             var (queue, _) = GetFixture(new Options()
             {
-                Global = new Options.GlobalOptions
+                Transfers = new Options.TransfersOptions
                 {
-                    Upload = new Options.GlobalOptions.GlobalUploadOptions
+                    Upload = new Options.TransfersOptions.GlobalUploadOptions
                     {
                         Slots = int.MaxValue,
                     },
-                },
-                Groups = new Options.GroupsOptions()
-                {
-                    UserDefined = new Dictionary<string, Options.GroupsOptions.UserDefinedOptions>()
+                    Groups = new Options.TransfersOptions.GroupsOptions()
                     {
+                        UserDefined = new Dictionary<string, Options.TransfersOptions.GroupsOptions.UserDefinedOptions>()
                         {
-                            group1,
-                            new Options.GroupsOptions.UserDefinedOptions()
                             {
-                                Upload = new Options.GroupsOptions.UploadOptions()
+                                group1,
+                                new Options.TransfersOptions.GroupsOptions.UserDefinedOptions()
                                 {
-                                    Priority = priority1,
-                                    Slots = slots1,
-                                    Strategy = strategy1.ToString(),
+                                    Upload = new Options.TransfersOptions.GroupsOptions.BaseGroupOptions.GroupUploadOptions()
+                                    {
+                                        Priority = priority1,
+                                        Slots = slots1,
+                                        Strategy = strategy1.ToString(),
+                                    }
                                 }
-                            }
-                        },
-                        {
-                            group2,
-                            new Options.GroupsOptions.UserDefinedOptions()
+                            },
                             {
-                                Upload = new Options.GroupsOptions.UploadOptions()
+                                group2,
+                                new Options.TransfersOptions.GroupsOptions.UserDefinedOptions()
                                 {
-                                    Priority = priority2,
-                                    Slots = slots2,
-                                    Strategy = strategy2.ToString(),
+                                    Upload = new Options.TransfersOptions.GroupsOptions.BaseGroupOptions.GroupUploadOptions()
+                                    {
+                                        Priority = priority2,
+                                        Slots = slots2,
+                                        Strategy = strategy2.ToString(),
+                                    }
                                 }
                             }
                         }
@@ -189,29 +189,29 @@
             {
                 var options = new Options()
                 {
-                    Global = new Options.GlobalOptions
+                    Transfers = new Options.TransfersOptions
                     {
-                        Upload = new Options.GlobalOptions.GlobalUploadOptions
+                        Upload = new Options.TransfersOptions.GlobalUploadOptions
                         {
                             Slots = int.MaxValue,
                         },
-                    },
-                    Groups = new Options.GroupsOptions()
-                    {
-                        UserDefined = new Dictionary<string, Options.GroupsOptions.UserDefinedOptions>()
+                        Groups = new Options.TransfersOptions.GroupsOptions()
                         {
+                            UserDefined = new Dictionary<string, Options.TransfersOptions.GroupsOptions.UserDefinedOptions>()
                             {
-                                group,
-                                new Options.GroupsOptions.UserDefinedOptions()
                                 {
-                                    Upload = new Options.GroupsOptions.UploadOptions()
+                                    group,
+                                    new Options.TransfersOptions.GroupsOptions.UserDefinedOptions()
                                     {
-                                        Priority = priority,
-                                        Slots = slots,
-                                        Strategy = strategy.ToString(),
+                                        Upload = new Options.TransfersOptions.GroupsOptions.BaseGroupOptions.GroupUploadOptions()
+                                        {
+                                            Priority = priority,
+                                            Slots = slots,
+                                            Strategy = strategy.ToString(),
+                                        }
                                     }
-                                }
-                            },
+                                },
+                            }
                         }
                     }
                 };
@@ -246,29 +246,29 @@
             {
                 var options = new Options()
                 {
-                    Global = new Options.GlobalOptions
+                    Transfers = new Options.TransfersOptions
                     {
-                        Upload = new Options.GlobalOptions.GlobalUploadOptions
+                        Upload = new Options.TransfersOptions.GlobalUploadOptions
                         {
                             Slots = 42,
                         },
-                    },
-                    Groups = new Options.GroupsOptions()
-                    {
-                        UserDefined = new Dictionary<string, Options.GroupsOptions.UserDefinedOptions>()
+                        Groups = new Options.TransfersOptions.GroupsOptions()
                         {
+                            UserDefined = new Dictionary<string, Options.TransfersOptions.GroupsOptions.UserDefinedOptions>()
                             {
-                                group,
-                                new Options.GroupsOptions.UserDefinedOptions()
                                 {
-                                    Upload = new Options.GroupsOptions.UploadOptions()
+                                    group,
+                                    new Options.TransfersOptions.GroupsOptions.UserDefinedOptions()
                                     {
-                                        Priority = priority,
-                                        Slots = int.MaxValue, // lots
-                                        Strategy = strategy.ToString(),
+                                        Upload = new Options.TransfersOptions.GroupsOptions.BaseGroupOptions.GroupUploadOptions()
+                                        {
+                                            Priority = priority,
+                                            Slots = int.MaxValue, // lots
+                                            Strategy = strategy.ToString(),
+                                        }
                                     }
-                                }
-                            },
+                                },
+                            }
                         }
                     }
                 };
@@ -303,22 +303,25 @@
             {
                 var options = new Options()
                 {
-                    Groups = new Options.GroupsOptions()
+                    Transfers = new Options.TransfersOptions
                     {
-                        UserDefined = new Dictionary<string, Options.GroupsOptions.UserDefinedOptions>()
+                        Groups = new Options.TransfersOptions.GroupsOptions()
                         {
+                            UserDefined = new Dictionary<string, Options.TransfersOptions.GroupsOptions.UserDefinedOptions>()
                             {
-                                group,
-                                new Options.GroupsOptions.UserDefinedOptions()
                                 {
-                                    Upload = new Options.GroupsOptions.UploadOptions()
+                                    group,
+                                    new Options.TransfersOptions.GroupsOptions.UserDefinedOptions()
                                     {
-                                        Priority = 0,
-                                        Slots = 0,
-                                        Strategy = QueueStrategy.FirstInFirstOut.ToString(),
+                                        Upload = new Options.TransfersOptions.GroupsOptions.BaseGroupOptions.GroupUploadOptions()
+                                        {
+                                            Priority = 0,
+                                            Slots = 0,
+                                            Strategy = QueueStrategy.FirstInFirstOut.ToString(),
+                                        }
                                     }
-                                }
-                            },
+                                },
+                            }
                         }
                     }
                 };
@@ -331,22 +334,25 @@
                 // reconfigure with different options to bypass the hash check
                 options = new Options()
                 {
-                    Groups = new Options.GroupsOptions()
+                    Transfers = new Options.TransfersOptions
                     {
-                        UserDefined = new Dictionary<string, Options.GroupsOptions.UserDefinedOptions>()
+                        Groups = new Options.TransfersOptions.GroupsOptions()
                         {
+                            UserDefined = new Dictionary<string, Options.TransfersOptions.GroupsOptions.UserDefinedOptions>()
                             {
-                                group,
-                                new Options.GroupsOptions.UserDefinedOptions()
                                 {
-                                    Upload = new Options.GroupsOptions.UploadOptions()
+                                    group,
+                                    new Options.TransfersOptions.GroupsOptions.UserDefinedOptions()
                                     {
-                                        Priority = newPriority, // change priority
-                                        Slots = 0,
-                                        Strategy = QueueStrategy.FirstInFirstOut.ToString(),
+                                        Upload = new Options.TransfersOptions.GroupsOptions.BaseGroupOptions.GroupUploadOptions()
+                                        {
+                                            Priority = newPriority, // change priority
+                                            Slots = 0,
+                                            Strategy = QueueStrategy.FirstInFirstOut.ToString(),
+                                        }
                                     }
-                                }
-                            },
+                                },
+                            }
                         }
                     }
                 };

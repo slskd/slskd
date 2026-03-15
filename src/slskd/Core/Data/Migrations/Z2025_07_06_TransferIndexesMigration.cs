@@ -1,4 +1,4 @@
-// <copyright file="Z07262025_PrivateMessageWasReplayedMigration.cs" company="slskd Team">
+// <copyright file="Z2025_07_06_TransferIndexesMigration.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -21,28 +21,30 @@ using System;
 using System.Linq;
 using Microsoft.Data.Sqlite;
 using Serilog;
-using slskd.Messaging;
 
 /// <summary>
 ///     Updates the Transfers table to add indexes on the Direction and State columns.
 /// </summary>
-public class Z07262025_PrivateMessageWasReplayedMigration : IMigration
+public class Z2025_07_06_TransferIndexesMigration : IMigration
 {
-    public Z07262025_PrivateMessageWasReplayedMigration(ConnectionStringDictionary connectionStrings)
+    public Z2025_07_06_TransferIndexesMigration(ConnectionStringDictionary connectionStrings)
     {
-        ConnectionString = connectionStrings[Database.Messaging];
+        ConnectionString = connectionStrings[Database.Transfers];
     }
 
-    private ILogger Log { get; } = Serilog.Log.ForContext<Z07262025_PrivateMessageWasReplayedMigration>();
+    private ILogger Log { get; } = Serilog.Log.ForContext<Z2025_07_06_TransferIndexesMigration>();
     private string ConnectionString { get; }
 
     public bool NeedsToBeApplied()
     {
         // check to see if *BOTH* of the indexes are in place. if one or both are missing, we must apply
-        var schema = SchemaInspector.GetDatabaseSchema(ConnectionString);
-        var pms = schema["PrivateMessages"];
+        var idxes = SchemaInspector.GetDatabaseIndexes(ConnectionString);
+        var txfers = idxes["Transfers"];
 
-        if (pms.Any(r => r.Name == nameof(PrivateMessage.WasReplayed)))
+        var directionExists = txfers.Any(c => c.Name.Equals("IDX_Transfers_Direction", StringComparison.OrdinalIgnoreCase));
+        var stateExists = txfers.Any(c => c.Name.Equals("IDX_Transfers_State", StringComparison.OrdinalIgnoreCase));
+
+        if (directionExists && stateExists)
         {
             return false;
         }
@@ -54,7 +56,7 @@ public class Z07262025_PrivateMessageWasReplayedMigration : IMigration
     {
         if (!NeedsToBeApplied())
         {
-            Log.Information("> Migration {Name} is not necessary or has already been applied", nameof(Z07262025_PrivateMessageWasReplayedMigration));
+            Log.Information("> Migration {Name} is not necessary or has already been applied", nameof(Z2025_07_06_TransferIndexesMigration));
             return;
         }
 
@@ -65,13 +67,19 @@ public class Z07262025_PrivateMessageWasReplayedMigration : IMigration
 
         try
         {
-            Log.Information("> Adding missing column WasReplayed to PrivateMessages table...");
+            Log.Information("> Adding missing index(es) on the Transfers table...");
 
-            var addColumnCommand = new SqliteCommand(@"
-                ALTER TABLE PrivateMessages ADD COLUMN WasReplayed INTEGER NOT NULL DEFAULT 0
+            var directionCommand = new SqliteCommand(@"
+                CREATE INDEX IF NOT EXISTS IDX_Transfers_Direction ON Transfers (Direction)
             ", connection, transaction);
-            addColumnCommand.ExecuteNonQuery();
+            directionCommand.ExecuteNonQuery();
 
+            var stateCommand = new SqliteCommand(@"
+                CREATE INDEX IF NOT EXISTS IDX_Transfers_State ON Transfers (State)
+            ", connection, transaction);
+            stateCommand.ExecuteNonQuery();
+
+            Log.Information("> Index(es) created");
             transaction.Commit();
             Log.Information("> Done!");
         }

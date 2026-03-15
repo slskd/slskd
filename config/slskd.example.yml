@@ -54,80 +54,83 @@
 #     storage_mode: memory
 #     workers: 16
 #     retention: ~ # retain indefinitely (do not automatically re-scan)
-# rooms:
-#   - ~
-# global:
+# transfers:
 #   upload:
 #     slots: 20
 #     speed_limit: 1000 # in kibibytes
-#   limits:
-#     queued:
-#       files: 500
-#       megabytes: 5000
-#     daily:
-#       files: 1000
-#       megabytes: 10000
-#       failures: 200
-#     weekly:
-#       files: 5000
-#       megabytes: 50000
-#       failures: 1000
+#     limits:
+#       queued:
+#         files: 500
+#         megabytes: 5000
+#       daily:
+#         files: 1000
+#         megabytes: 10000
+#         failures: 200
+#       weekly:
+#         files: 5000
+#         megabytes: 50000
+#         failures: 1000
 #   download:
 #     slots: 500
 #     speed_limit: 1000
-# groups:
-#   default:
-#     upload:
-#       priority: 500
-#       strategy: roundrobin
-#       slots: 10
-#     limits:
-#       queued:
-#         files: 150
-#         megabytes: 1500
-#       daily: ~ # no daily limits (weekly still apply)
-#       weekly:
-#         files: 1500
-#         megabytes: 15000
-#         failures: 150
-#   leechers:
-#     thresholds:
-#       files: 1
-#       directories: 1
-#     upload:
-#       priority: 999
-#       strategy: roundrobin
-#       slots: 1
-#       speed_limit: 100
-#     limits:
-#       queued:
-#         files: 15
-#         megabytes: 150
-#       daily:
-#         files: 30
-#         megabytes: 300
-#         failures: 10
-#       weekly:
-#         files: 150
-#         megabytes: 1500
-#         failures: 30
-#   blacklisted:
-#     members:
-#       - <username to blacklist>
-#     cidrs:
-#       - <CIDR to blacklist, e.g. 255.255.255.255/32>
-#   user_defined:
-#     my_buddies:
+#     retry:
+#       incomplete: resume # 'overwrite' or 'resume'
+#       attempts: 3
+#       delay: 5000 # initial time between retries, in milliseconds
+#       max_delay: 60000 # maximum time between retries, in milliseconds
+#   groups:
+#     default:
 #       upload:
-#         priority: 250
-#         strategy: firstinfirstout
+#         priority: 500
+#         strategy: roundrobin
 #         slots: 10
-#       limits:
-#         queued:
-#           files: 1000 # override global default
+#         limits:
+#           queued:
+#             files: 150
+#             megabytes: 1500
+#           daily: ~ # no daily limits (weekly still apply)
+#           weekly:
+#             files: 1500
+#             megabytes: 15000
+#             failures: 150
+#     leechers:
+#       thresholds:
+#         files: 1
+#         directories: 1
+#       upload:
+#         priority: 999
+#         strategy: roundrobin
+#         slots: 1
+#         speed_limit: 100
+#         limits:
+#           queued:
+#             files: 15
+#             megabytes: 150
+#           daily:            
+#             files: 30
+#             megabytes: 300
+#             failures: 10
+#           weekly:
+#             files: 150
+#             megabytes: 1500
+#             failures: 30
+#     blacklisted:
 #       members:
-#         - alice
-#         - bob
+#         - <username to blacklist>
+#       cidrs:
+#         - <CIDR to blacklist, e.g. 255.255.255.255/32>
+#     user_defined:
+#       my_buddies:
+#         upload:
+#           priority: 250
+#           strategy: firstinfirstout
+#           slots: 10
+#           limits:
+#             queued:
+#               files: 1000 # override global default
+#         members:
+#           - alice
+#           - bob
 # blacklist:
 #   enabled: true
 #   file: <path to file containing CIDRs to blacklist>
@@ -135,6 +138,8 @@
 #   search:
 #     request:
 #       - ^.{1,2}$
+# rooms:
+#   - ~
 # web:
 #   port: 5030
 #   ip_address: 0.0.0.0,[::]

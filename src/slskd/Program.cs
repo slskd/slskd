@@ -157,6 +157,14 @@ namespace slskd
         public static string FullVersion { get; } = $"{SemanticVersion} ({InformationalVersion})";
 
         /// <summary>
+        ///     Gets the minor version to identify slskd on the network.
+        /// </summary>
+        /// <remarks>
+        ///     NOTICE: If you have forked slskd, change this number to something else.
+        /// </remarks>
+        public static int NetworkMinorVersion { get; } = 760;
+
+        /// <summary>
         ///     Gets a value indicating whether the current version is a Canary build.
         /// </summary>
         public static bool IsCanary { get; } = AssemblyVersion.Revision == 65534;
@@ -680,9 +688,11 @@ namespace slskd
             // add a partially configured instance of SoulseekClient. the Application instance will
             // complete configuration at startup.
             services.AddSingleton<ISoulseekClient, SoulseekClient>(_ =>
-                new SoulseekClient(options: new SoulseekClientOptions(
-                    maximumConcurrentUploads: OptionsAtStartup.Global.Upload.Slots,
-                    maximumConcurrentDownloads: OptionsAtStartup.Global.Download.Slots,
+                new SoulseekClient(
+                    minorVersion: NetworkMinorVersion,
+                    options: new SoulseekClientOptions(
+                    maximumConcurrentUploads: OptionsAtStartup.Transfers.Upload.Slots,
+                    maximumConcurrentDownloads: OptionsAtStartup.Transfers.Download.Slots,
                     minimumDiagnosticLevel: OptionsAtStartup.Soulseek.DiagnosticLevel.ToEnum<Soulseek.Diagnostics.DiagnosticLevel>(),
                     maximumConcurrentSearches: 2,
                     raiseEventsAsynchronously: true)));
