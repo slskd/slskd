@@ -230,7 +230,7 @@
 #       port: ~
 #       username: ~
 #       password: ~
-# integration:
+# integrations:
 #   vpn:
 #     enabled: false
 #     port_forwarding: false

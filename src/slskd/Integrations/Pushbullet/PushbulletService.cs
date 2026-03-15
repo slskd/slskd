@@ -26,7 +26,7 @@ namespace slskd.Integrations.Pushbullet
     using System.Threading.Tasks;
     using Microsoft.Extensions.Caching.Memory;
     using Microsoft.Extensions.Logging;
-    using static slskd.Options.IntegrationOptions;
+    using static slskd.Options.IntegrationsOptions;
 
     /// <summary>
     ///     Pushbullet integration service.
@@ -57,7 +57,7 @@ namespace slskd.Integrations.Pushbullet
         private IHttpClientFactory HttpClientFactory { get; }
         private ILogger<PushbulletService> Log { get; }
         private IOptionsMonitor<Options> OptionsMonitor { get; }
-        private PushbulletOptions PushbulletOptions => OptionsMonitor.CurrentValue.Integration.Pushbullet;
+        private PushbulletOptions PushbulletOptions => OptionsMonitor.CurrentValue.Integrations.Pushbullet;
         private IMemoryCache RecentlySent { get; }
 
         /// <summary>

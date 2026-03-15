@@ -1068,7 +1068,7 @@ namespace slskd
 
             Messaging.Conversations.HandleMessageAsync(args.Username, PrivateMessage.FromEventArgs(args));
 
-            if (Options.Integration.Pushbullet.Enabled && !args.Replayed)
+            if (Options.Integrations.Pushbullet.Enabled && !args.Replayed)
             {
                 _ = Pushbullet.PushAsync($"Private Message from {args.Username}", args.Username, args.Message);
             }
@@ -1086,7 +1086,7 @@ namespace slskd
 
             var message = RoomMessage.FromEventArgs(args, DateTime.UtcNow);
 
-            if (Options.Integration.Pushbullet.Enabled && message.Message.Contains(Client.Username))
+            if (Options.Integrations.Pushbullet.Enabled && message.Message.Contains(Client.Username))
             {
                 _ = Pushbullet.PushAsync($"Room Mention by {message.Username} in {message.RoomName}", message.RoomName, message.Message);
             }

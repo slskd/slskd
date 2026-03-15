@@ -241,6 +241,7 @@ namespace slskd
         /// <summary>
         ///     Gets transfer options.
         /// </summary>
+        [Validate]
         public TransfersOptions Transfers { get; init; } = new TransfersOptions();
 
         /// <summary>
@@ -312,7 +313,7 @@ namespace slskd
         ///     Gets options for external integrations.
         /// </summary>
         [Validate]
-        public IntegrationOptions Integration { get; init; } = new IntegrationOptions();
+        public IntegrationsOptions Integrations { get; init; } = new IntegrationsOptions();
 
         /// <summary>
         ///     Handles top-level validation that doesn't fit anywhere else.
@@ -2264,7 +2265,7 @@ namespace slskd
         /// <summary>
         ///     Options for external integrations.
         /// </summary>
-        public class IntegrationOptions
+        public class IntegrationsOptions
         {
             /// <summary>
             ///     Gets VPN options.
