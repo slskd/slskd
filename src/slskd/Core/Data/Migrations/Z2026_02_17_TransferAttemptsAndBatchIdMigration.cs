@@ -1,4 +1,4 @@
-// <copyright file="Z12282025_AdditionalTransferIndexesMigration.cs" company="slskd Team">
+// <copyright file="Z2026_02_17_TransferAttemptsAndBatchIdMigration.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -21,31 +21,33 @@ using System;
 using System.Linq;
 using Microsoft.Data.Sqlite;
 using Serilog;
+using slskd.Transfers;
 
 /// <summary>
-///     Adds additional indexes to the Transfers table for Removed, Username/Filename, and user upload statistics.
+///     Updates the Transfers table to add Attempts and BatchId columns.
 /// </summary>
-public class Z12282025_AdditionalTransferIndexesMigration : IMigration
+public class Z2026_02_17_TransferAttemptsAndBatchIdMigration : IMigration
 {
-    public Z12282025_AdditionalTransferIndexesMigration(ConnectionStringDictionary connectionStrings)
+    public Z2026_02_17_TransferAttemptsAndBatchIdMigration(ConnectionStringDictionary connectionStrings)
     {
         ConnectionString = connectionStrings[Database.Transfers];
     }
 
-    private ILogger Log { get; } = Serilog.Log.ForContext<Z12282025_AdditionalTransferIndexesMigration>();
+    private ILogger Log { get; } = Serilog.Log.ForContext<Z2026_02_17_TransferAttemptsAndBatchIdMigration>();
     private string ConnectionString { get; }
 
     public bool NeedsToBeApplied()
     {
-        // check to see if *BOTH* of the indexes are in place. if one or both are missing, we must apply
+        var schema = SchemaInspector.GetDatabaseSchema(ConnectionString);
         var idxes = SchemaInspector.GetDatabaseIndexes(ConnectionString);
-        var txfers = idxes["Transfers"];
 
-        var removedExists = txfers.Any(c => c.Name.Equals("IDX_Transfers_Removed", StringComparison.OrdinalIgnoreCase));
-        var usernameFilenameExists = txfers.Any(c => c.Name.Equals("IDX_Transfers_UsernameFilename", StringComparison.OrdinalIgnoreCase));
-        var statsExist = txfers.Any(c => c.Name.Equals("IDX_Transfers_UserUploadStatistics", StringComparison.OrdinalIgnoreCase));
+        var columns = schema["Transfers"];
+        var indexes = idxes["Transfers"];
 
-        if (removedExists && usernameFilenameExists && statsExist)
+        // check to see if the Attempts and BatchId columns exist
+        if (columns.Any(c => c.Name == nameof(Transfer.Attempts))
+            && columns.Any(c => c.Name == nameof(Transfer.BatchId))
+            && indexes.Any(i => i.Name.Equals("IDX_Transfers_BatchId", StringComparison.OrdinalIgnoreCase)))
         {
             return false;
         }
@@ -57,9 +59,11 @@ public class Z12282025_AdditionalTransferIndexesMigration : IMigration
     {
         if (!NeedsToBeApplied())
         {
-            Log.Information("> Migration {Name} is not necessary or has already been applied", nameof(Z12282025_AdditionalTransferIndexesMigration));
+            Log.Information("> Migration {Name} is not necessary or has already been applied", nameof(Z2026_02_17_TransferAttemptsAndBatchIdMigration));
             return;
         }
+
+        var columns = SchemaInspector.GetDatabaseSchema(ConnectionString)["Transfers"];
 
         using var connection = new SqliteConnection(ConnectionString);
         connection.Open();
@@ -74,11 +78,23 @@ public class Z12282025_AdditionalTransferIndexesMigration : IMigration
                 command.ExecuteNonQuery();
             }
 
+            Log.Information("> Adding BatchId and Attempts columns to the Transfers table...");
+
+            if (!columns.Any(c => c.Name == nameof(Transfer.BatchId)))
+            {
+                Exec("ALTER TABLE Transfers ADD COLUMN BatchId TEXT NULL;");
+            }
+
+            if (!columns.Any(c => c.Name == nameof(Transfer.Attempts)))
+            {
+                Exec("ALTER TABLE Transfers ADD COLUMN Attempts INTEGER NOT NULL DEFAULT 0;");
+            }
+
+            Log.Information("> New columns added");
+
             Log.Information("> Adding missing index(es) on the Transfers table...");
 
-            Exec("CREATE INDEX IF NOT EXISTS IDX_Transfers_Removed ON Transfers (Removed)");
-            Exec("CREATE INDEX IF NOT EXISTS IDX_Transfers_UsernameFilename ON Transfers (Username, Filename)");
-            Exec("CREATE INDEX IF NOT EXISTS IDX_Transfers_UserUploadStatistics ON Transfers (Username, Direction, EndedAt, StartedAt, State, Size)");
+            Exec("CREATE INDEX IF NOT EXISTS IDX_Transfers_BatchId ON Transfers (BatchId)");
 
             Log.Information("> Index(es) created");
             transaction.Commit();
