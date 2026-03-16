@@ -1,0 +1,30 @@
+pkgname=slskd-bin
+pkgver=0.17.5
+pkgrel=1
+arch=("x86_64")
+url="https://github.com/slskd/slskd"
+license=("GPL3")
+options=("!strip")
+depends=("dotnet-runtime")
+conflicts=("slskd")
+makedepends=()
+source=("$url/releases/download/$pkgver/slskd-$pkgver-linux-x64.zip")
+sha256sums=("4181aeda4c1924f31779261c1361e90b8e11bd23a5e0c520369d59fa04efadc9")
+
+package() {
+  install -Dm644 slskd.service "${pkgdir}/usr/lib/systemd/system/slskd.service"
+  install -Dm644 slskd.conf $pkgdir/usr/lib/sysusers.d/slskd.conf
+
+  cd $srcdir
+
+  install -Dm755 slskd "${pkgdir}/usr/bin/slskd"
+  install -Dm644 etc/slskd.xml "${pkgdir}/etc/slskd.xml"
+
+  mkdir -p "${pkgdir}/usr/share/slskd/"
+  mkdir -p "${pkgdir}/var/lib/slskd/"
+  chown -R slskd:slskd "${pkgdir}/var/lib/slskd/"
+
+  install -Dm644 LICENSE "${pkgdir}/usr/share/slskd/LICENSE"
+  install -Dm644 config/slskd.example.yml "${pkgdir}/usr/share/slskd/slskd.example.yml"
+  cp -r wwwroot "${pkgdir}/usr/share/slskd/"
+}
