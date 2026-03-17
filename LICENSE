@@ -659,3 +659,121 @@ specific requirements.
 if any, to sign a "copyright disclaimer" for the program, if necessary.
 For more information on this, and how to apply and follow the GNU AGPL, see
 <https://www.gnu.org/licenses/>.
+
+
+-------------------------------------------------------------------------------
+
+                         ADDITIONAL TERMS
+
+  The following additional terms apply to this software pursuant to Section 7
+of the GNU Affero General Public License v3.0 ("AGPLv3"). These terms
+supplement the AGPLv3 and are not "additional permissions" as defined in
+Section 7; as such, they may not be removed.
+
+  These Additional Terms attach to the Program and every work based on it,
+and must be included in their entirety with any such conveyance. If any
+provision is found unenforceable or invalid, it shall be interpreted to the
+minimum extent necessary to make it enforceable; if that is not possible,
+it shall be severed without affecting the remaining provisions.
+
+  As used in these Additional Terms, the term "slskd" refers to the Program
+and any work based on the Program as defined in Section 0 of this License.
+
+  1. Disclaimer Regarding Content and Liability (Section 7(a))
+
+  Notwithstanding the terms of sections 15 and 16, slskd is provided with the
+understanding that the licensors and authors do not condone or endorse the
+unauthorized sharing of copyrighted works, or the transmission of any unlawful
+or illicit materials. Users are solely responsible for ensuring that any files
+transmitted or received using slskd are shared in compliance with applicable
+law and the community rules of the network to which slskd connects. In no event
+shall the licensors or authors be held liable for any legal consequences,
+damages, or claims arising from a user's transmission of copyrighted material,
+unlawful content, or other data in violation of third-party rights, network
+policies, or local, state, national, or international laws.
+
+  2. Preservation of Notices and License (Section 7(b))
+
+  You must preserve the existing copyright headers in all source files. If you
+modify a file, you may add your own copyright notice to that file below the
+original copyright notice. Furthermore, any conveyance of slskd in object
+code or executable form must be accompanied by the full text of this License
+and these Additional Terms in a file named LICENSE. The content of said
+LICENSE must be a verbatim copy of the license file provided with the Source
+Code, subject only to the removal of additional permissions or the addition of
+permitted restrictions as expressly authorized by Section 7 of this License.
+
+  3. Modified Version Identification (Section 7(c))
+
+  Any modified version of slskd must be clearly and prominently marked as
+different from the original version. At a minimum, such versions must:
+
+    a) Display a clear and prominent notice in the user interface and any
+    terminal startup output stating that the work is a modified version and is
+    not the original slskd. Any ASCII art, logos, or text-based branding in
+    the user interface or terminal startup output must be replaced or visually
+    distinct from the original; verbatim reproduction of the original terminal
+    branding is prohibited.
+
+    b) Include a notice in the README or equivalent documentation stating:
+    "This is a modified version of slskd. It is not maintained by, endorsed
+    by, or affiliated with the slskd project or its author(s).";
+
+    c) Not present the work (including through the use of project names,
+    version numbering schemes, or logos) in any way that could reasonably
+    create confusion as to whether it is the original slskd or is
+    maintained, approved, or supported by the original author(s); and
+
+    d) Use a minor version identifier distinct from the original Program for
+    the expressed purpose of identifying the work as a modified version to the
+    network; specifically, the integer value transmitted during network login
+    and identification must be changed to a value that, when expressed as a
+    decimal integer, does not begin with the digits "76". This requirement
+    applies to the effective value as transmitted; compliance is not satisfied
+    if the "76" prefix is present in network traffic, regardless of internal
+    code structure or variable naming. This value must be implemented as a
+    hard-coded constant in the Source Code and must not be modified, shadowed,
+    overridden, or substituted by any party through any means, including but
+    not limited to compiler flags, build system configuration, environment
+    variables, command-line arguments, external settings files, or
+    administrative interfaces.
+
+  Compliance with each requirement of this Section is a condition of the
+permissions granted under this License.
+
+  4. Mandatory Rebranding of Modified Versions (Section 7(c))
+
+  To prevent confusion regarding the origin of the software, any modified
+version must be rebranded to use a name that is clearly distinct from "slskd".
+The name adopted for a modified version must not contain "slskd" as a
+substring, and must not be confusingly similar to "slskd" in appearance, sound,
+or meaning. This requires the removal or replacement of all references to
+"slskd" in filenames, logos, and technical support URLs. Notwithstanding the
+above, the name "slskd" must be retained where necessary for:
+
+  a) Verbatim reproduction of this License and Additional Terms;
+
+  b) Preservation of original copyright headers in source files;
+
+  c) The mandatory identification notices required by Section 3(a) and 3(b) of
+  these Additional Terms; and
+
+  d) Purely descriptive references to the software's origin or compatibility,
+  provided such use does not appear as a primary branding element and does not
+  imply endorsement.
+
+  Compliance with each requirement of this Section is a condition of the 
+permissions granted under this License.
+
+  No person or entity may represent that a modified version is the original
+slskd software or that it is endorsed by the slskd project without express
+written authorization.
+
+  5. Disclaimer of Affiliation (Section 7(a))
+
+  TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, THE ORIGINAL AUTHOR(S) OF
+slskd DISCLAIM ALL RESPONSIBILITY AND LIABILITY FOR ANY MODIFIED VERSION OF
+slskd. MODIFIED VERSIONS ARE PROVIDED BY THEIR RESPECTIVE MODIFIER(S) AND ARE
+NOT THE RESPONSIBILITY OF THE ORIGINAL AUTHOR(S). ANY WARRANTIES, EXPRESS OR
+IMPLIED, RELATING TO MODIFIED VERSIONS ARE THE SOLE RESPONSIBILITY OF THE
+PERSON(S) OR ENTITY(IES) THAT CREATED SUCH MODIFICATIONS.
