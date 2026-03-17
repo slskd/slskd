@@ -709,14 +709,34 @@ distributed, or promoted it.
 
   2. Preservation of Notices and License (Section 7(b))
 
-  You must preserve the existing copyright headers in all source files. If you
-modify a file, you may add your own copyright notice to that file below the
-original copyright notice. Furthermore, any conveyance of slskd in object
-code or executable form must be accompanied by the full text of this License
-and these Additional Terms in a file named LICENSE. The content of said
-LICENSE must be a verbatim copy of the license file provided with the Source
-Code, subject only to the removal of additional permissions or the addition of
-permitted restrictions as expressly authorized by Section 7 of this License.
+  You must preserve all existing copyright and license notices in all source
+files without modification, except as expressly required by these Additional
+Terms. This includes, without limitation, any copyright statements, license
+identifiers, and references to these Additional Terms contained in file
+headers.
+
+  Any conveyance of slskd in object code or executable form must be accompanied
+by the full text of this License and these Additional Terms in a file named
+LICENSE, located in the root directory of the distribution, and in the
+directory in which the object code or executable is stored, if different from
+the root directory. The content of said LICENSE must be a verbatim copy of the
+license file provided with the Source Code..
+
+  Any conveyance of slskd in the form of a container image must, in addition
+to the requirements above, include the following OCI image annotations for
+the purpose of ensuring that recipients understand the license under which
+the software is distributed and can locate the corresponding source code:
+
+  a) org.opencontainers.image.licenses must be set to "AGPL-3.0-only"; and
+
+  b) org.opencontainers.image.source must be set to the URL of the source
+  code repository for the version of slskd contained in the image,
+  whether that is the original Program or a modified version.
+
+  You must not remove, obscure, or modify any copyright, license, or
+attribution notices displayed in any user interface shipped with slskd or
+any modified version, including but not limited to notices displayed in web
+interfaces, desktop interfaces, or terminal output.
 
   3. Modified Version Identification (Section 7(c))
 
