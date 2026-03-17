@@ -727,11 +727,11 @@ to the requirements above, include the following OCI image annotations for
 the purpose of ensuring that recipients understand the license under which
 the software is distributed and can locate the corresponding source code:
 
-  a) org.opencontainers.image.licenses must be set to "AGPL-3.0-only"; and
+    a) org.opencontainers.image.licenses must be set to "AGPL-3.0-only"; and
 
-  b) org.opencontainers.image.source must be set to the URL of the source
-  code repository for the version of slskd contained in the image,
-  whether that is the original Program or a modified version.
+    b) org.opencontainers.image.source must be set to the URL of the source
+    code repository for the version of slskd contained in the image,
+    whether that is the original Program or a modified version.
 
   You must not remove, obscure, or modify any copyright, license, or
 attribution notices displayed in any user interface shipped with slskd or
@@ -786,16 +786,16 @@ or meaning. This requires the removal or replacement of all references to
 "slskd" in filenames, logos, and technical support URLs. Notwithstanding the
 above, the name "slskd" must be retained where necessary for:
 
-  a) Verbatim reproduction of this License and Additional Terms;
+    a) Verbatim reproduction of this License and Additional Terms;
 
-  b) Preservation of original copyright headers in source files;
+    b) Preservation of original copyright headers in source files;
 
-  c) The mandatory identification notices required by Section 3(a) and 3(b) of
-  these Additional Terms; and
+    c) The mandatory identification notices required by Section 3(a) and 3(b) of
+    these Additional Terms; and
 
-  d) Purely descriptive references to the software's origin or compatibility,
-  provided such use does not appear as a primary branding element and does not
-  imply endorsement.
+    d) Purely descriptive references to the software's origin or compatibility,
+    provided such use does not appear as a primary branding element and does not
+    imply endorsement.
 
   Compliance with each requirement of this Section is a condition of the 
 permissions granted under this License.
