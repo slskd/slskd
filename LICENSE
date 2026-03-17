@@ -663,7 +663,7 @@ For more information on this, and how to apply and follow the GNU AGPL, see
 
 -------------------------------------------------------------------------------
 
-                         ADDITIONAL TERMS
+                            ADDITIONAL TERMS
 
   The following additional terms apply to this software pursuant to Section 7
 of the GNU Affero General Public License v3.0 ("AGPLv3"). These terms
@@ -679,18 +679,28 @@ it shall be severed without affecting the remaining provisions.
   As used in these Additional Terms, the term "slskd" refers to the Program
 and any work based on the Program as defined in Section 0 of this License.
 
-  1. Disclaimer Regarding Content and Liability (Section 7(a))
+  1. Disclaimer of Endorsement and Limitation of Liability (Section 7(a))
 
-  Notwithstanding the terms of sections 15 and 16, slskd is provided with the
-understanding that the licensors and authors do not condone or endorse the
-unauthorized sharing of copyrighted works, or the transmission of any unlawful
-or illicit materials. Users are solely responsible for ensuring that any files
-transmitted or received using slskd are shared in compliance with applicable
-law and the community rules of the network to which slskd connects. In no event
-shall the licensors or authors be held liable for any legal consequences,
-damages, or claims arising from a user's transmission of copyrighted material,
-unlawful content, or other data in violation of third-party rights, network
-policies, or local, state, national, or international laws.
+  Notwithstanding the terms of Sections 15 and 16, slskd is provided with
+the understanding that the licensors and authors do not condone, endorse,
+or support the unauthorized sharing of copyrighted works or the transmission
+of any unlawful or illicit materials, whether through the original Program
+or any modified version.
+
+  Users and modifiers of slskd are solely responsible for ensuring that any
+use, distribution, or promotion of slskd or any modified version complies with
+applicable law and the community rules of the network to which the software
+connects.
+
+  In no event shall the licensors or authors of slskd be held liable for any
+legal consequences, damages, or claims arising from: (i) a user's transmission
+of copyrighted material, unlawful content, or other data in violation of
+third-party rights, network policies, or applicable law; or (ii) the use,
+promotion, or distribution of slskd or any modified version of slskd, including
+any modified version that promotes, facilitates, or is marketed in connection
+with copyright infringement or unlawful activity. Responsibility for any such
+modified version rests solely with the person or entity that created,
+distributed, or promoted it.
 
   2. Preservation of Notices and License (Section 7(b))
 
