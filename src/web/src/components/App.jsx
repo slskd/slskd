@@ -6,6 +6,7 @@ import * as relayAPI from '../lib/relay';
 import { connect, disconnect } from '../lib/server';
 import * as session from '../lib/session';
 import { isPassthroughEnabled } from '../lib/token';
+import { setPresence } from "../lib/users";
 import AppContext from './AppContext';
 import Browse from './Browse/Browse';
 import Chat from './Chat/Chat';
@@ -235,6 +236,11 @@ class App extends Component {
     });
   };
 
+  togglePresence = async () => {
+    const newPresence = this.state.applicationState.user?.presence === "Online" ? "Away" : "Online";
+    await setPresence({ presence: newPresence });
+  };
+
   handleLogin = (username, password, rememberMe) => {
     this.setState(
       (previousState) => ({
@@ -435,6 +441,15 @@ class App extends Component {
                 server={server}
                 user={user}
               />
+              {server?.isLoggedIn && (
+                <Menu.Item position="right" onClick={() => this.togglePresence()}>
+                  <Icon
+                      name={user?.presence === "Online" ? "circle" : "moon"}
+                      color={user?.presence === "Online" ? "green" : "yellow"}
+                  />
+                  {user?.presence}
+                </Menu.Item>
+              )}
               {(pendingReconnect || pendingRestart || pendingShareRescan) && (
                 <Menu.Item position="right">
                   <Icon.Group className="menu-icon-group">
