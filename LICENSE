@@ -773,9 +773,6 @@ different from the original version. At a minimum, such versions must:
     variables, command-line arguments, external settings files, or
     administrative interfaces.
 
-  Compliance with each requirement of this Section is a condition of the
-permissions granted under this License.
-
   4. Mandatory Rebranding of Modified Versions (Section 7(c))
 
   To prevent confusion regarding the origin of the software, any modified
