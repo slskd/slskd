@@ -670,7 +670,11 @@ of the GNU Affero General Public License v3.0 ("AGPLv3"). These terms
 supplement the AGPLv3 and are not "additional permissions" as defined in
 Section 7; as such, they may not be removed.
 
-  These Additional Terms attach to the Program and every work based on it,
+  As used in these Additional Terms: "the Program" refers to the original
+copyrightable work licensed under this License, and "Modified Version" refers
+to any work based on the Program.
+
+  These Additional Terms attach to the Program and every Modified Version,
 and must be included in their entirety with any such conveyance. If any
 provision is found unenforceable or invalid, it shall be interpreted to the
 minimum extent necessary to make it enforceable; if that is not possible,
@@ -681,31 +685,27 @@ granted under this License; failure to comply with these terms constitutes a
 violation of the License and is subject to the termination and reinstatement
 provisions of Section 8.
 
-  As used in these Additional Terms, the term "slskd" refers to the Program
-and any work based on the Program as defined in Section 0 of this License.
-
   1. Disclaimer of Endorsement and Limitation of Liability (Section 7(a))
 
-  Notwithstanding the terms of Sections 15 and 16, slskd is provided with
-the understanding that the licensors and authors do not condone, endorse,
-or support the unauthorized sharing of copyrighted works or the transmission
-of any unlawful or illicit materials, whether through the original Program
-or any modified version.
+  Notwithstanding the terms of Sections 15 and 16, the licensors and authors
+of the Program do not condone, endorse, or support the unauthorized sharing of
+copyrighted works or the transmission of any unlawful or illicit materials,
+whether through the Program or any Modified Version. The Program is not
+designed, intended, or licensed for any such purpose.
 
-  Users and modifiers of slskd are solely responsible for ensuring that any
-use, distribution, or promotion of slskd or any modified version complies with
-applicable law and the community rules of the network to which the software
-connects.
+  Users and modifiers are solely responsible for ensuring that their use,
+modification, distribution, or promotion of the Program or any Modified Version
+complies with all applicable laws, third-party rights, and the rules of any
+network to which the software connects.
 
-  In no event shall the licensors or authors of slskd be held liable for any
-legal consequences, damages, or claims arising from: (i) a user's transmission
-of copyrighted material, unlawful content, or other data in violation of
-third-party rights, network policies, or applicable law; or (ii) the use,
-promotion, or distribution of slskd or any modified version of slskd, including
-any modified version that promotes, facilitates, or is marketed in connection
-with copyright infringement or unlawful activity. Responsibility for any such
-modified version rests solely with the person or entity that created,
-distributed, or promoted it.
+  In no event shall the licensors or authors of the Program be held liable for
+any legal consequences, damages, or claims arising from: (i) any user's or
+modifier's use of the Program or any Modified Version in a manner that
+infringes third-party rights or violates applicable law; or (ii) the creation,
+distribution, promotion, or marketing of any Modified Version, including any
+Modified Version that facilitates or is associated with copyright infringement
+or unlawful activity. All responsibility for a Modified Version rests solely
+with the person or entity that created, distributed, or promoted it.
 
   2. Preservation of Notices and License (Section 7(b))
 
