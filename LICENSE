@@ -859,10 +859,10 @@ the factors described above.
     c) The mandatory identification notices required by Sections 3(a)
     and 3(b) of these Additional Terms; and
 
-    d) Purely descriptive references to the software's origin or
-    compatibility, such as "based on slskd" or "compatible with slskd",
-    provided such references do not appear as primary branding elements
-    or in the project name itself.
+    d) Purely descriptive references to the software's origin or compatibility,
+    such as "based on slskd" or "compatible with slskd", including in package
+    listing descriptions, provided such references do not appear as primary
+    branding elements or in the project name itself.
 
   No person or entity may represent that a Modified Version is the Program
 or that it is maintained by, endorsed by, or affiliated with the original
