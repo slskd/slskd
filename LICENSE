@@ -737,6 +737,18 @@ the corresponding source code:
     code repository for the version contained in the image, whether that is
     the Program or a Modified Version.
 
+  Any conveyance of the Program or any Modified Version through a
+package repository, package registry, software distribution
+platform, or similar system (including but not limited to operating
+system package repositories, language-specific registries, container
+registries, and application distribution platforms) must include the
+full text of this License and these Additional Terms in the package
+metadata, manifest, or accompanying files, in whatever form the
+platform supports. The package listing or description must identify
+the work as licensed under the GNU Affero General Public License
+v3.0 with Additional Terms and must include a link to the
+Corresponding Source.
+
   You must not remove, obscure, or modify any copyright, license, or
 attribution notices displayed in any user interface shipped with the Program
 or any Modified Version, including but not limited to notices displayed in web
@@ -816,7 +828,20 @@ documentation, taken together would mislead a reasonable user.
 and technical support URLs. Internal source code references (such as class
 names, namespaces, configuration keys, or internal filenames) need not be
 renamed, provided they are not visible to end users in normal operation.
-Notwithstanding the above, the name "slskd" may be used where necessary for:
+
+  A Modified Version must not be listed, published, registered, or
+distributed under the name "slskd" or any name that is likely to
+cause confusion with the Program in any package repository, package
+registry, container registry, software distribution platform, or
+similar system. Registering, claiming, or occupying the "slskd"
+package name or namespace in any such system for the purpose of
+distributing a Modified Version constitutes a violation of these
+Additional Terms, regardless of whether the Modified Version itself
+has been otherwise rebranded. This prohibition extends to any
+variant of the name that would be likely to cause confusion under
+the factors described above.
+
+  Notwithstanding the above, the name "slskd" may be used where necessary for:
 
     a) Verbatim reproduction of this License and these Additional Terms;
 
