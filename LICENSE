@@ -744,19 +744,19 @@ interfaces, desktop interfaces, or terminal output.
 
   3. Modified Version Identification (Section 7(c))
 
-  Any modified version of slskd must be clearly and prominently marked as
-different from the original version. At a minimum, such versions must:
+  Any Modified Version must be clearly and prominently marked as different
+from the Program. At a minimum, a Modified Version must:
 
     a) Display a clear and prominent notice in the user interface and any
-    terminal startup output stating that the work is a modified version and is
-    not the original slskd. Any ASCII art, logos, or text-based branding in
+    terminal startup output stating that the work is a Modified Version and is
+    not the original Program. Any ASCII art, logos, or text-based branding in
     the user interface or terminal startup output must be replaced or visually
     distinct from the original; verbatim reproduction of the original terminal
     branding is prohibited.
 
     b) Include a notice in the README or equivalent documentation stating:
     "This is a modified version of slskd. It is not maintained by, endorsed
-    by, or affiliated with the slskd project or its author(s).";
+    by, or affiliated with the slskd project or its author(s)."
 
     c) For each source file modified, add a copyright notice and a brief
     description of the nature of the modifications to the file header, below
@@ -769,51 +769,70 @@ different from the original version. At a minimum, such versions must:
     modifications and must not misrepresent the nature or extent of the changes
     made.
 
+    For newly created source files that do not originate from the Program, the
+    modifier may use a single copyright notice with the year and their name.
+    No modification description is required for such files, but the remainder
+    of the file header (including the license notice and reference to these
+    Additional Terms) must match the format of the existing file headers in the
+    Program.
+
+    d) Not present the work (including through the use of project names,
     version numbering schemes, or logos) in any way that could reasonably
-    create confusion as to whether it is the original slskd or is
-    maintained, approved, or supported by the original author(s); and
+    create confusion as to whether it is the Program or is maintained,
+    approved, or supported by the original author(s).
 
-    d) Use a minor version identifier distinct from the original Program for
-    the expressed purpose of identifying the work as a modified version to the
-    network; specifically, the integer value transmitted during network login
-    and identification must be changed to a value that, when expressed as a
-    decimal integer, does not begin with the digits "76". This requirement
-    applies to the effective value as transmitted; compliance is not satisfied
-    if the "76" prefix is present in network traffic, regardless of internal
-    code structure or variable naming. This value must be implemented as a
-    hard-coded constant in the Source Code and must not be modified, shadowed,
-    overridden, or substituted by any party through any means, including but
-    not limited to compiler flags, build system configuration, environment
-    variables, command-line arguments, external settings files, or
-    administrative interfaces.
+    e) Not transmit, during Soulseek network login or identification, a client
+    version identifier that is a decimal integer beginning with the digits "76"
+    (including but not limited to integers in the range 760 through 76999).
+    The Soulseek server and its administrators rely on the client version
+    identifier to distinguish between client implementations and to enforce
+    network policies; transmitting an identifier in the reserved range
+    constitutes a false representation that the software is the Program and
+    implies endorsement or affiliation with its authors, which is expressly
+    disclaimed. This condition applies regardless of the technical means by
+    which the identifier is set or transmitted.
 
-  4. Mandatory Rebranding of Modified Versions (Section 7(c))
+  4. Mandatory Rebranding of Modified Versions (Sections 7(c), 7(d), and 7(e))
 
-  To prevent confusion regarding the origin of the software, any modified
-version must be rebranded to use a name that is clearly distinct from "slskd".
-The name adopted for a modified version must not contain "slskd" as a
-substring, and must not be confusingly similar to "slskd" in appearance, sound,
-or meaning. This requires the removal or replacement of all references to
-"slskd" in filenames, logos, and technical support URLs. Notwithstanding the
-above, the name "slskd" must be retained where necessary for:
+  To prevent confusion regarding the origin of the software, any Modified
+Version must adopt a name that is not likely to cause reasonable confusion
+as to whether it is the Program or is maintained, endorsed, or affiliated
+with the original author(s). Without limiting the foregoing, a name that
+contains "slskd" as a substring is presumed to create such confusion. This
+presumption may only be rebutted by express written authorization from the
+original author(s).
 
-    a) Verbatim reproduction of this License and Additional Terms;
+  In determining whether a name is likely to cause confusion, relevant
+factors include but are not limited to: (i) the degree of visual, phonetic,
+or semantic similarity to "slskd"; (ii) whether the name implies
+maintenance, endorsement, or affiliation with the original project;
+(iii) whether the name incorporates "slskd" as a recognizable component
+regardless of additional characters; and (iv) whether the overall
+presentation of the Modified Version, including its name, logo, and
+documentation, taken together would mislead a reasonable user.
+
+  This requires the removal or replacement of all user-facing references to
+"slskd", including but not limited to project names, logos, documentation,
+and technical support URLs. Internal source code references (such as class
+names, namespaces, configuration keys, or internal filenames) need not be
+renamed, provided they are not visible to end users in normal operation.
+Notwithstanding the above, the name "slskd" may be used where necessary for:
+
+    a) Verbatim reproduction of this License and these Additional Terms;
 
     b) Preservation of original copyright headers in source files;
 
-    c) The mandatory identification notices required by Section 3(a) and 3(b) of
-    these Additional Terms; and
+    c) The mandatory identification notices required by Sections 3(a)
+    and 3(b) of these Additional Terms; and
 
-    d) Purely descriptive references to the software's origin or compatibility,
-    provided such use does not appear as a primary branding element and does not
-    imply endorsement.
+    d) Purely descriptive references to the software's origin or
+    compatibility, such as "based on slskd" or "compatible with slskd",
+    provided such references do not appear as primary branding elements
+    or in the project name itself.
 
-  Compliance with each requirement of this Section is a condition of the 
-permissions granted under this License.
-
-  No person or entity may represent that a modified version is the original
-slskd software or that it is endorsed by the slskd project without express
-written authorization.
+  No person or entity may represent that a Modified Version is the Program
+or that it is maintained by, endorsed by, or affiliated with the original
+author(s) without express written authorization.
 
   5. Disclaimer of Affiliation (Section 7(a))
 
