@@ -825,9 +825,12 @@ documentation, taken together would mislead a reasonable user.
 
   This requires the removal or replacement of all user-facing references to
 "slskd", including but not limited to project names, logos, documentation,
-and technical support URLs. Internal source code references (such as class
-names, namespaces, configuration keys, or internal filenames) need not be
-renamed, provided they are not visible to end users in normal operation.
+technical support URLs, and any website, domain name, or online presence
+through which a Modified Version is distributed, made available for download,
+or from which users are directed to obtain a Modified Version. Internal source
+code references (such as class names, namespaces, configuration keys, or
+internal filenames) need not be renamed, provided they are not visible to end
+users in normal operation.
 
   A Modified Version must not be listed, published, registered, or
 distributed under the name "slskd" or any name that is likely to
