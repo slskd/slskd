@@ -754,7 +754,17 @@ different from the original version. At a minimum, such versions must:
     "This is a modified version of slskd. It is not maintained by, endorsed
     by, or affiliated with the slskd project or its author(s).";
 
-    c) Not present the work (including through the use of project names,
+    c) For each source file modified, add a copyright notice and a brief
+    description of the nature of the modifications to the file header, below
+    all existing copyright notices but above the license notice. For example:
+
+      Copyright (c) <year> <name>
+      Modified: <brief description of changes>
+
+    This description must be sufficient to identify the general nature of the
+    modifications and must not misrepresent the nature or extent of the changes
+    made.
+
     version numbering schemes, or logos) in any way that could reasonably
     create confusion as to whether it is the original slskd or is
     maintained, approved, or supported by the original author(s); and
