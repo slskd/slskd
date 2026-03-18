@@ -715,27 +715,31 @@ Terms. This includes, without limitation, any copyright statements, license
 identifiers, and references to these Additional Terms contained in file
 headers.
 
-  Any conveyance of slskd in object code or executable form must be accompanied
-by the full text of this License and these Additional Terms in a file named
-LICENSE, located in the root directory of the distribution, and in the
-directory in which the object code or executable is stored, if different from
-the root directory. The content of said LICENSE must be a verbatim copy of the
-license file provided with the Source Code..
+  Any conveyance of the Program or any Modified Version in object code or
+executable form, regardless of the distribution format (including but not
+limited to archive files, installer packages, container images, and any other
+distribution medium or format), must be accompanied by the full text of this
+License and these Additional Terms in a file named LICENSE, located in the root
+directory of the distribution, and in the directory in which the object code or
+executable is stored, if different from the root directory. The content of said
+LICENSE file must be a verbatim copy of the license file provided with the
+Corresponding Source.
 
-  Any conveyance of slskd in the form of a container image must, in addition
-to the requirements above, include the following OCI image annotations for
-the purpose of ensuring that recipients understand the license under which
-the software is distributed and can locate the corresponding source code:
+  Any conveyance of the Program or any Modified Version in the form of a
+container image must, in addition to the requirements above, include the
+following OCI image annotations for the purpose of ensuring that recipients
+understand the license under which the software is distributed and can locate
+the corresponding source code:
 
     a) org.opencontainers.image.licenses must be set to "AGPL-3.0-only"; and
 
     b) org.opencontainers.image.source must be set to the URL of the source
-    code repository for the version of slskd contained in the image,
-    whether that is the original Program or a modified version.
+    code repository for the version contained in the image, whether that is
+    the Program or a Modified Version.
 
   You must not remove, obscure, or modify any copyright, license, or
-attribution notices displayed in any user interface shipped with slskd or
-any modified version, including but not limited to notices displayed in web
+attribution notices displayed in any user interface shipped with the Program
+or any Modified Version, including but not limited to notices displayed in web
 interfaces, desktop interfaces, or terminal output.
 
   3. Modified Version Identification (Section 7(c))
