@@ -1,4 +1,4 @@
-// <copyright file="TypeConverter.cs" company="slskd Team">
+// <copyright file="IVPNClient.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -15,24 +15,18 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-namespace slskd;
+using System.Threading.Tasks;
 
-using System;
-using System.Text.Json;
-using System.Text.Json.Serialization;
+namespace slskd.Integrations.VPN;
 
-public class TypeConverter : JsonConverter<Type>
+/// <summary>
+///     A lightweight interface for monitoring the status of a VPN provider.
+/// </summary>
+public interface IVPNClient
 {
-    public override bool CanConvert(Type typeToConvert) => typeToConvert == typeof(Type);
-
-    public override Type Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-    {
-        var typeName = reader.GetString();
-        return typeName is null ? null : Type.GetType(typeName);
-    }
-
-    public override void Write(Utf8JsonWriter writer, Type value, JsonSerializerOptions options)
-    {
-        writer.WriteStringValue(value.AssemblyQualifiedName);
-    }
+    /// <summary>
+    ///     Fetch the VPN connection status from the provider.
+    /// </summary>
+    /// <returns>The current status.</returns>
+    public Task<VPNStatus> GetStatusAsync();
 }

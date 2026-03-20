@@ -129,7 +129,7 @@ const SearchDetail = ({
 
   const create = async ({ navigate, search: searchForCreate }) => {
     reset();
-    onCreate({ navigate, searchForCreate });
+    onCreate({ navigate, search: searchForCreate });
   };
 
   const remove = async () => {

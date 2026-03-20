@@ -38,10 +38,16 @@ public record EventRecord
     private static JsonSerializerOptions JsonSerializerOptions { get; } = new JsonSerializerOptions()
     {
         PropertyNameCaseInsensitive = true,
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        DefaultIgnoreCondition = JsonIgnoreCondition.Never,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
         WriteIndented = false,
+        Converters =
+        {
+            new IPAddressConverter(),
+            new JsonStringEnumConverter(),
+            new KnownUnsupportedTypeConverter(),
+        },
     };
 
     /// <summary>

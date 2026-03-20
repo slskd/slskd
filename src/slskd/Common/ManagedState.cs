@@ -134,7 +134,7 @@ namespace slskd
         /// <param name="value">The current value of the state.</param>
         public StateSnapshot(T value)
         {
-            Value = JsonSerializer.Deserialize<T>(JsonSerializer.Serialize(value));
+            Value = value.ToJson().FromJson<T>();
         }
 
         /// <summary>
