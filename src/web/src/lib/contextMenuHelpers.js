@@ -31,30 +31,42 @@ export const createContextMenuHandlers = (component, options = {}) => {
 
   const actionMap = {
     browseShares: {
-      handleClick: component.handleBrowseShares,
+      handlerName: 'handleBrowseShares',
       label: 'Browse Shares',
     },
     directMessage: {
-      handleClick: component.handleDirectMessage,
+      handlerName: 'handleDirectMessage',
       label: 'Direct Message',
     },
     ignoreUser: {
-      handleClick: component.handleIgnoreUser,
+      handlerName: 'handleIgnoreUser',
       label: 'Ignore User',
     },
     reply: {
-      handleClick: component.handleReply,
+      handlerName: 'handleReply',
       label: 'Reply',
     },
     userProfile: {
-      handleClick: component.handleUserProfile,
+      handlerName: 'handleUserProfile',
       label: 'User Profile',
     },
   };
 
   return {
     getContextMenuActions() {
-      return handlerKeys.map((key) => actionMap[key]).filter(Boolean);
+      return handlerKeys
+        .map((key) => {
+          const action = actionMap[key];
+          if (!action) {
+            return null;
+          }
+
+          return {
+            handleClick: component[action.handlerName],
+            label: action.label,
+          };
+        })
+        .filter(Boolean);
     },
 
     handleBrowseShares() {
