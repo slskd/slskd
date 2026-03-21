@@ -684,7 +684,8 @@ without regard to the severed provision.  The parties acknowledge that each
 provision of these Additional Terms is intended to be severable and that no
 provision is dependent upon the validity or enforceability of any other.
 
-  Compliance with these Additional Terms is a material condition of the License
+  Compliance with these Additional Terms, to the extent they constitute valid
+conditions under Section 7 of the AGPLv3, is a material condition of the License
 grant.  Any modification or conveyance of the Program, or any Modified Version
 thereof, without adherence to these Additional Terms is a violation of the
 License and is subject to the termination and reinstatement provisions of
@@ -751,8 +752,9 @@ preservation of legal notices:
   e) Package Registries: Any conveyance through a package repository, registry,
   or software distribution platform (including operating system repositories
   and language-specific registries) must identify the work as licensed under
-  the GNU Affero General Public License v3.0, include a link to the
-  Corresponding Source, and include a link to the full text of this License.
+  the GNU Affero General Public License v3.0 ("AGPLv3"), include a link to the
+  Corresponding Source, and include a link to the full text of this License and
+  these Additional Terms.
 
   f) Container Metadata: Any conveyance of the Program or a Modified Version in
   the form of a container image must include the following OCI image annotations
@@ -804,7 +806,7 @@ Versions:
   and reference to these Additional Terms) must match the format of the existing
   file headers in the Program.
 
-  e) Package Registries: Any conveyance of a Modified Version through a package
+  e) Distribution: Any conveyance of a Modified Version through a package
   repository, registry, or software distribution platform (including operating
   system repositories and language-specific registries) must clearly identify
   the work as a modified version of the Program in the package description or
@@ -817,11 +819,11 @@ Version must adopt a name, branding, and presentation that does not
 misrepresent its relationship to the Program or its original author(s).
 The following requirements apply to all Modified Versions:
 
-  a) Naming Standard: A Modified Version must adopt a name that is not
-  likely to cause reasonable confusion as to whether it is the Program
-  or is maintained, endorsed, or affiliated with the original author(s).
-  In determining whether a name is likely to cause confusion, relevant
-  factors include but are not limited to:
+  a) Naming: A Modified Version must adopt a name that is not likely to cause
+  reasonable confusion as to whether it is the Program or is maintained,
+  endorsed, or affiliated with the original author(s).  In determining whether a
+  name is likely to cause confusion, relevant factors include but are not
+  limited to:
 
     i) the degree of visual, phonetic, or semantic similarity to "slskd";
 
@@ -837,13 +839,13 @@ The following requirements apply to all Modified Versions:
 
   b) User-Facing References: A Modified Version must remove or replace all
   user-facing references to "slskd", including but not limited to project
-  names, logos, documentation, technical support URLs, and any website,
-  domain name, or online presence through which a Modified Version is
-  distributed, made available for download, or from which users are
-  directed to obtain a Modified Version.  Internal source code references
-  (such as class names, namespaces, configuration keys, or internal
-  filenames) need not be renamed, provided they are not visible to end
-  users in normal operation.
+  names, logos, ASCII art, terminal startup output, documentation, technical
+  support URLs, and any website, domain name, or online presence through which
+  a Modified Version is distributed, made available for download, or from which
+  users are directed to obtain a Modified Version.  Internal source code
+  references (such as class names, namespaces, configuration keys, or internal
+  filenames) need not be renamed, provided they are not visible to end users in
+  normal operation.
 
   c) Package Registries: A Modified Version must not be listed, published,
   registered, or distributed under the name "slskd" or any name that is
