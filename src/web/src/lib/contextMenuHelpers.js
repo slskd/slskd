@@ -1,4 +1,17 @@
+import { activeChatKey } from '../config';
 import * as userActions from './userActions';
+
+const formatReply = (message) => {
+  if (!message) {
+    return '';
+  }
+
+  if (typeof message.direction === 'string') {
+    return `${message.message} --> `;
+  }
+
+  return `[${message.username}] ${message.message} --> `;
+};
 
 /**
  * Creates context menu handlers that can be used in class components
@@ -6,36 +19,42 @@ import * as userActions from './userActions';
  * @param {object} options - Configuration options
  * @param {Function} options.getMessageRef - Function that returns the message input ref
  * @param {Function} options.focusInput - Function to focus the input
- * @param {Function} options.formatReply - Optional function to format reply text
+ * @param {string[]} options.handlerKeys - Optional list of context menu actions to show
  * @returns {object} Object containing all context menu handler methods
  */
 export const createContextMenuHandlers = (component, options = {}) => {
   const {
     getMessageRef = () => component.messageRef,
     focusInput = () => component.focusInput(),
-    formatReply = (message) => `${message.message} --> `,
+    handlerKeys = ['reply', 'userProfile', 'browseShares', 'ignoreUser'],
   } = options;
+
+  const actionMap = {
+    browseShares: {
+      handleClick: component.handleBrowseShares,
+      label: 'Browse Shares',
+    },
+    directMessage: {
+      handleClick: component.handleDirectMessage,
+      label: 'Direct Message',
+    },
+    ignoreUser: {
+      handleClick: component.handleIgnoreUser,
+      label: 'Ignore User',
+    },
+    reply: {
+      handleClick: component.handleReply,
+      label: 'Reply',
+    },
+    userProfile: {
+      handleClick: component.handleUserProfile,
+      label: 'User Profile',
+    },
+  };
 
   return {
     getContextMenuActions() {
-      return [
-        {
-          handleClick: component.handleReply,
-          label: 'Reply',
-        },
-        {
-          handleClick: component.handleUserProfile,
-          label: 'User Profile',
-        },
-        {
-          handleClick: component.handleBrowseShares,
-          label: 'Browse Shares',
-        },
-        {
-          handleClick: component.handleIgnoreUser,
-          label: 'Ignore User',
-        },
-      ];
+      return handlerKeys.map((key) => actionMap[key]).filter(Boolean);
     },
 
     handleBrowseShares() {
@@ -64,6 +83,14 @@ export const createContextMenuHandlers = (component, options = {}) => {
           y: clickEvent.pageY,
         },
       });
+    },
+
+    handleDirectMessage() {
+      const username = component.state.contextMenu?.message?.username;
+      if (!username) return;
+      sessionStorage.setItem(activeChatKey, username);
+      component.props.history.push('/chat');
+      component.handleCloseContextMenu();
     },
 
     async handleIgnoreUser() {

@@ -21,32 +21,23 @@ export const navigateToBrowseShares = (history, username) => {
 };
 
 /**
- * Add user to blacklist via YAML configuration
- * Uses CST (Concrete Syntax Tree) to preserve exact whitespace and formatting
- * @param {string} username - Username to ignore
- * @returns {Promise<boolean>} Success status
+ * Ensure sequence item value ends with a newline token
+ * @param {object} seqItem - CST sequence item
+ * @param {number} newlineIndent - Indentation for newline token
  */
-export const ignoreUser = async (username) => {
-  if (!username) {
-    toast.error('No username provided');
-    return false;
-  }
+const ensureValueEndsWithNewline = (seqItem, newlineIndent) => {
+  if (!seqItem?.value) return;
 
-  try {
-    const yamlText = await optionsApi.getYaml();
+  seqItem.value.end ??= [];
 
-    const newYamlText = addUserToBlacklist(yamlText, username);
-    if (!newYamlText) {
-      return false;
-    }
-
-    await optionsApi.updateYaml({ yaml: newYamlText });
-    toast.success(`User '${username}' added to blacklist.`);
-    return true;
-  } catch (error) {
-    toast.error('Failed to ignore user: ' + error);
-    console.error('Error ignoring user:', error);
-    return false;
+  const hasNewline = seqItem.value.end.some((t) => t.type === 'newline');
+  if (!hasNewline) {
+    seqItem.value.end.push({
+      indent: newlineIndent,
+      offset: -1,
+      source: '\n',
+      type: 'newline',
+    });
   }
 };
 
@@ -100,14 +91,14 @@ export const addUserToBlacklist = (yamlText, username) => {
   ) {
     const keyIndent = membersPair.key?.indent ?? 4;
     membersPair.sep = [
-      { type: 'map-value-ind', source: ':', indent: keyIndent, offset: -1 },
-      { type: 'newline', source: '\n', indent: keyIndent + 1, offset: -1 },
+      { indent: keyIndent, offset: -1, source: ':', type: 'map-value-ind' },
+      { indent: keyIndent + 1, offset: -1, source: '\n', type: 'newline' },
     ];
     membersPair.value = {
-      type: 'block-seq',
-      offset: -1,
       indent: keyIndent + 2,
       items: [],
+      offset: -1,
+      type: 'block-seq',
     };
   }
 
@@ -124,6 +115,7 @@ export const addUserToBlacklist = (yamlText, username) => {
       const resolved = YAML.CST.resolveAsScalar(seqItem.value);
       return resolved?.value === username;
     }
+
     return false;
   });
 
@@ -138,32 +130,37 @@ export const addUserToBlacklist = (yamlText, username) => {
   let valueIndent;
 
   if (lastItem) {
-    const valueToken = lastItem.value;
-    valueIndent = valueToken?.indent ?? 8;
+    const lastValueToken = lastItem.value;
+    valueIndent = lastValueToken?.indent ?? 8;
     const seqIndent = Math.max(valueIndent - 2, 0);
     const spaces = ' '.repeat(seqIndent);
     startTokens = [
-      { type: 'space', source: spaces, indent: 0, offset: -1 },
-      { type: 'seq-item-ind', source: '-', indent: seqIndent, offset: -1 },
-      { type: 'space', source: ' ', indent: seqIndent + 1, offset: -1 },
+      { indent: 0, offset: -1, source: spaces, type: 'space' },
+      { indent: seqIndent, offset: -1, source: '-', type: 'seq-item-ind' },
+      { indent: seqIndent + 1, offset: -1, source: ' ', type: 'space' },
     ];
     ensureValueEndsWithNewline(lastItem, valueIndent);
   } else {
     const parentIndent = membersPair.key?.indent ?? 4;
     const spaces = ' '.repeat(parentIndent + 2);
     startTokens = [
-      { type: 'space', source: spaces, indent: 0, offset: -1 },
-      { type: 'seq-item-ind', source: '-', indent: parentIndent + 2, offset: -1 },
-      { type: 'space', source: ' ', indent: parentIndent + 3, offset: -1 },
+      { indent: 0, offset: -1, source: spaces, type: 'space' },
+      {
+        indent: parentIndent + 2,
+        offset: -1,
+        source: '-',
+        type: 'seq-item-ind',
+      },
+      { indent: parentIndent + 3, offset: -1, source: ' ', type: 'space' },
     ];
     valueIndent = parentIndent + 4;
   }
 
   const valueToken = YAML.CST.createScalarToken(username, {
+    end: [{ indent: valueIndent, offset: -1, source: '\n', type: 'newline' }],
     indent: valueIndent,
     inFlow: false,
     type: 'QUOTE_DOUBLE',
-    end: [{ type: 'newline', source: '\n', indent: valueIndent, offset: -1 }],
   });
 
   items.push({
@@ -171,24 +168,37 @@ export const addUserToBlacklist = (yamlText, username) => {
     value: valueToken,
   });
 
-
   const newYamlText = YAML.CST.stringify(cstDocument);
   const prefix = yamlText.slice(0, cstDocument.offset ?? 0);
   return `${prefix}${newYamlText}`;
 };
 
-const ensureValueEndsWithNewline = (seqItem, newlineIndent) => {
-  if (!seqItem?.value) return;
+/**
+ * Add user to blacklist via YAML configuration
+ * Uses CST (Concrete Syntax Tree) to preserve exact whitespace and formatting
+ * @param {string} username - Username to ignore
+ * @returns {Promise<boolean>} Success status
+ */
+export const ignoreUser = async (username) => {
+  if (!username) {
+    toast.error('No username provided');
+    return false;
+  }
 
-  seqItem.value.end ??= [];
+  try {
+    const yamlText = await optionsApi.getYaml();
 
-  const hasNewline = seqItem.value.end.some((t) => t.type === 'newline');
-  if (!hasNewline) {
-    seqItem.value.end.push({
-      type: 'newline',
-      source: '\n',
-      indent: newlineIndent,
-      offset: -1,
-    });
+    const newYamlText = addUserToBlacklist(yamlText, username);
+    if (!newYamlText) {
+      return false;
+    }
+
+    await optionsApi.updateYaml({ yaml: newYamlText });
+    toast.success(`User '${username}' added to blacklist.`);
+    return true;
+  } catch (error) {
+    toast.error('Failed to ignore user: ' + error);
+    console.error('Error ignoring user:', error);
+    return false;
   }
 };
