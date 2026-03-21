@@ -1549,7 +1549,7 @@ namespace slskd
 
                 var banner = @$"
 {logo}
-╒════════════════════════════════════════════════════════╕
+┍━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
 │           GNU AFFERO GENERAL PUBLIC LICENSE            │
 │                   https://slskd.org                    │
 │                                                        │
