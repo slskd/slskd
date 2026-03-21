@@ -1,4 +1,3 @@
-import { activeChatKey } from '../config';
 import * as userActions from './userActions';
 
 const formatReply = (message) => {
@@ -33,10 +32,6 @@ export const createContextMenuHandlers = (component, options = {}) => {
     browseShares: {
       handlerName: 'handleBrowseShares',
       label: 'Browse Shares',
-    },
-    directMessage: {
-      handlerName: 'handleDirectMessage',
-      label: 'Direct Message',
     },
     ignoreUser: {
       handlerName: 'handleIgnoreUser',
@@ -95,14 +90,6 @@ export const createContextMenuHandlers = (component, options = {}) => {
           y: clickEvent.pageY,
         },
       });
-    },
-
-    handleDirectMessage() {
-      const username = component.state.contextMenu?.message?.username;
-      if (!username) return;
-      sessionStorage.setItem(activeChatKey, username);
-      component.props.history.push('/chat');
-      component.handleCloseContextMenu();
     },
 
     async handleIgnoreUser() {
