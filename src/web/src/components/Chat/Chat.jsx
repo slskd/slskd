@@ -68,7 +68,15 @@ class Chat extends Component {
     super(props);
 
     this.state = initialState;
-    const handlers = createContextMenuHandlers(this);
+    const handlers = createContextMenuHandlers(this, {
+      handlerKeys: [
+        'reply',
+        'directMessage',
+        'userProfile',
+        'browseShares',
+        'ignoreUser',
+      ],
+    });
     Object.assign(this, handlers);
   }
 
