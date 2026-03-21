@@ -363,7 +363,8 @@ class Rooms extends Component {
                             <input
                               autoComplete="off"
                               data-lpignore="true"
-                              id="room-message-input"
+                              id="chatbox"
+                              placeholder="Type a message…"
                               type="text"
                             />
                           }
