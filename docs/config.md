@@ -943,6 +943,22 @@ web:
         cidr: 0.0.0.0/0,::/0
 ```
 
+## Theming
+
+Custom themes are applied by adding CSS stylesheet to the statically served files. After build these are located in `wwwroot/theme.css` or `src/web/public/theme.css` before build. Docker users can mount their theme file directly into `/slskd/wwwroot/theme.css`.
+
+### Included Themes
+
+slskd includes several example themes to get you started. These can be found in the `/docs/themes` directory:
+
+- **`bubblegum.css`** - A playful theme with hot pink and bubblegum colors in light mode, and dark purples and blacks in dark mode
+- **`gruvbox.css`** - Based on the popular Gruvbox color scheme with warm, earthy tones
+- **`solarized.css`** - An implementation of the Solarized color palette with precision colors
+
+### Creating Custom Themes
+
+Custom themes are standard CSS files that override the default CSS variables used throughout the application. (Hint: `src/web/src/components/App.css`)
+
 # Filters
 
 A number of filters can be configured to control various aspects of how the application interacts with the Soulseek network.
