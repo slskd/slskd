@@ -57,7 +57,16 @@ export const addUserToBlacklist = (yamlText, username) => {
     return false;
   }
 
-  const groupsPair = cstDocument.value.items?.find((item) => {
+  const transfersPair = cstDocument.value.items?.find((item) => {
+    if (item.key && YAML.CST.isScalar(item.key)) {
+      const key = YAML.CST.resolveAsScalar(item.key);
+      return key?.value === 'transfers';
+    }
+
+    return false;
+  });
+
+  const groupsPair = transfersPair?.value?.items?.find((item) => {
     if (item.key && YAML.CST.isScalar(item.key)) {
       const key = YAML.CST.resolveAsScalar(item.key);
       return key?.value === 'groups';
@@ -104,7 +113,7 @@ export const addUserToBlacklist = (yamlText, username) => {
 
   if (!membersPair?.value?.items) {
     toast.error(
-      'Could not find groups.blacklisted.members in YAML configuration. Please add the structure manually first.',
+      'Could not find transfers.groups.blacklisted.members in YAML configuration. Please add the structure manually first.',
     );
     return false;
   }

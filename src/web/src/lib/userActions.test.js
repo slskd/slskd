@@ -18,13 +18,14 @@ describe('addUserToBlacklist', () => {
   it('preserves existing weird comments and whitespace while appending a user', () => {
     const yamlText = `# top-level comment
 
-groups:   # inline on groups
-  blacklisted:
+transfers:
+  groups:   # inline on groups
+    blacklisted:
 
-    # comment above members
-    members:
-      - 'alice'   # existing inline comment
-      - "bob"
+      # comment above members
+      members:
+        - 'alice'   # existing inline comment
+        - "bob"
 
 other: value  # unrelated trailing inline comment
 `;
@@ -42,11 +43,12 @@ other: value  # unrelated trailing inline comment
   });
 
   it('detects duplicates for single and double quoted existing users', () => {
-    const yamlText = `groups:
-  blacklisted:
-    members:
-      - 'alice'
-      - "bob"
+    const yamlText = `transfers:
+  groups:
+    blacklisted:
+      members:
+        - 'alice'
+        - "bob"
 `;
 
     const duplicateSingleQuoted = addUserToBlacklist(yamlText, 'alice');
@@ -63,51 +65,58 @@ other: value  # unrelated trailing inline comment
   });
 
   it('returns false when groups.blacklisted.members is missing', () => {
-    const yamlText = `groups:
-  blacklisted:
-    notMembers:
-      - alice
+    const yamlText = `transfers:
+  groups:
+    blacklisted:
+      notMembers:
+        - alice
 `;
 
     const result = addUserToBlacklist(yamlText, 'charlie');
 
     expect(result).toBe(false);
     expect(toast.error).toHaveBeenCalledWith(
-      'Could not find groups.blacklisted.members in YAML configuration. Please add the structure manually first.',
+      'Could not find transfers.groups.blacklisted.members in YAML configuration. Please add the structure manually first.',
     );
   });
 
   it('adds first member when members is an empty sequence', () => {
-    const yamlText = `groups:
-  blacklisted:
-    members: []
+    const yamlText = `transfers:
+  groups:
+    blacklisted:
+      members: []
 `;
 
     const updated = addUserToBlacklist(yamlText, 'charlie');
 
     expect(typeof updated).toBe('string');
     expect(YAML.parse(updated)).toMatchObject({
-      groups: {
-        blacklisted: {
-          members: ['charlie'],
+      transfers: {
+        groups: {
+          blacklisted: {
+            members: ['charlie'],
+          },
         },
       },
     });
   });
 
   it('handles appending when the last list item has no terminal newline', () => {
-    const yamlText = `groups:
-  blacklisted:
-    members:
-      - alice`;
+    const yamlText = `transfers:
+  groups:
+    blacklisted:
+      members:
+        - alice`;
 
     const updated = addUserToBlacklist(yamlText, 'bob');
 
     expect(typeof updated).toBe('string');
     expect(YAML.parse(updated)).toMatchObject({
-      groups: {
-        blacklisted: {
-          members: ['alice', 'bob'],
+      transfers: {
+        groups: {
+          blacklisted: {
+            members: ['alice', 'bob'],
+          },
         },
       },
     });
@@ -115,10 +124,11 @@ other: value  # unrelated trailing inline comment
   });
 
   it('safely serializes plausible usernames with special characters', () => {
-    const yamlText = `groups:
-  blacklisted:
-    members:
-      - "existing user"
+    const yamlText = `transfers:
+  groups:
+    blacklisted:
+      members:
+        - "existing user"
 `;
 
     const weirdNames = [
@@ -138,21 +148,24 @@ other: value  # unrelated trailing inline comment
     }
 
     expect(YAML.parse(updated)).toMatchObject({
-      groups: {
-        blacklisted: {
-          members: ['existing user', ...weirdNames],
+      transfers: {
+        groups: {
+          blacklisted: {
+            members: ['existing user', ...weirdNames],
+          },
         },
       },
     });
   });
 
   it('detects duplicates for special usernames regardless of quote style', () => {
-    const yamlText = `groups:
-  blacklisted:
-    members:
-      - "name: with # symbols"
-      - 'John Doe'
-      - "sam\\\\west"
+    const yamlText = `transfers:
+  groups:
+    blacklisted:
+      members:
+        - "name: with # symbols"
+        - 'John Doe'
+        - "sam\\\\west"
 `;
 
     expect(addUserToBlacklist(yamlText, 'name: with # symbols')).toBe(false);
@@ -167,5 +180,51 @@ other: value  # unrelated trailing inline comment
     expect(toast.info).toHaveBeenCalledWith(
       "User 'sam\\west' is already in the blacklist.",
     );
+  });
+
+  it('keeps a realistic blacklist config parseable after appending a user', () => {
+    const yamlText = `soulseek:
+  username: "sksksksksksk"
+  description: "example profile"
+transfers:
+  groups:
+    blacklisted:
+      members:
+        - TedKaczynski
+        - ioki
+        - LoS
+        - box cat
+        - "Sgt Floofy's Mac Account"
+        - "$!*COMMANC7HE!"
+        - "DJ H4UNTED TR4PHOUSE"
+        - \\your mom and police
+        - "/ / /   +p  u  r  e   /"
+        - "!>NinjaK11B-X 0"
+`;
+
+    const updated = addUserToBlacklist(yamlText, 'new person 42');
+
+    expect(typeof updated).toBe('string');
+    expect(YAML.parse(updated)).toMatchObject({
+      transfers: {
+        groups: {
+          blacklisted: {
+            members: [
+              'TedKaczynski',
+              'ioki',
+              'LoS',
+              'box cat',
+              "Sgt Floofy's Mac Account",
+              '$!*COMMANC7HE!',
+              'DJ H4UNTED TR4PHOUSE',
+              '\\your mom and police',
+              '/ / /   +p  u  r  e   /',
+              '!>NinjaK11B-X 0',
+              'new person 42',
+            ],
+          },
+        },
+      },
+    });
   });
 });
