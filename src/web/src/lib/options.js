@@ -21,5 +21,5 @@ export const validateYaml = async ({ yaml }) => {
 };
 
 export const updateYaml = async ({ yaml }) => {
-  return (await api.post('/options/yaml', yaml)).data;
+  return (await api.put('/options/yaml', yaml)).data;
 };

@@ -63,6 +63,7 @@ namespace slskd
     using slskd.Integrations.FTP;
     using slskd.Integrations.Pushbullet;
     using slskd.Integrations.Scripts;
+    using slskd.Integrations.VPN;
     using slskd.Integrations.Webhooks;
     using slskd.Messaging;
     using slskd.Relay;
@@ -156,6 +157,14 @@ namespace slskd
         public static string FullVersion { get; } = $"{SemanticVersion} ({InformationalVersion})";
 
         /// <summary>
+        ///     Gets the minor version to identify slskd on the network.
+        /// </summary>
+        /// <remarks>
+        ///     NOTICE: If you have forked slskd, change this number to something else.
+        /// </remarks>
+        public static int NetworkMinorVersion { get; } = 760;
+
+        /// <summary>
         ///     Gets a value indicating whether the current version is a Canary build.
         /// </summary>
         public static bool IsCanary { get; } = AssemblyVersion.Revision == 65534;
@@ -188,6 +197,11 @@ namespace slskd
         [Argument('c', "config", "path to configuration file")]
         [EnvironmentVariable("CONFIG")]
         public static string ConfigurationFile { get; private set; } = null;
+
+        /// <summary>
+        ///     Gets the current configuration overlay, if one has been applied.
+        /// </summary>
+        public static OptionsOverlay ConfigurationOverlay => VolatileOverlayConfigurationSource?.CurrentValue;
 
         /// <summary>
         ///     Gets the path where persistent data is saved.
@@ -244,6 +258,7 @@ namespace slskd
         private static ILogger Log { get; set; } = new ConsoleWriteLineLogger();
         private static Mutex Mutex { get; set; }
         private static IDisposable DotNetRuntimeStats { get; set; }
+        private static VolatileOverlayConfigurationSource<OptionsOverlay> VolatileOverlayConfigurationSource { get; set; } = new VolatileOverlayConfigurationSource<OptionsOverlay>();
 
         [Argument('g', "generate-cert", "generate X509 certificate and password for HTTPs")]
         private static bool GenerateCertificate { get; set; }
@@ -268,6 +283,12 @@ namespace slskd
         /// </summary>
         /// <param name="code">An optional exit code.</param>
         public static void Exit(int code = 1) => Environment.Exit(code);
+
+        /// <summary>
+        ///     Apply an instance of <see cref="OptionsOverlay"/> on top of the existing application configuration.
+        /// </summary>
+        /// <param name="overlay">The overlay containing the property values to be overlaid.</param>
+        public static void ApplyConfigurationOverlay(OptionsOverlay overlay) => VolatileOverlayConfigurationSource.Apply(overlay);
 
         /// <summary>
         ///     Entrypoint.
@@ -589,6 +610,7 @@ namespace slskd
                 //       and are thus never instantiated.  force a reference here so they are created.
                 _ = app.Services.GetService<ScriptService>();
                 _ = app.Services.GetService<WebhookService>();
+                _ = app.Services.GetService<VPNService>();
 
                 app.ConfigureAspDotNetPipeline();
 
@@ -666,9 +688,11 @@ namespace slskd
             // add a partially configured instance of SoulseekClient. the Application instance will
             // complete configuration at startup.
             services.AddSingleton<ISoulseekClient, SoulseekClient>(_ =>
-                new SoulseekClient(options: new SoulseekClientOptions(
-                    maximumConcurrentUploads: OptionsAtStartup.Global.Upload.Slots,
-                    maximumConcurrentDownloads: OptionsAtStartup.Global.Download.Slots,
+                new SoulseekClient(
+                    minorVersion: NetworkMinorVersion,
+                    options: new SoulseekClientOptions(
+                    maximumConcurrentUploads: OptionsAtStartup.Transfers.Upload.Slots,
+                    maximumConcurrentDownloads: OptionsAtStartup.Transfers.Download.Slots,
                     minimumDiagnosticLevel: OptionsAtStartup.Soulseek.DiagnosticLevel.ToEnum<Soulseek.Diagnostics.DiagnosticLevel>(),
                     maximumConcurrentSearches: 2,
                     raiseEventsAsynchronously: true)));
@@ -719,6 +743,7 @@ namespace slskd
             services.AddSingleton<ReportsService>();
             services.AddSingleton<TelemetryService>();
 
+            services.AddSingleton<VPNService>();
             services.AddSingleton<ScriptService>();
             services.AddSingleton<WebhookService>();
 
@@ -1281,7 +1306,8 @@ namespace slskd
                 .AddCommandLine(
                     targetType: typeof(Options),
                     multiValuedArguments,
-                    commandLine: Environment.CommandLine);
+                    commandLine: Environment.CommandLine)
+                .Add(VolatileOverlayConfigurationSource); // this must come last in order to supersede all other sources
         }
 
         private static IServiceCollection AddDbContext<T>(this IServiceCollection services, string connectionString)

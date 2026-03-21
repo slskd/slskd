@@ -18,7 +18,7 @@
     "@codemirror/legacy-modes": "^6.0.0",
     "@microsoft/signalr": "^7.0.7",
     "@uiw/react-codemirror": "^4.2.4",
-    "axios": "^0.30.2",
+    "axios": "^1.13.5",
     "lz-string": "^1.4.4",
     "react": "^16.8.6",
     "react-dom": "^16.8.6",
@@ -37,7 +37,7 @@
     "@semantic-ui-react/craco-less": "^3.0.0",
     "@semantic-ui-react/css-patch": "^1.0.0",
     "eslint": "^8.56.0",
-    "eslint-config-canonical": "^42.8.1",
+    "eslint-config-canonical": "^42.8.3",
     "react-scripts": "^5.0.0"
   },
   "homepage": ".",

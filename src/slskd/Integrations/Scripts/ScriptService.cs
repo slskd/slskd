@@ -88,7 +88,7 @@ public class ScriptService
         bool EqualsLiterallyAnyEvent(string type) => type.Equals(EventType.Any.ToString(), StringComparison.OrdinalIgnoreCase);
 
         var options = OptionsMonitor.CurrentValue;
-        var scriptsTriggeredByThisEventType = options.Integration.Scripts
+        var scriptsTriggeredByThisEventType = options.Integrations.Scripts
             .Where(kvp => kvp.Value.On.Any(EqualsThisEvent) || kvp.Value.On.Any(EqualsLiterallyAnyEvent));
 
         foreach (var script in scriptsTriggeredByThisEventType)

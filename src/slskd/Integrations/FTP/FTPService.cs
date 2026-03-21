@@ -26,7 +26,7 @@ namespace slskd.Integrations.FTP
     using FluentFTP;
     using FluentFTP.Exceptions;
     using Microsoft.Extensions.Logging;
-    using static slskd.Options.IntegrationOptions;
+    using static slskd.Options.IntegrationsOptions;
 
     /// <summary>
     ///     FTP Integration service.
@@ -50,7 +50,7 @@ namespace slskd.Integrations.FTP
         }
 
         private IFTPClientFactory Factory { get; set; }
-        private FtpOptions FtpOptions => OptionsMonitor.CurrentValue.Integration.Ftp;
+        private FtpOptions FtpOptions => OptionsMonitor.CurrentValue.Integrations.Ftp;
         private ILogger<FTPService> Log { get; set; }
         private IOptionsMonitor<Options> OptionsMonitor { get; }
 
@@ -76,6 +76,7 @@ namespace slskd.Integrations.FTP
                     isRetryable: (attempts, ex) => true,
                     onFailure: (attempts, ex) => Log.LogInformation("Failed attempt #{Attempts} to upload {Filename} to FTP: {Message}", attempts, fileAndParentDirectory, ex.Message),
                     maxAttempts: FtpOptions.RetryAttempts,
+                    baseDelayInMilliseconds: 1000,
                     maxDelayInMilliseconds: 30000);
             }
             catch (RetryException ex)

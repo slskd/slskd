@@ -1,4 +1,4 @@
-﻿// <copyright file="QueueDownloadRequest.cs" company="slskd Team">
+// <copyright file="VPNStatus.cs" company="slskd Team">
 //     Copyright (c) slskd Team. All rights reserved.
 //
 //     This program is free software: you can redistribute it and/or modify
@@ -15,21 +15,14 @@
 //     along with this program.  If not, see https://www.gnu.org/licenses/.
 // </copyright>
 
-using System.ComponentModel.DataAnnotations;
+using System.Net;
 
-namespace slskd.Transfers.API
+namespace slskd;
+
+public record VPNStatus
 {
-    public class QueueDownloadRequest
-    {
-        /// <summary>
-        ///     Gets or sets the filename to download.
-        /// </summary>
-        [Required]
-        public string Filename { get; set; }
-
-        /// <summary>
-        ///     Gets or sets the size of the file.
-        /// </summary>
-        public long Size { get; set; }
-    }
+    public bool IsConnected { get; init; } = false;
+    public IPAddress PublicIPAddress { get; init; } = null;
+    public int? ForwardedPort { get; init; } = null;
+    public string Location { get; init; } = null;
 }
