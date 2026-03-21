@@ -343,10 +343,11 @@ namespace slskd.Shares
         ///     Searches the cache for the specified <paramref name="query"/> and returns the matching files.
         /// </summary>
         /// <param name="query">The query for which to search.</param>
+        /// <param name="limit">An optional row limit.</param>
         /// <returns>The matching files.</returns>
-        public Task<IEnumerable<File>> SearchAsync(SearchQuery query)
+        public Task<IEnumerable<File>> SearchAsync(SearchQuery query, int? limit = null)
         {
-            var results = AllRepositories.SelectMany(r => r.Search(query));
+            var results = AllRepositories.SelectMany(r => r.Search(query, limit));
 
             return Task.FromResult(results);
         }

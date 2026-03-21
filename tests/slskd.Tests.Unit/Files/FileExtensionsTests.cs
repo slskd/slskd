@@ -68,4 +68,79 @@ public class FileExtensionsTests
         Assert.NotNull(ex);
         Assert.IsType<ArgumentOutOfRangeException>(ex);
     }
+
+    [Fact]
+    public void WithExecuteFlagsForEachReadFlag_Adds_UserExecute_When_UserRead_Is_Set()
+    {
+        var result = UnixFileMode.UserRead.WithExecuteFlagsForEachReadFlag();
+
+        Assert.True(result.HasFlag(UnixFileMode.UserExecute));
+    }
+
+    [Fact]
+    public void WithExecuteFlagsForEachReadFlag_Adds_GroupExecute_When_GroupRead_Is_Set()
+    {
+        var result = UnixFileMode.GroupRead.WithExecuteFlagsForEachReadFlag();
+
+        Assert.True(result.HasFlag(UnixFileMode.GroupExecute));
+    }
+
+    [Fact]
+    public void WithExecuteFlagsForEachReadFlag_Adds_OtherExecute_When_OtherRead_Is_Set()
+    {
+        var result = UnixFileMode.OtherRead.WithExecuteFlagsForEachReadFlag();
+
+        Assert.True(result.HasFlag(UnixFileMode.OtherExecute));
+    }
+
+    [Fact]
+    public void WithExecuteFlagsForEachReadFlag_Does_Not_Add_UserExecute_When_UserRead_Is_Not_Set()
+    {
+        var result = UnixFileMode.UserWrite.WithExecuteFlagsForEachReadFlag();
+
+        Assert.False(result.HasFlag(UnixFileMode.UserExecute));
+    }
+
+    [Fact]
+    public void WithExecuteFlagsForEachReadFlag_Does_Not_Add_GroupExecute_When_GroupRead_Is_Not_Set()
+    {
+        var result = UnixFileMode.GroupWrite.WithExecuteFlagsForEachReadFlag();
+
+        Assert.False(result.HasFlag(UnixFileMode.GroupExecute));
+    }
+
+    [Fact]
+    public void WithExecuteFlagsForEachReadFlag_Does_Not_Add_OtherExecute_When_OtherRead_Is_Not_Set()
+    {
+        var result = UnixFileMode.OtherWrite.WithExecuteFlagsForEachReadFlag();
+
+        Assert.False(result.HasFlag(UnixFileMode.OtherExecute));
+    }
+
+    [Fact]
+    public void WithExecuteFlagsForEachReadFlag_Preserves_Existing_Flags()
+    {
+        var mode = UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.GroupRead;
+
+        var result = mode.WithExecuteFlagsForEachReadFlag();
+
+        Assert.True(result.HasFlag(UnixFileMode.UserRead));
+        Assert.True(result.HasFlag(UnixFileMode.UserWrite));
+        Assert.True(result.HasFlag(UnixFileMode.GroupRead));
+    }
+
+    [Theory]
+    [InlineData(UnixFileMode.UserRead | UnixFileMode.GroupRead | UnixFileMode.OtherRead,
+        UnixFileMode.UserRead | UnixFileMode.UserExecute | UnixFileMode.GroupRead | UnixFileMode.GroupExecute | UnixFileMode.OtherRead | UnixFileMode.OtherExecute)]
+    [InlineData(UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.GroupRead | UnixFileMode.OtherRead,
+        UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute | UnixFileMode.GroupRead | UnixFileMode.GroupExecute | UnixFileMode.OtherRead | UnixFileMode.OtherExecute)]
+    [InlineData(UnixFileMode.None, UnixFileMode.None)]
+    [InlineData(UnixFileMode.UserWrite | UnixFileMode.GroupWrite | UnixFileMode.OtherWrite,
+        UnixFileMode.UserWrite | UnixFileMode.GroupWrite | UnixFileMode.OtherWrite)]
+    public void WithExecuteFlagsForEachReadFlag_Works_As_Expected(UnixFileMode input, UnixFileMode expected)
+    {
+        var result = input.WithExecuteFlagsForEachReadFlag();
+
+        Assert.Equal(expected, result);
+    }
 }

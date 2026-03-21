@@ -218,7 +218,7 @@ namespace slskd.Relay
 
             Log.Warning("Agent {Agent} (connection {ConnectionId}) from {IP} reported upload failure for {Id}: {Message}", record.Agent, Context.ConnectionId, RemoteIpAddress, id, exception.Message);
 
-            Relay.NotifyFileStreamException(id, exception);
+            Relay.NotifyFileStreamException(record.Agent.Name, id, exception);
         }
 
         /// <summary>

@@ -517,8 +517,9 @@ namespace slskd.Shares
         ///     Searches the database for files matching the specified <paramref name="query"/>.
         /// </summary>
         /// <param name="query">The search query.</param>
+        /// <param name="limit">An optional row limit.</param>
         /// <returns>The list of matching files.</returns>
-        public IEnumerable<Soulseek.File> Search(SearchQuery query)
+        public IEnumerable<Soulseek.File> Search(SearchQuery query, int? limit = null)
         {
             string Clean(string str) => str.Replace("/", " ")
                 .Replace("\\", " ")
@@ -532,7 +533,7 @@ namespace slskd.Shares
             var sql = $"SELECT files.maskedFilename, files.code, files.size, files.extension, files.attributeJson FROM filenames " +
                 "INNER JOIN files ON filenames.maskedFilename = files.maskedFilename " +
                 $"WHERE filenames MATCH '({match}) {(query.Exclusions.Any() ? $"NOT ({exclusions})" : string.Empty)}' " +
-                "ORDER BY filenames.maskedFilename ASC;";
+                $"ORDER BY filenames.maskedFilename ASC {(limit.HasValue ? $"LIMIT {limit.Value}" : string.Empty)};";
 
             var results = new List<Soulseek.File>();
 
