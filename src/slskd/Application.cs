@@ -1,11 +1,11 @@
-﻿// <copyright file="Application.cs" company="JP Dillingham and slskd Contributors">
+﻿// <copyright file="Application.cs" company="JP Dillingham">
 //
 //           ▄▄▄▄     ▄▄▄▄     ▄▄▄▄
 //     ▄▄▄▄▄▄█  █▄▄▄▄▄█  █▄▄▄▄▄█  █
 //     █__ --█  █__ --█    ◄█  -  █
 //     █▄▄▄▄▄█▄▄█▄▄▄▄▄█▄▄█▄▄█▄▄▄▄▄█
 //   ┍━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ ━━━━ ━  ━┉   ┉     ┉
-//   │ Copyright (c) JP Dillingham and slskd Contributors.
+//   │ Copyright (c) JP Dillingham.
 //   │
 //   │ https://slskd.org
 //   │
@@ -28,7 +28,7 @@
 //   │ complete terms and conditions.
 //   │
 //   ├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌ ╌ ╌╌╌╌ ╌
-//   │ SPDX-FileCopyrightText: JP Dillingham and contributors
+//   │ SPDX-FileCopyrightText: JP Dillingham
 //   │ SPDX-License-Identifier: AGPL-3.0-only
 //   ╰───────────────────────────────────────────╶──── ─ ─── ─  ── ──┈  ┈
 //
