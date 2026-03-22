@@ -1521,7 +1521,7 @@ namespace slskd
             }
         }
 
-        private static void PrintLogo(string version)
+        private static void PrintLogoOld(string version)
         {
             try
             {
@@ -1549,7 +1549,7 @@ namespace slskd
 
                 var banner = @$"
 {logo}
-╒════════════════════════════════════════════════════════╕
+┍━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
 │           GNU AFFERO GENERAL PUBLIC LICENSE            │
 │                   https://slskd.org                    │
 │                                                        │
@@ -1566,6 +1566,65 @@ namespace slskd
                 }
 
                 banner += "\n└────────────────────────────────────────────────────────┘";
+
+                Console.WriteLine(banner);
+            }
+            catch
+            {
+                // noop. console may not be available in all cases.
+            }
+        }
+
+        private static void PrintLogo(string version)
+        {
+            try
+            {
+                var padding = 56 - version.Length;
+                var paddingLeft = padding / 2;
+                var paddingRight = paddingLeft + (padding % 2);
+
+                var centeredVersion = new string(' ', paddingLeft) + version + new string(' ', paddingRight);
+
+                var logos = new[]
+                {
+                    $@"
+          ▄▄▄▄         ▄▄▄▄       ▄▄▄▄
+  ▄▄▄▄▄▄▄ █  █ ▄▄▄▄▄▄▄ █  █▄▄▄ ▄▄▄█  █
+  █__ --█ █  █ █__ --█ █    ◄█ █  -  █
+  █▄▄▄▄▄█ █▄▄█ █▄▄▄▄▄█ █▄▄█▄▄█ █▄▄▄▄▄█",
+                    @$"
+        ▄▄▄▄     ▄▄▄▄     ▄▄▄▄
+  ▄▄▄▄▄▄█  █▄▄▄▄▄█  █▄▄▄▄▄█  █
+  █__ --█  █__ --█    ◄█  -  █
+  █▄▄▄▄▄█▄▄█▄▄▄▄▄█▄▄█▄▄█▄▄▄▄▄█",
+                };
+
+                var logo = logos[new System.Random().Next(0, logos.Length)];
+
+                var banner = @$"
+{logo}
+┍━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ ━━━━ ━  ━┉   ┉     ┉
+│ Copyright (c) JP Dillingham and slskd Contributors
+│
+│ https://slskd.org
+│
+│ GNU Affero General Public License
+│  └─▸ SPDX: AGPL-3.0-only
+│
+├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌ ╌ ╌╌╌╌ ╌
+│ {version}";
+
+                if (IsDevelopment)
+                {
+                    banner += "\n│ └─▸ ⚠️ DEVELOPMENT";
+                }
+
+                if (IsCanary)
+                {
+                    banner += "\n│ └─▸ 🧪 CANARY";
+                }
+
+                banner += "\n╰───────────────────────────────────────────╶──── ─ ─── ─  ── ──┈  ┈";
 
                 Console.WriteLine(banner);
             }
