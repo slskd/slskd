@@ -16,10 +16,10 @@
     "documentationRules": {
       "documentPrivateElements": false,
       "documentPrivateFields": false,
-      "companyName": "slskd Team",
-      "copyrightText": "    Copyright (c) {companyName}. All rights reserved.\n\n    This program is free software: you can redistribute it and/or modify\n    it under the terms of the GNU Affero General Public License as published\n    by the Free Software Foundation, either version 3 of the License, or\n    (at your option) any later version.\n\n    This program is distributed in the hope that it will be useful,\n    but WITHOUT ANY WARRANTY; without even the implied warranty of\n    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n    GNU Affero General Public License for more details.\n\n    You should have received a copy of the GNU Affero General Public License\n    along with this program.  If not, see https://www.gnu.org/licenses/.",
+      "companyName": "JP Dillingham",
+      "copyrightText": "          ▄▄▄▄     ▄▄▄▄     ▄▄▄▄\n    ▄▄▄▄▄▄█  █▄▄▄▄▄█  █▄▄▄▄▄█  █\n    █__ --█  █__ --█    ◄█  -  █\n    █▄▄▄▄▄█▄▄█▄▄▄▄▄█▄▄█▄▄█▄▄▄▄▄█\n\n    Copyright (c) {companyName} and contributors.\n\n    This program is free software: you can redistribute it and/or modify\n    it under the terms of the GNU Affero General Public License as published\n    by the Free Software Foundation, version 3.\n\n    This program is distributed in the hope that it will be useful,\n    but WITHOUT ANY WARRANTY; without even the implied warranty of\n    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n    GNU Affero General Public License for more details.\n\n    You should have received a copy of the GNU Affero General Public License\n    along with this program.  If not, see https://www.gnu.org/licenses/.\n\n    This program is distributed with Additional Terms pursuant to\n    Section 7 of the GNU Affero General Public License.  See the\n    LICENSE file in the root directory of this project for the\n    complete terms and conditions.\n\n    SPDX-FileCopyrightText: JP Dillingham and contributors\n    SPDX-License-Identifier: AGPL-3.0-only",
       "variables": {
-        "licenseName": "AGPLv3",
+        "licenseName": "AGPL-3.0-only",
         "licenseFile": "LICENSE"
       }
     }
