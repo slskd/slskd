@@ -1484,8 +1484,8 @@ namespace slskd
                 var slskDiff = PreviousOptions.Soulseek.DiffWith(newOptions.Soulseek);
 
                 // determine whether any global upload or download options changed
-                var transfersUploadDiff = PreviousOptions.Transfers.DiffWith(newOptions.Transfers.Upload);
-                var transfersDownloadDiff = PreviousOptions.Transfers.DiffWith(newOptions.Transfers.Download);
+                var transfersUploadDiff = PreviousOptions.Transfers.Upload.DiffWith(newOptions.Transfers.Upload);
+                var transfersDownloadDiff = PreviousOptions.Transfers.Download.DiffWith(newOptions.Transfers.Download);
 
                 if (slskDiff.Any() || transfersUploadDiff.Any() || transfersDownloadDiff.Any())
                 {
