@@ -659,3 +659,248 @@ specific requirements.
 if any, to sign a "copyright disclaimer" for the program, if necessary.
 For more information on this, and how to apply and follow the GNU AGPL, see
 <https://www.gnu.org/licenses/>.
+
+
+-------------------------------------------------------------------------------
+
+                            ADDITIONAL TERMS
+
+  The following Additional Terms are supplemental conditions of this License
+pursuant to Section 7 of the GNU Affero General Public License v3.0 ("AGPLv3").
+
+  As used in these Additional Terms: "the Program" refers to the original
+copyrightable work licensed under this License, "Modified Version" refers
+to any work based on the Program, and "original author(s)" refers to the
+copyright holder(s) of the unmodified Program.
+
+  These Additional Terms attach to the Program and every Modified Version,
+and must be included with any such conveyance.
+
+  If any provision is found unenforceable or invalid, it shall be interpreted
+to the minimum extent necessary to make it enforceable; if that is not
+possible, it shall be severed without affecting the remaining provisions.  All
+remaining provisions shall continue in full force and effect, independently and
+without regard to the severed provision.  The parties acknowledge that each
+provision of these Additional Terms is intended to be severable and that no
+provision is dependent upon the validity or enforceability of any other.
+
+  Compliance with these Additional Terms, to the extent they constitute valid
+conditions under Section 7 of the AGPLv3, is a material condition of the License
+grant.  Any modification or conveyance of the Program, or any Modified Version
+thereof, without adherence to these Additional Terms is a violation of the
+License and is subject to the termination and reinstatement provisions of
+Section 8.
+
+  1. Disclaimer of Endorsement and Limitation of Liability (Sections 7(a) and 7(f))
+
+  Pursuant to Sections 7(a) and 7(f), the original author(s) of the Program do
+not condone, endorse, or support the unauthorized sharing of copyrighted works
+or the transmission of any unlawful or illicit materials, whether through the
+Program or any Modified Version.
+
+  Users and modifiers are solely responsible for ensuring that their use,
+modification, distribution, or promotion of the Program or any Modified Version
+complies with all applicable laws, third-party rights, and the rules of any
+network to which the software connects.
+
+  In no event shall the original author(s) of the Program be held liable for
+any legal consequences, damages, or claims arising from: (i) any user's or
+modifier's use of the Program or any Modified Version in a manner that
+infringes third-party rights or violates applicable law; or (ii) the creation,
+distribution, promotion, or marketing of any Modified Version, including any
+Modified Version that facilitates or is associated with copyright infringement
+or unlawful activity.  All responsibility for a Modified Version rests solely
+with the person or entity that created, distributed, or promoted it.
+
+  Pursuant to Section 7(f), any party that conveys a Modified Version with
+contractual assumptions of liability to its recipients must indemnify the
+original author(s) for any liability that those contractual assumptions
+directly impose on said author(s).  This indemnification obligation is limited
+to liability arising directly from such contractual assumptions and does not
+extend to liability arising from the original author(s)' own acts or omissions.
+
+  2. Preservation of Notices and License (Section 7(b))
+
+  Pursuant to Section 7(b), the following requirements apply to the
+preservation of legal notices:
+
+  a) Interface Notices: You must not remove, obscure, or modify any
+  "Appropriate Legal Notices" (as defined in Section 0 of the AGPLv3) or
+  attribution notices displayed in any user interface, including terminal
+  startup output and web-based dashboards.  Such notices must remain prominently
+  visible.
+
+  b) Documentation: Any README, NOTICE, or equivalent documentation included
+  with the Program or a Modified Version must preserve all existing license
+  notices, attribution statements, and references to these Additional Terms
+  without modification, except as expressly required by these Additional Terms.
+
+  c) Source Files: You must preserve all existing copyright and license notices
+  in all source files without modification, except as expressly required by
+  these Additional Terms.  This includes, without limitation, any copyright
+  statements, license identifiers, and references to these Additional Terms
+  contained in file headers.
+
+  d) Distribution Artifacts: Any conveyance of the Program or a Modified
+  Version in object code or executable form (including archive files, installer
+  packages, or other distribution formats) must be accompanied by the full text
+  of this License and these Additional Terms.  This text must be placed in a
+  file named LICENSE in the root directory and, if different, the directory
+  containing the object code or executable.  The LICENSE file must contain the
+  complete and unmodified text of this License and these Additional Terms.
+
+  e) Package Registries: Any conveyance through a package repository, registry,
+  or software distribution platform (including operating system repositories
+  and language-specific registries) must identify the work as licensed under
+  the GNU Affero General Public License v3.0 ("AGPLv3"), include a link to the
+  Corresponding Source, and include a link to the full text of this License and
+  these Additional Terms.
+
+  f) Container Metadata: Any conveyance of the Program or a Modified Version in
+  the form of a container image must include the following OCI image annotations
+  or equivalent metadata supported by the registry:
+
+    i) org.opencontainers.image.licenses must be set to "AGPL-3.0-only";
+
+    ii) org.opencontainers.image.source must be set to the URL of the source
+    code repository for the version contained in the image.
+
+  3. Modified Version Identification (Sections 7(c) and 7(d))
+
+  Any Modified Version must be clearly and prominently marked as different
+from the Program and must not misrepresent its origin, affiliation, or
+relationship to the Program or its original author(s), or the nature and extent
+of the modifications made.  The following requirements apply to all Modified
+Versions:
+
+  a) Interface Identification: A Modified Version must display a clear and
+  prominent notice in the user interface and any terminal startup output
+  stating that the work is a Modified Version and is not the original Program.
+  Any ASCII art, logos, or text-based branding in the user interface or
+  terminal startup output must be removed, replaced or made visually distinct
+  from the original; verbatim reproduction of the original terminal branding is
+  prohibited.
+
+  b) Documentation Notice: A Modified Version must include a notice in the
+  README or equivalent documentation, or if no README exists, in a file named
+  NOTICE in the root directory of the project, stating:
+
+    "This is a modified version of slskd.  It is not maintained by, endorsed by,
+    or affiliated with the slskd project or its author(s)."  
+
+  c) Existing Source Files: For each source file modified, the modifier
+  must add a copyright notice and a brief description of the nature of the
+  modifications sufficient to distinguish the Modified Version from the Program
+  to the file header, below all existing copyright notices but above the license
+  notice.  This description must be sufficient to identify the general nature of
+  the modifications and must not misrepresent the nature or extent of the
+  changes made.  For example:
+  
+    Copyright (c) <year> <name>
+    Modified: <brief description of changes>
+
+  d) Newly Created Source Files: For newly created source files that do not
+  originate from the Program, the modifier may use a single copyright notice
+  with the year and their name.  No modification description is required for
+  such files, but the remainder of the file header (including the license notice
+  and reference to these Additional Terms) must match the format of the existing
+  file headers in the Program.
+
+  e) Distribution: Any conveyance of a Modified Version through a package
+  repository, registry, or software distribution platform (including operating
+  system repositories and language-specific registries) must clearly identify
+  the work as a modified version of the Program in the package description or
+  equivalent metadata field.
+
+  4. Rebranding (Sections 7(c) and 7(d))
+
+  To prevent confusion regarding the origin of the software, any Modified
+Version must adopt a name, branding, and presentation that does not
+misrepresent its relationship to the Program or its original author(s).
+The following requirements apply to all Modified Versions:
+
+  a) Naming: A Modified Version must adopt a name that is not likely to cause
+  reasonable confusion as to whether it is the Program or is maintained,
+  endorsed, or affiliated with the original author(s).  In determining whether a
+  name is likely to cause confusion, relevant factors include but are not
+  limited to:
+
+    i) the degree of visual, phonetic, or semantic similarity to "slskd";
+
+    ii) whether the name implies maintenance, endorsement, or affiliation
+    with the original project;
+
+    iii) whether the name incorporates "slskd" as a recognizable component
+    regardless of additional characters; and
+
+    iv) whether the overall presentation of the Modified Version, including
+    its name, logo, and documentation, taken together would mislead a
+    reasonable user.
+
+  b) User-Facing References: A Modified Version must remove or replace all
+  user-facing references to "slskd", including but not limited to project
+  names, logos, ASCII art, terminal startup output, documentation, technical
+  support URLs, and any website, domain name, or online presence through which
+  a Modified Version is distributed, made available for download, or from which
+  users are directed to obtain a Modified Version.  Internal source code
+  references (such as class names, namespaces, configuration keys, or internal
+  filenames) need not be renamed, provided they are not visible to end users in
+  normal operation.
+
+  c) Package Registries: A Modified Version must not be listed, published,
+  registered, or distributed under the name "slskd" or any name that is
+  likely to cause confusion with the Program in any package repository,
+  package registry, container registry, software distribution platform,
+  or similar system.  Registering, claiming, or occupying the "slskd"
+  package name or namespace in any such system for the purpose of
+  distributing a Modified Version constitutes a violation of these
+  Additional Terms, regardless of whether the Modified Version itself
+  has been otherwise rebranded.  This prohibition extends to any variant
+  of the name that would be likely to cause confusion under the factors
+  described in Section 4(a).
+
+  d) Version Identifier: A Modified Version must not transmit, during Soulseek
+  network login or identification, a client version identifier already in use
+  by any known Soulseek client implementation, including but not limited to the
+  Program.  The Soulseek server and its administrators rely on the client
+  version identifier to distinguish between client implementations and to
+  enforce network policies; transmitting an identifier already associated with
+  another client constitutes a false representation of the software's identity
+  and implies endorsement or affiliation with that client's authors, which is
+  expressly disclaimed.  The modifier bears responsibility for making a
+  reasonable good-faith effort to verify that their chosen identifier is unique
+  prior to deployment.  If a modifier is notified that their chosen identifier
+  conflicts with that of an existing client implementation, they must change it
+  to a unique identifier within a reasonable time and must not continue to
+  distribute the Modified Version with the conflicting identifier after
+  becoming aware of the conflict.  This condition applies regardless of the
+  technical means by which the identifier is set or transmitted.
+
+  e) Permitted Uses of "slskd": Notwithstanding the requirements of
+  this Section, the name "slskd" may be used where necessary for:
+
+    i) Verbatim reproduction of this License and these Additional Terms;
+
+    ii) Preservation of original copyright headers in source files;
+
+    iii) The mandatory identification notices required by these Additional
+    Terms; and
+
+    iv) Purely descriptive references to the software's origin or
+    compatibility, such as "based on slskd" or "compatible with slskd",
+    including in package listing descriptions, provided such references
+    do not appear as primary branding elements or in the project name
+    itself.
+
+  f) Non-Endorsement: No person or entity may represent that a Modified
+  Version is the Program or that it is maintained by, endorsed by, or
+  affiliated with the original author(s) without express written
+  authorization from the original author(s).
+
+  5. Reservation of Rights
+
+  Nothing in these Additional Terms shall be construed to limit any
+right or remedy available to the original author(s) under applicable
+copyright law, including the right to seek injunctive or other equitable
+relief, to submit notices of claimed infringement pursuant to applicable
+law, or to pursue any other remedy available at law or in equity.

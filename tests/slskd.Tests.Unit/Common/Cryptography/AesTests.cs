@@ -1,4 +1,4 @@
-﻿namespace slskd.Tests.Unit.Common.Cryptography
+namespace slskd.Tests.Unit.Common.Cryptography
 {
     using System.Text;
     using slskd.Cryptography;

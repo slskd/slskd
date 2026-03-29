@@ -1,4 +1,4 @@
-﻿namespace slskd.Tests.Unit.Users
+namespace slskd.Tests.Unit.Users
 {
     using System.Collections.Generic;
     using AutoFixture.Xunit2;
