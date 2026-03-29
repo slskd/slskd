@@ -1,4 +1,4 @@
-﻿namespace slskd.Tests.Unit.Common
+namespace slskd.Tests.Unit.Common
 {
     using System;
     using System.Threading.Tasks;
