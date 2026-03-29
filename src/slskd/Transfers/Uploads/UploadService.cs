@@ -21,10 +21,9 @@
 //   │ You should have received a copy of the GNU Affero General Public License
 //   │ along with this program.  If not, see https://www.gnu.org/licenses/.
 //   │
-//   │ This program is distributed with Additional Terms pursuant to
-//   │ Section 7 of the GNU Affero General Public License.  See the
-//   │ LICENSE file in the root directory of this project for the
-//   │ complete terms and conditions.
+//   │ This program is distributed with Additional Terms pursuant to Section 7
+//   │ of the AGPLv3.  See the LICENSE file in the root directory of this
+//   │ project for the complete terms and conditions.
 //   │
 //   ├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌ ╌ ╌╌╌╌ ╌
 //   │ SPDX-FileCopyrightText: JP Dillingham
