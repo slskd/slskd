@@ -743,16 +743,16 @@ preservation of legal notices:
 
   d) Distribution Artifacts: Any conveyance of the Program or a Modified
   Version in object code or executable form (including archive files, installer
-  packages, or other distribution formats) must be accompanied by the full text
-  of this License and these Additional Terms.  This text must be placed in a
-  file named LICENSE in the root directory and, if different, the directory
+  packages, or other distribution formats) must be accompanied by the full text
+  of this License and these Additional Terms.  This text must be placed in a
+  file named LICENSE in the root directory and, if different, the directory
   containing the object code or executable.  The LICENSE file must contain the
-  complete and unmodified text of this License and these Additional Terms.
+  complete and unmodified text of this License and these Additional Terms.
 
-  e) Package Registries: Any conveyance through a package repository, registry,
-  or software distribution platform (including operating system repositories
-  and language-specific registries) must identify the work as licensed under
-  the GNU Affero General Public License v3.0 ("AGPLv3"), include a link to the
+  e) Package Registries: Any conveyance through a package repository, registry,
+  or software distribution platform (including operating system repositories
+  and language-specific registries) must identify the work as licensed under
+  the GNU Affero General Public License v3.0 ("AGPLv3"), include a link to the
   Corresponding Source, and include a link to the full text of this License and
   these Additional Terms.
 

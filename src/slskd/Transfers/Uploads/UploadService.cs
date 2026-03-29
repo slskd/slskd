@@ -6,8 +6,6 @@
 //   ┍━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ ━━━━ ━  ━┉   ┉     ┉
 //   │ Copyright (c) JP Dillingham.
 //   │
-//   │ https://slskd.org
-//   │
 //   │ This program is free software: you can redistribute it and/or modify
 //   │ it under the terms of the GNU Affero General Public License as published
 //   │ by the Free Software Foundation, either version 3 of the License, or
@@ -24,6 +22,8 @@
 //   │ This program is distributed with Additional Terms pursuant to Section 7
 //   │ of the AGPLv3.  See the LICENSE file in the root directory of this
 //   │ project for the complete terms and conditions.
+//   │
+//   │ https://slskd.org
 //   │
 //   ├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌ ╌ ╌╌╌╌ ╌
 //   │ SPDX-FileCopyrightText: JP Dillingham

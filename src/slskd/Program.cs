@@ -6,8 +6,6 @@
 //   ┍━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ ━━━━ ━  ━┉   ┉     ┉
 //   │ Copyright (c) JP Dillingham.
 //   │
-//   │ https://slskd.org
-//   │
 //   │ This program is free software: you can redistribute it and/or modify
 //   │ it under the terms of the GNU Affero General Public License as published
 //   │ by the Free Software Foundation, either version 3 of the License, or
@@ -21,10 +19,11 @@
 //   │ You should have received a copy of the GNU Affero General Public License
 //   │ along with this program.  If not, see https://www.gnu.org/licenses/.
 //   │
-//   │ This program is distributed with Additional Terms pursuant to
-//   │ Section 7 of the GNU Affero General Public License.  See the
-//   │ LICENSE file in the root directory of this project for the
-//   │ complete terms and conditions.
+//   │ This program is distributed with Additional Terms pursuant to Section 7
+//   │ of the AGPLv3.  See the LICENSE file in the root directory of this
+//   │ project for the complete terms and conditions.
+//   │
+//   │ https://slskd.org
 //   │
 //   ├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌ ╌ ╌╌╌╌ ╌
 //   │ SPDX-FileCopyrightText: JP Dillingham
@@ -1624,12 +1623,10 @@ namespace slskd
                 var banner = @$"
 {logo}
 ┍━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ ━━━━ ━  ━┉   ┉     ┉
-│ Copyright (c) JP Dillingham and slskd Contributors
-│
-│ https://slskd.org
-│
 │ GNU Affero General Public License
 │  └─▸ SPDX: AGPL-3.0-only
+│
+│ https://slskd.org
 │
 ├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌ ╌ ╌╌╌╌ ╌
 │ {version}";
