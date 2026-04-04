@@ -1622,10 +1622,17 @@ namespace slskd
                 var banner = @$"
 {logo}
 ┍━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ ━━━━ ━  ━┉   ┉     ┉
-│ GNU Affero General Public License
-│  └─▸ SPDX: AGPL-3.0-only
+│ This program is free software: you can redistribute it and/or modify
+│ it under the terms of the GNU Affero General Public License as published
+│ by the Free Software Foundation, version 3.
+│                                     └─▸ SPDX: AGPL-3.0-only
 │
-│ https://slskd.org
+│ This program is distributed with Additional Terms pursuant to Section 7
+│ of the AGPLv3.  See the LICENSE file in the root directory of this
+│ project for the complete terms and conditions.
+│
+│ 🌐 https://slskd.org
+│ 🐱 https://github.com/slskd/slskd
 │
 ├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌ ╌ ╌╌╌╌ ╌
 │ {version}";
