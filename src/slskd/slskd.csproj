@@ -2,13 +2,13 @@
   <PropertyGroup>
     <RepositoryUrl>https://github.com/slskd/slskd</RepositoryUrl>
     <PackageProjectUrl>https://slskd.org</PackageProjectUrl>
-    <Authors>slskd Team</Authors>
-    <Copyright>Copyright (c) slskd Team</Copyright>
+    <Authors>JP Dillingham</Authors>
+    <Copyright>Copyright (c) JP Dillingham</Copyright>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
   </PropertyGroup>
   
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <CodeAnalysisRuleSet>Properties\analysis.ruleset</CodeAnalysisRuleSet>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <IsTransformWebConfigDisabled>true</IsTransformWebConfigDisabled>

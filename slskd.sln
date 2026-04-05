@@ -35,8 +35,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{137724E1
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "slskd.Tests.Unit", "tests\slskd.Tests.Unit\slskd.Tests.Unit.csproj", "{2777623C-3DBE-4EB4-A092-DFEA7BD8EA3A}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "slskd.Tests.Integration", "tests\slskd.Tests.Integration\slskd.Tests.Integration.csproj", "{6BF0549C-F88D-43F9-85EE-388BA5FC38D0}"
-EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "config", "config", "{98F684AE-507B-475A-92FE-AB4273A9F11A}"
 	ProjectSection(SolutionItems) = preProject
 		config\slskd.example.yml = config\slskd.example.yml
