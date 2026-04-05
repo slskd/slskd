@@ -301,7 +301,8 @@ class Chat extends Component {
                           <input
                             autoComplete="off"
                             data-lpignore="true"
-                            id="chat-message-input"
+                            id="chatbox"
+                            placeholder="Type a message…"
                             type="text"
                           />
                         }
