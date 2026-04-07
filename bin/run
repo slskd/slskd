@@ -1,20 +1,3 @@
-if [ -z "$1" ]; then
-    echo "💥  error: no image specified; provide a valid image and tag (e.g. slskd/slskd:latest)"
-    exit 1
-fi
+#!/bin/bash
 
-docker run -i \
-    -p 5030:5030 \
-    -p $SLSK_LISTEN_PORT:$SLSK_LISTEN_PORT \
-    -v $SLSK_OUTPUT_DIR:/var/slsk/download \
-    -v $SLSK_SHARED_DIR:/var/slsk/shared \
-    -e "SLSK_USERNAME=$SLSK_USERNAME" \
-    -e "SLSK_PASSWORD=$SLSK_PASSWORD" \
-    -e "SLSK_LISTEN_PORT=$SLSK_LISTEN_PORT" \
-    -e "SLSK_ENABLE_DNET=true" \
-    -e "SLSK_DNET_CHILD_LIMIT=10" \
-    -e "SLSK_DIAGNOSTIC=$SLSK_DIAGNOSTIC" \
-    -e "SLSK_ENABLE_SECURITY=$SLSK_ENABLE_SECURITY" \
-    -e "SLSK_CONNECT_TIMEOUT=5000" \
-    -e "SLSK_INACTIVITY_TIMEOUT=15000" \
-    $1
+dotnet run --project src/slskd/slskd.csproj
