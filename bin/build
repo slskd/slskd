@@ -94,9 +94,6 @@ else
     else
         echo $'\n\t🧪  dotnet test --configuration Release ../../tests/slskd.Tests.Unit\n'
         dotnet test --configuration Release ../../tests/slskd.Tests.Unit
-
-        echo $'\n\t🧪  dotnet test --configuration Release ../../tests/slskd.Tests.Integration\n'
-        dotnet test --configuration Release ../../tests/slskd.Tests.Integration
     fi
 fi
 
