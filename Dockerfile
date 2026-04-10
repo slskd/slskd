@@ -46,6 +46,7 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
   jq \
   wget \
   tini \
+  gosu \
   && \
   rm -rf \
   /tmp/* \
