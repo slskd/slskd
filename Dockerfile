@@ -1,3 +1,6 @@
+# syntax=docker/dockerfile:1
+# ^ enable heredoc for BuildKit
+
 # build static web content
 # note: pin this to amd64 to speed it up, it is prohibitively slow under QEMU
 FROM --platform=$BUILDPLATFORM node:22-alpine AS web
