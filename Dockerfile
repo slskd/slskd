@@ -1,3 +1,6 @@
+# syntax=docker/dockerfile:1
+# ^ enable heredoc for BuildKit
+
 # build static web content
 # note: pin this to amd64 to speed it up, it is prohibitively slow under QEMU
 FROM --platform=$BUILDPLATFORM node:22-alpine AS web
@@ -43,6 +46,7 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
   jq \
   wget \
   tini \
+  gosu \
   && \
   rm -rf \
   /tmp/* \
@@ -50,10 +54,13 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
   /var/cache/apt/* \
   /var/tmp/*
 
-RUN bash -c 'mkdir -p /app/{incomplete,downloads} \ 
-  && chmod -R 777 /app \
+RUN groupadd -g 1000 slskd && \
+  useradd -u 1000 -g slskd -d /app -s /sbin/nologin slskd
+
+RUN bash -c 'mkdir -p /app/{incomplete,downloads} \
+  && chown -R slskd:slskd /app \
   && mkdir -p /.net \
-  && chmod 777 /.net'
+  && chown slskd:slskd /.net'
 
 VOLUME /app
 
@@ -64,7 +71,7 @@ ENV SHELL=/usr/bin/bash \
   DOTNET_BUNDLE_EXTRACT_BASE_DIR=/.net \
   DOTNET_gcServer=0 \
   DOTNET_gcConcurrent=1 \
-  DOTNET_GCHeapHardLimit=0x80000000	\
+  DOTNET_GCHeapHardLimit=0x80000000 \
   DOTNET_GCConserveMemory=9 \
   SLSKD_UMASK=0022 \
   SLSKD_HTTP_PORT=5030 \
@@ -91,7 +98,83 @@ LABEL org.opencontainers.image.title=slskd \
 WORKDIR /slskd
 COPY --from=publish /slskd/dist/${TARGETPLATFORM} .
 
-RUN echo "umask \$SLSKD_UMASK && ./slskd" > start.sh \
-  && chmod +x start.sh
+# supports two modes:
+#   1. PUID/PGID (legacy linuxserver style) — container starts as root,
+#      mutates user, chowns /app if needed, drops privileges via gosu.
+#   2. --user / user: (modern Docker) — container starts as non-root,
+#      skips all usermod/chown, execs the app directly.
+COPY <<'ENTRYPOINT' /usr/local/bin/docker-entrypoint.sh
+#!/bin/bash
+set -e
 
-ENTRYPOINT ["/usr/bin/tini", "--", "./start.sh"]
+SLSKD_USER="slskd"
+SLSKD_GROUP="slskd"
+DEFAULT_PUID=1000
+DEFAULT_PGID=1000
+
+# --user mode
+if [ "$(id -u)" -ne 0 ]; then
+    umask "$SLSKD_UMASK"
+    exec "$@"
+fi
+
+# PUID/PGID mode
+
+PUID="${PUID:-$DEFAULT_PUID}"
+PGID="${PGID:-$DEFAULT_PGID}"
+
+echo "
+───────────────────────────────────────
+  slskd
+───────────────────────────────────────
+  PUID:  ${PUID}
+  PGID:  ${PGID}
+  UMASK: ${SLSKD_UMASK}
+───────────────────────────────────────"
+
+if [ "${PUID}" = "0" ] || [ "${PGID}" = "0" ]; then
+    echo "[warn] Running as root (PUID=0 or PGID=0) is not recommended."
+fi
+
+# Mutate group
+current_gid=$(id -g "${SLSKD_USER}" 2>/dev/null || echo "")
+if [ "${current_gid}" != "${PGID}" ]; then
+    groupmod -o -g "${PGID}" "${SLSKD_GROUP}"
+fi
+
+# Mutate user — park homedir at /tmp first to prevent usermod from doing an
+# implicit recursive chown of the home directory (linuxserver technique)
+current_uid=$(id -u "${SLSKD_USER}" 2>/dev/null || echo "")
+if [ "${current_uid}" != "${PUID}" ]; then
+    orig_home=$(getent passwd "${SLSKD_USER}" | cut -d: -f6)
+    usermod -d /tmp "${SLSKD_USER}"
+    usermod -o -u "${PUID}" "${SLSKD_USER}"
+    usermod -d "${orig_home}" "${SLSKD_USER}"
+fi
+
+# Fix /app ownership, but only when PUID/PGID changed (binhex marker pattern).
+# /app has only config, logs, and databases — always a small number of files.
+# Shared volumes (/music, /downloads elsewhere, etc.) are never touched; the
+# process runs as PUID:PGID so new files get correct ownership automatically.
+prev_puid=$(cat /app/.slskd_puid 2>/dev/null || true)
+prev_pgid=$(cat /app/.slskd_pgid 2>/dev/null || true)
+
+if [ "${prev_puid}" != "${PUID}" ] || [ "${prev_pgid}" != "${PGID}" ]; then
+    echo "[entrypoint] Applying ownership to /app (PUID:PGID = ${PUID}:${PGID})..."
+    chown -R "${PUID}:${PGID}" /app
+    echo "${PUID}" > /app/.slskd_puid
+    echo "${PGID}" > /app/.slskd_pgid
+    chown "${PUID}:${PGID}" /app/.slskd_puid /app/.slskd_pgid
+fi
+
+# Ensure /.net is accessible (dotnet runtime extraction cache)
+chown "${PUID}:${PGID}" /.net 2>/dev/null || true
+
+# Drop privileges and exec
+umask "$SLSKD_UMASK"
+exec gosu "${PUID}:${PGID}" "$@"
+ENTRYPOINT
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/docker-entrypoint.sh"]
+CMD ["./slskd"]
