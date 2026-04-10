@@ -54,10 +54,16 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
   /var/cache/apt/* \
   /var/tmp/*
 
-RUN bash -c 'mkdir -p /app/{incomplete,downloads} \ 
-  && chmod -R 777 /app \
+# remove the default 'ubuntu' user that occupies 1000:1000
+# and replace it with our own slskd user/group
+RUN userdel -r ubuntu && \
+  groupadd -g 1000 slskd && \
+  useradd -u 1000 -g slskd -d /app -s /sbin/nologin slskd
+
+RUN bash -c 'mkdir -p /app/{incomplete,downloads} \
+  && chown -R slskd:slskd /app \
   && mkdir -p /.net \
-  && chmod 777 /.net'
+  && chown slskd:slskd /.net'
 
 VOLUME /app
 
