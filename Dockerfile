@@ -74,7 +74,7 @@ ENV SHELL=/usr/bin/bash \
   DOTNET_BUNDLE_EXTRACT_BASE_DIR=/.net \
   DOTNET_gcServer=0 \
   DOTNET_gcConcurrent=1 \
-  DOTNET_GCHeapHardLimit=0x80000000	\
+  DOTNET_GCHeapHardLimit=0x80000000 \
   DOTNET_GCConserveMemory=9 \
   SLSKD_UMASK=0022 \
   SLSKD_HTTP_PORT=5030 \
@@ -101,7 +101,82 @@ LABEL org.opencontainers.image.title=slskd \
 WORKDIR /slskd
 COPY --from=publish /slskd/dist/${TARGETPLATFORM} .
 
-RUN echo "umask \$SLSKD_UMASK && ./slskd" > start.sh \
-  && chmod +x start.sh
+# supports two modes:
+#   1. PUID/PGID (legacy linuxserver style) — container starts as root,
+#      mutates user, chowns /app if needed, drops privileges via gosu.
+#   2. --user / user: (modern Docker) — container starts as non-root,
+#      skips all usermod/chown, execs the app directly.
+COPY <<'SCRIPT' /entrypoint.sh
 
-ENTRYPOINT ["/usr/bin/tini", "--", "./start.sh"]
+#!/bin/bash
+set -e
+
+# --user mode; user has provided a user via the command line or docker compose file
+#---------------------------------------------------------------------------------------
+if [ "$(id -u)" -ne 0 ]; then
+    # if the user has also supplied PUID or PGID, let them know they need to use one or the other
+    if [ -n "${PUID}" ] || [ -n "${PGID}" ]; then
+        echo "ERROR: PUID/PGID are set but the container is running as a non-root user (using --user or user:)."
+        echo "Use one or the other, not both. Remove --user and set PUID/PGID, or remove PUID/PGID and use --user."
+        exit 1
+    fi
+
+    # exit if /app is not writable
+    if [ ! -r /app ] || [ ! -w /app ]; then
+        echo "ERROR: /app is not readable and/or writable by the current user ($(id -u):$(id -g))."
+        echo "When using --user, ensure the mounted directory is readable and writable by UID $(id -u)."
+        exit 1
+    fi
+
+    # set umask and launch
+    umask "$SLSKD_UMASK"
+    exec "$@"
+fi
+
+# PUID/PGID mode; user has provided explicit user and group IDs to use
+#---------------------------------------------------------------------------------------
+PUID="${PUID:-1000}"
+PGID="${PGID:-1000}"
+
+if ! [[ "${PUID}" =~ ^[0-9]+$ ]]; then
+    echo "ERROR: PUID must be a non-negative integer, got '${PUID}'."
+    exit 1
+fi
+
+if ! [[ "${PGID}" =~ ^[0-9]+$ ]]; then
+    echo "ERROR: PGID must be a non-negative integer, got '${PGID}'."
+    exit 1
+fi
+
+# update group
+current_gid=$(getent group slskd | cut -d: -f3)
+echo "[entrypoint] current GID: ${current_gid}"
+if [ "${current_gid}" != "${PGID}" ]; then
+    groupmod -o -g "${PGID}" slskd
+    usermod -g "${PGID}" slskd
+    echo "[entrypoint] new GID: ${PGID}"
+fi
+
+# update user
+current_uid=$(id -u slskd 2>/dev/null || echo "")
+echo "[entrypoint] current UID: ${current_uid}"
+if [ "${current_uid}" != "${PUID}" ]; then
+    usermod -o -u "${PUID}" slskd
+    echo "[entrypoint] new UID: ${PUID}"
+fi
+
+# change owner of the directories we need to write
+chown -R "${PUID}:${PGID}" /app
+chown "${PUID}:${PGID}" /.net
+
+# set umask and launch
+umask "$SLSKD_UMASK"
+exec gosu "${PUID}:${PGID}" "$@"
+
+SCRIPT
+# EOF
+
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/usr/bin/tini", "--", "/entrypoint.sh"]
+CMD ["./slskd"]
