@@ -61,9 +61,7 @@ RUN userdel -r ubuntu && \
   useradd -u 1000 -g slskd -d /app -s /sbin/nologin slskd
 
 RUN bash -c 'mkdir -p /app/{incomplete,downloads} \
-  && chown -R slskd:slskd /app \
-  && mkdir -p /.net \
-  && chown slskd:slskd /.net'
+  && chown -R slskd:slskd /app'
 
 VOLUME /app
 
@@ -100,6 +98,8 @@ LABEL org.opencontainers.image.title=slskd \
 
 WORKDIR /slskd
 COPY --from=publish /slskd/dist/${TARGETPLATFORM} .
+
+RUN ./slskd --version && chmod -R a-w /.net
 
 # supports two modes:
 #   1. --user / user: (modern Docker) — container starts as non-root,
