@@ -102,10 +102,10 @@ WORKDIR /slskd
 COPY --from=publish /slskd/dist/${TARGETPLATFORM} .
 
 # supports two modes:
-#   1. PUID/PGID (legacy linuxserver style) — container starts as root,
-#      mutates user, chowns /app if needed, drops privileges via gosu.
-#   2. --user / user: (modern Docker) — container starts as non-root,
+#   1. --user / user: (modern Docker) — container starts as non-root,
 #      skips all usermod/chown, execs the app directly.
+#   2. PUID/PGID (legacy linuxserver style) — container starts as root,
+#      mutates user, chowns /app if needed, drops privileges via gosu.
 COPY <<'SCRIPT' /entrypoint.sh
 #!/bin/bash
 set -e
