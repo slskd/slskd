@@ -54,14 +54,13 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
   /var/cache/apt/* \
   /var/tmp/*
 
-# remove the default 'ubuntu' user that occupies 1000:1000
-# and replace it with our own slskd user/group
-RUN userdel -r ubuntu && \
-  groupadd -g 1000 slskd && \
-  useradd -u 1000 -g slskd -d /app -s /sbin/nologin slskd
+RUN groupadd -o -g 1000 slskd && \
+  useradd -o  -u 1000 -g slskd slskd
 
-RUN bash -c 'mkdir -p /app/{incomplete,downloads} \
-  && chown -R slskd:slskd /app'
+RUN bash -c 'mkdir -p /app \
+  && chown -R slskd:slskd /app \
+  && mkdir -p /.net \
+  && chmod 777 /.net'
 
 VOLUME /app
 
@@ -99,8 +98,6 @@ LABEL org.opencontainers.image.title=slskd \
 WORKDIR /slskd
 COPY --from=publish /slskd/dist/${TARGETPLATFORM} .
 
-RUN ./slskd --version && chmod -R a-w /.net
-
 # supports two modes:
 #   1. --user / user: (modern Docker) — container starts as non-root,
 #      skips all usermod/chown, execs the app directly.
@@ -116,18 +113,18 @@ if [ "$(id -u)" -ne 0 ]; then
     # if the user has also supplied PUID or PGID, let them know they need to use one or the other
     if [ -n "${PUID}" ] || [ -n "${PGID}" ]; then
         echo "ERROR: PUID/PGID are set but the container is running as a non-root user (using --user or user:)."
-        echo "Use one or the other, not both. Remove --user and set PUID/PGID, or remove PUID/PGID and use --user."
+        echo "Use one or the other, not both. Either remove --user and set PUID/PGID, or remove PUID/PGID and use --user."
         exit 1
     fi
 
-    # exit if /app is not writable
+    # exit if /app is not writable; we can't fix this because we lack permissions
     if [ ! -r /app ] || [ ! -w /app ]; then
-        echo "ERROR: /app is not readable and/or writable by the current user ($(id -u):$(id -g))."
-        echo "When using --user, ensure the mounted directory is readable and writable by UID $(id -u)."
+        echo "ERROR: /app is not readable and/or writable by the current user ($(id -u):$(id -g)); currently owned by owned by $(stat -c '%U:%G (%u:%g)' /app)."
+        echo "To fix: chown -R $(id -u):$(id -g) /path/to/your/mounted/app/directory"
         exit 1
     fi
 
-    # set umask and launch
+    # should be good to go; set umask and launch
     umask "$SLSKD_UMASK"
     exec "$@"
 fi
@@ -147,21 +144,22 @@ if ! [[ "${PGID}" =~ ^[0-9]+$ ]]; then
     exit 1
 fi
 
-# update group
-current_gid=$(getent group slskd | cut -d: -f3)
-if [ "${current_gid}" != "${PGID}" ]; then
-    groupmod -o -g "${PGID}" slskd
-    usermod -g "${PGID}" slskd
+# update group if needed
+if [ "$(getent group slskd | cut -d: -f3)" != "$PGID" ]; then
+    groupmod -o -g "$PGID" slskd
 fi
 
-# update user
-current_uid=$(id -u slskd 2>/dev/null || echo "")
-if [ "${current_uid}" != "${PUID}" ]; then
-    usermod -o -u "${PUID}" slskd
+# update user if needed
+if [ "$(id -u slskd)" != "$PUID" ] || [ "$(id -g slskd)" != "$PGID" ]; then
+    usermod -o -u "$PUID" -g "$PGID" slskd
 fi
 
-# change owner of the directories we need to write
-chown -R "${PUID}:${PGID}" /app
+# change owner of the the /app directory if it isn't correct
+# we're not checking anything other than the root, and we're not recursively
+# applying the changes, which might be dangerous/unwanted and/or take forever
+if [ "$(stat -c '%u:%g' /app)" != "${PUID}:${PGID}" ]; then
+    chown "${PUID}:${PGID}" /app
+fi
 
 # set umask and launch
 umask "$SLSKD_UMASK"
