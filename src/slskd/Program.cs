@@ -782,6 +782,8 @@ namespace slskd
             services.AddSingleton<IUploadService, UploadService>();
             services.AddSingleton<FileService>();
 
+            services.AddSingleton<slskd.Stream.IStreamService, slskd.Stream.StreamService>();
+
             services.AddSingleton<IRelayService, RelayService>();
 
             services.AddSingleton<IFTPClientFactory, FTPClientFactory>();
@@ -1111,6 +1113,7 @@ namespace slskd
                 endpoints.MapHub<LogsHub>("/hub/logs");
                 endpoints.MapHub<SearchHub>("/hub/search");
                 endpoints.MapHub<RelayHub>("/hub/relay");
+                endpoints.MapHub<slskd.Stream.StreamHub>("/hub/stream");
 
                 endpoints.MapControllers();
                 endpoints.MapHealthChecks("/health");
