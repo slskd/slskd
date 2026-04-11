@@ -54,7 +54,10 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
   /var/cache/apt/* \
   /var/tmp/*
 
-RUN groupadd -g 1000 slskd && \
+# remove the default 'ubuntu' user that occupies 1000:1000
+# and replace it with our own slskd user/group
+RUN userdel -r ubuntu && \
+  groupadd -g 1000 slskd && \
   useradd -u 1000 -g slskd -d /app -s /sbin/nologin slskd
 
 RUN bash -c 'mkdir -p /app/{incomplete,downloads} \
@@ -103,78 +106,76 @@ COPY --from=publish /slskd/dist/${TARGETPLATFORM} .
 #      mutates user, chowns /app if needed, drops privileges via gosu.
 #   2. --user / user: (modern Docker) — container starts as non-root,
 #      skips all usermod/chown, execs the app directly.
-COPY <<'ENTRYPOINT' /usr/local/bin/docker-entrypoint.sh
+COPY <<'SCRIPT' /entrypoint.sh
 #!/bin/bash
 set -e
 
-SLSKD_USER="slskd"
-SLSKD_GROUP="slskd"
-DEFAULT_PUID=1000
-DEFAULT_PGID=1000
-
-# --user mode
+# --user mode; user has provided a user via the command line or docker compose file
+#---------------------------------------------------------------------------------------
 if [ "$(id -u)" -ne 0 ]; then
+    # if the user has also supplied PUID or PGID, let them know they need to use one or the other
+    if [ -n "${PUID}" ] || [ -n "${PGID}" ]; then
+        echo "ERROR: PUID/PGID are set but the container is running as a non-root user (using --user or user:)."
+        echo "Use one or the other, not both. Remove --user and set PUID/PGID, or remove PUID/PGID and use --user."
+        exit 1
+    fi
+
+    # exit if /app is not writable
+    if [ ! -r /app ] || [ ! -w /app ]; then
+        echo "ERROR: /app is not readable and/or writable by the current user ($(id -u):$(id -g))."
+        echo "When using --user, ensure the mounted directory is readable and writable by UID $(id -u)."
+        exit 1
+    fi
+
+    # set umask and launch
     umask "$SLSKD_UMASK"
     exec "$@"
 fi
 
-# PUID/PGID mode
+# PUID/PGID mode; user has provided explicit user and group IDs to use
+#---------------------------------------------------------------------------------------
+PUID="${PUID:-1000}"
+PGID="${PGID:-1000}"
 
-PUID="${PUID:-$DEFAULT_PUID}"
-PGID="${PGID:-$DEFAULT_PGID}"
-
-echo "
-───────────────────────────────────────
-  slskd
-───────────────────────────────────────
-  PUID:  ${PUID}
-  PGID:  ${PGID}
-  UMASK: ${SLSKD_UMASK}
-───────────────────────────────────────"
-
-if [ "${PUID}" = "0" ] || [ "${PGID}" = "0" ]; then
-    echo "[warn] Running as root (PUID=0 or PGID=0) is not recommended."
+if ! [[ "${PUID}" =~ ^[0-9]+$ ]]; then
+    echo "ERROR: PUID must be a non-negative integer, got '${PUID}'."
+    exit 1
 fi
 
-# Mutate group
-current_gid=$(id -g "${SLSKD_USER}" 2>/dev/null || echo "")
+if ! [[ "${PGID}" =~ ^[0-9]+$ ]]; then
+    echo "ERROR: PGID must be a non-negative integer, got '${PGID}'."
+    exit 1
+fi
+
+# update group
+current_gid=$(getent group slskd | cut -d: -f3)
+echo "[entrypoint] current GID: ${current_gid}"
 if [ "${current_gid}" != "${PGID}" ]; then
-    groupmod -o -g "${PGID}" "${SLSKD_GROUP}"
+    groupmod -o -g "${PGID}" slskd
+    usermod -g "${PGID}" slskd
+    echo "[entrypoint] new GID: ${PGID}"
 fi
 
-# Mutate user — park homedir at /tmp first to prevent usermod from doing an
-# implicit recursive chown of the home directory (linuxserver technique)
-current_uid=$(id -u "${SLSKD_USER}" 2>/dev/null || echo "")
+# update user
+current_uid=$(id -u slskd 2>/dev/null || echo "")
+echo "[entrypoint] current UID: ${current_uid}"
 if [ "${current_uid}" != "${PUID}" ]; then
-    orig_home=$(getent passwd "${SLSKD_USER}" | cut -d: -f6)
-    usermod -d /tmp "${SLSKD_USER}"
-    usermod -o -u "${PUID}" "${SLSKD_USER}"
-    usermod -d "${orig_home}" "${SLSKD_USER}"
+    usermod -o -u "${PUID}" slskd
+    echo "[entrypoint] new UID: ${PUID}"
 fi
 
-# Fix /app ownership, but only when PUID/PGID changed (binhex marker pattern).
-# /app has only config, logs, and databases — always a small number of files.
-# Shared volumes (/music, /downloads elsewhere, etc.) are never touched; the
-# process runs as PUID:PGID so new files get correct ownership automatically.
-prev_puid=$(cat /app/.slskd_puid 2>/dev/null || true)
-prev_pgid=$(cat /app/.slskd_pgid 2>/dev/null || true)
+# change owner of the directories we need to write
+chown -R "${PUID}:${PGID}" /app
+chown "${PUID}:${PGID}" /.net
 
-if [ "${prev_puid}" != "${PUID}" ] || [ "${prev_pgid}" != "${PGID}" ]; then
-    echo "[entrypoint] Applying ownership to /app (PUID:PGID = ${PUID}:${PGID})..."
-    chown -R "${PUID}:${PGID}" /app
-    echo "${PUID}" > /app/.slskd_puid
-    echo "${PGID}" > /app/.slskd_pgid
-    chown "${PUID}:${PGID}" /app/.slskd_puid /app/.slskd_pgid
-fi
-
-# Ensure /.net is accessible (dotnet runtime extraction cache)
-chown "${PUID}:${PGID}" /.net 2>/dev/null || true
-
-# Drop privileges and exec
+# set umask and launch
 umask "$SLSKD_UMASK"
 exec gosu "${PUID}:${PGID}" "$@"
-ENTRYPOINT
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/docker-entrypoint.sh"]
+SCRIPT
+# EOF
+
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/usr/bin/tini", "--", "/entrypoint.sh"]
 CMD ["./slskd"]
