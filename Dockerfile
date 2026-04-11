@@ -149,19 +149,15 @@ fi
 
 # update group
 current_gid=$(getent group slskd | cut -d: -f3)
-echo "[entrypoint] current GID: ${current_gid}"
 if [ "${current_gid}" != "${PGID}" ]; then
     groupmod -o -g "${PGID}" slskd
     usermod -g "${PGID}" slskd
-    echo "[entrypoint] new GID: ${PGID}"
 fi
 
 # update user
 current_uid=$(id -u slskd 2>/dev/null || echo "")
-echo "[entrypoint] current UID: ${current_uid}"
 if [ "${current_uid}" != "${PUID}" ]; then
     usermod -o -u "${PUID}" slskd
-    echo "[entrypoint] new UID: ${PUID}"
 fi
 
 # change owner of the directories we need to write
