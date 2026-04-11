@@ -162,7 +162,6 @@ fi
 
 # change owner of the directories we need to write
 chown -R "${PUID}:${PGID}" /app
-chown "${PUID}:${PGID}" /.net
 
 # set umask and launch
 umask "$SLSKD_UMASK"
