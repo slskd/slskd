@@ -253,6 +253,12 @@ namespace slskd
         [Validate]
         public SharesOptions Shares { get; init; } = new SharesOptions();
 
+        [Obsolete("temporary sentinel to warn users about breaking change.  use Transfers instead.")]
+        public object Global { get; init; } = null;
+
+        [Obsolete("temporary sentinel to warn users about breaking change.  use Transfers instead.")]
+        public object Groups { get; init; } = null;
+
         /// <summary>
         ///     Gets transfer options.
         /// </summary>
@@ -324,6 +330,9 @@ namespace slskd
         [Validate]
         public SoulseekOptions Soulseek { get; init; } = new SoulseekOptions();
 
+        [Obsolete("temporary sentinel to warn users about breaking change.  use Integrations instead.")]
+        public object Integration { get; init; } = null;
+
         /// <summary>
         ///     Gets options for external integrations.
         /// </summary>
@@ -343,6 +352,18 @@ namespace slskd
             {
                 results.Add(new ValidationResult($"Instance name must be something other than '{Program.LocalHostName}' when operating in Relay Agent mode"));
             }
+
+#pragma warning disable CS0618 // Type or member is obsolete
+            if (Groups is not null || Global is not null)
+            {
+                results.Add(new ValidationResult("The 'global' and 'groups' keys have been moved under a new 'transfers' key.  See https://github.com/slskd/slskd/pull/1672 for details, and make the necessary changes to remove this error"));
+            }
+
+            if (Integration is not null)
+            {
+                results.Add(new ValidationResult("The 'integration' key has been renamed to 'integrations'.  Add an 's' to the end of the key to remove this error (no other changes were made)"));
+            }
+#pragma warning restore CS0618 // Type or member is obsolete
 
             return results;
         }
