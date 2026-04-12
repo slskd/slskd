@@ -1,3 +1,6 @@
+# syntax=docker/dockerfile:1
+# ^ enable heredoc for BuildKit
+
 # build static web content
 # note: pin this to amd64 to speed it up, it is prohibitively slow under QEMU
 FROM --platform=$BUILDPLATFORM node:22-alpine AS web
@@ -43,6 +46,7 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
   jq \
   wget \
   tini \
+  gosu \
   && \
   rm -rf \
   /tmp/* \
@@ -50,8 +54,11 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
   /var/cache/apt/* \
   /var/tmp/*
 
-RUN bash -c 'mkdir -p /app/{incomplete,downloads} \ 
-  && chmod -R 777 /app \
+RUN groupadd -o -g 1000 slskd && \
+  useradd -o  -u 1000 -g slskd slskd
+
+RUN bash -c 'mkdir -p /app \
+  && chown -R slskd:slskd /app \
   && mkdir -p /.net \
   && chmod 777 /.net'
 
@@ -64,7 +71,7 @@ ENV SHELL=/usr/bin/bash \
   DOTNET_BUNDLE_EXTRACT_BASE_DIR=/.net \
   DOTNET_gcServer=0 \
   DOTNET_gcConcurrent=1 \
-  DOTNET_GCHeapHardLimit=0x80000000	\
+  DOTNET_GCHeapHardLimit=0x80000000 \
   DOTNET_GCConserveMemory=9 \
   SLSKD_UMASK=0022 \
   SLSKD_HTTP_PORT=5030 \
@@ -73,7 +80,7 @@ ENV SHELL=/usr/bin/bash \
   SLSKD_APP_DIR=/app \
   SLSKD_DOCKER_TAG=$TAG \
   SLSKD_DOCKER_VERSION=$VERSION \
-  SLSKD_DOCKER_REVISON=$REVISION \
+  SLSKD_DOCKER_REVISION=$REVISION \
   SLSKD_DOCKER_BUILD_DATE=$BUILD_DATE
 
 LABEL org.opencontainers.image.title=slskd \
@@ -91,7 +98,77 @@ LABEL org.opencontainers.image.title=slskd \
 WORKDIR /slskd
 COPY --from=publish /slskd/dist/${TARGETPLATFORM} .
 
-RUN echo "umask \$SLSKD_UMASK && ./slskd" > start.sh \
-  && chmod +x start.sh
+# supports two modes:
+#   1. --user / user: (modern Docker) — container starts as non-root,
+#      skips all usermod/chown, execs the app directly.
+#   2. PUID/PGID (legacy linuxserver style) — container starts as root,
+#      mutates user, chowns /app if needed, drops privileges via gosu.
+COPY <<'SCRIPT' /entrypoint.sh
+#!/bin/bash
+set -e
 
-ENTRYPOINT ["/usr/bin/tini", "--", "./start.sh"]
+# --user mode; user has provided a user via the command line or docker compose file
+#---------------------------------------------------------------------------------------
+if [ "$(id -u)" -ne 0 ]; then
+    # if the user has also supplied PUID or PGID, let them know they need to use one or the other
+    if [ -n "${PUID}" ] || [ -n "${PGID}" ]; then
+        echo "ERROR: PUID/PGID are set but the container is running as a non-root user (using --user or user:)."
+        echo "Use one or the other, not both. Either remove --user and set PUID/PGID, or remove PUID/PGID and use --user."
+        exit 1
+    fi
+
+    # exit if /app is not writable; we can't fix this because we lack permissions
+    if [ ! -r /app ] || [ ! -w /app ]; then
+        echo "ERROR: /app is not readable and/or writable by the current user ($(id -u):$(id -g)); currently owned by owned by $(stat -c '%U:%G (%u:%g)' /app)."
+        echo "To fix: chown -R $(id -u):$(id -g) /path/to/your/mounted/app/directory"
+        exit 1
+    fi
+
+    # should be good to go; set umask and launch
+    umask "$SLSKD_UMASK"
+    exec "$@"
+fi
+
+# PUID/PGID mode; user has provided explicit user and group IDs to use
+#---------------------------------------------------------------------------------------
+PUID="${PUID:-1000}"
+PGID="${PGID:-1000}"
+
+if ! [[ "${PUID}" =~ ^[0-9]+$ ]]; then
+    echo "ERROR: PUID must be a non-negative integer, got '${PUID}'."
+    exit 1
+fi
+
+if ! [[ "${PGID}" =~ ^[0-9]+$ ]]; then
+    echo "ERROR: PGID must be a non-negative integer, got '${PGID}'."
+    exit 1
+fi
+
+# update group if needed
+if [ "$(getent group slskd | cut -d: -f3)" != "$PGID" ]; then
+    groupmod -o -g "$PGID" slskd
+fi
+
+# update user if needed
+if [ "$(id -u slskd)" != "$PUID" ] || [ "$(id -g slskd)" != "$PGID" ]; then
+    usermod -o -u "$PUID" -g "$PGID" slskd
+fi
+
+# change owner of the the /app directory if it isn't correct
+# we're not checking anything other than the root, and we're not recursively
+# applying the changes, which might be dangerous/unwanted and/or take forever
+if [ "$(stat -c '%u:%g' /app)" != "${PUID}:${PGID}" ]; then
+    chown "${PUID}:${PGID}" /app
+fi
+
+# set umask and launch
+umask "$SLSKD_UMASK"
+exec gosu "${PUID}:${PGID}" "$@"
+
+SCRIPT
+# EOF
+
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/usr/bin/tini", "--", "/entrypoint.sh"]
+CMD ["./slskd"]
