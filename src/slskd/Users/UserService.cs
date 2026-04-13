@@ -38,6 +38,7 @@ namespace slskd.Users
     using System.Collections.Generic;
     using System.Linq;
     using System.Net;
+    using System.Text.RegularExpressions;
     using System.Threading.Tasks;
     using NetTools;
     using Serilog;
@@ -291,11 +292,27 @@ namespace slskd.Users
         /// <returns>A value indicating whether the specified user and/or IP are blacklisted.</returns>
         public bool IsBlacklisted(string username, IPAddress ipAddress = null)
         {
+            if (username is null) return false;
+
             var blacklist = OptionsMonitor.CurrentValue.Transfers.Groups.Blacklisted;
 
             if (blacklist.Members.Contains(username))
             {
                 return true;
+            }
+
+            // check username patterns (regex). respects the same case sensitivity flag used by other
+            // user-defined regular expressions throughout the application.
+            if (blacklist.Patterns.Length > 0)
+            {
+                var regexOptions = OptionsMonitor.CurrentValue.Flags.CaseSensitiveRegEx
+                    ? RegexOptions.None
+                    : RegexOptions.IgnoreCase;
+
+                if (blacklist.Patterns.Any(p => Regex.IsMatch(username, p, regexOptions)))
+                {
+                    return true;
+                }
             }
 
             // check the user-curated list of blacklisted CIDRs that exists along with the list of

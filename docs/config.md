@@ -489,6 +489,8 @@ Private and chat room messages from blacklisted users are also ignored.
 
 Users can be blacklisted by adding their username to the `members` list. Additionally, users can be blacklisted by IP address, or range of addresses by adding a CIDR entry to the `cidrs` list.
 
+The `patterns` list accepts regular expressions matched against usernames. Any username matching one or more patterns will be blacklisted. This is useful for blocking bots or automated clients that share a common username prefix or suffix — for example, `^user` would block any username starting with `user`, and `_bot$` would block any username ending with `_bot`. Patterns follow the same case sensitivity rules as other user-defined regular expressions in the application — case insensitive by default, controlled by the `flags.case_sensitive_regex` option.
+
 Users added to the blacklist will be blocked from enqueueing any new files.  Any existing active or queued transfers will need to be cancelled manually.
 
 A managed blacklist file may also be used to achieve the same effects.  Read more about this in the [Managed Blacklist](#managed-blacklist) section below.
@@ -499,6 +501,8 @@ groups:
   blacklisted:
     members:
       - <username to blacklist>
+    patterns:
+      - <regular expression to match against usernames>
     cidrs:
       - <CIDR to blacklist, e.g. 255.255.255.255/32>
 ```
