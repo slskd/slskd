@@ -1029,6 +1029,13 @@ namespace slskd
                 // initially, but we'll update them when the cache is filled.
                 await Client.SetSharedCountsAsync(State.CurrentValue.Shares.Directories, State.CurrentValue.Shares.Files);
 
+                // send interests
+                if (Options.Soulseek.Likes.Any() || Options.Soulseek.Dislikes.Any())
+                {
+                    Log.Information("Broadcasting user interests to Soulseek network...");
+                    await Client.SetInterestsAsync(Options.Soulseek.Likes, Options.Soulseek.Dislikes);
+                }
+
                 // fetch our average upload speed from the server, so we can provide it along with search results
                 await RefreshUserStatistics(force: true);
 
@@ -1068,6 +1075,7 @@ namespace slskd
                 Log.Error(ex, "Failed to execute post-login actions");
             }
         }
+
 
         private void Client_PrivateMessageReceived(object sender, PrivateMessageReceivedEventArgs args)
         {
