@@ -1150,6 +1150,14 @@ namespace slskd
                     public string[] Members { get; init; } = Array.Empty<string>();
 
                     /// <summary>
+                    ///     Gets the list of regular expression patterns matched against usernames.
+                    ///     Any username matching one or more patterns will be blacklisted.
+                    ///     Follows the same case sensitivity rules as other user-defined regular expressions
+                    ///     (case insensitive by default; controlled by the <c>flags.case_sensitive_regex</c> option).
+                    /// </summary>
+                    public string[] Patterns { get; init; } = Array.Empty<string>();
+
+                    /// <summary>
                     ///     Gets the list of group CIDRs.
                     /// </summary>
                     public string[] Cidrs { get; init; } = Array.Empty<string>();
@@ -1162,6 +1170,14 @@ namespace slskd
                     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
                     {
                         var results = new List<ValidationResult>();
+
+                        foreach (var pattern in Patterns ?? Array.Empty<string>())
+                        {
+                            if (!pattern.IsValidRegex())
+                            {
+                                results.Add(new ValidationResult($"Blacklist username pattern '{pattern}' is not a valid regular expression"));
+                            }
+                        }
 
                         foreach (var cidr in Cidrs ?? Array.Empty<string>())
                         {
