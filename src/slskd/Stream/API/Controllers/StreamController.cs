@@ -129,7 +129,7 @@ namespace slskd.Stream.API
         ///     Infers an audio MIME type from the file extension.
         ///     Falls back to application/octet-stream for unknown types.
         /// </summary>
-        internal static string GuessContentType(string filename) =>
+        public static string GuessContentType(string filename) =>
             Path.GetExtension(filename).ToLowerInvariant() switch
             {
                 ".mp3"  => "audio/mpeg",

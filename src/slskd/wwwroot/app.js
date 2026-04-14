@@ -2,7 +2,6 @@
 
 // ─── State ───────────────────────────────────────────────────────────────────
 let currentSearchId = null;
-let searchResults = {};   // searchId → { responses: [] }
 
 // ─── DOM refs ────────────────────────────────────────────────────────────────
 const statusBar   = document.getElementById('status-bar');
@@ -34,14 +33,13 @@ const searchHub = new signalR.HubConnectionBuilder()
   .withAutomaticReconnect()
   .build();
 
-searchHub.on('RESPONSE', ({ searchId, response }) => {
-  if (searchId !== currentSearchId) return;
-  appendResponse(response);
-});
+searchHub.on('UPDATE', async (search) => {
+  if (search.id !== currentSearchId) return;
+  setStatus(`Search: ${search.fileCount} file${search.fileCount !== 1 ? 's' : ''} from ${search.responseCount} peer${search.responseCount !== 1 ? 's' : ''}`);
 
-searchHub.on('UPDATE', (search) => {
-  if (search.id === currentSearchId) {
-    setStatus(`Search: ${search.fileCount} file${search.fileCount !== 1 ? 's' : ''} from ${search.responseCount} peer${search.responseCount !== 1 ? 's' : ''}`);
+  // Responses only available via REST — fetch when the search completes
+  if (search.isComplete) {
+    await fetchAndRenderResponses(currentSearchId);
   }
 });
 
@@ -66,7 +64,6 @@ document.getElementById('search-form').addEventListener('submit', async (e) => {
   if (!query) return;
 
   resultsEl.innerHTML = '';
-  searchResults = {};
   currentSearchId = null;
   hideError();
   setStatus(`Searching for "${query}"…`);
@@ -85,6 +82,21 @@ document.getElementById('search-form').addEventListener('submit', async (e) => {
     setStatus(`Search failed: ${err.message}`);
   }
 });
+
+// ─── Fetch all responses from REST API and render them ───────────────────────
+async function fetchAndRenderResponses(searchId) {
+  try {
+    const resp = await fetch(`/api/v0/searches/${searchId}/responses`);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const responses = await resp.json();
+    resultsEl.innerHTML = '';
+    for (const response of responses) {
+      appendResponse(response);
+    }
+  } catch (err) {
+    setStatus(`Failed to load results: ${err.message}`);
+  }
+}
 
 // ─── Render a search response (one peer's results) ───────────────────────────
 function appendResponse(response) {
@@ -139,7 +151,8 @@ function playTrack(username, filename) {
   const btn = document.querySelector(`.play-btn[data-username="${CSS.escape(username)}"][data-filename="${CSS.escape(filename)}"]`);
   if (btn) btn.classList.add('active');
 
-  // Build stream URL — filename may contain slashes (path), encode each segment
+  // Build stream URL — filename may contain slashes (path), encode each segment.
+  // Pass JWT as access_token query param — browsers don't send custom headers on audio src requests.
   const encodedFilename = filename.split('/').map(encodeURIComponent).join('/');
   const streamUrl = `/api/v0/stream/${encodeURIComponent(username)}/${encodedFilename}`;
 
