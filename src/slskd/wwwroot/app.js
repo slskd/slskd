@@ -164,7 +164,9 @@ function playTrack(username, filename) {
   playerPeer.textContent = `from ${username}`;
   playerBar.classList.add('visible');
 
-  // Disable seeking — not supported in v1 (live from peer, no file on disk)
+  // Disable seeking — not supported in v1 (live from peer, no file on disk).
+  // Remove before re-adding to avoid accumulating duplicate listeners across plays.
+  audioEl.removeEventListener('seeking', snapBack);
   audioEl.addEventListener('seeking', snapBack, { passive: true });
 }
 

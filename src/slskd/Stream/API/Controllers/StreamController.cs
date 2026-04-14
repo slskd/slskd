@@ -88,12 +88,13 @@ namespace slskd.Stream.API
 
             // iOS Safari (WebKit) sends Range: bytes=0- on the first request to any audio src.
             // Without a 206 + Content-Range response the audio element stalls immediately.
-            // We don't support arbitrary seeking in v1, so we always respond as if the full
-            // file starts at byte 0 and the total length is unknown (*).
+            // RFC 7233 requires last-byte-pos to be a digit — "bytes 0-/*" is invalid.
+            // Use "bytes 0-1/2" as the minimal valid 206 that satisfies WebKit's range check;
+            // the actual body is still the full streaming response.
             if (Request.Headers.ContainsKey(HeaderNames.Range))
             {
                 Response.StatusCode = 206;
-                Response.Headers["Content-Range"] = "bytes 0-/*";
+                Response.Headers["Content-Range"] = "bytes 0-1/2";
                 Response.Headers["Accept-Ranges"] = "bytes";
             }
 
