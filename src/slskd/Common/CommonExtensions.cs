@@ -116,6 +116,16 @@ namespace slskd
                 throw new InvalidCastException($"Unable to diff types {left?.GetType()} and {right?.GetType()}");
             }
 
+            if (left is null || right is null)
+            {
+                if (left is null == right is null)
+                {
+                    return [];
+                }
+
+                return [(null, parentFqn ?? string.Empty, left, right)];
+            }
+
             var differences = new List<(PropertyInfo Property, string FQN, object Left, object Right)>();
 
             foreach (var prop in left?.GetType().GetProperties())
@@ -124,6 +134,16 @@ namespace slskd
                 var rightVal = prop.GetValue(right);
                 var propType = prop.PropertyType;
                 var fqn = string.IsNullOrEmpty(parentFqn) ? prop.Name : string.Join(".", parentFqn, prop.Name);
+
+                if (leftVal is null || rightVal is null)
+                {
+                    if (leftVal is null == rightVal is null)
+                    {
+                        continue;
+                    }
+
+                    differences.Add((prop, fqn, leftVal, rightVal));
+                }
 
                 if (propType.IsArray || (propType.IsGenericType && propType.GetGenericTypeDefinition() == typeof(Dictionary<,>)))
                 {
