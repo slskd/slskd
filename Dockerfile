@@ -98,11 +98,10 @@ LABEL org.opencontainers.image.title=slskd \
 WORKDIR /slskd
 COPY --from=publish /slskd/dist/${TARGETPLATFORM} .
 
-# supports two modes:
-#   1. --user / user: (modern Docker) — container starts as non-root,
-#      skips all usermod/chown, execs the app directly.
-#   2. PUID/PGID (legacy linuxserver style) — container starts as root,
-#      mutates user, chowns /app if needed, drops privileges via gosu.
+# supports three modes:
+#   1. --user / user: (modern Docker) — container starts as non-root, skips all usermod/chown, execs the app directly.
+#   2. PUID/PGID (legacy linuxserver style) — container starts as root, mutates user, chowns /app if needed, drops privileges via gosu.
+#   3. neither --user nor at least one of PUID/PGID supplied - container and app run as root
 COPY <<'SCRIPT' /entrypoint.sh
 #!/bin/bash
 set -e
@@ -125,6 +124,13 @@ if [ "$(id -u)" -ne 0 ]; then
     fi
 
     # should be good to go; set umask and launch
+    umask "$SLSKD_UMASK"
+    exec "$@"
+fi
+
+# no --user supplied, neither PUID nor PGID supplied, run as root (same behavior as < 0.25.0)
+#---------------------------------------------------------------------------------------
+if [ -z "${PUID}" ] && [ -z "${PGID}" ]; then
     umask "$SLSKD_UMASK"
     exec "$@"
 fi
