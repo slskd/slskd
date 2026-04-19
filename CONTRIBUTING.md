@@ -8,7 +8,7 @@ By submitting a contribution to this project, you agree to the following:
 
 * You have the legal right to make this contribution and to assign its copyright.
 * You irrevocably assign all copyright and related rights in your contribution to the project maintainer(s).
-* You grant the project maintainer(s) the right to use, modify, distribute, and relicense your contribution under any license of their choosing.
+* You grant the project maintainer(s) (presently JP Dillingham) the right to use, modify, distribute, and relicense your contribution under any license of their choosing.
 
 This application is currently released under the [AGPL 3.0](https://github.com/slskd/slskd/blob/master/LICENSE) license.
 
