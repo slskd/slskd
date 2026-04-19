@@ -57,12 +57,8 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
 RUN groupadd -o -g 1000 slskd && \
   useradd -o  -u 1000 -g slskd slskd
 
-RUN bash -c 'mkdir -p /app \
-  && chown -R slskd:slskd /app \
-  && mkdir -p /.net \
+RUN bash -c 'mkdir -p /.net \
   && chmod 777 /.net'
-
-VOLUME /app
 
 HEALTHCHECK --interval=60s --timeout=3s --start-period=60m --retries=3 CMD wget -q -O - http://localhost:${SLSKD_HTTP_PORT}/health
 
@@ -116,14 +112,22 @@ if [ "$(id -u)" -ne 0 ]; then
         exit 1
     fi
 
-    # exit if /app is not writable; we can't fix this because we lack permissions
-    if [ ! -r /app ] || [ ! -w /app ]; then
-        echo "ERROR: /app is not readable and/or writable by the current user ($(id -u):$(id -g)); currently owned by owned by $(stat -c '%U:%G (%u:%g)' /app)."
+    # attempt to create the app dir; swallow the error if it fails, we'll give the user an informative message below
+    if [ ! -d "${SLSKD_APP_DIR}" ]; then
+        mkdir -p "${SLSKD_APP_DIR}" 2>/dev/null || true
+    fi
+
+    # exit if app dir is not writable; we can't fix this because we lack permissions
+    if [ ! -r "${SLSKD_APP_DIR}" ] || [ ! -w "${SLSKD_APP_DIR}" ]; then
+        echo "ERROR: ${SLSKD_APP_DIR} is not readable and/or writable by the current user ($(id -u):$(id -g)); currently owned by $(stat -c '%U:%G (%u:%g)' ${SLSKD_APP_DIR})."
         echo "To fix: chown -R $(id -u):$(id -g) /path/to/your/mounted/app/directory"
         exit 1
     fi
 
-    # should be good to go; set umask and launch
+    if ! mountpoint -q "${SLSKD_APP_DIR}"; then
+        echo "WARNING: ${SLSKD_APP_DIR} is not a bind mount or volume. Configuration and data will be lost if the container is removed."
+    fi
+
     umask "$SLSKD_UMASK"
     exec "$@"
 fi
@@ -131,11 +135,19 @@ fi
 # no --user supplied, neither PUID nor PGID supplied, run as root (same behavior as < 0.25.0)
 #---------------------------------------------------------------------------------------
 if [ -z "${PUID}" ] && [ -z "${PGID}" ]; then
+    # create app dir as root, if it doesn't exist
+    # no need to change the owner of anything; we can write
+    mkdir -p "${SLSKD_APP_DIR}"
+
+    if ! mountpoint -q "${SLSKD_APP_DIR}"; then
+        echo "WARNING: ${SLSKD_APP_DIR} is not a bind mount or volume. Configuration and data will be lost if the container is removed."
+    fi
+
     umask "$SLSKD_UMASK"
     exec "$@"
 fi
 
-# PUID/PGID mode; user has provided explicit user and group IDs to use
+# PUID/PGID mode; user has provided explicit user and/or group IDs to use
 #---------------------------------------------------------------------------------------
 PUID="${PUID:-1000}"
 PGID="${PGID:-1000}"
@@ -160,14 +172,20 @@ if [ "$(id -u slskd)" != "$PUID" ] || [ "$(id -g slskd)" != "$PGID" ]; then
     usermod -o -u "$PUID" -g "$PGID" slskd
 fi
 
-# change owner of the the /app directory if it isn't correct
-# we're not checking anything other than the root, and we're not recursively
-# applying the changes, which might be dangerous/unwanted and/or take forever
-if [ "$(stat -c '%u:%g' /app)" != "${PUID}:${PGID}" ]; then
-    chown "${PUID}:${PGID}" /app
+# create app dir as root, if it doesn't exist
+mkdir -p "${SLSKD_APP_DIR}"
+
+if ! mountpoint -q "${SLSKD_APP_DIR}"; then
+    echo "WARNING: ${SLSKD_APP_DIR} is not a bind mount or volume. Configuration and data will be lost if the container is removed."
 fi
 
-# set umask and launch
+# change owner of the the app directory if it isn't correct
+# we're not checking anything other than the root, and we're not recursively
+# applying the changes, which might be dangerous/unwanted and/or take forever
+if [ "$(stat -c '%u:%g' "${SLSKD_APP_DIR}")" != "${PUID}:${PGID}" ]; then
+    chown "${PUID}:${PGID}" "${SLSKD_APP_DIR}"
+fi
+
 umask "$SLSKD_UMASK"
 exec gosu "${PUID}:${PGID}" "$@"
 
