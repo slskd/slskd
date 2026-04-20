@@ -111,19 +111,40 @@ namespace slskd
         /// <returns>A list of differences between the two objects.</returns>
         public static IEnumerable<(PropertyInfo Property, string FQN, object Left, object Right)> DiffWith(this object left, object right, string parentFqn = null)
         {
-            if (left?.GetType() != right?.GetType())
+            if (left is null || right is null)
             {
-                throw new InvalidCastException($"Unable to diff types {left?.GetType()} and {right?.GetType()}");
+                if (left is null == right is null)
+                {
+                    return [];
+                }
+
+                return [(null, parentFqn ?? string.Empty, left, right)];
+            }
+
+            if (left.GetType() != right.GetType())
+            {
+                throw new InvalidCastException($"Unable to diff types {left.GetType()} and {right.GetType()}");
             }
 
             var differences = new List<(PropertyInfo Property, string FQN, object Left, object Right)>();
 
-            foreach (var prop in left?.GetType().GetProperties())
+            foreach (var prop in left.GetType().GetProperties())
             {
                 var leftVal = prop.GetValue(left);
                 var rightVal = prop.GetValue(right);
                 var propType = prop.PropertyType;
                 var fqn = string.IsNullOrEmpty(parentFqn) ? prop.Name : string.Join(".", parentFqn, prop.Name);
+
+                if (leftVal is null || rightVal is null)
+                {
+                    if (leftVal is null == rightVal is null)
+                    {
+                        continue;
+                    }
+
+                    differences.Add((prop, fqn, leftVal, rightVal));
+                    continue;
+                }
 
                 if (propType.IsArray || (propType.IsGenericType && propType.GetGenericTypeDefinition() == typeof(Dictionary<,>)))
                 {
