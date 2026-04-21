@@ -138,6 +138,7 @@ namespace slskd.Users
         private ILogger Log { get; set; } = Serilog.Log.ForContext<UserService>();
         private IOptionsMonitor<Options> OptionsMonitor { get; }
         private Blacklist Blacklist { get; } = new Blacklist();
+        private IReadOnlyCollection<Regex> CompiledBlacklistPatterns { get; set; } = [];
 
         /// <summary>
         ///     Gets or sets the internal cache of User data.
@@ -432,6 +433,18 @@ namespace slskd.Users
                         }
                     }
                 }
+
+                var regexOptions = RegexOptions.Compiled;
+
+                if (!OptionsMonitor.CurrentValue.Flags.CaseSensitiveRegEx)
+                {
+                    regexOptions |= RegexOptions.IgnoreCase;
+                }
+
+                CompiledBlacklistPatterns = OptionsMonitor.CurrentValue.Transfers.Groups.Blacklisted.Patterns
+                    .Select(f => new Regex(f, regexOptions))
+                    .ToList()
+                    .AsReadOnly();
 
                 LastOptionsHash = optionsHash;
             }
