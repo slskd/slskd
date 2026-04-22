@@ -2,6 +2,7 @@ namespace slskd.Tests.Unit.Users
 {
     using System.Collections.Generic;
     using AutoFixture.Xunit2;
+    using Microsoft.Extensions.Internal;
     using Moq;
     using slskd.Users;
     using Soulseek;
@@ -136,7 +137,8 @@ namespace slskd.Tests.Unit.Users
             var mocks = new Mocks(options);
             var service = new UserService(
                 mocks.SoulseekClient.Object,
-                mocks.OptionsMonitor);
+                mocks.OptionsMonitor,
+                mocks.SystemClock);
 
             return (service, mocks);
         }
@@ -150,6 +152,7 @@ namespace slskd.Tests.Unit.Users
 
             public Mock<ISoulseekClient> SoulseekClient { get; } = new Mock<ISoulseekClient>();
             public TestOptionsMonitor<Options> OptionsMonitor { get; init; }
+            public ISystemClock SystemClock { get; init; }
         }
     }
 }
