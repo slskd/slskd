@@ -1651,7 +1651,9 @@ namespace slskd
                 var sw = new Stopwatch();
                 sw.Start();
 
-                if (Users.IsBlacklisted(username))
+                // opportunistically try and avoid performing the search if we have a cached blacklisted value, otherwise
+                // hold off on computing it and filling the cache until we have the user's IP
+                if (Users.IsBlacklisted(username, bypassCache: false))
                 {
                     return null;
                 }
