@@ -94,6 +94,7 @@ namespace slskd
         /// <summary>
         ///     The name of the blacklisted user group.
         /// </summary>
+        [Obsolete("use IsBlacklisted instead")]
         public const string BlacklistedGroup = "blacklisted";
 
         private static readonly string ApplicationShutdownTransferExceptionMessage = "Application shut down";
