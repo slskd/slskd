@@ -1151,9 +1151,6 @@ namespace slskd
 
                     /// <summary>
                     ///     Gets the list of regular expression patterns matched against usernames.
-                    ///     Any username matching one or more patterns will be blacklisted.
-                    ///     Follows the same case sensitivity rules as other user-defined regular expressions
-                    ///     (case insensitive by default; controlled by the <c>flags.case_sensitive_regex</c> option).
                     /// </summary>
                     public string[] Patterns { get; init; } = Array.Empty<string>();
 
@@ -1175,7 +1172,7 @@ namespace slskd
                         {
                             if (!pattern.IsValidRegex())
                             {
-                                results.Add(new ValidationResult($"Blacklist username pattern '{pattern}' is not a valid regular expression"));
+                                results.Add(new ValidationResult($"Pattern '{pattern}' is not a valid regular expression"));
                             }
                         }
 
