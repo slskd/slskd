@@ -34,12 +34,14 @@ using Microsoft.Extensions.Options;
 
 namespace slskd.Users
 {
+    using System;
     using System.Collections.Concurrent;
     using System.Collections.Generic;
     using System.Linq;
     using System.Net;
     using System.Text.RegularExpressions;
     using System.Threading.Tasks;
+    using Microsoft.Extensions.Caching.Memory;
     using NetTools;
     using Serilog;
     using Soulseek;
@@ -139,6 +141,7 @@ namespace slskd.Users
         private IOptionsMonitor<Options> OptionsMonitor { get; }
         private Blacklist Blacklist { get; } = new Blacklist();
         private IReadOnlyCollection<Regex> CompiledBlacklistPatterns { get; set; } = [];
+        private MemoryCache GetGroupCache { get; } = new MemoryCache(new MemoryCacheOptions() { });
 
         /// <summary>
         ///     Gets or sets the internal cache of User data.
@@ -171,33 +174,49 @@ namespace slskd.Users
         /// <returns>The group for the specified username.</returns>
         public string GetGroup(string username)
         {
-            // note: this is an extremely hot path; keep the work done to an absolute minimum.
-            if (UserDictionary.TryGetValue(username ?? string.Empty, out var user))
+            if (GetGroupCache.TryGetValue<string>(username, out var cached))
             {
-                if (IsBlacklisted(user.Username))
-                {
-                    return Application.BlacklistedGroup;
-                }
+                return cached;
+            }
+            else
+            {
+                var group = GetGroupInternal(username);
 
-                if (user.Status?.IsPrivileged ?? false)
-                {
-                    return Application.PrivilegedGroup;
-                }
+                GetGroupCache.Set<string>(username, group, new MemoryCacheEntryOptions { SlidingExpiration = TimeSpan.FromMinutes(10) });
 
-                if (user.Group != null)
-                {
-                    return user.Group;
-                }
-
-                var thresholds = OptionsMonitor.CurrentValue.Transfers.Groups.Leechers.Thresholds;
-
-                if (user.Statistics?.FileCount < thresholds.Files || user.Statistics?.DirectoryCount < thresholds.Directories)
-                {
-                    return Application.LeecherGroup;
-                }
+                return group;
             }
 
-            return Application.DefaultGroup;
+            // note: this is an extremely hot path; keep the work done to an absolute minimum.
+            string GetGroupInternal(string username)
+            {
+                if (UserDictionary.TryGetValue(username ?? string.Empty, out var user))
+                {
+                    if (IsBlacklisted(user.Username))
+                    {
+                        return Application.BlacklistedGroup;
+                    }
+
+                    if (user.Status?.IsPrivileged ?? false)
+                    {
+                        return Application.PrivilegedGroup;
+                    }
+
+                    if (user.Group != null)
+                    {
+                        return user.Group;
+                    }
+
+                    var thresholds = OptionsMonitor.CurrentValue.Transfers.Groups.Leechers.Thresholds;
+
+                    if (user.Statistics?.FileCount < thresholds.Files || user.Statistics?.DirectoryCount < thresholds.Directories)
+                    {
+                        return Application.LeecherGroup;
+                    }
+                }
+
+                return Application.DefaultGroup;
+            }
         }
 
         /// <summary>
@@ -293,7 +312,10 @@ namespace slskd.Users
         /// <returns>A value indicating whether the specified user and/or IP are blacklisted.</returns>
         public bool IsBlacklisted(string username, IPAddress ipAddress = null)
         {
-            if (username is null) return false;
+            if (string.IsNullOrEmpty(username))
+            {
+                throw new ArgumentNullException(nameof(username));
+            }
 
             var blacklist = OptionsMonitor.CurrentValue.Transfers.Groups.Blacklisted;
 
