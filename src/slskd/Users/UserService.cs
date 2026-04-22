@@ -88,14 +88,19 @@ namespace slskd.Users
         /// </summary>
         /// <param name="soulseekClient"></param>
         /// <param name="optionsMonitor"></param>
+        /// <param name="systemClock"></param>
         public UserService(
             ISoulseekClient soulseekClient,
-            IOptionsMonitor<Options> optionsMonitor)
+            IOptionsMonitor<Options> optionsMonitor,
+            ISystemClock systemClock)
         {
             Client = soulseekClient;
 
             OptionsMonitor = optionsMonitor;
             OptionsMonitor.OnChange(options => Configure(options));
+
+            InjectedClock = systemClock;
+            BlacklistDecisionCache = new MemoryCache(new MemoryCacheOptions { Clock = InjectedClock, ExpirationScanFrequency = TimeSpan.FromMinutes(1), SizeLimit = 1000 });
 
             // updates may be sent unsolicited from the server, so update when we get them. binding these events will cause
             // multiple redundant round trips when initially watching a user or when explicitly requesting via
@@ -141,8 +146,8 @@ namespace slskd.Users
         private IOptionsMonitor<Options> OptionsMonitor { get; }
         private Blacklist Blacklist { get; } = new Blacklist();
         private IReadOnlyCollection<Regex> CompiledBlacklistPatterns { get; set; } = [];
-        private MemoryCache BlacklistDecisionCache { get; } =
-            new MemoryCache(new MemoryCacheOptions { ExpirationScanFrequency = TimeSpan.FromMinutes(1), SizeLimit = 1000 });
+        private ISystemClock InjectedClock { get; }
+        private MemoryCache BlacklistDecisionCache { get; }
 
         /// <summary>
         ///     Gets or sets the internal cache of User data.
@@ -291,23 +296,39 @@ namespace slskd.Users
         /// <summary>
         ///     Gets a value indicating whether the specified <paramref name="username"/> and/or <paramref name="ipAddress"/> are blacklisted.
         /// </summary>
+        /// <remarks>
+        ///     This method may be taxing if the user has defined a blacklist file or large number of patterns.  Call it to 'guard'
+        ///     actions at the network level (with the exception of search results where latency is sensitive), but don't
+        ///     use it to check once the user is 'in' the system (e.g. don't call this in the upload governor or queue logic).
+        /// </remarks>
         /// <param name="username">The username to check.</param>
         /// <param name="ipAddress">The IPAddress to check, if available.</param>
+        /// <param name="bypassCache">A value indicating whether to compute blacklisted status on a cache miss.</param>
         /// <returns>A value indicating whether the specified user and/or IP are blacklisted.</returns>
-        public bool IsBlacklisted(string username, IPAddress ipAddress = null)
+        public bool IsBlacklisted(string username, IPAddress ipAddress = null, bool bypassCache = true)
         {
             ArgumentNullException.ThrowIfNull(username);
 
-            if (BlacklistDecisionCache.TryGetValue<bool>(username, out var u))
+            if (BlacklistDecisionCache.TryGetValue<bool>(username, out var cached))
             {
-                return u;
+                return cached;
             }
 
-            var b = IsBlacklistedInternal(username, ipAddress);
+            // if we have a cache miss and the caller has specified bypassCache = false, assume that a cache miss
+            // means that the user is not blacklisted. we will only specify bypassCache = false when we're checking
+            // in a hot path, which at the time of this writing is only when determining whether to search shares for a
+            // request. we will check again before sending the results with bypassCache = true, and we should always
+            // follow this pattern when using bypassCache = false (specifically, check again before sending something)
+            if (!bypassCache)
+            {
+                return false;
+            }
 
-            BlacklistDecisionCache.Set(username, b, new MemoryCacheEntryOptions { SlidingExpiration = TimeSpan.FromMinutes(10) });
+            var blacklisted = IsBlacklistedInternal(username, ipAddress);
 
-            return b;
+            BlacklistDecisionCache.Set(username, blacklisted, new MemoryCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10) });
+
+            return blacklisted;
 
             bool IsBlacklistedInternal(string username, IPAddress iPAddress = null)
             {
