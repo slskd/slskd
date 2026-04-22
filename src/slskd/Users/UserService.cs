@@ -42,6 +42,7 @@ namespace slskd.Users
     using System.Text.RegularExpressions;
     using System.Threading.Tasks;
     using Microsoft.Extensions.Caching.Memory;
+    using Microsoft.Extensions.Internal;
     using NetTools;
     using Serilog;
     using Soulseek;
@@ -173,30 +174,45 @@ namespace slskd.Users
         private ConcurrentDictionary<string, bool> WatchedUsernamesDictionary { get; set; } = new ConcurrentDictionary<string, bool>();
 
         /// <summary>
-        ///     Gets the name of the group for the specified <paramref name="username"/>.
+        ///     Gets the name of the group for the specified <paramref name="username"/> from cached data.
         /// </summary>
-        /// <remarks>The group name is fetched from cached data, and lookups should always be fast.</remarks>
+        /// <remarks>
+        ///     <para>
+        ///         Excludes the 'blacklisted' group for performance; use <see cref="IsBlacklisted"/> to guard network operations instead.
+        ///     </para>
+        ///     <para>
+        ///         This is an extremely hot path, and the value returned may be approximated or incorrect in the case of a
+        ///         cache miss in order to provide low latency values.
+        ///     </para>
+        /// </remarks>
         /// <param name="username">The username of the peer.</param>
         /// <returns>The group for the specified username.</returns>
         public string GetGroup(string username)
         {
+            // users end up in this dictionary for a few reasons, including but maybe not limited to:
+            // * they show up in the user defined group list somewhere
+            // * the server told us they have privileges when we logged in
+            // * we 'watched' them
+            // * we fetched statistics or status for them
+            // if we handle any of their data they'll probably wind up here. if they show up in the config,
+            // their Group property will be set. otherwise we must resolve their group dynamically.
             if (UserDictionary.TryGetValue(username ?? string.Empty, out var user))
             {
-                if (IsBlacklisted(user.Username))
-                {
-                    return Application.BlacklistedGroup;
-                }
-
+                // privileged users trump everything, and we resolve their group accordingly regardless of all other factors
                 if (user.Status?.IsPrivileged ?? false)
                 {
                     return Application.PrivilegedGroup;
                 }
 
+                // if the user isn't privileged and the user has put their username in any user defined group, that's
+                // their group. they aren't subjected to leecher checks.
                 if (user.Group != null)
                 {
                     return user.Group;
                 }
 
+                // check to see if they are a leecher. they may be in the dictionary because we checked their stats.
+                // if we don't have their stats we don't have enough info to make the call, group is inconclusive so fall through
                 var thresholds = OptionsMonitor.CurrentValue.Transfers.Groups.Leechers.Thresholds;
 
                 if (user.Statistics?.FileCount < thresholds.Files || user.Statistics?.DirectoryCount < thresholds.Directories)
