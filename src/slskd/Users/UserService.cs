@@ -34,12 +34,14 @@ using Microsoft.Extensions.Options;
 
 namespace slskd.Users
 {
+    using System;
     using System.Collections.Concurrent;
     using System.Collections.Generic;
     using System.Linq;
     using System.Net;
     using System.Text.RegularExpressions;
     using System.Threading.Tasks;
+    using Microsoft.Extensions.Caching.Memory;
     using NetTools;
     using Serilog;
     using Soulseek;
@@ -139,6 +141,8 @@ namespace slskd.Users
         private IOptionsMonitor<Options> OptionsMonitor { get; }
         private Blacklist Blacklist { get; } = new Blacklist();
         private IReadOnlyCollection<Regex> CompiledBlacklistPatterns { get; set; } = [];
+        private MemoryCache BlacklistDecisionCache { get; } =
+            new MemoryCache(new MemoryCacheOptions { ExpirationScanFrequency = TimeSpan.FromMinutes(1), SizeLimit = 1000 });
 
         /// <summary>
         ///     Gets or sets the internal cache of User data.
@@ -293,44 +297,59 @@ namespace slskd.Users
         /// <returns>A value indicating whether the specified user and/or IP are blacklisted.</returns>
         public bool IsBlacklisted(string username, IPAddress ipAddress = null)
         {
-            if (username is null) return false;
+            ArgumentNullException.ThrowIfNull(username);
 
-            var blacklist = OptionsMonitor.CurrentValue.Transfers.Groups.Blacklisted;
-
-            if (blacklist.Members.Contains(username))
+            if (BlacklistDecisionCache.TryGetValue<bool>(username, out var u))
             {
-                return true;
+                return u;
             }
 
-            // check username patterns (regex). respects the same case sensitivity flag used by other
-            // user-defined regular expressions throughout the application.
-            if (blacklist.Patterns.Length > 0)
-            {
-                var regexOptions = OptionsMonitor.CurrentValue.Flags.CaseSensitiveRegEx
-                    ? RegexOptions.None
-                    : RegexOptions.IgnoreCase;
+            var b = IsBlacklistedInternal(username, ipAddress);
 
-                if (blacklist.Patterns.Any(p => Regex.IsMatch(username, p, regexOptions)))
+            BlacklistDecisionCache.Set(username, b, new MemoryCacheEntryOptions { SlidingExpiration = TimeSpan.FromMinutes(10) });
+
+            return b;
+
+            bool IsBlacklistedInternal(string username, IPAddress iPAddress = null)
+            {
+                // first, check to see if the name appears explicitly in the config
+                var blacklist = OptionsMonitor.CurrentValue.Transfers.Groups.Blacklisted;
+
+                if (blacklist.Members.Contains(username))
                 {
                     return true;
                 }
-            }
 
-            // check the user-curated list of blacklisted CIDRs that exists along with the list of
-            // blacklisted usernames.  these CIDRs should be one-offs and would not be expected to appear in a
-            // blacklist supplied by a third party (but might?)
-            if (ipAddress is not null && blacklist.Cidrs.Select(c => IPAddressRange.Parse(c)).Any(range => range.Contains(ipAddress)))
-            {
-                return true;
-            }
+                // check username patterns (regex). respects the same case sensitivity flag used by other
+                // user-defined regular expressions throughout the application.
+                if (blacklist.Patterns.Length > 0)
+                {
+                    var regexOptions = OptionsMonitor.CurrentValue.Flags.CaseSensitiveRegEx
+                        ? RegexOptions.None
+                        : RegexOptions.IgnoreCase;
 
-            // check the managed blacklist loaded from a third party blacklist file
-            if (ipAddress is not null && Blacklist.Contains(ipAddress))
-            {
-                return true;
-            }
+                    if (blacklist.Patterns.Any(p => Regex.IsMatch(username, p, regexOptions)))
+                    {
+                        return true;
+                    }
+                }
 
-            return false;
+                // check the user-curated list of blacklisted CIDRs that exists along with the list of
+                // blacklisted usernames.  these CIDRs should be one-offs and would not be expected to appear in a
+                // blacklist supplied by a third party (but might?)
+                if (ipAddress is not null && blacklist.Cidrs.Select(c => IPAddressRange.Parse(c)).Any(range => range.Contains(ipAddress)))
+                {
+                    return true;
+                }
+
+                // check the managed blacklist loaded from a third party blacklist file
+                if (ipAddress is not null && Blacklist.Contains(ipAddress))
+                {
+                    return true;
+                }
+
+                return false;
+            }
         }
 
         /// <summary>
@@ -434,20 +453,21 @@ namespace slskd.Users
                     }
                 }
 
-                var regexOptions = RegexOptions.Compiled;
-
-                if (!OptionsMonitor.CurrentValue.Flags.CaseSensitiveRegEx)
-                {
-                    regexOptions |= RegexOptions.IgnoreCase;
-                }
-
-                CompiledBlacklistPatterns = OptionsMonitor.CurrentValue.Transfers.Groups.Blacklisted.Patterns
-                    .Select(f => new Regex(f, regexOptions))
-                    .ToList()
-                    .AsReadOnly();
-
                 LastOptionsHash = optionsHash;
             }
+
+            // recompile blacklist patterns, regardless of whether they changed (this cheap to do)
+            var regexOptions = RegexOptions.Compiled;
+
+            if (!OptionsMonitor.CurrentValue.Flags.CaseSensitiveRegEx)
+            {
+                regexOptions |= RegexOptions.IgnoreCase;
+            }
+
+            CompiledBlacklistPatterns = OptionsMonitor.CurrentValue.Transfers.Groups.Blacklisted.Patterns
+                .Select(f => new Regex(f, regexOptions))
+                .ToList()
+                .AsReadOnly();
 
             var blacklistOptionsHash = Compute.Sha1Hash(options.Blacklist.ToJson());
 
@@ -494,6 +514,9 @@ namespace slskd.Users
 
                 LastBlacklistOptionsHash = blacklistOptionsHash;
             }
+
+            // invalidate cached blacklist decisions
+            BlacklistDecisionCache.Clear();
         }
 
         private void Reset()
