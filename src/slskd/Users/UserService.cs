@@ -319,18 +319,10 @@ namespace slskd.Users
                     return true;
                 }
 
-                // check username patterns (regex). respects the same case sensitivity flag used by other
-                // user-defined regular expressions throughout the application.
-                if (blacklist.Patterns.Length > 0)
+                // check to see if the username matches any patterns
+                if (CompiledBlacklistPatterns.Any(pattern => pattern.IsMatch(username)))
                 {
-                    var regexOptions = OptionsMonitor.CurrentValue.Flags.CaseSensitiveRegEx
-                        ? RegexOptions.None
-                        : RegexOptions.IgnoreCase;
-
-                    if (blacklist.Patterns.Any(p => Regex.IsMatch(username, p, regexOptions)))
-                    {
-                        return true;
-                    }
+                    return true;
                 }
 
                 // check the user-curated list of blacklisted CIDRs that exists along with the list of
