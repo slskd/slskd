@@ -325,9 +325,78 @@ namespace slskd.Tests.Unit.Users
             }
         }
 
-        private static (UserService service, Mocks mocks) GetFixture(Options options = null)
+        public class BlacklistDecisionCache
         {
-            var mocks = new Mocks(options);
+            [Theory, AutoData]
+            public void Clears_Cache_When_Options_Change(string username)
+            {
+                var options = new Options()
+                {
+                    Transfers = new Options.TransfersOptions
+                    {
+                        Groups = new Options.TransfersOptions.GroupsOptions
+                        {
+                            Blacklisted = new Options.TransfersOptions.GroupsOptions.BlacklistedOptions
+                            {
+                                Members = new[] { username },
+                            }
+                        }
+                    }
+                };
+
+                var (service, mocks) = GetFixture(options);
+
+                // prime the cache with a computed true
+                Assert.True(service.IsBlacklisted(username));
+
+                // verify it's cached (bypassCache=false returns true only on a hit)
+                Assert.True(service.IsBlacklisted(username, bypassCache: false));
+
+                // trigger an options change; Configure() calls BlacklistDecisionCache.Clear()
+                mocks.OptionsMonitor.RaiseOnChange(new Options());
+
+                // bypassCache=false returns false on a cache miss; if true is gone, the cache was cleared
+                Assert.False(service.IsBlacklisted(username, bypassCache: false));
+            }
+
+            [Theory, AutoData]
+            public void Expires_Cache_Entries_After_10_Minutes(string username)
+            {
+                var clock = new TestSystemClock();
+
+                var options = new Options()
+                {
+                    Transfers = new Options.TransfersOptions
+                    {
+                        Groups = new Options.TransfersOptions.GroupsOptions
+                        {
+                            Blacklisted = new Options.TransfersOptions.GroupsOptions.BlacklistedOptions
+                            {
+                                Members = new[] { username },
+                            }
+                        }
+                    }
+                };
+
+                var (service, _) = GetFixture(options, clock);
+
+                // prime the cache with a computed true
+                Assert.True(service.IsBlacklisted(username));
+
+                // verify it's cached (bypassCache=false returns true only on a hit)
+                Assert.True(service.IsBlacklisted(username, bypassCache: false));
+
+                // advance the clock past the 10-minute expiry
+                clock.UtcNow = clock.UtcNow.AddMinutes(11);
+
+                // the entry is now expired; bypassCache=false returns false on a miss
+                Assert.False(service.IsBlacklisted(username, bypassCache: false));
+            }
+        }
+
+        private static (UserService service, Mocks mocks) GetFixture(Options options = null, ISystemClock systemClock = null)
+        {
+            var mocks = new Mocks(options, systemClock);
             var service = new UserService(
                 mocks.SoulseekClient.Object,
                 mocks.OptionsMonitor,
@@ -338,14 +407,20 @@ namespace slskd.Tests.Unit.Users
 
         private class Mocks
         {
-            public Mocks(Options options = null)
+            public Mocks(Options options = null, ISystemClock systemClock = null)
             {
                 OptionsMonitor = new TestOptionsMonitor<Options>(options ?? new Options());
+                SystemClock = systemClock;
             }
 
             public Mock<ISoulseekClient> SoulseekClient { get; } = new Mock<ISoulseekClient>();
             public TestOptionsMonitor<Options> OptionsMonitor { get; init; }
             public ISystemClock SystemClock { get; init; }
+        }
+
+        private class TestSystemClock : ISystemClock
+        {
+            public DateTimeOffset UtcNow { get; set; } = DateTimeOffset.UtcNow;
         }
     }
 }
