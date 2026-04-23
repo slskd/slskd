@@ -331,6 +331,33 @@ namespace slskd.Tests.Unit.Users
             [Theory, AutoData]
             public void Clears_Cache_When_Options_Change(string username)
             {
+                var options = new Options()
+                {
+                    Transfers = new Options.TransfersOptions
+                    {
+                        Groups = new Options.TransfersOptions.GroupsOptions
+                        {
+                            Blacklisted = new Options.TransfersOptions.GroupsOptions.BlacklistedOptions
+                            {
+                                Members = new[] { username },
+                            }
+                        }
+                    }
+                };
+
+                var (service, mocks) = GetFixture(options);
+
+                Assert.True(service.IsBlacklisted(username));
+                Assert.True(service.IsBlacklisted(username, bypassCache: false));
+
+                mocks.OptionsMonitor.RaiseOnChange(new Options());
+
+                Assert.False(service.IsBlacklisted(username, bypassCache: false));
+            }
+
+            [Theory, AutoData]
+            public void Clears_Cache_When_Options_Change_Verified(string username)
+            {
                 var (service, mocks) = GetFixture();
 
                 var cache = new MemoryCache(new MemoryCacheOptions { SizeLimit = 1000 });
@@ -346,6 +373,35 @@ namespace slskd.Tests.Unit.Users
 
             [Theory, AutoData]
             public void Expires_Cache_Entries_After_10_Minutes(string username)
+            {
+                var clock = new TestSystemClock();
+
+                var options = new Options()
+                {
+                    Transfers = new Options.TransfersOptions
+                    {
+                        Groups = new Options.TransfersOptions.GroupsOptions
+                        {
+                            Blacklisted = new Options.TransfersOptions.GroupsOptions.BlacklistedOptions
+                            {
+                                Members = new[] { username },
+                            }
+                        }
+                    }
+                };
+
+                var (service, _) = GetFixture(options, clock);
+
+                Assert.True(service.IsBlacklisted(username));
+                Assert.True(service.IsBlacklisted(username, bypassCache: false));
+
+                clock.UtcNow = clock.UtcNow.AddMinutes(11);
+
+                Assert.False(service.IsBlacklisted(username, bypassCache: false));
+            }
+
+            [Theory, AutoData]
+            public void Expires_Cache_Entries_After_10_Minutes_Verified(string username)
             {
                 var clock = new TestSystemClock();
 
