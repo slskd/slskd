@@ -1381,6 +1381,12 @@ namespace slskd
 
         private Task<int?> PlaceInQueueResolver(string username, IPEndPoint endpoint, string filename)
         {
+            if (Users.IsBlacklisted(username, endpoint.Address))
+            {
+                Log.Information("Returned empty directory listing for blacklisted user {Username} ({IP})", username, endpoint.Address);
+                return Task.FromResult<int?>(null);
+            }
+
             try
             {
                 var place = Transfers.Uploads.Queue.EstimatePosition(username, filename);
