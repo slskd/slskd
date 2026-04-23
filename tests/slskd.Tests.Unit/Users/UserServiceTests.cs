@@ -6,6 +6,7 @@ namespace slskd.Tests.Unit.Users
     using System.Net;
     using System.Threading.Tasks;
     using AutoFixture.Xunit2;
+    using Microsoft.Extensions.Caching.Memory;
     using Microsoft.Extensions.Internal;
     using Moq;
     using slskd.Users;
@@ -330,33 +331,17 @@ namespace slskd.Tests.Unit.Users
             [Theory, AutoData]
             public void Clears_Cache_When_Options_Change(string username)
             {
-                var options = new Options()
-                {
-                    Transfers = new Options.TransfersOptions
-                    {
-                        Groups = new Options.TransfersOptions.GroupsOptions
-                        {
-                            Blacklisted = new Options.TransfersOptions.GroupsOptions.BlacklistedOptions
-                            {
-                                Members = new[] { username },
-                            }
-                        }
-                    }
-                };
+                var (service, mocks) = GetFixture();
 
-                var (service, mocks) = GetFixture(options);
+                var cache = new MemoryCache(new MemoryCacheOptions { SizeLimit = 1000 });
+                service.SetField("<BlacklistDecisionCache>k__BackingField", cache);
 
-                // prime the cache with a computed true
-                Assert.True(service.IsBlacklisted(username));
+                cache.Set(username, true, new MemoryCacheEntryOptions { Size = 1 });
+                Assert.True(cache.TryGetValue(username, out _));
 
-                // verify it's cached (bypassCache=false returns true only on a hit)
-                Assert.True(service.IsBlacklisted(username, bypassCache: false));
-
-                // trigger an options change; Configure() calls BlacklistDecisionCache.Clear()
                 mocks.OptionsMonitor.RaiseOnChange(new Options());
 
-                // bypassCache=false returns false on a cache miss; if true is gone, the cache was cleared
-                Assert.False(service.IsBlacklisted(username, bypassCache: false));
+                Assert.False(cache.TryGetValue(username, out _));
             }
 
             [Theory, AutoData]
@@ -364,33 +349,17 @@ namespace slskd.Tests.Unit.Users
             {
                 var clock = new TestSystemClock();
 
-                var options = new Options()
-                {
-                    Transfers = new Options.TransfersOptions
-                    {
-                        Groups = new Options.TransfersOptions.GroupsOptions
-                        {
-                            Blacklisted = new Options.TransfersOptions.GroupsOptions.BlacklistedOptions
-                            {
-                                Members = new[] { username },
-                            }
-                        }
-                    }
-                };
+                var (service, _) = GetFixture();
 
-                var (service, _) = GetFixture(options, clock);
+                var cache = new MemoryCache(new MemoryCacheOptions { Clock = clock, SizeLimit = 1000 });
+                service.SetField("<BlacklistDecisionCache>k__BackingField", cache);
 
-                // prime the cache with a computed true
-                Assert.True(service.IsBlacklisted(username));
+                service.IsBlacklisted(username);
+                Assert.True(cache.TryGetValue(username, out _));
 
-                // verify it's cached (bypassCache=false returns true only on a hit)
-                Assert.True(service.IsBlacklisted(username, bypassCache: false));
-
-                // advance the clock past the 10-minute expiry
                 clock.UtcNow = clock.UtcNow.AddMinutes(11);
 
-                // the entry is now expired; bypassCache=false returns false on a miss
-                Assert.False(service.IsBlacklisted(username, bypassCache: false));
+                Assert.False(cache.TryGetValue(username, out _));
             }
         }
 
