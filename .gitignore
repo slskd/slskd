@@ -15,3 +15,5 @@ coverage.json
 # version of the SDK that _doesn't_ strip colors from 'dotnet watch' output. once this problem is fixed, remove
 # this entry and the file doing the pinning.  this may not be until .NET 10 reaches GA.
 global.json
+
+.claude
