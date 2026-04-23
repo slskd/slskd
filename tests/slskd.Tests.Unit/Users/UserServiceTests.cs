@@ -1,6 +1,10 @@
 namespace slskd.Tests.Unit.Users
 {
+    using System;
     using System.Collections.Generic;
+    using System.IO;
+    using System.Net;
+    using System.Threading.Tasks;
     using AutoFixture.Xunit2;
     using Microsoft.Extensions.Internal;
     using Moq;
@@ -54,6 +58,195 @@ namespace slskd.Tests.Unit.Users
                 var (service, _) = GetFixture(options);
 
                 Assert.Equal(group, service.GetGroup(username));
+            }
+        }
+
+        public class IsBlacklisted
+        {
+            [Fact]
+            public void Throws_If_Username_Is_Null()
+            {
+                var (service, _) = GetFixture();
+
+                Assert.Throws<ArgumentNullException>(() => service.IsBlacklisted(null));
+            }
+
+            [Theory, AutoData]
+            public void Returns_Cached_Value_On_Cache_Hit(string username)
+            {
+                var options = new Options()
+                {
+                    Transfers = new Options.TransfersOptions
+                    {
+                        Groups = new Options.TransfersOptions.GroupsOptions
+                        {
+                            Blacklisted = new Options.TransfersOptions.GroupsOptions.BlacklistedOptions
+                            {
+                                Members = new[] { username },
+                            }
+                        }
+                    }
+                };
+
+                var (service, _) = GetFixture(options);
+
+                // prime the cache with a computed result
+                service.IsBlacklisted(username);
+
+                // bypassCache = false returns false on a cache miss; if the result is still true,
+                // the value was returned from cache rather than computed again
+                Assert.True(service.IsBlacklisted(username, bypassCache: false));
+            }
+
+            [Theory, AutoData]
+            public void Returns_False_On_Cache_Miss_With_BypassCache_False(string username)
+            {
+                var options = new Options()
+                {
+                    Transfers = new Options.TransfersOptions
+                    {
+                        Groups = new Options.TransfersOptions.GroupsOptions
+                        {
+                            Blacklisted = new Options.TransfersOptions.GroupsOptions.BlacklistedOptions
+                            {
+                                Members = new[] { username },
+                            }
+                        }
+                    }
+                };
+
+                var (service, _) = GetFixture(options);
+
+                // the user is blacklisted, but bypassCache = false on a cache miss returns false
+                // without computing, so the result is false even though the user is blacklisted
+                Assert.False(service.IsBlacklisted(username, bypassCache: false));
+            }
+
+            [Theory, AutoData]
+            public void Returns_True_If_Username_Is_Blacklisted_And_BypassCache_True(string username)
+            {
+                var options = new Options()
+                {
+                    Transfers = new Options.TransfersOptions
+                    {
+                        Groups = new Options.TransfersOptions.GroupsOptions
+                        {
+                            Blacklisted = new Options.TransfersOptions.GroupsOptions.BlacklistedOptions
+                            {
+                                Members = new[] { username },
+                            }
+                        }
+                    }
+                };
+
+                var (service, _) = GetFixture(options);
+
+                Assert.True(service.IsBlacklisted(username, bypassCache: true));
+            }
+
+            [Theory, AutoData]
+            public void Returns_True_If_Username_Matches_Blacklist_Pattern(string prefix, string suffix)
+            {
+                var username = $"{prefix}_blacklisted_{suffix}";
+
+                var options = new Options()
+                {
+                    Transfers = new Options.TransfersOptions
+                    {
+                        Groups = new Options.TransfersOptions.GroupsOptions
+                        {
+                            Blacklisted = new Options.TransfersOptions.GroupsOptions.BlacklistedOptions
+                            {
+                                Patterns = new[] { @".*_blacklisted_.*" },
+                            }
+                        }
+                    }
+                };
+
+                var (service, _) = GetFixture(options);
+
+                Assert.True(service.IsBlacklisted(username));
+            }
+
+            [Theory, AutoData]
+            public void Returns_True_If_IP_Address_Is_In_Blacklisted_CIDR(string username)
+            {
+                var options = new Options()
+                {
+                    Transfers = new Options.TransfersOptions
+                    {
+                        Groups = new Options.TransfersOptions.GroupsOptions
+                        {
+                            Blacklisted = new Options.TransfersOptions.GroupsOptions.BlacklistedOptions
+                            {
+                                Cidrs = new[] { "192.168.100.0/24" },
+                            }
+                        }
+                    }
+                };
+
+                var (service, _) = GetFixture(options);
+
+                Assert.True(service.IsBlacklisted(username, IPAddress.Parse("192.168.100.5")));
+            }
+
+            [Theory, AutoData]
+            public async Task Returns_True_If_IP_Address_Is_In_Blacklist_File(string username)
+            {
+                var tempFile = Path.GetTempFileName();
+
+                try
+                {
+                    System.IO.File.WriteAllText(tempFile, "192.168.200.0/24\n");
+
+                    var (service, _) = GetFixture();
+
+                    var blacklist = new Blacklist();
+                    await blacklist.Load(tempFile, BlacklistFormat.CIDR);
+
+                    service.SetField("<Blacklist>k__BackingField", blacklist);
+
+                    Assert.True(service.IsBlacklisted(username, IPAddress.Parse("192.168.200.5")));
+                }
+                finally
+                {
+                    System.IO.File.Delete(tempFile);
+                }
+            }
+
+            [Theory, AutoData]
+            public void Returns_False_If_Not_Blacklisted_By_Any_Method(string username)
+            {
+                var (service, _) = GetFixture();
+
+                Assert.False(service.IsBlacklisted(username, IPAddress.Parse("10.0.0.1")));
+            }
+
+            [Theory, AutoData]
+            public void Caches_Result_Of_IsBlacklistedInternal(string username)
+            {
+                var options = new Options()
+                {
+                    Transfers = new Options.TransfersOptions
+                    {
+                        Groups = new Options.TransfersOptions.GroupsOptions
+                        {
+                            Blacklisted = new Options.TransfersOptions.GroupsOptions.BlacklistedOptions
+                            {
+                                Members = new[] { username },
+                            }
+                        }
+                    }
+                };
+
+                var (service, _) = GetFixture(options);
+
+                // first call: cache miss, IsBlacklistedInternal is called, result is cached
+                Assert.True(service.IsBlacklisted(username));
+
+                // second call with bypassCache = false: returns cached true rather than the
+                // false that a cache miss would produce, confirming the result was cached
+                Assert.True(service.IsBlacklisted(username, bypassCache: false));
             }
         }
 
