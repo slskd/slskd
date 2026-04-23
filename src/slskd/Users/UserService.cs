@@ -93,14 +93,14 @@ namespace slskd.Users
         public UserService(
             ISoulseekClient soulseekClient,
             IOptionsMonitor<Options> optionsMonitor,
-            ISystemClock systemClock)
+            ISystemClock systemClock = null)
         {
             Client = soulseekClient;
 
             OptionsMonitor = optionsMonitor;
             OptionsMonitor.OnChange(options => Configure(options));
 
-            InjectedClock = systemClock;
+            InjectedClock = systemClock ?? new SystemClock();
             BlacklistDecisionCache = new MemoryCache(new MemoryCacheOptions { Clock = InjectedClock, ExpirationScanFrequency = TimeSpan.FromMinutes(1), SizeLimit = 1000 });
 
             // updates may be sent unsolicited from the server, so update when we get them. binding these events will cause
