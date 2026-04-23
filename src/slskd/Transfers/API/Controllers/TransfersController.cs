@@ -44,6 +44,8 @@ namespace slskd.Transfers.API
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
     using Serilog;
+    using slskd.Users;
+    using Soulseek;
 
     /// <summary>
     ///     Transfers.
@@ -58,17 +60,21 @@ namespace slskd.Transfers.API
         ///     Initializes a new instance of the <see cref="TransfersController"/> class.
         /// </summary>
         /// <param name="optionsSnapshot"></param>
+        /// <param name="userService"></param>
         /// <param name="transferService"></param>
         public TransfersController(
             ITransferService transferService,
+            IUserService userService,
             IOptionsSnapshot<Options> optionsSnapshot)
         {
             Transfers = transferService;
+            Users = userService;
             OptionsSnapshot = optionsSnapshot;
         }
 
         private static SemaphoreSlim DownloadRequestLimiter { get; } = new SemaphoreSlim(2, 2);
         private ITransferService Transfers { get; }
+        private IUserService Users { get; }
         private IOptionsSnapshot<Options> OptionsSnapshot { get; }
         private ILogger Log { get; set; } = Serilog.Log.ForContext<TransfersController>();
 
@@ -253,6 +259,13 @@ namespace slskd.Transfers.API
 
             try
             {
+                var endpoint = await Users.GetIPEndPointAsync(username);
+
+                if (Users.IsBlacklisted(username, endpoint.Address))
+                {
+                    throw new UserOfflineException($"User {username} appears to be offline");
+                }
+
                 var (enqueued, failed) = await Transfers.Downloads.EnqueueAsync(username, requests.Select(r => (r.Filename, r.Size)));
 
                 return StatusCode(201, new { Enqueued = enqueued, Failed = failed });
@@ -380,6 +393,11 @@ namespace slskd.Transfers.API
             if (Program.IsRelayAgent)
             {
                 return Forbid();
+            }
+
+            if (Users.IsBlacklisted(username))
+            {
+                return NotFound();
             }
 
             if (!Guid.TryParse(id, out var guid))

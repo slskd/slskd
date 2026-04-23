@@ -112,6 +112,8 @@
 #     blacklisted:
 #       members:
 #         - <username to blacklist>
+#       patterns:
+#         - <regular expression to match against usernames>
 #       cidrs:
 #         - <CIDR to blacklist, e.g. 255.255.255.255/32>
 #     user_defined:

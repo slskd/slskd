@@ -94,6 +94,7 @@ namespace slskd
         /// <summary>
         ///     The name of the blacklisted user group.
         /// </summary>
+        [Obsolete("use IsBlacklisted instead")]
         public const string BlacklistedGroup = "blacklisted";
 
         private static readonly string ApplicationShutdownTransferExceptionMessage = "Application shut down";
@@ -1380,6 +1381,12 @@ namespace slskd
 
         private Task<int?> PlaceInQueueResolver(string username, IPEndPoint endpoint, string filename)
         {
+            if (Users.IsBlacklisted(username, endpoint.Address))
+            {
+                Log.Information("Returned empty directory listing for blacklisted user {Username} ({IP})", username, endpoint.Address);
+                return Task.FromResult<int?>(null);
+            }
+
             try
             {
                 var place = Transfers.Uploads.Queue.EstimatePosition(username, filename);
@@ -1651,7 +1658,9 @@ namespace slskd
                 var sw = new Stopwatch();
                 sw.Start();
 
-                if (Users.IsBlacklisted(username))
+                // opportunistically try and avoid performing the search if we have a cached blacklisted value, otherwise
+                // hold off on computing it and filling the cache until we have the user's IP
+                if (Users.IsBlacklisted(username, bypassCache: false))
                 {
                     return null;
                 }

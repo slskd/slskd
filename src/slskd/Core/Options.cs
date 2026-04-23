@@ -1150,6 +1150,11 @@ namespace slskd
                     public string[] Members { get; init; } = Array.Empty<string>();
 
                     /// <summary>
+                    ///     Gets the list of regular expression patterns matched against usernames.
+                    /// </summary>
+                    public string[] Patterns { get; init; } = Array.Empty<string>();
+
+                    /// <summary>
                     ///     Gets the list of group CIDRs.
                     /// </summary>
                     public string[] Cidrs { get; init; } = Array.Empty<string>();
@@ -1162,6 +1167,14 @@ namespace slskd
                     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
                     {
                         var results = new List<ValidationResult>();
+
+                        foreach (var pattern in Patterns ?? Array.Empty<string>())
+                        {
+                            if (!pattern.IsValidRegex())
+                            {
+                                results.Add(new ValidationResult($"Pattern '{pattern}' is not a valid regular expression"));
+                            }
+                        }
 
                         foreach (var cidr in Cidrs ?? Array.Empty<string>())
                         {

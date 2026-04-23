@@ -34,11 +34,15 @@ using Microsoft.Extensions.Options;
 
 namespace slskd.Users
 {
+    using System;
     using System.Collections.Concurrent;
     using System.Collections.Generic;
     using System.Linq;
     using System.Net;
+    using System.Text.RegularExpressions;
     using System.Threading.Tasks;
+    using Microsoft.Extensions.Caching.Memory;
+    using Microsoft.Extensions.Internal;
     using NetTools;
     using Serilog;
     using Soulseek;
@@ -85,14 +89,19 @@ namespace slskd.Users
         /// </summary>
         /// <param name="soulseekClient"></param>
         /// <param name="optionsMonitor"></param>
+        /// <param name="systemClock"></param>
         public UserService(
             ISoulseekClient soulseekClient,
-            IOptionsMonitor<Options> optionsMonitor)
+            IOptionsMonitor<Options> optionsMonitor,
+            ISystemClock systemClock = null)
         {
             Client = soulseekClient;
 
             OptionsMonitor = optionsMonitor;
             OptionsMonitor.OnChange(options => Configure(options));
+
+            InjectedClock = systemClock ?? new SystemClock();
+            BlacklistDecisionCache = new MemoryCache(new MemoryCacheOptions { Clock = InjectedClock, ExpirationScanFrequency = TimeSpan.FromMinutes(1), SizeLimit = 1000 });
 
             // updates may be sent unsolicited from the server, so update when we get them. binding these events will cause
             // multiple redundant round trips when initially watching a user or when explicitly requesting via
@@ -137,6 +146,9 @@ namespace slskd.Users
         private ILogger Log { get; set; } = Serilog.Log.ForContext<UserService>();
         private IOptionsMonitor<Options> OptionsMonitor { get; }
         private Blacklist Blacklist { get; } = new Blacklist();
+        private IReadOnlyCollection<Regex> CompiledBlacklistPatterns { get; set; } = [];
+        private ISystemClock InjectedClock { get; }
+        private MemoryCache BlacklistDecisionCache { get; }
 
         /// <summary>
         ///     Gets or sets the internal cache of User data.
@@ -162,31 +174,45 @@ namespace slskd.Users
         private ConcurrentDictionary<string, bool> WatchedUsernamesDictionary { get; set; } = new ConcurrentDictionary<string, bool>();
 
         /// <summary>
-        ///     Gets the name of the group for the specified <paramref name="username"/>.
+        ///     Gets the name of the group for the specified <paramref name="username"/> from cached data.
         /// </summary>
-        /// <remarks>The group name is fetched from cached data, and lookups should always be fast.</remarks>
+        /// <remarks>
+        ///     <para>
+        ///         Excludes the 'blacklisted' group for performance; use <see cref="IsBlacklisted"/> to guard network operations instead.
+        ///     </para>
+        ///     <para>
+        ///         This is an extremely hot path, and the value returned may be approximated or incorrect in the case of a
+        ///         cache miss in order to provide low latency values.
+        ///     </para>
+        /// </remarks>
         /// <param name="username">The username of the peer.</param>
         /// <returns>The group for the specified username.</returns>
         public string GetGroup(string username)
         {
-            // note: this is an extremely hot path; keep the work done to an absolute minimum.
+            // users end up in this dictionary for a few reasons, including but maybe not limited to:
+            // * they show up in the user defined group list somewhere
+            // * the server told us they have privileges when we logged in
+            // * we 'watched' them
+            // * we fetched statistics or status for them
+            // if we handle any of their data they'll probably wind up here. if they show up in the config,
+            // their Group property will be set. otherwise we must resolve their group dynamically.
             if (UserDictionary.TryGetValue(username ?? string.Empty, out var user))
             {
-                if (IsBlacklisted(user.Username))
-                {
-                    return Application.BlacklistedGroup;
-                }
-
+                // privileged users trump everything, and we resolve their group accordingly regardless of all other factors
                 if (user.Status?.IsPrivileged ?? false)
                 {
                     return Application.PrivilegedGroup;
                 }
 
+                // if the user isn't privileged and the user has put their username in any user defined group, that's
+                // their group. they aren't subjected to leecher checks.
                 if (user.Group != null)
                 {
                     return user.Group;
                 }
 
+                // check to see if they are a leecher. they may be in the dictionary because we checked their stats.
+                // if we don't have their stats we don't have enough info to make the call, group is inconclusive so fall through
                 var thresholds = OptionsMonitor.CurrentValue.Transfers.Groups.Leechers.Thresholds;
 
                 if (user.Statistics?.FileCount < thresholds.Files || user.Statistics?.DirectoryCount < thresholds.Directories)
@@ -286,33 +312,79 @@ namespace slskd.Users
         /// <summary>
         ///     Gets a value indicating whether the specified <paramref name="username"/> and/or <paramref name="ipAddress"/> are blacklisted.
         /// </summary>
+        /// <remarks>
+        ///     This method may be taxing if the user has defined a blacklist file or large number of patterns.  Call it to 'guard'
+        ///     actions at the network level (with the exception of search results where latency is sensitive), but don't
+        ///     use it to check once the user is 'in' the system (e.g. don't call this in the upload governor or queue logic).
+        /// </remarks>
         /// <param name="username">The username to check.</param>
         /// <param name="ipAddress">The IPAddress to check, if available.</param>
+        /// <param name="bypassCache">A value indicating whether to compute blacklisted status on a cache miss.</param>
         /// <returns>A value indicating whether the specified user and/or IP are blacklisted.</returns>
-        public bool IsBlacklisted(string username, IPAddress ipAddress = null)
+        public bool IsBlacklisted(string username, IPAddress ipAddress = null, bool bypassCache = true)
         {
-            var blacklist = OptionsMonitor.CurrentValue.Transfers.Groups.Blacklisted;
+            ArgumentNullException.ThrowIfNull(username);
 
-            if (blacklist.Members.Contains(username))
+            if (BlacklistDecisionCache.TryGetValue<bool>(username, out var cached))
             {
-                return true;
+                return cached;
             }
 
-            // check the user-curated list of blacklisted CIDRs that exists along with the list of
-            // blacklisted usernames.  these CIDRs should be one-offs and would not be expected to appear in a
-            // blacklist supplied by a third party (but might?)
-            if (ipAddress is not null && blacklist.Cidrs.Select(c => IPAddressRange.Parse(c)).Any(range => range.Contains(ipAddress)))
+            // if we have a cache miss and the caller has specified bypassCache = false, assume that a cache miss
+            // means that the user is not blacklisted. we will only specify bypassCache = false when we're checking
+            // in a hot path, which at the time of this writing is only when determining whether to search shares for a
+            // request. we will check again before sending the results with bypassCache = true, and we should always
+            // follow this pattern when using bypassCache = false (specifically, check again before sending something)
+            if (!bypassCache)
             {
-                return true;
+                return false;
             }
 
-            // check the managed blacklist loaded from a third party blacklist file
-            if (ipAddress is not null && Blacklist.Contains(ipAddress))
-            {
-                return true;
-            }
+            var blacklisted = IsBlacklistedInternal(username, ipAddress);
 
-            return false;
+            BlacklistDecisionCache.Set(
+                key: username,
+                value: blacklisted,
+                options: new MemoryCacheEntryOptions
+                {
+                    AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10),
+                    Size = 1,
+                });
+
+            return blacklisted;
+
+            bool IsBlacklistedInternal(string username, IPAddress iPAddress = null)
+            {
+                // first, check to see if the name appears explicitly in the config
+                var blacklist = OptionsMonitor.CurrentValue.Transfers.Groups.Blacklisted;
+
+                if (blacklist.Members.Contains(username))
+                {
+                    return true;
+                }
+
+                // check to see if the username matches any patterns
+                if (CompiledBlacklistPatterns.Any(pattern => pattern.IsMatch(username)))
+                {
+                    return true;
+                }
+
+                // check the user-curated list of blacklisted CIDRs that exists along with the list of
+                // blacklisted usernames.  these CIDRs should be one-offs and would not be expected to appear in a
+                // blacklist supplied by a third party (but might?)
+                if (ipAddress is not null && blacklist.Cidrs.Select(c => IPAddressRange.Parse(c)).Any(range => range.Contains(ipAddress)))
+                {
+                    return true;
+                }
+
+                // check the managed blacklist loaded from a third party blacklist file
+                if (ipAddress is not null && Blacklist.Contains(ipAddress))
+                {
+                    return true;
+                }
+
+                return false;
+            }
         }
 
         /// <summary>
@@ -419,6 +491,19 @@ namespace slskd.Users
                 LastOptionsHash = optionsHash;
             }
 
+            // recompile blacklist patterns, regardless of whether they changed (this cheap to do)
+            var regexOptions = RegexOptions.Compiled;
+
+            if (!OptionsMonitor.CurrentValue.Flags.CaseSensitiveRegEx)
+            {
+                regexOptions |= RegexOptions.IgnoreCase;
+            }
+
+            CompiledBlacklistPatterns = OptionsMonitor.CurrentValue.Transfers.Groups.Blacklisted.Patterns
+                .Select(f => new Regex(f, regexOptions))
+                .ToList()
+                .AsReadOnly();
+
             var blacklistOptionsHash = Compute.Sha1Hash(options.Blacklist.ToJson());
 
             // there's no forced re-config of the blacklist; either the config changed or it didn't.
@@ -464,6 +549,9 @@ namespace slskd.Users
 
                 LastBlacklistOptionsHash = blacklistOptionsHash;
             }
+
+            // invalidate cached blacklist decisions
+            BlacklistDecisionCache.Clear();
         }
 
         private void Reset()
