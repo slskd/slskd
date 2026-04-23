@@ -45,6 +45,8 @@ New features are added all the time!
 
 ### With Docker
 
+Choose Docker's built-in method of specifying a user for the container:
+
 ```shell
 docker run -d \
   -p 5030:5030 \
@@ -53,14 +55,49 @@ docker run -d \
   -e SLSKD_REMOTE_CONFIGURATION=true \
   -v <path/to/application/data>:/app \
   --name slskd \
+  --user 1000:1000 \
+  slskd/slskd:latest
+```
+
+Or use the Linuxserver/*arr `PUID`/`PGID` method:
+
+```shell
+docker run -d \
+  -p 5030:5030 \
+  -p 5031:5031 \
+  -p 50300:50300 \
+  -e PUID=1000 \
+  -e PGID=1000 \
+  -e SLSKD_REMOTE_CONFIGURATION=true \
+  -v <path/to/application/data>:/app \
+  --name slskd \
   slskd/slskd:latest
 ```
 
 ### With Docker-Compose
 
+Choose Docker's built-in method of specifying a user for the container:
+
+```yaml
+services:
+  slskd:
+    image: slskd/slskd
+    container_name: slskd
+    user: "1000:1000"
+    ports:
+      - "5030:5030"
+      - "5031:5031"
+      - "50300:50300"
+    environment:
+      - SLSKD_REMOTE_CONFIGURATION=true
+    volumes:
+      - <path/to/application/data>:/app
+    restart: always
 ```
----
-version: "2"
+
+Or use the Linuxserver/*arr `PUID`/`PGID` method:
+
+```yaml
 services:
   slskd:
     image: slskd/slskd
@@ -70,6 +107,8 @@ services:
       - "5031:5031"
       - "50300:50300"
     environment:
+      - PUID=1000
+      - PGID=1000
       - SLSKD_REMOTE_CONFIGURATION=true
     volumes:
       - <path/to/application/data>:/app

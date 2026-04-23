@@ -1459,7 +1459,7 @@ namespace slskd
 
                 foreach (var (property, fqn, left, right) in diff)
                 {
-                    static bool HasAttribute<T>(PropertyInfo property) => property.CustomAttributes.Any(a => a.AttributeType == typeof(T));
+                    static bool HasAttribute<T>(PropertyInfo property) => property?.CustomAttributes.Any(a => a.AttributeType == typeof(T)) ?? false;
 
                     var requiresRestart = HasAttribute<RequiresRestartAttribute>(property);
                     var requiresReconnect = HasAttribute<RequiresReconnectAttribute>(property);
