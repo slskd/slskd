@@ -93,6 +93,11 @@ namespace slskd.Users.API
                 return Forbid();
             }
 
+            if (Users.IsBlacklisted(username))
+            {
+                return NotFound();
+            }
+
             try
             {
                 var endpoint = await Users.GetIPEndPointAsync(username);
@@ -118,6 +123,11 @@ namespace slskd.Users.API
             if (Program.IsRelayAgent)
             {
                 return Forbid();
+            }
+
+            if (Users.IsBlacklisted(username))
+            {
+                return NotFound();
             }
 
             try
@@ -184,6 +194,11 @@ namespace slskd.Users.API
                 return BadRequest();
             }
 
+            if (Users.IsBlacklisted(username))
+            {
+                return NotFound();
+            }
+
             try
             {
                 var result = await Client.GetDirectoryContentsAsync(username, request.Directory);
@@ -214,6 +229,11 @@ namespace slskd.Users.API
                 return Forbid();
             }
 
+            if (Users.IsBlacklisted(username))
+            {
+                return NotFound();
+            }
+
             try
             {
                 var response = await Users.GetInfoAsync(username);
@@ -239,6 +259,11 @@ namespace slskd.Users.API
             if (Program.IsRelayAgent)
             {
                 return Forbid();
+            }
+
+            if (Users.IsBlacklisted(username))
+            {
+                return NotFound();
             }
 
             try

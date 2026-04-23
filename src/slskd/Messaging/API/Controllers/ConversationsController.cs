@@ -40,6 +40,7 @@ namespace slskd.Messaging.API
     using Asp.Versioning;
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
+    using slskd.Users;
 
     /// <summary>
     ///     Conversations.
@@ -56,19 +57,23 @@ namespace slskd.Messaging.API
         /// </summary>
         /// <param name="applicationStateMonitor"></param>
         /// <param name="messagingService"></param>
+        /// <param name="userService"></param>
         /// <param name="optionsSnapshot"></param>
         public ConversationsController(
             IStateMonitor<State> applicationStateMonitor,
             IMessagingService messagingService,
+            IUserService userService,
             IOptionsSnapshot<Options> optionsSnapshot)
         {
             ApplicationStateMonitor = applicationStateMonitor;
             Messages = messagingService;
+            Users = userService;
             OptionsSnapshot = optionsSnapshot;
         }
 
         private IStateMonitor<State> ApplicationStateMonitor { get; }
         private IMessagingService Messages { get; }
+        private IUserService Users { get; }
         private IOptionsSnapshot<Options> OptionsSnapshot { get; }
 
         /// <summary>
@@ -262,6 +267,11 @@ namespace slskd.Messaging.API
             if (Program.IsRelayAgent)
             {
                 return Forbid();
+            }
+
+            if (Users.IsBlacklisted(username))
+            {
+                return StatusCode(200);
             }
 
             if (string.IsNullOrEmpty(message))
