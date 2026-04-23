@@ -342,7 +342,14 @@ namespace slskd.Users
 
             var blacklisted = IsBlacklistedInternal(username, ipAddress);
 
-            BlacklistDecisionCache.Set(username, blacklisted, new MemoryCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10) });
+            BlacklistDecisionCache.Set(
+                key: username,
+                value: blacklisted,
+                options: new MemoryCacheEntryOptions
+                {
+                    AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10),
+                    Size = 1,
+                });
 
             return blacklisted;
 
