@@ -1028,7 +1028,12 @@ namespace slskd.Transfers.Downloads
                     ? OptionsMonitor.CurrentValue.Permissions.File.Mode.ToUnixFileMode()
                     : null;
 
-                var incompleteFilename = transfer.Filename.ToLocalFilename(baseDirectory: OptionsMonitor.CurrentValue.Directories.Incomplete);
+                // if the transfer has an associated batch id, store the incomplete file in a directory of the same name
+                // this is to ensure maximal safety when resuming failed downloads (otherwise we risk resuming an unrelated file)
+                var incompleteFilename = transfer.Filename.ToLocalFilename(
+                    baseDirectory: System.IO.Path.Combine(
+                        OptionsMonitor.CurrentValue.Directories.Incomplete,
+                        transfer.BatchId.HasValue ? transfer.BatchId.ToString() : string.Empty));
 
                 Log.Debug("Invoking Soulseek DownloadAsync() for {Filename} from {Username}", transfer.Filename, transfer.Username);
                 transfer.Attempts = 1;
