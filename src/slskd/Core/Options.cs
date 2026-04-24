@@ -1038,7 +1038,7 @@ namespace slskd
                     /// <summary>
                     ///     Gets the maximum time to wait between retry attempts, in milliseconds.
                     /// </summary>
-                    [Range(1000, int.MaxValue)]
+                    [Range(30_000, int.MaxValue)]
                     public int MaxDelay { get; init; } = 60_000;
 
                     /// <summary>
