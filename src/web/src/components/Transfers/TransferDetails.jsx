@@ -79,6 +79,8 @@ const TransferDetails = ({ file }) => {
     'elapsedTime',
     'percentComplete',
     'remainingTime',
+    'attempts',
+    'exception',
   ];
 
   return (

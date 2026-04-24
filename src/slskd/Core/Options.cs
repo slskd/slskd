@@ -50,6 +50,7 @@ namespace slskd
     using slskd.Events;
     using slskd.Relay;
     using slskd.Shares;
+    using slskd.Transfers;
     using slskd.Validation;
     using Utility.CommandLine;
     using Utility.EnvironmentVariables;
@@ -1010,6 +1011,42 @@ namespace slskd
                 [Description("the total download speed limit")]
                 [Range(1, int.MaxValue)]
                 public int SpeedLimit { get; init; } = int.MaxValue;
+
+                /// <summary>
+                ///     Gets download retry options.
+                /// </summary>
+                [Validate]
+                public RetryOptions Retry { get; init; } = new RetryOptions();
+
+                /// <summary>
+                ///     Download retry options.
+                /// </summary>
+                public class RetryOptions
+                {
+                    /// <summary>
+                    ///     Gets the maximum number of times to retry a failed transfer.
+                    /// </summary>
+                    [Range(1, int.MaxValue)]
+                    public int Attempts { get; init; } = 3;
+
+                    /// <summary>
+                    ///     Gets the base time to wait between retry attempts, in milliseconds.
+                    /// </summary>
+                    [Range(1000, int.MaxValue)]
+                    public int Delay { get; init; } = 5000;
+
+                    /// <summary>
+                    ///     Gets the maximum time to wait between retry attempts, in milliseconds.
+                    /// </summary>
+                    [Range(30_000, int.MaxValue)]
+                    public int MaxDelay { get; init; } = 60_000;
+
+                    /// <summary>
+                    ///     Gets the strategy for handling incomplete files upon retry.
+                    /// </summary>
+                    [Enum(typeof(RetryIncompleteStrategy))]
+                    public string Incomplete { get; init; } = RetryIncompleteStrategy.Overwrite.ToString().ToLowerInvariant();
+                }
             }
 
             /// <summary>

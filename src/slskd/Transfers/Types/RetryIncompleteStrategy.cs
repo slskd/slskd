@@ -1,4 +1,4 @@
-// <copyright file="Extensions.cs" company="JP Dillingham">
+// <copyright file="RetryIncompleteStrategy.cs" company="JP Dillingham">
 //           ▄▄▄▄     ▄▄▄▄     ▄▄▄▄
 //     ▄▄▄▄▄▄█  █▄▄▄▄▄█  █▄▄▄▄▄█  █
 //     █__ --█  █__ --█    ◄█  -  █
@@ -30,31 +30,20 @@
 //   ╰───────────────────────────────────────────╶──── ─ ─── ─  ── ──┈  ┈
 // </copyright>
 
-namespace slskd.Transfers
+namespace slskd.Transfers;
+
+/// <summary>
+///     Strategy for retrying incomplete files.
+/// </summary>
+public enum RetryIncompleteStrategy
 {
-    public static class Extensions
-    {
-        public static Transfer WithSoulseekTransfer(this Transfer transfer, Soulseek.Transfer t)
-        {
-            return new Transfer()
-            {
-                BatchId = transfer.BatchId,
-                Id = transfer.Id,
-                Username = transfer.Username,
-                Direction = transfer.Direction,
-                Filename = transfer.Filename,
-                Size = transfer.Size,
-                StartOffset = t.StartOffset,
-                State = t.State,
-                RequestedAt = transfer.RequestedAt,
-                EnqueuedAt = transfer.EnqueuedAt,
-                StartedAt = t.StartTime,
-                EndedAt = t.EndTime,
-                BytesTransferred = t.BytesTransferred,
-                AverageSpeed = t.AverageSpeed,
-                Exception = t.Exception?.Message,
-                Attempts = transfer.Attempts,
-            };
-        }
-    }
+    /// <summary>
+    ///     Overwrite the existing file.
+    /// </summary>
+    Overwrite = 0,
+
+    /// <summary>
+    ///     Resume the transfer using the size of the incomplete file as the initial offset.
+    /// </summary>
+    Resume = 1,
 }

@@ -937,6 +937,7 @@ namespace slskd.Transfers.Downloads
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, cancellationTokenSource?.Token ?? CancellationToken.None);
             cancellationToken = cts.Token;
 
+            var retryOptions = OptionsMonitor.CurrentValue.Transfers.Download.Retry;
             var updateSyncRoot = new SemaphoreSlim(1, 1);
 
             try
@@ -965,6 +966,16 @@ namespace slskd.Transfers.Downloads
                             if (args.Transfer.State.HasFlag(TransferStates.Queued) && args.Transfer.State.HasFlag(TransferStates.Remotely))
                             {
                                 transfer.EnqueuedAt ??= DateTime.UtcNow;
+                            }
+
+                            // important! the transfer on the Soulseek.NET side may have completed, but the slskd transfer
+                            // *might* still have remaining retry attempts. leave this non-committal for now, and allow
+                            // the final update after all retry attempts have been exhausted to add it.
+                            // this means that the ONLY way to check whether a transfer is really 'dead' inclusive of all
+                            // retries is to look for this flag
+                            if (transfer.Attempts < retryOptions.Attempts)
+                            {
+                                transfer.State &= ~TransferStates.Completed; // remove the Completed flag
                             }
 
                             // todo: broadcast
@@ -1017,26 +1028,79 @@ namespace slskd.Transfers.Downloads
                     ? OptionsMonitor.CurrentValue.Permissions.File.Mode.ToUnixFileMode()
                     : null;
 
-                Log.Debug("Invoking Soulseek DownloadAsync() for {Filename} from {Username}", transfer.Filename, transfer.Username);
+                // if the transfer has an associated batch id, store the incomplete file in a directory of the same name
+                // this is to ensure maximal safety when resuming failed downloads (otherwise we risk resuming an unrelated file)
+                var incompleteFilename = transfer.Filename.ToLocalFilename(
+                    baseDirectory: System.IO.Path.Combine(
+                        OptionsMonitor.CurrentValue.Directories.Incomplete,
+                        transfer.BatchId.HasValue ? transfer.BatchId.ToString() : string.Empty));
 
-                var completedTransfer = await Client.DownloadAsync(
-                    username: transfer.Username,
-                    remoteFilename: transfer.Filename,
-                    outputStreamFactory: () => Task.FromResult(
-                        Files.CreateFile(
-                            filename: transfer.Filename.ToLocalFilename(baseDirectory: OptionsMonitor.CurrentValue.Directories.Incomplete),
-                            options: new CreateFileOptions
+                Log.Debug("Invoking Soulseek DownloadAsync() for {Filename} from {Username}", transfer.Filename, transfer.Username);
+                transfer.Attempts = 1;
+                SynchronizedUpdate(transfer, semaphore: updateSyncRoot, cancellationToken: CancellationToken.None);
+
+                var completedTransfer = await Retry.Do(() =>
+                    {
+                        var incompleteFileInfo = Files.ResolveFileInfo(incompleteFilename);
+                        var incompleteStrategy = retryOptions.Incomplete.ToEnum<RetryIncompleteStrategy>();
+
+                        var shouldResume = false;
+                        var startOffset = 0L;
+
+                        if (incompleteFileInfo.Exists && incompleteFileInfo.Length > 0)
+                        {
+                            if (incompleteStrategy == RetryIncompleteStrategy.Resume)
                             {
-                                Access = System.IO.FileAccess.Write,
-                                Mode = System.IO.FileMode.Create, // overwrites file if it exists
-                                Share = System.IO.FileShare.None, // exclusive access for the duration of the download
-                                UnixCreateMode = unixFileMode,
-                            })),
-                    size: transfer.Size,
-                    startOffset: 0,
-                    token: null,
-                    cancellationToken: cancellationToken,
-                    options: topts);
+                                shouldResume = true;
+                                startOffset = incompleteFileInfo.Length;
+                                Log.Information("Resuming download of {Filename} from user {Username} at offset {Offet}", transfer.Filename, transfer.Username, incompleteFileInfo.Length);
+                            }
+                            else
+                            {
+                                Log.Information("Overwriting partial download of {Length} bytes for download of {Filename} from user {Username} at offset {Offet}", incompleteFileInfo.Length, transfer.Filename, transfer.Username);
+                            }
+                        }
+
+                        return Client.DownloadAsync(
+                            username: transfer.Username,
+                            remoteFilename: transfer.Filename,
+                            outputStreamFactory: () => Task.FromResult(
+                                Files.CreateFile(
+                                    filename: incompleteFilename,
+                                    options: new CreateFileOptions
+                                    {
+                                        Access = System.IO.FileAccess.Write,
+                                        Mode = shouldResume ? System.IO.FileMode.Append : System.IO.FileMode.Create,
+                                        Share = System.IO.FileShare.None, // exclusive access for the duration of the download
+                                        UnixCreateMode = unixFileMode,
+                                    })),
+                            size: transfer.Size,
+                            startOffset: startOffset,
+                            token: null,
+                            cancellationToken: cancellationToken,
+                            options: topts);
+                    },
+                    isRetryable: (attempts, ex) =>
+                        ex is not OperationCanceledException
+                        && ex is not TransferRejectedException
+                        && ex is not DuplicateTransferException
+                        && ex is not TransferSizeMismatchException,
+                    onRetry: (attempts, delay) =>
+                    {
+                        Log.Information("Waiting about {Delay} second(s) to retry attempt #{Attempt} to download {Filename} from user {Username} in {Delay}ms", (int)Math.Ceiling((double)delay / 1000), attempts, transfer.Filename, transfer.Username);
+
+                        transfer.Attempts = attempts;
+                        transfer.State = TransferStates.Queued | TransferStates.Locally;
+                        SynchronizedUpdate(transfer, updateSyncRoot);
+                    },
+                    onFailure: (attempts, ex) =>
+                    {
+                        Log.Warning("Failed attempt #{Attempts} to download {Filename} from user {Username}: {Message}", attempts, transfer.Filename, transfer.Username, ex.Message);
+                    },
+                    maxAttempts: retryOptions.Attempts,
+                    baseDelayInMilliseconds: retryOptions.Delay,
+                    maxDelayInMilliseconds: retryOptions.MaxDelay,
+                    cancellationToken: cancellationToken);
 
                 Log.Debug("Invocation of Soulseek DownloadAsync() for {Filename} from user {Username} completed successfully", transfer.Filename, transfer.Username);
 
@@ -1053,8 +1117,28 @@ namespace slskd.Transfers.Downloads
 
                 Log.Debug("Successfully updated Transfer for {Filename} from {Username} (state: {State}, progress: {Progress})", transfer.Filename, transfer.Username, transfer.State, transfer.PercentComplete);
 
-                // move the file from incomplete to complete
-                var destinationDirectory = System.IO.Path.GetDirectoryName(transfer.Filename.ToLocalFilename(baseDirectory: OptionsMonitor.CurrentValue.Directories.Downloads));
+                /*
+                    move the file from incomplete to complete
+
+                    users have a lot of strong opinions about this!
+                */
+                string destinationDirectory;
+
+                if (transfer.BatchId is not null)
+                {
+                    // if the transfer has an associated batch id, then:
+                    // some/long/remote/path/folder/file.ext -> download_directory/batch_id/file.ext
+                    destinationDirectory = System.IO.Path.Combine(OptionsMonitor.CurrentValue.Directories.Downloads, transfer.BatchId.Value.ToString());
+                }
+                else
+                {
+                    // ToLocalFilename chops all but the containing folder off of the path and localizes slashes, so:
+                    // some/long/remote/path/folder/file.ext -> folder/file.ext -> download_directory/folder/file.ext
+                    // this is "legacy" behavior that will be familiar to most Soulseek users
+                    destinationDirectory = System.IO.Path.GetDirectoryName(transfer.Filename.ToLocalFilename(baseDirectory: OptionsMonitor.CurrentValue.Directories.Downloads));
+                }
+
+                Log.Debug("Destination directory for {Filename}: {Destination}", transfer.Filename, destinationDirectory);
 
                 var finalFilename = Files.MoveFile(
                     sourceFilename: transfer.Filename.ToLocalFilename(baseDirectory: OptionsMonitor.CurrentValue.Directories.Incomplete),

@@ -1,4 +1,4 @@
-// <copyright file="Extensions.cs" company="JP Dillingham">
+// <copyright file="EnqueueDownloadBatchRequest.cs" company="JP Dillingham">
 //           ▄▄▄▄     ▄▄▄▄     ▄▄▄▄
 //     ▄▄▄▄▄▄█  █▄▄▄▄▄█  █▄▄▄▄▄█  █
 //     █__ --█  █__ --█    ◄█  -  █
@@ -30,31 +30,28 @@
 //   ╰───────────────────────────────────────────╶──── ─ ─── ─  ── ──┈  ┈
 // </copyright>
 
-namespace slskd.Transfers
+using System;
+using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+
+namespace slskd.Transfers.API;
+
+public record EnqueueDownloadBatchRequest
 {
-    public static class Extensions
-    {
-        public static Transfer WithSoulseekTransfer(this Transfer transfer, Soulseek.Transfer t)
-        {
-            return new Transfer()
-            {
-                BatchId = transfer.BatchId,
-                Id = transfer.Id,
-                Username = transfer.Username,
-                Direction = transfer.Direction,
-                Filename = transfer.Filename,
-                Size = transfer.Size,
-                StartOffset = t.StartOffset,
-                State = t.State,
-                RequestedAt = transfer.RequestedAt,
-                EnqueuedAt = transfer.EnqueuedAt,
-                StartedAt = t.StartTime,
-                EndedAt = t.EndTime,
-                BytesTransferred = t.BytesTransferred,
-                AverageSpeed = t.AverageSpeed,
-                Exception = t.Exception?.Message,
-                Attempts = transfer.Attempts,
-            };
-        }
-    }
+    public Guid? BatchId { get; init; }
+    public Guid? SearchId { get; init; }
+
+    [Required]
+    [StringLength(500, MinimumLength = 1)]
+    public string Username { get; init; }
+    public List<EnqueueDownloadBatchItem> Files { get; init; } = [];
+}
+
+public record EnqueueDownloadBatchItem
+{
+    [Required]
+    public string Filename { get; set; }
+
+    [Range(0, int.MaxValue)]
+    public long Size { get; set; }
 }
