@@ -1,18 +1,33 @@
-﻿// <copyright file="Application.cs" company="slskd Team">
-//     Copyright (c) slskd Team. All rights reserved.
-//
-//     This program is free software: you can redistribute it and/or modify
-//     it under the terms of the GNU Affero General Public License as published
-//     by the Free Software Foundation, either version 3 of the License, or
-//     (at your option) any later version.
-//
-//     This program is distributed in the hope that it will be useful,
-//     but WITHOUT ANY WARRANTY; without even the implied warranty of
-//     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//     GNU Affero General Public License for more details.
-//
-//     You should have received a copy of the GNU Affero General Public License
-//     along with this program.  If not, see https://www.gnu.org/licenses/.
+﻿// <copyright file="Application.cs" company="JP Dillingham">
+//           ▄▄▄▄     ▄▄▄▄     ▄▄▄▄
+//     ▄▄▄▄▄▄█  █▄▄▄▄▄█  █▄▄▄▄▄█  █
+//     █__ --█  █__ --█    ◄█  -  █
+//     █▄▄▄▄▄█▄▄█▄▄▄▄▄█▄▄█▄▄█▄▄▄▄▄█
+//   ┍━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ ━━━━ ━  ━┉   ┉     ┉
+//   │ Copyright (c) JP Dillingham.
+//   │
+//   │ This program is free software: you can redistribute it and/or modify
+//   │ it under the terms of the GNU Affero General Public License as published
+//   │ by the Free Software Foundation, version 3.
+//   │
+//   │ This program is distributed in the hope that it will be useful,
+//   │ but WITHOUT ANY WARRANTY; without even the implied warranty of
+//   │ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//   │ GNU Affero General Public License for more details.
+//   │
+//   │ You should have received a copy of the GNU Affero General Public License
+//   │ along with this program.  If not, see https://www.gnu.org/licenses/.
+//   │
+//   │ This program is distributed with Additional Terms pursuant to Section 7
+//   │ of the AGPLv3.  See the LICENSE file in the root directory of this
+//   │ project for the complete terms and conditions.
+//   │
+//   │ https://slskd.org
+//   │
+//   ├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌ ╌ ╌╌╌╌ ╌
+//   │ SPDX-FileCopyrightText: JP Dillingham
+//   │ SPDX-License-Identifier: AGPL-3.0-only
+//   ╰───────────────────────────────────────────╶──── ─ ─── ─  ── ──┈  ┈
 // </copyright>
 
 using Microsoft.Extensions.Options;
@@ -79,6 +94,7 @@ namespace slskd
         /// <summary>
         ///     The name of the blacklisted user group.
         /// </summary>
+        [Obsolete("use IsBlacklisted instead")]
         public const string BlacklistedGroup = "blacklisted";
 
         private static readonly string ApplicationShutdownTransferExceptionMessage = "Application shut down";
@@ -1365,6 +1381,12 @@ namespace slskd
 
         private Task<int?> PlaceInQueueResolver(string username, IPEndPoint endpoint, string filename)
         {
+            if (Users.IsBlacklisted(username, endpoint.Address))
+            {
+                Log.Information("Returned empty directory listing for blacklisted user {Username} ({IP})", username, endpoint.Address);
+                return Task.FromResult<int?>(null);
+            }
+
             try
             {
                 var place = Transfers.Uploads.Queue.EstimatePosition(username, filename);
@@ -1437,7 +1459,7 @@ namespace slskd
 
                 foreach (var (property, fqn, left, right) in diff)
                 {
-                    static bool HasAttribute<T>(PropertyInfo property) => property.CustomAttributes.Any(a => a.AttributeType == typeof(T));
+                    static bool HasAttribute<T>(PropertyInfo property) => property?.CustomAttributes.Any(a => a.AttributeType == typeof(T)) ?? false;
 
                     var requiresRestart = HasAttribute<RequiresRestartAttribute>(property);
                     var requiresReconnect = HasAttribute<RequiresReconnectAttribute>(property);
@@ -1484,8 +1506,8 @@ namespace slskd
                 var slskDiff = PreviousOptions.Soulseek.DiffWith(newOptions.Soulseek);
 
                 // determine whether any global upload or download options changed
-                var transfersUploadDiff = PreviousOptions.Transfers.DiffWith(newOptions.Transfers.Upload);
-                var transfersDownloadDiff = PreviousOptions.Transfers.DiffWith(newOptions.Transfers.Download);
+                var transfersUploadDiff = PreviousOptions.Transfers.Upload.DiffWith(newOptions.Transfers.Upload);
+                var transfersDownloadDiff = PreviousOptions.Transfers.Download.DiffWith(newOptions.Transfers.Download);
 
                 if (slskDiff.Any() || transfersUploadDiff.Any() || transfersDownloadDiff.Any())
                 {
@@ -1636,7 +1658,9 @@ namespace slskd
                 var sw = new Stopwatch();
                 sw.Start();
 
-                if (Users.IsBlacklisted(username))
+                // opportunistically try and avoid performing the search if we have a cached blacklisted value, otherwise
+                // hold off on computing it and filling the cache until we have the user's IP
+                if (Users.IsBlacklisted(username, bypassCache: false))
                 {
                     return null;
                 }

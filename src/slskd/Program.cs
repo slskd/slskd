@@ -1,18 +1,33 @@
-// <copyright file="Program.cs" company="slskd Team">
-//     Copyright (c) slskd Team. All rights reserved.
-//
-//     This program is free software: you can redistribute it and/or modify
-//     it under the terms of the GNU Affero General Public License as published
-//     by the Free Software Foundation, either version 3 of the License, or
-//     (at your option) any later version.
-//
-//     This program is distributed in the hope that it will be useful,
-//     but WITHOUT ANY WARRANTY; without even the implied warranty of
-//     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//     GNU Affero General Public License for more details.
-//
-//     You should have received a copy of the GNU Affero General Public License
-//     along with this program.  If not, see https://www.gnu.org/licenses/.
+// <copyright file="Program.cs" company="JP Dillingham">
+//           ▄▄▄▄     ▄▄▄▄     ▄▄▄▄
+//     ▄▄▄▄▄▄█  █▄▄▄▄▄█  █▄▄▄▄▄█  █
+//     █__ --█  █__ --█    ◄█  -  █
+//     █▄▄▄▄▄█▄▄█▄▄▄▄▄█▄▄█▄▄█▄▄▄▄▄█
+//   ┍━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ ━━━━ ━  ━┉   ┉     ┉
+//   │ Copyright (c) JP Dillingham.
+//   │
+//   │ This program is free software: you can redistribute it and/or modify
+//   │ it under the terms of the GNU Affero General Public License as published
+//   │ by the Free Software Foundation, version 3.
+//   │
+//   │ This program is distributed in the hope that it will be useful,
+//   │ but WITHOUT ANY WARRANTY; without even the implied warranty of
+//   │ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//   │ GNU Affero General Public License for more details.
+//   │
+//   │ You should have received a copy of the GNU Affero General Public License
+//   │ along with this program.  If not, see https://www.gnu.org/licenses/.
+//   │
+//   │ This program is distributed with Additional Terms pursuant to Section 7
+//   │ of the AGPLv3.  See the LICENSE file in the root directory of this
+//   │ project for the complete terms and conditions.
+//   │
+//   │ https://slskd.org
+//   │
+//   ├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌ ╌ ╌╌╌╌ ╌
+//   │ SPDX-FileCopyrightText: JP Dillingham
+//   │ SPDX-License-Identifier: AGPL-3.0-only
+//   ╰───────────────────────────────────────────╶──── ─ ─── ─  ── ──┈  ┈
 // </copyright>
 
 using Microsoft.Extensions.Logging;
@@ -1192,6 +1207,8 @@ namespace slskd
 
         private static void ConfigureGlobalLogger()
         {
+            var noColor = OptionsAtStartup.Logger.NoColor || !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("NO_COLOR"));
+
             Serilog.Log.Logger = (OptionsAtStartup.Debug ? new LoggerConfiguration().MinimumLevel.Debug() : new LoggerConfiguration().MinimumLevel.Information())
                 .MinimumLevel.Override("Microsoft", LogEventLevel.Error)
                 .MinimumLevel.Override("System.Net.Http.HttpClient", OptionsAtStartup.Debug ? LogEventLevel.Warning : LogEventLevel.Fatal)
@@ -1203,7 +1220,8 @@ namespace slskd
                 .Enrich.WithProperty("ProcessId", ProcessId)
                 .Enrich.FromLogContext()
                 .WriteTo.Console(
-                    theme: (OptionsAtStartup.Logger.NoColor || !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("NO_COLOR"))) ? ConsoleTheme.None : SystemConsoleTheme.Literate,
+                    theme: noColor ? ConsoleTheme.None : SystemConsoleTheme.Literate,
+                    applyThemeToRedirectedOutput: !noColor,
                     outputTemplate: (OptionsAtStartup.Debug ? "[{SourceContext}] " : string.Empty) + "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
                 .WriteTo.Async(config =>
                     config.Conditional(
@@ -1521,7 +1539,7 @@ namespace slskd
             }
         }
 
-        private static void PrintLogo(string version)
+        private static void PrintLogoOld(string version)
         {
             try
             {
@@ -1549,7 +1567,7 @@ namespace slskd
 
                 var banner = @$"
 {logo}
-╒════════════════════════════════════════════════════════╕
+┍━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
 │           GNU AFFERO GENERAL PUBLIC LICENSE            │
 │                   https://slskd.org                    │
 │                                                        │
@@ -1566,6 +1584,70 @@ namespace slskd
                 }
 
                 banner += "\n└────────────────────────────────────────────────────────┘";
+
+                Console.WriteLine(banner);
+            }
+            catch
+            {
+                // noop. console may not be available in all cases.
+            }
+        }
+
+        private static void PrintLogo(string version)
+        {
+            try
+            {
+                var padding = 56 - version.Length;
+                var paddingLeft = padding / 2;
+                var paddingRight = paddingLeft + (padding % 2);
+
+                var centeredVersion = new string(' ', paddingLeft) + version + new string(' ', paddingRight);
+
+                var logos = new[]
+                {
+                    $@"
+          ▄▄▄▄         ▄▄▄▄       ▄▄▄▄
+  ▄▄▄▄▄▄▄ █  █ ▄▄▄▄▄▄▄ █  █▄▄▄ ▄▄▄█  █
+  █__ --█ █  █ █__ --█ █    ◄█ █  -  █
+  █▄▄▄▄▄█ █▄▄█ █▄▄▄▄▄█ █▄▄█▄▄█ █▄▄▄▄▄█",
+                    @$"
+        ▄▄▄▄     ▄▄▄▄     ▄▄▄▄
+  ▄▄▄▄▄▄█  █▄▄▄▄▄█  █▄▄▄▄▄█  █
+  █__ --█  █__ --█    ◄█  -  █
+  █▄▄▄▄▄█▄▄█▄▄▄▄▄█▄▄█▄▄█▄▄▄▄▄█",
+                };
+
+                var logo = logos[new System.Random().Next(0, logos.Length)];
+
+                var banner = @$"
+{logo}
+┍━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ ━━━━ ━  ━┉   ┉     ┉
+│ This program is free software: you can redistribute it and/or modify
+│ it under the terms of the GNU Affero General Public License as published
+│ by the Free Software Foundation, version 3.
+│                                     └─▸ SPDX: AGPL-3.0-only
+│
+│ This program is distributed with Additional Terms pursuant to Section 7
+│ of the AGPLv3.  See the LICENSE file in the root directory of this
+│ project for the complete terms and conditions.
+│
+│ 🌐 https://slskd.org
+│ 🐱 https://github.com/slskd/slskd
+│
+├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌ ╌ ╌╌╌╌ ╌
+│ {version}";
+
+                if (IsDevelopment)
+                {
+                    banner += "\n│ └─▸ ⚠️ DEVELOPMENT";
+                }
+
+                if (IsCanary)
+                {
+                    banner += "\n│ └─▸ 🧪 CANARY";
+                }
+
+                banner += "\n╰───────────────────────────────────────────╶──── ─ ─── ─  ── ──┈  ┈";
 
                 Console.WriteLine(banner);
             }

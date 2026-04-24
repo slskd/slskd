@@ -1,4 +1,4 @@
-﻿namespace slskd.Tests.Unit.Common.Extensions
+namespace slskd.Tests.Unit.Common.Extensions
 {
     using System;
     using Xunit;

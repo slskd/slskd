@@ -349,7 +349,7 @@ A change to slot limits requires an application restart to take effect, while sp
 
 #### **YAML**
 ```yaml
-global:
+transfers:
   upload:
     slots: 20
     speed_limit: 1000 # kibibytes
@@ -372,19 +372,20 @@ Note that while it's possible to set the `failures` option for `queued`, it has 
 
 #### **YAML**
 ```yaml
-global:
-  limits:
-    queued:
-      files: 500
-      megabytes: 5000
-    daily:
-      files: 1000
-      megabytes: 10000
-      failures: 200
-    weekly:
-      files: 5000
-      megabytes: 50000
-      failures: 1000
+transfers:
+  upload:
+    limits:
+      queued:
+        files: 500
+        megabytes: 5000
+      daily:
+        files: 1000
+        megabytes: 10000
+        failures: 200
+      weekly:
+        files: 5000
+        megabytes: 50000
+        failures: 1000
 ```
 
 ## Groups
@@ -408,18 +409,18 @@ upload:
   strategy: roundrobin # roundrobin or firstinfirstout
   slots: 10 # 1 to 2147483647
   speed_limit: 100 # in KiB/s, 1 to 2147483647
-limits:
-  queued:
-    files: 500 # 1 to 2147483647
-    megabytes: 5000 # 1 to 2147483647
-  daily:
-    files: 1000
-    megabytes: 10000
-    failures: 200 # 1 to 2147483647
-  weekly:
-    files: 5000
-    megabytes: 50000
-    failures: 1000
+  limits:
+    queued:
+      files: 500 # 1 to 2147483647
+      megabytes: 5000 # 1 to 2147483647
+    daily:
+      files: 1000
+      megabytes: 10000
+      failures: 200 # 1 to 2147483647
+    weekly:
+      files: 5000
+      megabytes: 50000
+      failures: 1000
 ```
 
 ## Built-In Groups
@@ -434,45 +435,46 @@ It is impossible to explicitly assign users to these built-in groups, but the pr
 
 #### **YAML**
 ```yaml
-groups:
-  default:
-    upload:
-      priority: 1
-      strategy: roundrobin
-      slots: 10
-      speed_limit: 50000 # kibibytes
-    limits:
-      queued:
-        files: 150
-        megabytes: 1500
-      daily:
-        files: 2147483647 # effectively unlimited, weekly still applies
-        megabytes: 2147483647
-      weekly:
-        files: 1500
-        megabytes: 15000
-        failures: 150
-  leechers:
-    thresholds:
-      files: 1
-      directories: 1
-    upload:
-      priority: 99
-      strategy: roundrobin
-      slots: 1
-      speed_limit: 100
-    limits:
-      queued:
-        files: 15
-        megabytes: 150
-      daily:
-        files: 30
-        megabytes: 300
-        failures: 10
-      weekly:
-        files: 150
-        megabytes: 1500
-        failures: 30
+transfers:
+  groups:
+    default:
+      upload:
+        priority: 1
+        strategy: roundrobin
+        slots: 10
+        speed_limit: 50000 # kibibytes
+        limits:
+          queued:
+            files: 150
+            megabytes: 1500
+          daily:
+            files: 2147483647 # effectively unlimited, weekly still applies
+            megabytes: 2147483647
+          weekly:
+            files: 1500
+            megabytes: 15000
+            failures: 150
+    leechers:
+      thresholds:
+        files: 1
+        directories: 1
+      upload:
+        priority: 99
+        strategy: roundrobin
+        slots: 1
+        speed_limit: 100
+        limits:
+          queued:
+            files: 15
+            megabytes: 150
+          daily:
+            files: 30
+            megabytes: 300
+            failures: 10
+          weekly:
+            files: 150
+            megabytes: 1500
+            failures: 30
 ```
 
 ## User Blacklist
@@ -489,6 +491,8 @@ Private and chat room messages from blacklisted users are also ignored.
 
 Users can be blacklisted by adding their username to the `members` list. Additionally, users can be blacklisted by IP address, or range of addresses by adding a CIDR entry to the `cidrs` list.
 
+The `patterns` list accepts regular expressions matched against usernames. Any username matching one or more patterns will be blacklisted. This is useful for blocking bots or automated clients that share a common username prefix or suffix — for example, `^user` would block any username starting with `user`, and `_bot$` would block any username ending with `_bot`. Patterns follow the same case sensitivity rules as other user-defined regular expressions in the application — case insensitive by default, controlled by the `flags.case_sensitive_regex` option.
+
 Users added to the blacklist will be blocked from enqueueing any new files.  Any existing active or queued transfers will need to be cancelled manually.
 
 A managed blacklist file may also be used to achieve the same effects.  Read more about this in the [Managed Blacklist](#managed-blacklist) section below.
@@ -499,6 +503,8 @@ groups:
   blacklisted:
     members:
       - <username to blacklist>
+    patterns:
+      - <regular expression to match against usernames>
     cidrs:
       - <CIDR to blacklist, e.g. 255.255.255.255/32>
 ```
@@ -1093,7 +1099,7 @@ If unconfigured, the default timeout for requests is 5 seconds, and each request
 
 #### **YAML**
 ```yaml
-integration:
+integrations:
   webhooks:
     my_basic_webhook_using_defaults:
       on:

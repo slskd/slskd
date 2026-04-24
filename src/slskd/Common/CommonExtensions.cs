@@ -1,18 +1,33 @@
-﻿// <copyright file="CommonExtensions.cs" company="slskd Team">
-//     Copyright (c) slskd Team. All rights reserved.
-//
-//     This program is free software: you can redistribute it and/or modify
-//     it under the terms of the GNU Affero General Public License as published
-//     by the Free Software Foundation, either version 3 of the License, or
-//     (at your option) any later version.
-//
-//     This program is distributed in the hope that it will be useful,
-//     but WITHOUT ANY WARRANTY; without even the implied warranty of
-//     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//     GNU Affero General Public License for more details.
-//
-//     You should have received a copy of the GNU Affero General Public License
-//     along with this program.  If not, see https://www.gnu.org/licenses/.
+// <copyright file="CommonExtensions.cs" company="JP Dillingham">
+//           ▄▄▄▄     ▄▄▄▄     ▄▄▄▄
+//     ▄▄▄▄▄▄█  █▄▄▄▄▄█  █▄▄▄▄▄█  █
+//     █__ --█  █__ --█    ◄█  -  █
+//     █▄▄▄▄▄█▄▄█▄▄▄▄▄█▄▄█▄▄█▄▄▄▄▄█
+//   ┍━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ ━━━━ ━  ━┉   ┉     ┉
+//   │ Copyright (c) JP Dillingham.
+//   │
+//   │ This program is free software: you can redistribute it and/or modify
+//   │ it under the terms of the GNU Affero General Public License as published
+//   │ by the Free Software Foundation, version 3.
+//   │
+//   │ This program is distributed in the hope that it will be useful,
+//   │ but WITHOUT ANY WARRANTY; without even the implied warranty of
+//   │ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//   │ GNU Affero General Public License for more details.
+//   │
+//   │ You should have received a copy of the GNU Affero General Public License
+//   │ along with this program.  If not, see https://www.gnu.org/licenses/.
+//   │
+//   │ This program is distributed with Additional Terms pursuant to Section 7
+//   │ of the AGPLv3.  See the LICENSE file in the root directory of this
+//   │ project for the complete terms and conditions.
+//   │
+//   │ https://slskd.org
+//   │
+//   ├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌ ╌ ╌╌╌╌ ╌
+//   │ SPDX-FileCopyrightText: JP Dillingham
+//   │ SPDX-License-Identifier: AGPL-3.0-only
+//   ╰───────────────────────────────────────────╶──── ─ ─── ─  ── ──┈  ┈
 // </copyright>
 
 namespace slskd
@@ -96,19 +111,40 @@ namespace slskd
         /// <returns>A list of differences between the two objects.</returns>
         public static IEnumerable<(PropertyInfo Property, string FQN, object Left, object Right)> DiffWith(this object left, object right, string parentFqn = null)
         {
-            if (left?.GetType() != right?.GetType())
+            if (left is null || right is null)
             {
-                throw new InvalidCastException($"Unable to diff types {left?.GetType()} and {right?.GetType()}");
+                if (left is null == right is null)
+                {
+                    return [];
+                }
+
+                return [(null, parentFqn ?? string.Empty, left, right)];
+            }
+
+            if (left.GetType() != right.GetType())
+            {
+                throw new InvalidCastException($"Unable to diff types {left.GetType()} and {right.GetType()}");
             }
 
             var differences = new List<(PropertyInfo Property, string FQN, object Left, object Right)>();
 
-            foreach (var prop in left?.GetType().GetProperties())
+            foreach (var prop in left.GetType().GetProperties())
             {
                 var leftVal = prop.GetValue(left);
                 var rightVal = prop.GetValue(right);
                 var propType = prop.PropertyType;
                 var fqn = string.IsNullOrEmpty(parentFqn) ? prop.Name : string.Join(".", parentFqn, prop.Name);
+
+                if (leftVal is null || rightVal is null)
+                {
+                    if (leftVal is null == rightVal is null)
+                    {
+                        continue;
+                    }
+
+                    differences.Add((prop, fqn, leftVal, rightVal));
+                    continue;
+                }
 
                 if (propType.IsArray || (propType.IsGenericType && propType.GetGenericTypeDefinition() == typeof(Dictionary<,>)))
                 {

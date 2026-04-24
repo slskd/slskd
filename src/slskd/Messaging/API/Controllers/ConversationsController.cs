@@ -1,18 +1,33 @@
-﻿// <copyright file="ConversationsController.cs" company="slskd Team">
-//     Copyright (c) slskd Team. All rights reserved.
-//
-//     This program is free software: you can redistribute it and/or modify
-//     it under the terms of the GNU Affero General Public License as published
-//     by the Free Software Foundation, either version 3 of the License, or
-//     (at your option) any later version.
-//
-//     This program is distributed in the hope that it will be useful,
-//     but WITHOUT ANY WARRANTY; without even the implied warranty of
-//     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//     GNU Affero General Public License for more details.
-//
-//     You should have received a copy of the GNU Affero General Public License
-//     along with this program.  If not, see https://www.gnu.org/licenses/.
+// <copyright file="ConversationsController.cs" company="JP Dillingham">
+//           ▄▄▄▄     ▄▄▄▄     ▄▄▄▄
+//     ▄▄▄▄▄▄█  █▄▄▄▄▄█  █▄▄▄▄▄█  █
+//     █__ --█  █__ --█    ◄█  -  █
+//     █▄▄▄▄▄█▄▄█▄▄▄▄▄█▄▄█▄▄█▄▄▄▄▄█
+//   ┍━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ ━━━━ ━  ━┉   ┉     ┉
+//   │ Copyright (c) JP Dillingham.
+//   │
+//   │ This program is free software: you can redistribute it and/or modify
+//   │ it under the terms of the GNU Affero General Public License as published
+//   │ by the Free Software Foundation, version 3.
+//   │
+//   │ This program is distributed in the hope that it will be useful,
+//   │ but WITHOUT ANY WARRANTY; without even the implied warranty of
+//   │ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//   │ GNU Affero General Public License for more details.
+//   │
+//   │ You should have received a copy of the GNU Affero General Public License
+//   │ along with this program.  If not, see https://www.gnu.org/licenses/.
+//   │
+//   │ This program is distributed with Additional Terms pursuant to Section 7
+//   │ of the AGPLv3.  See the LICENSE file in the root directory of this
+//   │ project for the complete terms and conditions.
+//   │
+//   │ https://slskd.org
+//   │
+//   ├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌ ╌ ╌╌╌╌ ╌
+//   │ SPDX-FileCopyrightText: JP Dillingham
+//   │ SPDX-License-Identifier: AGPL-3.0-only
+//   ╰───────────────────────────────────────────╶──── ─ ─── ─  ── ──┈  ┈
 // </copyright>
 
 using Microsoft.Extensions.Options;
@@ -25,6 +40,7 @@ namespace slskd.Messaging.API
     using Asp.Versioning;
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
+    using slskd.Users;
 
     /// <summary>
     ///     Conversations.
@@ -41,19 +57,23 @@ namespace slskd.Messaging.API
         /// </summary>
         /// <param name="applicationStateMonitor"></param>
         /// <param name="messagingService"></param>
+        /// <param name="userService"></param>
         /// <param name="optionsSnapshot"></param>
         public ConversationsController(
             IStateMonitor<State> applicationStateMonitor,
             IMessagingService messagingService,
+            IUserService userService,
             IOptionsSnapshot<Options> optionsSnapshot)
         {
             ApplicationStateMonitor = applicationStateMonitor;
             Messages = messagingService;
+            Users = userService;
             OptionsSnapshot = optionsSnapshot;
         }
 
         private IStateMonitor<State> ApplicationStateMonitor { get; }
         private IMessagingService Messages { get; }
+        private IUserService Users { get; }
         private IOptionsSnapshot<Options> OptionsSnapshot { get; }
 
         /// <summary>
@@ -247,6 +267,11 @@ namespace slskd.Messaging.API
             if (Program.IsRelayAgent)
             {
                 return Forbid();
+            }
+
+            if (Users.IsBlacklisted(username))
+            {
+                return StatusCode(200);
             }
 
             if (string.IsNullOrEmpty(message))

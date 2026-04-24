@@ -1,4 +1,4 @@
-﻿namespace slskd.Tests.Unit.Transfers.Uploads
+namespace slskd.Tests.Unit.Transfers.Uploads
 {
     using System.Collections.Concurrent;
     using System.Collections.Generic;

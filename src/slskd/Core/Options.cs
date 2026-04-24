@@ -1,18 +1,33 @@
-// <copyright file="Options.cs" company="slskd Team">
-//     Copyright (c) slskd Team. All rights reserved.
-//
-//     This program is free software: you can redistribute it and/or modify
-//     it under the terms of the GNU Affero General Public License as published
-//     by the Free Software Foundation, either version 3 of the License, or
-//     (at your option) any later version.
-//
-//     This program is distributed in the hope that it will be useful,
-//     but WITHOUT ANY WARRANTY; without even the implied warranty of
-//     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//     GNU Affero General Public License for more details.
-//
-//     You should have received a copy of the GNU Affero General Public License
-//     along with this program.  If not, see https://www.gnu.org/licenses/.
+// <copyright file="Options.cs" company="JP Dillingham">
+//           ▄▄▄▄     ▄▄▄▄     ▄▄▄▄
+//     ▄▄▄▄▄▄█  █▄▄▄▄▄█  █▄▄▄▄▄█  █
+//     █__ --█  █__ --█    ◄█  -  █
+//     █▄▄▄▄▄█▄▄█▄▄▄▄▄█▄▄█▄▄█▄▄▄▄▄█
+//   ┍━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ ━━━━ ━  ━┉   ┉     ┉
+//   │ Copyright (c) JP Dillingham.
+//   │
+//   │ This program is free software: you can redistribute it and/or modify
+//   │ it under the terms of the GNU Affero General Public License as published
+//   │ by the Free Software Foundation, version 3.
+//   │
+//   │ This program is distributed in the hope that it will be useful,
+//   │ but WITHOUT ANY WARRANTY; without even the implied warranty of
+//   │ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//   │ GNU Affero General Public License for more details.
+//   │
+//   │ You should have received a copy of the GNU Affero General Public License
+//   │ along with this program.  If not, see https://www.gnu.org/licenses/.
+//   │
+//   │ This program is distributed with Additional Terms pursuant to Section 7
+//   │ of the AGPLv3.  See the LICENSE file in the root directory of this
+//   │ project for the complete terms and conditions.
+//   │
+//   │ https://slskd.org
+//   │
+//   ├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌ ╌ ╌╌╌╌ ╌
+//   │ SPDX-FileCopyrightText: JP Dillingham
+//   │ SPDX-License-Identifier: AGPL-3.0-only
+//   ╰───────────────────────────────────────────╶──── ─ ─── ─  ── ──┈  ┈
 // </copyright>
 
 using Microsoft.Extensions.Options;
@@ -239,6 +254,12 @@ namespace slskd
         [Validate]
         public SharesOptions Shares { get; init; } = new SharesOptions();
 
+        [Obsolete("temporary sentinel to warn users about breaking change.  use Transfers instead.")]
+        public object Global { get; init; } = null;
+
+        [Obsolete("temporary sentinel to warn users about breaking change.  use Transfers instead.")]
+        public object Groups { get; init; } = null;
+
         /// <summary>
         ///     Gets transfer options.
         /// </summary>
@@ -310,6 +331,9 @@ namespace slskd
         [Validate]
         public SoulseekOptions Soulseek { get; init; } = new SoulseekOptions();
 
+        [Obsolete("temporary sentinel to warn users about breaking change.  use Integrations instead.")]
+        public object Integration { get; init; } = null;
+
         /// <summary>
         ///     Gets options for external integrations.
         /// </summary>
@@ -329,6 +353,18 @@ namespace slskd
             {
                 results.Add(new ValidationResult($"Instance name must be something other than '{Program.LocalHostName}' when operating in Relay Agent mode"));
             }
+
+#pragma warning disable CS0618 // Type or member is obsolete
+            if (Groups is not null || Global is not null)
+            {
+                results.Add(new ValidationResult("The 'global' and 'groups' keys have been moved under a new 'transfers' key.  See https://github.com/slskd/slskd/pull/1672 for details, and make the necessary changes to remove this error"));
+            }
+
+            if (Integration is not null)
+            {
+                results.Add(new ValidationResult("The 'integration' key has been renamed to 'integrations'.  Add an 's' to the end of the key to remove this error (no other changes were made)"));
+            }
+#pragma warning restore CS0618 // Type or member is obsolete
 
             return results;
         }
@@ -1151,6 +1187,11 @@ namespace slskd
                     public string[] Members { get; init; } = Array.Empty<string>();
 
                     /// <summary>
+                    ///     Gets the list of regular expression patterns matched against usernames.
+                    /// </summary>
+                    public string[] Patterns { get; init; } = Array.Empty<string>();
+
+                    /// <summary>
                     ///     Gets the list of group CIDRs.
                     /// </summary>
                     public string[] Cidrs { get; init; } = Array.Empty<string>();
@@ -1163,6 +1204,14 @@ namespace slskd
                     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
                     {
                         var results = new List<ValidationResult>();
+
+                        foreach (var pattern in Patterns ?? Array.Empty<string>())
+                        {
+                            if (!pattern.IsValidRegex())
+                            {
+                                results.Add(new ValidationResult($"Pattern '{pattern}' is not a valid regular expression"));
+                            }
+                        }
 
                         foreach (var cidr in Cidrs ?? Array.Empty<string>())
                         {
