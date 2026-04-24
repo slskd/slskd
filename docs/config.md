@@ -375,7 +375,6 @@ transfers:
       max_delay: 60000 # maximum time between retries, in milliseconds
 ```
 
-
 ## Global Upload Limits
 
 Global upload limits define the number of queued, daily, and weekly uploads on a _per user_ basis.  These limits behave as defaults and are applied if limits for a user's group have not been set.
