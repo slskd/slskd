@@ -1117,8 +1117,28 @@ namespace slskd.Transfers.Downloads
 
                 Log.Debug("Successfully updated Transfer for {Filename} from {Username} (state: {State}, progress: {Progress})", transfer.Filename, transfer.Username, transfer.State, transfer.PercentComplete);
 
-                // move the file from incomplete to complete
-                var destinationDirectory = System.IO.Path.GetDirectoryName(transfer.Filename.ToLocalFilename(baseDirectory: OptionsMonitor.CurrentValue.Directories.Downloads));
+                /*
+                    move the file from incomplete to complete
+
+                    users have a lot of strong opinions about this!
+                */
+                string destinationDirectory;
+
+                if (transfer.BatchId is not null)
+                {
+                    // if the transfer has an associated batch id, then:
+                    // some/long/remote/path/folder/file.ext -> download_directory/batch_id/file.ext
+                    destinationDirectory = System.IO.Path.Combine(OptionsMonitor.CurrentValue.Directories.Downloads, transfer.BatchId.Value.ToString());
+                }
+                else
+                {
+                    // ToLocalFilename chops all but the containing folder off of the path and localizes slashes, so:
+                    // some/long/remote/path/folder/file.ext -> folder/file.ext -> download_directory/folder/file.ext
+                    // this is "legacy" behavior that will be familiar to most Soulseek users
+                    destinationDirectory = System.IO.Path.GetDirectoryName(transfer.Filename.ToLocalFilename(baseDirectory: OptionsMonitor.CurrentValue.Directories.Downloads));
+                }
+
+                Log.Debug("Destination directory for {Filename}: {Destination}", transfer.Filename, destinationDirectory);
 
                 var finalFilename = Files.MoveFile(
                     sourceFilename: transfer.Filename.ToLocalFilename(baseDirectory: OptionsMonitor.CurrentValue.Directories.Incomplete),
