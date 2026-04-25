@@ -362,11 +362,6 @@ namespace slskd.Relay
 
                 LoggedInTaskCompletionSource.TrySetResult();
             }
-            catch (UnauthorizedAccessException)
-            {
-                await HubConnection.StopAsync();
-                Log.Error("Relay controller authentication failed. Check configuration.");
-            }
             catch (Exception ex)
             {
                 Log.Error(ex, "Failed to handle authentication challenge: {Message}", ex.Message);
