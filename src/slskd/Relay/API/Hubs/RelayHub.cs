@@ -109,7 +109,6 @@ namespace slskd.Relay
         private IOptionsMonitor<Options> OptionsMonitor { get; }
         private OptionsAtStartup OptionsAtStartup { get; }
         private RelayMode OperationMode => OptionsAtStartup.Relay.Mode.ToEnum<RelayMode>();
-        private IPAddress RemoteIpAddress => Context.Features.Get<IHttpConnectionFeature>().RemoteIpAddress;
 
         /// <summary>
         ///     Executed when a new connection is established.
@@ -119,13 +118,13 @@ namespace slskd.Relay
         {
             if (!OptionsAtStartup.Relay.Enabled || !new[] { RelayMode.Controller, RelayMode.Debug }.Contains(OperationMode))
             {
-                Log.Debug("Agent connection {Id} from {IP} aborted; Relay is not enabled, or is not in Controller mode", Context.ConnectionId, RemoteIpAddress);
+                Log.Debug("Agent connection {Id} from {IP} aborted; Relay is not enabled, or is not in Controller mode", Context.ConnectionId, GetRemoteIPAddress());
                 Context.Abort();
             }
 
             var token = Relay.GenerateAuthenticationChallengeToken(Context.ConnectionId);
 
-            Log.Information("Agent connection {Id} from {IP} established. Sending authentication challenge {Token}...", Context.ConnectionId, RemoteIpAddress, token);
+            Log.Information("Agent connection {Id} from {IP} established. Sending authentication challenge {Token}...", Context.ConnectionId, GetRemoteIPAddress(), token);
             await Clients.Caller.Challenge(token);
         }
 
@@ -138,7 +137,7 @@ namespace slskd.Relay
         {
             if (Relay.TryDeregisterAgent(Context.ConnectionId, out var record))
             {
-                Log.Warning("Agent {Agent} (connection {Id}) from {IP} disconnected", record.Agent.Name, Context.ConnectionId, RemoteIpAddress);
+                Log.Warning("Agent {Agent} (connection {Id}) from {IP} disconnected", record.Agent.Name, Context.ConnectionId, GetRemoteIPAddress());
                 Relay.TryDeregisterAgent(record.Agent.Name, out _);
             }
 
@@ -170,23 +169,25 @@ namespace slskd.Relay
                 return false;
             }
 
+            var remoteIP = GetRemoteIPAddress();
+
             if (!TryGetAgentConfig(agent, out var agentOptions))
             {
-                Log.Warning("Unauthorized login attempt from unknown Agent {Agent} (connection {Id}) from {IP}", agent, Context.ConnectionId, RemoteIpAddress);
+                Log.Warning("Unauthorized login attempt from unknown Agent {Agent} (connection {Id}) from {IP}", agent, Context.ConnectionId, remoteIP);
                 throw new UnauthorizedAccessException();
             }
 
             if (!agentOptions.Cidr.Split(',')
                 .Select(cidr => IPAddressRange.Parse(cidr))
-                .Any(range => range.Contains(RemoteIpAddress)))
+                .Any(range => range.Contains(remoteIP)))
             {
-                Log.Warning("Unauthorized login attempt by Agent {Agent} (connection {Id}); remote IP address {IP} is not within the configured range {CIDR}", agent, Context.ConnectionId, RemoteIpAddress, agentOptions.Cidr);
+                Log.Warning("Unauthorized login attempt by Agent {Agent} (connection {Id}); remote IP address {IP} is not within the configured range {CIDR}", agent, Context.ConnectionId, remoteIP, agentOptions.Cidr);
                 throw new UnauthorizedAccessException();
             }
 
             if (!Relay.TryValidateAuthenticationCredential(Context.ConnectionId, agent, challengeResponse))
             {
-                Log.Warning("Unauthorized login attempt by Agent {Agent} (connection {Id}) from {IP}; authentication failed", agent, Context.ConnectionId, RemoteIpAddress);
+                Log.Warning("Unauthorized login attempt by Agent {Agent} (connection {Id}) from {IP}; authentication failed", agent, Context.ConnectionId, remoteIP);
                 Relay.TryDeregisterAgent(Context.ConnectionId, out var _); // just in case!
                 throw new UnauthorizedAccessException();
             }
@@ -208,12 +209,12 @@ namespace slskd.Relay
             if (!Relay.TryGetAgentRegistration(Context.ConnectionId, out var record))
             {
                 // this can happen if the agent attempts to upload before logging in
-                Log.Information("Agent connection {Id} from {IP} requested a share upload token, but is not registered.", Context.ConnectionId, RemoteIpAddress);
+                Log.Information("Agent connection {Id} from {IP} requested a share upload token, but is not registered.", Context.ConnectionId, GetRemoteIPAddress());
                 throw new UnauthorizedAccessException();
             }
 
             var token = Relay.GenerateShareUploadToken(record.Agent.Name);
-            Log.Information("Agent {Agent} (connection {Id}) from {IP} requested share upload token {Token}", record.Agent.Name, record.ConnectionId, RemoteIpAddress, token);
+            Log.Information("Agent {Agent} (connection {Id}) from {IP} requested share upload token {Token}", record.Agent.Name, record.ConnectionId, GetRemoteIPAddress(), token);
             return token;
         }
 
@@ -227,11 +228,11 @@ namespace slskd.Relay
         {
             if (!Relay.TryGetAgentRegistration(Context.ConnectionId, out var record))
             {
-                Log.Warning("Agent connection {Id} from {IP} attempted to report a failed upload, but is not registered.", Context.ConnectionId, RemoteIpAddress);
+                Log.Warning("Agent connection {Id} from {IP} attempted to report a failed upload, but is not registered.", Context.ConnectionId, GetRemoteIPAddress());
                 throw new UnauthorizedAccessException();
             }
 
-            Log.Warning("Agent {Agent} (connection {ConnectionId}) from {IP} reported upload failure for {Id}: {Message}", record.Agent, Context.ConnectionId, RemoteIpAddress, id, exception.Message);
+            Log.Warning("Agent {Agent} (connection {ConnectionId}) from {IP} reported upload failure for {Id}: {Message}", record.Agent, Context.ConnectionId, GetRemoteIPAddress(), id, exception.Message);
 
             Relay.NotifyFileStreamException(record.Agent.Name, id, exception);
         }
@@ -247,13 +248,26 @@ namespace slskd.Relay
         {
             if (!Relay.TryGetAgentRegistration(Context.ConnectionId, out var record))
             {
-                Log.Warning("Agent connection {Id} from {IP} attempted to return file information, but is not registered.", Context.ConnectionId, RemoteIpAddress);
+                Log.Warning("Agent connection {Id} from {IP} attempted to return file information, but is not registered.", Context.ConnectionId, GetRemoteIPAddress());
                 throw new UnauthorizedAccessException();
             }
 
-            Log.Information("Agent {Agent} (connection {ConnectionId}) from {IP} returned file info for {Id}; exists: {Exists}, length: {Length}", record.Agent.Name, Context.ConnectionId, RemoteIpAddress, id, exists, length);
+            Log.Information("Agent {Agent} (connection {ConnectionId}) from {IP} returned file info for {Id}; exists: {Exists}, length: {Length}", record.Agent.Name, Context.ConnectionId, GetRemoteIPAddress(), id, exists, length);
 
             Relay.HandleFileInfoResponse(record.Agent.Name, id, (exists, length));
+        }
+
+        private IPAddress GetRemoteIPAddress()
+        {
+            var ip = Context.Features.Get<IHttpConnectionFeature>().RemoteIpAddress;
+
+            // looks like '::ffff:127.0.0.1'; not compatible with CIDR.Contains(), so convert it back to IPv4
+            if (ip.IsIPv4MappedToIPv6)
+            {
+                ip = ip.MapToIPv4();
+            }
+
+            return ip;
         }
     }
 }
