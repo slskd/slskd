@@ -532,6 +532,8 @@ namespace slskd.Relay
                 Log.Information("Uploading shares...");
 
                 await UploadSharesAsync();
+
+                Log.Information("Shares uploaded. Ready to relay files.");
             }
             catch (Exception ex)
             {
@@ -542,8 +544,6 @@ namespace slskd.Relay
                 await StopAsync();
                 _ = StartAsync();
             }
-
-            Log.Information("Shares uploaded. Ready to relay files.");
         }
 
         private Task HubConnection_Reconnecting(Exception arg)
