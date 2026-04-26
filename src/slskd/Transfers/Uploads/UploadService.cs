@@ -101,16 +101,6 @@ namespace slskd.Transfers.Uploads
         Transfer Find(Expression<Func<Transfer, bool>> expression);
 
         /// <summary>
-        ///     Returns a summary of the uploads matching the specified <paramref name="expression"/>. This can be expensive;
-        ///     consider caching.
-        /// </summary>
-        /// <param name="expression">The expression used to select uploads for summarization.</param>
-        /// <returns>
-        ///     The generated summary, including the number of files and total size in bytes.
-        /// </returns>
-        (int Files, long Bytes) Summarize(Expression<Func<Transfer, bool>> expression);
-
-        /// <summary>
         ///     Gets upload statistics for the specified <paramref name="username"/>.
         /// </summary>
         /// <param name="username">The username of the user.</param>
@@ -736,46 +726,6 @@ namespace slskd.Transfers.Uploads
             catch (Exception ex)
             {
                 Log.Error(ex, "Failed to find upload: {Message}", ex.Message);
-                throw;
-            }
-        }
-
-        /// <summary>
-        ///     Returns a summary of the uploads matching the specified <paramref name="expression"/>. This can be expensive;
-        ///     consider caching.
-        /// </summary>
-        /// <param name="expression">The expression used to select uploads for summarization.</param>
-        /// <returns>
-        ///     The generated summary, including the number of files and total size in bytes.
-        /// </returns>
-        public (int Files, long Bytes) Summarize(Expression<Func<Transfer, bool>> expression)
-        {
-            expression ??= t => true;
-
-            try
-            {
-                using var context = ContextFactory.CreateDbContext();
-
-                var query = context.Transfers
-                    .AsNoTracking()
-                    .Where(t => t.Direction == TransferDirection.Upload)
-                    .Where(expression)
-                    .GroupBy(t => true) // https://stackoverflow.com/a/25489456: The GroupBy(x => true) statement places all items into a single group. The Select statement the allows operations against each group.
-                    .Select(t => new
-                    {
-                        Files = t.Count(),
-                        Bytes = t.Sum(x => x.Size),
-                    });
-
-                Log.Verbose("{Method} SQL: {@Query}", nameof(Summarize), query.ToQueryString());
-
-                var stats = query.FirstOrDefault();
-
-                return (stats?.Files ?? 0, stats?.Bytes ?? 0);
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "Failed to list uploads: {Message}", ex.Message);
                 throw;
             }
         }
