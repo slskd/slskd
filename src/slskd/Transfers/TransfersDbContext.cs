@@ -43,6 +43,7 @@ namespace slskd.Transfers
         {
         }
 
+        public DbSet<Batch> Batches { get; set; }
         public DbSet<Transfer> Transfers { get; set; }
 
         public override int SaveChanges(bool acceptAllChangesOnSuccess)
@@ -113,6 +114,18 @@ namespace slskd.Transfers
                 .Entity<Transfer>()
                 .HasIndex(e => new { e.Username, e.Direction, e.EndedAt, e.StartedAt, e.State, e.Size })
                 .HasDatabaseName("IDX_Transfers_UserUploadStatistics");
+
+            modelBuilder
+                .Entity<Batch>()
+                .Property(e => e.CreatedAt)
+                .HasConversion(v => v, v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
+
+            modelBuilder
+                .Entity<Batch>()
+                .HasMany(b => b.Transfers)
+                .WithOne()
+                .HasForeignKey(t => t.BatchId)
+                .IsRequired(false);
         }
     }
 }
