@@ -40,20 +40,20 @@ using System.Linq;
 using System.Text.Json.Serialization;
 using Soulseek;
 
-public class Batch
+public record Batch
 {
     public Guid? SearchId { get; init; } = null;
 
     [Key]
     public Guid Id { get; init; }
     public string Username { get; init; }
-    public TransferDirection Direction { get; } = TransferDirection.Download;
+    public TransferDirection Direction { get; init; } = TransferDirection.Download;
     public string Destination { get; init; }
     public int Files { get; init; }
     public long Size { get; init; }
 
     [NotMapped]
-    public TransferStates State => ComputeState();
+    public TransferStates State { get; init; }
 
     public DateTime CreatedAt { get; init; } = DateTime.UtcNow;
     public DateTime? EndedAt { get; set; } // todo: set when the last file is completed, for performance reasons
@@ -64,25 +64,25 @@ public class Batch
     /// <remarks>
     ///     Lazy loaded.  If not loaded with the batch record, the collection and all of the statistics will be null.
     /// </remarks>
-    public ICollection<Transfer> Transfers { get; set; }
+    public ICollection<Transfer> Transfers { get; init; }
 
     [NotMapped]
-    public long BytesTransferred { get; set; }
+    public long BytesTransferred { get; init; }
 
     [NotMapped]
-    public long BytesRemaining { get; set; }
+    public long BytesRemaining { get; init; }
 
     [NotMapped]
     public TimeSpan ElapsedTime => (EndedAt ?? DateTime.UtcNow) - CreatedAt;
 
     [NotMapped]
-    public double PercentComplete { get; set; }
+    public double PercentComplete { get; init; }
 
     [NotMapped]
-    public double AverageSpeed { get; set; }
+    public double AverageSpeed { get; init; }
 
     [JsonIgnore]
-    public bool Removed { get; set; }
+    public bool Removed { get; init; }
 
     private TransferStates ComputeState()
     {
