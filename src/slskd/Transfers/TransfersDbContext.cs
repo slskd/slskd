@@ -62,6 +62,12 @@ namespace slskd.Transfers
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            ConfigureTransfers(modelBuilder);
+            ConfigureBatches(modelBuilder);
+        }
+
+        private void ConfigureTransfers(ModelBuilder modelBuilder)
+        {
             modelBuilder
                 .Entity<Transfer>()
                 .Property(e => e.StartedAt)
@@ -114,7 +120,10 @@ namespace slskd.Transfers
                 .Entity<Transfer>()
                 .HasIndex(e => new { e.Username, e.Direction, e.EndedAt, e.StartedAt, e.State, e.Size })
                 .HasDatabaseName("IDX_Transfers_UserUploadStatistics");
+        }
 
+        private void ConfigureBatches(ModelBuilder modelBuilder)
+        {
             modelBuilder
                 .Entity<Batch>()
                 .Property(e => e.CreatedAt)
