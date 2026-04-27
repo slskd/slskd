@@ -1187,6 +1187,165 @@ integration:
           - 'echo "new event!" >> event_log.txt'
 ```
 
+#### `$SLSKD_SCRIPT_DATA` JSON Schema
+
+The JSON payload set in `$SLSKD_SCRIPT_DATA` varies by event type.  All events share a common base:
+
+```json
+{
+  "id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+  "timestamp": "2025-01-15T12:34:56.789Z",
+  "type": "<EventType>",
+  "version": 0
+}
+```
+
+##### `DownloadFileComplete`
+
+```json
+{
+  "id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+  "timestamp": "2025-01-15T12:34:56.789Z",
+  "type": "DownloadFileComplete",
+  "version": 0,
+  "localFilename": "/downloads/username/path/to/file.flac",
+  "remoteFilename": "@@username\\Music\\Artist\\Album\\file.flac",
+  "transfer": {
+    "batchId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+    "id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+    "username": "remote_username",
+    "direction": "Download",
+    "filename": "@@username\\Music\\Artist\\Album\\file.flac",
+    "size": 35127296,
+    "startOffset": 0,
+    "state": "Completed, Succeeded",
+    "stateDescription": "Completed, Succeeded",
+    "requestedAt": "2025-01-15T12:30:00.000Z",
+    "enqueuedAt": "2025-01-15T12:30:01.000Z",
+    "startedAt": "2025-01-15T12:31:00.000Z",
+    "endedAt": "2025-01-15T12:34:56.789Z",
+    "bytesTransferred": 35127296,
+    "averageSpeed": 1250000.0,
+    "placeInQueue": null,
+    "exception": null,
+    "attempts": 1,
+    "nextAttemptAt": null,
+    "bytesRemaining": 0,
+    "elapsedTime": "00:03:56.7890000",
+    "percentComplete": 100.0,
+    "remainingTime": null
+  }
+}
+```
+
+**`transfer.state`** is a comma-separated combination of `TransferStates` flags:
+
+| Flag | Description |
+|------|-------------|
+| `None` | Default/initial state |
+| `Requested` | Transfer has been requested |
+| `Queued` | Transfer is queued (combine with `Locally` or `Remotely`) |
+| `Initializing` | Transfer connection is being established |
+| `InProgress` | Transfer is actively transferring data |
+| `Completed` | Transfer has ended (always combined with a reason below) |
+| `Succeeded` | Transfer completed successfully |
+| `Cancelled` | Transfer was cancelled by the user |
+| `TimedOut` | Transfer timed out |
+| `Errored` | Transfer failed with an error |
+| `Rejected` | Transfer was rejected by the remote peer |
+| `Aborted` | Transfer was aborted (e.g. file not found) |
+| `Locally` | Qualifier for `Queued` — queued on the local side |
+| `Remotely` | Qualifier for `Queued` — queued on the remote side |
+
+For a completed download, `state` will typically be `"Completed, Succeeded"` or `"Completed, Errored"`, etc.
+
+**`transfer.direction`**: `"Download"` or `"Upload"`.
+
+##### `DownloadDirectoryComplete`
+
+```json
+{
+  "id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+  "timestamp": "2025-01-15T12:34:56.789Z",
+  "type": "DownloadDirectoryComplete",
+  "version": 0,
+  "localDirectoryName": "/downloads/username/path/to/album",
+  "remoteDirectoryName": "@@username\\Music\\Artist\\Album",
+  "username": "remote_username"
+}
+```
+
+##### `UploadFileComplete`
+
+Same shape as `DownloadFileComplete` with `"type": "UploadFileComplete"` and `transfer.direction` set to `"Upload"`.
+
+##### `PrivateMessageReceived`
+
+```json
+{
+  "id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+  "timestamp": "2025-01-15T12:34:56.789Z",
+  "type": "PrivateMessageReceived",
+  "version": 0,
+  "message": {
+    "timestamp": "2025-01-15T12:34:56.000Z",
+    "id": 42,
+    "username": "sender_username",
+    "direction": "In",
+    "message": "Hello!",
+    "isAcknowledged": false,
+    "wasReplayed": false
+  }
+}
+```
+
+##### `RoomMessageReceived`
+
+```json
+{
+  "id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+  "timestamp": "2025-01-15T12:34:56.789Z",
+  "type": "RoomMessageReceived",
+  "version": 0,
+  "message": {
+    "timestamp": "2025-01-15T12:34:56.000Z",
+    "username": "sender_username",
+    "message": "Hello room!",
+    "roomName": "SomeRoom",
+    "direction": "In"
+  }
+}
+```
+
+##### `SoulseekClientConnected`
+
+Only the base fields (`id`, `timestamp`, `type`, `version`).
+
+##### `SoulseekClientDisconnected`
+
+```json
+{
+  "id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+  "timestamp": "2025-01-15T12:34:56.789Z",
+  "type": "SoulseekClientDisconnected",
+  "version": 0,
+  "message": "Connection was closed.",
+  "exception": {
+    "targetSite": null,
+    "message": "Connection was closed.",
+    "data": {},
+    "innerException": null,
+    "helpLink": null,
+    "source": null,
+    "hResult": -2146233088,
+    "stackTrace": null
+  }
+}
+```
+
+> [!NOTE]
+> The `exception` field is a serialized .NET `Exception` object.  The exact properties depend on the exception type, but will typically include `message`, `innerException`, `stackTrace`, and `hResult`.
+
 ## System-Defined
 
 System-defined integrations are part of the application logic.  Users can configure settings, but don't have any control over behavior.
