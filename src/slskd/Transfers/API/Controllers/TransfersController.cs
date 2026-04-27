@@ -216,65 +216,65 @@ namespace slskd.Transfers.API
             }
         }
 
-        [HttpPost("downloads")]
-        [Authorize(Policy = AuthPolicy.Any)]
-        [ProducesResponseType(201)]
-        [ProducesResponseType(typeof(string), 403)]
-        [ProducesResponseType(typeof(string), 500)]
-        public async Task<IActionResult> EnqueueBatchAsync([FromBody] EnqueueDownloadBatchRequest request)
-        {
-            if (Program.IsRelayAgent)
-            {
-                return Forbid();
-            }
+        // [HttpPost("downloads")]
+        // [Authorize(Policy = AuthPolicy.Any)]
+        // [ProducesResponseType(201)]
+        // [ProducesResponseType(typeof(string), 403)]
+        // [ProducesResponseType(typeof(string), 500)]
+        // public async Task<IActionResult> EnqueueBatchAsync([FromBody] EnqueueDownloadBatchRequest request)
+        // {
+        //     if (Program.IsRelayAgent)
+        //     {
+        //         return Forbid();
+        //     }
 
-            // todo, check: username null or whitespace
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState.GetReadableString());
-            }
+        //     // todo, check: username null or whitespace
+        //     if (!ModelState.IsValid)
+        //     {
+        //         return BadRequest(ModelState.GetReadableString());
+        //     }
 
-            if ((request.Files?.Count ?? 0) == 0)
-            {
-                return BadRequest("At least one file is required");
-            }
+        //     if ((request.Files?.Count ?? 0) == 0)
+        //     {
+        //         return BadRequest("At least one file is required");
+        //     }
 
-            // todo, check:
-            // * filename null or whitespace
-            // * size -1
-            if (request.Files.Any(r => r is null))
-            {
-                return BadRequest("One or more files in the request are invalid");
-            }
+        //     // todo, check:
+        //     // * filename null or whitespace
+        //     // * size -1
+        //     if (request.Files.Any(r => r is null))
+        //     {
+        //         return BadRequest("One or more files in the request are invalid");
+        //     }
 
-            if (!DownloadRequestLimiter.Wait(0))
-            {
-                return StatusCode(429, "Only one concurrent operation is permitted. Wait until the previous request completes");
-            }
+        //     if (!DownloadRequestLimiter.Wait(0))
+        //     {
+        //         return StatusCode(429, "Only one concurrent operation is permitted. Wait until the previous request completes");
+        //     }
 
-            try
-            {
-                var endpoint = await Users.GetIPEndPointAsync(request.Username);
+        //     try
+        //     {
+        //         var endpoint = await Users.GetIPEndPointAsync(request.Username);
 
-                if (Users.IsBlacklisted(request.Username, endpoint.Address))
-                {
-                    throw new UserOfflineException($"User {request.Username} appears to be offline");
-                }
+        //         if (Users.IsBlacklisted(request.Username, endpoint.Address))
+        //         {
+        //             throw new UserOfflineException($"User {request.Username} appears to be offline");
+        //         }
 
-                var (enqueued, failed) = await Transfers.Downloads.EnqueueAsync(request.Username, requests.Select(r => (r.Filename, r.Size)));
+        //         var (enqueued, failed) = await Transfers.Downloads.EnqueueAsync(request.Username, requests.Select(r => (r.Filename, r.Size)));
 
-                return StatusCode(201, new { Enqueued = enqueued, Failed = failed });
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "Failed to enqueue {Count} files for {Username}: {Message}", requests.Count(), username, ex.Message);
-                return StatusCode(500, ex.Message);
-            }
-            finally
-            {
-                DownloadRequestLimiter.Release();
-            }
-        }
+        //         return StatusCode(201, new { Enqueued = enqueued, Failed = failed });
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         Log.Error(ex, "Failed to enqueue {Count} files for {Username}: {Message}", requests.Count(), username, ex.Message);
+        //         return StatusCode(500, ex.Message);
+        //     }
+        //     finally
+        //     {
+        //         DownloadRequestLimiter.Release();
+        //     }
+        // }
 
         /// <summary>
         ///     Enqueues the specified download.
