@@ -1719,6 +1719,23 @@ namespace slskd
             public string Description { get; init; } = "A slskd user. https://github.com/slskd/slskd";
 
             /// <summary>
+            ///     Gets the list of the user's liked interests.
+            /// </summary>
+            [Argument(default, "slsk-likes")]
+            [EnvironmentVariable("SLSK_LIKES")]
+            [Description("user likes for the Soulseek network")]
+            public string[] Likes { get; init; } = Array.Empty<string>();
+
+            /// <summary>
+            ///     Gets the list of the user's disliked interests.
+            /// </summary>
+            [Argument(default, "slsk-dislikes")]
+            [EnvironmentVariable("SLSK_DISLIKES")]
+            [Description("user dislikes for the Soulseek network")]
+            public string[] Dislikes { get; init; } = Array.Empty<string>();
+
+
+            /// <summary>
             ///     Gets the file path for the user's profile picture.
             /// </summary>
             [Argument(default, "slsk-picture")]
