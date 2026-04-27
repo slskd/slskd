@@ -973,9 +973,11 @@ namespace slskd.Transfers.Downloads
                             // the final update after all retry attempts have been exhausted to add it.
                             // this means that the ONLY way to check whether a transfer is really 'dead' inclusive of all
                             // retries is to look for this flag
-                            if (transfer.Attempts < retryOptions.Attempts)
+                            if (args.Transfer.State.HasFlag(TransferStates.Completed)
+                                && !args.Transfer.State.HasFlag(TransferStates.Succeeded)
+                                && transfer.Attempts < retryOptions.Attempts)
                             {
-                                transfer.State &= ~TransferStates.Completed; // remove the Completed flag
+                                transfer.State = TransferStates.Queued | TransferStates.Locally;
                             }
 
                             // todo: broadcast
