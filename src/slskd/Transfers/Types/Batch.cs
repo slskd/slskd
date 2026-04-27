@@ -37,6 +37,7 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
+using System.Text.Json.Serialization;
 using Soulseek;
 
 public class Batch
@@ -47,41 +48,41 @@ public class Batch
     public Guid Id { get; init; }
     public string Username { get; init; }
     public TransferDirection Direction { get; } = TransferDirection.Download;
+    public string Destination { get; init; }
+    public int Files { get; init; }
+    public long Size { get; init; }
 
     [NotMapped]
     public TransferStates State => ComputeState();
 
     public DateTime CreatedAt { get; init; } = DateTime.UtcNow;
+    public DateTime? EndedAt { get; set; } // todo: set when the last file is completed, for performance reasons
+
+    /// <summary>
+    ///     The transfers associated with the batch.
+    /// </summary>
+    /// <remarks>
+    ///     Lazy loaded.  If not loaded with the batch record, the collection and all of the statistics will be null.
+    /// </remarks>
+    public ICollection<Transfer> Transfers { get; set; }
 
     [NotMapped]
-    public DateTime? EndedAt => Transfers.Max(t => t.EndedAt);
-
-    public ICollection<Transfer> Transfers { get; set; } = [];
-
-    public string Destination { get; init; }
+    public long BytesTransferred { get; set; }
 
     [NotMapped]
-    public long BytesTransferred => Transfers.Sum(t => t.BytesTransferred);
-    [NotMapped]
-    public int Files => Transfers.Count;
-    [NotMapped]
-    public long Size => Transfers.Sum(t => t.Size);
-    [NotMapped]
-    public long BytesRemaining => Size - BytesTransferred;
-    [NotMapped]
-    public TimeSpan ElapsedTime => DateTime.UtcNow - CreatedAt;
-    [NotMapped]
-    public double PercentComplete => Size == 0 ? 0 : (BytesTransferred / (double)Size) * 100;
+    public long BytesRemaining { get; set; }
 
     [NotMapped]
-    public double AverageSpeed => Transfers
-        .Where(t => TransferStateCategories.Successful.Contains(t.State))
-        .Select(t => t.AverageSpeed)
-        .DefaultIfEmpty(0)
-        .Average();
+    public TimeSpan ElapsedTime => (EndedAt ?? DateTime.UtcNow) - CreatedAt;
 
     [NotMapped]
-    public bool Removed => Transfers.All(t => t.Removed);
+    public double PercentComplete { get; set; }
+
+    [NotMapped]
+    public double AverageSpeed { get; set; }
+
+    [JsonIgnore]
+    public bool Removed { get; set; }
 
     private TransferStates ComputeState()
     {
