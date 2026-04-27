@@ -721,7 +721,8 @@ namespace slskd.Transfers.Uploads
                 return context.Transfers
                     .AsNoTracking()
                     .Where(t => t.Direction == TransferDirection.Upload)
-                    .Where(expression).FirstOrDefault();
+                    .Where(expression)
+                    .SingleOrDefault();
             }
             catch (Exception ex)
             {

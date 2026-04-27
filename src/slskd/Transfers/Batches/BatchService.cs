@@ -132,7 +132,7 @@ namespace slskd.Transfers
             var batch = await context.Batches
                 .AsNoTracking()
                 .Where(expression)
-                .FirstOrDefaultAsync();
+                .SingleOrDefaultAsync();
 
             if (batch is null)
             {
