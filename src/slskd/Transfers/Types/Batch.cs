@@ -48,14 +48,19 @@ public record Batch
     public Guid Id { get; init; }
     public string Username { get; init; }
     public TransferDirection Direction { get; init; } = TransferDirection.Download;
-    public string Destination { get; init; }
     public int Files { get; init; }
     public long Size { get; init; }
-
-    [NotMapped]
-    public TransferStates State { get; init; }
-
+    public string Destination { get; init; }
     public DateTime CreatedAt { get; init; } = DateTime.UtcNow;
+
+    /// <summary>
+    ///     Gets the current batch state.
+    /// </summary>
+    /// <remarks>
+    ///     If the database value is null, value must be derived from the associated transfers.
+    /// </remarks>
+    public TransferStates? State { get; set; } // todo: set when the last file is completed
+
     public DateTime? EndedAt { get; set; } // todo: set when the last file is completed, for performance reasons
 
     /// <summary>
@@ -84,30 +89,30 @@ public record Batch
     [JsonIgnore]
     public bool Removed { get; init; }
 
-    private TransferStates ComputeState()
+    public static TransferStates DeriveState(IEnumerable<Transfer> transfers)
     {
         // if there's a transfer in progress, the batch is in progress
-        if (Transfers.Any(t => TransferStateCategories.InProgress.Contains(t.State)))
+        if (transfers.Any(t => TransferStateCategories.InProgress.Contains(t.State)))
         {
             return TransferStates.InProgress;
         }
 
         // if no transfers are in progress but at least one is queued (doesn't matter locally or remotely),
         // the batch is queued.  it doesn't matter if one or more are errored, they might be retried
-        if (Transfers.Any(t => TransferStateCategories.Queued.Contains(t.State)))
+        if (transfers.Any(t => TransferStateCategories.Queued.Contains(t.State)))
         {
             return TransferStates.Queued;
         }
 
         // if all transfers completed successfully, the batch did too
-        if (Transfers.All(t => TransferStateCategories.Successful.Contains(t.State)))
+        if (transfers.All(t => TransferStateCategories.Successful.Contains(t.State)))
         {
             return TransferStates.Completed | TransferStates.Succeeded;
         }
 
         // if one or more transfers failed and there are no more enqueued files,
         // the batch errored and it will not recover on its own
-        if (Transfers.Any(t => TransferStateCategories.Failed.Contains(t.State)))
+        if (transfers.Any(t => TransferStateCategories.Failed.Contains(t.State)))
         {
             return TransferStates.Completed | TransferStates.Errored;
         }
