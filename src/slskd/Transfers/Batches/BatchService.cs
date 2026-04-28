@@ -146,9 +146,19 @@ namespace slskd.Transfers
 
             var bytesTransferred = transfers.Sum(t => t.BytesTransferred);
 
+            // if the batch record has a non-null state, it has ended and it is safe to use the
+            // stored value.  otherwise we must compute it from the associated transfers
+            var state = batch.State ?? (
+                transfers.Any(t => TransferStateCategories.InProgress.Contains(t.State)) ? TransferStates.InProgress
+                : transfers.Any(t => TransferStateCategories.Queued.Contains(t.State)) ? TransferStates.Queued
+                : transfers.All(t => TransferStateCategories.Successful.Contains(t.State)) ? TransferStates.Completed | TransferStates.Succeeded
+                : transfers.Any(t => TransferStateCategories.Failed.Contains(t.State)) ? TransferStates.Completed | TransferStates.Errored
+                : TransferStates.None);
+
             return batch with
             {
                 Transfers = transfers,
+                State = state,
                 BytesTransferred = bytesTransferred,
                 BytesRemaining = transfers.Sum(t => t.BytesRemaining),
                 PercentComplete = batch.Size == 0 ? 0 : bytesTransferred / (double)batch.Size,
