@@ -279,6 +279,8 @@ public static class Metrics
             /// </summary>
             public static Counter Completed { get; } = Prometheus.Metrics.CreateCounter("slskd_transfers_uploads_completed", "Total number of uploads completed successfully");
 
+            // todo: should this be succeeded? should we totalize? probably not
+
             /// <summary>
             ///     Gets a counter representing the total number of uploads that failed.
             /// </summary>
@@ -299,10 +301,14 @@ public static class Metrics
             /// </summary>
             public static Gauge CurrentSpeed { get; } = Prometheus.Metrics.CreateGauge("slskd_transfers_uploads_speed_current", "Current aggregate upload speed, in bytes per second");
 
+            // todo: this ^ is probably not sufficient for an aggregated field
+
             /// <summary>
             ///     Gets a gauge representing the current number of uploads waiting to be started.
             /// </summary>
             public static Gauge CurrentQueueDepth { get; } = Prometheus.Metrics.CreateGauge("slskd_transfers_uploads_queue_depth_current", "Current number of uploads waiting to be started");
+
+            // todo: should we have a gauge for queued bytes, too?
         }
 
         /// <summary>
