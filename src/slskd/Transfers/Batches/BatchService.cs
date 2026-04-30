@@ -131,6 +131,7 @@ namespace slskd.Transfers
 
             var batch = await context.Batches
                 .AsNoTracking()
+                .Include(b => b.Transfers)
                 .Where(expression)
                 .SingleOrDefaultAsync();
 
@@ -139,31 +140,21 @@ namespace slskd.Transfers
                 return null;
             }
 
-            var transfers = await context.Transfers
-                .AsNoTracking()
-                .Where(t => t.BatchId == batch.Id)
-                .ToListAsync();
-
-            var bytesTransferred = transfers.Sum(t => t.BytesTransferred);
-
-            // if the batch record has a non-null state, it has ended and it is safe to use the
+            // if the batch record State has a non-null state, it has ended and it is safe to use the
             // stored value.  otherwise we must compute it from the associated transfers
-            var state = batch.State ?? (
-                transfers.Any(t => TransferStateCategories.InProgress.Contains(t.State)) ? TransferStates.InProgress
-                : transfers.Any(t => TransferStateCategories.Queued.Contains(t.State)) ? TransferStates.Queued
-                : transfers.All(t => TransferStateCategories.Successful.Contains(t.State)) ? TransferStates.Completed | TransferStates.Succeeded
-                : transfers.Any(t => TransferStateCategories.Failed.Contains(t.State)) ? TransferStates.Completed | TransferStates.Errored
-                : TransferStates.None);
+            var state = batch.State ?? Batch.DeriveState(batch.Transfers);
+            var endedAt = batch.EndedAt ?? batch.Transfers.Max(t => t.EndedAt);
+
+            var bytesTransferred = batch.Transfers.Sum(t => t.BytesTransferred);
 
             return batch with
             {
-                Transfers = transfers,
                 State = state,
                 BytesTransferred = bytesTransferred,
-                BytesRemaining = transfers.Sum(t => t.BytesRemaining),
+                BytesRemaining = batch.Transfers.Sum(t => t.BytesRemaining),
                 PercentComplete = batch.Size == 0 ? 0 : bytesTransferred / (double)batch.Size,
-                AverageSpeed = transfers.Average(t => t.AverageSpeed),
-                Removed = transfers.All(t => t.Removed),
+                AverageSpeed = batch.Transfers.Average(t => t.AverageSpeed),
+                Removed = batch.Transfers.All(t => t.Removed),
             };
         }
 
@@ -197,6 +188,7 @@ namespace slskd.Transfers
                 .Select(g => new
                 {
                     BatchId = g.Key,
+                    EndedAt = g.Max(t => t.EndedAt),
                     BytesTransferred = g.Sum(t => t.BytesTransferred),
                     BytesRemaining = g.Sum(t => t.BytesRemaining),
                     AverageSpeed = g.Average(t => t.AverageSpeed),
