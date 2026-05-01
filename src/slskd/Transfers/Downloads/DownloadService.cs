@@ -435,7 +435,6 @@ namespace slskd.Transfers.Downloads
                             Direction = TransferDirection.Download,
                             Filename = file.Filename, // important! use the remote filename
                             Size = file.Size,
-                            StartOffset = 0, // todo: maybe implement resumeable downloads?
                             RequestedAt = DateTime.UtcNow,
                             State = TransferStates.Queued | TransferStates.Locally,
                         };

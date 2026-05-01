@@ -30,7 +30,7 @@
 //   ╰───────────────────────────────────────────╶──── ─ ─── ─  ── ──┈  ┈
 // </copyright>
 
-namespace slskd.Transfers
+namespace slskd.Transfers;
 {
     using System;
     using System.ComponentModel.DataAnnotations;

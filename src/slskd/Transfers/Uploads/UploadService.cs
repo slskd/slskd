@@ -622,7 +622,6 @@ namespace slskd.Transfers.Uploads
                     Direction = TransferDirection.Upload,
                     Filename = filename, // important! use the remote filename
                     Size = localFileLength,
-                    StartOffset = 0, // potentially updated later during handshaking
                     RequestedAt = DateTime.UtcNow,
                     State = TransferStates.Queued | TransferStates.Locally,
                 };
