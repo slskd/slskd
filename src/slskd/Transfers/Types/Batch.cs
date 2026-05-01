@@ -87,18 +87,9 @@ public record Batch
     public long FileSize { get; init; }
 
     /// <summary>
-    ///     Gets the timestamp at which the Batch was created.
+    ///     Gets the time at which the Batch was created.
     /// </summary>
     public DateTime CreatedAt { get; init; } = DateTime.UtcNow;
-
-    /// <summary>
-    ///     Gets the optional destination directory for the files in the Batch, relative to the configured
-    ///     download directory.
-    /// </summary>
-    /// <remarks>
-    ///     If specified, takes precedence over other configured placement rules.
-    /// </remarks>
-    public string DestinationDirectory { get; init; }
 
     /// <summary>
     ///     Gets the Transfer records associated with the batch.
@@ -108,6 +99,15 @@ public record Batch
     ///     all of the (future?) statistics will be null.
     /// </remarks>
     public ICollection<Transfer> Transfers { get; init; } = null;
+
+    /// <summary>
+    ///     Gets the optional destination directory for the files in the Batch, relative to the configured
+    ///     download directory.
+    /// </summary>
+    /// <remarks>
+    ///     If specified, takes precedence over other configured placement rules.
+    /// </remarks>
+    public string DestinationDirectory { get; init; }
 
     /*
         future: [NotMapped] properties that aggregate values from the associated Transfer records.

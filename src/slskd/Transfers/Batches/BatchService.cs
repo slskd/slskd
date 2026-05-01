@@ -39,7 +39,6 @@ namespace slskd.Transfers
     using System.Threading.Tasks;
     using Microsoft.EntityFrameworkCore;
     using Serilog;
-    using Soulseek;
 
     /// <summary>
     ///     Manages transfer batches.
@@ -129,33 +128,11 @@ namespace slskd.Transfers
 
             using var context = ContextFactory.CreateDbContext();
 
-            var batch = await context.Batches
+            return await context.Batches
                 .AsNoTracking()
                 .Include(b => b.Transfers)
                 .Where(expression)
                 .SingleOrDefaultAsync();
-
-            if (batch is null)
-            {
-                return null;
-            }
-
-            // if the batch record State has a non-null state, it has ended and it is safe to use the
-            // stored value.  otherwise we must compute it from the associated transfers
-            var state = batch.State ?? Batch.DeriveState(batch.Transfers);
-            var endedAt = batch.EndedAt ?? batch.Transfers.Max(t => t.EndedAt);
-
-            var bytesTransferred = batch.Transfers.Sum(t => t.BytesTransferred);
-
-            return batch with
-            {
-                State = state,
-                BytesTransferred = bytesTransferred,
-                BytesRemaining = batch.Transfers.Sum(t => t.BytesRemaining),
-                PercentComplete = batch.Size == 0 ? 0 : bytesTransferred / (double)batch.Size,
-                AverageSpeed = batch.Transfers.Average(t => t.AverageSpeed),
-                Removed = batch.Transfers.All(t => t.Removed),
-            };
         }
 
         /// <summary>
@@ -169,61 +146,11 @@ namespace slskd.Transfers
 
             using var context = ContextFactory.CreateDbContext();
 
-            var batches = await context.Batches
+            return await context.Batches
                 .AsNoTracking()
+                .Include(b => b.Transfers)
                 .Where(expression)
                 .ToListAsync();
-
-            if (batches.Count == 0)
-            {
-                return batches;
-            }
-
-            var batchIds = batches.Select(b => b.Id).ToList();
-
-            var stats = (await context.Transfers
-                .AsNoTracking()
-                .Where(t => t.BatchId.HasValue && batchIds.Contains(t.BatchId.Value))
-                .GroupBy(t => t.BatchId)
-                .Select(g => new
-                {
-                    BatchId = g.Key,
-                    EndedAt = g.Max(t => t.EndedAt),
-                    BytesTransferred = g.Sum(t => t.BytesTransferred),
-                    BytesRemaining = g.Sum(t => t.BytesRemaining),
-                    AverageSpeed = g.Average(t => t.AverageSpeed),
-                    Removed = g.All(t => t.Removed),
-                    AnyInProgress = g.Any(t => TransferStateCategories.InProgress.Contains(t.State)),
-                    AnyQueued = g.Any(t => TransferStateCategories.Queued.Contains(t.State)),
-                    AllSuccessful = g.All(t => TransferStateCategories.Successful.Contains(t.State)),
-                    AnyFailed = g.Any(t => TransferStateCategories.Failed.Contains(t.State)),
-                })
-                .ToListAsync())
-                .ToDictionary(s => s.BatchId);
-
-            return batches.Select(b =>
-            {
-                if (!stats.TryGetValue(b.Id, out var s))
-                {
-                    return b;
-                }
-
-                var state = s.AnyInProgress ? TransferStates.InProgress
-                    : s.AnyQueued ? TransferStates.Queued
-                    : s.AllSuccessful ? TransferStates.Completed | TransferStates.Succeeded
-                    : s.AnyFailed ? TransferStates.Completed | TransferStates.Errored
-                    : TransferStates.None;
-
-                return b with
-                {
-                    BytesTransferred = s.BytesTransferred,
-                    BytesRemaining = s.BytesRemaining,
-                    PercentComplete = b.Size == 0 ? 0 : s.BytesTransferred / (double)b.Size,
-                    AverageSpeed = s.AverageSpeed,
-                    Removed = s.Removed,
-                    State = state,
-                };
-            }).ToList();
         }
 
         /// <summary>
