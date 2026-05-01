@@ -280,24 +280,24 @@ public static class Metrics
             public static class InProgress
             {
                 /// <summary>
-                ///     Gets a counter representing the current number of unique users with in-progress uploads.
+                ///     Gets a gauge representing the current number of unique users with in-progress uploads.
                 /// </summary>
-                public static Counter Users { get; } = Prometheus.Metrics.CreateCounter(
-                    name: "slskd_transfers_uploads_in-progress_users_current",
+                public static Gauge Users { get; } = Prometheus.Metrics.CreateGauge(
+                    name: "slskd_transfers_uploads_in_progress_users_current",
                     help: "Current number of unique users with in-progress uploads");
 
                 /// <summary>
                 ///     Gets a gauge representing the current number of in-progress uploads.
                 /// </summary>
                 public static Gauge Files { get; } = Prometheus.Metrics.CreateGauge(
-                    name: "slskd_transfers_uploads_in-progress_files_current",
-                    help: "Current total number of in-progress uploads");
+                    name: "slskd_transfers_uploads_in_progress_files_current",
+                    help: "Current number of in-progress uploads");
 
                 /// <summary>
                 ///     Gets a gauge representing the current total size, in bytes, of in-progress uploads.
                 /// </summary>
                 public static Gauge Bytes { get; } = Prometheus.Metrics.CreateGauge(
-                    name: "slskd_transfers_uploads_in-progress_bytes_current",
+                    name: "slskd_transfers_uploads_in_progress_bytes_current",
                     help: "Current total size, in bytes, of in-progress uploads");
 
                 /// <summary>
@@ -305,7 +305,7 @@ public static class Metrics
                 /// </summary>
                 public static TimedCounter TotalSpeed { get; } = new TimedCounter(TimeSpan.FromSeconds(1), onElapsed: count => CurrentTotalSpeedGauge.Set(count));
                 public static Gauge CurrentTotalSpeedGauge { get; } = Prometheus.Metrics.CreateGauge(
-                    name: "slskd_transfers_uploads_in-progress_total_speed_bytes_current",
+                    name: "slskd_transfers_uploads_in_progress_speed_total_current",
                     help: "Current total speed, in bytes per second, of in-progress uploads");
 
                 /// <summary>
@@ -313,7 +313,7 @@ public static class Metrics
                 /// </summary>
                 public static ExponentialMovingAverage AverageSpeed { get; } = new ExponentialMovingAverage(smoothingFactor: 0.5, onUpdate: value => CurrentAverageSpeedGauge.Set(value));
                 public static Gauge CurrentAverageSpeedGauge { get; } = Prometheus.Metrics.CreateGauge(
-                    name: "slskd_transfers_uploads_in-progress_average_speed_bytes_current",
+                    name: "slskd_transfers_uploads_in_progress_speed_average_current",
                     help: "Current average speed, in bytes per second, of in-progress uploads");
             }
 
@@ -323,10 +323,10 @@ public static class Metrics
             public static class Queued
             {
                 /// <summary>
-                ///     Gets a counter representing the total number of unique users with queued uploads.
+                ///     Gets a gauge representing the current number of unique users with queued uploads.
                 /// </summary>
-                public static Counter Users { get; } = Prometheus.Metrics.CreateCounter(
-                    name: "slskd_transfers_uploads_in-progress_users",
+                public static Gauge Users { get; } = Prometheus.Metrics.CreateGauge(
+                    name: "slskd_transfers_uploads_queued_users_current",
                     help: "Current number of unique users with queued uploads");
 
                 /// <summary>
@@ -334,60 +334,15 @@ public static class Metrics
                 /// </summary>
                 public static Gauge Files { get; } = Prometheus.Metrics.CreateGauge(
                     name: "slskd_transfers_uploads_queued_files_current",
-                    help: "Current total number of in-progress uploads");
+                    help: "Current number of queued uploads");
 
                 /// <summary>
-                ///     Gets a gauge representing the current number of queued uploads.
+                ///     Gets a gauge representing the current total size, in bytes, of queued uploads.
                 /// </summary>
                 public static Gauge Bytes { get; } = Prometheus.Metrics.CreateGauge(
                     name: "slskd_transfers_uploads_queued_bytes_current",
-                    help: "Current total size, in bytes, of in-progress uploads");
+                    help: "Current total size, in bytes, of queued uploads");
             }
-
-            // todo: this ^ is probably not sufficient for an aggregated field
-
-            /// <summary>
-            ///     Gets a gauge representing the current number of uploads waiting to be started.
-            /// </summary>
-            public static Gauge CurrentQueueDepth { get; } = Prometheus.Metrics.CreateGauge("slskd_transfers_uploads_queue_depth_current", "Current number of uploads waiting to be started");
-
-            // todo: should we have a gauge for queued bytes, too?
-        }
-
-        /// <summary>
-        ///     Metrics related to downloads.
-        /// </summary>
-        public static class Downloads
-        {
-            /// <summary>
-            ///     Gets a counter representing the total number of downloads completed successfully.
-            /// </summary>
-            public static Counter Completed { get; } = Prometheus.Metrics.CreateCounter("slskd_transfers_downloads_completed", "Total number of downloads completed successfully");
-
-            /// <summary>
-            ///     Gets a counter representing the total number of downloads that failed.
-            /// </summary>
-            public static Counter Failed { get; } = Prometheus.Metrics.CreateCounter("slskd_transfers_downloads_failed", "Total number of downloads that failed");
-
-            /// <summary>
-            ///     Gets a counter representing the total number of bytes downloaded.
-            /// </summary>
-            public static Counter Bytes { get; } = Prometheus.Metrics.CreateCounter("slskd_transfers_downloads_bytes", "Total number of bytes downloaded");
-
-            /// <summary>
-            ///     Gets a gauge representing the current number of active downloads.
-            /// </summary>
-            public static Gauge Active { get; } = Prometheus.Metrics.CreateGauge("slskd_transfers_downloads_active", "Current number of active downloads");
-
-            /// <summary>
-            ///     Gets a gauge representing the current aggregate download speed, in bytes per second.
-            /// </summary>
-            public static Gauge CurrentSpeed { get; } = Prometheus.Metrics.CreateGauge("slskd_transfers_downloads_speed_current", "Current aggregate download speed, in bytes per second");
-
-            /// <summary>
-            ///     Gets a gauge representing the current number of downloads queued locally, waiting to be started.
-            /// </summary>
-            public static Gauge CurrentQueueDepth { get; } = Prometheus.Metrics.CreateGauge("slskd_transfers_downloads_queue_depth_current", "Current number of downloads queued locally, waiting to be started");
         }
     }
 
