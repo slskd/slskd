@@ -35,89 +35,98 @@ namespace slskd.Transfers;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
-using System.Linq;
-using System.Text.Json.Serialization;
 using Soulseek;
 
+/// <summary>
+///     <para>
+///         A Transfer Batch is a lightweight association between a number of related Transfer
+///         records and optionally the associated Search the Transfers are intended to fulfil.
+///     </para>
+///     <para>
+///         Transfers may be enqueued in a Batch, and a caller that enqueued a Batch may use the
+///         available API(s) to determine whether all of the Transfers within the Batch is complete,
+///         but otherwise a Batch serves no functional purpose within the application.
+///     </para>
+/// </summary>
 public record Batch
 {
+    /// <summary>
+    ///     Gets the associated <see cref="slskd.Search.Search.Id"/>, if one was specified when the
+    ///     Batch was enqueued.
+    /// </summary>
     public Guid? SearchId { get; init; } = null;
 
+    /// <summary>
+    ///     Gets the unique identifier for the Batch.
+    /// </summary>
     [Key]
     public Guid Id { get; init; }
+
+    /// <summary>
+    ///     Gets the username associated with the Batch.
+    /// </summary>
     public string Username { get; init; }
+
+    /// <summary>
+    ///     Gets the Batch direction (Upload, Download).
+    /// </summary>
+    /// <remarks>
+    ///     We don't have, and likely will never be able to implement, upload batches,
+    ///     nor are they of any particular use.
+    /// </remarks>
     public TransferDirection Direction { get; init; } = TransferDirection.Download;
-    public int Files { get; init; }
-    public long Size { get; init; }
-    public string Destination { get; init; }
+
+    /// <summary>
+    ///     Gets the number of files included in the Batch.
+    /// </summary>
+    public int FileCount { get; init; }
+
+    /// <summary>
+    ///     Gets the sum of the included file's sizes.
+    /// </summary>
+    public long FileSize { get; init; }
+
+    /// <summary>
+    ///     Gets the timestamp at which the Batch was created.
+    /// </summary>
     public DateTime CreatedAt { get; init; } = DateTime.UtcNow;
 
     /// <summary>
-    ///     Gets the current batch state.
+    ///     Gets the optional destination directory for the files in the Batch, relative to the configured
+    ///     download directory.
     /// </summary>
     /// <remarks>
-    ///     If the database value is null, value must be derived from the associated transfers.
+    ///     If specified, takes precedence over other configured placement rules.
     /// </remarks>
-    public TransferStates? State { get; set; } // todo: set when the last file is completed
-
-    public DateTime? EndedAt { get; set; } // todo: set when the last file is completed, for performance reasons
+    public string DestinationDirectory { get; init; }
 
     /// <summary>
-    ///     The transfers associated with the batch.
+    ///     Gets the Transfer records associated with the batch.
     /// </summary>
     /// <remarks>
-    ///     Lazy loaded.  If not loaded with the batch record, the collection and all of the statistics will be null.
+    ///     Lazy loaded. If not explicitly loaded with the Batch record using Include(), the collection and
+    ///     all of the (future?) statistics will be null.
     /// </remarks>
-    public ICollection<Transfer> Transfers { get; init; }
+    public ICollection<Transfer> Transfers { get; init; } = null;
 
-    [NotMapped]
-    public long BytesTransferred { get; init; }
+    /*
+        future: [NotMapped] properties that aggregate values from the associated Transfer records.
+        there's no use for these now, but if we ever decide to leverage Batch records for anything
+        but determining whether a Search has been fulfilled, allowing a user to override a download directory,
+        or to handle an event when a batch is completed, we can add them and figure out how persistence should work.
 
-    [NotMapped]
-    public long BytesRemaining { get; init; }
+        loading Transfers and doing aggregation in memory (if fetching 1 batch) or querying and aggregating Transfer
+        records in SQL and then updating a list of Batch records in memory (if fetching a list) technically works,
+        but is unlikely to perform well, especially as data grows, and ESPECIALLY when excliding 'Removed' Batches
+        from results (as this must be aggregated on the fly for each batch.. forever)
 
-    [NotMapped]
-    public TimeSpan ElapsedTime => (EndedAt ?? DateTime.UtcNow) - CreatedAt;
+        my thinking (and reason for punting on this for now); add the interesting properties (Removed, BytesTransferred,
+        AverageSpeed, etc) to this class as nullable, and don't set a value until all of the associated Transfer
+        records have been finalized, then update the columns.  when fetching batches we can deduce that any Batch
+        record missing those properties is still in progress, and we can aggregate the data on the fly. for historical
+        records that have completed, the data is all in the database and is quick to query.
 
-    [NotMapped]
-    public double PercentComplete { get; init; }
-
-    [NotMapped]
-    public double AverageSpeed { get; init; }
-
-    [JsonIgnore]
-    public bool Removed { get; init; }
-
-    public static TransferStates DeriveState(IEnumerable<Transfer> transfers)
-    {
-        // if there's a transfer in progress, the batch is in progress
-        if (transfers.Any(t => TransferStateCategories.InProgress.Contains(t.State)))
-        {
-            return TransferStates.InProgress;
-        }
-
-        // if no transfers are in progress but at least one is queued (doesn't matter locally or remotely),
-        // the batch is queued.  it doesn't matter if one or more are errored, they might be retried
-        if (transfers.Any(t => TransferStateCategories.Queued.Contains(t.State)))
-        {
-            return TransferStates.Queued;
-        }
-
-        // if all transfers completed successfully, the batch did too
-        if (transfers.All(t => TransferStateCategories.Successful.Contains(t.State)))
-        {
-            return TransferStates.Completed | TransferStates.Succeeded;
-        }
-
-        // if one or more transfers failed and there are no more enqueued files,
-        // the batch errored and it will not recover on its own
-        if (transfers.Any(t => TransferStateCategories.Failed.Contains(t.State)))
-        {
-            return TransferStates.Completed | TransferStates.Errored;
-        }
-
-        // unclear how we would get here
-        return TransferStates.None;
-    }
+        this can sit until/if we have further use for Batch records, i want to get this out and don't want to sit
+        and go back and forth trying to speculate on how this might need to work in the future.
+    */
 }
