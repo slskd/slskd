@@ -777,7 +777,7 @@ namespace slskd
 
             services.AddSingleton<IRoomService, RoomService>();
 
-            services.AddSingleton<ITransferService, TransferService>();
+            services.AddSingleton<TransferService>();
             services.AddSingleton<IDownloadService, DownloadService>();
             services.AddSingleton<IUploadService, UploadService>();
             services.AddSingleton<FileService>();
