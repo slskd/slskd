@@ -30,51 +30,34 @@
 //   ╰───────────────────────────────────────────╶──── ─ ─── ─  ── ──┈  ┈
 // </copyright>
 
-namespace slskd.Transfers
+namespace slskd.Transfers;
+
+using slskd.Transfers.Downloads;
+using slskd.Transfers.Uploads;
+
+/// <summary>
+///     Manages transfers.
+/// </summary>
+public class TransferService
 {
-    using slskd.Transfers.Downloads;
-    using slskd.Transfers.Uploads;
-
     /// <summary>
-    ///     Manages transfers.
+    ///     Initializes a new instance of the <see cref="TransferService"/> class.
     /// </summary>
-    public interface ITransferService
+    public TransferService(
+        IUploadService uploadService = null,
+        IDownloadService downloadService = null)
     {
-        /// <summary>
-        ///     Gets the upload service.
-        /// </summary>
-        IUploadService Uploads { get; }
-
-        /// <summary>
-        ///     Gets the download service.
-        /// </summary>
-        IDownloadService Downloads { get; }
+        Uploads = uploadService;
+        Downloads = downloadService;
     }
 
     /// <summary>
-    ///     Manages transfers.
+    ///     Gets the upload service.
     /// </summary>
-    public class TransferService : ITransferService
-    {
-        /// <summary>
-        ///     Initializes a new instance of the <see cref="TransferService"/> class.
-        /// </summary>
-        public TransferService(
-            IUploadService uploadService = null,
-            IDownloadService downloadService = null)
-        {
-            Uploads = uploadService;
-            Downloads = downloadService;
-        }
+    public virtual IUploadService Uploads { get; init; }
 
-        /// <summary>
-        ///     Gets the upload service.
-        /// </summary>
-        public IUploadService Uploads { get; init; }
-
-        /// <summary>
-        ///     Gets the download service.
-        /// </summary>
-        public IDownloadService Downloads { get; init; }
-    }
+    /// <summary>
+    ///     Gets the download service.
+    /// </summary>
+    public virtual IDownloadService Downloads { get; init; }
 }
