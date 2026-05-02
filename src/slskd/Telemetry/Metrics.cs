@@ -303,7 +303,7 @@ public static class Metrics
                 /// <summary>
                 ///     Gets a gauge representing the current total speed, in bytes per second, of in-progress uploads.
                 /// </summary>
-                public static TimedCounter TotalSpeed { get; } = new TimedCounter(TimeSpan.FromSeconds(1), onElapsed: count => CurrentTotalSpeedGauge.Set(count));
+                public static ExponentialMovingAverage CurrentTotalSpeed { get; } = new ExponentialMovingAverage(smoothingFactor: 0.5, onUpdate: value => CurrentTotalSpeedGauge.Set(value));
                 public static Gauge CurrentTotalSpeedGauge { get; } = Prometheus.Metrics.CreateGauge(
                     name: "slskd_transfers_uploads_in_progress_speed_total_current",
                     help: "Current total speed, in bytes per second, of in-progress uploads");
@@ -311,7 +311,7 @@ public static class Metrics
                 /// <summary>
                 ///     Gets a gauge representing the current average speed, in bytes per second, of in-progress uploads.
                 /// </summary>
-                public static ExponentialMovingAverage AverageSpeed { get; } = new ExponentialMovingAverage(smoothingFactor: 0.5, onUpdate: value => CurrentAverageSpeedGauge.Set(value));
+                public static ExponentialMovingAverage CurrentAverageSpeed { get; } = new ExponentialMovingAverage(smoothingFactor: 0.5, onUpdate: value => CurrentAverageSpeedGauge.Set(value));
                 public static Gauge CurrentAverageSpeedGauge { get; } = Prometheus.Metrics.CreateGauge(
                     name: "slskd_transfers_uploads_in_progress_speed_average_current",
                     help: "Current average speed, in bytes per second, of in-progress uploads");
@@ -342,6 +342,64 @@ public static class Metrics
                 public static Gauge Bytes { get; } = Prometheus.Metrics.CreateGauge(
                     name: "slskd_transfers_uploads_queued_bytes_current",
                     help: "Current total size, in bytes, of queued uploads");
+            }
+
+            /// <summary>
+            ///     Metrics related to completed uploads.
+            /// </summary>
+            public static class Completed
+            {
+                /// <summary>
+                ///     Gets a counter representing the total number of uploads that completed successfully.
+                /// </summary>
+                public static Counter Succeeded { get; } = Prometheus.Metrics.CreateCounter(
+                    name: "slskd_transfers_uploads_completed_succeeded",
+                    help: "Total number of uploads that completed successfully");
+
+                /// <summary>
+                ///     Gets a counter representing the total number of uploads that failed.
+                /// </summary>
+                public static Counter Failed { get; } = Prometheus.Metrics.CreateCounter(
+                    name: "slskd_transfers_uploads_completed_failed",
+                    help: "Total number of uploads that failed");
+
+                /// <summary>
+                ///     Gets a counter representing the total number of bytes transferred by successfully completed uploads.
+                /// </summary>
+                public static Counter Bytes { get; } = Prometheus.Metrics.CreateCounter(
+                    name: "slskd_transfers_uploads_completed_bytes",
+                    help: "Total number of bytes transferred by successfully completed uploads");
+
+                /// <summary>
+                ///     Gets a histogram representing the the average speed of completed uploads, in bytes per second.
+                /// </summary>
+                public static Histogram AverageSpeed { get; } = Prometheus.Metrics.CreateHistogram(
+                    name: "slskd_transfers_uploads_completed_speed_average",
+                    help: "The average speed of completed uploads, in bytes per second",
+                    new HistogramConfiguration
+                    {
+                        Buckets = [
+                            1_024,           // 1 KB/s
+                            10_240,          // 10 KB/s
+                            51_200,          // 50 KB/s
+                            102_400,         // 100 KB/s
+                            204_800,         // 200 KB/s
+                            307_200,         // 300 KB/s
+                            409_600,         // 400 KB/s
+                            512_000,         // 500 KB/s
+                            1_048_576,       // 1 MB/s
+                            2_097_152,       // 2 MB/s
+                            4_194_304,       // 4 MB/s
+                            6_291_456,       // 6 MB/s
+                            10_485_760,      // 10 MB/s
+                            26_214_400,      // 25 MB/s
+                            52_428_800,      // 50 MB/s
+                            104_857_600,     // 100 MB/s
+                            262_144_000,     // 250 MB/s
+                            524_288_000,     // 500 MB/s
+                            1_073_741_824,   // 1 GB/s
+                        ],
+                    });
             }
         }
 
