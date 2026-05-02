@@ -32,7 +32,7 @@
 
 using Microsoft.Extensions.Options;
 
-namespace slskd.Transfers
+namespace slskd.Transfers.Uploads
 {
     using System;
     using System.Collections.Concurrent;
@@ -136,12 +136,18 @@ namespace slskd.Transfers
         private ILogger Log { get; } = Serilog.Log.ForContext<UploadQueue>();
         private IOptionsMonitor<Options> OptionsMonitor { get; }
         private SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1, 1);
-        private ConcurrentDictionary<string, List<Upload>> Uploads { get; set; } = new ConcurrentDictionary<string, List<Upload>>();
+        private ConcurrentDictionary<string, List<Upload>> UploadDictionary { get; set; } = new ConcurrentDictionary<string, List<Upload>>();
         private IUserService Users { get; }
 
         /// <summary>
-        ///     Awaits the start of an upload.
+        ///     Returns a <see cref="Task"/> that, when complete, signals the underlying Soulseek.NET logic that
+        ///     the 'wait for a free slot' permissive has been obtained.  When the <see cref="Process"/> method is
+        ///     ready, it will complete the Task and the upload will start.
         /// </summary>
+        /// <remarks>
+        ///     This is the mechanism we use to control the queue; the Task we return here is completed in the
+        ///     <see cref="Process"/> method once we have determined that this transfer is next to go.
+        /// </remarks>
         /// <param name="username">The username of the remote user.</param>
         /// <param name="filename">The filename for which to await the start.</param>
         /// <returns>The operation context.</returns>
@@ -151,7 +157,7 @@ namespace slskd.Transfers
 
             try
             {
-                if (!Uploads.TryGetValue(username, out var list))
+                if (!UploadDictionary.TryGetValue(username, out var list))
                 {
                     throw new SlskdException($"No enqueued uploads for user {username}");
                 }
@@ -209,7 +215,7 @@ namespace slskd.Transfers
 
             try
             {
-                if (!Uploads.TryGetValue(username, out var list))
+                if (!UploadDictionary.TryGetValue(username, out var list))
                 {
                     throw new SlskdException($"No enqueued uploads for user {username}");
                 }
@@ -234,10 +240,12 @@ namespace slskd.Transfers
                     Log.Debug("Group {Group} slots: {Used}/{Available}", group.Name, group.UsedSlots, group.Slots);
                 }
 
-                if (!list.Any() && Uploads.TryRemove(username, out _))
+                if (list.Count == 0 && UploadDictionary.TryRemove(username, out _))
                 {
                     Log.Debug("Cleaned up tracking list for {User}; no more queued uploads to track", username);
                 }
+
+                EmitMetrics();
             }
             finally
             {
@@ -259,7 +267,7 @@ namespace slskd.Transfers
             {
                 var upload = new Upload() { Username = username, Filename = filename };
 
-                Uploads.AddOrUpdate(
+                UploadDictionary.AddOrUpdate(
                     key: username,
                     addValue: new List<Upload>(new[] { upload }),
                     updateValueFactory: (key, list) =>
@@ -268,6 +276,7 @@ namespace slskd.Transfers
                         return list;
                     });
 
+                EmitMetrics();
                 Log.Debug("Enqueued: {File} for {User} at {Time}", Path.GetFileName(upload.Filename), upload.Username, upload.Enqueued);
             }
             finally
@@ -305,7 +314,7 @@ namespace slskd.Transfers
             var groupRecord = Groups.GetValueOrDefault(groupName);
 
             // the Uploads dictionary is keyed by username; gather all of the users that belong to the same group as the requested user
-            var uploadsForGroup = Uploads.Where(kvp => Users.GetGroup(kvp.Key) == groupName);
+            var uploadsForGroup = UploadDictionary.Where(kvp => Users.GetGroup(kvp.Key) == groupName);
 
             // the RoundRobin queue implementation is not strictly fair to all users; only uploads that are ready are candidates
             // for selection. this means that if Bob downloads files twice as fast as Alice, Bob is going to advance through the
@@ -314,7 +323,7 @@ namespace slskd.Transfers
             if (groupRecord.Strategy == QueueStrategy.RoundRobin)
             {
                 // find this user's uploads
-                if (!Uploads.TryGetValue(username, out var uploadsForUser))
+                if (!UploadDictionary.TryGetValue(username, out var uploadsForUser))
                 {
                     throw new NotFoundException($"File {filename} is not enqueued for user {username}");
                 }
@@ -393,7 +402,7 @@ namespace slskd.Transfers
             }
 
             // the Uploads dictionary is keyed by username; gather all of the users that belong to the same group as the requested user
-            var uploadsForGroup = Uploads.Where(kvp => Users.GetGroup(kvp.Key) == groupName);
+            var uploadsForGroup = UploadDictionary.Where(kvp => Users.GetGroup(kvp.Key) == groupName);
 
             // assuming that the queue will be processed in a true round-robin fashion and that the user will be the last in the
             // rotation (worst case), the user's start position will be equal to the number of users downloading or waiting, + 1.
@@ -501,7 +510,7 @@ namespace slskd.Transfers
                 // flip the uploads dictionary so that it is keyed by group instead of user. wait until just before we process the
                 // queue to do this, and fetch each user's group as we do, to allow users to move between groups at run time. we
                 // delay "pinning" an upload to a group (via UsedSlots, below) for the same reason.
-                var readyUploadsByGroup = Uploads.Aggregate(
+                var readyUploadsByGroup = UploadDictionary.Aggregate(
                     seed: new ConcurrentDictionary<string, List<Upload>>(),
                     func: (groups, user) =>
                     {
@@ -544,6 +553,9 @@ namespace slskd.Transfers
 
                     // release the upload
                     upload.TaskCompletionSource.SetResult();
+
+                    EmitMetrics();
+
                     Log.Debug("Started: {File} for {User} at {Time}", Path.GetFileName(upload.Filename), upload.Username, upload.Enqueued);
                     Log.Debug("Group {Group} slots: {Used}/{Available}", group.Name, group.UsedSlots, group.Slots);
 
@@ -556,6 +568,14 @@ namespace slskd.Transfers
             {
                 SyncRoot.Release();
             }
+        }
+
+        private void EmitMetrics()
+        {
+            Telemetry.Metrics.Transfers.Uploads.Queued.Users.Set(UploadDictionary.Values.Count(u => u.Any(t => t.Started is null)));
+            Telemetry.Metrics.Transfers.Uploads.InProgress.Users.Set(UploadDictionary.Values.Count(u => u.Any(t => t.Started is not null)));
+
+            Log.Warning("Metrics: Set Upload Queued and In Progress Users to {Queued} and {InProgress}, respectively", Telemetry.Metrics.Transfers.Uploads.Queued.Users.Value, Telemetry.Metrics.Transfers.Uploads.InProgress.Users.Value);
         }
     }
 }
