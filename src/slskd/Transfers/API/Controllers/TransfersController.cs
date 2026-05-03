@@ -216,68 +216,8 @@ namespace slskd.Transfers.API
             }
         }
 
-        // [HttpPost("downloads")]
-        // [Authorize(Policy = AuthPolicy.Any)]
-        // [ProducesResponseType(201)]
-        // [ProducesResponseType(typeof(string), 403)]
-        // [ProducesResponseType(typeof(string), 500)]
-        // public async Task<IActionResult> EnqueueBatchAsync([FromBody] EnqueueDownloadBatchRequest request)
-        // {
-        //     if (Program.IsRelayAgent)
-        //     {
-        //         return Forbid();
-        //     }
-
-        //     // todo, check: username null or whitespace
-        //     if (!ModelState.IsValid)
-        //     {
-        //         return BadRequest(ModelState.GetReadableString());
-        //     }
-
-        //     if ((request.Files?.Count ?? 0) == 0)
-        //     {
-        //         return BadRequest("At least one file is required");
-        //     }
-
-        //     // todo, check:
-        //     // * filename null or whitespace
-        //     // * size -1
-        //     if (request.Files.Any(r => r is null))
-        //     {
-        //         return BadRequest("One or more files in the request are invalid");
-        //     }
-
-        //     if (!DownloadRequestLimiter.Wait(0))
-        //     {
-        //         return StatusCode(429, "Only one concurrent operation is permitted. Wait until the previous request completes");
-        //     }
-
-        //     try
-        //     {
-        //         var endpoint = await Users.GetIPEndPointAsync(request.Username);
-
-        //         if (Users.IsBlacklisted(request.Username, endpoint.Address))
-        //         {
-        //             throw new UserOfflineException($"User {request.Username} appears to be offline");
-        //         }
-
-        //         var (enqueued, failed) = await Transfers.Downloads.EnqueueAsync(request.Username, requests.Select(r => (r.Filename, r.Size)));
-
-        //         return StatusCode(201, new { Enqueued = enqueued, Failed = failed });
-        //     }
-        //     catch (Exception ex)
-        //     {
-        //         Log.Error(ex, "Failed to enqueue {Count} files for {Username}: {Message}", requests.Count(), username, ex.Message);
-        //         return StatusCode(500, ex.Message);
-        //     }
-        //     finally
-        //     {
-        //         DownloadRequestLimiter.Release();
-        //     }
-        // }
-
         /// <summary>
-        ///     Enqueues the specified download.
+        ///     (Obsolete) Enqueues the specified download.
         /// </summary>
         /// <param name="username">The username of the download source.</param>
         /// <param name="requests">The list of download requests.</param>
@@ -285,6 +225,7 @@ namespace slskd.Transfers.API
         /// <response code="201">The download was successfully enqueued.</response>
         /// <response code="403">The download was rejected.</response>
         /// <response code="500">An unexpected error was encountered.</response>
+        [Obsolete("Will be phased out in future versions; use batches")]
         [HttpPost("downloads/{username}")]
         [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(201)]
@@ -341,6 +282,75 @@ namespace slskd.Transfers.API
             }
         }
 
+        [HttpPost("downloads/batches")]
+        [Authorize(Policy = AuthPolicy.Any)]
+        [ProducesResponseType(201)]
+        [ProducesResponseType(typeof(string), 403)]
+        [ProducesResponseType(typeof(string), 500)]
+        public async Task<IActionResult> EnqueueBatchAsync([FromBody] EnqueueDownloadBatchRequest request)
+        {
+            if (Program.IsRelayAgent)
+            {
+                return Forbid();
+            }
+
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState.GetReadableString());
+            }
+
+            if ((request.Files?.Count ?? 0) == 0)
+            {
+                return BadRequest("At least one file is required");
+            }
+
+            if (request.Files.Any(
+                r => r is null
+                || string.IsNullOrWhiteSpace(r.Filename)
+                || r.Size < 0))
+            {
+                return BadRequest("One or more files in the request are invalid");
+            }
+
+            if (!DownloadRequestLimiter.Wait(0))
+            {
+                return StatusCode(429, "Only one concurrent operation is permitted. Wait until the previous request completes");
+            }
+
+            try
+            {
+                var endpoint = await Users.GetIPEndPointAsync(request.Username);
+
+                if (Users.IsBlacklisted(request.Username, endpoint.Address))
+                {
+                    throw new UserOfflineException($"User {request.Username} appears to be offline");
+                }
+
+                // todo: finish this
+                // await Transfers.Downloads.Batches.Create(new()
+                // {
+                //     Id = request.BatchId,
+                //     SearchId = request.SearchId,
+                //     Options = request.Options,
+                // });
+
+                var (enqueued, failed) = await Transfers.Downloads.EnqueueAsync(request.Username, request.Files.Select(r => (r.Filename, r.Size)));
+
+                var batch = await Transfers.Downloads.Batches.FindAsync(b => b.Id == request.BatchId);
+
+                return StatusCode(201, batch);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to enqueue {Count} files for {Username}: {Message}", request.Files.Count(), request.Username, ex.Message);
+                return StatusCode(500, ex.Message);
+            }
+            finally
+            {
+                DownloadRequestLimiter.Release();
+            }
+        }
+
         /// <summary>
         ///     Gets all downloads.
         /// </summary>
@@ -370,6 +380,47 @@ namespace slskd.Transfers.API
             });
 
             return Ok(response);
+        }
+
+        /// <summary>
+        ///     Gets the specified batch and associated transfers.
+        /// </summary>
+        /// <param name="id">The id of the batch.</param>
+        /// <returns></returns>
+        /// <response code="400">The specified id is not valid.</response>
+        /// <response code="200">The request completed successfully.</response>
+        /// <response code="404">The specified batch was not found.</response>
+        [HttpGet("downloads/batches/{id}")]
+        [Authorize(Policy = AuthPolicy.Any)]
+        [ProducesResponseType(200)]
+        public async Task<IActionResult> Get([FromRoute, Required] string id)
+        {
+            if (Program.IsRelayAgent)
+            {
+                return Forbid();
+            }
+
+            if (!Guid.TryParse(id, out var guid))
+            {
+                return BadRequest();
+            }
+
+            try
+            {
+                var found = await Transfers.Downloads.Batches.FindAsync(b => b.Id == guid);
+
+                if (found is null)
+                {
+                    return NotFound();
+                }
+
+                return Ok(found);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to get batch with ID {Id}: {Message}", guid, ex.Message);
+                return StatusCode(500, ex.Message);
+            }
         }
 
         /// <summary>
