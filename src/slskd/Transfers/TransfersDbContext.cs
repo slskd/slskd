@@ -33,6 +33,7 @@
 namespace slskd.Transfers
 {
     using System;
+    using System.Text.Json;
     using Microsoft.EntityFrameworkCore;
     using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
@@ -135,6 +136,14 @@ namespace slskd.Transfers
                 .WithOne()
                 .HasForeignKey(t => t.BatchId)
                 .IsRequired(false);
+
+            modelBuilder
+                .Entity<Batch>()
+                .Property(b => b.Options)
+                .HasConversion(
+                    convertToProviderExpression: v => JsonSerializer.Serialize(v, JsonSerializerOptions.Default),
+                    convertFromProviderExpression: v => JsonSerializer.Deserialize<BatchOptions>(v, JsonSerializerOptions.Default))
+                .HasColumnType("TEXT");
         }
     }
 }

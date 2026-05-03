@@ -91,13 +91,9 @@ public record Batch
     public ICollection<Transfer> Transfers { get; init; } = null;
 
     /// <summary>
-    ///     Gets the optional destination directory for the files in the Batch, relative to the configured
-    ///     download directory.
+    ///     Gets the options for the batch.
     /// </summary>
-    /// <remarks>
-    ///     If specified, takes precedence over other configured placement rules.
-    /// </remarks>
-    public string DestinationDirectory { get; init; }
+    public BatchOptions Options { get; init; }
 
     /*
         future: [NotMapped] properties that aggregate values from the associated Transfer records.
