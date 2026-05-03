@@ -144,11 +144,11 @@ class Chat extends Component {
 
   selectConversation = (username) => {
     this.setState(
-      {
+      (previousState) => ({
         active: username,
         loading: true,
-        message: '',
-      },
+        message: previousState.active === username ? previousState.message : '',
+      }),
       async () => {
         const { active, conversations } = this.state;
 

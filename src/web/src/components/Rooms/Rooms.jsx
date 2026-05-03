@@ -115,12 +115,12 @@ class Rooms extends Component {
 
   selectRoom = async (roomName) => {
     this.setState(
-      {
+      (previousState) => ({
         active: roomName,
         loading: true,
-        message: '',
+        message: previousState.active === roomName ? previousState.message : '',
         room: initialState.room,
-      },
+      }),
       async () => {
         const { active } = this.state;
 
