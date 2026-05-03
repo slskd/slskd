@@ -118,6 +118,7 @@ class Rooms extends Component {
       {
         active: roomName,
         loading: true,
+        message: '',
         room: initialState.room,
       },
       async () => {

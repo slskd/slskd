@@ -147,6 +147,7 @@ class Chat extends Component {
       {
         active: username,
         loading: true,
+        message: '',
       },
       async () => {
         const { active, conversations } = this.state;
