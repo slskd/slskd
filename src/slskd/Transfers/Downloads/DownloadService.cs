@@ -56,6 +56,11 @@ namespace slskd.Transfers.Downloads
     public interface IDownloadService
     {
         /// <summary>
+        ///     Gets download batch service.
+        /// </summary>
+        IBatchService Batches { get; }
+
+        /// <summary>
         ///     Adds the specified <paramref name="transfer"/>. Supersedes any existing record for the same file and username.
         /// </summary>
         /// <remarks>This should generally not be called; use EnqueueAsync() instead.</remarks>
@@ -158,6 +163,7 @@ namespace slskd.Transfers.Downloads
     public class DownloadService : IDownloadService
     {
         public DownloadService(
+            IBatchService batchService,
             IOptionsMonitor<Options> optionsMonitor,
             ISoulseekClient soulseekClient,
             IDbContextFactory<TransfersDbContext> contextFactory,
@@ -166,6 +172,7 @@ namespace slskd.Transfers.Downloads
             IFTPService ftpClient,
             EventBus eventBus)
         {
+            Batches = batchService;
             Client = soulseekClient;
             OptionsMonitor = optionsMonitor;
             ContextFactory = contextFactory;
@@ -176,6 +183,11 @@ namespace slskd.Transfers.Downloads
 
             Clock.EveryMinute += (_, _) => Task.Run(() => CleanupEnqueueSemaphoresAsync());
         }
+
+        /// <summary>
+        ///     Gets download batch service.
+        /// </summary>
+        public IBatchService Batches { get; }
 
         /// <summary>
         ///     These tokens give users the ability to cancel transfers via the UI (or API).
