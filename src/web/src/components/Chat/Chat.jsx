@@ -23,6 +23,32 @@ const initialState = {
   message: '',
 };
 
+const ChatMessageHistory = React.memo(
+  ({ formatTimestamp, messages, selfUsername }) => {
+    return (
+      <>
+        {messages.map((message) => (
+          <List.Content
+            className={`chat-message ${message.direction === 'Out' ? 'chat-message-self' : ''}`}
+            key={`${message.timestamp}+${message.message}`}
+          >
+            <span className="chat-message-time">
+              {formatTimestamp(message.timestamp)}
+            </span>
+            <span className="chat-message-name">
+              {message.direction === 'Out' ? selfUsername : message.username}:
+            </span>
+            <span className="chat-message-message">{message.message}</span>
+          </List.Content>
+        ))}
+        <List.Content id="chat-history-scroll-anchor" />
+      </>
+    );
+  },
+);
+
+ChatMessageHistory.displayName = 'ChatMessageHistory';
+
 class Chat extends Component {
   constructor(props) {
     super(props);
@@ -62,6 +88,13 @@ class Chat extends Component {
   fetchConversations = async () => {
     // fetch all of the active conversations (but no messages)
     let conversations = await chat.getAll();
+
+    // the username '..' breaks nearly everything in slskd because it's a path traversal
+    // sequence and no API endpoints that expect usernames in the path work
+    // rather than letting this sit broken, i'm making the choice to filter it out
+    // eslint-disable-next-line no-warning-comments
+    // todo: remove this filter when the API can handle '..'
+    conversations = conversations.filter((f) => f.username !== '..');
 
     // turn into a map, keyed by username
     // if there are no active conversations, set to an empty map
@@ -257,26 +290,11 @@ class Chat extends Component {
                     <Segment className="chat-history">
                       <Ref innerRef={this.listRef}>
                         <List>
-                          {messages.map((message) => (
-                            <List.Content
-                              className={`chat-message ${message.direction === 'Out' ? 'chat-message-self' : ''}`}
-                              key={`${message.timestamp}+${message.message}`}
-                            >
-                              <span className="chat-message-time">
-                                {this.formatTimestamp(message.timestamp)}
-                              </span>
-                              <span className="chat-message-name">
-                                {message.direction === 'Out'
-                                  ? user.username
-                                  : message.username}
-                                :{' '}
-                              </span>
-                              <span className="chat-message-message">
-                                {message.message}
-                              </span>
-                            </List.Content>
-                          ))}
-                          <List.Content id="chat-history-scroll-anchor" />
+                          <ChatMessageHistory
+                            formatTimestamp={this.formatTimestamp}
+                            messages={messages}
+                            selfUsername={user.username}
+                          />
                         </List>
                       </Ref>
                     </Segment>

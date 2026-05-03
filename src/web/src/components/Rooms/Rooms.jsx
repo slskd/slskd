@@ -39,6 +39,36 @@ const initialState = {
   },
 };
 
+const RoomMessageHistory = React.memo(
+  ({ formatTimestamp, messages, onHandleContextMenu }) => {
+    return (
+      <>
+        {messages.map((message) => (
+          <div
+            key={`${message.timestamp}+${message.message}`}
+            onContextMenu={(clickEvent) =>
+              onHandleContextMenu(clickEvent, message)
+            }
+          >
+            <List.Content
+              className={`room-message ${message.self ? 'room-message-self' : ''}`}
+            >
+              <span className="room-message-time">
+                {formatTimestamp(message.timestamp)}
+              </span>
+              <span className="room-message-name">{message.username}: </span>
+              <span className="room-message-message">{message.message}</span>
+            </List.Content>
+          </div>
+        ))}
+        <List.Content id="room-history-scroll-anchor" />
+      </>
+    );
+  },
+);
+
+RoomMessageHistory.displayName = 'RoomMessageHistory';
+
 class Rooms extends Component {
   constructor(props) {
     super(props);
@@ -325,29 +355,11 @@ class Rooms extends Component {
                       <Segment className="room-history">
                         <Ref innerRef={this.listRef}>
                           <List>
-                            {room.messages.map((message) => (
-                              <div
-                                key={`${message.timestamp}+${message.message}`}
-                                onContextMenu={(clickEvent) =>
-                                  this.handleContextMenu(clickEvent, message)
-                                }
-                              >
-                                <List.Content
-                                  className={`room-message ${message.self ? 'room-message-self' : ''}`}
-                                >
-                                  <span className="room-message-time">
-                                    {this.formatTimestamp(message.timestamp)}
-                                  </span>
-                                  <span className="room-message-name">
-                                    {message.username}:{' '}
-                                  </span>
-                                  <span className="room-message-message">
-                                    {message.message}
-                                  </span>
-                                </List.Content>
-                              </div>
-                            ))}
-                            <List.Content id="room-history-scroll-anchor" />
+                            <RoomMessageHistory
+                              formatTimestamp={this.formatTimestamp}
+                              messages={room.messages}
+                              onHandleContextMenu={this.handleContextMenu}
+                            />
                           </List>
                         </Ref>
                       </Segment>
