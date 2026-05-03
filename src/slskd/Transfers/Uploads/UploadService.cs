@@ -204,6 +204,8 @@ namespace slskd.Transfers.Uploads
 
             Governor = new UploadGovernor(userService, optionsMonitor);
             Queue = new UploadQueue(userService, optionsMonitor);
+
+            Clock.EveryFifteenSeconds += (_, _) => EmitMetrics();
         }
 
         /// <summary>
@@ -272,6 +274,7 @@ namespace slskd.Transfers.Uploads
             string host = default;
             string localFilename = default;
             long localFileLength = default;
+            var stateHistory = new List<TransferStates>();
 
             var lockName = $"{nameof(UploadAsync)}:{transfer.Username}:{transfer.Filename}";
 
@@ -355,6 +358,22 @@ namespace slskd.Transfers.Uploads
 
                         transfer = transfer.WithSoulseekTransfer(args.Transfer);
 
+                        if (!TransferStateCategories.Queued.Contains(args.PreviousState) && TransferStateCategories.Queued.Contains(transfer.State))
+                        {
+                            Telemetry.Metrics.Transfers.Uploads.Queued.Files.Inc(1);
+                            Telemetry.Metrics.Transfers.Uploads.Queued.Bytes.Inc(transfer.Size);
+                        }
+
+                        if (!TransferStateCategories.InProgress.Contains(args.PreviousState) && TransferStateCategories.InProgress.Contains(transfer.State))
+                        {
+                            Telemetry.Metrics.Transfers.Uploads.Queued.Files.Dec(1);
+                            Telemetry.Metrics.Transfers.Uploads.Queued.Bytes.Dec(transfer.Size - transfer.StartOffset);
+                            Telemetry.Metrics.Transfers.Uploads.InProgress.Files.Inc(1);
+                            Telemetry.Metrics.Transfers.Uploads.InProgress.Bytes.Inc(transfer.Size);
+                        }
+
+                        stateHistory.Add(transfer.State);
+
                         // todo: broadcast
                         SynchronizedUpdate(transfer, semaphore: syncRoot, cancellationToken: cts.Token);
                     },
@@ -382,6 +401,8 @@ namespace slskd.Transfers.Uploads
                                     context.Transfers.Where(t => t.Id == transfer.Id).ExecuteUpdate(setter => setter
                                         .SetProperty(t => t.BytesTransferred, transfer.BytesTransferred)
                                         .SetProperty(t => t.AverageSpeed, transfer.AverageSpeed));
+
+                                    Telemetry.Metrics.Transfers.Uploads.InProgress.CurrentAverageSpeed.Update(transfer.AverageSpeed);
                                 }
                                 finally
                                 {
@@ -454,6 +475,10 @@ namespace slskd.Transfers.Uploads
                 // todo: broadcast
                 SynchronizedUpdate(transfer, semaphore: syncRoot, cancellationToken: CancellationToken.None);
 
+                Telemetry.Metrics.Transfers.Uploads.Completed.Succeeded.Inc(1);
+                Telemetry.Metrics.Transfers.Uploads.Completed.Bytes.Inc(transfer.BytesTransferred);
+                Telemetry.Metrics.Transfers.Uploads.Completed.AverageSpeed.Observe(transfer.AverageSpeed);
+
                 EventBus.Raise(new UploadFileCompleteEvent
                 {
                     Timestamp = transfer.EndedAt.Value,
@@ -473,6 +498,8 @@ namespace slskd.Transfers.Uploads
                 // todo: broadcast
                 SynchronizedUpdate(transfer, semaphore: syncRoot, cancellationToken: CancellationToken.None);
 
+                Telemetry.Metrics.Transfers.Uploads.Completed.Failed.Inc(1);
+
                 throw;
             }
             catch (Exception ex) when (ex is OperationCanceledException || ex is TimeoutException)
@@ -483,6 +510,7 @@ namespace slskd.Transfers.Uploads
 
                 // todo: broadcast
                 SynchronizedUpdate(transfer, semaphore: syncRoot, cancellationToken: CancellationToken.None);
+                Telemetry.Metrics.Transfers.Uploads.Completed.Failed.Inc(1);
 
                 throw;
             }
@@ -494,11 +522,29 @@ namespace slskd.Transfers.Uploads
 
                 // todo: broadcast
                 SynchronizedUpdate(transfer, semaphore: syncRoot, cancellationToken: CancellationToken.None);
+                Telemetry.Metrics.Transfers.Uploads.Completed.Failed.Inc(1);
 
                 throw;
             }
             finally
             {
+                Log.Debug("Upload of {Filename} to user {Username} completed with states: {@States}", stateHistory);
+
+                // make sure we decrement the right offset. we have to do it here and inspect history; we have
+                // no other way of knowing, and we can't do it on the fly because state transitions may not be deterministic
+                if (stateHistory.Any(s => TransferStateCategories.InProgress.Contains(s)))
+                {
+                    // if the transfer was ever in progress at any time, we decrement because we should have incremented on that transition
+                    Telemetry.Metrics.Transfers.Uploads.InProgress.Files.Dec(1);
+                    Telemetry.Metrics.Transfers.Uploads.InProgress.Bytes.Dec(transfer.Size - transfer.StartOffset);
+                }
+                else if (stateHistory.Any(s => TransferStateCategories.Queued.Contains(s)))
+                {
+                    // if the transfer never transitioned to in progress but it was queued at any point, decrement queued
+                    Telemetry.Metrics.Transfers.Uploads.Queued.Files.Dec(1);
+                    Telemetry.Metrics.Transfers.Uploads.Queued.Bytes.Dec(transfer.Size - transfer.StartOffset);
+                }
+
                 if (host != Program.LocalHostName)
                 {
                     try
@@ -988,6 +1034,47 @@ namespace slskd.Transfers.Uploads
                 .FirstOrDefault();
 
             return stats ?? new UserUploadStatistics();
+        }
+
+        protected virtual void EmitMetrics()
+        {
+            void EmitQueuedMetrics()
+            {
+                var queued = Client.Uploads.Where(u => u.State.HasFlag(TransferStates.Queued));
+
+                Telemetry.Metrics.Transfers.Uploads.Queued.Users
+                    .Set(queued.Select(u => u.Username).Distinct().Count());
+
+                Telemetry.Metrics.Transfers.Uploads.Queued.Files
+                    .Set(queued.Count());
+
+                Telemetry.Metrics.Transfers.Uploads.Queued.Bytes
+                    .Set(queued.Sum(q => q.Size));
+
+                Log.Warning("Metrics: Set Upload Queued Users, Files, and Bytes to {Users}, {Files} and {Bytes}, respectively", Telemetry.Metrics.Transfers.Uploads.Queued.Users.Value, Telemetry.Metrics.Transfers.Uploads.Queued.Files.Value, Telemetry.Metrics.Transfers.Uploads.Queued.Bytes.Value);
+            }
+
+            void EmitInProgressMetrics()
+            {
+                var inProgress = Client.Uploads.Where(u => u.State == TransferStates.InProgress);
+
+                Telemetry.Metrics.Transfers.Uploads.InProgress.Users
+                    .Set(inProgress.Select(u => u.Username).Distinct().Count());
+
+                Telemetry.Metrics.Transfers.Uploads.InProgress.Files
+                    .Set(inProgress.Count());
+
+                Telemetry.Metrics.Transfers.Uploads.InProgress.Bytes
+                    .Set(inProgress.Sum(u => u.Size));
+
+                Telemetry.Metrics.Transfers.Uploads.InProgress.CurrentTotalSpeed
+                    .Update(inProgress.Sum(u => u.AverageSpeed));
+
+                Log.Warning("Metrics: Set Upload InProgress Users, Files, and Bytes to {Users}, {Files} and {Bytes}, respectively", Telemetry.Metrics.Transfers.Uploads.InProgress.Users.Value, Telemetry.Metrics.Transfers.Uploads.InProgress.Files.Value, Telemetry.Metrics.Transfers.Uploads.InProgress.Bytes.Value);
+            }
+
+            EmitQueuedMetrics();
+            EmitInProgressMetrics();
         }
 
         private bool TryFail(Guid id, string exception, TransferStates state)
