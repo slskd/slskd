@@ -32,6 +32,7 @@ const initialState = {
   },
   joined: [],
   loading: false,
+  message: '',
   room: {
     messages: [],
     users: [],
@@ -131,6 +132,12 @@ class Rooms extends Component {
           } catch {
             // no-op
           }
+
+          try {
+            this.messageRef.current.focus();
+          } catch {
+            // no-op
+          }
         });
       },
     );
@@ -150,12 +157,7 @@ class Rooms extends Component {
 
   validInput = () =>
     (this.state.active || '').length > 0 &&
-    (
-      (this.messageRef &&
-        this.messageRef.current &&
-        this.messageRef.current.value) ||
-      ''
-    ).length > 0;
+    (this.state.message || '').length > 0;
 
   focusInput = () => {
     this.messageRef.current.focus();
@@ -174,15 +176,14 @@ class Rooms extends Component {
   };
 
   sendMessage = async () => {
-    const { active } = this.state;
-    const message = this.messageRef.current.value;
+    const { active, message } = this.state;
 
     if (!this.validInput()) {
       return;
     }
 
     await rooms.sendMessage({ message, roomName: active });
-    this.messageRef.current.value = '';
+    this.setState({ message: '' });
   };
 
   handleContextMenu = (clickEvent, message) => {
@@ -207,8 +208,12 @@ class Rooms extends Component {
   };
 
   handleReply = () => {
-    this.messageRef.current.value = `[${this.state.contextMenu.message.username}] ${this.state.contextMenu.message.message} --> `;
-    this.focusInput();
+    this.setState(
+      (previousState) => ({
+        message: `[${previousState.contextMenu.message.username}] ${previousState.contextMenu.message.message} --> `,
+      }),
+      () => this.focusInput(),
+    );
   };
 
   handleUserProfile = () => {
@@ -364,7 +369,11 @@ class Rooms extends Component {
                               autoComplete="off"
                               data-lpignore="true"
                               id="room-message-input"
+                              onChange={(event) =>
+                                this.setState({ message: event.target.value })
+                              }
                               type="text"
+                              value={this.state.message}
                             />
                           }
                           onKeyUp={(event) =>
