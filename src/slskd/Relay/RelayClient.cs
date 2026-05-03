@@ -362,11 +362,6 @@ namespace slskd.Relay
 
                 LoggedInTaskCompletionSource.TrySetResult();
             }
-            catch (UnauthorizedAccessException)
-            {
-                await HubConnection.StopAsync();
-                Log.Error("Relay controller authentication failed. Check configuration.");
-            }
             catch (Exception ex)
             {
                 Log.Error(ex, "Failed to handle authentication challenge: {Message}", ex.Message);
@@ -532,6 +527,8 @@ namespace slskd.Relay
                 Log.Information("Uploading shares...");
 
                 await UploadSharesAsync();
+
+                Log.Information("Shares uploaded. Ready to relay files.");
             }
             catch (Exception ex)
             {
@@ -542,8 +539,6 @@ namespace slskd.Relay
                 await StopAsync();
                 _ = StartAsync();
             }
-
-            Log.Information("Shares uploaded. Ready to relay files.");
         }
 
         private Task HubConnection_Reconnecting(Exception arg)

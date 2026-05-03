@@ -20,7 +20,34 @@ const initialState = {
   conversations: {},
   interval: undefined,
   loading: false,
+  message: '',
 };
+
+const ChatMessageHistory = React.memo(
+  ({ formatTimestamp, messages, selfUsername }) => {
+    return (
+      <>
+        {messages.map((message) => (
+          <List.Content
+            className={`chat-message ${message.direction === 'Out' ? 'chat-message-self' : ''}`}
+            key={`${message.timestamp}+${message.message}`}
+          >
+            <span className="chat-message-time">
+              {formatTimestamp(message.timestamp)}
+            </span>
+            <span className="chat-message-name">
+              {message.direction === 'Out' ? selfUsername : message.username}:
+            </span>
+            <span className="chat-message-message">{message.message}</span>
+          </List.Content>
+        ))}
+        <List.Content id="chat-history-scroll-anchor" />
+      </>
+    );
+  },
+);
+
+ChatMessageHistory.displayName = 'ChatMessageHistory';
 
 class Chat extends Component {
   constructor(props) {
@@ -61,6 +88,13 @@ class Chat extends Component {
   fetchConversations = async () => {
     // fetch all of the active conversations (but no messages)
     let conversations = await chat.getAll();
+
+    // the username '..' breaks nearly everything in slskd because it's a path traversal
+    // sequence and no API endpoints that expect usernames in the path work
+    // rather than letting this sit broken, i'm making the choice to filter it out
+    // eslint-disable-next-line no-warning-comments
+    // todo: remove this filter when the API can handle '..'
+    conversations = conversations.filter((f) => f.username !== '..');
 
     // turn into a map, keyed by username
     // if there are no active conversations, set to an empty map
@@ -106,21 +140,15 @@ class Chat extends Component {
     await chat.acknowledge({ username });
   };
 
-  sendMessage = async (username, message) => {
-    if (!username || !message || username === '') return;
-    await chat.send({ message, username });
-  };
-
   sendReply = async () => {
-    const { active } = this.state;
-    const message = this.messageRef.current.value;
+    const { active, message } = this.state;
 
     if (!this.validInput()) {
       return;
     }
 
-    await this.sendMessage(active, message);
-    this.messageRef.current.value = '';
+    await chat.send({ username: active, message });
+    this.setState({ message: '' });
 
     // force a refresh to append the message
     // we could probably do this in the browser but we can be lazy
@@ -129,12 +157,7 @@ class Chat extends Component {
 
   validInput = () =>
     (this.state.active || '').length > 0 &&
-    (
-      (this.messageRef &&
-        this.messageRef.current &&
-        this.messageRef.current.value) ||
-      ''
-    ).length > 0;
+    (this.state.message || '').length > 0;
 
   focusInput = () => {
     this.messageRef.current.focus();
@@ -154,10 +177,11 @@ class Chat extends Component {
 
   selectConversation = (username) => {
     this.setState(
-      {
+      (previousState) => ({
         active: username,
         loading: true,
-      },
+        message: previousState.active === username ? previousState.message : '',
+      }),
       async () => {
         const { active, conversations } = this.state;
 
@@ -177,6 +201,12 @@ class Chat extends Component {
           () => {
             try {
               this.listRef.current.lastChild.scrollIntoView();
+            } catch {
+              // no-op
+            }
+
+            try {
+              this.messageRef.current.focus();
             } catch {
               // no-op
             }
@@ -260,26 +290,11 @@ class Chat extends Component {
                     <Segment className="chat-history">
                       <Ref innerRef={this.listRef}>
                         <List>
-                          {messages.map((message) => (
-                            <List.Content
-                              className={`chat-message ${message.direction === 'Out' ? 'chat-message-self' : ''}`}
-                              key={`${message.timestamp}+${message.message}`}
-                            >
-                              <span className="chat-message-time">
-                                {this.formatTimestamp(message.timestamp)}
-                              </span>
-                              <span className="chat-message-name">
-                                {message.direction === 'Out'
-                                  ? user.username
-                                  : message.username}
-                                :{' '}
-                              </span>
-                              <span className="chat-message-message">
-                                {message.message}
-                              </span>
-                            </List.Content>
-                          ))}
-                          <List.Content id="chat-history-scroll-anchor" />
+                          <ChatMessageHistory
+                            formatTimestamp={this.formatTimestamp}
+                            messages={messages}
+                            selfUsername={user.username}
+                          />
                         </List>
                       </Ref>
                     </Segment>
@@ -294,7 +309,7 @@ class Chat extends Component {
                               name="send"
                             />
                           ),
-                          onClick: this.sendMessage,
+                          onClick: this.sendReply,
                         }}
                         fluid
                         input={
@@ -302,7 +317,11 @@ class Chat extends Component {
                             autoComplete="off"
                             data-lpignore="true"
                             id="chat-message-input"
+                            onChange={(event) =>
+                              this.setState({ message: event.target.value })
+                            }
                             type="text"
+                            value={this.state.message}
                           />
                         }
                         onKeyUp={(event) =>
