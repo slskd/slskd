@@ -170,6 +170,12 @@ class Chat extends Component {
             } catch {
               // no-op
             }
+
+            try {
+              this.messageRef.current.focus();
+            } catch {
+              // no-op
+            }
           },
         );
       },
