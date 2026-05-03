@@ -1,4 +1,4 @@
-// <copyright file="Extensions.cs" company="JP Dillingham">
+﻿// <copyright file="Extensions.cs" company="JP Dillingham">
 //           ▄▄▄▄     ▄▄▄▄     ▄▄▄▄
 //     ▄▄▄▄▄▄█  █▄▄▄▄▄█  █▄▄▄▄▄█  █
 //     █__ --█  █__ --█    ◄█  -  █
@@ -39,6 +39,7 @@ namespace slskd.Transfers
             return new Transfer()
             {
                 BatchId = transfer.BatchId,
+                DestinationDirectory = transfer.DestinationDirectory,
                 Id = transfer.Id,
                 Username = transfer.Username,
                 Direction = transfer.Direction,

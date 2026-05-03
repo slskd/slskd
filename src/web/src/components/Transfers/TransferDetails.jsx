@@ -80,6 +80,7 @@ const TransferDetails = ({ file }) => {
     'percentComplete',
     'remainingTime',
     'attempts',
+    'destinationDirectory',
     'exception',
   ];
 

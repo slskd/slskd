@@ -1,4 +1,4 @@
-// <copyright file="Options.cs" company="JP Dillingham">
+﻿// <copyright file="Options.cs" company="JP Dillingham">
 //           ▄▄▄▄     ▄▄▄▄     ▄▄▄▄
 //     ▄▄▄▄▄▄█  █▄▄▄▄▄█  █▄▄▄▄▄█  █
 //     █__ --█  █__ --█    ◄█  -  █
@@ -56,6 +56,27 @@ namespace slskd
     using Utility.EnvironmentVariables;
     using YamlDotNet.Serialization;
     using SoulseekDiagnostics = Soulseek.Diagnostics;
+
+    /// <summary>
+    ///     Specifies the format for download directories.
+    /// </summary>
+    public enum DownloadDirectoryFormat
+    {
+        /// <summary>
+        ///     Downloads are stored in a subdirectory matching the containing folder of the remote file.
+        /// </summary>
+        Subfolder,
+
+        /// <summary>
+        ///     Downloads are stored in the root of the downloads directory.
+        /// </summary>
+        Root,
+
+        /// <summary>
+        ///     Downloads are stored in a subdirectory structure mirroring the remote filesystem.
+        /// </summary>
+        Mirror,
+    }
 
     /// <summary>
     ///     Disambiguates options derived at startup from options that may update at run time.
@@ -778,6 +799,40 @@ namespace slskd
             [DirectoryExists(ensureWriteable: true)]
             [RequiresRestart]
             public string Downloads { get; init; } = Program.DefaultDownloadsDirectory;
+
+            /// <summary>
+            ///     Gets the format for download directories.
+            /// </summary>
+            [Argument(default, "download-directory-format")]
+            [EnvironmentVariable("DOWNLOAD_DIRECTORY_FORMAT")]
+            [Description("the format for download directories; subfolder, root, mirror")]
+            [Enum(typeof(DownloadDirectoryFormat))]
+            public string DownloadDirectoryFormat { get; init; } = slskd.DownloadDirectoryFormat.Subfolder.ToString().ToLowerInvariant();
+
+            /// <summary>
+            ///     Gets the format for incomplete download directories.
+            /// </summary>
+            [Argument(default, "incomplete-directory-format")]
+            [EnvironmentVariable("INCOMPLETE_DIRECTORY_FORMAT")]
+            [Description("the format for incomplete download directories; subfolder, root, mirror")]
+            [Enum(typeof(DownloadDirectoryFormat))]
+            public string IncompleteDirectoryFormat { get; init; } = slskd.DownloadDirectoryFormat.Subfolder.ToString().ToLowerInvariant();
+
+            /// <summary>
+            ///     Gets a value indicating whether to include the remote username in the download path.
+            /// </summary>
+            [Argument(default, "include-username-in-download-path")]
+            [EnvironmentVariable("INCLUDE_USERNAME_IN_DOWNLOAD_PATH")]
+            [Description("include the remote username in the download path")]
+            public bool IncludeUsernameInDownloadPath { get; init; } = false;
+
+            /// <summary>
+            ///     Gets the number of leading directories to strip from the remote path.
+            /// </summary>
+            [Argument(default, "download-strip-leading-directories")]
+            [EnvironmentVariable("DOWNLOAD_STRIP_LEADING_DIRECTORIES")]
+            [Description("the number of leading directories to strip from the remote path")]
+            public int DownloadStripLeadingDirectories { get; init; } = 0;
         }
 
         /// <summary>
@@ -1017,6 +1072,14 @@ namespace slskd
                 /// </summary>
                 [Validate]
                 public RetryOptions Retry { get; init; } = new RetryOptions();
+
+                /// <summary>
+                ///     Gets a value indicating whether existing files in the downloads directory should be overwritten.
+                /// </summary>
+                [Argument(default, "overwrite-existing-downloads")]
+                [EnvironmentVariable("OVERWRITE_EXISTING_DOWNLOADS")]
+                [Description("overwrite existing files in the downloads directory")]
+                public bool OverwriteExistingFiles { get; init; } = false;
 
                 /// <summary>
                 ///     Download retry options.

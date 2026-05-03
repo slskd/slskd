@@ -1,4 +1,4 @@
-// <copyright file="Migrator.cs" company="JP Dillingham">
+﻿// <copyright file="Migrator.cs" company="JP Dillingham">
 //           ▄▄▄▄     ▄▄▄▄     ▄▄▄▄
 //     ▄▄▄▄▄▄█  █▄▄▄▄▄█  █▄▄▄▄▄█  █
 //     █__ --█  █__ --█    ◄█  -  █
@@ -60,6 +60,7 @@ public class Migrator
             { nameof(Z2025_07_26_PrivateMessageWasReplayedMigration), new Z2025_07_26_PrivateMessageWasReplayedMigration(connectionStrings: Databases) },
             { nameof(Z2025_12_28_AdditionalTransferIndexesMigration), new Z2025_12_28_AdditionalTransferIndexesMigration(connectionStrings: Databases) },
             { nameof(Z2026_02_17_TransferAttemptsAndBatchIdMigration), new Z2026_02_17_TransferAttemptsAndBatchIdMigration(connectionStrings: Databases) },
+            { nameof(Z2026_04_28_TransferDestinationDirectoryMigration), new Z2026_04_28_TransferDestinationDirectoryMigration(connectionStrings: Databases) },
         };
     }
 

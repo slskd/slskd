@@ -151,17 +151,46 @@ By default, incomplete and downloaded files are saved in `APP_DIR/incomplete` an
 
 Alternative locations can be specified for each directory. Directories must exist and be writable by the application; the application will not attempt to create them.
 
-| Command-Line      | Environment Variable       | Description                                   |
-| ----------------- | ---------------------------| --------------------------------------------- |
-| `-o\|--downloads` | `SLSKD_DOWNLOADS_DIR`      | The path where downloaded files are saved     |
-| `--incomplete`    | `SLSKD_INCOMPLETE_DIR`     | The path where incomplete downloads are saved |
+| Command-Line                            | Environment Variable                      | Description                                                                              |
+| --------------------------------------- | ------------------------------------------ | ---------------------------------------------------------------------------------------- |
+| `-o\|--downloads`                        | `SLSKD_DOWNLOADS_DIR`                      | The path where downloaded files are saved                                                |
+| `--incomplete`                           | `SLSKD_INCOMPLETE_DIR`                     | The path where incomplete downloads are saved                                            |
+| `--download-directory-format`           | `SLSKD_DOWNLOAD_DIRECTORY_FORMAT`          | The format for download directories (subfolder, root, mirror)                            |
+| `--incomplete-directory-format`         | `SLSKD_INCOMPLETE_DIRECTORY_FORMAT`        | The format for incomplete download directories (subfolder, root, mirror)                |
+| `--include-username-in-download-path`   | `SLSKD_INCLUDE_USERNAME_IN_DOWNLOAD_PATH` | Whether to include the remote username in the download path                              |
+| `--download-strip-leading-directories` | `SLSKD_DOWNLOAD_STRIP_LEADING_DIRECTORIES` | The number of leading directories to strip from the remote path when using mirror format |
 
 #### **YAML**
 ```yaml
 directories:
   incomplete: ~
   downloads: ~
+  download_directory_format: subfolder # subfolder, root, or mirror
+  incomplete_directory_format: subfolder # subfolder, root, or mirror
+  include_username_in_download_path: false
+  download_strip_leading_directories: 0
 ```
+
+### Download Directory Formats
+
+The following formats determine how the remote path is translated into a local directory structure:
+
+- **subfolder** (Default): Saves files in the immediate parent folder of the remote file.
+  - Remote: `Music/Artist/Album/song.mp3` -> Local: `downloads/Album/song.mp3`
+- **root**: Saves all files directly in the root of the downloads directory.
+  - Remote: `Music/Artist/Album/song.mp3` -> Local: `downloads/song.mp3`
+- **mirror**: Replicates the entire remote directory structure.
+  - Remote: `C:\Users\User\Music\Artist\Album\song.mp3` -> Local: `downloads/Users/User/Music/Artist/Album/song.mp3`
+
+### Directory Stripping
+
+When using the **mirror** format, you may encounter deep directory structures that you don't want to replicate locally (e.g., drive letters or system folders).
+
+- **download_strip_leading_directories**: Skips the specified number of directories from the beginning of the remote path.
+  - Remote: `C:\Users\User\Music\Artist\Album\song.mp3`
+  - Strip 3: `Artist/Album/song.mp3` -> Local: `downloads/Artist/Album/song.mp3`
+
+Note: Leading characters like drive letters (`C:\`) or special symbols (`@@`) are automatically handled and do not count toward the strip limit.
 
 ## Remote File Management
 
@@ -364,10 +393,15 @@ Failed downloads can be retried automatically up to the configured number of att
 
 By default, partial downloads are resumed based on the size of the incomplete file.  Users can choose to always overwrite files if they wish.
 
+| Command-Line                 | Environment Variable            | Description                                                |
+| ---------------------------- | ------------------------------- | ---------------------------------------------------------- |
+| `--overwrite-existing-files` | `SLSKD_OVERWRITE_EXISTING_FILES` | Whether to overwrite existing files in the downloads folder |
+
 **YAML**
 ```yaml
 transfers:
   download:
+    overwrite_existing_files: false
     retry:
       incomplete: resume # 'overwrite' or 'resume'
       attempts: 3

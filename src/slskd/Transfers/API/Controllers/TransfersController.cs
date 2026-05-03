@@ -1,4 +1,4 @@
-// <copyright file="TransfersController.cs" company="JP Dillingham">
+﻿// <copyright file="TransfersController.cs" company="JP Dillingham">
 //           ▄▄▄▄     ▄▄▄▄     ▄▄▄▄
 //     ▄▄▄▄▄▄█  █▄▄▄▄▄█  █▄▄▄▄▄█  █
 //     █__ --█  █__ --█    ◄█  -  █
@@ -266,7 +266,7 @@ namespace slskd.Transfers.API
                     throw new UserOfflineException($"User {username} appears to be offline");
                 }
 
-                var (enqueued, failed) = await Transfers.Downloads.EnqueueAsync(username, requests.Select(r => (r.Filename, r.Size)));
+                var (enqueued, failed) = await Transfers.Downloads.EnqueueAsync(username, requests.Select(r => (r.Filename, r.Size, r.DestinationDirectory)));
 
                 return StatusCode(201, new { Enqueued = enqueued, Failed = failed });
             }

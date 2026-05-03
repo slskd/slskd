@@ -1,4 +1,4 @@
-// <copyright file="Transfer.cs" company="JP Dillingham">
+﻿// <copyright file="Transfer.cs" company="JP Dillingham">
 //           ▄▄▄▄     ▄▄▄▄     ▄▄▄▄
 //     ▄▄▄▄▄▄█  █▄▄▄▄▄█  █▄▄▄▄▄█  █
 //     █__ --█  █__ --█    ◄█  -  █
@@ -41,6 +41,7 @@ namespace slskd.Transfers
     public class Transfer
     {
         public Guid? BatchId { get; init; } = null;
+        public string DestinationDirectory { get; set; } = null;
 
         [Key]
         public Guid Id { get; init; }

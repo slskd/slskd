@@ -1,4 +1,4 @@
-// <copyright file="DownloadService.cs" company="JP Dillingham">
+﻿// <copyright file="DownloadService.cs" company="JP Dillingham">
 //           ▄▄▄▄     ▄▄▄▄     ▄▄▄▄
 //     ▄▄▄▄▄▄█  █▄▄▄▄▄█  █▄▄▄▄▄█  █
 //     █__ --█  █__ --█    ◄█  -  █
@@ -76,7 +76,7 @@ namespace slskd.Transfers.Downloads
         /// <exception cref="ArgumentException">Thrown when the username is null or an empty string.</exception>
         /// <exception cref="ArgumentException">Thrown when no files are requested.</exception>
         /// <exception cref="AggregateException">Thrown when at least one of the requested files throws.</exception>
-        Task<(List<Transfer> Enqueued, List<string> Failed)> EnqueueAsync(string username, IEnumerable<(string Filename, long Size)> files, CancellationToken cancellationToken = default);
+        Task<(List<Transfer> Enqueued, List<string> Failed)> EnqueueAsync(string username, IEnumerable<(string Filename, long Size, string DestinationDirectory)> files, CancellationToken cancellationToken = default);
 
         /// <summary>
         ///     Finds a single download matching the specified <paramref name="expression"/>.
@@ -254,7 +254,7 @@ namespace slskd.Transfers.Downloads
         /// <exception cref="ArgumentException">Thrown when the username is null or an empty string.</exception>
         /// <exception cref="ArgumentException">Thrown when no files are requested.</exception>
         /// <exception cref="AggregateException">Thrown when at least one of the requested files throws.</exception>
-        public async Task<(List<Transfer> Enqueued, List<string> Failed)> EnqueueAsync(string username, IEnumerable<(string Filename, long Size)> files, CancellationToken cancellationToken = default)
+        public async Task<(List<Transfer> Enqueued, List<string> Failed)> EnqueueAsync(string username, IEnumerable<(string Filename, long Size, string DestinationDirectory)> files, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrEmpty(username))
             {
@@ -435,6 +435,7 @@ namespace slskd.Transfers.Downloads
                             Direction = TransferDirection.Download,
                             Filename = file.Filename, // important! use the remote filename
                             Size = file.Size,
+                            DestinationDirectory = file.DestinationDirectory,
                             StartOffset = 0, // todo: maybe implement resumeable downloads?
                             RequestedAt = DateTime.UtcNow,
                             State = TransferStates.Queued | TransferStates.Locally,
@@ -1028,12 +1029,20 @@ namespace slskd.Transfers.Downloads
                     ? OptionsMonitor.CurrentValue.Permissions.File.Mode.ToUnixFileMode()
                     : null;
 
-                // if the transfer has an associated batch id, store the incomplete file in a directory of the same name
-                // this is to ensure maximal safety when resuming failed downloads (otherwise we risk resuming an unrelated file)
+                // determine the incomplete filename based on the configuration and batch id
+                var incompleteFormat = OptionsMonitor.CurrentValue.Directories.IncompleteDirectoryFormat.ToEnum<DownloadDirectoryFormat>();
+                var includeUsername = OptionsMonitor.CurrentValue.Directories.IncludeUsernameInDownloadPath;
+
+                var stripCount = OptionsMonitor.CurrentValue.Directories.DownloadStripLeadingDirectories;
+
                 var incompleteFilename = transfer.Filename.ToLocalFilename(
                     baseDirectory: System.IO.Path.Combine(
                         OptionsMonitor.CurrentValue.Directories.Incomplete,
-                        transfer.BatchId.HasValue ? transfer.BatchId.ToString() : string.Empty));
+                        transfer.BatchId.HasValue ? transfer.BatchId.ToString() : string.Empty),
+                    format: incompleteFormat,
+                    includeUsername: includeUsername,
+                    username: transfer.Username,
+                    stripCount: stripCount);
 
                 Log.Debug("Invoking Soulseek DownloadAsync() for {Filename} from {Username}", transfer.Filename, transfer.Username);
                 transfer.Attempts = 1;
@@ -1123,8 +1132,32 @@ namespace slskd.Transfers.Downloads
                     users have a lot of strong opinions about this!
                 */
                 string destinationDirectory;
+                var format = OptionsMonitor.CurrentValue.Directories.DownloadDirectoryFormat.ToEnum<DownloadDirectoryFormat>();
 
-                if (transfer.BatchId is not null)
+                if (!string.IsNullOrWhiteSpace(transfer.DestinationDirectory))
+                {
+                    var safeSegments = transfer.DestinationDirectory
+                        .Split(new[] { System.IO.Path.DirectorySeparatorChar, System.IO.Path.AltDirectorySeparatorChar }, StringSplitOptions.RemoveEmptyEntries)
+                        .Where(p => p != "." && p != "..")
+                        .Select(p => p.ReplaceInvalidFileNameCharacters());
+
+                    string relativePath = System.IO.Path.Combine(safeSegments.ToArray());
+                    string remoteRelativePath = transfer.Filename.ToLocalRelativeFilename(format, false, null, stripCount);
+                    string remoteDirectory = System.IO.Path.GetDirectoryName(remoteRelativePath);
+
+                    if (!string.IsNullOrWhiteSpace(remoteDirectory))
+                    {
+                        relativePath = System.IO.Path.Combine(relativePath, remoteDirectory);
+                    }
+
+                    if (includeUsername && !string.IsNullOrWhiteSpace(transfer.Username))
+                    {
+                        relativePath = System.IO.Path.Combine(transfer.Username.ReplaceInvalidFileNameCharacters(), relativePath);
+                    }
+
+                    destinationDirectory = System.IO.Path.Combine(OptionsMonitor.CurrentValue.Directories.Downloads, relativePath);
+                }
+                else if (transfer.BatchId is not null)
                 {
                     // if the transfer has an associated batch id, then:
                     // some/long/remote/path/folder/file.ext -> download_directory/batch_id/file.ext
@@ -1135,16 +1168,18 @@ namespace slskd.Transfers.Downloads
                     // ToLocalFilename chops all but the containing folder off of the path and localizes slashes, so:
                     // some/long/remote/path/folder/file.ext -> folder/file.ext -> download_directory/folder/file.ext
                     // this is "legacy" behavior that will be familiar to most Soulseek users
-                    destinationDirectory = System.IO.Path.GetDirectoryName(transfer.Filename.ToLocalFilename(baseDirectory: OptionsMonitor.CurrentValue.Directories.Downloads));
+                    destinationDirectory = System.IO.Path.Combine(
+                        OptionsMonitor.CurrentValue.Directories.Downloads,
+                        System.IO.Path.GetDirectoryName(transfer.Filename.ToLocalRelativeFilename(format, includeUsername, transfer.Username, stripCount)));
                 }
 
                 Log.Debug("Destination directory for {Filename}: {Destination}", transfer.Filename, destinationDirectory);
 
                 var finalFilename = Files.MoveFile(
-                    sourceFilename: transfer.Filename.ToLocalFilename(baseDirectory: OptionsMonitor.CurrentValue.Directories.Incomplete),
+                    sourceFilename: incompleteFilename,
                     destinationDirectory: destinationDirectory,
                     unixFileMode: unixFileMode,
-                    overwrite: false,
+                    overwrite: OptionsMonitor.CurrentValue.Transfers.Download.OverwriteExistingFiles,
                     deleteSourceDirectoryIfEmptyAfterMove: true);
 
                 Log.Debug("Moved file {Filename} to {Destination}", transfer.Filename, finalFilename);

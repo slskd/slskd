@@ -23,18 +23,67 @@ namespace slskd.Tests.Unit.Common.Extensions
             if (Environment.OSVersion.Platform == PlatformID.Win32NT)
             {
                 Assert.Equal(@"path\file.ext", "deeply/nested/path/file.ext".ToLocalRelativeFilename());
+                Assert.Equal(@"path\file.ext", "@username/deeply/nested/path/file.ext".ToLocalRelativeFilename());
             }
             else
             {
                 Assert.Equal(@"path/file.ext", @"C:\deeply\nested\path\file.ext".ToLocalRelativeFilename());
+                Assert.Equal(@"path/file.ext", @"@username\deeply\nested\path\file.ext".ToLocalRelativeFilename());
             }
+        }
 
+        [Fact]
+        public void Returns_Mirror_Format()
+        {
+            if (Environment.OSVersion.Platform == PlatformID.Win32NT)
+            {
+                Assert.Equal(@"deeply\nested\path\file.ext", "deeply/nested/path/file.ext".ToLocalRelativeFilename(DownloadDirectoryFormat.Mirror));
+                Assert.Equal(@"deeply\nested\path\file.ext", "@username/deeply/nested/path/file.ext".ToLocalRelativeFilename(DownloadDirectoryFormat.Mirror));
+            }
+            else
+            {
+                Assert.Equal(@"deeply/nested/path/file.ext", @"C:\deeply\nested\path\file.ext".ToLocalRelativeFilename(DownloadDirectoryFormat.Mirror));
+                Assert.Equal(@"deeply/nested/path/file.ext", @"@username\deeply\nested\path\file.ext".ToLocalRelativeFilename(DownloadDirectoryFormat.Mirror));
+            }
+        }
+
+        [Fact]
+        public void Returns_Root_Format()
+        {
+            Assert.Equal("file.ext", "deeply/nested/path/file.ext".ToLocalRelativeFilename(DownloadDirectoryFormat.Root));
+            Assert.Equal("file.ext", "@username/deeply/nested/path/file.ext".ToLocalRelativeFilename(DownloadDirectoryFormat.Root));
+        }
+
+        [Fact]
+        public void Includes_Username_When_Option_Set()
+        {
+            if (Environment.OSVersion.Platform == PlatformID.Win32NT)
+            {
+                Assert.Equal(@"user\path\file.ext", "deeply/nested/path/file.ext".ToLocalRelativeFilename(DownloadDirectoryFormat.Subfolder, true, "user"));
+            }
+            else
+            {
+                Assert.Equal(@"user/path/file.ext", "deeply/nested/path/file.ext".ToLocalRelativeFilename(DownloadDirectoryFormat.Subfolder, true, "user"));
+            }
         }
 
         [Fact]
         public void Returns_Just_File_If_Only_File_Given()
         {
             Assert.Equal("file.ext", "file.ext".ToLocalRelativeFilename());
+        }
+
+        [Fact]
+        public void Returns_Mirrored_Path_With_Strip_Count()
+        {
+            if (Environment.OSVersion.Platform == PlatformID.Win32NT)
+            {
+                Assert.Equal(@"path\file.ext", "deeply/nested/path/file.ext".ToLocalRelativeFilename(DownloadDirectoryFormat.Mirror, false, null, 2));
+            }
+            else
+            {
+                Assert.Equal(@"path/file.ext", "deeply/nested/path/file.ext".ToLocalRelativeFilename(DownloadDirectoryFormat.Mirror, false, null, 2));
+            }
         }
 
         [Fact]

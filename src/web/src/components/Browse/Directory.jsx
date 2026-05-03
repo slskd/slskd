@@ -2,9 +2,10 @@ import * as transfers from '../../lib/transfers';
 import { formatBytes } from '../../lib/util';
 import FileList from '../Shared/FileList';
 import React, { Component } from 'react';
-import { Button, Card, Icon, Label } from 'semantic-ui-react';
+import { Card, Icon, Input, Label } from 'semantic-ui-react';
 
 const initialState = {
+  destinationDirectory: '',
   downloadError: '',
   downloadRequest: undefined,
 };
@@ -40,6 +41,7 @@ class Directory extends Component {
     this.setState({ downloadRequest: 'inProgress' }, async () => {
       try {
         const requests = (files || []).map(({ filename, size }) => ({
+          destinationDirectory: this.state.destinationDirectory,
           filename,
           size,
         }));
@@ -85,18 +87,27 @@ class Directory extends Component {
         {selectedFiles.length > 0 && (
           <Card.Content extra>
             <span>
-              <Button
-                color="green"
-                content="Download"
+              <Input
+                action={{
+                  color: 'green',
+                  content: 'Download',
+                  disabled: downloadRequest === 'inProgress',
+                  icon: 'download',
+                  onClick: () => this.download(username, selectedFiles),
+                }}
+                actionPosition="right"
                 disabled={downloadRequest === 'inProgress'}
-                icon="download"
                 label={{
-                  as: 'a',
                   basic: false,
                   content: `${selectedFiles.length} file${selectedFiles.length === 1 ? '' : 's'}, ${selectedSize}`,
                 }}
-                labelPosition="right"
-                onClick={() => this.download(username, selectedFiles)}
+                labelPosition="left"
+                onChange={(event_, { value }) =>
+                  this.setState({ destinationDirectory: value })
+                }
+                placeholder="Destination Subfolder (optional)"
+                size="small"
+                value={this.state.destinationDirectory}
               />
               {downloadRequest === 'inProgress' && (
                 <Icon

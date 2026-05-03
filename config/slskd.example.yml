@@ -43,6 +43,10 @@
 # directories:
 #   incomplete: ~
 #   downloads: ~
+#   download_directory_format: subfolder # subfolder, root, or mirror
+#   incomplete_directory_format: subfolder # subfolder, root, or mirror
+#   include_username_in_download_path: false
+#   download_strip_leading_directories: 0
 # shares:
 #   directories:
 #     - ~
@@ -73,6 +77,7 @@
 #   download:
 #     slots: 500
 #     speed_limit: 1000
+#     overwrite_existing_files: false
 #     retry:
 #       incomplete: resume # 'overwrite' or 'resume'
 #       attempts: 3

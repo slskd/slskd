@@ -1,4 +1,4 @@
-// <copyright file="CommonExtensions.cs" company="JP Dillingham">
+﻿// <copyright file="CommonExtensions.cs" company="JP Dillingham">
 //           ▄▄▄▄     ▄▄▄▄     ▄▄▄▄
 //     ▄▄▄▄▄▄█  █▄▄▄▄▄█  █▄▄▄▄▄█  █
 //     █__ --█  █__ --█    ◄█  -  █
@@ -384,15 +384,18 @@ namespace slskd
         /// <summary>
         ///     Converts a fully qualified remote filename to a local filename based in the provided
         ///     <paramref name="baseDirectory"/>, swapping directory characters for those specific to the local OS, removing any
-        ///     characters that are invalid for the local OS, and making the path relative to the remote store (including the
-        ///     filename and the parent folder).
+        ///     characters that are invalid for the local OS, and making the path relative to the remote store based on the
+        ///     specified <paramref name="format"/>.
         /// </summary>
         /// <param name="remoteFilename">The fully qualified remote filename to convert.</param>
         /// <param name="baseDirectory">The base directory for the local filename.</param>
+        /// <param name="format">The format for the local filename.</param>
+        /// <param name="includeUsername">A value indicating whether to include the username in the path.</param>
+        /// <param name="username">The username to include, if <paramref name="includeUsername"/> is true.</param>
         /// <returns>The converted filename.</returns>
-        public static string ToLocalFilename(this string remoteFilename, string baseDirectory)
+        public static string ToLocalFilename(this string remoteFilename, string baseDirectory, DownloadDirectoryFormat format = DownloadDirectoryFormat.Subfolder, bool includeUsername = false, string username = null, int stripCount = 0)
         {
-            return Path.Combine(baseDirectory, remoteFilename.ToLocalRelativeFilename());
+            return Path.Combine(baseDirectory, remoteFilename.ToLocalRelativeFilename(format, includeUsername, username, stripCount));
         }
 
         /// <summary>
@@ -441,11 +444,15 @@ namespace slskd
         /// <summary>
         ///     Converts a fully qualified remote filename to a local filename, swapping directory characters for those specific
         ///     to the local OS, removing any characters that are invalid for the local OS, and making the path relative to the
-        ///     remote store (including the filename and the parent folder).
+        ///     remote store based on the specified <paramref name="format"/>.
         /// </summary>
         /// <param name="remoteFilename">The fully qualified remote filename to convert.</param>
+        /// <param name="format">The format for the local filename.</param>
+        /// <param name="includeUsername">A value indicating whether to include the username in the path.</param>
+        /// <param name="username">The username to include, if <paramref name="includeUsername"/> is true.</param>
+        /// <param name="stripCount">The number of leading directories to strip.</param>
         /// <returns>The converted filename.</returns>
-        public static string ToLocalRelativeFilename(this string remoteFilename)
+        public static string ToLocalRelativeFilename(this string remoteFilename, DownloadDirectoryFormat format = DownloadDirectoryFormat.Subfolder, bool includeUsername = false, string username = null, int stripCount = 0)
         {
             if (string.IsNullOrWhiteSpace(remoteFilename))
             {
@@ -455,17 +462,89 @@ namespace slskd
             // normalize path separators
             var localizedRemoteFilename = remoteFilename.LocalizePath();
 
-            var parts = localizedRemoteFilename.Split(Path.DirectorySeparatorChar);
+            var parts = localizedRemoteFilename.Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries)
+                .Where(p => p != "." && p != "..")
+                .ToList();
 
-            if (parts.Length == 1)
+            // remove the @username prefix if it exists
+            if (parts.Count > 0 && parts[0].StartsWith('@'))
             {
-                return parts.First().ReplaceInvalidFileNameCharacters();
+                if (!string.IsNullOrWhiteSpace(username))
+                {
+                    if (parts[0].Equals($"@{username}", StringComparison.OrdinalIgnoreCase))
+                    {
+                        parts.RemoveAt(0);
+                    }
+                }
+                else if (!parts[0].Contains(' '))
+                {
+                    parts.RemoveAt(0);
+                }
             }
 
-            var file = parts.Last().ReplaceInvalidFileNameCharacters();
-            var directory = parts.Reverse().Skip(1).Take(1).Single().ReplaceInvalidFileNameCharacters();
+            // remove drive letter if it exists (e.g. C:)
+            if (parts.Count > 0 && parts[0].Length == 2 && char.IsLetter(parts[0][0]) && parts[0][1] == ':')
+            {
+                parts.RemoveAt(0);
+            }
 
-            return Path.Combine(directory, file);
+            // strip leading directories if requested
+            for (int i = 0; i < stripCount && parts.Count > 1; i++)
+            {
+                parts.RemoveAt(0);
+            }
+
+            if (parts.Count == 0)
+            {
+                return string.Empty;
+            }
+
+            string relativePath;
+
+            switch (format)
+            {
+                case DownloadDirectoryFormat.Root:
+                    relativePath = parts.Last().ReplaceInvalidFileNameCharacters();
+                    break;
+
+                case DownloadDirectoryFormat.Mirror:
+                    relativePath = Path.Combine(parts.Select(p => p.ReplaceInvalidFileNameCharacters()).ToArray());
+                    break;
+
+                case DownloadDirectoryFormat.Subfolder:
+                default:
+                    if (parts.Count == 1)
+                    {
+                        relativePath = parts.First().ReplaceInvalidFileNameCharacters();
+                    }
+                    else
+                    {
+                        var file = parts.Last().ReplaceInvalidFileNameCharacters();
+                        var directory = parts[parts.Count - 2].ReplaceInvalidFileNameCharacters();
+                        relativePath = Path.Combine(directory, file);
+                    }
+
+                    break;
+            }
+
+            if (includeUsername && !string.IsNullOrWhiteSpace(username))
+            {
+                relativePath = Path.Combine(username.ReplaceInvalidFileNameCharacters(), relativePath);
+            }
+
+            return relativePath;
+        }
+
+        /// <summary>
+        ///     Converts a fully qualified remote filename to a local filename, swapping directory characters for those specific
+        ///     to the local OS, removing any characters that are invalid for the local OS, and making the path relative to the
+        ///     remote store (including the filename and the parent folder).
+        /// </summary>
+        /// <param name="remoteFilename">The fully qualified remote filename to convert.</param>
+        /// <returns>The converted filename.</returns>
+        public static string ToLocalRelativeFilename(this string remoteFilename)
+        {
+            return remoteFilename.ToLocalRelativeFilename(format: DownloadDirectoryFormat.Subfolder, includeUsername: false);
         }
 
         /// <summary>

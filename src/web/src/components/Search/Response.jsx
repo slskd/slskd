@@ -4,7 +4,7 @@ import { formatBytes, getDirectoryName } from '../../lib/util';
 import FileList from '../Shared/FileList';
 import React, { Component } from 'react';
 import { toast } from 'react-toastify';
-import { Button, Card, Icon, Label } from 'semantic-ui-react';
+import { Card, Icon, Input, Label } from 'semantic-ui-react';
 
 const buildTree = (response) => {
   let { files = [] } = response;
@@ -27,6 +27,7 @@ class Response extends Component {
     super(props);
 
     this.state = {
+      destinationDirectory: '',
       downloadError: '',
       downloadRequest: undefined,
       fetchingDirectoryContents: false,
@@ -61,6 +62,7 @@ class Response extends Component {
     this.setState({ downloadRequest: 'inProgress' }, async () => {
       try {
         const requests = (files || []).map(({ filename, size }) => ({
+          destinationDirectory: this.state.destinationDirectory,
           filename,
           size,
         }));
@@ -217,20 +219,29 @@ class Response extends Component {
         {selectedFiles.length > 0 && (
           <Card.Content extra>
             <span>
-              <Button
-                color="green"
-                content="Download"
-                disabled={
-                  this.props.disabled || downloadRequest === 'inProgress'
-                }
-                icon="download"
+              <Input
+                action={{
+                  color: 'green',
+                  content: 'Download',
+                  disabled:
+                    this.props.disabled || downloadRequest === 'inProgress',
+                  icon: 'download',
+                  onClick: () =>
+                    this.download(response.username, selectedFiles),
+                }}
+                actionPosition="right"
+                disabled={downloadRequest === 'inProgress'}
                 label={{
-                  as: 'a',
                   basic: false,
                   content: `${selectedFiles.length} file${selectedFiles.length === 1 ? '' : 's'}, ${selectedSize}`,
                 }}
-                labelPosition="right"
-                onClick={() => this.download(response.username, selectedFiles)}
+                labelPosition="left"
+                onChange={(event_, { value }) =>
+                  this.setState({ destinationDirectory: value })
+                }
+                placeholder="Destination Subfolder (optional)"
+                size="small"
+                value={this.state.destinationDirectory}
               />
               {downloadRequest === 'inProgress' && (
                 <Icon
