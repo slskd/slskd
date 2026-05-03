@@ -77,16 +77,6 @@ public record Batch
     public TransferDirection Direction { get; init; } = TransferDirection.Download;
 
     /// <summary>
-    ///     Gets the number of files included in the Batch.
-    /// </summary>
-    public int FileCount { get; init; }
-
-    /// <summary>
-    ///     Gets the sum of the included file's sizes.
-    /// </summary>
-    public long FileSize { get; init; }
-
-    /// <summary>
     ///     Gets the time at which the Batch was created.
     /// </summary>
     public DateTime CreatedAt { get; init; } = DateTime.UtcNow;
@@ -114,6 +104,10 @@ public record Batch
         there's no use for these now, but if we ever decide to leverage Batch records for anything
         but determining whether a Search has been fulfilled, allowing a user to override a download directory,
         or to handle an event when a batch is completed, we can add them and figure out how persistence should work.
+
+        file count and size are also not included because of the transfer deduplication that takes place during
+        the enqueue; if a batch is created and some or all of the files within are already in progress, they are
+        dropped and no new transfer records are created. this would create data inconsistency, and for no reason (for now)
 
         loading Transfers and doing aggregation in memory (if fetching 1 batch) or querying and aggregating Transfer
         records in SQL and then updating a list of Batch records in memory (if fetching a list) technically works,
