@@ -45,6 +45,7 @@ public record EnqueueDownloadBatchRequest
     [StringLength(500, MinimumLength = 1)]
     public string Username { get; init; }
     public List<EnqueueDownloadBatchItem> Files { get; init; } = [];
+    public EnqueueDownloadBatchOptions Options { get; init; } = new();
 }
 
 public record EnqueueDownloadBatchItem
@@ -54,4 +55,9 @@ public record EnqueueDownloadBatchItem
 
     [Range(0, int.MaxValue)]
     public long Size { get; set; }
+}
+
+public record EnqueueDownloadBatchOptions
+{
+    public string Destination { get; init; }
 }
