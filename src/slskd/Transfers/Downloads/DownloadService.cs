@@ -76,12 +76,13 @@ namespace slskd.Transfers.Downloads
         /// </remarks>
         /// <param name="username">The username of remote user.</param>
         /// <param name="files">The list of files to enqueue.</param>
+        /// <param name="batchId">The optional batch id for the transfers.</param>
         /// <param name="cancellationToken">The token to monitor for cancellation.</param>
         /// <returns>The operation context.</returns>
         /// <exception cref="ArgumentException">Thrown when the username is null or an empty string.</exception>
         /// <exception cref="ArgumentException">Thrown when no files are requested.</exception>
         /// <exception cref="AggregateException">Thrown when at least one of the requested files throws.</exception>
-        Task<(List<Transfer> Enqueued, List<string> Failed)> EnqueueAsync(string username, IEnumerable<(string Filename, long Size)> files, CancellationToken cancellationToken = default);
+        Task<(List<Transfer> Enqueued, List<string> Failed)> EnqueueAsync(string username, IEnumerable<(string Filename, long Size)> files, Guid? batchId = null, CancellationToken cancellationToken = default);
 
         /// <summary>
         ///     Finds a single download matching the specified <paramref name="expression"/>.
@@ -261,12 +262,13 @@ namespace slskd.Transfers.Downloads
         /// </summary>
         /// <param name="username">The username of the remote user.</param>
         /// <param name="files">The list of files to enqueue.</param>
+        /// <param name="batchId">The optional batch id for the transfers.</param>
         /// <param name="cancellationToken">The token to monitor for cancellation.</param>
         /// <returns>The operation context.</returns>
         /// <exception cref="ArgumentException">Thrown when the username is null or an empty string.</exception>
         /// <exception cref="ArgumentException">Thrown when no files are requested.</exception>
         /// <exception cref="AggregateException">Thrown when at least one of the requested files throws.</exception>
-        public async Task<(List<Transfer> Enqueued, List<string> Failed)> EnqueueAsync(string username, IEnumerable<(string Filename, long Size)> files, CancellationToken cancellationToken = default)
+        public async Task<(List<Transfer> Enqueued, List<string> Failed)> EnqueueAsync(string username, IEnumerable<(string Filename, long Size)> files, Guid? batchId = null, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrEmpty(username))
             {
@@ -443,6 +445,7 @@ namespace slskd.Transfers.Downloads
                         var transfer = new Transfer()
                         {
                             Id = transferId,
+                            BatchId = batchId,
                             Username = username,
                             Direction = TransferDirection.Download,
                             Filename = file.Filename, // important! use the remote filename
