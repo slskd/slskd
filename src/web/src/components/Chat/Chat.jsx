@@ -20,6 +20,7 @@ const initialState = {
   conversations: {},
   interval: undefined,
   loading: false,
+  message: '',
 };
 
 class Chat extends Component {
@@ -106,21 +107,15 @@ class Chat extends Component {
     await chat.acknowledge({ username });
   };
 
-  sendMessage = async (username, message) => {
-    if (!username || !message || username === '') return;
-    await chat.send({ message, username });
-  };
-
   sendReply = async () => {
-    const { active } = this.state;
-    const message = this.messageRef.current.value;
+    const { active, message } = this.state;
 
     if (!this.validInput()) {
       return;
     }
 
-    await this.sendMessage(active, message);
-    this.messageRef.current.value = '';
+    await chat.send({ username: active, message });
+    this.setState({ message: '' });
 
     // force a refresh to append the message
     // we could probably do this in the browser but we can be lazy
@@ -129,12 +124,7 @@ class Chat extends Component {
 
   validInput = () =>
     (this.state.active || '').length > 0 &&
-    (
-      (this.messageRef &&
-        this.messageRef.current &&
-        this.messageRef.current.value) ||
-      ''
-    ).length > 0;
+    (this.state.message || '').length > 0;
 
   focusInput = () => {
     this.messageRef.current.focus();
@@ -294,7 +284,7 @@ class Chat extends Component {
                               name="send"
                             />
                           ),
-                          onClick: this.sendMessage,
+                          onClick: this.sendReply,
                         }}
                         fluid
                         input={
@@ -302,7 +292,11 @@ class Chat extends Component {
                             autoComplete="off"
                             data-lpignore="true"
                             id="chat-message-input"
+                            onChange={(event) =>
+                              this.setState({ message: event.target.value })
+                            }
                             type="text"
+                            value={this.state.message}
                           />
                         }
                         onKeyUp={(event) =>
