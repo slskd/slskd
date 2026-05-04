@@ -555,9 +555,17 @@ namespace slskd
         /// <returns>The new object deserialized from the string.</returns>
         public static T FromJson<T>(this string str) => JsonSerializer.Deserialize<T>(str, GetJsonSerializerOptions());
 
-        private static JsonSerializerOptions GetJsonSerializerOptions()
+        /// <summary>
+        ///     Applies the standard json serializer options to the specified instance.
+        /// </summary>
+        /// <param name="opt">The instance.</param>
+        /// <returns>The instances with the standard options applied.</returns>
+        public static JsonSerializerOptions WithStandardOptions(this JsonSerializerOptions opt)
+            => GetJsonSerializerOptions(opt);
+
+        private static JsonSerializerOptions GetJsonSerializerOptions(JsonSerializerOptions opt = null)
         {
-            var options = new JsonSerializerOptions();
+            var options = opt ?? new JsonSerializerOptions();
             options.Converters.Add(new IPAddressConverter());
             options.Converters.Add(new JsonStringEnumConverter());
             options.Converters.Add(new KnownUnsupportedTypeConverter());
