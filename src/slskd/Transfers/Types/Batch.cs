@@ -44,7 +44,7 @@ using Soulseek;
 ///     </para>
 ///     <para>
 ///         Transfers may be enqueued in a Batch, and a caller that enqueued a Batch may use the
-///         available API(s) to determine whether all of the Transfers within the Batch is complete,
+///         available API(s) to determine whether all of the Transfers within the Batch are complete,
 ///         but otherwise a Batch serves no functional purpose within the application.
 ///     </para>
 /// </summary>
@@ -84,10 +84,6 @@ public record Batch
     /// <summary>
     ///     Gets the Transfer records associated with the batch.
     /// </summary>
-    /// <remarks>
-    ///     Lazy loaded. If not explicitly loaded with the Batch record using Include(), the collection and
-    ///     all of the (future?) statistics will be null.
-    /// </remarks>
     public ICollection<Transfer> Transfers { get; init; } = null;
 
     /// <summary>

@@ -141,8 +141,8 @@ namespace slskd.Transfers
                 .Entity<Batch>()
                 .Property(b => b.Options)
                 .HasConversion(
-                    convertToProviderExpression: v => JsonSerializer.Serialize(v, JsonSerializerOptions.Default),
-                    convertFromProviderExpression: v => JsonSerializer.Deserialize<BatchOptions>(v, JsonSerializerOptions.Default))
+                    convertToProviderExpression: v => JsonSerializer.Serialize(v, new JsonSerializerOptions().WithStandardOptions()),
+                    convertFromProviderExpression: v => JsonSerializer.Deserialize<BatchOptions>(v, new JsonSerializerOptions().WithStandardOptions()))
                 .HasColumnType("TEXT");
         }
     }
