@@ -1,4 +1,4 @@
-// <copyright file="EnqueueDownloadBatchRequest.cs" company="JP Dillingham">
+// <copyright file="QueueDownloadBatchRequest.cs" company="JP Dillingham">
 //           ▄▄▄▄     ▄▄▄▄     ▄▄▄▄
 //     ▄▄▄▄▄▄█  █▄▄▄▄▄█  █▄▄▄▄▄█  █
 //     █__ --█  █__ --█    ◄█  -  █
@@ -36,28 +36,58 @@ using System.ComponentModel.DataAnnotations;
 
 namespace slskd.Transfers.API;
 
-public record EnqueueDownloadBatchRequest
+public record QueueDownloadBatchRequest
 {
-    public Guid? BatchId { get; init; }
+    /// <summary>
+    ///     The ID of the Batch.
+    /// </summary>
+    /// <remarks>
+    ///     If not supplied, one will be randomly generated.
+    /// </remarks>
+    public Guid? Id { get; init; } = Guid.NewGuid();
+
+    /// <summary>
+    ///     The ID of the associated Search, if applicable.
+    /// </summary>
     public Guid? SearchId { get; init; }
 
+    /// <summary>
+    ///     The username of the user from which to download.
+    /// </summary>
     [Required]
     [StringLength(500, MinimumLength = 1)]
     public string Username { get; init; }
+
+    /// <summary>
+    ///     The list of files to download.
+    /// </summary>
     public List<EnqueueDownloadBatchItem> Files { get; init; } = [];
+
+    /// <summary>
+    ///     Options for the Batch.
+    /// </summary>
     public EnqueueDownloadBatchOptions Options { get; init; } = new();
 }
 
 public record EnqueueDownloadBatchItem
 {
+    /// <summary>
+    ///     The name of the file.
+    /// </summary>
     [Required]
     public string Filename { get; set; }
 
+    /// <summary>
+    ///     The file size.
+    /// </summary>
     [Range(0, int.MaxValue)]
     public long Size { get; set; }
 }
 
 public record EnqueueDownloadBatchOptions
 {
+    /// <summary>
+    ///     The destination directory for the files, relative to the configured download directory.
+    /// </summary>
     public string Destination { get; init; }
 }
