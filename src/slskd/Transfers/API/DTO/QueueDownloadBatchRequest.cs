@@ -80,7 +80,7 @@ public record EnqueueDownloadBatchItem
     /// <summary>
     ///     The file size.
     /// </summary>
-    [Range(0, int.MaxValue)]
+    [Range(0, long.MaxValue)]
     public long Size { get; set; }
 }
 
