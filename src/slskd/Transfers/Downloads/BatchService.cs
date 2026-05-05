@@ -49,7 +49,7 @@ public interface IBatchService
     /// </summary>
     /// <param name="batch">The batch to create.</param>
     /// <returns>The created batch.</returns>
-    Batch Create(Batch batch);
+    Task<Batch> CreateAsync(Batch batch);
 
     /// <summary>
     ///     Finds a single batch matching the specified <paramref name="expression"/>.
@@ -82,7 +82,7 @@ public class BatchService : IBatchService
     /// </summary>
     /// <param name="batch">The batch to create.</param>
     /// <returns>The created batch.</returns>
-    public Batch Create(Batch batch)
+    public async Task<Batch> CreateAsync(Batch batch)
     {
         if (batch == default)
         {
@@ -91,7 +91,7 @@ public class BatchService : IBatchService
 
         using var context = ContextFactory.CreateDbContext();
         context.Batches.Add(batch);
-        context.SaveChanges();
+        await context.SaveChangesAsync();
 
         Log.Debug("Created batch {Id}", batch.Id);
 
