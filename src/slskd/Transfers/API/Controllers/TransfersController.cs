@@ -282,12 +282,13 @@ namespace slskd.Transfers.API
             }
         }
 
-        [HttpPost("downloads/batches")]
+        [HttpPost("downloads")]
         [Authorize(Policy = AuthPolicy.Any)]
+        [ProducesResponseType(200)]
         [ProducesResponseType(201)]
         [ProducesResponseType(typeof(string), 403)]
         [ProducesResponseType(typeof(string), 500)]
-        public async Task<IActionResult> EnqueueBatchAsync([FromBody] EnqueueDownloadBatchRequest request)
+        public async Task<IActionResult> EnqueueBatchAsync([FromBody] QueueDownloadBatchRequest request)
         {
             if (Program.IsRelayAgent)
             {
@@ -326,17 +327,38 @@ namespace slskd.Transfers.API
                     throw new UserOfflineException($"User {request.Username} appears to be offline");
                 }
 
-                // todo: finish this
-                // await Transfers.Downloads.Batches.Create(new()
-                // {
-                //     Id = request.BatchId,
-                //     SearchId = request.SearchId,
-                //     Options = request.Options,
-                // });
+                var batchId = request.Id ?? Guid.NewGuid();
 
-                var (enqueued, failed) = await Transfers.Downloads.EnqueueAsync(request.Username, request.Files.Select(r => (r.Filename, r.Size)));
+                await Transfers.Downloads.Batches.CreateAsync(new()
+                {
+                    Id = batchId,
+                    SearchId = request.SearchId,
+                    Username = request.Username,
+                    Options = new()
+                    {
+                        Destination = request.Options.Destination,
+                    },
+                });
 
-                var batch = await Transfers.Downloads.Batches.FindAsync(b => b.Id == request.BatchId);
+                // Transfer records will have been inserted before this returns, unless they were rejected
+                // because they were already in progress, in which case they will show up in 'failed'
+                var (enqueued, failed) = await Transfers.Downloads.EnqueueAsync(
+                    username: request.Username,
+                    files: request.Files.Select(r => (r.Filename, r.Size)),
+                    batchId: batchId);
+
+                if (failed.Count > 0)
+                {
+                    Log.Warning("Failed to enqueue {Count} of {Total} files for {Username}; transfers already in progress", failed.Count, request.Files.Count);
+                }
+
+                // the returned batch will have whatever Transfers were successfully inserted attached
+                var batch = await Transfers.Downloads.Batches.FindAsync(b => b.Id == request.Id);
+
+                if (batch.Transfers.Count == 0)
+                {
+                    return Ok(batch);
+                }
 
                 return StatusCode(201, batch);
             }
