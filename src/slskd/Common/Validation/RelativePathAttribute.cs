@@ -32,7 +32,6 @@
 
 namespace slskd.Validation
 {
-    using System;
     using System.ComponentModel.DataAnnotations;
     using System.IO;
 
@@ -47,22 +46,9 @@ namespace slskd.Validation
             {
                 var path = value.ToString();
 
-                if (!string.IsNullOrEmpty(path))
+                if (!string.IsNullOrEmpty(path) && Path.IsPathRooted(path))
                 {
-                    if (Path.IsPathRooted(path))
-                    {
-                        return new ValidationResult($"The {validationContext.DisplayName} field must be a relative path.");
-                    }
-
-                    // use a dummy absolute base to normalize the path; GetFullPath resolves all .. and . segments
-                    var dummyBase = Path.GetTempPath().TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
-                        + Path.DirectorySeparatorChar;
-                    var combined = Path.GetFullPath(Path.Combine(dummyBase, path));
-
-                    if (!combined.StartsWith(dummyBase, StringComparison.OrdinalIgnoreCase))
-                    {
-                        return new ValidationResult($"The {validationContext.DisplayName} field must not contain path traversal segments.");
-                    }
+                    return new ValidationResult($"The {validationContext.DisplayName} field must be a relative path.");
                 }
             }
 
