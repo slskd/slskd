@@ -86,14 +86,15 @@ public class Z2026_05_06_AddBatchesTableMigration : IMigration
 
             Exec(@"
             CREATE TABLE Batches (
-                Id TEXT NOT NULL,
-                SearchId TEXT,
-                Username TEXT,
+                Id TEXT NOT NULL CONSTRAINT PK_Batches PRIMARY KEY,
+                SearchId TEXT NULL,
+                Username TEXT NULL,
                 Direction INTEGER NOT NULL,
                 CreatedAt TEXT NOT NULL,
-                Options	TEXT,
-                CONSTRAINT PK_Batches PRIMARY KEY(Id)
+                Options TEXT NULL
             );");
+
+            Exec(@"CREATE INDEX IDX_Batches_SearchId ON Batches (SearchId);");
 
             transaction.Commit();
             Log.Information("> Done!");
