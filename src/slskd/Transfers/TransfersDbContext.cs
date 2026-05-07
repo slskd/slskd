@@ -135,7 +135,8 @@ namespace slskd.Transfers
                 .HasMany(b => b.Transfers)
                 .WithOne()
                 .HasForeignKey(t => t.BatchId)
-                .IsRequired(false);
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder
                 .Entity<Batch>()
@@ -144,6 +145,11 @@ namespace slskd.Transfers
                     convertToProviderExpression: v => JsonSerializer.Serialize(v, new JsonSerializerOptions().WithStandardOptions()),
                     convertFromProviderExpression: v => JsonSerializer.Deserialize<BatchOptions>(v, new JsonSerializerOptions().WithStandardOptions()))
                 .HasColumnType("TEXT");
+
+            modelBuilder
+                .Entity<Batch>()
+                .HasIndex(b => b.SearchId)
+                .HasDatabaseName("IDX_Batches_SearchId");
         }
     }
 }
