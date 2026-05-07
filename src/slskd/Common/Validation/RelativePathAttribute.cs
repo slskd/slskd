@@ -1,4 +1,4 @@
-// <copyright file="AbsoluteFilePathAttribute.cs" company="JP Dillingham">
+// <copyright file="RelativePathAttribute.cs" company="JP Dillingham">
 //           ▄▄▄▄     ▄▄▄▄     ▄▄▄▄
 //     ▄▄▄▄▄▄█  █▄▄▄▄▄█  █▄▄▄▄▄█  █
 //     █__ --█  █__ --█    ◄█  -  █
@@ -32,23 +32,37 @@
 
 namespace slskd.Validation
 {
+    using System;
     using System.ComponentModel.DataAnnotations;
     using System.IO;
 
     /// <summary>
-    ///     Validates that the specified path is absolute.
+    ///     Validates that the specified path is relative and contains no path traversal segments.
     /// </summary>
-    public class AbsoluteFilePathAttribute : ValidationAttribute
+    public class RelativePathAttribute : ValidationAttribute
     {
         protected override ValidationResult IsValid(object value, ValidationContext validationContext)
         {
             if (value != null)
             {
-                var filePath = value.ToString();
+                var path = value.ToString();
 
-                if (!string.IsNullOrEmpty(filePath) && !Path.IsPathRooted(filePath))
+                if (!string.IsNullOrEmpty(path))
                 {
-                    return new ValidationResult($"The {validationContext.DisplayName} field must specify an absolute file path.");
+                    if (Path.IsPathRooted(path))
+                    {
+                        return new ValidationResult($"The {validationContext.DisplayName} field must be a relative path.");
+                    }
+
+                    // use a dummy absolute base to normalize the path; GetFullPath resolves all .. and . segments
+                    var dummyBase = Path.GetTempPath().TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                        + Path.DirectorySeparatorChar;
+                    var combined = Path.GetFullPath(Path.Combine(dummyBase, path));
+
+                    if (!combined.StartsWith(dummyBase, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return new ValidationResult($"The {validationContext.DisplayName} field must not contain path traversal segments.");
+                    }
                 }
             }
 
