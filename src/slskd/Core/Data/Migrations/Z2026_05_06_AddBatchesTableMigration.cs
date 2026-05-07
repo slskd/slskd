@@ -87,11 +87,11 @@ public class Z2026_05_06_AddBatchesTableMigration : IMigration
             Exec(@"
             CREATE TABLE Batches (
                 Id TEXT NOT NULL CONSTRAINT PK_Batches PRIMARY KEY,
-                SearchId TEXT NULL,
-                Username TEXT NULL,
+                SearchId TEXT,
+                Username TEXT,
                 Direction INTEGER NOT NULL,
                 CreatedAt TEXT NOT NULL,
-                Options TEXT NULL
+                Options TEXT
             );");
 
             Exec(@"CREATE INDEX IDX_Batches_SearchId ON Batches (SearchId);");
