@@ -33,6 +33,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using slskd.Validation;
 
 namespace slskd.Transfers.API;
 
@@ -89,5 +90,6 @@ public record EnqueueDownloadBatchOptions
     /// <summary>
     ///     The destination directory for the files, relative to the configured download directory.
     /// </summary>
+    [RelativePath]
     public string Destination { get; init; }
 }
