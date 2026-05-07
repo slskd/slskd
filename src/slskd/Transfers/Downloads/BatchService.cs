@@ -36,6 +36,7 @@ using System;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Threading.Tasks;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 
@@ -89,13 +90,30 @@ public class BatchService : IBatchService
             throw new ArgumentNullException(nameof(batch));
         }
 
-        using var context = ContextFactory.CreateDbContext();
-        context.Batches.Add(batch);
-        await context.SaveChangesAsync();
+        if (batch.Id == Guid.Empty)
+        {
+            throw new ArgumentOutOfRangeException(nameof(batch.Id), message: $"Batch ID may not be an empty uuid ({Guid.Empty})");
+        }
 
-        Log.Debug("Created batch {Id}", batch.Id);
+        try
+        {
+            using var context = ContextFactory.CreateDbContext();
 
-        return batch;
+            context.Batches.Add(batch);
+
+            await context.SaveChangesAsync();
+
+            return batch;
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is SqliteException { SqliteErrorCode: 19 })
+        {
+            throw new DuplicateException($"A Batch with ID {batch.Id} already exists.");
+        }
+        catch (Exception ex)
+        {
+            Log.Error("Failed to create Batch: {Message}", ex.Message);
+            throw;
+        }
     }
 
     /// <summary>

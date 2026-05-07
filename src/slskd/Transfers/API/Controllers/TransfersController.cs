@@ -282,7 +282,7 @@ namespace slskd.Transfers.API
             }
         }
 
-        [HttpPost("downloads")]
+        [HttpPost("downloads/batches")]
         [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(200)]
         [ProducesResponseType(201)]
@@ -362,9 +362,14 @@ namespace slskd.Transfers.API
 
                 return StatusCode(201, batch);
             }
+            catch (DuplicateException ex)
+            {
+                Log.Error(ex, "Failed to enqueue {Count} files for {Username}: A Batch with ID {BatchId} already exists", request.Files.Count, request.Username, request.Id);
+                return Conflict();
+            }
             catch (Exception ex)
             {
-                Log.Error(ex, "Failed to enqueue {Count} files for {Username}: {Message}", request.Files.Count(), request.Username, ex.Message);
+                Log.Error(ex, "Failed to enqueue {Count} files for {Username}: {Message}", request.Files.Count, request.Username, ex.Message);
                 return StatusCode(500, ex.Message);
             }
             finally
