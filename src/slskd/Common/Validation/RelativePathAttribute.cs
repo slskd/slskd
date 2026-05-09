@@ -34,9 +34,10 @@ namespace slskd.Validation
 {
     using System.ComponentModel.DataAnnotations;
     using System.IO;
+    using System.Linq;
 
     /// <summary>
-    ///     Validates that the specified path is relative and contains no path traversal segments.
+    ///     Validates that the specified path is relative.
     /// </summary>
     public class RelativePathAttribute : ValidationAttribute
     {
@@ -45,6 +46,18 @@ namespace slskd.Validation
             if (value != null)
             {
                 var path = value.ToString();
+
+                var segments = path.Split('/', '\\');
+
+                if (segments.Any(s => string.IsNullOrEmpty(s)))
+                {
+                    return new ValidationResult($"The {validationContext.DisplayName} field contains one or more empty segments ('\\\\' or '//')");
+                }
+
+                if (segments.Any(s => s == ".." || s == "."))
+                {
+                    return new ValidationResult($"The {validationContext.DisplayName} field contains one or more unsafe path traversal segments ('.' or '..')");
+                }
 
                 if (!string.IsNullOrEmpty(path) && Path.IsPathRooted(path))
                 {
