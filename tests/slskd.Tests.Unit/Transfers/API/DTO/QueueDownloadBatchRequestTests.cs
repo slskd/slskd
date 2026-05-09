@@ -17,6 +17,7 @@ public class QueueDownloadBatchRequestTests
     private static QueueDownloadBatchRequest ValidRequest() => new()
     {
         Username = "testuser",
+        Files = [new EnqueueDownloadBatchItem { Filename = "music.mp3", Size = 0 }],
     };
 
     public class Id_Field
@@ -38,8 +39,10 @@ public class QueueDownloadBatchRequestTests
         [InlineData("b5bde3d1-4aba-4d64-b64a")]
         public void NonGuid_Fails(string value)
         {
-            var (isValid, _) = Validate(ValidRequest() with { Id = value });
+            var (isValid, results) = Validate(ValidRequest() with { Id = value });
             Assert.False(isValid);
+            Assert.Single(results);
+            Assert.Equal("The Id field must be a valid GUID/UUIDv4", results[0].ErrorMessage);
         }
 
         [Theory]
@@ -72,8 +75,10 @@ public class QueueDownloadBatchRequestTests
         [InlineData("b5bde3d1-4aba-4d64-b64a")]
         public void NonGuid_Fails(string value)
         {
-            var (isValid, _) = Validate(ValidRequest() with { SearchId = value });
+            var (isValid, results) = Validate(ValidRequest() with { SearchId = value });
             Assert.False(isValid);
+            Assert.Single(results);
+            Assert.Equal("The SearchId field must be a valid GUID/UUIDv4", results[0].ErrorMessage);
         }
 
         [Theory]
@@ -95,15 +100,19 @@ public class QueueDownloadBatchRequestTests
         [Fact]
         public void Omitted_Fails()
         {
-            var (isValid, _) = Validate(ValidRequest() with { Username = null });
+            var (isValid, results) = Validate(ValidRequest() with { Username = null });
             Assert.False(isValid);
+            Assert.Single(results);
+            Assert.Equal("The Username field is required.", results[0].ErrorMessage);
         }
 
         [Fact]
         public void Empty_Fails()
         {
-            var (isValid, _) = Validate(ValidRequest() with { Username = "" });
+            var (isValid, results) = Validate(ValidRequest() with { Username = "" });
             Assert.False(isValid);
+            Assert.Single(results);
+            Assert.Equal("The Username field is required.", results[0].ErrorMessage);
         }
 
         [Fact]
@@ -123,8 +132,34 @@ public class QueueDownloadBatchRequestTests
         [Fact]
         public void FiveHundredOneChars_Fails()
         {
-            var (isValid, _) = Validate(ValidRequest() with { Username = new string('a', 501) });
+            var (isValid, results) = Validate(ValidRequest() with { Username = new string('a', 501) });
             Assert.False(isValid);
+            Assert.Single(results);
+            Assert.Equal("The field Username must be a string with a minimum length of 1 and a maximum length of 500.", results[0].ErrorMessage);
+        }
+    }
+
+    public class Files_Field
+    {
+        private static (bool IsValid, List<ValidationResult> Results) Validate(object obj)
+            => QueueDownloadBatchRequestTests.Validate(obj);
+
+        [Fact]
+        public void Omitted_Fails_WithRequiredMessage()
+        {
+            var (isValid, results) = Validate(ValidRequest() with { Files = null });
+            Assert.False(isValid);
+            Assert.Single(results);
+            Assert.Equal("The Files field is required.", results[0].ErrorMessage);
+        }
+
+        [Fact]
+        public void EmptyList_Fails_WithMinLengthMessage()
+        {
+            var (isValid, results) = Validate(ValidRequest() with { Files = [] });
+            Assert.False(isValid);
+            Assert.Single(results);
+            Assert.Contains("minimum length of '1'", results[0].ErrorMessage);
         }
     }
 
@@ -136,15 +171,19 @@ public class QueueDownloadBatchRequestTests
         [Fact]
         public void NullFilename_Fails()
         {
-            var (isValid, _) = Validate(new EnqueueDownloadBatchItem { Filename = null, Size = 0 });
+            var (isValid, results) = Validate(new EnqueueDownloadBatchItem { Filename = null, Size = 0 });
             Assert.False(isValid);
+            Assert.Single(results);
+            Assert.Equal("The Filename field is required.", results[0].ErrorMessage);
         }
 
         [Fact]
         public void EmptyFilename_Fails()
         {
-            var (isValid, _) = Validate(new EnqueueDownloadBatchItem { Filename = "", Size = 0 });
+            var (isValid, results) = Validate(new EnqueueDownloadBatchItem { Filename = "", Size = 0 });
             Assert.False(isValid);
+            Assert.Single(results);
+            Assert.Contains(results, r => r.ErrorMessage == "The Filename field is required.");
         }
 
         [Fact]
@@ -157,8 +196,10 @@ public class QueueDownloadBatchRequestTests
         [Fact]
         public void NegativeSize_Fails()
         {
-            var (isValid, _) = Validate(new EnqueueDownloadBatchItem { Filename = "music.mp3", Size = -1 });
+            var (isValid, results) = Validate(new EnqueueDownloadBatchItem { Filename = "music.mp3", Size = -1 });
             Assert.False(isValid);
+            Assert.Single(results);
+            Assert.Equal("The field Size must be between 0 and 9.223372036854776E+18.", results[0].ErrorMessage);
         }
 
         [Fact]
@@ -205,8 +246,10 @@ public class QueueDownloadBatchRequestTests
         [InlineData("\\\\server\\share")]
         public void AbsolutePath_Fails(string value)
         {
-            var (isValid, _) = Validate(new EnqueueDownloadBatchOptions { Destination = value });
+            var (isValid, results) = Validate(new EnqueueDownloadBatchOptions { Destination = value });
             Assert.False(isValid);
+            Assert.Single(results);
+            Assert.Equal("The Destination field must be a relative path.", results[0].ErrorMessage);
         }
     }
 }

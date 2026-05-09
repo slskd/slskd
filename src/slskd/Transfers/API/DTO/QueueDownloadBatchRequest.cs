@@ -64,6 +64,8 @@ public record QueueDownloadBatchRequest
     /// <summary>
     ///     The list of files to download.
     /// </summary>
+    [Required]
+    [MinLength(1)]
     public List<EnqueueDownloadBatchItem> Files { get; init; } = [];
 
     /// <summary>
