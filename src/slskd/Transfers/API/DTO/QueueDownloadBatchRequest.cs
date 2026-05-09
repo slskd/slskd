@@ -45,12 +45,14 @@ public record QueueDownloadBatchRequest
     /// <remarks>
     ///     If not supplied, one will be randomly generated.
     /// </remarks>
-    public Guid? Id { get; init; } = Guid.NewGuid();
+    [Guid]
+    public string Id { get; init; }
 
     /// <summary>
     ///     The ID of the associated Search, if applicable.
     /// </summary>
-    public Guid? SearchId { get; init; }
+    [Guid]
+    public string SearchId { get; init; }
 
     /// <summary>
     ///     The username of the user from which to download.
@@ -76,6 +78,7 @@ public record EnqueueDownloadBatchItem
     ///     The name of the file.
     /// </summary>
     [Required]
+    [StringLength(int.MaxValue, MinimumLength = 1)]
     public string Filename { get; set; }
 
     /// <summary>
