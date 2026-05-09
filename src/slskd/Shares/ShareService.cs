@@ -188,7 +188,9 @@ namespace slskd.Shares
                 directories.TryAdd(directory, new Directory(directory));
             }
 
-            var files = repositories.SelectMany(r => r.ListFiles(prefix, includeFullPath: true));
+            var files = repositories.SelectMany(r => r.ListFiles(
+                parentDirectory: prefix,
+                includeFullPath: true)); // TODO: figure out how to eliminate this and work with masked directories only
 
             var groups = files
                 .GroupBy(file => file.Filename.GetNormalizedDirectoryName())
