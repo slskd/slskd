@@ -313,6 +313,21 @@ namespace slskd.Transfers.API
                 return BadRequest("One or more files in the request are invalid");
             }
 
+            Guid? batchId;
+            Guid? searchId;
+
+            // validation rules should prevent any problems here, but we have a backstop just in case
+            try
+            {
+                batchId = string.IsNullOrWhiteSpace(request.Id) ? null : Guid.Parse(request.Id);
+                searchId = string.IsNullOrWhiteSpace(request.SearchId) ? null : Guid.Parse(request.SearchId);
+            }
+            catch (Exception ex)
+            {
+                Log.Warning("Failed to parse Guid from enqueue batch input: {Message}", ex.Message);
+                return BadRequest("One or more provided identifiers is not a valid GUID/UUIDv4");
+            }
+
             if (!DownloadRequestLimiter.Wait(0))
             {
                 return StatusCode(429, "Only one concurrent operation is permitted. Wait until the previous request completes");
@@ -327,12 +342,10 @@ namespace slskd.Transfers.API
                     throw new UserOfflineException($"User {request.Username} appears to be offline");
                 }
 
-                var batchId = request.Id ?? Guid.NewGuid();
-
                 await Transfers.Downloads.Batches.CreateAsync(new()
                 {
-                    Id = batchId,
-                    SearchId = request.SearchId,
+                    Id = batchId ?? Guid.NewGuid(),
+                    SearchId = searchId,
                     Username = request.Username,
                     Options = new()
                     {
@@ -353,7 +366,7 @@ namespace slskd.Transfers.API
                 }
 
                 // the returned batch will have whatever Transfers were successfully inserted attached
-                var batch = await Transfers.Downloads.Batches.FindAsync(b => b.Id == request.Id);
+                var batch = await Transfers.Downloads.Batches.FindAsync(b => b.Id == batchId);
 
                 if (batch.Transfers.Count == 0)
                 {
