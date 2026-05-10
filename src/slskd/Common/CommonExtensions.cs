@@ -393,7 +393,7 @@ namespace slskd
         [Obsolete("Find something more intelligent to do instead of this")]
         public static string ToLocalFilename(this string remoteFilename, string baseDirectory)
         {
-            return Path.Combine(baseDirectory, remoteFilename.ToLocalRelativeFilename());
+            return FileSafety.CombineSafely(baseDirectory, remoteFilename.ToLocalRelativeFilename());
         }
 
         /// <summary>
@@ -467,7 +467,7 @@ namespace slskd
             var file = parts.Last().ReplaceInvalidFileNameCharacters();
             var directory = parts.Reverse().Skip(1).Take(1).Single().ReplaceInvalidFileNameCharacters();
 
-            return Path.Combine(directory, file);
+            return FileSafety.CombineSafely(directory, file);
         }
 
         /// <summary>
