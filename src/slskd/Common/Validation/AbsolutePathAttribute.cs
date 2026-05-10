@@ -43,25 +43,20 @@ namespace slskd.Validation
     {
         protected override ValidationResult IsValid(object value, ValidationContext validationContext)
         {
-            if (value != null)
+            if (value != null && value is string str && !string.IsNullOrEmpty(str))
             {
                 var path = value.ToString();
 
-                var segments = path.Split('/', '\\');
-
-                if (segments.Any(s => string.IsNullOrEmpty(s)))
+                if (!Path.IsPathRooted(path))
                 {
-                    return new ValidationResult($"The {validationContext.DisplayName} field contains one or more empty segments ('\\\\' or '//')");
+                    return new ValidationResult($"The {validationContext.DisplayName} field must specify an absolute file path.");
                 }
+
+                var segments = path.Split('/', '\\');
 
                 if (segments.Any(s => s == ".." || s == "."))
                 {
                     return new ValidationResult($"The {validationContext.DisplayName} field contains one or more unsafe path traversal segments ('.' or '..')");
-                }
-
-                if (!string.IsNullOrEmpty(path) && !Path.IsPathRooted(path))
-                {
-                    return new ValidationResult($"The {validationContext.DisplayName} field must specify an absolute file path.");
                 }
             }
 
