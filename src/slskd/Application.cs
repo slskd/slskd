@@ -572,6 +572,12 @@ namespace slskd
         {
             Metrics.Enqueue.RequestsReceived.Inc(1);
 
+            if (filename.Split('\\', '/').Any(s => s == ".." || s == "."))
+            {
+                Log.Warning("Suspicious attempt from user {Username} to enqueue a file containing unsafe or malformed path segments (one or more of: empty segments, path traversal characters '.' and '..'). Requested file: {File}", username, filename);
+                throw new DownloadEnqueueException("File not shared.");
+            }
+
             /*
                 circuit breaker/failsafe:
 
@@ -1413,6 +1419,12 @@ namespace slskd
         /// <returns>A Task resolving an instance of Soulseek.Directory containing the contents of the requested directory.</returns>
         private async Task<IEnumerable<Soulseek.Directory>> DirectoryContentsResponseResolver(string username, IPEndPoint endpoint, int token, string directory)
         {
+            if (directory.Split('\\', '/').Any(s => s == ".." || s == "."))
+            {
+                Log.Warning("Suspicious attempt from user {Username} to list the contents of a directory containing unsafe or malformed path segments (one or more of: empty segments, path traversal characters '.' and '..'). Requested directory: {Directory}", username, directory);
+                throw new DownloadEnqueueException("File not shared.");
+            }
+
             if (Users.IsBlacklisted(username, endpoint.Address))
             {
                 Log.Information("Returned empty directory listing for blacklisted user {Username} ({IP})", username, endpoint.Address);
