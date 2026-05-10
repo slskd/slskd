@@ -250,7 +250,12 @@ namespace slskd.Transfers.API
 
             if (requests.Any(r => r is null))
             {
-                return BadRequest("One or more records in the request are null");
+                return BadRequest("One or more files in the request are null");
+            }
+
+            if (requests.Any(r => FileSafety.ContainsTraversalSegments(r.Filename)))
+            {
+                return BadRequest("One or more files in the request contain a dangerous path traversal segment");
             }
 
             if (!DownloadRequestLimiter.Wait(0))
@@ -311,6 +316,16 @@ namespace slskd.Transfers.API
                 || r.Size < 0))
             {
                 return BadRequest("One or more files in the request are invalid");
+            }
+
+            if (request.Files.Any(r => FileSafety.ContainsTraversalSegments(r.Filename)))
+            {
+                return BadRequest("One or more files in the request contain a dangerous path traversal segment");
+            }
+
+            if (request.Files.DistinctBy(f => f.Filename).Count() != request.Files.Count)
+            {
+                return BadRequest("One or more files in the request are duplicates");
             }
 
             Guid? batchId;

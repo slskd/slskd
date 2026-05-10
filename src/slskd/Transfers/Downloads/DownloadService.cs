@@ -287,6 +287,11 @@ namespace slskd.Transfers.Downloads
                 throw new ArgumentException("At least one filename is null or empty", nameof(files));
             }
 
+            if (fileList.Any(f => FileSafety.ContainsTraversalSegments(f.Filename)))
+            {
+                throw new ArgumentException("One or more files contains a dangerous path traversal segment", nameof(files));
+            }
+
             if (fileList.Count != fileList.Distinct().Count())
             {
                 throw new ArgumentException("Two or more files in request are duplicated", nameof(files));
