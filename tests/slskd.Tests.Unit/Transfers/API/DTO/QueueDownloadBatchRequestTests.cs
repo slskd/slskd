@@ -241,15 +241,31 @@ public class QueueDownloadBatchRequestTests
         }
 
         [Theory]
-        [InlineData("C:\\Music")]
-        [InlineData("/music")]
-        [InlineData("\\\\server\\share")]
+        [InlineData("C:\\Music")]           // Windows absolute
+        [InlineData("C:/Music")]            // Windows absolute, forward slash
+        [InlineData("/music")]              // Unix absolute
+        [InlineData("/home/user/Music")]    // Unix absolute, deep
+        [InlineData("\\\\server\\share")]   // UNC
         public void AbsolutePath_Fails(string value)
         {
             var (isValid, results) = Validate(new EnqueueDownloadBatchOptions { Destination = value });
             Assert.False(isValid);
             Assert.Single(results);
             Assert.Equal("The Destination field must be a relative path.", results[0].ErrorMessage);
+        }
+
+        [Theory]
+        [InlineData("../escape")]           // traversal prefix
+        [InlineData("./music")]             // current-dir prefix
+        [InlineData("music/../other")]      // traversal in middle
+        [InlineData("sub/../../escape")]    // double traversal
+        [InlineData("music\\..")]           // traversal via backslash
+        public void TraversalSegment_Fails(string value)
+        {
+            var (isValid, results) = Validate(new EnqueueDownloadBatchOptions { Destination = value });
+            Assert.False(isValid);
+            Assert.Single(results);
+            Assert.Contains("traversal segments", results[0].ErrorMessage);
         }
     }
 }
