@@ -572,9 +572,11 @@ namespace slskd
         {
             Metrics.Enqueue.RequestsReceived.Inc(1);
 
-            if (filename.Split('\\', '/').Any(s => s == ".." || s == "."))
+            // it shouldn't be possible for us to be sharing any such files, as share paths are required to be absolute and rooted
+            // if someone is requesting a file like this, something is either really wrong, or they are a bad actor
+            if (FileSafety.ContainsTraversalSegments(filename))
             {
-                Log.Warning("Suspicious attempt from user {Username} to enqueue a file containing unsafe or malformed path segments (one or more of: empty segments, path traversal characters '.' and '..'). Requested file: {File}", username, filename);
+                Log.Warning("Suspicious attempt from user {Username} to enqueue a file containing unsafe path segments (one or more of path traversal characters '.' and '..'). Requested file: {File}", username, filename);
                 throw new DownloadEnqueueException("File not shared.");
             }
 
@@ -1419,10 +1421,12 @@ namespace slskd
         /// <returns>A Task resolving an instance of Soulseek.Directory containing the contents of the requested directory.</returns>
         private async Task<IEnumerable<Soulseek.Directory>> DirectoryContentsResponseResolver(string username, IPEndPoint endpoint, int token, string directory)
         {
-            if (directory.Split('\\', '/').Any(s => s == ".." || s == "."))
+            // we shouldn't be sharing any files with these segments because shares are required to be absolute and rooted
+            // if we see this, something has either gone really wrong, or someone is trying something funny
+            if (FileSafety.ContainsTraversalSegments(directory))
             {
-                Log.Warning("Suspicious attempt from user {Username} to list the contents of a directory containing unsafe or malformed path segments (one or more of: empty segments, path traversal characters '.' and '..'). Requested directory: {Directory}", username, directory);
-                throw new DownloadEnqueueException("File not shared.");
+                Log.Warning("Suspicious attempt from user {Username} to list a directory containing unsafe path segments (one or more of path traversal characters '.' and '..'). Requested file: {File}", username, directory);
+                return [];
             }
 
             if (Users.IsBlacklisted(username, endpoint.Address))
