@@ -463,7 +463,7 @@ namespace slskd
             }
 
             var file = parts.Last().ReplaceInvalidFileNameCharacters();
-            var directory = parts.Reverse().Skip(1).Take(1).Single().ReplaceInvalidDirectoryNameCharacters();
+            var directory = parts.Reverse().Skip(1).Take(1).Single().ReplaceInvalidFileNameCharacters();
 
             return Path.Combine(directory, file);
         }
@@ -479,24 +479,6 @@ namespace slskd
             var sanitized = path;
 
             foreach (var c in Path.GetInvalidFileNameChars())
-            {
-                sanitized = sanitized.Replace(c, replacement);
-            }
-
-            return sanitized;
-        }
-
-        /// <summary>
-        ///     Replaces any occurrence of an invalid directory character with the specified <see paramref="replacement"/>.
-        /// </summary>
-        /// <param name="path">The path to sanitize.</param>
-        /// <param name="replacement">The character with which to replace invalid characters.</param>
-        /// <returns>The sanitized path.</returns>
-        public static string ReplaceInvalidDirectoryNameCharacters(this string path, char replacement = '_')
-        {
-            var sanitized = path;
-
-            foreach (var c in Path.GetInvalidPathChars())
             {
                 sanitized = sanitized.Replace(c, replacement);
             }
