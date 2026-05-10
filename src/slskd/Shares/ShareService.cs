@@ -190,7 +190,7 @@ namespace slskd.Shares
 
             var files = repositories.SelectMany(r => r.ListFiles(
                 parentDirectory: prefix,
-                includeFullPath: true)); // TODO: figure out how to eliminate this and work with masked directories only
+                includeFullPath: true)); // includes the full *masked* filename; directory and file name and extension. not the local filename.
 
             var groups = files
                 .GroupBy(file => file.Filename.GetNormalizedDirectoryName())
@@ -282,7 +282,7 @@ namespace slskd.Shares
         /// <returns>The contents of the directory.</returns>
         public Task<Directory> ListDirectoryAsync(string directory)
         {
-            var files = AllRepositories.SelectMany(r => r.ListFiles(directory));
+            var files = AllRepositories.SelectMany(r => r.ListFiles(directory, includeFullPath: false));
 
             return Task.FromResult(new Directory(directory, files));
         }
