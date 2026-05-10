@@ -390,6 +390,7 @@ namespace slskd
         /// <param name="remoteFilename">The fully qualified remote filename to convert.</param>
         /// <param name="baseDirectory">The base directory for the local filename.</param>
         /// <returns>The converted filename.</returns>
+        [Obsolete("Find something more intelligent to do instead of this")]
         public static string ToLocalFilename(this string remoteFilename, string baseDirectory)
         {
             return Path.Combine(baseDirectory, remoteFilename.ToLocalRelativeFilename());
@@ -445,6 +446,7 @@ namespace slskd
         /// </summary>
         /// <param name="remoteFilename">The fully qualified remote filename to convert.</param>
         /// <returns>The converted filename.</returns>
+        [Obsolete("Find something more intelligent to do instead of this")]
         public static string ToLocalRelativeFilename(this string remoteFilename)
         {
             if (string.IsNullOrWhiteSpace(remoteFilename))
