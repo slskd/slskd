@@ -880,6 +880,10 @@ namespace slskd
                     {
                         results.Add(new ValidationResult($"Share '{share.Raw}' is invalid; aliases may not contain path separators '/' or '\\'"));
                     }
+                    else if (share.Alias == "." || share.Alias == "..")
+                    {
+                        results.Add(new ValidationResult($"Share '{share.Raw}' is invalid; aliases may not be path traversal characters '.' or '..'"));
+                    }
                 }
 
                 return results;
