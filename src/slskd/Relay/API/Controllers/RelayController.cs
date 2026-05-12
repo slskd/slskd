@@ -159,7 +159,12 @@ namespace slskd.Relay
                 return Unauthorized();
             }
 
-            var sourceFile = Path.Combine(OptionsMonitor.CurrentValue.Directories.Downloads, filename);
+            // if we get this far, the caller has supplied a valid credential and filename, meaning the request
+            // to download is being made in response to the controller signaling the agent that a download had completed.
+            // it's not possible for the client to download arbitrary files; credentials are computed from a token, and
+            // this token is cached in the controller, so only file downloads that the controller solicited are possible
+            // still, for the abundance of caution, use the CombineSafely method in case the filename has traversal segments
+            var sourceFile = FileSafety.CombineSafely(OptionsMonitor.CurrentValue.Directories.Downloads, filename);
 
             Log.Information("Agent {Agent} authenticated for token {Token}. Sending file {Filename}", agentName, guid, filename);
 

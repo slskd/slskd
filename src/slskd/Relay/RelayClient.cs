@@ -370,6 +370,13 @@ namespace slskd.Relay
 
         private async Task HandleFileInfoRequest(string filename, Guid id)
         {
+            if (FileSafety.ContainsTraversalSegments(filename))
+            {
+                var msg = $"Suspicious attempt to request file info containing unsafe path segments (one or more of path traversal characters '.' and '..'). Requested file: {filename}";
+                Log.Warning(msg, filename);
+                throw new ArgumentException(msg, nameof(filename));
+            }
+
             Log.Information("Relay controller requested file info for {Filename} with ID {Id}", filename, id);
 
             try
@@ -389,6 +396,13 @@ namespace slskd.Relay
 
         private Task HandleFileUploadRequest(string filename, long startOffset, Guid token)
         {
+            if (FileSafety.ContainsTraversalSegments(filename))
+            {
+                var msg = $"Suspicious attempt to request a file upload containing unsafe path segments (one or more of path traversal characters '.' and '..'). Requested file: {filename}";
+                Log.Warning(msg, filename);
+                throw new ArgumentException(msg, nameof(filename));
+            }
+
             _ = Task.Run(async () =>
             {
                 Log.Information("Relay controller requested file {Filename} with ID {Id}", filename, token);
@@ -448,6 +462,13 @@ namespace slskd.Relay
 
         private Task HandleNotifyFileDownloadCompleted(string filename, Guid token)
         {
+            if (FileSafety.ContainsTraversalSegments(filename))
+            {
+                var msg = $"Suspicious attempt to solicit a file download containing unsafe path segments (one or more of path traversal characters '.' and '..'). Requested file: {filename}";
+                Log.Warning(msg, filename);
+                throw new ArgumentException(msg, nameof(filename));
+            }
+
             if (!OptionsMonitor.CurrentValue.Relay.Controller.Downloads)
             {
                 return Task.CompletedTask;
@@ -457,13 +478,13 @@ namespace slskd.Relay
 
             _ = Task.Run(async () =>
             {
-                var destinationFile = Path.Combine(OptionsMonitor.CurrentValue.Directories.Downloads, filename);
+                var destinationFile = FileSafety.CombineSafely(OptionsMonitor.CurrentValue.Directories.Downloads, filename);
 
                 if (OptionsMonitor.CurrentValue.Relay.Mode.ToEnum<RelayMode>() == RelayMode.Debug)
                 {
                     // if we're debugging, we're referencing the same file for both the controller and agent which will lead to an
                     // access violation. prefix the destination file to avoid this.
-                    destinationFile = Path.Combine(OptionsMonitor.CurrentValue.Directories.Downloads, $"{filename}.relayed");
+                    destinationFile = FileSafety.CombineSafely(OptionsMonitor.CurrentValue.Directories.Downloads, $"{filename}.relayed");
                 }
 
                 // if the controller is Windows and the agent is Linux or vice versa, we need to translate the filename to the
