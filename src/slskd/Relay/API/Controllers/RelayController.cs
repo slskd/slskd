@@ -149,6 +149,14 @@ namespace slskd.Relay
                 return BadRequest();
             }
 
+            // check the path; the caller has a valid API key but we haven't validated the credential yet, so this is worth
+            // doing here instead of relying on the CombineSafely() backstop
+            if (FileSafety.ContainsTraversalSegments(filename))
+            {
+                Log.Warning("Suspicious attempt to download a file containing unsafe path segments (one or more of path traversal characters '.' and '..'). Requested file: {filename}", filename);
+                return BadRequest();
+            }
+
             Log.Information("Handling file download of {Filename} ({Token}) from a caller claiming to be agent {Agent}", filename, token, agentName);
 
             // note: the token remains valid after the validation attempt, unlike most other endpoints.
@@ -228,6 +236,14 @@ namespace slskd.Relay
                     if (string.IsNullOrEmpty(filename))
                     {
                         throw new ArgumentException("Upload filename is null or empty");
+                    }
+
+                    // use an abundance of caution; the caller has a valid API key but we haven't validated the credential yet
+                    // this is a really unlikely attack vector and it wouldn't do anything, but we're taking a hard stance on input validation
+                    if (FileSafety.ContainsTraversalSegments(filename))
+                    {
+                        Log.Warning("Suspicious attempt to upload a file containing unsafe path segments (one or more of path traversal characters '.' and '..'). Requested file: {filename}", filename);
+                        return BadRequest();
                     }
 
                     if (stream == null || !stream.CanRead)
@@ -328,8 +344,8 @@ namespace slskd.Relay
                 return Unauthorized();
             }
 
-            Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), Program.AppName));
-            var temp = Path.Combine(Path.GetTempPath(), Program.AppName, $"share_{agentName}_{Path.GetRandomFileName()}.db");
+            Directory.CreateDirectory(FileSafety.CombineSafely(Path.GetTempPath(), Program.AppName));
+            var temp = FileSafety.CombineSafely(Path.GetTempPath(), Program.AppName, $"share_{agentName.ReplaceInvalidFileNameCharacters()}_{Path.GetRandomFileName()}.db");
 
             try
             {

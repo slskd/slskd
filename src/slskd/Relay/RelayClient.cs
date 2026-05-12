@@ -372,9 +372,8 @@ namespace slskd.Relay
         {
             if (FileSafety.ContainsTraversalSegments(filename))
             {
-                var msg = $"Suspicious attempt to request file info containing unsafe path segments (one or more of path traversal characters '.' and '..'). Requested file: {filename}";
-                Log.Warning(msg, filename);
-                throw new ArgumentException(msg, nameof(filename));
+                Log.Warning("Suspicious attempt to request file info containing unsafe path segments (one or more of path traversal characters '.' and '..'). Requested file: {filename}", filename);
+                await HubConnection.InvokeAsync(nameof(RelayHub.ReturnFileInfo), id, false, 0);
             }
 
             Log.Information("Relay controller requested file info for {Filename} with ID {Id}", filename, id);
@@ -394,13 +393,12 @@ namespace slskd.Relay
             }
         }
 
-        private Task HandleFileUploadRequest(string filename, long startOffset, Guid token)
+        private async Task HandleFileUploadRequest(string filename, long startOffset, Guid token)
         {
             if (FileSafety.ContainsTraversalSegments(filename))
             {
-                var msg = $"Suspicious attempt to request a file upload containing unsafe path segments (one or more of path traversal characters '.' and '..'). Requested file: {filename}";
-                Log.Warning(msg, filename);
-                throw new ArgumentException(msg, nameof(filename));
+                Log.Warning("Suspicious attempt to request a file upload containing unsafe path segments (one or more of path traversal characters '.' and '..'). Requested file: {filename}", filename);
+                await HubConnection.InvokeAsync(nameof(RelayHub.NotifyFileUploadFailed), token);
             }
 
             _ = Task.Run(async () =>
@@ -456,22 +454,19 @@ namespace slskd.Relay
                     await HubConnection.InvokeAsync(nameof(RelayHub.NotifyFileUploadFailed), token);
                 }
             });
-
-            return Task.CompletedTask;
         }
 
-        private Task HandleNotifyFileDownloadCompleted(string filename, Guid token)
+        private async Task HandleNotifyFileDownloadCompleted(string filename, Guid token)
         {
             if (FileSafety.ContainsTraversalSegments(filename))
             {
-                var msg = $"Suspicious attempt to solicit a file download containing unsafe path segments (one or more of path traversal characters '.' and '..'). Requested file: {filename}";
-                Log.Warning(msg, filename);
-                throw new ArgumentException(msg, nameof(filename));
+                Log.Warning("Suspicious attempt to solicit a file download containing unsafe path segments (one or more of path traversal characters '.' and '..'). Requested file: {filename}", filename);
+                return;
             }
 
             if (!OptionsMonitor.CurrentValue.Relay.Controller.Downloads)
             {
-                return Task.CompletedTask;
+                return;
             }
 
             Log.Information("Relay controller sent a download notification for {Filename} ({Token})", filename, token);
@@ -519,8 +514,6 @@ namespace slskd.Relay
 
                 Log.Information("File {Filename} successfully downloaded to {Destination}", filename, destinationFile);
             });
-
-            return Task.CompletedTask;
         }
 
         private Task HubConnection_Closed(Exception arg)
@@ -600,7 +593,7 @@ namespace slskd.Relay
                 return;
             }
 
-            var temp = Path.Combine(Path.GetTempPath(), Program.AppName, $"share_backup_{Path.GetRandomFileName()}.db");
+            var temp = FileSafety.CombineSafely(Path.GetTempPath(), Program.AppName, $"share_backup_{Path.GetRandomFileName()}.db");
 
             try
             {
