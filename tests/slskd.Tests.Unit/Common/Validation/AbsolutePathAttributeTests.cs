@@ -41,7 +41,7 @@ public class AbsolutePathAttributeTests
         [InlineData("C:\\Program Files\\App")]              // spaces, typical Windows path
         [InlineData("D:\\path")]                            // different drive letter
         [InlineData("Z:\\downloads")]                       // drive letter Z
-        [InlineData("C:")]                                  // bare drive — IsPathRooted returns true
+        [InlineData("C:")]                                  // bare drive
         [InlineData("C:\\Users\\Ünïcödé\\Music")]          // latin extended
         [InlineData("C:\\Users\\пользователь\\Музыка")]    // Cyrillic
         [InlineData("C:\\Users\\用户\\音乐")]               // Chinese
@@ -49,7 +49,7 @@ public class AbsolutePathAttributeTests
         [InlineData("C:\\Users\\사용자\\음악")]             // Korean
         [InlineData("C:\\Users\\مستخدم\\موسيقى")]          // Arabic
         [InlineData("C:\\Users\\χρήστης\\μουσική")]        // Greek
-        [InlineData("C:Music")]                             // drive-relative (no separator); IsPathRooted returns true
+        [InlineData("C:Music")]                             // drive-relative (no separator)
         public void Windows_DriveLetterPaths_Pass(string value)
         {
             var (isValid, _) = Validate(value);
@@ -204,8 +204,6 @@ public class AbsolutePathAttributeTests
         }
     }
 
-    // Relative paths that have no empty segments and no traversal reach the
-    // final IsPathRooted check and fail there.
     public class Relative_Fails
     {
         [Theory]
@@ -225,7 +223,7 @@ public class AbsolutePathAttributeTests
         {
             var (isValid, errorMessage) = Validate(value);
             Assert.False(isValid);
-            Assert.Equal("The Field field must specify an absolute file path.", errorMessage);
+            Assert.Equal("The Field field must be an absolute file path.", errorMessage);
         }
     }
 }

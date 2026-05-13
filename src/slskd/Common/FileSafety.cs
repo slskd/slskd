@@ -68,7 +68,7 @@ public static class FileSafety
             // if any segment is rooted (leading slash), Path.Combine drops everyting up to that segment
             // and it becomes the new root. example: Path.Combine("/home/users/foo", "/etc") results in "/etc"
             // not what we want!
-            if (Path.IsPathRooted(segment))
+            if (IsPathAbsolute(segment))
             {
                 throw new ArgumentException($"Rooted paths are not permitted in segments: '{segment}'");
             }
@@ -100,4 +100,50 @@ public static class FileSafety
     /// <param name="path">The path to check.</param>
     /// <returns>True if one or more segments is present, false otherwise.</returns>
     public static bool ContainsTraversalSegments(string path) => path?.Split('\\', '/')?.Any(s => s is "." or "..") ?? false;
+
+    /// <summary>
+    ///     Returns a value indicating whether the specified <paramref name="path"/> is absolute (rooted), using
+    ///     platform-independent rules that recognize both Unix and Windows absolute path formats.
+    /// </summary>
+    /// <remarks>
+    ///     This is necessary because the base library is opaque and untestable in a cross-platform way, so we are
+    ///     implementing the nuclear option and merging the logic for Windows and non-Windows.
+    /// </remarks>
+    /// <param name="path">The path to check.</param>
+    /// <returns>True if the path is absolute, false otherwise.</returns>
+    public static bool IsPathAbsolute(string path)
+    {
+        if (string.IsNullOrEmpty(path))
+        {
+            return false;
+        }
+
+        // Unix/Linux/macOS absolute paths and UNC paths with forward slashes start with /
+        // Windows root-relative paths and UNC paths start with \
+        if (path[0] is '/' or '\\')
+        {
+            return true;
+        }
+
+        // Windows drive-letter paths: X:\ or X:/
+        // X:foo is a "drive relative" path so it doesn't _technically_ count, but
+        // it's questionable and the user probably intended to root it anyway
+        // this matches the built in IsPathRooted but not IsPathFullyQualified
+        if (path.Length >= 2
+            && char.IsAsciiLetter(path[0])
+            && path[1] == ':')
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    ///     Returns a value indicating whether the specified <paramref name="path"/>, using
+    ///     platform-independent rules that recognize both Unix and Windows absolute path formats.
+    /// </summary>
+    /// <param name="path">The path to check.</param>
+    /// <returns>True if the path is relative, false otherwise.</returns>
+    public static bool IsPathRelative(string path) => !IsPathAbsolute(path);
 }

@@ -258,29 +258,17 @@ public class FileSafetyTests
 
     public class CombineSafely_Throws_ForRootedSegment
     {
-        // Paths that are rooted on all platforms
         [Theory]
-        [InlineData("/Music")]          // Unix absolute / Windows root-relative via forward slash
-        [InlineData("//server/share")]  // Unix-style UNC
-        public void Throws_ArgumentException(string segment)
-        {
-            var ex = Assert.Throws<ArgumentException>(() => FileSafety.CombineSafely(Base, segment));
-            Assert.Contains("Rooted", ex.Message);
-        }
-
-        // Paths that are only rooted on Windows; on Linux/macOS backslash is a valid filename character
-        // and "C:" is not a special prefix, so IsPathRooted returns false and they would not be rejected.
-        [Theory]
-        [InlineData("C:\\Music")]           // Windows drive-letter absolute, backslash
-        [InlineData("C:/Music")]            // Windows drive-letter absolute, forward slash
+        [InlineData("/Music")]              // Unix absolute / Windows root-relative, forward slash
+        [InlineData("//server/share")]      // Unix-style UNC
+        [InlineData("C:\\Music")]           // Windows drive-letter, backslash
+        [InlineData("C:/Music")]            // Windows drive-letter, forward slash
         [InlineData("D:\\path")]            // alternate drive letter
-        [InlineData("C:relative")]          // Windows drive-relative; IsPathRooted returns true
+        [InlineData("C:relative")]          // Windows drive-relative
         [InlineData("\\Music")]             // Windows root-relative, backslash
         [InlineData("\\\\server\\share")]   // Windows UNC
-        public void Throws_ArgumentException_WindowsOnly(string segment)
+        public void Throws_ArgumentException(string segment)
         {
-            if (!OperatingSystem.IsWindows()) { return; }
-
             var ex = Assert.Throws<ArgumentException>(() => FileSafety.CombineSafely(Base, segment));
             Assert.Contains("Rooted", ex.Message);
         }
@@ -294,10 +282,8 @@ public class FileSafetyTests
         }
 
         [Fact]
-        public void Throws_WhenLaterSegmentIsRooted_WindowsOnly()
+        public void Throws_WhenLaterSegmentIsRooted_Windows()
         {
-            if (!OperatingSystem.IsWindows()) { return; }
-
             var ex = Assert.Throws<ArgumentException>(() =>
                 FileSafety.CombineSafely(Base, "valid", "C:\\escape"));
             Assert.Contains("Rooted", ex.Message);
@@ -312,10 +298,8 @@ public class FileSafetyTests
         }
 
         [Fact]
-        public void Throws_WhenLastSegmentIsRooted_WindowsOnly()
+        public void Throws_WhenLastSegmentIsRooted_Windows()
         {
-            if (!OperatingSystem.IsWindows()) { return; }
-
             var ex = Assert.Throws<ArgumentException>(() =>
                 FileSafety.CombineSafely(Base, "sub", "dir", "C:\\escape"));
             Assert.Contains("Rooted", ex.Message);
@@ -368,6 +352,150 @@ public class FileSafetyTests
             var ex = Assert.Throws<ArgumentException>(() =>
                 FileSafety.CombineSafely(Base, "sub", "dir", ".."));
             Assert.Contains("traversal", ex.Message);
+        }
+    }
+
+    public class IsPathAbsolute_ReturnsTrue
+    {
+        // Unix/Linux/macOS absolute paths
+        [Theory]
+        [InlineData("/")]                               // filesystem root
+        [InlineData("/home")]                           // single component
+        [InlineData("/home/user/Music")]                // deep path
+        [InlineData("/home/user/My Music")]             // spaces in component
+        [InlineData("/etc/hosts")]                      // config file
+        [InlineData("/tmp")]                            // temp directory
+        [InlineData("/home/Ünïcödé")]                  // latin extended
+        [InlineData("/home/пользователь/Музыка")]       // Cyrillic
+        [InlineData("/home/用户/音乐")]                  // Chinese
+        [InlineData("/home/ユーザー/音楽")]              // Japanese
+        [InlineData("/home/사용자/음악")]                // Korean
+        public void Unix_Paths(string path)
+        {
+            Assert.True(FileSafety.IsPathAbsolute(path));
+        }
+
+        // Unix-style UNC paths (// prefix)
+        [Theory]
+        [InlineData("//server/share")]
+        [InlineData("//server/share/folder")]
+        [InlineData("//192.168.1.1/share")]
+        [InlineData("//server/Ünïcödé")]
+        [InlineData("//server/share/пользователь")]
+        public void Unix_UNCPaths(string path)
+        {
+            Assert.True(FileSafety.IsPathAbsolute(path));
+        }
+
+        // Windows root-relative paths (rooted to the current drive, no drive letter)
+        [Theory]
+        [InlineData("\\Music")]
+        [InlineData("\\Music\\Artist\\Album")]
+        [InlineData("/Music")]
+        [InlineData("/Music/Artist/Album")]
+        [InlineData("\\Ünïcödé")]
+        [InlineData("\\пользователь\\Музыка")]
+        public void Windows_RootRelativePaths(string path)
+        {
+            Assert.True(FileSafety.IsPathAbsolute(path));
+        }
+
+        // Windows UNC paths (\\ prefix)
+        [Theory]
+        [InlineData("\\\\server\\share")]
+        [InlineData("\\\\server\\share\\folder")]
+        [InlineData("\\\\server\\share\\My Music")]
+        [InlineData("\\\\192.168.1.1\\share")]
+        [InlineData("\\\\server\\Ünïcödé")]
+        [InlineData("\\\\server\\share\\пользователь")]
+        [InlineData("\\\\server\\share\\用户\\音乐")]
+        public void Windows_UNCPaths(string path)
+        {
+            Assert.True(FileSafety.IsPathAbsolute(path));
+        }
+
+        // Windows drive-letter paths — with or without a separator after the colon
+        [Theory]
+        [InlineData("C:\\")]                                    // drive root, backslash
+        [InlineData("C:/")]                                     // drive root, forward slash
+        [InlineData("C:\\Music")]                               // basic, backslash
+        [InlineData("C:/Music")]                                // basic, forward slash
+        [InlineData("C:\\Music\\Artist\\Album")]                // deep, backslash
+        [InlineData("D:\\path")]                                // different drive letter
+        [InlineData("Z:\\downloads")]                           // drive letter Z
+        [InlineData("C:")]                                      // bare drive letter
+        [InlineData("C:Music")]                                 // drive-relative, no separator
+        [InlineData("D:path")]                                  // different drive letter, no separator
+        [InlineData("C:\\Users\\Ünïcödé\\Music")]              // latin extended
+        [InlineData("C:\\Users\\пользователь\\Музыка")]        // Cyrillic
+        [InlineData("C:\\Users\\用户\\音乐")]                   // Chinese
+        public void Windows_DriveLetterPaths(string path)
+        {
+            Assert.True(FileSafety.IsPathAbsolute(path));
+        }
+    }
+
+    public class IsPathAbsolute_ReturnsFalse
+    {
+        [Theory]
+        [InlineData(null)]                  // null
+        [InlineData("")]                    // empty string
+        [InlineData("subdir")]              // simple name
+        [InlineData("sub/dir")]             // forward slash
+        [InlineData("sub\\dir")]            // backslash
+        [InlineData("Artist\\Album")]       // multi-level backslash
+        [InlineData("Artist/Album/Song")]   // deep forward slash
+        [InlineData("music.flac")]          // file name with extension
+        [InlineData("My Music")]            // spaces
+        [InlineData(".hidden")]             // dotfile
+        [InlineData("..hidden")]            // dot-prefixed name
+        [InlineData("...dir")]              // three dots — relative, not traversal
+        [InlineData("../escape")]           // traversal — still relative
+        [InlineData("./dir")]               // current-dir segment — still relative
+        [InlineData("..")]                  // bare double-dot
+        [InlineData(".")]                   // bare single-dot
+        [InlineData("Ünïcödé")]            // unicode, no root
+        [InlineData("пользователь/Музыка")] // unicode with separator, no root
+        public void Relative_Paths(string path)
+        {
+            Assert.False(FileSafety.IsPathAbsolute(path));
+        }
+    }
+
+    public class IsPathRelative_ReturnsTrue
+    {
+        [Theory]
+        [InlineData(null)]
+        [InlineData("")]
+        [InlineData("subdir")]
+        [InlineData("sub/dir")]
+        [InlineData("sub\\dir")]
+        [InlineData("music.flac")]
+        [InlineData(".hidden")]
+        [InlineData("../escape")]
+        public void Relative_Paths(string path)
+        {
+            Assert.True(FileSafety.IsPathRelative(path));
+        }
+
+    }
+
+    public class IsPathRelative_ReturnsFalse
+    {
+        [Theory]
+        [InlineData("/home/user")]
+        [InlineData("//server/share")]
+        [InlineData("\\Music")]
+        [InlineData("\\\\server\\share")]
+        [InlineData("C:\\Music")]
+        [InlineData("C:/Music")]
+        [InlineData("C:\\")]
+        [InlineData("C:")]
+        [InlineData("C:Music")]
+        [InlineData("D:path")]
+        public void Absolute_Paths(string path)
+        {
+            Assert.False(FileSafety.IsPathRelative(path));
         }
     }
 
