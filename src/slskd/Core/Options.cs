@@ -767,6 +767,7 @@ namespace slskd
             [Argument(default, "incomplete")]
             [EnvironmentVariable("INCOMPLETE_DIR")]
             [Description("path where incomplete downloads are saved")]
+            [AbsolutePath]
             [DirectoryExists(ensureWriteable: true)]
             [RequiresRestart]
             public string Incomplete { get; init; } = Program.DefaultIncompleteDirectory;
@@ -777,6 +778,7 @@ namespace slskd
             [Argument('o', "downloads")]
             [EnvironmentVariable("DOWNLOADS_DIR")]
             [Description("path where downloaded files are saved")]
+            [AbsolutePath]
             [DirectoryExists(ensureWriteable: true)]
             [RequiresRestart]
             public string Downloads { get; init; } = Program.DefaultDownloadsDirectory;
