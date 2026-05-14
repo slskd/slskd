@@ -370,6 +370,12 @@ namespace slskd.Relay
 
         private async Task HandleFileInfoRequest(string filename, Guid id)
         {
+            if (FileSafety.ContainsTraversalSegments(filename))
+            {
+                Log.Warning("Suspicious attempt to request file info containing unsafe path segments (one or more of path traversal characters '.' and '..'). Requested file: {filename}", filename);
+                await HubConnection.InvokeAsync(nameof(RelayHub.ReturnFileInfo), id, false, 0);
+            }
+
             Log.Information("Relay controller requested file info for {Filename} with ID {Id}", filename, id);
 
             try
@@ -387,8 +393,14 @@ namespace slskd.Relay
             }
         }
 
-        private Task HandleFileUploadRequest(string filename, long startOffset, Guid token)
+        private async Task HandleFileUploadRequest(string filename, long startOffset, Guid token)
         {
+            if (FileSafety.ContainsTraversalSegments(filename))
+            {
+                Log.Warning("Suspicious attempt to request a file upload containing unsafe path segments (one or more of path traversal characters '.' and '..'). Requested file: {filename}", filename);
+                await HubConnection.InvokeAsync(nameof(RelayHub.NotifyFileUploadFailed), token);
+            }
+
             _ = Task.Run(async () =>
             {
                 Log.Information("Relay controller requested file {Filename} with ID {Id}", filename, token);
@@ -442,28 +454,32 @@ namespace slskd.Relay
                     await HubConnection.InvokeAsync(nameof(RelayHub.NotifyFileUploadFailed), token);
                 }
             });
-
-            return Task.CompletedTask;
         }
 
-        private Task HandleNotifyFileDownloadCompleted(string filename, Guid token)
+        private async Task HandleNotifyFileDownloadCompleted(string filename, Guid token)
         {
+            if (FileSafety.ContainsTraversalSegments(filename))
+            {
+                Log.Warning("Suspicious attempt to solicit a file download containing unsafe path segments (one or more of path traversal characters '.' and '..'). Requested file: {filename}", filename);
+                return;
+            }
+
             if (!OptionsMonitor.CurrentValue.Relay.Controller.Downloads)
             {
-                return Task.CompletedTask;
+                return;
             }
 
             Log.Information("Relay controller sent a download notification for {Filename} ({Token})", filename, token);
 
             _ = Task.Run(async () =>
             {
-                var destinationFile = Path.Combine(OptionsMonitor.CurrentValue.Directories.Downloads, filename);
+                var destinationFile = FileSafety.CombineSafely(OptionsMonitor.CurrentValue.Directories.Downloads, filename);
 
                 if (OptionsMonitor.CurrentValue.Relay.Mode.ToEnum<RelayMode>() == RelayMode.Debug)
                 {
                     // if we're debugging, we're referencing the same file for both the controller and agent which will lead to an
                     // access violation. prefix the destination file to avoid this.
-                    destinationFile = Path.Combine(OptionsMonitor.CurrentValue.Directories.Downloads, $"{filename}.relayed");
+                    destinationFile = FileSafety.CombineSafely(OptionsMonitor.CurrentValue.Directories.Downloads, $"{filename}.relayed");
                 }
 
                 // if the controller is Windows and the agent is Linux or vice versa, we need to translate the filename to the
@@ -498,8 +514,6 @@ namespace slskd.Relay
 
                 Log.Information("File {Filename} successfully downloaded to {Destination}", filename, destinationFile);
             });
-
-            return Task.CompletedTask;
         }
 
         private Task HubConnection_Closed(Exception arg)
@@ -579,7 +593,7 @@ namespace slskd.Relay
                 return;
             }
 
-            var temp = Path.Combine(Path.GetTempPath(), Program.AppName, $"share_backup_{Path.GetRandomFileName()}.db");
+            var temp = FileSafety.CombineSafely(Path.GetTempPath(), Program.AppName, $"share_backup_{Path.GetRandomFileName()}.db");
 
             try
             {
