@@ -2010,7 +2010,7 @@ namespace slskd
             [Argument(default, "http-socket")]
             [EnvironmentVariable("HTTP_SOCKET")]
             [Description("HTTP listen unix domain socket (UDS) path for web UI")]
-            [AbsoluteFilePath]
+            [AbsolutePath]
             [RequiresRestart]
             public string Socket { get; init; }
 
