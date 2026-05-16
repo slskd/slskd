@@ -1,4 +1,4 @@
-// <copyright file="AbsoluteFilePathAttribute.cs" company="JP Dillingham">
+// <copyright file="AbsolutePathAttribute.cs" company="JP Dillingham">
 //           ▄▄▄▄     ▄▄▄▄     ▄▄▄▄
 //     ▄▄▄▄▄▄█  █▄▄▄▄▄█  █▄▄▄▄▄█  █
 //     █__ --█  █__ --█    ◄█  -  █
@@ -33,22 +33,27 @@
 namespace slskd.Validation
 {
     using System.ComponentModel.DataAnnotations;
-    using System.IO;
 
     /// <summary>
     ///     Validates that the specified path is absolute.
     /// </summary>
-    public class AbsoluteFilePathAttribute : ValidationAttribute
+    public class AbsolutePathAttribute : ValidationAttribute
     {
         protected override ValidationResult IsValid(object value, ValidationContext validationContext)
         {
-            if (value != null)
+            if (value != null && value is string str && !string.IsNullOrEmpty(str))
             {
-                var filePath = value.ToString();
+                var path = value.ToString();
 
-                if (!string.IsNullOrEmpty(filePath) && !Path.IsPathRooted(filePath))
+                if (!FileSafety.IsPathAbsolute(path))
                 {
-                    return new ValidationResult($"The {validationContext.DisplayName} field must specify an absolute file path.");
+                    return new ValidationResult($"The {validationContext.DisplayName} field must be an absolute file path.");
+                }
+
+                // unrelated to absolute/relative check; we disallow traversal segments across the board so check while we're here
+                if (FileSafety.ContainsTraversalSegments(path))
+                {
+                    return new ValidationResult($"The {validationContext.DisplayName} field contains one or more unsafe path traversal segments ('.' or '..')");
                 }
             }
 
