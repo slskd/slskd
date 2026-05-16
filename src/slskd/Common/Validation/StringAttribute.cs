@@ -1,4 +1,4 @@
-// <copyright file="DisallowedCharactersAttribute.cs" company="JP Dillingham">
+// <copyright file="StringAttribute.cs" company="JP Dillingham">
 //           ▄▄▄▄     ▄▄▄▄     ▄▄▄▄
 //     ▄▄▄▄▄▄█  █▄▄▄▄▄█  █▄▄▄▄▄█  █
 //     █__ --█  █__ --█    ◄█  -  █
@@ -30,42 +30,63 @@
 //   ╰───────────────────────────────────────────╶──── ─ ─── ─  ── ──┈  ┈
 // </copyright>
 
-namespace slskd.Validation;
-
-using System.ComponentModel.DataAnnotations;
-using System.Linq;
-
-/// <summary>
-///     Validates that the value does not contain any of the <see cref="Disallowed"/> characters.
-/// </summary>
-public class DisallowedCharactersAttribute : ValidationAttribute
+namespace slskd.Validation
 {
-    public DisallowedCharactersAttribute(params char[] disallowed)
-    {
-        Disallowed = disallowed;
-    }
+    using System.ComponentModel.DataAnnotations;
+    using System.Linq;
+    using System.Text.RegularExpressions;
 
     /// <summary>
-    ///     Gets or sets a value indicating whether character matching is case-insensitive. Defaults to <see langword="true"/>.
+    ///     Validates that the value is not null or whitespace.
     /// </summary>
-    public bool IgnoreCase { get; set; } = true;
-
-    private char[] Disallowed { get; }
-
-    protected override ValidationResult IsValid(object value, ValidationContext validationContext)
+    public class StringAttribute : ValidationAttribute
     {
-        if (value is not null and string str)
+        public bool AllowNull { get; set; } = true;
+        public bool AllowEmpty { get; set; } = true;
+        public bool AllowWhiteSpace { get; set; } = true;
+        public char[] DisallowedCharacters { get; set; } = [];
+        public int MinimumLength { get; set; } = 0;
+        public int MaximumLength { get; set; } = int.MaxValue;
+        public Regex Pattern { get; set; } = null;
+
+        protected override ValidationResult IsValid(object value, ValidationContext validationContext)
         {
-            var invalid = IgnoreCase
-                ? str.Where(c => Disallowed.Any(d => char.ToUpperInvariant(c) == char.ToUpperInvariant(d)))
-                : str.Where(c => Disallowed.Contains(c));
+            var val = (string)value;
+
+            if (!AllowNull && val is null)
+            {
+                return new ValidationResult($"The {validationContext.DisplayName} field must not be null");
+            }
+
+            if (!AllowEmpty && val is "")
+            {
+                return new ValidationResult($"The {validationContext.DisplayName} field must contain at least one character");
+            }
+
+            // check this after empty to avoid overlap
+            if (!AllowWhiteSpace && string.IsNullOrWhiteSpace(val))
+            {
+                return new ValidationResult($"The {validationContext.DisplayName} field must not contain only whitespace");
+            }
+
+            if (val.Length < MinimumLength || val.Length > MaximumLength)
+            {
+                return new ValidationResult($"The {validationContext.DisplayName} field must be between {MinimumLength} and {MaximumLength} characters");
+            }
+
+            var invalid = val.Where(c => DisallowedCharacters.Any(d => char.ToUpperInvariant(c) == char.ToUpperInvariant(d)));
 
             if (invalid.Any())
             {
                 return new ValidationResult($"The {validationContext.DisplayName} field contains one or more disallowed characters: {string.Join(", ", invalid.Select(c => $"'{c}'"))}");
             }
-        }
 
-        return ValidationResult.Success;
+            if (Pattern is not null && Pattern.IsMatch(val))
+            {
+                return new ValidationResult($"The {validationContext.DisplayName} field must match the regular expression {Pattern.ToJson()}");
+            }
+
+            return ValidationResult.Success;
+        }
     }
 }
