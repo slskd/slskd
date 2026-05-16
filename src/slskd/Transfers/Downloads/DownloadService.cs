@@ -82,7 +82,7 @@ namespace slskd.Transfers.Downloads
         /// <exception cref="ArgumentException">Thrown when the username is null or an empty string.</exception>
         /// <exception cref="ArgumentException">Thrown when no files are requested.</exception>
         /// <exception cref="AggregateException">Thrown when at least one of the requested files throws.</exception>
-        Task<(List<Transfer> Enqueued, List<string> Failed)> EnqueueAsync(string username, IEnumerable<(string Filename, long Size)> files, Guid? batchId = null, CancellationToken cancellationToken = default);
+        Task<(List<Transfer> Enqueued, List<(string Filename, string Message)> Failed)> EnqueueAsync(string username, IEnumerable<(string Filename, long Size)> files, Guid? batchId = null, CancellationToken cancellationToken = default);
 
         /// <summary>
         ///     Finds a single download matching the specified <paramref name="expression"/>.
@@ -268,7 +268,7 @@ namespace slskd.Transfers.Downloads
         /// <exception cref="ArgumentException">Thrown when the username is null or an empty string.</exception>
         /// <exception cref="ArgumentException">Thrown when no files are requested.</exception>
         /// <exception cref="AggregateException">Thrown when at least one of the requested files throws.</exception>
-        public async Task<(List<Transfer> Enqueued, List<string> Failed)> EnqueueAsync(string username, IEnumerable<(string Filename, long Size)> files, Guid? batchId = null, CancellationToken cancellationToken = default)
+        public async Task<(List<Transfer> Enqueued, List<(string Filename, string Message)> Failed)> EnqueueAsync(string username, IEnumerable<(string Filename, long Size)> files, Guid? batchId = null, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrEmpty(username))
             {
@@ -325,7 +325,7 @@ namespace slskd.Transfers.Downloads
             }
 
             List<Transfer> enqueued = [];
-            List<string> failed = [];
+            List<(string Filename, string Message)> failed = [];
 
             SemaphoreSlim userSemaphore;
             Task userSemaphoreWaitTask;
@@ -423,7 +423,7 @@ namespace slskd.Transfers.Downloads
                         if (existingInProgressRecord is not null)
                         {
                             Log.Debug("Ignoring concurrent download enqueue attempt; transfer for {Filename} from {Username} already in progress (id: {Id})", file.Filename, username, existingInProgressRecord.Id);
-                            failed.Add(file.Filename);
+                            failed.Add((file.Filename, "Skipped: Already in progress"));
                             continue;
                         }
 
@@ -435,7 +435,7 @@ namespace slskd.Transfers.Downloads
                         if (Client.Downloads?.Any(u => u.Username == username && u.Filename == file.Filename) ?? false)
                         {
                             Log.Warning("Ignoring concurrent download enqueue attempt; transfer for {Filename} from {Username} is tracked by the Soulseek client but not slskd", file.Filename, username);
-                            failed.Add(file.Filename);
+                            failed.Add((file.Filename, "Skipped: Already in progress"));
                             continue;
                         }
 
@@ -626,7 +626,7 @@ namespace slskd.Transfers.Downloads
                     {
                         Log.Error(ex, "Failed to enqueue download of {Filename} from {Username}: {Message}", file.Filename, username, ex.Message);
                         TryFail(transferId, exception: ex);
-                        failed.Add(file.Filename);
+                        failed.Add((file.Filename, $"Error: {ex.Message}"));
 
                         if (CancellationTokens.TryRemove(transferId, out var cts))
                         {
