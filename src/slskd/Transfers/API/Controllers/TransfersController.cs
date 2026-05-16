@@ -287,11 +287,22 @@ namespace slskd.Transfers.API
             }
         }
 
+        /// <summary>
+        ///     Enqueues a batch of downloads.
+        /// </summary>
+        /// <param name="request">The batch details.</param>
+        /// <returns></returns>
+        /// <response code="201">One or more downloads were successfully enqueued.</response>
+        /// <response code="200">The request succeeded, but all downloads were already enqueued.</response>
+        /// <response code="500">An unexpected error was encountered.</response>
         [HttpPost("downloads/batches")]
         [Authorize(Policy = AuthPolicy.Any)]
         [ProducesResponseType(200)]
         [ProducesResponseType(201)]
+        [ProducesResponseType(typeof(string), 400)]
         [ProducesResponseType(typeof(string), 403)]
+        [ProducesResponseType(typeof(string), 409)]
+        [ProducesResponseType(typeof(string), 429)]
         [ProducesResponseType(typeof(string), 500)]
         public async Task<IActionResult> EnqueueBatchAsync([FromBody] QueueDownloadBatchRequest request)
         {
@@ -310,22 +321,22 @@ namespace slskd.Transfers.API
                 return BadRequest("At least one file is required");
             }
 
-            if (request.Files.Any(
-                r => r is null
-                || string.IsNullOrWhiteSpace(r.Filename)
-                || r.Size < 0))
+            if (request.Files.Any(r => r is null))
             {
-                return BadRequest("One or more files in the request are invalid");
-            }
-
-            if (request.Files.Any(r => FileSafety.ContainsTraversalSegments(r.Filename)))
-            {
-                return BadRequest("One or more files in the request contain a dangerous path traversal segment");
+                return BadRequest("One or more files in the request are null");
             }
 
             if (request.Files.DistinctBy(f => f.Filename).Count() != request.Files.Count)
             {
-                return BadRequest("One or more files in the request are duplicates");
+                return BadRequest("Two or more files in the request are repeated");
+            }
+
+            // a user would have to deliberately fake this, as no OS and no client are capable of scanning
+            // such a file into configured shares
+            if (request.Files.Any(r => FileSafety.ContainsTraversalSegments(r.Filename)))
+            {
+                Log.Warning("Attempt to enqueue one or more files containing unsafe path segments from user {Username} (one or more of path traversal characters '.' and '..')", request.Username);
+                return BadRequest("One or more files in the request contain an unsafe path traversal segment");
             }
 
             Guid? batchId;
@@ -343,6 +354,8 @@ namespace slskd.Transfers.API
                 return BadRequest("One or more provided identifiers is not a valid GUID/UUIDv4");
             }
 
+            batchId ??= Guid.NewGuid();
+
             if (!DownloadRequestLimiter.Wait(0))
             {
                 return StatusCode(429, "Only one concurrent operation is permitted. Wait until the previous request completes");
@@ -357,9 +370,10 @@ namespace slskd.Transfers.API
                     throw new UserOfflineException($"User {request.Username} appears to be offline");
                 }
 
+                // throws DuplicateException if a record already exists
                 await Transfers.Downloads.Batches.CreateAsync(new()
                 {
-                    Id = batchId ?? Guid.NewGuid(),
+                    Id = batchId.Value,
                     SearchId = searchId,
                     Username = request.Username,
                     Options = new()
@@ -377,12 +391,13 @@ namespace slskd.Transfers.API
 
                 if (failed.Count > 0)
                 {
-                    Log.Warning("Failed to enqueue {Count} of {Total} files for {Username}; transfers already in progress", failed.Count, request.Files.Count);
+                    Log.Warning("Failed to enqueue {Count} of {Total} files for {Username}; transfers already queued or in progress", failed.Count, request.Files.Count);
                 }
 
-                // the returned batch will have whatever Transfers were successfully inserted attached
+                // the returned batch will have whatever Transfers were successfully inserted attached (via Include())
                 var batch = await Transfers.Downloads.Batches.FindAsync(b => b.Id == batchId);
 
+                // all of the files were already queued; list of transfers should be empty
                 if (batch.Transfers.Count == 0)
                 {
                     return Ok(batch);
@@ -393,7 +408,7 @@ namespace slskd.Transfers.API
             catch (DuplicateException ex)
             {
                 Log.Error(ex, "Failed to enqueue {Count} files for {Username}: A Batch with ID {BatchId} already exists", request.Files.Count, request.Username, request.Id);
-                return Conflict();
+                return Conflict($"A batch with ID {batchId} already exists");
             }
             catch (Exception ex)
             {

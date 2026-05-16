@@ -81,13 +81,13 @@ public record EnqueueDownloadBatchItem
     /// </summary>
     [Required]
     [StringLength(int.MaxValue, MinimumLength = 1)]
-    public string Filename { get; set; }
+    public string Filename { get; init; }
 
     /// <summary>
     ///     The file size.
     /// </summary>
     [Range(0, long.MaxValue)]
-    public long Size { get; set; }
+    public long Size { get; init; }
 }
 
 public record EnqueueDownloadBatchOptions

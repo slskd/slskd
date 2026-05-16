@@ -46,7 +46,7 @@ public class Z2026_05_06_AddBatchesTableMigration : IMigration
         ConnectionString = connectionStrings[Database.Transfers];
     }
 
-    private ILogger Log { get; } = Serilog.Log.ForContext<Z2026_04_30_DropTransferStartOffsetMigration>();
+    private ILogger Log { get; } = Serilog.Log.ForContext<Z2026_05_06_AddBatchesTableMigration>();
     private string ConnectionString { get; }
 
     public bool NeedsToBeApplied()

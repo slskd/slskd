@@ -51,7 +51,7 @@ namespace slskd.Validation
                 return ValidationResult.Success;
             }
 
-            return new ValidationResult($"The {validationContext.DisplayName} field must be a valid GUID/UUIDv4");
+            return new ValidationResult($"The {validationContext.DisplayName} field must be a valid GUID/UUID");
         }
     }
 }
