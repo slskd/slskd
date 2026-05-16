@@ -58,7 +58,8 @@ public record QueueDownloadBatchRequest
     ///     The username of the user from which to download.
     /// </summary>
     [Required]
-    [StringLength(500, MinimumLength = 1)]
+    [NotNullOrWhiteSpace]
+    [StringLength(maximumLength: 500)]
     public string Username { get; init; }
 
     /// <summary>
@@ -80,7 +81,8 @@ public record EnqueueDownloadBatchItem
     ///     The name of the file.
     /// </summary>
     [Required]
-    [StringLength(int.MaxValue, MinimumLength = 1)]
+    [NotNullOrWhiteSpace]
+    [NonTraversingPath]
     public string Filename { get; init; }
 
     /// <summary>
@@ -96,5 +98,6 @@ public record EnqueueDownloadBatchOptions
     ///     The destination directory for the files, relative to the configured download directory.
     /// </summary>
     [RelativePath]
+    [NonTraversingPath]
     public string Destination { get; init; }
 }

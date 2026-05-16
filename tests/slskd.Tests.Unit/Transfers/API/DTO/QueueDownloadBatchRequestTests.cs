@@ -102,8 +102,7 @@ public class QueueDownloadBatchRequestTests
         {
             var (isValid, results) = Validate(ValidRequest() with { Username = null });
             Assert.False(isValid);
-            Assert.Single(results);
-            Assert.Equal("The Username field is required.", results[0].ErrorMessage);
+            Assert.Contains(results, r => r.ErrorMessage == "The Username field is required.");
         }
 
         [Fact]
@@ -111,8 +110,15 @@ public class QueueDownloadBatchRequestTests
         {
             var (isValid, results) = Validate(ValidRequest() with { Username = "" });
             Assert.False(isValid);
-            Assert.Single(results);
-            Assert.Equal("The Username field is required.", results[0].ErrorMessage);
+            Assert.Contains(results, r => r.ErrorMessage == "The Username field is required.");
+        }
+
+        [Fact]
+        public void Whitespace_Fails()
+        {
+            var (isValid, results) = Validate(ValidRequest() with { Username = "   " });
+            Assert.False(isValid);
+            Assert.Contains(results, r => r.ErrorMessage == "The Username field is required.");
         }
 
         [Fact]
@@ -173,8 +179,7 @@ public class QueueDownloadBatchRequestTests
         {
             var (isValid, results) = Validate(new EnqueueDownloadBatchItem { Filename = null, Size = 0 });
             Assert.False(isValid);
-            Assert.Single(results);
-            Assert.Equal("The Filename field is required.", results[0].ErrorMessage);
+            Assert.Contains(results, r => r.ErrorMessage == "The Filename field is required.");
         }
 
         [Fact]
@@ -182,7 +187,14 @@ public class QueueDownloadBatchRequestTests
         {
             var (isValid, results) = Validate(new EnqueueDownloadBatchItem { Filename = "", Size = 0 });
             Assert.False(isValid);
-            Assert.Single(results);
+            Assert.Contains(results, r => r.ErrorMessage == "The Filename field is required.");
+        }
+
+        [Fact]
+        public void WhitespaceFilename_Fails()
+        {
+            var (isValid, results) = Validate(new EnqueueDownloadBatchItem { Filename = "   ", Size = 0 });
+            Assert.False(isValid);
             Assert.Contains(results, r => r.ErrorMessage == "The Filename field is required.");
         }
 
@@ -213,6 +225,27 @@ public class QueueDownloadBatchRequestTests
         public void PositiveSize_Passes()
         {
             var (isValid, _) = Validate(new EnqueueDownloadBatchItem { Filename = "music.mp3", Size = 1 });
+            Assert.True(isValid);
+        }
+
+        [Theory]
+        [InlineData("@foo/bar/../baz/file.mp3")]
+        [InlineData("@foo/bar/./baz/file.mp3")]
+        [InlineData("@foo\\bar\\..\\baz\\file.mp3")]
+        public void TraversalSegmentInFilename_Fails(string value)
+        {
+            var (isValid, results) = Validate(new EnqueueDownloadBatchItem { Filename = value, Size = 0 });
+            Assert.False(isValid);
+            Assert.Contains(results, r => r.ErrorMessage != null && r.ErrorMessage.Contains("traversal segments"));
+        }
+
+        [Theory]
+        [InlineData("@foo/bar/baz/file.mp3")]
+        [InlineData("@foo/bar/baz/file..ext")]
+        [InlineData("@foo\\bar\\baz\\file.mp3")]
+        public void NonTraversalFilename_Passes(string value)
+        {
+            var (isValid, _) = Validate(new EnqueueDownloadBatchItem { Filename = value, Size = 0 });
             Assert.True(isValid);
         }
     }
