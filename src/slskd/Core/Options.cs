@@ -198,6 +198,7 @@ namespace slskd
         [Argument('i', "instance-name")]
         [EnvironmentVariable("INSTANCE_NAME")]
         [Description("optional; a unique name for this instance")]
+        [DisallowedCharacters('/', '\\')]
         [RequiresRestart]
         public string InstanceName { get; init; } = "default";
 
@@ -654,6 +655,7 @@ namespace slskd
                 [Description("the name for this agent")]
                 [StringLength(255, MinimumLength = 1)]
                 [NotNullOrWhiteSpace]
+                [DisallowedCharacters('/', '\\')]
                 [Secret]
                 public string InstanceName { get; init; }
 
@@ -765,6 +767,7 @@ namespace slskd
             [Argument(default, "incomplete")]
             [EnvironmentVariable("INCOMPLETE_DIR")]
             [Description("path where incomplete downloads are saved")]
+            [AbsolutePath]
             [DirectoryExists(ensureWriteable: true)]
             [RequiresRestart]
             public string Incomplete { get; init; } = Program.DefaultIncompleteDirectory;
@@ -775,6 +778,7 @@ namespace slskd
             [Argument('o', "downloads")]
             [EnvironmentVariable("DOWNLOADS_DIR")]
             [Description("path where downloaded files are saved")]
+            [AbsolutePath]
             [DirectoryExists(ensureWriteable: true)]
             [RequiresRestart]
             public string Downloads { get; init; } = Program.DefaultDownloadsDirectory;
@@ -2010,7 +2014,7 @@ namespace slskd
             [Argument(default, "http-socket")]
             [EnvironmentVariable("HTTP_SOCKET")]
             [Description("HTTP listen unix domain socket (UDS) path for web UI")]
-            [AbsoluteFilePath]
+            [AbsolutePath]
             [RequiresRestart]
             public string Socket { get; init; }
 
