@@ -37,5 +37,11 @@ namespace slskd.Transfers.API;
 public record QueueDownloadBatchResponse
 {
     public Batch Batch { get; init; }
-    public Dictionary<string, string> Failures { get; init; } = [];
+    public IReadOnlyCollection<QueueDownloadBatchResponseFailure> Failures { get; init; } = [];
+}
+
+public record QueueDownloadBatchResponseFailure
+{
+    public string Filename { get; init; }
+    public string Message { get; init; }
 }
