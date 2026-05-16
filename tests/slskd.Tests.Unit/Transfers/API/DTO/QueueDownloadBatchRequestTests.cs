@@ -42,7 +42,7 @@ public class QueueDownloadBatchRequestTests
             var (isValid, results) = Validate(ValidRequest() with { Id = value });
             Assert.False(isValid);
             Assert.Single(results);
-            Assert.Equal("The Id field must be a valid GUID/UUIDv4", results[0].ErrorMessage);
+            Assert.Equal("The Id field must be a valid GUID/UUID", results[0].ErrorMessage);
         }
 
         [Theory]
@@ -78,7 +78,7 @@ public class QueueDownloadBatchRequestTests
             var (isValid, results) = Validate(ValidRequest() with { SearchId = value });
             Assert.False(isValid);
             Assert.Single(results);
-            Assert.Equal("The SearchId field must be a valid GUID/UUIDv4", results[0].ErrorMessage);
+            Assert.Equal("The SearchId field must be a valid GUID/UUID", results[0].ErrorMessage);
         }
 
         [Theory]

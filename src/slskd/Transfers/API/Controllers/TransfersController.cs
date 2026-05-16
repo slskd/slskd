@@ -351,7 +351,7 @@ namespace slskd.Transfers.API
             catch (Exception ex)
             {
                 Log.Warning("Failed to parse Guid from enqueue batch input: {Message}", ex.Message);
-                return BadRequest("One or more provided identifiers is not a valid GUID/UUIDv4");
+                return BadRequest("One or more provided identifiers is not a valid GUID/UUID");
             }
 
             batchId ??= Guid.NewGuid();

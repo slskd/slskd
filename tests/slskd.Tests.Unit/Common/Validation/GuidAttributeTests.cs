@@ -46,7 +46,7 @@ public class GuidAttributeTests
         {
             var (isValid, errorMessage) = Validate(string.Empty);
             Assert.False(isValid);
-            Assert.Equal("The Field field must be a valid GUID/UUIDv4", errorMessage);
+            Assert.Equal("The Field field must be a valid GUID/UUID", errorMessage);
         }
 
         [Theory]
@@ -60,7 +60,7 @@ public class GuidAttributeTests
         {
             var (isValid, errorMessage) = Validate(value);
             Assert.False(isValid);
-            Assert.Equal("The Field field must be a valid GUID/UUIDv4", errorMessage);
+            Assert.Equal("The Field field must be a valid GUID/UUID", errorMessage);
         }
 
         [Fact]
@@ -68,7 +68,7 @@ public class GuidAttributeTests
         {
             var (isValid, errorMessage) = Validate(42);
             Assert.False(isValid);
-            Assert.Equal("The Field field must be a valid GUID/UUIDv4", errorMessage);
+            Assert.Equal("The Field field must be a valid GUID/UUID", errorMessage);
         }
     }
 }
