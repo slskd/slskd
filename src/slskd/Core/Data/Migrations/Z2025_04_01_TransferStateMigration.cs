@@ -69,7 +69,10 @@ public class Z2025_04_01_TransferStateMigration : IMigration
         var schema = SchemaInspector.GetDatabaseSchema(ConnectionString);
         var txfers = schema["Transfers"];
 
+#pragma warning disable CS0618 // Type or member is obsolete
         return !txfers.Any(c => c.Name == nameof(Transfer.StateDescription));
+#pragma warning restore CS0618 // Type or member is obsolete
+
     }
 
     public void Apply()

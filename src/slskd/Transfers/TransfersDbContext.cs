@@ -50,11 +50,17 @@ namespace slskd.Transfers
         public override int SaveChanges(bool acceptAllChangesOnSuccess)
         {
             // this is absolutely NOT IDEAL and will accellerate the move away from EF
+            // we have to do this to store both the integer and the string value in the database
+            // well, we don't *HAVE* to, but storing the string allows external apps to understand transfer history
+            // and not need to work out the flags. storing the integer allows us to use bitwise operations in queries,
+            // which is the main driver for this.
             foreach (var entry in ChangeTracker.Entries<Transfer>())
             {
                 if (entry.State == EntityState.Added || entry.State == EntityState.Modified)
                 {
+#pragma warning disable CS0618 // Type or member is obsolete
                     entry.Entity.StateDescription = entry.Entity.State.ToString();
+#pragma warning restore CS0618 // Type or member is obsolete
                 }
             }
 

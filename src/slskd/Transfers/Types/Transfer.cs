@@ -90,6 +90,8 @@ public class Transfer
     ///     and especially **DO NOT** set the value. The getter and setter can't be protected because
     ///     EF Core needs them to be public.
     /// </remarks>
+    [Obsolete("Use State isntead; this is a hack for EF")]
+    [JsonIgnore]
     public string StateDescription { get; set; }
 
     /// <summary>
@@ -160,7 +162,6 @@ public class Transfer
     /// <summary>
     ///     Gets or sets a value indicating whether the Transfer has been removed from the UI.
     /// </summary>
-    [JsonIgnore]
     public bool Removed { get; set; }
 
     [NotMapped]

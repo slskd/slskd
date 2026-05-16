@@ -37,6 +37,9 @@ using slskd.Validation;
 
 namespace slskd.Transfers.API;
 
+/// <summary>
+///     Enqueue a batch of downloads.
+/// </summary>
 public record QueueDownloadBatchRequest
 {
     /// <summary>
@@ -75,6 +78,9 @@ public record QueueDownloadBatchRequest
     public EnqueueDownloadBatchOptions Options { get; init; } = new();
 }
 
+/// <summary>
+///     An item in a download batch.
+/// </summary>
 public record EnqueueDownloadBatchItem
 {
     /// <summary>
@@ -88,10 +94,14 @@ public record EnqueueDownloadBatchItem
     /// <summary>
     ///     The file size.
     /// </summary>
+    [Required]
     [Range(0, long.MaxValue)]
-    public long Size { get; init; }
+    public long? Size { get; init; }
 }
 
+/// <summary>
+///     Download batch options.
+/// </summary>
 public record EnqueueDownloadBatchOptions
 {
     /// <summary>
@@ -99,5 +109,6 @@ public record EnqueueDownloadBatchOptions
     /// </summary>
     [RelativePath]
     [NonTraversingPath]
+    [MinLength(1)]
     public string Destination { get; init; }
 }
