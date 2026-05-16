@@ -70,7 +70,7 @@ public record QueueDownloadBatchRequest
     /// </summary>
     [Required]
     [MinLength(1)]
-    public List<EnqueueDownloadBatchItem> Files { get; init; } = [];
+    public IReadOnlyCollection<EnqueueDownloadBatchItem> Files { get; init; } = [];
 
     /// <summary>
     ///     Options for the Batch.
@@ -109,6 +109,6 @@ public record EnqueueDownloadBatchOptions
     /// </summary>
     [RelativePath]
     [NonTraversingPath]
-    [MinLength(1)]
+    [String(AllowNull = true, AllowEmpty = false, AllowWhiteSpace = false, MinimumLength = 1)]
     public string Destination { get; init; }
 }
