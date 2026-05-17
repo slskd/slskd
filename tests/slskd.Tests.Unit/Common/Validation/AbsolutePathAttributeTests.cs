@@ -171,39 +171,6 @@ public class AbsolutePathAttributeTests
         }
     }
 
-    // Paths containing . or .. segments, which are valid directory names in isolation
-    // but indicate traversal or ambiguity and must be rejected regardless of whether
-    // the path is otherwise absolute or relative.
-    public class Traversal_Fails
-    {
-        [Theory]
-        // Windows-style traversal
-        [InlineData("C:\\Music\\..\\Windows")]      // traversal to sibling via backslash
-        [InlineData("C:\\Music\\.\\Artist")]        // current-dir segment via backslash
-        [InlineData("C:/Music/../Windows")]         // traversal via forward slash
-        [InlineData("C:/Music/./Artist")]           // current-dir via forward slash
-        [InlineData("C:\\..")]                      // traversal at drive root
-        [InlineData("D:\\a\\b\\..\\c")]            // traversal deep in path
-        // Unix-style traversal
-        [InlineData("/../etc")]                             // traversal at Unix root
-        [InlineData("/home/user/../etc")]                   // traversal to sibling on Unix
-        [InlineData("/home/user/./Music")]                  // current-dir on Unix
-        [InlineData("/home/../../etc")]                     // double traversal on Unix
-        // UNC traversal (backslash)
-        [InlineData("\\\\server\\..\\Windows")]             // traversal past UNC server
-        [InlineData("\\\\server\\share\\..\\other")]        // traversal within UNC share
-        [InlineData("\\\\server\\share\\.\\folder")]        // current-dir within UNC share
-        // UNC traversal (forward slash)
-        [InlineData("//server/../share")]                   // traversal past server, forward slash
-        [InlineData("//server/share/../other")]             // traversal within share, forward slash
-        public void TraversalSegment_Fails(string value)
-        {
-            var (isValid, errorMessage) = Validate(value);
-            Assert.False(isValid);
-            Assert.Contains("traversal segments", errorMessage);
-        }
-    }
-
     public class Relative_Fails
     {
         [Theory]

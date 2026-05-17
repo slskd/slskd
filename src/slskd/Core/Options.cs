@@ -198,7 +198,6 @@ namespace slskd
         [Argument('i', "instance-name")]
         [EnvironmentVariable("INSTANCE_NAME")]
         [Description("optional; a unique name for this instance")]
-        [DisallowedCharacters('/', '\\')]
         [RequiresRestart]
         public string InstanceName { get; init; } = "default";
 
@@ -655,7 +654,6 @@ namespace slskd
                 [Description("the name for this agent")]
                 [StringLength(255, MinimumLength = 1)]
                 [NotNullOrWhiteSpace]
-                [DisallowedCharacters('/', '\\')]
                 [Secret]
                 public string InstanceName { get; init; }
 
@@ -768,6 +766,7 @@ namespace slskd
             [EnvironmentVariable("INCOMPLETE_DIR")]
             [Description("path where incomplete downloads are saved")]
             [AbsolutePath]
+            [NonTraversingPath]
             [DirectoryExists(ensureWriteable: true)]
             [RequiresRestart]
             public string Incomplete { get; init; } = Program.DefaultIncompleteDirectory;
@@ -779,6 +778,7 @@ namespace slskd
             [EnvironmentVariable("DOWNLOADS_DIR")]
             [Description("path where downloaded files are saved")]
             [AbsolutePath]
+            [NonTraversingPath]
             [DirectoryExists(ensureWriteable: true)]
             [RequiresRestart]
             public string Downloads { get; init; } = Program.DefaultDownloadsDirectory;
@@ -844,6 +844,12 @@ namespace slskd
                 bool IsAbsolutePath(string share) => Regex.IsMatch(share.LocalizePath(), @"^(!|-){0,1}(\[.*\])?(\/|[a-zA-Z]:|\\\\).*$");
                 directories?.Where(share => !IsAbsolutePath(share)).ToList()
                     .ForEach(relativePath => results.Add(new ValidationResult($"Share {relativePath} contains a relative path; only absolute paths are supported.")));
+
+                // contains /./ or /../ or \.\ or \..\ or ..\ or ../ or \.. or /..
+                // which is resolved by some OS and will cause weird, unintended side effects
+                bool ContainsTraversalSegments(string share) => Regex.IsMatch(share.LocalizePath(), @"^\.+[\/\\]?|[\/\\]\.+[\/\\]|[\/\\]\.+$");
+                directories?.Where(share => ContainsTraversalSegments(share)).ToList()
+                    .ForEach(badPath => results.Add(new ValidationResult($"Share {badPath} contains an unsafe path traversal segment.")));
 
                 (string Raw, string Alias, string Path) Digest(string share)
                 {
@@ -2015,6 +2021,7 @@ namespace slskd
             [EnvironmentVariable("HTTP_SOCKET")]
             [Description("HTTP listen unix domain socket (UDS) path for web UI")]
             [AbsolutePath]
+            [NonTraversingPath]
             [RequiresRestart]
             public string Socket { get; init; }
 

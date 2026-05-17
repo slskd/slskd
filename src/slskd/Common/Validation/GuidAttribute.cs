@@ -1,4 +1,4 @@
-// <copyright file="AbsolutePathAttribute.cs" company="JP Dillingham">
+// <copyright file="GuidAttribute.cs" company="JP Dillingham">
 //           ▄▄▄▄     ▄▄▄▄     ▄▄▄▄
 //     ▄▄▄▄▄▄█  █▄▄▄▄▄█  █▄▄▄▄▄█  █
 //     █__ --█  █__ --█    ◄█  -  █
@@ -32,26 +32,50 @@
 
 namespace slskd.Validation
 {
+    using System;
+
     using System.ComponentModel.DataAnnotations;
 
     /// <summary>
-    ///     Validates that the specified path is absolute.
+    ///     Validates that the value is a valid Guid.
     /// </summary>
-    public class AbsolutePathAttribute : ValidationAttribute
+    public class GuidAttribute : ValidationAttribute
     {
+        public GuidAttribute(bool allowEmpty = false)
+        {
+            AllowEmpty = allowEmpty;
+        }
+
+        public bool AllowEmpty { get; }
+
         protected override ValidationResult IsValid(object value, ValidationContext validationContext)
         {
-            if (value != null && value is string str && !string.IsNullOrEmpty(str))
+            if (value is null)
             {
-                var path = value.ToString();
-
-                if (!FileSafety.IsPathAbsolute(path))
-                {
-                    return new ValidationResult($"The {validationContext.DisplayName} field must be an absolute file path.");
-                }
+                return ValidationResult.Success;
             }
 
-            return ValidationResult.Success;
+            if (value is Guid guid)
+            {
+                if (!AllowEmpty && guid == Guid.Empty)
+                {
+                    return new ValidationResult($"The {validationContext.DisplayName} field must not contain an empty GUID/UUID");
+                }
+
+                return ValidationResult.Success;
+            }
+
+            if (value is string str && Guid.TryParse(str, out guid))
+            {
+                if (!AllowEmpty && guid == Guid.Empty)
+                {
+                    return new ValidationResult($"The {validationContext.DisplayName} field must not contain an empty GUID/UUID");
+                }
+
+                return ValidationResult.Success;
+            }
+
+            return new ValidationResult($"The {validationContext.DisplayName} field must be a valid GUID/UUID");
         }
     }
 }

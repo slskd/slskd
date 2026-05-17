@@ -1,4 +1,4 @@
-// <copyright file="DisallowedCharactersAttribute.cs" company="JP Dillingham">
+// <copyright file="NonTraversingPathAttribute.cs" company="JP Dillingham">
 //           ▄▄▄▄     ▄▄▄▄     ▄▄▄▄
 //     ▄▄▄▄▄▄█  █▄▄▄▄▄█  █▄▄▄▄▄█  █
 //     █__ --█  █__ --█    ◄█  -  █
@@ -30,42 +30,28 @@
 //   ╰───────────────────────────────────────────╶──── ─ ─── ─  ── ──┈  ┈
 // </copyright>
 
-namespace slskd.Validation;
-
-using System.ComponentModel.DataAnnotations;
-using System.Linq;
-
-/// <summary>
-///     Validates that the value does not contain any of the <see cref="Disallowed"/> characters.
-/// </summary>
-public class DisallowedCharactersAttribute : ValidationAttribute
+namespace slskd.Validation
 {
-    public DisallowedCharactersAttribute(params char[] disallowed)
-    {
-        Disallowed = disallowed;
-    }
+    using System.ComponentModel.DataAnnotations;
 
     /// <summary>
-    ///     Gets or sets a value indicating whether character matching is case-insensitive. Defaults to <see langword="true"/>.
+    ///     Validates that the specified path does not contain traversal segments '.' or '..'.
     /// </summary>
-    public bool IgnoreCase { get; set; } = true;
-
-    private char[] Disallowed { get; }
-
-    protected override ValidationResult IsValid(object value, ValidationContext validationContext)
+    public class NonTraversingPathAttribute : ValidationAttribute
     {
-        if (value is not null and string str)
+        protected override ValidationResult IsValid(object value, ValidationContext validationContext)
         {
-            var invalid = IgnoreCase
-                ? str.Where(c => Disallowed.Any(d => char.ToUpperInvariant(c) == char.ToUpperInvariant(d)))
-                : str.Where(c => Disallowed.Contains(c));
-
-            if (invalid.Any())
+            if (value != null && value is string str && !string.IsNullOrEmpty(str))
             {
-                return new ValidationResult($"The {validationContext.DisplayName} field contains one or more disallowed characters: {string.Join(", ", invalid.Select(c => $"'{c}'"))}");
-            }
-        }
+                var path = value.ToString();
 
-        return ValidationResult.Success;
+                if (FileSafety.ContainsTraversalSegments(path))
+                {
+                    return new ValidationResult($"The {validationContext.DisplayName} field contains one or more unsafe path traversal segments ('.' or '..')");
+                }
+            }
+
+            return ValidationResult.Success;
+        }
     }
 }
