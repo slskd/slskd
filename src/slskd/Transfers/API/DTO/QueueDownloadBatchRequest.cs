@@ -61,8 +61,7 @@ public record QueueDownloadBatchRequest
     ///     The username of the user from which to download.
     /// </summary>
     [Required]
-    [NotNullOrWhiteSpace]
-    [StringLength(maximumLength: 500)]
+    [String(AllowNull = false, AllowEmpty = false, AllowWhiteSpace = false, MinimumLength = 1, MaximumLength = 500)]
     public string Username { get; init; }
 
     /// <summary>

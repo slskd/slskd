@@ -32,6 +32,8 @@
 
 namespace slskd.Validation
 {
+    using System;
+
     using System.ComponentModel.DataAnnotations;
 
     /// <summary>
@@ -39,6 +41,13 @@ namespace slskd.Validation
     /// </summary>
     public class GuidAttribute : ValidationAttribute
     {
+        public GuidAttribute(bool allowEmpty = false)
+        {
+            AllowEmpty = allowEmpty;
+        }
+
+        public bool AllowEmpty { get; }
+
         protected override ValidationResult IsValid(object value, ValidationContext validationContext)
         {
             if (value is null)
@@ -46,8 +55,23 @@ namespace slskd.Validation
                 return ValidationResult.Success;
             }
 
-            if (value is string str && System.Guid.TryParse(str, out _))
+            if (value is Guid guid)
             {
+                if (!AllowEmpty && guid == Guid.Empty)
+                {
+                    return new ValidationResult($"The {validationContext.DisplayName} field must not contain an empty GUID/UUID");
+                }
+
+                return ValidationResult.Success;
+            }
+
+            if (value is string str && Guid.TryParse(str, out guid))
+            {
+                if (!AllowEmpty && guid == Guid.Empty)
+                {
+                    return new ValidationResult($"The {validationContext.DisplayName} field must not contain an empty GUID/UUID");
+                }
+
                 return ValidationResult.Success;
             }
 

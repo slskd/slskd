@@ -141,7 +141,7 @@ public class QueueDownloadBatchRequestTests
             var (isValid, results) = Validate(ValidRequest() with { Username = new string('a', 501) });
             Assert.False(isValid);
             Assert.Single(results);
-            Assert.Equal("The field Username must be a string with a minimum length of 1 and a maximum length of 500.", results[0].ErrorMessage);
+            Assert.Contains("between 1 and 500 characters", results[0].ErrorMessage);
         }
     }
 

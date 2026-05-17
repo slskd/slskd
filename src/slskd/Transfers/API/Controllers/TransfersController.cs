@@ -385,7 +385,7 @@ namespace slskd.Transfers.API
 
                 if (failed.Count > 0)
                 {
-                    Log.Warning("Failed to enqueue {Count} of {Total} files for {Username}; transfers already queued, in progress, or an error occurred (batch Id: {BatchId}).  Failues: {Failures}", failed.Count, request.Files.Count, batchId, failed);
+                    Log.Warning("Failed to enqueue {Count} of {Total} files from {Username}; transfers already queued, in progress, or an error occurred (batch Id: {BatchId}).  Failues: {Failures}", failed.Count, request.Files.Count, request.Username, batchId, failed);
                 }
 
                 // the returned batch will have whatever Transfers were successfully inserted attached (via Include())
@@ -488,7 +488,7 @@ namespace slskd.Transfers.API
 
             if (!Guid.TryParse(id, out var guid))
             {
-                return BadRequest();
+                return BadRequest($"The specified id {id} is not a valid GUID/UUID");
             }
 
             try

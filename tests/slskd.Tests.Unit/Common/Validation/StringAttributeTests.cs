@@ -17,49 +17,119 @@ public class StringAttributeTests
         return (result == null, result?.ErrorMessage);
     }
 
-    // empty string passes all default checks — [Required] handles presence
-    [Fact]
-    public void EmptyString_Passes()
+    public class Null
     {
-        var (isValid, _) = Validate(string.Empty);
-        Assert.True(isValid);
+        [Fact]
+        public void Passes_When_AllowNull()
+        {
+            var (isValid, message) = Validate(null, a => a.AllowNull = true);
+            Assert.True(isValid);
+        }
+
+        [Fact]
+        public void Fails_When_Not_AllowNull()
+        {
+            var (isValid, message) = Validate(null, a => a.AllowNull = false);
+            Assert.False(isValid);
+            Assert.Contains("must not be null", message);
+        }
+
+        [Fact]
+        public void NonNull_Passes_Regardless()
+        {
+            var (isValid, message) = Validate("foo", a => a.AllowNull = true);
+            Assert.True(isValid);
+
+            var (isValid2, message2) = Validate("foo", a => a.AllowNull = false);
+            Assert.True(isValid);
+        }
+    }
+
+    public class Empty
+    {
+        [Fact]
+        public void Empty_Passes_When_AllowEmpty_Is_True()
+        {
+            var (isValid, _) = Validate(string.Empty, a => a.AllowEmpty = true);
+            Assert.True(isValid);
+        }
+
+        [Fact]
+        public void Empty_Fails_When_AllowEmpty_Is_False()
+        {
+            var (isValid, message) = Validate(string.Empty, a => a.AllowEmpty = false);
+            Assert.False(isValid);
+            Assert.Contains("at least one character", message);
+        }
+
+        [Fact]
+        public void NonEmpty_Passes_Regardless()
+        {
+            var (isValid, _) = Validate("hello", a => a.AllowEmpty = false);
+            Assert.True(isValid);
+
+            var (isValid2, _) = Validate("hello", a => a.AllowEmpty = true);
+            Assert.True(isValid);
+        }
+    }
+
+    public class WhiteSpace
+    {
+        [Fact]
+        public void WhiteSpace_Passes_When_AllowWhiteSpace_Is_True()
+        {
+            var (isValid, _) = Validate("    ", a => a.AllowWhiteSpace = true);
+            Assert.True(isValid);
+        }
+
+        [Fact]
+        public void WhiteSpace_Fails_When_AllowWhiteSpace_Is_False()
+        {
+            var (isValid, message) = Validate("   ", a => a.AllowWhiteSpace = false);
+            Assert.False(isValid);
+            Assert.Contains("whitespace", message);
+        }
+
+        [Fact]
+        public void NonWhiteSpace_Passes_Regardless()
+        {
+            var (isValid, _) = Validate("hello", a => a.AllowWhiteSpace = false);
+            Assert.True(isValid);
+
+            var (isValid2, _) = Validate("hello", a => a.AllowWhiteSpace = true);
+            Assert.True(isValid);
+        }
     }
 
     public class DisallowedCharacters
     {
-        private static (bool IsValid, string ErrorMessage) Validate(string value, char[] disallowed)
-            => StringAttributeTests.Validate(value, a => a.DisallowedCharacters = disallowed);
-
         public class Passes
         {
-            private static (bool IsValid, string ErrorMessage) Validate(string value, char[] disallowed)
-                => DisallowedCharacters.Validate(value, disallowed);
-
             [Fact]
             public void EmptyString_Passes()
             {
-                var (isValid, _) = Validate(string.Empty, ['!']);
+                var (isValid, _) = Validate(string.Empty, a => a.DisallowedCharacters = ['!']);
                 Assert.True(isValid);
             }
 
             [Fact]
             public void NoDisallowedCharsPresent_Passes()
             {
-                var (isValid, _) = Validate("hello", ['!', '@']);
+                var (isValid, _) = Validate("hello", a => a.DisallowedCharacters = ['!', '@']);
                 Assert.True(isValid);
             }
 
             [Fact]
             public void EmptyDisallowedSet_Passes()
             {
-                var (isValid, _) = Validate("hello!@#", []);
+                var (isValid, _) = Validate("hello!@#", a => a.DisallowedCharacters = []);
                 Assert.True(isValid);
             }
 
             [Fact]
             public void Unicode_AllowedChars_Pass()
             {
-                var (isValid, _) = Validate("пользователь/音楽", ['!', '@']);
+                var (isValid, _) = Validate("пользователь/音楽", a => a.DisallowedCharacters = ['!', '@']);
                 Assert.True(isValid);
             }
 
@@ -68,76 +138,73 @@ public class StringAttributeTests
             [Fact]
             public void LowerCaseDisallowed_DoesNotBlock_Different_UpperCaseLetter()
             {
-                var (isValid, _) = Validate("B", ['a']);
+                var (isValid, _) = Validate("B", a => a.DisallowedCharacters = ['a']);
                 Assert.True(isValid);
             }
         }
 
         public class Fails
         {
-            private static (bool IsValid, string ErrorMessage) Validate(string value, char[] disallowed)
-                => DisallowedCharacters.Validate(value, disallowed);
-
             [Fact]
             public void SingleDisallowedChar_Fails()
             {
-                var (isValid, _) = Validate("hello!", ['!']);
+                var (isValid, _) = Validate("hello!", a => a.DisallowedCharacters = ['!']);
                 Assert.False(isValid);
             }
 
             [Fact]
             public void DisallowedCharAtStart_Fails()
             {
-                var (isValid, _) = Validate("!hello", ['!']);
+                var (isValid, _) = Validate("!hello", a => a.DisallowedCharacters = ['!']);
                 Assert.False(isValid);
             }
 
             [Fact]
             public void DisallowedCharAtEnd_Fails()
             {
-                var (isValid, _) = Validate("hello!", ['!']);
+                var (isValid, _) = Validate("hello!", a => a.DisallowedCharacters = ['!']);
                 Assert.False(isValid);
             }
 
             [Fact]
             public void DisallowedCharInMiddle_Fails()
             {
-                var (isValid, _) = Validate("hel!lo", ['!']);
+                var (isValid, _) = Validate("hel!lo", a => a.DisallowedCharacters = ['!']);
                 Assert.False(isValid);
             }
 
             [Fact]
             public void OneOfMultipleDisallowedCharsPresent_Fails()
             {
-                var (isValid, _) = Validate("hello!", ['!', '@', '#']);
+                var (isValid, _) = Validate("hello!", a => a.DisallowedCharacters = ['!', '@', '#']);
                 Assert.False(isValid);
             }
 
             [Fact]
             public void MultipleDisallowedCharsAllPresent_Fails()
             {
-                var (isValid, _) = Validate("h!e@l#lo", ['!', '@', '#']);
+                var (isValid, _) = Validate("h!e@l#lo", a => a.DisallowedCharacters = ['!', '@', '#']);
                 Assert.False(isValid);
             }
 
             [Fact]
             public void DisallowedCharRepeated_Fails()
             {
-                var (isValid, _) = Validate("he!lo!", ['!']);
+                var (isValid, _) = Validate("he!lo!", a => a.DisallowedCharacters = ['!']);
                 Assert.False(isValid);
             }
 
             [Fact]
             public void AllCharsDisallowed_Fails()
             {
-                var (isValid, _) = Validate("!@#", ['!', '@', '#']);
+                var (isValid, _) = Validate("!@#", a => a.DisallowedCharacters = ['!', '@', '#']);
                 Assert.False(isValid);
             }
 
             [Fact]
             public void Unicode_DisallowedChar_Fails()
             {
-                var (isValid, _) = Validate("пользователь", ['е']);
+                var (isValid, _) = Validate("пользователь", a => a.DisallowedCharacters = ['е']);
                 Assert.False(isValid);
             }
 
@@ -145,41 +212,38 @@ public class StringAttributeTests
             [Fact]
             public void LowerCaseDisallowed_Blocks_UpperCase()
             {
-                var (isValid, _) = Validate("HELLO", ['h', 'e', 'l', 'o']);
+                var (isValid, _) = Validate("HELLO", a => a.DisallowedCharacters = ['h', 'e', 'l', 'o']);
                 Assert.False(isValid);
             }
 
             [Fact]
             public void UpperCaseDisallowed_Blocks_LowerCase()
             {
-                var (isValid, _) = Validate("hello", ['H', 'E', 'L', 'O']);
+                var (isValid, _) = Validate("hello", a => a.DisallowedCharacters = ['H', 'E', 'L', 'O']);
                 Assert.False(isValid);
             }
 
             [Fact]
             public void ExactMatch_Fails()
             {
-                var (isValid, _) = Validate("hello", ['h']);
+                var (isValid, _) = Validate("hello", a => a.DisallowedCharacters = ['h']);
                 Assert.False(isValid);
             }
         }
 
         public class ErrorMessage_Contains
         {
-            private static (bool IsValid, string ErrorMessage) Validate(string value, char[] disallowed)
-                => DisallowedCharacters.Validate(value, disallowed);
-
             [Fact]
             public void TheDisallowedChar()
             {
-                var (_, errorMessage) = Validate("hello!", ['!']);
+                var (_, errorMessage) = Validate("hello!", a => a.DisallowedCharacters = ['!']);
                 Assert.Contains("'!'", errorMessage);
             }
 
             [Fact]
             public void AllPresentDisallowedChars()
             {
-                var (_, errorMessage) = Validate("h!@l", ['!', '@']);
+                var (_, errorMessage) = Validate("h!@l", a => a.DisallowedCharacters = ['!', '@']);
                 Assert.Contains("'!'", errorMessage);
                 Assert.Contains("'@'", errorMessage);
             }
@@ -188,7 +252,7 @@ public class StringAttributeTests
             public void EachOccurrenceOfRepeatedChar()
             {
                 // "he!lo!" has two '!' — both occurrences are listed
-                var (_, errorMessage) = Validate("he!lo!", ['!']);
+                var (_, errorMessage) = Validate("he!lo!", a => a.DisallowedCharacters = ['!']);
                 Assert.Equal(2, errorMessage.Split("'!'").Length - 1);
             }
 
@@ -196,7 +260,7 @@ public class StringAttributeTests
             public void OnlyCharsActuallyPresent_NotAllDisallowedChars()
             {
                 // '@' is disallowed but not in the value — must not appear in the message
-                var (_, errorMessage) = Validate("hello!", ['!', '@']);
+                var (_, errorMessage) = Validate("hello!", a => a.DisallowedCharacters = ['!', '@']);
                 Assert.Contains("'!'", errorMessage);
                 Assert.DoesNotContain("'@'", errorMessage);
             }
@@ -206,159 +270,15 @@ public class StringAttributeTests
             {
                 // 'a' is disallowed (lowercase); value contains 'A' (uppercase).
                 // The message reports what the user supplied ('A'), not the disallowed definition ('a').
-                var (_, errorMessage) = Validate("A", ['a']);
+                var (_, errorMessage) = Validate("A", a => a.DisallowedCharacters = ['a']);
                 Assert.Contains("'A'", errorMessage);
                 Assert.DoesNotContain("'a'", errorMessage);
             }
         }
     }
 
-    // -----------------------------------------------------------------------
-    // AllowNull
-    // -----------------------------------------------------------------------
-    public class AllowNull
-    {
-        private static (bool IsValid, string ErrorMessage) Validate(string value, Action<StringAttribute> configure = null)
-            => StringAttributeTests.Validate(value, configure);
-
-        [Fact]
-        public void Null_Passes_When_AllowNull_Is_True()
-        {
-            var (isValid, _) = Validate(null);
-            Assert.True(isValid);
-        }
-
-        [Fact]
-        public void Null_Fails_When_AllowNull_Is_False()
-        {
-            var (isValid, _) = Validate(null, a => a.AllowNull = false);
-            Assert.False(isValid);
-        }
-
-        [Fact]
-        public void NonNull_Passes_When_AllowNull_Is_False()
-        {
-            var (isValid, _) = Validate("hello", a => a.AllowNull = false);
-            Assert.True(isValid);
-        }
-
-        public class ErrorMessage_Contains
-        {
-            private static (bool IsValid, string ErrorMessage) Validate(string value, Action<StringAttribute> configure = null)
-                => AllowNull.Validate(value, configure);
-
-            [Fact]
-            public void Null_Keyword()
-            {
-                var (_, message) = Validate(null, a => a.AllowNull = false);
-                Assert.Contains("null", message);
-            }
-        }
-    }
-
-    // -----------------------------------------------------------------------
-    // AllowEmpty
-    // -----------------------------------------------------------------------
-    public class AllowEmpty
-    {
-        private static (bool IsValid, string ErrorMessage) Validate(string value, Action<StringAttribute> configure = null)
-            => StringAttributeTests.Validate(value, configure);
-
-        [Fact]
-        public void Empty_Passes_When_AllowEmpty_Is_True()
-        {
-            var (isValid, _) = Validate(string.Empty);
-            Assert.True(isValid);
-        }
-
-        [Fact]
-        public void Empty_Fails_When_AllowEmpty_Is_False()
-        {
-            var (isValid, _) = Validate(string.Empty, a => a.AllowEmpty = false);
-            Assert.False(isValid);
-        }
-
-        [Fact]
-        public void NonEmpty_Passes_When_AllowEmpty_Is_False()
-        {
-            var (isValid, _) = Validate("hello", a => a.AllowEmpty = false);
-            Assert.True(isValid);
-        }
-
-        public class ErrorMessage_Contains
-        {
-            private static (bool IsValid, string ErrorMessage) Validate(string value, Action<StringAttribute> configure = null)
-                => AllowEmpty.Validate(value, configure);
-
-            [Fact]
-            public void Character_Keyword()
-            {
-                var (_, message) = Validate(string.Empty, a => a.AllowEmpty = false);
-                Assert.Contains("character", message);
-            }
-        }
-    }
-
-    // -----------------------------------------------------------------------
-    // AllowWhiteSpace
-    // -----------------------------------------------------------------------
-    public class AllowWhiteSpace
-    {
-        private static (bool IsValid, string ErrorMessage) Validate(string value, Action<StringAttribute> configure = null)
-            => StringAttributeTests.Validate(value, configure);
-
-        [Fact]
-        public void WhiteSpace_Passes_When_AllowWhiteSpace_Is_True()
-        {
-            var (isValid, _) = Validate("   ");
-            Assert.True(isValid);
-        }
-
-        [Fact]
-        public void WhiteSpace_Fails_When_AllowWhiteSpace_Is_False()
-        {
-            var (isValid, _) = Validate("   ", a => a.AllowWhiteSpace = false);
-            Assert.False(isValid);
-        }
-
-        [Fact]
-        public void NonWhiteSpace_Passes_When_AllowWhiteSpace_Is_False()
-        {
-            var (isValid, _) = Validate("hello", a => a.AllowWhiteSpace = false);
-            Assert.True(isValid);
-        }
-
-        // IsNullOrWhiteSpace("") is true, so empty string also fails the whitespace check
-        // when AllowEmpty=true (default) and AllowWhiteSpace=false
-        [Fact]
-        public void EmptyString_Fails_When_AllowWhiteSpace_Is_False_And_AllowEmpty_Is_True()
-        {
-            var (isValid, _) = Validate(string.Empty, a => a.AllowWhiteSpace = false);
-            Assert.False(isValid);
-        }
-
-        public class ErrorMessage_Contains
-        {
-            private static (bool IsValid, string ErrorMessage) Validate(string value, Action<StringAttribute> configure = null)
-                => AllowWhiteSpace.Validate(value, configure);
-
-            [Fact]
-            public void Whitespace_Keyword()
-            {
-                var (_, message) = Validate("   ", a => a.AllowWhiteSpace = false);
-                Assert.Contains("whitespace", message);
-            }
-        }
-    }
-
-    // -----------------------------------------------------------------------
-    // Length (MinimumLength / MaximumLength)
-    // -----------------------------------------------------------------------
     public class Length
     {
-        private static (bool IsValid, string ErrorMessage) Validate(string value, Action<StringAttribute> configure = null)
-            => StringAttributeTests.Validate(value, configure);
-
         [Fact]
         public void Within_Range_Passes()
         {
@@ -396,9 +316,6 @@ public class StringAttributeTests
 
         public class ErrorMessage_Contains
         {
-            private static (bool IsValid, string ErrorMessage) Validate(string value, Action<StringAttribute> configure = null)
-                => Length.Validate(value, configure);
-
             [Fact]
             public void MinimumLength_Value()
             {
@@ -415,16 +332,8 @@ public class StringAttributeTests
         }
     }
 
-    // -----------------------------------------------------------------------
-    // Pattern
-    // -----------------------------------------------------------------------
-    // The Pattern check fails validation when the value *matches* the regex —
-    // Pattern acts as a "disallowed pattern" rather than a "required pattern".
     public class Pattern
     {
-        private static (bool IsValid, string ErrorMessage) Validate(string value, Action<StringAttribute> configure = null)
-            => StringAttributeTests.Validate(value, configure);
-
         [Fact]
         public void NullPattern_Passes()
         {
@@ -449,9 +358,6 @@ public class StringAttributeTests
 
         public class ErrorMessage_Contains
         {
-            private static (bool IsValid, string ErrorMessage) Validate(string value, Action<StringAttribute> configure = null)
-                => Pattern.Validate(value, configure);
-
             [Fact]
             public void RegularExpression_Keyword()
             {
@@ -461,16 +367,8 @@ public class StringAttributeTests
         }
     }
 
-    // -----------------------------------------------------------------------
-    // Check ordering
-    // -----------------------------------------------------------------------
-    // Validation checks run in declaration order; when a value violates multiple
-    // conditions the error from the first check in code is the one returned.
     public class CheckOrdering
     {
-        private static (bool IsValid, string ErrorMessage) Validate(string value, Action<StringAttribute> configure = null)
-            => StringAttributeTests.Validate(value, configure);
-
         // AllowNull is checked before AllowEmpty:
         // null with both disabled returns the null error, not the empty error.
         [Fact]
