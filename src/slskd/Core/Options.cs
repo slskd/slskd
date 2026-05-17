@@ -845,6 +845,12 @@ namespace slskd
                 directories?.Where(share => !IsAbsolutePath(share)).ToList()
                     .ForEach(relativePath => results.Add(new ValidationResult($"Share {relativePath} contains a relative path; only absolute paths are supported.")));
 
+                // contains /./ or /../ or \.\ or \..\ or ..\ or ../ or \.. or /..
+                // which is resolved by some OS and will cause weird, unintended side effects
+                bool ContainsTraversalSegments(string share) => Regex.IsMatch(share.LocalizePath(), @"^\.+[\/\\]?|[\/\\]\.+[\/\\]|[\/\\]\.+$");
+                directories?.Where(share => ContainsTraversalSegments(share)).ToList()
+                    .ForEach(badPath => results.Add(new ValidationResult($"Share {badPath} contains an unsafe path traversal segment.")));
+
                 (string Raw, string Alias, string Path) Digest(string share)
                 {
                     var matches = Regex.Matches(share, @"^(!|-){0,1}\[(.*)\](.*)$");
