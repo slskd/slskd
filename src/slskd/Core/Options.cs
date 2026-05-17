@@ -768,6 +768,7 @@ namespace slskd
             [EnvironmentVariable("INCOMPLETE_DIR")]
             [Description("path where incomplete downloads are saved")]
             [AbsolutePath]
+            [NonTraversingPath]
             [DirectoryExists(ensureWriteable: true)]
             [RequiresRestart]
             public string Incomplete { get; init; } = Program.DefaultIncompleteDirectory;
@@ -779,6 +780,7 @@ namespace slskd
             [EnvironmentVariable("DOWNLOADS_DIR")]
             [Description("path where downloaded files are saved")]
             [AbsolutePath]
+            [NonTraversingPath]
             [DirectoryExists(ensureWriteable: true)]
             [RequiresRestart]
             public string Downloads { get; init; } = Program.DefaultDownloadsDirectory;
@@ -2015,6 +2017,7 @@ namespace slskd
             [EnvironmentVariable("HTTP_SOCKET")]
             [Description("HTTP listen unix domain socket (UDS) path for web UI")]
             [AbsolutePath]
+            [NonTraversingPath]
             [RequiresRestart]
             public string Socket { get; init; }
 
