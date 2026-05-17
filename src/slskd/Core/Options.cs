@@ -198,7 +198,6 @@ namespace slskd
         [Argument('i', "instance-name")]
         [EnvironmentVariable("INSTANCE_NAME")]
         [Description("optional; a unique name for this instance")]
-        [DisallowedCharacters('/', '\\')]
         [RequiresRestart]
         public string InstanceName { get; init; } = "default";
 
@@ -655,7 +654,6 @@ namespace slskd
                 [Description("the name for this agent")]
                 [StringLength(255, MinimumLength = 1)]
                 [NotNullOrWhiteSpace]
-                [DisallowedCharacters('/', '\\')]
                 [Secret]
                 public string InstanceName { get; init; }
 
