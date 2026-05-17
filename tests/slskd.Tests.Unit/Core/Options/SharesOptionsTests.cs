@@ -28,6 +28,9 @@ public class SharesOptionsTests
                     Directories = [@"[foo]/bar/[baz]/"]
                 };
 
+                // todo: fix this so that it fully validates on all platforms; currently this fails
+                // validation on Windows and would fail on Linux if i were to use backslashes
+                // the assertion for the alias proves we have fixed an aliasing bug so it's fine for now
                 var results = Validate(options);
 
                 Assert.DoesNotContain(results, r => r.ErrorMessage?.Contains("aliases may not contain path separators") == true);
