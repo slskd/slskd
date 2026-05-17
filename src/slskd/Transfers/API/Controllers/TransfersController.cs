@@ -42,6 +42,7 @@ namespace slskd.Transfers.API
     using System.Threading.Tasks;
     using Asp.Versioning;
     using Microsoft.AspNetCore.Authorization;
+    using Microsoft.AspNetCore.Http;
     using Microsoft.AspNetCore.Mvc;
     using Serilog;
     using slskd.Users;
@@ -292,18 +293,24 @@ namespace slskd.Transfers.API
         /// </summary>
         /// <param name="request">The batch details.</param>
         /// <returns></returns>
-        /// <response code="201">One or more downloads were successfully enqueued.</response>
-        /// <response code="200">The request succeeded, but all downloads were already enqueued.</response>
+        /// <response code="201">All downloads were successfully enqueued.</response>
+        /// <response code="200">The request succeeded, but all downloads failed to be enqueued.</response>
+        /// <response code="207">Some downloads were successfully enqueued, while some failed.</response>
+        /// <response code="400">Bad request.</response>
+        /// <response code="403">The request was forbidden.</response>
+        /// <response code="409">A batch with the same ID already exists.</response>
+        /// <response code="429">Request throttled.</response>
         /// <response code="500">An unexpected error was encountered.</response>
         [HttpPost("downloads/batches")]
         [Authorize(Policy = AuthPolicy.Any)]
-        [ProducesResponseType(200)]
-        [ProducesResponseType(201)]
-        [ProducesResponseType(typeof(string), 400)]
-        [ProducesResponseType(typeof(string), 403)]
-        [ProducesResponseType(typeof(string), 409)]
-        [ProducesResponseType(typeof(string), 429)]
-        [ProducesResponseType(typeof(string), 500)]
+        [ProducesResponseType(typeof(QueueDownloadBatchResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(QueueDownloadBatchResponse), StatusCodes.Status201Created)]
+        [ProducesResponseType(typeof(QueueDownloadBatchResponse), StatusCodes.Status207MultiStatus)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status409Conflict)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status429TooManyRequests)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> EnqueueBatchAsync([FromBody] QueueDownloadBatchRequest request)
         {
             if (Program.IsRelayAgent)
@@ -316,11 +323,6 @@ namespace slskd.Transfers.API
                 return BadRequest(ModelState.GetReadableString());
             }
 
-            if ((request.Files?.Count ?? 0) == 0)
-            {
-                return BadRequest("At least one file is required");
-            }
-
             if (request.Files.Any(r => r is null))
             {
                 return BadRequest("One or more files in the request are null");
@@ -331,18 +333,9 @@ namespace slskd.Transfers.API
                 return BadRequest("Two or more files in the request are repeated");
             }
 
-            // a user would have to deliberately fake this, as no OS and no client are capable of scanning
-            // such a file into configured shares
-            if (request.Files.Any(r => FileSafety.ContainsTraversalSegments(r.Filename)))
-            {
-                Log.Warning("Attempt to enqueue one or more files containing unsafe path segments from user {Username} (one or more of path traversal characters '.' and '..')", request.Username);
-                return BadRequest("One or more files in the request contain an unsafe path traversal segment");
-            }
-
             Guid? batchId;
             Guid? searchId;
 
-            // validation rules should prevent any problems here, but we have a backstop just in case
             try
             {
                 batchId = string.IsNullOrWhiteSpace(request.Id) ? null : Guid.Parse(request.Id);
@@ -383,27 +376,50 @@ namespace slskd.Transfers.API
                 });
 
                 // Transfer records will have been inserted before this returns, unless they were rejected
-                // because they were already in progress, in which case they will show up in 'failed'
+                // because they were already in progress, in which case they will show up in 'failed'. or maybe they
+                // failed with an error. either way this complicates the return code
                 var (enqueued, failed) = await Transfers.Downloads.EnqueueAsync(
                     username: request.Username,
-                    files: request.Files.Select(r => (r.Filename, r.Size)),
+                    files: request.Files.Select(r => (r.Filename, r.Size.Value)),
                     batchId: batchId);
 
                 if (failed.Count > 0)
                 {
-                    Log.Warning("Failed to enqueue {Count} of {Total} files for {Username}; transfers already queued or in progress", failed.Count, request.Files.Count);
+                    Log.Warning("Failed to enqueue {Count} of {Total} files for {Username}; transfers already queued, in progress, or an error occurred (batch Id: {BatchId}).  Failues: {Failures}", failed.Count, request.Files.Count, batchId, failed);
                 }
 
                 // the returned batch will have whatever Transfers were successfully inserted attached (via Include())
+                // failed transfers MAY or MAY NOT have an associated database record. if they do, it should have been
+                // properly finalized and marked as a failure
                 var batch = await Transfers.Downloads.Batches.FindAsync(b => b.Id == batchId);
 
-                // all of the files were already queued; list of transfers should be empty
-                if (batch.Transfers.Count == 0)
+                var response = new QueueDownloadBatchResponse
                 {
-                    return Ok(batch);
+                    Batch = batch,
+                    Failures = failed.Select(f => new QueueDownloadBatchResponseFailure { Filename = f.Filename, Message = f.Message }).ToList(),
+                };
+
+                // basically a no-op, but we did create the batch record (and it's useless, but it's there)
+                // there's nothing to process asynchronously, so we'll return 200. 204 makes more sense to me,
+                // but it doesn't allow a body and without it the caller will never know the id unless they supplied it
+                if (response.Failures.Count == request.Files.Count)
+                {
+                    return StatusCode(StatusCodes.Status200OK, response);
                 }
 
-                return StatusCode(201, batch);
+                // if at least one (but not all) failed, we're in a weird state so send the most appropriate status code
+                // along with the batch and list of failures; the caller will have to pick through it and decide what to do
+                if (response.Failures.Count > 0)
+                {
+                    return StatusCode(StatusCodes.Status207MultiStatus, response);
+                }
+
+                // everything passed and we are now (or will eventually be) downloading asynchronously
+                return StatusCode(StatusCodes.Status201Created, response);
+            }
+            catch (UserOfflineException ex)
+            {
+                return StatusCode(StatusCodes.Status404NotFound, ex.Message);
             }
             catch (DuplicateException ex)
             {
@@ -412,8 +428,8 @@ namespace slskd.Transfers.API
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "Failed to enqueue {Count} files for {Username}: {Message}", request.Files.Count, request.Username, ex.Message);
-                return StatusCode(500, ex.Message);
+                Log.Error(ex, "Failed to enqueue {Count} files for {Username} (batch Id: {BatchId}): {Message}", request.Files.Count, request.Username, batchId, ex.Message);
+                return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
             }
             finally
             {
@@ -532,7 +548,7 @@ namespace slskd.Transfers.API
 
         [HttpGet("downloads/{username}/{id}")]
         [Authorize(Policy = AuthPolicy.Any)]
-        [ProducesResponseType(typeof(API.Transfer), 200)]
+        [ProducesResponseType(typeof(Transfer), 200)]
         [ProducesResponseType(404)]
         public IActionResult GetDownload([FromRoute, UrlEncoded, Required] string username, [FromRoute, Required] string id)
         {
@@ -567,7 +583,7 @@ namespace slskd.Transfers.API
         /// <response code="404">The specified download was not found.</response>
         [HttpGet("downloads/{username}/{id}/position")]
         [Authorize(Policy = AuthPolicy.Any)]
-        [ProducesResponseType(typeof(API.Transfer), 200)]
+        [ProducesResponseType(typeof(Transfer), 200)]
         [ProducesResponseType(404)]
         public async Task<IActionResult> GetPlaceInQueueAsync([FromRoute, UrlEncoded, Required] string username, [FromRoute, Required] string id)
         {
