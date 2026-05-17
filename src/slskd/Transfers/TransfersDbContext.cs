@@ -33,6 +33,7 @@
 namespace slskd.Transfers
 {
     using System;
+    using System.Text.Json;
     using Microsoft.EntityFrameworkCore;
     using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
@@ -43,16 +44,23 @@ namespace slskd.Transfers
         {
         }
 
+        public DbSet<Batch> Batches { get; set; }
         public DbSet<Transfer> Transfers { get; set; }
 
         public override int SaveChanges(bool acceptAllChangesOnSuccess)
         {
             // this is absolutely NOT IDEAL and will accellerate the move away from EF
+            // we have to do this to store both the integer and the string value in the database
+            // well, we don't *HAVE* to, but storing the string allows external apps to understand transfer history
+            // and not need to work out the flags. storing the integer allows us to use bitwise operations in queries,
+            // which is the main driver for this.
             foreach (var entry in ChangeTracker.Entries<Transfer>())
             {
                 if (entry.State == EntityState.Added || entry.State == EntityState.Modified)
                 {
+#pragma warning disable CS0618 // Type or member is obsolete
                     entry.Entity.StateDescription = entry.Entity.State.ToString();
+#pragma warning restore CS0618 // Type or member is obsolete
                 }
             }
 
@@ -60,6 +68,12 @@ namespace slskd.Transfers
         }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            ConfigureTransfers(modelBuilder);
+            ConfigureBatches(modelBuilder);
+        }
+
+        private void ConfigureTransfers(ModelBuilder modelBuilder)
         {
             modelBuilder
                 .Entity<Transfer>()
@@ -113,6 +127,35 @@ namespace slskd.Transfers
                 .Entity<Transfer>()
                 .HasIndex(e => new { e.Username, e.Direction, e.EndedAt, e.StartedAt, e.State, e.Size })
                 .HasDatabaseName("IDX_Transfers_UserUploadStatistics");
+        }
+
+        private void ConfigureBatches(ModelBuilder modelBuilder)
+        {
+            modelBuilder
+                .Entity<Batch>()
+                .Property(e => e.CreatedAt)
+                .HasConversion(v => v, v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
+
+            modelBuilder
+                .Entity<Batch>()
+                .HasMany(b => b.Transfers)
+                .WithOne()
+                .HasForeignKey(t => t.BatchId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder
+                .Entity<Batch>()
+                .Property(b => b.Options)
+                .HasConversion(
+                    convertToProviderExpression: v => JsonSerializer.Serialize(v, new JsonSerializerOptions().WithStandardOptions()),
+                    convertFromProviderExpression: v => JsonSerializer.Deserialize<BatchOptions>(v, new JsonSerializerOptions().WithStandardOptions()))
+                .HasColumnType("TEXT");
+
+            modelBuilder
+                .Entity<Batch>()
+                .HasIndex(b => b.SearchId)
+                .HasDatabaseName("IDX_Batches_SearchId");
         }
     }
 }

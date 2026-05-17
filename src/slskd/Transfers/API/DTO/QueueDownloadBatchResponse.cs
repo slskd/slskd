@@ -1,4 +1,4 @@
-// <copyright file="Extensions.cs" company="JP Dillingham">
+// <copyright file="QueueDownloadBatchResponse.cs" company="JP Dillingham">
 //           ▄▄▄▄     ▄▄▄▄     ▄▄▄▄
 //     ▄▄▄▄▄▄█  █▄▄▄▄▄█  █▄▄▄▄▄█  █
 //     █__ --█  █__ --█    ◄█  -  █
@@ -30,30 +30,18 @@
 //   ╰───────────────────────────────────────────╶──── ─ ─── ─  ── ──┈  ┈
 // </copyright>
 
-namespace slskd.Transfers
+using System.Collections.Generic;
+
+namespace slskd.Transfers.API;
+
+public record QueueDownloadBatchResponse
 {
-    public static class Extensions
-    {
-        public static Transfer WithSoulseekTransfer(this Transfer transfer, Soulseek.Transfer t)
-        {
-            return new Transfer()
-            {
-                BatchId = transfer.BatchId,
-                Id = transfer.Id,
-                Username = transfer.Username,
-                Direction = transfer.Direction,
-                Filename = transfer.Filename,
-                Size = transfer.Size,
-                State = t.State,
-                RequestedAt = transfer.RequestedAt,
-                EnqueuedAt = transfer.EnqueuedAt,
-                StartedAt = t.StartTime,
-                EndedAt = t.EndTime,
-                BytesTransferred = t.BytesTransferred,
-                AverageSpeed = t.AverageSpeed,
-                Exception = t.Exception?.Message,
-                Attempts = transfer.Attempts,
-            };
-        }
-    }
+    public Batch Batch { get; init; }
+    public IReadOnlyCollection<QueueDownloadBatchResponseFailure> Failures { get; init; } = [];
+}
+
+public record QueueDownloadBatchResponseFailure
+{
+    public string Filename { get; init; }
+    public string Message { get; init; }
 }

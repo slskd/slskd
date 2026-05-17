@@ -1,4 +1,4 @@
-// <copyright file="Extensions.cs" company="JP Dillingham">
+// <copyright file="Z2026_04_30_DropTransferStartOffsetMigration.cs" company="JP Dillingham">
 //           ▄▄▄▄     ▄▄▄▄     ▄▄▄▄
 //     ▄▄▄▄▄▄█  █▄▄▄▄▄█  █▄▄▄▄▄█  █
 //     █__ --█  █__ --█    ◄█  -  █
@@ -30,30 +30,72 @@
 //   ╰───────────────────────────────────────────╶──── ─ ─── ─  ── ──┈  ┈
 // </copyright>
 
-namespace slskd.Transfers
+namespace slskd.Migrations;
+
+using System;
+using System.Linq;
+using Microsoft.Data.Sqlite;
+using Serilog;
+
+/// <summary>
+///     Updates the Transfers table to drop the unused StartOffset column.
+/// </summary>
+public class Z2026_04_30_DropTransferStartOffsetMigration : IMigration
 {
-    public static class Extensions
+    public Z2026_04_30_DropTransferStartOffsetMigration(ConnectionStringDictionary connectionStrings)
     {
-        public static Transfer WithSoulseekTransfer(this Transfer transfer, Soulseek.Transfer t)
+        ConnectionString = connectionStrings[Database.Transfers];
+    }
+
+    private ILogger Log { get; } = Serilog.Log.ForContext<Z2026_04_30_DropTransferStartOffsetMigration>();
+    private string ConnectionString { get; }
+
+    public bool NeedsToBeApplied()
+    {
+        var schema = SchemaInspector.GetDatabaseSchema(ConnectionString);
+
+        var columns = schema["Transfers"];
+
+        if (columns.Any(c => c.Name == "StartOffset"))
         {
-            return new Transfer()
+            return true;
+        }
+
+        return false;
+    }
+
+    public void Apply()
+    {
+        if (!NeedsToBeApplied())
+        {
+            Log.Information("> Migration {Name} is not necessary or has already been applied", nameof(Z2026_04_30_DropTransferStartOffsetMigration));
+            return;
+        }
+
+        using var connection = new SqliteConnection(ConnectionString);
+        connection.Open();
+
+        using var transaction = connection.BeginTransaction();
+
+        try
+        {
+            void Exec(string sql)
             {
-                BatchId = transfer.BatchId,
-                Id = transfer.Id,
-                Username = transfer.Username,
-                Direction = transfer.Direction,
-                Filename = transfer.Filename,
-                Size = transfer.Size,
-                State = t.State,
-                RequestedAt = transfer.RequestedAt,
-                EnqueuedAt = transfer.EnqueuedAt,
-                StartedAt = t.StartTime,
-                EndedAt = t.EndTime,
-                BytesTransferred = t.BytesTransferred,
-                AverageSpeed = t.AverageSpeed,
-                Exception = t.Exception?.Message,
-                Attempts = transfer.Attempts,
-            };
+                using var command = new SqliteCommand(sql, connection, transaction);
+                command.ExecuteNonQuery();
+            }
+
+            Log.Information("> Dropping StartOffset column from the Transfers table...");
+
+            Exec("ALTER TABLE Transfers DROP COLUMN StartOffset;");
+
+            transaction.Commit();
+            Log.Information("> Done!");
+        }
+        catch (Exception)
+        {
+            transaction.Rollback();
+            throw;
         }
     }
 }

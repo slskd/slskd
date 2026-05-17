@@ -56,6 +56,11 @@ namespace slskd.Transfers.Downloads
     public interface IDownloadService
     {
         /// <summary>
+        ///     Gets download batch service.
+        /// </summary>
+        IBatchService Batches { get; }
+
+        /// <summary>
         ///     Adds the specified <paramref name="transfer"/>. Supersedes any existing record for the same file and username.
         /// </summary>
         /// <remarks>This should generally not be called; use EnqueueAsync() instead.</remarks>
@@ -71,12 +76,13 @@ namespace slskd.Transfers.Downloads
         /// </remarks>
         /// <param name="username">The username of remote user.</param>
         /// <param name="files">The list of files to enqueue.</param>
+        /// <param name="batchId">The optional batch id for the transfers.</param>
         /// <param name="cancellationToken">The token to monitor for cancellation.</param>
         /// <returns>The operation context.</returns>
         /// <exception cref="ArgumentException">Thrown when the username is null or an empty string.</exception>
         /// <exception cref="ArgumentException">Thrown when no files are requested.</exception>
         /// <exception cref="AggregateException">Thrown when at least one of the requested files throws.</exception>
-        Task<(List<Transfer> Enqueued, List<string> Failed)> EnqueueAsync(string username, IEnumerable<(string Filename, long Size)> files, CancellationToken cancellationToken = default);
+        Task<(List<Transfer> Enqueued, List<(string Filename, string Message)> Failed)> EnqueueAsync(string username, IEnumerable<(string Filename, long Size)> files, Guid? batchId = null, CancellationToken cancellationToken = default);
 
         /// <summary>
         ///     Finds a single download matching the specified <paramref name="expression"/>.
@@ -158,6 +164,7 @@ namespace slskd.Transfers.Downloads
     public class DownloadService : IDownloadService
     {
         public DownloadService(
+            IBatchService batchService,
             IOptionsMonitor<Options> optionsMonitor,
             ISoulseekClient soulseekClient,
             IDbContextFactory<TransfersDbContext> contextFactory,
@@ -166,6 +173,7 @@ namespace slskd.Transfers.Downloads
             IFTPService ftpClient,
             EventBus eventBus)
         {
+            Batches = batchService;
             Client = soulseekClient;
             OptionsMonitor = optionsMonitor;
             ContextFactory = contextFactory;
@@ -176,6 +184,11 @@ namespace slskd.Transfers.Downloads
 
             Clock.EveryMinute += (_, _) => Task.Run(() => CleanupEnqueueSemaphoresAsync());
         }
+
+        /// <summary>
+        ///     Gets download batch service.
+        /// </summary>
+        public IBatchService Batches { get; }
 
         /// <summary>
         ///     These tokens give users the ability to cancel transfers via the UI (or API).
@@ -249,12 +262,13 @@ namespace slskd.Transfers.Downloads
         /// </summary>
         /// <param name="username">The username of the remote user.</param>
         /// <param name="files">The list of files to enqueue.</param>
+        /// <param name="batchId">The optional batch id for the transfers.</param>
         /// <param name="cancellationToken">The token to monitor for cancellation.</param>
         /// <returns>The operation context.</returns>
         /// <exception cref="ArgumentException">Thrown when the username is null or an empty string.</exception>
         /// <exception cref="ArgumentException">Thrown when no files are requested.</exception>
         /// <exception cref="AggregateException">Thrown when at least one of the requested files throws.</exception>
-        public async Task<(List<Transfer> Enqueued, List<string> Failed)> EnqueueAsync(string username, IEnumerable<(string Filename, long Size)> files, CancellationToken cancellationToken = default)
+        public async Task<(List<Transfer> Enqueued, List<(string Filename, string Message)> Failed)> EnqueueAsync(string username, IEnumerable<(string Filename, long Size)> files, Guid? batchId = null, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrEmpty(username))
             {
@@ -271,6 +285,11 @@ namespace slskd.Transfers.Downloads
             if (fileList.Any(f => string.IsNullOrEmpty(f.Filename)))
             {
                 throw new ArgumentException("At least one filename is null or empty", nameof(files));
+            }
+
+            if (fileList.Any(f => FileSafety.ContainsTraversalSegments(f.Filename)))
+            {
+                throw new ArgumentException("One or more files contains a dangerous path traversal segment", nameof(files));
             }
 
             if (fileList.Count != fileList.Distinct().Count())
@@ -306,7 +325,7 @@ namespace slskd.Transfers.Downloads
             }
 
             List<Transfer> enqueued = [];
-            List<string> failed = [];
+            List<(string Filename, string Message)> failed = [];
 
             SemaphoreSlim userSemaphore;
             Task userSemaphoreWaitTask;
@@ -404,7 +423,7 @@ namespace slskd.Transfers.Downloads
                         if (existingInProgressRecord is not null)
                         {
                             Log.Debug("Ignoring concurrent download enqueue attempt; transfer for {Filename} from {Username} already in progress (id: {Id})", file.Filename, username, existingInProgressRecord.Id);
-                            failed.Add(file.Filename);
+                            failed.Add((file.Filename, "Skipped: Already in progress"));
                             continue;
                         }
 
@@ -416,7 +435,7 @@ namespace slskd.Transfers.Downloads
                         if (Client.Downloads?.Any(u => u.Username == username && u.Filename == file.Filename) ?? false)
                         {
                             Log.Warning("Ignoring concurrent download enqueue attempt; transfer for {Filename} from {Username} is tracked by the Soulseek client but not slskd", file.Filename, username);
-                            failed.Add(file.Filename);
+                            failed.Add((file.Filename, "Skipped: Already in progress"));
                             continue;
                         }
 
@@ -431,11 +450,11 @@ namespace slskd.Transfers.Downloads
                         var transfer = new Transfer()
                         {
                             Id = transferId,
+                            BatchId = batchId,
                             Username = username,
                             Direction = TransferDirection.Download,
                             Filename = file.Filename, // important! use the remote filename
                             Size = file.Size,
-                            StartOffset = 0, // todo: maybe implement resumeable downloads?
                             RequestedAt = DateTime.UtcNow,
                             State = TransferStates.Queued | TransferStates.Locally,
                         };
@@ -607,7 +626,7 @@ namespace slskd.Transfers.Downloads
                     {
                         Log.Error(ex, "Failed to enqueue download of {Filename} from {Username}: {Message}", file.Filename, username, ex.Message);
                         TryFail(transferId, exception: ex);
-                        failed.Add(file.Filename);
+                        failed.Add((file.Filename, $"Error: {ex.Message}"));
 
                         if (CancellationTokens.TryRemove(transferId, out var cts))
                         {
@@ -973,9 +992,11 @@ namespace slskd.Transfers.Downloads
                             // the final update after all retry attempts have been exhausted to add it.
                             // this means that the ONLY way to check whether a transfer is really 'dead' inclusive of all
                             // retries is to look for this flag
-                            if (transfer.Attempts < retryOptions.Attempts)
+                            if (args.Transfer.State.HasFlag(TransferStates.Completed)
+                                && !args.Transfer.State.HasFlag(TransferStates.Succeeded)
+                                && transfer.Attempts < retryOptions.Attempts)
                             {
-                                transfer.State &= ~TransferStates.Completed; // remove the Completed flag
+                                transfer.State = TransferStates.Queued | TransferStates.Locally;
                             }
 
                             // todo: broadcast
@@ -1030,10 +1051,11 @@ namespace slskd.Transfers.Downloads
 
                 // if the transfer has an associated batch id, store the incomplete file in a directory of the same name
                 // this is to ensure maximal safety when resuming failed downloads (otherwise we risk resuming an unrelated file)
+                // if there is no batch id, sanitize the username and use that
                 var incompleteFilename = transfer.Filename.ToLocalFilename(
-                    baseDirectory: System.IO.Path.Combine(
+                    baseDirectory: FileSafety.CombineSafely(
                         OptionsMonitor.CurrentValue.Directories.Incomplete,
-                        transfer.BatchId.HasValue ? transfer.BatchId.ToString() : string.Empty));
+                        transfer.BatchId.HasValue ? transfer.BatchId.ToString() : transfer.Username.ReplaceInvalidFileNameCharacters()));
 
                 Log.Debug("Invoking Soulseek DownloadAsync() for {Filename} from {Username}", transfer.Filename, transfer.Username);
                 transfer.Attempts = 1;
@@ -1128,7 +1150,7 @@ namespace slskd.Transfers.Downloads
                 {
                     // if the transfer has an associated batch id, then:
                     // some/long/remote/path/folder/file.ext -> download_directory/batch_id/file.ext
-                    destinationDirectory = System.IO.Path.Combine(OptionsMonitor.CurrentValue.Directories.Downloads, transfer.BatchId.Value.ToString());
+                    destinationDirectory = FileSafety.CombineSafely(OptionsMonitor.CurrentValue.Directories.Downloads, transfer.BatchId.Value.ToString());
                 }
                 else
                 {

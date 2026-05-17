@@ -111,6 +111,7 @@ public static class TransferStateCategories
     ///     </list>
     /// </summary>
     public static readonly HashSet<TransferStates> Queued = [
+        TransferStates.Requested, // optimistically assume that we will be allowed to enqueue
         TransferStates.Queued, // 2, in case of some sort of a malfunction or regression
         TransferStates.Queued | TransferStates.Locally, // 2 | 2048 = 2050
         TransferStates.Queued | TransferStates.Remotely, // 2 | 4096 = 4098
