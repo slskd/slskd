@@ -853,7 +853,7 @@ namespace slskd
 
                 (string Raw, string Alias, string Path) Digest(string share)
                 {
-                    var matches = Regex.Matches(share, @"^(!|-){0,1}\[(.*)\](.*)$");
+                    var matches = Regex.Matches(share, @"^(!|-){0,1}\[([^\]]*)\](.*)$");
 
                     if (matches.Any())
                     {
