@@ -53,9 +53,16 @@ namespace slskd.Validation
         {
             var val = (string)value;
 
-            if (!AllowNull && val is null)
+            if (val is null)
             {
-                return new ValidationResult($"The {validationContext.DisplayName} field must not be null");
+                if (!AllowNull)
+                {
+                    return new ValidationResult($"The {validationContext.DisplayName} field must not be null");
+                }
+                else
+                {
+                    return ValidationResult.Success;
+                }
             }
 
             if (!AllowEmpty && val is "")
@@ -64,7 +71,7 @@ namespace slskd.Validation
             }
 
             // check this after empty to avoid overlap
-            if (!AllowWhiteSpace && string.IsNullOrWhiteSpace(val))
+            if (!AllowWhiteSpace && val.All(c => char.IsWhiteSpace(c)))
             {
                 return new ValidationResult($"The {validationContext.DisplayName} field must not contain only whitespace");
             }

@@ -222,6 +222,13 @@ public class StringAttributeTests
             => StringAttributeTests.Validate(value, configure);
 
         [Fact]
+        public void Null_Passes_When_AllowNull_Is_True()
+        {
+            var (isValid, _) = Validate(null);
+            Assert.True(isValid);
+        }
+
+        [Fact]
         public void Null_Fails_When_AllowNull_Is_False()
         {
             var (isValid, _) = Validate(null, a => a.AllowNull = false);
