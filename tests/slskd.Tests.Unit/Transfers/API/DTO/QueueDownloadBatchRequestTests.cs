@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using slskd.Transfers.API;
@@ -276,15 +277,31 @@ public class QueueDownloadBatchRequestTests
         [Theory]
         [InlineData("C:\\Music")]           // Windows absolute
         [InlineData("C:/Music")]            // Windows absolute, forward slash
+        [InlineData("\\\\server\\share")]   // UNC
+        public void AbsolutePath_Fails_Windows(string value)
+        {
+            if (OperatingSystem.IsWindows())
+            {
+                var (isValid, results) = Validate(new EnqueueDownloadBatchOptions { Destination = value });
+                Assert.False(isValid);
+                Assert.Single(results);
+                Assert.Equal("The Destination field must be a relative path.", results[0].ErrorMessage);
+            }
+        }
+
+        [Theory]
         [InlineData("/music")]              // Unix absolute
         [InlineData("/home/user/Music")]    // Unix absolute, deep
-        [InlineData("\\\\server\\share")]   // UNC
-        public void AbsolutePath_Fails(string value)
+        [InlineData("//server/share")]     // UNC
+        public void AbsolutePath_Fails_Non_Windows(string value)
         {
-            var (isValid, results) = Validate(new EnqueueDownloadBatchOptions { Destination = value });
-            Assert.False(isValid);
-            Assert.Single(results);
-            Assert.Equal("The Destination field must be a relative path.", results[0].ErrorMessage);
+            if (!OperatingSystem.IsWindows())
+            {
+                var (isValid, results) = Validate(new EnqueueDownloadBatchOptions { Destination = value });
+                Assert.False(isValid);
+                Assert.Single(results);
+                Assert.Equal("The Destination field must be a relative path.", results[0].ErrorMessage);
+            }
         }
 
         [Theory]

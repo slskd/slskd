@@ -35,6 +35,7 @@ namespace slskd;
 using System;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 
 /// <summary>
 ///     Utility functions to help safely work with paths from untrusted sources.
@@ -102,36 +103,46 @@ public static class FileSafety
     public static bool ContainsTraversalSegments(string path) => path?.Split('\\', '/')?.Any(s => s is "." or "..") ?? false;
 
     /// <summary>
-    ///     Returns a value indicating whether the specified <paramref name="path"/> is absolute (rooted), using
-    ///     platform-independent rules that recognize both Unix and Windows absolute path formats.
+    ///     Returns a value indicating whether the specified <paramref name="path"/> is absolute (rooted) on the current
+    ///     operating system.
     /// </summary>
     /// <remarks>
     ///     This is necessary because the base library is opaque and untestable in a cross-platform way, so we are
-    ///     implementing the nuclear option and merging the logic for Windows and non-Windows.
+    ///     implementing the nuclear option and doing it ourselves.
     /// </remarks>
     /// <param name="path">The path to check.</param>
+    /// <param name="os">An optional operating system override, for testing.</param>
     /// <returns>True if the path is absolute, false otherwise.</returns>
-    public static bool IsPathAbsolute(string path)
+    public static bool IsPathAbsolute(string path, OSPlatform? os = null)
     {
         if (string.IsNullOrEmpty(path))
         {
             return false;
         }
 
-        // Unix/Linux/macOS absolute paths and UNC paths with forward slashes start with /
-        // Windows root-relative paths and UNC paths start with \
-        if (path[0] is '/' or '\\')
+        if (os.HasValue ? os.Value == OSPlatform.Windows : OperatingSystem.IsWindows())
         {
-            return true;
+            // Windows drive-letter path: X:\ or X:/
+            // X:foo is relative on windows
+            if (path.Length >= 3
+                && char.IsAsciiLetter(path[0])
+                && path[1] == ':'
+                && (path[2] == '\\' || path[2] == '/'))
+            {
+                return true;
+            }
+
+            // UNC path \\server\share
+            if (path.StartsWith("\\\\"))
+            {
+                return true;
+            }
+
+            return false;
         }
 
-        // Windows drive-letter paths: X:\ or X:/
-        // X:foo is a "drive relative" path so it doesn't _technically_ count, but
-        // it's questionable and the user probably intended to root it anyway
-        // this matches the built in IsPathRooted but not IsPathFullyQualified
-        if (path.Length >= 2
-            && char.IsAsciiLetter(path[0])
-            && path[1] == ':')
+        // Unix/Linux/macOS absolute paths and UNC paths with forward slashes start with /
+        if (path.StartsWith('/'))
         {
             return true;
         }
@@ -140,10 +151,11 @@ public static class FileSafety
     }
 
     /// <summary>
-    ///     Returns a value indicating whether the specified <paramref name="path"/>, using
-    ///     platform-independent rules that recognize both Unix and Windows absolute path formats.
+    ///     Returns a value indicating whether the specified <paramref name="path"/> is relative on the current
+    ///     operating system.
     /// </summary>
     /// <param name="path">The path to check.</param>
+    /// <param name="os">An optional operating system override, for testing.</param>
     /// <returns>True if the path is relative, false otherwise.</returns>
-    public static bool IsPathRelative(string path) => !IsPathAbsolute(path);
+    public static bool IsPathRelative(string path, OSPlatform? os = null) => !IsPathAbsolute(path, os);
 }
