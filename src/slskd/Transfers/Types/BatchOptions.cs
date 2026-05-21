@@ -1,4 +1,4 @@
-// <copyright file="EnqueueDownloadBatchRequest.cs" company="JP Dillingham">
+// <copyright file="BatchOptions.cs" company="JP Dillingham">
 //           ▄▄▄▄     ▄▄▄▄     ▄▄▄▄
 //     ▄▄▄▄▄▄█  █▄▄▄▄▄█  █▄▄▄▄▄█  █
 //     █__ --█  █__ --█    ◄█  -  █
@@ -30,28 +30,19 @@
 //   ╰───────────────────────────────────────────╶──── ─ ─── ─  ── ──┈  ┈
 // </copyright>
 
-using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
+namespace slskd.Transfers;
 
-namespace slskd.Transfers.API;
-
-public record EnqueueDownloadBatchRequest
+/// <summary>
+///     Options for <see cref="Batch"/>es.
+/// </summary>
+public record BatchOptions
 {
-    public Guid? BatchId { get; init; }
-    public Guid? SearchId { get; init; }
-
-    [Required]
-    [StringLength(500, MinimumLength = 1)]
-    public string Username { get; init; }
-    public List<EnqueueDownloadBatchItem> Files { get; init; } = [];
-}
-
-public record EnqueueDownloadBatchItem
-{
-    [Required]
-    public string Filename { get; set; }
-
-    [Range(0, int.MaxValue)]
-    public long Size { get; set; }
+    /// <summary>
+    ///     Gets the optional destination directory for the files in the Batch, relative to the configured
+    ///     download directory.
+    /// </summary>
+    /// <remarks>
+    ///     If specified, takes precedence over other configured placement rules.
+    /// </remarks>
+    public string Destination { get; init; }
 }

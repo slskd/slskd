@@ -1,4 +1,4 @@
-// <copyright file="AbsolutePathAttribute.cs" company="JP Dillingham">
+// <copyright file="QueueDownloadBatchResponse.cs" company="JP Dillingham">
 //           ▄▄▄▄     ▄▄▄▄     ▄▄▄▄
 //     ▄▄▄▄▄▄█  █▄▄▄▄▄█  █▄▄▄▄▄█  █
 //     █__ --█  █__ --█    ◄█  -  █
@@ -30,28 +30,18 @@
 //   ╰───────────────────────────────────────────╶──── ─ ─── ─  ── ──┈  ┈
 // </copyright>
 
-namespace slskd.Validation
+using System.Collections.Generic;
+
+namespace slskd.Transfers.API;
+
+public record QueueDownloadBatchResponse
 {
-    using System.ComponentModel.DataAnnotations;
+    public Batch Batch { get; init; }
+    public IReadOnlyCollection<QueueDownloadBatchResponseFailure> Failures { get; init; } = [];
+}
 
-    /// <summary>
-    ///     Validates that the specified path is absolute.
-    /// </summary>
-    public class AbsolutePathAttribute : ValidationAttribute
-    {
-        protected override ValidationResult IsValid(object value, ValidationContext validationContext)
-        {
-            if (value != null && value is string str && !string.IsNullOrEmpty(str))
-            {
-                var path = value.ToString();
-
-                if (!FileSafety.IsPathAbsolute(path))
-                {
-                    return new ValidationResult($"The {validationContext.DisplayName} field must be an absolute file path.");
-                }
-            }
-
-            return ValidationResult.Success;
-        }
-    }
+public record QueueDownloadBatchResponseFailure
+{
+    public string Filename { get; init; }
+    public string Message { get; init; }
 }

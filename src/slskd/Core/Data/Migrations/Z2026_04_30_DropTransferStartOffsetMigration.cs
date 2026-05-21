@@ -1,4 +1,4 @@
-// <copyright file="AbsolutePathAttribute.cs" company="JP Dillingham">
+// <copyright file="Z2026_04_30_DropTransferStartOffsetMigration.cs" company="JP Dillingham">
 //           ▄▄▄▄     ▄▄▄▄     ▄▄▄▄
 //     ▄▄▄▄▄▄█  █▄▄▄▄▄█  █▄▄▄▄▄█  █
 //     █__ --█  █__ --█    ◄█  -  █
@@ -30,28 +30,72 @@
 //   ╰───────────────────────────────────────────╶──── ─ ─── ─  ── ──┈  ┈
 // </copyright>
 
-namespace slskd.Validation
+namespace slskd.Migrations;
+
+using System;
+using System.Linq;
+using Microsoft.Data.Sqlite;
+using Serilog;
+
+/// <summary>
+///     Updates the Transfers table to drop the unused StartOffset column.
+/// </summary>
+public class Z2026_04_30_DropTransferStartOffsetMigration : IMigration
 {
-    using System.ComponentModel.DataAnnotations;
-
-    /// <summary>
-    ///     Validates that the specified path is absolute.
-    /// </summary>
-    public class AbsolutePathAttribute : ValidationAttribute
+    public Z2026_04_30_DropTransferStartOffsetMigration(ConnectionStringDictionary connectionStrings)
     {
-        protected override ValidationResult IsValid(object value, ValidationContext validationContext)
-        {
-            if (value != null && value is string str && !string.IsNullOrEmpty(str))
-            {
-                var path = value.ToString();
+        ConnectionString = connectionStrings[Database.Transfers];
+    }
 
-                if (!FileSafety.IsPathAbsolute(path))
-                {
-                    return new ValidationResult($"The {validationContext.DisplayName} field must be an absolute file path.");
-                }
+    private ILogger Log { get; } = Serilog.Log.ForContext<Z2026_04_30_DropTransferStartOffsetMigration>();
+    private string ConnectionString { get; }
+
+    public bool NeedsToBeApplied()
+    {
+        var schema = SchemaInspector.GetDatabaseSchema(ConnectionString);
+
+        var columns = schema["Transfers"];
+
+        if (columns.Any(c => c.Name == "StartOffset"))
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    public void Apply()
+    {
+        if (!NeedsToBeApplied())
+        {
+            Log.Information("> Migration {Name} is not necessary or has already been applied", nameof(Z2026_04_30_DropTransferStartOffsetMigration));
+            return;
+        }
+
+        using var connection = new SqliteConnection(ConnectionString);
+        connection.Open();
+
+        using var transaction = connection.BeginTransaction();
+
+        try
+        {
+            void Exec(string sql)
+            {
+                using var command = new SqliteCommand(sql, connection, transaction);
+                command.ExecuteNonQuery();
             }
 
-            return ValidationResult.Success;
+            Log.Information("> Dropping StartOffset column from the Transfers table...");
+
+            Exec("ALTER TABLE Transfers DROP COLUMN StartOffset;");
+
+            transaction.Commit();
+            Log.Information("> Done!");
+        }
+        catch (Exception)
+        {
+            transaction.Rollback();
+            throw;
         }
     }
 }

@@ -66,32 +66,6 @@ public class RelativePathAttributeTests
         }
     }
 
-    public class Traversal_Fails
-    {
-        [Theory]
-        [InlineData("..")]                          // bare traversal
-        [InlineData(".")]                           // bare current-dir
-        [InlineData("../music")]                    // traversal prefix, forward slash
-        [InlineData("./music")]                     // current-dir prefix
-        [InlineData("music/../other")]              // traversal in middle
-        [InlineData("music/./other")]               // current-dir in middle
-        [InlineData("sub/../../escape")]            // double traversal
-        [InlineData("music\\..")]                   // traversal via backslash
-        [InlineData("music\\.")]                    // current-dir via backslash
-        [InlineData("music/dir/..")]                // traversal at end
-        [InlineData("a/b/c/../../d")]               // multi-level traversal
-        [InlineData("Ünïcödé/../escape")]           // latin extended with traversal
-        [InlineData("пользователь/../etc")]         // Cyrillic with traversal
-        [InlineData("用户/音乐/../../escape")]        // Chinese with deep traversal
-        [InlineData("ユーザー\\..\\escape")]          // Japanese with backslash traversal
-        public void TraversalSegment_Fails(string value)
-        {
-            var (isValid, errorMessage) = Validate(value);
-            Assert.False(isValid);
-            Assert.Contains("traversal segments", errorMessage);
-        }
-    }
-
     public class Absolute_Fails
     {
         [Theory]

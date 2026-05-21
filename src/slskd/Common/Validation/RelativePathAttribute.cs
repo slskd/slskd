@@ -49,12 +49,6 @@ namespace slskd.Validation
                 {
                     return new ValidationResult($"The {validationContext.DisplayName} field must be a relative path.");
                 }
-
-                // unrelated to absolute/relative check; we disallow traversal segments across the board so check while we're here
-                if (FileSafety.ContainsTraversalSegments(path))
-                {
-                    return new ValidationResult($"The {validationContext.DisplayName} field contains one or more unsafe path traversal segments ('.' or '..')");
-                }
             }
 
             return ValidationResult.Success;
