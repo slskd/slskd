@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Runtime.InteropServices;
 using slskd.Validation;
 using Xunit;
 
@@ -6,9 +7,9 @@ namespace slskd.Tests.Unit.Common.Validation;
 
 public class RelativePathAttributeTests
 {
-    private static (bool IsValid, string ErrorMessage) Validate(string value)
+    private static (bool IsValid, string ErrorMessage) Validate(string value, OSPlatform? os = null)
     {
-        var attribute = new RelativePathAttribute();
+        var attribute = new RelativePathAttribute(os);
         var context = new ValidationContext(new object()) { DisplayName = "Field", MemberName = "Field" };
         var result = attribute.GetValidationResult(value, context);
         return (result == null, result?.ErrorMessage);
@@ -61,7 +62,7 @@ public class RelativePathAttributeTests
         [InlineData("משתמש/מוזיקה")]                        // Hebrew
         public void RelativePath_Passes(string value)
         {
-            var (isValid, _) = Validate(value);
+            var (isValid, _) = Validate(value, OSPlatform.Linux);
             Assert.True(isValid);
         }
     }
@@ -97,7 +98,7 @@ public class RelativePathAttributeTests
         [InlineData("C:Music")]
         public void AbsolutePath_Fails(string value)
         {
-            var (isValid, errorMessage) = Validate(value);
+            var (isValid, errorMessage) = Validate(value, OSPlatform.Windows);
             Assert.False(isValid);
             Assert.Equal("The Field field must be a relative path.", errorMessage);
         }

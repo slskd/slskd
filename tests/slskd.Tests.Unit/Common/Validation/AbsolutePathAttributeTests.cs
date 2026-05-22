@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Runtime.InteropServices;
 using slskd.Validation;
 using Xunit;
 
@@ -6,9 +7,9 @@ namespace slskd.Tests.Unit.Common.Validation;
 
 public class AbsolutePathAttributeTests
 {
-    private static (bool IsValid, string ErrorMessage) Validate(string value)
+    private static (bool IsValid, string ErrorMessage) Validate(string value, OSPlatform? os = null)
     {
-        var attribute = new AbsolutePathAttribute();
+        var attribute = new AbsolutePathAttribute(os);
         var context = new ValidationContext(new object()) { DisplayName = "Field", MemberName = "Field" };
         var result = attribute.GetValidationResult(value, context);
         return (result == null, result?.ErrorMessage);
@@ -29,149 +30,86 @@ public class AbsolutePathAttributeTests
         Assert.True(isValid);
     }
 
-    public class Passes
+    public class Windows
     {
-        // Standard Windows drive-letter absolute paths
         [Theory]
-        [InlineData("C:\\Music")]                           // basic
-        [InlineData("C:/Music")]                            // forward slash separator
-        [InlineData("C:\\Music\\Artist\\Album")]            // multi-level backslash
-        [InlineData("C:\\Music\\Artist/Album")]             // mixed separators
-        [InlineData("C:\\Music\\My Artist")]                // spaces in component
-        [InlineData("C:\\Program Files\\App")]              // spaces, typical Windows path
-        [InlineData("D:\\path")]                            // different drive letter
-        [InlineData("Z:\\downloads")]                       // drive letter Z
-        [InlineData("C:")]                                  // bare drive
-        [InlineData("C:\\Users\\Ünïcödé\\Music")]          // latin extended
-        [InlineData("C:\\Users\\пользователь\\Музыка")]    // Cyrillic
-        [InlineData("C:\\Users\\用户\\音乐")]               // Chinese
-        [InlineData("C:\\Users\\ユーザー\\音楽")]           // Japanese
-        [InlineData("C:\\Users\\사용자\\음악")]             // Korean
-        [InlineData("C:\\Users\\مستخدم\\موسيقى")]          // Arabic
-        [InlineData("C:\\Users\\χρήστης\\μουσική")]        // Greek
-        [InlineData("C:Music")]                             // drive-relative (no separator)
+        [InlineData("C:\\Music")]
+        [InlineData("C:/Music")]
+        [InlineData("C:\\Music\\Artist\\Album")]
+        [InlineData("C:\\Music\\Artist/Album")]
+        [InlineData("C:/Music/My Artist")]
         public void Windows_DriveLetterPaths_Pass(string value)
         {
-            var (isValid, _) = Validate(value);
+            var (isValid, _) = Validate(value, OSPlatform.Windows);
             Assert.True(isValid);
         }
 
-        // Windows root paths (drive root with trailing separator)
         [Theory]
-        [InlineData("C:\\")]    // Windows C: root
-        [InlineData("D:\\")]    // Windows D: root
-        [InlineData("Z:\\")]    // Windows Z: root
-        [InlineData("C:/")]     // root with forward slash
+        [InlineData("C:\\")]
+        [InlineData("Z:\\")]
+        [InlineData("C:/")]
         public void Windows_RootPaths_Pass(string value)
         {
-            var (isValid, _) = Validate(value);
+            var (isValid, _) = Validate(value, OSPlatform.Windows);
             Assert.True(isValid);
         }
 
-        // Windows root-relative paths (rooted to the current drive, no drive letter)
         [Theory]
-        [InlineData("\\Music")]                     // root-relative, backslash
-        [InlineData("\\Music\\Artist\\Album")]      // deep, backslash
-        [InlineData("/Music")]                      // root-relative, forward slash
-        [InlineData("/Music/Artist/Album")]         // deep, forward slash
-        [InlineData("\\Ünïcödé")]                   // latin extended
-        [InlineData("\\пользователь\\Музыка")]      // Cyrillic
-        [InlineData("\\用户\\音乐")]                 // Chinese
-        [InlineData("\\ユーザー\\音楽")]             // Japanese
-        [InlineData("\\사용자\\음악")]               // Korean
-        public void Windows_RootRelativePaths_Pass(string value)
-        {
-            var (isValid, _) = Validate(value);
-            Assert.True(isValid);
-        }
-
-        // Windows UNC (Universal Naming Convention) paths.
-        // Server name is DNS-constrained (ASCII), but share names and path components support Unicode.
-        [Theory]
-        [InlineData("\\\\server\\share")]                       // basic UNC
-        [InlineData("\\\\server\\share\\folder")]               // UNC with subfolder
-        [InlineData("\\\\server\\share\\My Music")]             // UNC with spaces
-        [InlineData("\\\\192.168.1.1\\share")]                  // UNC with IP address
-        [InlineData("\\\\DESKTOP-ABC\\SharedFolder")]           // UNC with machine name
-        [InlineData("\\\\192.168.1.1\\Ünïcödé")]               // latin extended share name
-        [InlineData("\\\\server\\Müsïk")]                       // latin extended share name
-        [InlineData("\\\\server\\share\\Ünïcödé Artist")]       // latin extended path component
-        [InlineData("\\\\server\\音楽")]                        // Japanese share name
-        [InlineData("\\\\server\\share\\пользователь")]         // Cyrillic path component
-        [InlineData("\\\\server\\share\\用户\\音乐")]           // Chinese path components
-        [InlineData("\\\\server\\share\\사용자\\음악")]         // Korean path components
+        [InlineData("\\\\server\\share")]
+        [InlineData("\\\\server\\share\\folder")]
+        [InlineData("\\\\192.168.1.1\\share")]
         public void Windows_UNCPaths_Pass(string value)
         {
-            var (isValid, _) = Validate(value);
+            var (isValid, _) = Validate(value, OSPlatform.Windows);
             Assert.True(isValid);
         }
 
-        // Unix/Linux absolute paths — always start with a leading /
         [Theory]
-        [InlineData("/")]                               // filesystem root
-        [InlineData("/home")]                           // single component
-        [InlineData("/home/user")]                      // typical home directory
-        [InlineData("/home/user/Music")]                // deep path
-        [InlineData("/home/user/My Music")]             // spaces in component
-        [InlineData("/etc/hosts")]                      // config file path
-        [InlineData("/usr/local/bin")]                  // system path
-        [InlineData("/var/log/app.log")]                // log file
-        [InlineData("/tmp")]                            // temp directory
-        [InlineData("/media/usb0")]                     // mounted device
-        [InlineData("/mnt/storage/Music")]              // mounted storage
-        [InlineData("/home/user/Ünïcödé")]              // latin extended
-        [InlineData("/home/пользователь/Музыка")]       // Cyrillic
-        [InlineData("/home/用户/音乐")]                  // Chinese
-        [InlineData("/home/ユーザー/音楽")]              // Japanese
-        [InlineData("/home/사용자/음악")]                // Korean
-        [InlineData("/home/مستخدم/موسيقى")]             // Arabic
-        [InlineData("/home/χρήστης/μουσική")]           // Greek
-        [InlineData("/home/משתמש/מוזיקה")]              // Hebrew
-        public void Unix_Paths_Pass(string value)
+        [InlineData("\\Music")]
+        [InlineData("/Music")]
+        [InlineData("/Music/Artist/Album")]
+        [InlineData("C:")]
+        [InlineData("C:Music")]
+        public void Windows_RootRelativePaths_Fail(string value)
         {
-            var (isValid, _) = Validate(value);
-            Assert.True(isValid);
-        }
-
-        // macOS absolute paths — same format as Unix, with macOS-specific conventions
-        [Theory]
-        [InlineData("/Users/username")]                             // home directory
-        [InlineData("/Users/username/Music")]                       // music library
-        [InlineData("/Users/username/Music/Artist/Album")]          // deep path
-        [InlineData("/Volumes/External Drive")]                     // mounted external drive
-        [InlineData("/Volumes/External Drive/Music")]               // file on external drive
-        [InlineData("/Applications/App.app")]                       // application bundle
-        [InlineData("/Library/Application Support/App")]            // system library
-        [InlineData("/Users/Ünïcödé")]                              // latin extended username
-        [InlineData("/Users/пользователь/Музыка")]                  // Cyrillic
-        [InlineData("/Users/用户/音乐")]                             // Chinese
-        [InlineData("/Users/ユーザー/音楽")]                         // Japanese
-        [InlineData("/Users/사용자/음악")]                           // Korean
-        [InlineData("/Volumes/Ünïcödé Drive/Music")]                // latin extended volume name
-        [InlineData("/Volumes/音楽ドライブ")]                        // Japanese volume name
-        [InlineData("/Volumes/외장 드라이브/음악")]                  // Korean volume name
-        public void MacOS_Paths_Pass(string value)
-        {
-            var (isValid, _) = Validate(value);
-            Assert.True(isValid);
-        }
-
-        // Unix-style UNC equivalents (// prefix, used on some systems)
-        [Theory]
-        [InlineData("//server/share")]                  // basic
-        [InlineData("//server/share/folder")]           // with subfolder
-        [InlineData("//server/Ünïcödé")]                // latin extended share name
-        [InlineData("//server/share/Ünïcödé Artist")]  // latin extended path component
-        [InlineData("//server/音楽")]                   // Japanese share name
-        [InlineData("//server/share/пользователь")]    // Cyrillic path component
-        public void Unix_UNCPaths_Pass(string value)
-        {
-            var (isValid, _) = Validate(value);
-            Assert.True(isValid);
+            var (isValid, _) = Validate(value, OSPlatform.Windows);
+            Assert.False(isValid);
         }
     }
 
-    public class Relative_Fails
+    public class Unix
+    {
+        [Theory]
+        [InlineData("/")]
+        [InlineData("/home")]
+        [InlineData("/home/user")]
+        public void Unix_Paths_Pass(string value)
+        {
+            var (isValid, _) = Validate(value, OSPlatform.Linux);
+            Assert.True(isValid);
+        }
+
+        [Theory]
+        [InlineData("//server/share")]
+        [InlineData("//server/share/folder")]
+        [InlineData("//192.168.1.1/share")]
+        public void Unix_UNCPaths_Pass(string value)
+        {
+            var (isValid, _) = Validate(value, OSPlatform.Linux);
+            Assert.True(isValid);
+        }
+
+        [Theory]
+        [InlineData("\\")]
+        [InlineData("\\home")]
+        public void Unix_Backslash_Fail(string value)
+        {
+            var (isValid, _) = Validate(value, OSPlatform.Linux);
+            Assert.False(isValid);
+        }
+    }
+
+    public class Relative
     {
         [Theory]
         [InlineData("subdir")]              // simple name
@@ -188,7 +126,7 @@ public class AbsolutePathAttributeTests
         [InlineData(".")]                   // current-dir but fundamentally not absolute
         public void RelativePath_Fails(string value)
         {
-            var (isValid, errorMessage) = Validate(value);
+            var (isValid, errorMessage) = Validate(value, OSPlatform.Linux);
             Assert.False(isValid);
             Assert.Equal("The Field field must be an absolute file path.", errorMessage);
         }

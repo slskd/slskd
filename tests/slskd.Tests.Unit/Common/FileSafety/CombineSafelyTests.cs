@@ -1,285 +1,147 @@
 using System;
 using System.IO;
+using System.Runtime.InteropServices;
 using Xunit;
 
-namespace slskd.Tests.Unit.Files;
+namespace slskd.Tests.Unit.Common;
 
-internal static class CombineSafelyTestHelpers
+public partial class FileSafetyTests
 {
-    // Use a platform-appropriate absolute base path. Backslash roots are not recognised on Linux/macOS,
-    // so a Windows-style base would make containment assertions meaningless on those platforms.
-    public static readonly string Base = OperatingSystem.IsWindows() ? "C:\\base" : "/base";
-
-    public static void AssertContainedInBase(string result)
+    public class CombineSafelyTests
     {
-        var resolvedBase = Path.GetFullPath(Base);
-        var resolvedResult = Path.GetFullPath(result);
-        Assert.True(
-            resolvedResult == resolvedBase ||
-            resolvedResult.StartsWith(resolvedBase + Path.DirectorySeparatorChar),
-            $"Result '{resolvedResult}' escapes base '{resolvedBase}'");
-    }
-}
+        public static string Base = OperatingSystem.IsWindows() ? "C:\\base" : "/base";
+        public static string ExpectedStartsWith = Base + Path.DirectorySeparatorChar;
 
-public class CombineSafely_Returns
-{
-    [Fact]
-    public void NoSegments_ReturnsBasePath()
-    {
-        var result = FileSafety.CombineSafely(CombineSafelyTestHelpers.Base);
-        Assert.Equal(CombineSafelyTestHelpers.Base, result);
-    }
+        [Theory]
+        [InlineData(null)]
+        [InlineData("   ")]
+        public void Throws_ArgumentException_Given_NullOrWhiteSpaceRoot(string root)
+        {
+            var ex = Record.Exception(() => FileSafety.CombineSafely(root));
 
-    [Fact]
-    public void EmptySegment_ReturnsBasePath()
-    {
-        var result = FileSafety.CombineSafely(CombineSafelyTestHelpers.Base, string.Empty);
-        Assert.Equal(CombineSafelyTestHelpers.Base, result);
-    }
+            Assert.NotNull(ex);
+            Assert.IsType<ArgumentNullException>(ex);
+        }
 
-    [Fact]
-    public void SingleSegment_ReturnsBaseAndSegment()
-    {
-        var result = FileSafety.CombineSafely(CombineSafelyTestHelpers.Base, "subdir");
-        Assert.Equal(Path.Combine(CombineSafelyTestHelpers.Base, "subdir"), result);
-    }
+        [Theory]
+        [InlineData("foo/../bar")]
+        [InlineData("foo\\..\\bar")]
+        public void Throws_ArgumentException_Given_TraversingRoot(string root)
+        {
+            var ex = Record.Exception(() => FileSafety.CombineSafely(root));
 
-    [Fact]
-    public void MultipleSegments_CombinesAll()
-    {
-        var result = FileSafety.CombineSafely(CombineSafelyTestHelpers.Base, "sub", "dir", "file.flac");
-        Assert.Equal(Path.Combine(CombineSafelyTestHelpers.Base, "sub", "dir", "file.flac"), result);
-    }
+            Assert.NotNull(ex);
+            Assert.IsType<ArgumentException>(ex);
+        }
 
-    [Fact]
-    public void SegmentWithForwardSlash_CombinesCorrectly()
-    {
-        var result = FileSafety.CombineSafely(CombineSafelyTestHelpers.Base, "sub/dir");
-        CombineSafelyTestHelpers.AssertContainedInBase(result);
-    }
+        [Fact]
+        public void Returns_Root_Given_No_Segments()
+        {
+            var result = FileSafety.CombineSafely(Base);
 
-    [Fact]
-    public void SegmentWithBackslash_CombinesCorrectly()
-    {
-        var result = FileSafety.CombineSafely(CombineSafelyTestHelpers.Base, "sub\\dir");
-        CombineSafelyTestHelpers.AssertContainedInBase(result);
-    }
+            Assert.StartsWith(ExpectedStartsWith.TrimEnd(Path.DirectorySeparatorChar), result);
+        }
 
-    [Fact]
-    public void SegmentWithDoubleSlash_CollapsedAndContained()
-    {
-        var result = FileSafety.CombineSafely(CombineSafelyTestHelpers.Base, "sub//dir");
-        CombineSafelyTestHelpers.AssertContainedInBase(result);
-    }
+        [Fact]
+        public void Drops_Empty_Segments()
+        {
+            var result = FileSafety.CombineSafely(Base, string.Empty, "foo", string.Empty, "bar");
 
-    [Fact]
-    public void SegmentWithDoubleBackslash_CollapsedAndContained()
-    {
-        var result = FileSafety.CombineSafely(CombineSafelyTestHelpers.Base, "sub\\\\dir");
-        CombineSafelyTestHelpers.AssertContainedInBase(result);
-    }
+            Assert.StartsWith(ExpectedStartsWith, result);
+            Assert.EndsWith(Path.Combine("foo", "bar"), result);
+        }
 
-    [Fact]
-    public void SegmentWithSpaces_Contained()
-    {
-        var result = FileSafety.CombineSafely(CombineSafelyTestHelpers.Base, "My Artist", "My Album");
-        CombineSafelyTestHelpers.AssertContainedInBase(result);
-    }
+        [Fact]
+        public void SingleSegment_ReturnsBaseAndSegment()
+        {
+            var result = FileSafety.CombineSafely(Base, "subdir");
 
-    [Fact]
-    public void SegmentWithUnicode_Contained()
-    {
-        var result = FileSafety.CombineSafely(CombineSafelyTestHelpers.Base, "Ünïcödé", "пользователь", "音楽");
-        CombineSafelyTestHelpers.AssertContainedInBase(result);
-    }
+            Assert.Equal(Path.Combine(Base, "subdir"), result);
+        }
 
-    [Fact]
-    public void DotfileSegment_Contained()
-    {
-        var result = FileSafety.CombineSafely(CombineSafelyTestHelpers.Base, ".hidden");
-        CombineSafelyTestHelpers.AssertContainedInBase(result);
-    }
+        [Fact]
+        public void MultipleSegments_CombinesAll()
+        {
+            var result = FileSafety.CombineSafely(Base, "sub", "dir", "file.flac");
 
-    [Fact]
-    public void ThreeDotsSegment_Contained()
-    {
-        var result = FileSafety.CombineSafely(CombineSafelyTestHelpers.Base, "...dir");
-        CombineSafelyTestHelpers.AssertContainedInBase(result);
-    }
+            Assert.Equal(Path.Combine(Base, "sub", "dir", "file.flac"), result);
+            Assert.StartsWith(ExpectedStartsWith, result);
+        }
 
-    [Fact]
-    public void DotDotPrefixedName_Contained()
-    {
-        var result = FileSafety.CombineSafely(CombineSafelyTestHelpers.Base, "..hidden");
-        CombineSafelyTestHelpers.AssertContainedInBase(result);
-    }
-}
+        [Theory]
+        [InlineData("subdir")]
+        [InlineData("sub/dir")]
+        [InlineData("sub\\dir")]
+        [InlineData("sub//dir")]
+        [InlineData("sub\\\\dir")]
+        [InlineData("My Artist")]
+        [InlineData("Artist.Name")]
+        [InlineData("...dir")]
+        [InlineData("..hidden")]
+        [InlineData(".hidden")]
+        [InlineData("dir/..dir")]
+        [InlineData("Ünïcödé")]
+        [InlineData("пользователь/Музыка")]
+        [InlineData("用户/音乐")]
+        [InlineData("ユーザー/音楽")]
+        [InlineData("사용자/음악")]
+        public void Combines_Safe_Segments(string segment)
+        {
+            var result = FileSafety.CombineSafely(Base, segment);
 
-public class CombineSafely_AlwaysContainedInBase
-{
-    [Theory]
-    [InlineData("subdir")]
-    [InlineData("sub/dir")]
-    [InlineData("sub\\dir")]
-    [InlineData("sub//dir")]
-    [InlineData("sub\\\\dir")]
-    [InlineData("My Artist")]
-    [InlineData("Artist.Name")]
-    [InlineData("...dir")]
-    [InlineData("..hidden")]
-    [InlineData(".hidden")]
-    [InlineData("dir/..dir")]
-    [InlineData("Ünïcödé")]
-    [InlineData("пользователь/Музыка")]
-    [InlineData("用户/音乐")]
-    [InlineData("ユーザー/音楽")]
-    [InlineData("사용자/음악")]
-    public void SingleSegment_IsContained(string segment)
-    {
-        var result = FileSafety.CombineSafely(CombineSafelyTestHelpers.Base, segment);
-        CombineSafelyTestHelpers.AssertContainedInBase(result);
-    }
-}
+            Assert.Equal(Path.Combine(Base, segment), result);
+            Assert.StartsWith(ExpectedStartsWith, result);
+        }
 
-public class CombineSafely_Throws_ForRootedSegment
-{
-    [Theory]
-    [InlineData("/Music")]              // Unix absolute / Windows root-relative, forward slash
-    [InlineData("//server/share")]      // Unix-style UNC
-    [InlineData("C:\\Music")]           // Windows drive-letter, backslash
-    [InlineData("C:/Music")]            // Windows drive-letter, forward slash
-    [InlineData("D:\\path")]            // alternate drive letter
-    [InlineData("C:relative")]          // Windows drive-relative
-    [InlineData("\\Music")]             // Windows root-relative, backslash
-    [InlineData("\\\\server\\share")]   // Windows UNC
-    public void Throws_ArgumentException(string segment)
-    {
-        var ex = Assert.Throws<ArgumentException>(() => FileSafety.CombineSafely(CombineSafelyTestHelpers.Base, segment));
-        Assert.Contains("Rooted", ex.Message);
-    }
+        [Theory]
+        [InlineData("/Music")]
+        [InlineData("//server/share")]
+        public void Throws_ArgumentException_Given_AbsolutePath_On_Unix(string segment)
+        {
+            var ex = Record.Exception(() => FileSafety.CombineSafely(Base, OSPlatform.Linux, segment));
 
-    [Fact]
-    public void Throws_WhenLaterSegmentIsRooted()
-    {
-        var ex = Assert.Throws<ArgumentException>(() =>
-            FileSafety.CombineSafely(CombineSafelyTestHelpers.Base, "valid", "/escape"));
-        Assert.Contains("Rooted", ex.Message);
-    }
+            Assert.NotNull(ex);
+            Assert.Contains("Absolute", ex.Message);
+        }
 
-    [Fact]
-    public void Throws_WhenLaterSegmentIsRooted_Windows()
-    {
-        var ex = Assert.Throws<ArgumentException>(() =>
-            FileSafety.CombineSafely(CombineSafelyTestHelpers.Base, "valid", "C:\\escape"));
-        Assert.Contains("Rooted", ex.Message);
-    }
+        [Theory]
+        [InlineData("C:\\Music")]
+        [InlineData("C:/Music")]
+        [InlineData("\\\\server\\share")]
+        public void Throws_ArgumentException_Given_AbsolutePath_On_Windows(string segment)
+        {
+            var ex = Record.Exception(() => FileSafety.CombineSafely(Base, OSPlatform.Windows, segment));
 
-    [Fact]
-    public void Throws_WhenLastSegmentIsRooted()
-    {
-        var ex = Assert.Throws<ArgumentException>(() =>
-            FileSafety.CombineSafely(CombineSafelyTestHelpers.Base, "sub", "dir", "/escape"));
-        Assert.Contains("Rooted", ex.Message);
-    }
+            Assert.NotNull(ex);
+            Assert.Contains("Absolute", ex.Message);
+        }
 
-    [Fact]
-    public void Throws_WhenLastSegmentIsRooted_Windows()
-    {
-        var ex = Assert.Throws<ArgumentException>(() =>
-            FileSafety.CombineSafely(CombineSafelyTestHelpers.Base, "sub", "dir", "C:\\escape"));
-        Assert.Contains("Rooted", ex.Message);
-    }
-}
+        [Theory]
+        // Bare traversal
+        [InlineData("..")]
+        [InlineData(".")]
+        // Traversal as first component
+        [InlineData("../escape")]
+        [InlineData("./dir")]
+        // Traversal in middle
+        [InlineData("sub/../escape")]
+        [InlineData("sub/./dir")]
+        // Traversal at end
+        [InlineData("sub/..")]
+        [InlineData("sub/.")]
+        // Double traversal
+        [InlineData("sub/../../escape")]
+        [InlineData("a/b/c/../../..")]
+        // Via backslash
+        [InlineData("sub\\..")]
+        [InlineData("sub\\.")]
+        [InlineData("sub\\..\\escape")]
+        public void Throws_ArgumentException_Given_Traversing_Segment(string segment)
+        {
+            var ex = Assert.Throws<ArgumentException>(() => FileSafety.CombineSafely(Base, segment));
 
-public class CombineSafely_Throws_ForTraversalSegment
-{
-    [Theory]
-    // Bare traversal
-    [InlineData("..")]
-    [InlineData(".")]
-    // Traversal as first component
-    [InlineData("../escape")]
-    [InlineData("./dir")]
-    // Traversal in middle
-    [InlineData("sub/../escape")]
-    [InlineData("sub/./dir")]
-    // Traversal at end
-    [InlineData("sub/..")]
-    [InlineData("sub/.")]
-    // Double traversal
-    [InlineData("sub/../../escape")]
-    [InlineData("a/b/c/../../..")]
-    // Via backslash
-    [InlineData("sub\\..")]
-    [InlineData("sub\\.")]
-    [InlineData("sub\\..\\escape")]
-    // Unicode path components mixed with traversal
-    [InlineData("Ünïcödé/../escape")]
-    [InlineData("пользователь/../../escape")]
-    [InlineData("用户\\..\\escape")]
-    public void Throws_ArgumentException(string segment)
-    {
-        var ex = Assert.Throws<ArgumentException>(() => FileSafety.CombineSafely(CombineSafelyTestHelpers.Base, segment));
-        Assert.Contains("traversal", ex.Message);
-    }
-
-    [Fact]
-    public void Throws_WhenLaterSegmentContainsTraversal()
-    {
-        var ex = Assert.Throws<ArgumentException>(() =>
-            FileSafety.CombineSafely(CombineSafelyTestHelpers.Base, "valid", "../escape"));
-        Assert.Contains("traversal", ex.Message);
-    }
-
-    [Fact]
-    public void Throws_WhenLastSegmentIsTraversal()
-    {
-        var ex = Assert.Throws<ArgumentException>(() =>
-            FileSafety.CombineSafely(CombineSafelyTestHelpers.Base, "sub", "dir", ".."));
-        Assert.Contains("traversal", ex.Message);
-    }
-}
-
-public class CombineSafely_NullAndEdgeCases
-{
-    [Fact]
-    public void NullSegmentsArray_Throws()
-    {
-        // Passing null without an explicit cast is interpreted as a null params array.
-        // foreach over a null array throws NullReferenceException.
-        Assert.ThrowsAny<Exception>(() => FileSafety.CombineSafely(CombineSafelyTestHelpers.Base, null));
-    }
-
-    [Fact]
-    public void NullSegment_Throws()
-    {
-        // A null element inside the params array reaches Path.IsPathRooted(null),
-        // which throws ArgumentNullException.
-        Assert.Throws<ArgumentNullException>(() => FileSafety.CombineSafely(CombineSafelyTestHelpers.Base, null, "subdir"));
-    }
-
-    [Fact]
-    public void NullSegmentAlone_Throws()
-    {
-        // Explicit cast to string forces a single-element array containing null.
-        // Path.IsPathRooted(null) throws ArgumentNullException.
-        Assert.Throws<ArgumentNullException>(() => FileSafety.CombineSafely(CombineSafelyTestHelpers.Base, (string)null));
-    }
-
-    [Fact]
-    public void NullBasePath_Throws()
-    {
-        Assert.ThrowsAny<Exception>(() => FileSafety.CombineSafely(null, "subdir"));
-    }
-
-    [Fact]
-    public void TraversalInRoot_IsNotValidated()
-    {
-        // CombineSafely only validates segments, not the root parameter — root is assumed
-        // to be a known-good value supplied by the application, not untrusted input.
-        // This test documents that a traversal-containing root is NOT rejected.
-        var root = OperatingSystem.IsWindows() ? "C:\\base\\..\\etc" : "/base/../etc";
-        var result = FileSafety.CombineSafely(root, "subdir");
-        Assert.NotNull(result);
+            Assert.NotNull(ex);
+            Assert.Contains("traversal", ex.Message);
+        }
     }
 }

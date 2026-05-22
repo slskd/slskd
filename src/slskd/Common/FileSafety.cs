@@ -51,12 +51,29 @@ public static class FileSafety
     /// <returns>The combined path.</returns>
     /// <exception cref="ArgumentNullException">Thrown if the root, list of segments, or one or more segments is null.</exception>
     /// <exception cref="ArgumentException">Thrown if any of the specified segments is rooted, or if any contain path traversal characters.</exception>
-    public static string CombineSafely(string root, params string[] segments)
+    public static string CombineSafely(string root, params string[] segments) => CombineSafely(root, os: null, segments: segments);
+
+    /// <summary>
+    ///     An alternative to <see cref="Path.Combine(string, string)"/> that disallows rooted segments in the second or
+    ///     subsequent position, and disallows segments containing path traversal characters "." and "..".
+    /// </summary>
+    /// <param name="root">The root directory.</param>
+    /// <param name="os">An optional operating system override, for testing.</param>
+    /// <param name="segments">The segments to append.</param>
+    /// <returns>The combined path.</returns>
+    /// <exception cref="ArgumentNullException">Thrown if the root, list of segments, or one or more segments is null.</exception>
+    /// <exception cref="ArgumentException">Thrown if any of the specified segments is rooted, or if any contain path traversal characters.</exception>
+    public static string CombineSafely(string root, OSPlatform? os, params string[] segments)
     {
         // ensure no inputs are null. matches the behavior of Path.Combine()
         if (string.IsNullOrWhiteSpace(root))
         {
             throw new ArgumentNullException(nameof(root), $"Specified root directory is null or consists only of whitespace");
+        }
+
+        if (ContainsTraversalSegments(root))
+        {
+            throw new ArgumentException("Specified root directory contains path traversal segments", nameof(root));
         }
 
         if (segments is null || segments.Any(s => s is null))
@@ -69,9 +86,9 @@ public static class FileSafety
             // if any segment is rooted (leading slash), Path.Combine drops everyting up to that segment
             // and it becomes the new root. example: Path.Combine("/home/users/foo", "/etc") results in "/etc"
             // not what we want!
-            if (IsPathAbsolute(segment))
+            if (IsPathAbsolute(segment, os))
             {
-                throw new ArgumentException($"Rooted paths are not permitted in segments: '{segment}'");
+                throw new ArgumentException($"Absolute paths are not permitted in segments: '{segment}'");
             }
 
             var parts = segment.Split(Path.DirectorySeparatorChar, '\\', '/');
