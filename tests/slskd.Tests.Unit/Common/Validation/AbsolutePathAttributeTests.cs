@@ -127,8 +127,14 @@ public class AbsolutePathAttributeTests
         public void RelativePath_Fails(string value)
         {
             var (isValid, errorMessage) = Validate(value, OSPlatform.Linux);
+
             Assert.False(isValid);
             Assert.Equal("The Field field must be an absolute file path.", errorMessage);
+
+            var (isValid2, errorMessage2) = Validate(value, OSPlatform.Windows);
+
+            Assert.False(isValid2);
+            Assert.Equal("The Field field must be an absolute file path.", errorMessage2);
         }
     }
 }
