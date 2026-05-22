@@ -33,19 +33,31 @@
 namespace slskd.Validation
 {
     using System.ComponentModel.DataAnnotations;
+    using System.Runtime.InteropServices;
 
     /// <summary>
     ///     Validates that the specified path is absolute.
     /// </summary>
     public class AbsolutePathAttribute : ValidationAttribute
     {
+        public AbsolutePathAttribute()
+        {
+        }
+
+        public AbsolutePathAttribute(OSPlatform? os = null)
+        {
+            OS = os;
+        }
+
+        public OSPlatform? OS { get; }
+
         protected override ValidationResult IsValid(object value, ValidationContext validationContext)
         {
             if (value != null && value is string str && !string.IsNullOrEmpty(str))
             {
                 var path = value.ToString();
 
-                if (!FileSafety.IsPathAbsolute(path))
+                if (!FileSafety.IsPathAbsolute(path, os: OS))
                 {
                     return new ValidationResult($"The {validationContext.DisplayName} field must be an absolute file path.");
                 }
