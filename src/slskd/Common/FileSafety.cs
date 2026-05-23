@@ -81,6 +81,8 @@ public static class FileSafety
             throw new ArgumentNullException(nameof(segments), $"One or more segments is null");
         }
 
+        var isWindows = os.HasValue ? os.Value == OSPlatform.Windows : OperatingSystem.IsWindows();
+
         foreach (var segment in segments)
         {
             // if any segment is rooted (leading slash), Path.Combine drops everyting up to that segment
@@ -91,22 +93,38 @@ public static class FileSafety
                 throw new ArgumentException($"Absolute paths are not permitted in segments: '{segment}'");
             }
 
+            if (isWindows)
+            {
+                if (segment.Contains(':'))
+                {
+                    throw new ArgumentException($"Colons are not permitted in segments: '{segment}'");
+                }
+
+                // on Windows, a segment beginning with a slash is considered 'drive rooted' and something like
+                // "\foo" translates to "C:\foo" when passed to Path.Combine()
+                if (segment.StartsWith('\\') || segment.StartsWith('/'))
+                {
+                    throw new ArgumentException($"Drive-relative segments or those containing leading slashes are not permitted in segments: '{segment}'");
+                }
+            }
+
             var parts = segment.Split(Path.DirectorySeparatorChar, '\\', '/');
 
             // ensure the segments we're combining don't contain traversal segments "." or ".."
             // untrusted input could use this to "break out" of the root directory and access sensitive areas
             if (parts.Any(s => s is "." or ".."))
             {
-                throw new ArgumentException($"Path traversal is not permitted: '{segment}'");
+                throw new ArgumentException($"Path traversal is not permitted in segments: '{segment}'");
             }
         }
 
         var combined = Path.Combine(root, Path.Combine(segments));
 
-        // not sure how we could possibly get here, but if we do, throw.
+        // this is a backstop to catch any condition we haven't thought of; it makes sure that the resulting
+        // path is actually rooted in the root we provided; if not the input was successful in traversal
         if (!Path.GetFullPath(combined).StartsWith(Path.GetFullPath(root)))
         {
-            throw new ArgumentException($"Path traversal detected in path {combined}, which is not allowed");
+            throw new ArgumentException($"Path traversal detected in combined path '{combined}', which is not allowed");
         }
 
         return combined;

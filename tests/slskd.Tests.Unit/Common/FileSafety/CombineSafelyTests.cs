@@ -52,6 +52,24 @@ public partial class FileSafetyTests
         }
 
         [Fact]
+        public void Throws_Given_Null_Segment()
+        {
+            var ex = Record.Exception(() => FileSafety.CombineSafely(Base, "foo", null, "bar"));
+
+            Assert.NotNull(ex);
+            Assert.IsType<ArgumentNullException>(ex);
+        }
+
+        [Fact]
+        public void Throws_Given_Null_Segments()
+        {
+            var ex = Record.Exception(() => FileSafety.CombineSafely(Base, segments: null));
+
+            Assert.NotNull(ex);
+            Assert.IsType<ArgumentNullException>(ex);
+        }
+
+        [Fact]
         public void SingleSegment_ReturnsBaseAndSegment()
         {
             var result = FileSafety.CombineSafely(Base, "subdir");
@@ -114,6 +132,83 @@ public partial class FileSafetyTests
 
             Assert.NotNull(ex);
             Assert.Contains("Absolute", ex.Message);
+        }
+
+        [Theory]
+        [InlineData("foo:bar")]
+        [InlineData("C:relative")]
+        [InlineData("sub/foo:bar")]
+        [InlineData("sub/foo/bar:qux")]
+        public void Throws_ArgumentException_Given_Colon_In_Segment_On_Windows(string segment)
+        {
+            var ex = Record.Exception(() => FileSafety.CombineSafely(Base, OSPlatform.Windows, segment));
+
+            Assert.NotNull(ex);
+            Assert.Contains("Colon", ex.Message);
+        }
+
+        [Theory]
+        [InlineData("foo:bar")]
+        [InlineData("sub/foo:bar")]
+        [InlineData("sub/foo/bar:qux")]
+        public void Accepts_Colon_In_Segment_On_Linux(string segment)
+        {
+            var result = Record.Exception(() => FileSafety.CombineSafely(Base, OSPlatform.Linux, segment));
+
+            Assert.Null(result);
+        }
+
+        [Theory]
+        [InlineData("C:relative")]
+        public void Accepts_Colon_In_Segment_On_Linux_Hits_Backstop_On_Windows(string segment)
+        {
+            var result = Record.Exception(() => FileSafety.CombineSafely(Base, OSPlatform.Linux, segment));
+
+            if (!OperatingSystem.IsWindows())
+            {
+                Assert.Null(result);
+            }
+            else
+            {
+                // this test breaks when run on windows
+                // this is valid on linux (which we're trying to test for)
+                // but invalid on windows because it is a drive-relative path and it successfully traverses
+                Assert.NotNull(result);
+                Assert.IsType<ArgumentException>(result);
+                Assert.Contains("traversal detected", result.Message);
+            }
+        }
+
+        [Theory]
+        [InlineData("/Music")]
+        [InlineData("\\Music")]
+        public void Throws_ArgumentException_Given_Leading_Slash_In_Segment_On_Windows(string segment)
+        {
+            var ex = Record.Exception(() => FileSafety.CombineSafely(Base, OSPlatform.Windows, segment));
+
+            Assert.NotNull(ex);
+            Assert.Contains("Drive-relative", ex.Message);
+        }
+
+        [Theory]
+        [InlineData("\\Music")]
+        public void Accepts_Leading_Backslash_In_Segment_On_Linux(string segment)
+        {
+            var result = Record.Exception(() => FileSafety.CombineSafely(Base, OSPlatform.Linux, segment));
+
+            if (!OperatingSystem.IsWindows())
+            {
+                Assert.Null(result);
+            }
+            else
+            {
+                // this test breaks when run on windows
+                // this is valid on linux (which we're trying to test for)
+                // but invalid on windows because it is a drive-relative path and it successfully traverses
+                Assert.NotNull(result);
+                Assert.IsType<ArgumentException>(result);
+                Assert.Contains("traversal detected", result.Message);
+            }
         }
 
         [Theory]
