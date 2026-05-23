@@ -273,7 +273,7 @@ namespace slskd.Relay
                 StartCancellationTokenSource?.Cancel();
 
                 HubConnection = new HubConnectionBuilder()
-                    .WithUrl($"{options.Relay.Controller.Address}/hub/relay", builder =>
+                    .WithUrl($"{options.Relay.Controller.Address.TrimEnd('/')}/hub/relay", builder =>
                     {
                         builder.AccessTokenProvider = () => Task.FromResult(options.Relay.Controller.ApiKey);
                         builder.HttpMessageHandlerFactory = (message) =>
@@ -338,7 +338,7 @@ namespace slskd.Relay
             }
 
             client.Timeout = TimeSpan.FromMilliseconds(int.MaxValue);
-            client.BaseAddress = new(options.Address);
+            client.BaseAddress = new(options.Address.TrimEnd('/'));
             return client;
         }
 
