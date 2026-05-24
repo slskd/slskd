@@ -41,7 +41,7 @@ public class StringAttributeTests
             Assert.True(isValid);
 
             var (isValid2, message2) = Validate("foo", a => a.AllowNull = false);
-            Assert.True(isValid);
+            Assert.True(isValid2);
         }
     }
 
@@ -69,7 +69,7 @@ public class StringAttributeTests
             Assert.True(isValid);
 
             var (isValid2, _) = Validate("hello", a => a.AllowEmpty = true);
-            Assert.True(isValid);
+            Assert.True(isValid2);
         }
     }
 
@@ -97,7 +97,7 @@ public class StringAttributeTests
             Assert.True(isValid);
 
             var (isValid2, _) = Validate("hello", a => a.AllowWhiteSpace = true);
-            Assert.True(isValid);
+            Assert.True(isValid2);
         }
     }
 
