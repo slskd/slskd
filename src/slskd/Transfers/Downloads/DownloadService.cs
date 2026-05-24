@@ -1061,14 +1061,14 @@ namespace slskd.Transfers.Downloads
                 var completedTransfer = await Retry.Do(() =>
                     {
                         var incompleteFileInfo = Files.ResolveFileInfo(incompleteFilename);
-                        var incompleteStrategy = retryOptions.Incomplete.ToEnum<RetryIncompleteStrategy>();
+                        var incompleteStrategy = retryOptions.Partial.ToEnum<RetryPartialStrategy>();
 
                         var shouldResume = false;
                         var startOffset = 0L;
 
                         if (incompleteFileInfo.Exists && incompleteFileInfo.Length > 0)
                         {
-                            if (incompleteStrategy == RetryIncompleteStrategy.Resume)
+                            if (incompleteStrategy == RetryPartialStrategy.Resume)
                             {
                                 shouldResume = true;
                                 startOffset = incompleteFileInfo.Length;

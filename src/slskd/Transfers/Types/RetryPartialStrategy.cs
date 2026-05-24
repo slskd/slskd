@@ -1,4 +1,4 @@
-// <copyright file="RetryIncompleteStrategy.cs" company="JP Dillingham">
+// <copyright file="RetryPartialStrategy.cs" company="JP Dillingham">
 //           ▄▄▄▄     ▄▄▄▄     ▄▄▄▄
 //     ▄▄▄▄▄▄█  █▄▄▄▄▄█  █▄▄▄▄▄█  █
 //     █__ --█  █__ --█    ◄█  -  █
@@ -33,9 +33,9 @@
 namespace slskd.Transfers;
 
 /// <summary>
-///     Strategy for retrying incomplete files.
+///     Strategy for retrying partial files.
 /// </summary>
-public enum RetryIncompleteStrategy
+public enum RetryPartialStrategy
 {
     /// <summary>
     ///     Overwrite the existing file.
@@ -43,7 +43,7 @@ public enum RetryIncompleteStrategy
     Overwrite = 0,
 
     /// <summary>
-    ///     Resume the transfer using the size of the incomplete file as the initial offset.
+    ///     Resume the transfer using the size of the partial file as the initial offset.
     /// </summary>
     Resume = 1,
 }

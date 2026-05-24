@@ -362,14 +362,16 @@ transfers:
 
 Failed downloads can be retried automatically up to the configured number of attempts.  If an attempt fails initially, the application delays the second attempt by the configured delay, and an exponential backoff is used to compute the delay for all subsequent events, up to the configured maximum delay.
 
-By default, partial downloads are resumed based on the size of the incomplete file.  Users can choose to always overwrite files if they wish.
+By default, partial downloads are resumed based on the size of the file on disk.  Users can choose to always overwrite files if they wish.
+
+Incomplete files are stored in subdirectories including the remote user's username and the name of the containing directory on the remote user's PC, which minimizes (but does not completely eliminate!) the risk that a partial file is resumed incorrectly.  Choosing to always overwrite files eliminates this risk but is less efficient and it increases the risk that the file will fail to fully transfer successfully.
 
 **YAML**
 ```yaml
 transfers:
   download:
     retry:
-      incomplete: resume # 'overwrite' or 'resume'
+      partial: resume # 'overwrite' or 'resume'
       attempts: 3
       delay: 5000 # initial time between retries, in milliseconds
       max_delay: 60000 # maximum time between retries, in milliseconds
