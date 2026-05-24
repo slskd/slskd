@@ -39,7 +39,7 @@
 #       cidr: 0.0.0.0/0,::/0
 # permissions:
 #   file:
-#     mode: ~ # not for Windows, chmod syntax, e.g. 644, 777. can't escalate beyond umask
+#     mode: ~ # chmod syntax, e.g. 644, 777. not for Windows.
 # directories:
 #   incomplete: ~
 #   downloads: ~
