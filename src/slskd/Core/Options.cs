@@ -1052,10 +1052,10 @@ namespace slskd
                     public int MaxDelay { get; init; } = 60_000;
 
                     /// <summary>
-                    ///     Gets the strategy for handling incomplete files upon retry.
+                    ///     Gets the strategy for handling partial files upon retry.
                     /// </summary>
-                    [Enum(typeof(RetryIncompleteStrategy))]
-                    public string Incomplete { get; init; } = RetryIncompleteStrategy.Overwrite.ToString().ToLowerInvariant();
+                    [Enum(typeof(RetryPartialStrategy))]
+                    public string Partial { get; init; } = RetryPartialStrategy.Resume.ToString().ToLowerInvariant();
                 }
             }
 
