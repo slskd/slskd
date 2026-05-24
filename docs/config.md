@@ -364,6 +364,8 @@ Failed downloads can be retried automatically up to the configured number of att
 
 By default, partial downloads are resumed based on the size of the file on disk.  Users can choose to always overwrite files if they wish.
 
+Incomplete files are stored in subdirectories including the remote user's username and the name of the containing directory on the remote user's PC, which minimizes (but does not completely eliminate!) the risk that a partial file is resumed incorrectly.  Choosing to always overwrite files eliminates this risk but is less efficient and it increases the risk that the file will fail to fully transfer successfully.
+
 **YAML**
 ```yaml
 transfers:
