@@ -471,7 +471,7 @@ namespace slskd
         }
 
         /// <summary>
-        ///     Replaces any occurrence of an invalid filename character with the specified <see paramref="replacement"/>.
+        ///     Replaces any occurrence of an invalid filename character with the specified <paramref name="replacement"/>.
         /// </summary>
         /// <param name="path">The path to sanitize.</param>
         /// <param name="replacement">The character with which to replace invalid characters.</param>
@@ -486,6 +486,22 @@ namespace slskd
             }
 
             return sanitized;
+        }
+
+        /// <summary>
+        ///     Replaces any path traversal segments in the specified <paramref name="path"/> with the specified
+        ///     <paramref name="replacement"/>.
+        /// </summary>
+        /// <param name="path">The path to sanitize.</param>
+        /// <param name="replacement">The string with which to replace path traversal segments.</param>
+        /// <returns>The sanitized path.</returns>
+        public static string ReplacePathTraversalSegments(this string path, string replacement = "_")
+        {
+            return string.Join(Path.DirectorySeparatorChar,
+                path
+                    .LocalizePath()
+                    .Split(Path.DirectorySeparatorChar)
+                    .Select(s => s is "." or ".." ? replacement : s));
         }
 
         /// <summary>
