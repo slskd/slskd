@@ -33,6 +33,7 @@
 namespace slskd
 {
     using System;
+    using System.Runtime.InteropServices;
     using System.Security.Cryptography;
     using System.Text;
 
@@ -63,6 +64,26 @@ namespace slskd
         {
             using var sha256 = SHA256.Create();
             return BitConverter.ToString(sha256.ComputeHash(Encoding.UTF8.GetBytes(str))).Replace("-", string.Empty);
+        }
+
+        public static OSPlatform OSPlatform()
+        {
+            if (OperatingSystem.IsWindows())
+            {
+                return System.Runtime.InteropServices.OSPlatform.Windows;
+            }
+
+            if (OperatingSystem.IsMacOS())
+            {
+                return System.Runtime.InteropServices.OSPlatform.OSX;
+            }
+
+            if (OperatingSystem.IsFreeBSD())
+            {
+                return System.Runtime.InteropServices.OSPlatform.FreeBSD;
+            }
+
+            return System.Runtime.InteropServices.OSPlatform.Linux;
         }
     }
 }
