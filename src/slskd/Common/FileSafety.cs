@@ -36,12 +36,34 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Text.RegularExpressions;
 
 /// <summary>
 ///     Utility functions to help safely work with paths from untrusted sources.
 /// </summary>
 public static class FileSafety
 {
+
+    /// <summary>
+    ///     Invalid filename characters on Unix-like operating systems (Linux, OSX, FreeBSD, etc).
+    /// </summary>
+    public static readonly char[] InvalidFileNameCharactersOnUnix = ['\0', '/'];
+
+    /// <summary>
+    ///     Invalid filename characters on Windows.
+    /// </summary>
+    public static readonly char[] InvalidFileNameCharactersOnWindows =
+    [
+        '\"', '<', '>', '|', '\0',
+        (char)1, (char)2, (char)3, (char)4, (char)5, (char)6, (char)7, (char)8, (char)9, (char)10,
+        (char)11, (char)12, (char)13, (char)14, (char)15, (char)16, (char)17, (char)18, (char)19, (char)20,
+        (char)21, (char)22, (char)23, (char)24, (char)25, (char)26, (char)27, (char)28, (char)29, (char)30,
+        (char)31, ':', '*', '?', '\\', '/',
+    ];
+
+    private static readonly Regex DriveRootRegex = new(@"^[a-zA-Z]:[/\\]?", RegexOptions.Compiled); // C: or C:\
+    private static readonly Regex UncRootRegex = new(@"^[/\\]{2}[^/\\]+[/\\]?", RegexOptions.Compiled); // \\server[\] or //server[/], any slash variants
+
     /// <summary>
     ///     An alternative to <see cref="Path.Combine(string, string)"/> that disallows rooted segments in the second or
     ///     subsequent position, and disallows segments containing path traversal characters "." and "..".
@@ -193,4 +215,88 @@ public static class FileSafety
     /// <param name="os">An optional operating system override, for testing.</param>
     /// <returns>True if the path is relative, false otherwise.</returns>
     public static bool IsPathRelative(string path, OSPlatform? os = null) => !IsPathAbsolute(path, os);
+
+    /// <summary>
+    ///     Converts the given path to the local format (normalizes path separators to Path.DirectorySeparatorChar).
+    /// </summary>
+    /// <param name="path">The path to convert.</param>
+    /// <param name="os">An optional operating system override, for testing.</param>
+    /// <returns>The converted path.</returns>
+    public static string LocalizePath(this string path, OSPlatform? os = null)
+    {
+        os ??= Compute.OSPlatform();
+
+        var sep = os.Value == OSPlatform.Windows ? '\\' : '/';
+
+        return path.Replace('\\', sep).Replace('/', sep);
+    }
+
+    /// <summary>
+    ///     Sanitizes the specified <paramref name="filename"/> (or string intended to be used as or as part of a filename)
+    ///     to make it suitable and safe on the local operating system by stripping all slashes (forward or back) and
+    ///     and replacing any invalid characters with the specified <paramref name="replacement"/>.
+    /// </summary>
+    /// <param name="filename">The filename (or string intended to be used as/part of one).</param>
+    /// <param name="replacement">The character to substitute for invalid characters.</param>
+    /// <param name="os">An optional operating system override, for testing.</param>
+    /// <returns>The sanitized filename.</returns>
+    public static string SanitizeFilename(string filename, char replacement = '_', OSPlatform? os = null)
+    {
+        if (replacement is '/' or '\\')
+        {
+            throw new ArgumentException($"The provided replacement character '{replacement}' is invalid in filenames");
+        }
+
+        os ??= Compute.OSPlatform();
+
+        var characters = os.Value == OSPlatform.Windows ? InvalidFileNameCharactersOnWindows : InvalidFileNameCharactersOnUnix;
+
+        if (characters.Contains(replacement))
+        {
+            throw new ArgumentException($"The provided replacement character '{replacement}' is invalid on {os}");
+        }
+
+        var sanitized = filename;
+
+        foreach (var c in characters)
+        {
+            sanitized = sanitized.Replace(c, replacement);
+        }
+
+        // regardless of which OS and what characters are disallowed on it, we don't allow slashes in filenames
+        // (or strings that will be used as filenames), otherwise we should/would have used SanitizePath()
+        return sanitized
+            .Replace('/', replacement)
+            .Replace('\\', replacement);
+    }
+
+    /// <summary>
+    ///     Sanitizes the specified <paramref name="path"/> to make it suitable and safe on the local operating system
+    ///     by converting to the correct slashes, dropping a root (if present), replacing any invalid characters with
+    ///     the specified <paramref name="replacement"/>, and by dropping any path traversal segments.
+    /// </summary>
+    /// <param name="path">The path.</param>
+    /// <param name="replacement">The character to substitute for invalid characters.</param>
+    /// <param name="os">An optional operating system override, for testing.</param>
+    /// <returns>The sanitized path.</returns>
+    public static string SanitizePath(this string path, char replacement = '_', OSPlatform? os = null)
+    {
+        os ??= Compute.OSPlatform();
+        var sep = os.Value == OSPlatform.Windows ? '\\' : '/';
+
+        // flip slashes the correct way
+        path = path.LocalizePath(os);
+
+        // strip C:\ or //server, if present (regardless of slash variant, etc)
+        path = DriveRootRegex.Replace(path, string.Empty);
+        path = UncRootRegex.Replace(path, string.Empty);
+
+        // for each segment, drop nulls (created by double slashes), sanitize, and replace traversal strings
+        var segments = path
+            .Split(sep)
+            .Select(s => SanitizeFilename(s, replacement, os))
+            .Select(s => s is "." or ".." ? replacement.ToString() : s);
+
+        return string.Join(sep, segments);
+    }
 }
