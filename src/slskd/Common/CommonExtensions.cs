@@ -461,31 +461,13 @@ namespace slskd
 
             if (parts.Length == 1)
             {
-                return parts.First().ReplaceInvalidFileNameCharacters();
+                return FileSafety.SanitizeFilename(parts.First());
             }
 
-            var file = parts.Last().ReplaceInvalidFileNameCharacters();
-            var directory = parts.Reverse().Skip(1).Take(1).Single().ReplaceInvalidFileNameCharacters();
+            var file = FileSafety.SanitizeFilename(parts.Last());
+            var directory = FileSafety.SanitizeFilename(parts.Reverse().Skip(1).Take(1).Single());
 
             return FileSafety.CombineSafely(directory, file);
-        }
-
-        /// <summary>
-        ///     Replaces any occurrence of an invalid filename character with the specified <paramref name="replacement"/>.
-        /// </summary>
-        /// <param name="path">The path to sanitize.</param>
-        /// <param name="replacement">The character with which to replace invalid characters.</param>
-        /// <returns>The sanitized path.</returns>
-        public static string ReplaceInvalidFileNameCharacters(this string path, char replacement = '_')
-        {
-            var sanitized = path;
-
-            foreach (var c in Path.GetInvalidFileNameChars())
-            {
-                sanitized = sanitized.Replace(c, replacement);
-            }
-
-            return sanitized;
         }
 
         /// <summary>
