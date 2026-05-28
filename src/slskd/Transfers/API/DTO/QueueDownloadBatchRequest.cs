@@ -110,4 +110,9 @@ public record EnqueueDownloadBatchOptions
     [NonTraversingPath]
     [String(AllowNull = true, AllowEmpty = false, AllowWhiteSpace = false, MinimumLength = 1)]
     public string Destination { get; init; }
+
+    /// <summary>
+    ///     An optional external ID for the batch.
+    /// </summary>
+    public string ExternalId { get; init; }
 }
