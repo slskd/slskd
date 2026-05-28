@@ -63,6 +63,7 @@ public static class FileSafety
 
     private static readonly Regex DriveRootRegex = new(@"^[a-zA-Z]:[/\\]?", RegexOptions.Compiled); // C: or C:\
     private static readonly Regex UncRootRegex = new(@"^[/\\]{2}[^/\\]+[/\\]?", RegexOptions.Compiled); // \\server[\] or //server[/], any slash variants
+    private static readonly Regex SoulseekQtRootRegex = new(@"^@@[a-zA-Z0-9]{5,}[\/\\]", RegexOptions.Compiled); // @@abcde[\|/], a Soulseek Qt share prefix
 
     /// <summary>
     ///     An alternative to <see cref="Path.Combine(string, string)"/> that disallows rooted segments in the second or
@@ -290,6 +291,9 @@ public static class FileSafety
         // strip C:\ or //server, if present (regardless of slash variant, etc)
         path = DriveRootRegex.Replace(path, string.Empty);
         path = UncRootRegex.Replace(path, string.Empty);
+
+        // strip @@abcde prefixes used by SoulseekQt to obscure paths
+        path = SoulseekQtRootRegex.Replace(path, string.Empty);
 
         // for each segment, drop nulls (created by double slashes), sanitize, and replace traversal strings
         var segments = path
