@@ -1029,6 +1029,12 @@ namespace slskd
                 public RetryOptions Retry { get; init; } = new RetryOptions();
 
                 /// <summary>
+                ///     Gets download destination options.
+                /// </summary>
+                [Validate]
+                public DestinationOptions Destination { get; init; } = new DestinationOptions();
+
+                /// <summary>
                 ///     Download retry options.
                 /// </summary>
                 public class RetryOptions
@@ -1056,6 +1062,50 @@ namespace slskd
                     /// </summary>
                     [Enum(typeof(RetryPartialStrategy))]
                     public string Partial { get; init; } = RetryPartialStrategy.Resume.ToString().ToLowerInvariant();
+                }
+
+                /// <summary>
+                ///     Download destination options.
+                /// </summary>
+                public class DestinationOptions
+                {
+                    [RelativePath]
+                    [NonTraversingPath]
+                    [String(AllowNull = true, AllowEmpty = false, AllowWhiteSpace = false, MinimumLength = 1)]
+                    public string Subdirectory { get; init; } = "{SOURCE_DIRECTORY}";
+
+                    [Enum(typeof(DestinationConflictStrategy))]
+                    public string Conflict { get; init; } = DestinationConflictStrategy.Rename.ToString().ToLowerInvariant();
+
+                    [Validate]
+                    public DestinationPermissionsOptions Permissions { get; init; } = new DestinationPermissionsOptions();
+
+                    public class DestinationPermissionsOptions : IValidatableObject
+                    {
+                        public string Mode { get; init; }
+
+                        /// <summary>
+                        ///     Extended validation.
+                        /// </summary>
+                        /// <param name="validationContext"></param>
+                        /// <returns></returns>
+                        public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+                        {
+                            var results = new List<ValidationResult>();
+
+                            if (!string.IsNullOrEmpty(Mode))
+                            {
+                                var regEx = new Regex("^[0-7]{3,4}$", RegexOptions.Compiled);
+
+                                if (!regEx.IsMatch(Mode))
+                                {
+                                    results.Add(new ValidationResult($"Field {nameof(Mode)} is invalid. Specify a three- or four-character string consisting of only 0-7 (chmod syntax, [0]000-[7]777, inclusive)"));
+                                }
+                            }
+
+                            return results;
+                        }
+                    }
                 }
             }
 

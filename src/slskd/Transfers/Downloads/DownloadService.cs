@@ -38,9 +38,11 @@ namespace slskd.Transfers.Downloads
     using System;
     using System.Collections.Concurrent;
     using System.Collections.Generic;
+    using System.IO;
     using System.Linq;
     using System.Linq.Expressions;
     using System.Net;
+    using System.Text.RegularExpressions;
     using System.Threading;
     using System.Threading.Tasks;
     using Microsoft.EntityFrameworkCore;
@@ -49,6 +51,7 @@ namespace slskd.Transfers.Downloads
     using slskd.Files;
     using slskd.Integrations.FTP;
     using slskd.Relay;
+    using slskd.Search;
 
     /// <summary>
     ///     Manages downloads.
@@ -66,6 +69,26 @@ namespace slskd.Transfers.Downloads
         /// <remarks>This should generally not be called; use EnqueueAsync() instead.</remarks>
         /// <param name="transfer"></param>
         void AddOrSupersede(Transfer transfer);
+
+        /// <summary>
+        ///     Derives the destination subdirectory for the specified <paramref name="transfer"/> based on user and batch
+        ///     configuration.
+        /// </summary>
+        /// <remarks>
+        ///     <para>
+        ///         Output is guaranteed to be a localized, sanitized, relative path with no traversal segments.
+        ///         Otherwise, an instance of <see cref="SlskdException"/> will be thrown as a backstop.
+        ///     </para>
+        ///     <para>
+        ///         Empty segments may be present in the output, which more closely aligns with user intent. The
+        ///         <see cref="Path.Combine(string, string)"/> method drops them silently, so there's no functional impact.
+        ///     </para>
+        /// </remarks>
+        /// <param name="transfer">The transfer.</param>
+        /// <returns>The derived destination directory.</returns>
+        /// <exception cref="NotFoundException">Thrown if the specified download doesn't exist.</exception>
+        /// <exception cref="SlskdException">Thrown if the derivation logic produces an absolute path, or one with traversal segments.</exception>
+        Task<string> DeriveDestination(Transfer transfer);
 
         /// <summary>
         ///     Enqueues the requested list of <paramref name="files"/>.
@@ -165,6 +188,7 @@ namespace slskd.Transfers.Downloads
     {
         public DownloadService(
             IBatchService batchService,
+            ISearchService searchService,
             IOptionsMonitor<Options> optionsMonitor,
             ISoulseekClient soulseekClient,
             IDbContextFactory<TransfersDbContext> contextFactory,
@@ -174,6 +198,7 @@ namespace slskd.Transfers.Downloads
             EventBus eventBus)
         {
             Batches = batchService;
+            Searches = searchService;
             Client = soulseekClient;
             OptionsMonitor = optionsMonitor;
             ContextFactory = contextFactory;
@@ -213,10 +238,12 @@ namespace slskd.Transfers.Downloads
         private IDbContextFactory<TransfersDbContext> ContextFactory { get; }
         private IFTPService FTP { get; }
         private FileService Files { get; }
+        private ISearchService Searches { get; }
         private IRelayService Relay { get; }
         private ILogger Log { get; } = Serilog.Log.ForContext<DownloadService>();
         private IOptionsMonitor<Options> OptionsMonitor { get; }
         private EventBus EventBus { get; }
+        private Regex SubdirectoryPatternTokenRegex { get; } = new Regex(@"\{([^\{\}]*)\}", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
         /// <summary>
         ///     Allow only one enqueue operation for a given user at a time. Entries are added on the fly if they
@@ -708,6 +735,144 @@ namespace slskd.Transfers.Downloads
         }
 
         /// <summary>
+        ///     Derives the destination subdirectory for the specified <paramref name="transfer"/> based on user and
+        ///     batch configuration.
+        /// </summary>
+        /// <remarks>
+        ///     <para>
+        ///         Output is guaranteed to be a localized, sanitized, relative path with no traversal segments.
+        ///         Otherwise, an instance of <see cref="SlskdException"/> will be thrown as a backstop.
+        ///     </para>
+        ///     <para>
+        ///         Empty segments may be present in the output, which more closely aligns with user intent. The
+        ///         <see cref="Path.Combine(string, string)"/> method drops them silently, so there's no functional impact.
+        ///     </para>
+        /// </remarks>
+        /// <param name="transfer">The transfer.</param>
+        /// <returns>The derived destination directory.</returns>
+        /// <exception cref="SlskdException">Thrown if the derivation logic produces an absolute path, or one with traversal segments.</exception>
+        public async Task<string> DeriveDestination(Transfer transfer)
+        {
+            string source_username;
+            string source_path;
+            string source_directory;
+            string batch_id;
+            string batch_external_id;
+            string search_id;
+            string search_text;
+
+            /*
+                fetch/extract/derive and sanitize each of the values we're going to replace
+
+                when flow leaves this block we can expect that all of the string values
+                defined above have a value that can be safely substituted for its placeholder
+            */
+            try
+            {
+                Batch batch = null;
+
+                if (transfer.BatchId is not null)
+                {
+                    batch = await Batches.FindAsync(b => b.Id == transfer.BatchId);
+                }
+
+                // destination supplied with the batch enqueue request takes precedence over all; return early
+                if (!string.IsNullOrWhiteSpace(batch?.Options?.Destination))
+                {
+                    var explicitDestination = FileSafety.SanitizePath(batch.Options.Destination, replacement: '_');
+
+                    // the only way to get here is through a regression in the logic above; if we are seeing this, ensure we are
+                    // properly sanitizing user input both via the API and in the logic above
+                    if (FileSafety.IsPathAbsolute(explicitDestination) || FileSafety.ContainsTraversalSegments(explicitDestination))
+                    {
+                        throw new SlskdException("Derived a transfer destination that is either not relative or contains traversal segments; neither is allowed.  Please report this on GitHub.");
+                    }
+
+                    return explicitDestination;
+                }
+
+                Search search = null;
+
+                if (batch?.SearchId is not null)
+                {
+                    search = await Searches.FindAsync(s => s.Id == batch.SearchId);
+                }
+
+                source_username = FileSafety.SanitizeFilename(transfer.Username, replacement: '_');
+
+                var filename = FileSafety.SanitizePath(transfer.Filename, replacement: '_');
+
+                // full remote path, e.g. '@abcd\Foo\Bar\Baz\Qux.ext' => '@abcd\Foo\Bar\Baz'
+                source_path = (Path.GetDirectoryName(filename) ?? string.Empty).TrimEnd('/', '\\');
+
+                // name of the remote parent directory, so using the example above, 'Baz'
+                source_directory = (Path.GetFileName(source_path) ?? string.Empty).TrimEnd('/', '\\');
+
+                batch_id = (batch?.Id ?? Guid.Empty) == Guid.Empty ? "unknown_batch_id" : batch.Id.ToString();
+
+                // the external id can be any string (it is supplied via API call) so we have to sanitize it just like the destination,
+                // except we don't want to allow it to tack on directories; that's not what it is for and it could be unintended
+                batch_external_id = FileSafety.SanitizeFilename(
+                    filename: string.IsNullOrWhiteSpace(batch?.Options?.ExternalId) ? "unknown_batch_external_id" : batch.Options.ExternalId,
+                    replacement: '_');
+
+                search_id = (search?.Id ?? Guid.Empty) == Guid.Empty ? "unknown_search_id" : search.Id.ToString();
+                search_text = FileSafety.SanitizeFilename(
+                    filename: search?.SearchText ?? "unknown_search_text",
+                    replacement: '_');
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed fetch information for download {Id}: {Message}", transfer.Id, ex.Message);
+                throw;
+            }
+
+            var args = new Dictionary<string, string>(
+                StringComparer.OrdinalIgnoreCase) // important!
+            {
+                ["SOURCE_USERNAME"] = source_username,
+                ["SOURCE_PATH"] = source_path,
+                ["SOURCE_DIRECTORY"] = source_directory,
+                ["BATCH_ID"] = batch_id,
+                ["BATCH_EXTERNAL_ID"] = batch_external_id,
+                ["SEARCH_ID"] = search_id,
+                ["SEARCH_TEXT"] = search_text,
+            };
+
+            // validation should ensure this is a relative path and that it contains no traversal segments
+            // we accept any type of slash in the pattern and convert it to the correct variant for the local OS
+            var pattern = OptionsMonitor.CurrentValue.Transfers.Download.Destination.Subdirectory;
+
+            // use Regex.Replace here because it makes one pass; if we chained .Replace() calls the output from one could
+            // cascade into others and produce unintended results
+            var destination = SubdirectoryPatternTokenRegex.Replace(
+                input: pattern,
+                evaluator: match =>
+                {
+                    if (args.TryGetValue(match.Groups[1].Value, out var value))
+                    {
+                        return value;
+                    }
+
+                    return match.Value;
+                });
+
+            destination = FileSafety.SanitizePath(destination);
+
+            Log.Debug("Derived destination for download of {Filename} from {User}: {Destination} (id: {Id}, configuration: {Pattern}, args: {Args})", Path.GetFileName(transfer.Filename), transfer.Username, destination, transfer.Id, pattern, new { source_username, source_path, source_directory, batch_id, batch_external_id, search_id, search_text });
+
+            // the only way to get here is through a regression in the logic above; if we are seeing this, ensure we are
+            // properly sanitizing the final output to strip leading slashes and replace traversal segments
+            if (FileSafety.IsPathAbsolute(destination) || FileSafety.ContainsTraversalSegments(destination))
+            {
+                Log.Error("Derived destination for download of {Filename} from {User}: {Destination} (id: {Id}, configuration: {Pattern}, args: {Args})", Path.GetFileName(transfer.Filename), transfer.Username, destination, transfer.Id, pattern, new { source_username, source_path, source_directory, batch_id, batch_external_id, search_id, search_text });
+                throw new SlskdException("Derived a transfer destination that is either not relative or contains traversal segments; neither is allowed.  Please report this on GitHub.");
+            }
+
+            return destination;
+        }
+
+        /// <summary>
         ///     Returns a list of all downloads matching the optional <paramref name="expression"/>.
         /// </summary>
         /// <param name="expression">An optional expression used to match downloads.</param>
@@ -1045,14 +1210,18 @@ namespace slskd.Transfers.Downloads
                     }),
                     disposeOutputStreamOnCompletion: true);
 
-                System.IO.UnixFileMode? unixFileMode = !string.IsNullOrEmpty(OptionsMonitor.CurrentValue.Permissions.File.Mode)
-                    ? OptionsMonitor.CurrentValue.Permissions.File.Mode.ToUnixFileMode()
+                UnixFileMode? unixFileMode = !string.IsNullOrEmpty(OptionsMonitor.CurrentValue.Transfers.Download.Destination.Permissions.Mode)
+                    ? OptionsMonitor.CurrentValue.Transfers.Download.Destination.Permissions.Mode.ToUnixFileMode()
                     : null;
 
-                // store incomplete files under a username subdirectory to prevent collisions between users
-                // and to make it safe to resume partial downloads without risking picking up an unrelated file
+                // store incomplete files under a username subdirectory to prevent collisions between users and to make
+                // it safe to resume partial downloads without risking picking up an unrelated file. if the remote file
+                // changes size between attempts, Soulseek.NET's DownloadAsync() will throw, so the only real risk is
+                // in a case where the file contents have changed but the size remains. the resulting file will be
+                // corrupted in that case. users that are concerned about this (extremely unlikely) case should
+                // configure slskd to always overwrite partial files.
                 var incompleteFilename = transfer.Filename.ToLocalFilename(
-                    baseDirectory: FileSafety.CombineSafely(OptionsMonitor.CurrentValue.Directories.Incomplete, transfer.Username.ReplaceInvalidFileNameCharacters()));
+                    baseDirectory: FileSafety.CombineSafely(OptionsMonitor.CurrentValue.Directories.Incomplete, FileSafety.SanitizeFilename(transfer.Username)));
 
                 Log.Debug("Invoking Soulseek DownloadAsync() for {Filename} from {Username}", transfer.Filename, transfer.Username);
                 transfer.Attempts = 1;
@@ -1140,22 +1309,18 @@ namespace slskd.Transfers.Downloads
                     move the file from incomplete to complete
 
                     users have a lot of strong opinions about this!
-                */
-                string destinationDirectory;
 
-                if (transfer.BatchId is not null)
-                {
-                    // if the transfer has an associated batch id, then:
-                    // some/long/remote/path/folder/file.ext -> download_directory/batch_id/file.ext
-                    destinationDirectory = FileSafety.CombineSafely(OptionsMonitor.CurrentValue.Directories.Downloads, transfer.BatchId.Value.ToString());
-                }
-                else
-                {
-                    // ToLocalFilename chops all but the containing folder off of the path and localizes slashes, so:
-                    // some/long/remote/path/folder/file.ext -> folder/file.ext -> download_directory/folder/file.ext
-                    // this is "legacy" behavior that will be familiar to most Soulseek users
-                    destinationDirectory = System.IO.Path.GetDirectoryName(transfer.Filename.ToLocalFilename(baseDirectory: OptionsMonitor.CurrentValue.Directories.Downloads));
-                }
+                    the destination is always rooted in the configured download directory. we derive the subdirectory
+                    for this file based on either the Destination property defined for the Batch that contains this transfer,
+                    or by applying replacements to the user's configured Destination.Subdirectory string.
+
+                    what we get back will be a relative path (or perhaps an empty string if that's what the user wanted)
+                    that has sanitized and checked for safety against traversal
+                */
+                var subdirectory = await DeriveDestination(transfer);
+                var destinationDirectory = FileSafety.CombineSafely(OptionsMonitor.CurrentValue.Directories.Downloads, subdirectory);
+
+                var conflictStrategy = OptionsMonitor.CurrentValue.Transfers.Download.Destination.Conflict.ToEnum<DestinationConflictStrategy>();
 
                 Log.Debug("Destination directory for {Filename}: {Destination}", transfer.Filename, destinationDirectory);
 
@@ -1163,7 +1328,7 @@ namespace slskd.Transfers.Downloads
                     sourceFilename: incompleteFilename,
                     destinationDirectory: destinationDirectory,
                     unixFileMode: unixFileMode,
-                    overwrite: false,
+                    overwrite: conflictStrategy == DestinationConflictStrategy.Overwrite,
                     deleteSourceDirectoryIfEmptyAfterMove: true);
 
                 Log.Debug("Moved file {Filename} to {Destination}", transfer.Filename, finalFilename);

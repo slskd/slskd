@@ -39,7 +39,7 @@
 #       cidr: 0.0.0.0/0,::/0
 # permissions:
 #   file:
-#     mode: ~ # chmod syntax, e.g. 644, 777. not for Windows.
+#     mode: ~ # chmod syntax, e.g. 644, 777. does nothing on Windows.
 # directories:
 #   incomplete: ~
 #   downloads: ~
@@ -78,6 +78,11 @@
 #       attempts: 3
 #       delay: 5000 # initial time between retries, in milliseconds
 #       max_delay: 60000 # maximum time between retries, in milliseconds
+#     destination:
+#       subdirectory: {SOURCE_DIRECTORY}
+#       conflict: rename # 'overwrite' or 'rename'
+#       permissions:
+#         mode: ~ # chmod syntax, e.g. 644, 777. does nothing on Windows. 
 #   groups:
 #     default:
 #       upload:
