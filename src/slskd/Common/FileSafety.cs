@@ -43,7 +43,6 @@ using System.Text.RegularExpressions;
 /// </summary>
 public static class FileSafety
 {
-
     /// <summary>
     ///     Invalid filename characters on Unix-like operating systems (Linux, OSX, FreeBSD, etc).
     /// </summary>

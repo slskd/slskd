@@ -85,6 +85,18 @@ public partial class FileSafetyTests
             Assert.Equal(expected, result);
         }
 
+        [Theory]
+        [InlineData("/home/user/foo", "_home_user_foo")]
+        [InlineData("//server/share", "__server_share")]
+        [InlineData("C:\\Windows\\file.ext", "C:_Windows_file.ext")]
+        [InlineData("\\\\server\\share", "__server_share")]
+        public void Linux_Sanitizes_Full_Paths(string input, string expected)
+        {
+            var result = FileSafety.SanitizeFilename(input, '_', OSPlatform.Linux);
+
+            Assert.Equal(expected, result);
+        }
+
         [Fact]
         public void Linux_Uses_Custom_Replacement()
         {
@@ -103,6 +115,18 @@ public partial class FileSafetyTests
         [InlineData("file\\name", "file_name")]
         [InlineData("file/name", "file_name")]
         public void Windows_Replaces_InvalidCharacters(string input, string expected)
+        {
+            var result = FileSafety.SanitizeFilename(input, '_', OSPlatform.Windows);
+
+            Assert.Equal(expected, result);
+        }
+
+        [Theory]
+        [InlineData("/home/user/foo", "_home_user_foo")]
+        [InlineData("//server/share", "__server_share")]
+        [InlineData("C:\\Windows\\file.ext", "C__Windows_file.ext")]
+        [InlineData("\\\\server\\share", "__server_share")]
+        public void Windows_Sanitizes_Full_Paths(string input, string expected)
         {
             var result = FileSafety.SanitizeFilename(input, '_', OSPlatform.Windows);
 
