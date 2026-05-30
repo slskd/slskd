@@ -1,4 +1,4 @@
-// <copyright file="DestinationConflictStrategy.cs" company="JP Dillingham">
+// <copyright file="DestinationExistsStrategy.cs" company="JP Dillingham">
 //           ▄▄▄▄     ▄▄▄▄     ▄▄▄▄
 //     ▄▄▄▄▄▄█  █▄▄▄▄▄█  █▄▄▄▄▄█  █
 //     █__ --█  █__ --█    ◄█  -  █
@@ -33,12 +33,12 @@
 namespace slskd.Transfers;
 
 /// <summary>
-///     Strategy for handling downloaded files with conflicting names.
+///     Strategy for handling downloaded files when the destination file already exists.
 /// </summary>
-public enum DestinationConflictStrategy
+public enum DestinationExistsStrategy
 {
     /// <summary>
-    ///     Rename the new file by appending something.
+    ///     Rename the new file by appending something to the file name.
     /// </summary>
     Rename = 0,
 

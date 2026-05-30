@@ -1323,7 +1323,7 @@ namespace slskd.Transfers.Downloads
                 var subdirectory = await DeriveDestination(transfer);
                 var destinationDirectory = FileSafety.CombineSafely(OptionsMonitor.CurrentValue.Directories.Downloads, subdirectory);
 
-                var conflictStrategy = OptionsMonitor.CurrentValue.Transfers.Download.Destination.Conflict.ToEnum<DestinationConflictStrategy>();
+                var existsStrategy = OptionsMonitor.CurrentValue.Transfers.Download.Destination.Exists.ToEnum<DestinationExistsStrategy>();
 
                 Log.Debug("Destination directory for {Filename}: {Destination}", transfer.Filename, destinationDirectory);
 
@@ -1331,7 +1331,7 @@ namespace slskd.Transfers.Downloads
                     sourceFilename: incompleteFilename,
                     destinationDirectory: destinationDirectory,
                     unixFileMode: unixFileMode,
-                    overwrite: conflictStrategy == DestinationConflictStrategy.Overwrite,
+                    overwrite: existsStrategy == DestinationExistsStrategy.Overwrite,
                     deleteSourceDirectoryIfEmptyAfterMove: true);
 
                 Log.Debug("Moved file {Filename} to {Destination}", transfer.Filename, finalFilename);

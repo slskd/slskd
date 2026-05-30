@@ -1078,10 +1078,10 @@ namespace slskd
                     public string Subdirectory { get; init; } = "{SOURCE_DIRECTORY}";
 
                     /// <summary>
-                    ///     Gets the strategy for handling conflicting filenames on disk.
+                    ///     Gets the strategy for handling existing files on disk.
                     /// </summary>
-                    [Enum(typeof(DestinationConflictStrategy))]
-                    public string Conflict { get; init; } = DestinationConflictStrategy.Rename.ToString().ToLowerInvariant();
+                    [Enum(typeof(DestinationExistsStrategy))]
+                    public string Exists { get; init; } = DestinationExistsStrategy.Rename.ToString().ToLowerInvariant();
 
                     /// <summary>
                     ///     Gets the permissions to apply to downloaded files and directories.

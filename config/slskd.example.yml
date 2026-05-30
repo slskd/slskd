@@ -80,7 +80,7 @@
 #       max_delay: 60000 # maximum time between retries, in milliseconds
 #     destination:
 #       subdirectory: {SOURCE_DIRECTORY}
-#       conflict: rename # 'overwrite' or 'rename'
+#       exists: rename # 'overwrite' or 'rename'
 #       permissions:
 #         mode: ~ # chmod syntax, e.g. 644, 777. does nothing on Windows. 
 #   groups:
