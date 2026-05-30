@@ -832,22 +832,22 @@ namespace slskd
 
                 var directories = Directories ?? Enumerable.Empty<string>();
 
-                bool IsBlankPath(string share) => Regex.IsMatch(share.LocalizePath(), @"^(!|-){0,1}(\[.*\])$");
+                bool IsBlankPath(string share) => Regex.IsMatch(FileSafety.LocalizePath(share), @"^(!|-){0,1}(\[.*\])$");
                 directories?.Where(share => IsBlankPath(share)).ToList()
                     .ForEach(blank => results.Add(new ValidationResult($"Share {blank} does not specify a path")));
 
-                bool IsRootMount(string share) => Regex.IsMatch(share.LocalizePath(), @"^(!|-){0,1}(\[.*\])/$");
+                bool IsRootMount(string share) => Regex.IsMatch(FileSafety.LocalizePath(share), @"^(!|-){0,1}(\[.*\])/$");
                 directories?.Where(share => IsRootMount(share)).ToList()
                     .ForEach(blank => results.Add(new ValidationResult($"Share {blank} specifies a root mount, which is not supported.")));
 
                 // starts with '/', 'X:', or '\\'
-                bool IsAbsolutePath(string share) => Regex.IsMatch(share.LocalizePath(), @"^(!|-){0,1}(\[.*\])?(\/|[a-zA-Z]:|\\\\).*$");
+                bool IsAbsolutePath(string share) => Regex.IsMatch(FileSafety.LocalizePath(share), @"^(!|-){0,1}(\[.*\])?(\/|[a-zA-Z]:|\\\\).*$");
                 directories?.Where(share => !IsAbsolutePath(share)).ToList()
                     .ForEach(relativePath => results.Add(new ValidationResult($"Share {relativePath} contains a relative path; only absolute paths are supported.")));
 
                 // contains /./ or /../ or \.\ or \..\ or ..\ or ../ or \.. or /..
                 // which is resolved by some OS and will cause weird, unintended side effects
-                bool ContainsTraversalSegments(string share) => Regex.IsMatch(share.LocalizePath(), @"^\.+[\/\\]?|[\/\\]\.+[\/\\]|[\/\\]\.+$");
+                bool ContainsTraversalSegments(string share) => Regex.IsMatch(FileSafety.LocalizePath(share), @"^\.+[\/\\]?|[\/\\]\.+[\/\\]|[\/\\]\.+$");
                 directories?.Where(share => ContainsTraversalSegments(share)).ToList()
                     .ForEach(badPath => results.Add(new ValidationResult($"Share {badPath} contains an unsafe path traversal segment.")));
 

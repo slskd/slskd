@@ -484,7 +484,7 @@ namespace slskd.Relay
 
                 // if the controller is Windows and the agent is Linux or vice versa, we need to translate the filename to the
                 // local OS or we're going to get funny results when we go to write the file
-                destinationFile = destinationFile.LocalizePath();
+                destinationFile = FileSafety.LocalizePath(destinationFile);
 
                 await Retry.Do(task: async () =>
                 {

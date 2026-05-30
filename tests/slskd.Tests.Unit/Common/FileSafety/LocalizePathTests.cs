@@ -22,7 +22,7 @@ public partial class FileSafetyTests
         [InlineData("", "")]
         public void Linux_NormalizesToForwardSlash(string input, string expected)
         {
-            var result = input.LocalizePath(OSPlatform.Linux);
+            var result = FileSafety.LocalizePath(input, OSPlatform.Linux);
 
             Assert.Equal(expected, result);
         }
@@ -42,7 +42,7 @@ public partial class FileSafetyTests
         [InlineData("", "")]
         public void Windows_NormalizesToBackslash(string input, string expected)
         {
-            var result = input.LocalizePath(OSPlatform.Windows);
+            var result = FileSafety.LocalizePath(input, OSPlatform.Windows);
 
             Assert.Equal(expected, result);
         }
@@ -50,7 +50,7 @@ public partial class FileSafetyTests
         [Fact]
         public void NullOs_UsesPlatformDefault_DoesNotThrow()
         {
-            var result = "foo/bar".LocalizePath();
+            var result = FileSafety.LocalizePath("foo/bar");
 
             Assert.False(string.IsNullOrEmpty(result));
         }
