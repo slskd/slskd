@@ -217,6 +217,54 @@ public static class FileSafety
     public static bool IsPathRelative(string path, OSPlatform? os = null) => !IsPathAbsolute(path, os);
 
     /// <summary>
+    ///     Returns the filename from the specified <paramref name="path"/>, properly
+    ///     handling both forward and backslashes and removing invalid characters.
+    /// </summary>
+    /// <param name="path">The path from which to extract the filename.</param>
+    /// <param name="sanitize">An optional value indicating that invalid characters should not be replaced.</param>
+    /// <param name="os">An optional operating system override, for testing.</param>
+    /// <returns>The extracted filename.</returns>
+    /// <exception cref="ArgumentNullException">Thrown if the specified path is null.</exception>
+    public static string GetFileNameSafely(string path, bool sanitize = true, OSPlatform? os = null)
+    {
+        ArgumentNullException.ThrowIfNull(path);
+
+        return LocalizePath(path, os)
+            .Split(Path.DirectorySeparatorChar)
+            .TakeLast(1)
+            .Select(s => sanitize == true ? SanitizePathSegment(s, os: os) : s)
+            .Single();
+    }
+
+    /// <summary>
+    ///     Returns the full directory name from the specified <paramref name="path"/>, properly handling both
+    ///     forward and backslashes, removing Windows drive, UNC and Soulseek QT root segments and sanitizing
+    ///     each of the remaining segments.
+    /// </summary>
+    /// <param name="path">The path from which to extract the directory name.</param>
+    /// <param name="stripRoot">An optional value indicating that root segments should not be stripped.</param>
+    /// <param name="sanitize">An optional value indicating that path segments should not be sanitized.</param>
+    /// <param name="os">An optional operating system override, for testing.</param>
+    /// <returns>The directory name.</returns>
+    /// <exception cref="ArgumentNullException">Thrown if the specified path is null.</exception>
+    public static string GetDirectoryNameSafely(string path, bool stripRoot = true, bool sanitize = true, OSPlatform? os = null)
+    {
+        ArgumentNullException.ThrowIfNull(path);
+
+        var local = LocalizePath(path, os: os);
+
+        if (stripRoot)
+        {
+            local = StripPathRoot(local);
+        }
+
+        return string.Join(Path.DirectorySeparatorChar, local
+            .Split(Path.DirectorySeparatorChar)
+            .SkipLast(1)
+            .Select(s => sanitize == true ? SanitizePathSegment(s, os: os) : s));
+    }
+
+    /// <summary>
     ///     Converts the given path to the local format (normalizes path separators to Path.DirectorySeparatorChar).
     /// </summary>
     /// <param name="path">The path to convert.</param>
@@ -269,6 +317,21 @@ public static class FileSafety
             .Replace('/', replacement)
             .Replace('\\', replacement);
     }
+
+    /// <summary>
+    ///     Sanitizes the specified <paramref name="segment"/> to make it suitable and safe on the local operating
+    ///     system by stripping all slashes (forward or back) and replacing any invalid characters with the specified
+    ///     <paramref name="replacement"/>.
+    /// </summary>
+    /// <remarks>
+    ///     This is an overload for <see cref="SanitizeFilename"/> that exists to improve understanding of intent at the
+    ///     call site.
+    /// </remarks>
+    /// <param name="segment">The path segment.</param>
+    /// <param name="replacement">The character to substitute for invalid characters.</param>
+    /// <param name="os">An optional operating system override, for testing.</param>
+    /// <returns>The sanitized path segment.</returns>
+    public static string SanitizePathSegment(string segment, char replacement = '_', OSPlatform? os = null) => SanitizeFilename(segment, replacement, os);
 
     /// <summary>
     ///     Sanitizes the specified <paramref name="path"/> to make it suitable and safe on the local operating system
