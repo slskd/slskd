@@ -323,15 +323,32 @@ public static class FileSafety
     ///     system by stripping all slashes (forward or back) and replacing any invalid characters with the specified
     ///     <paramref name="replacement"/>.
     /// </summary>
-    /// <remarks>
-    ///     This is an overload for <see cref="SanitizeFilename"/> that exists to improve understanding of intent at the
-    ///     call site.
-    /// </remarks>
     /// <param name="segment">The path segment.</param>
     /// <param name="replacement">The character to substitute for invalid characters.</param>
     /// <param name="os">An optional operating system override, for testing.</param>
     /// <returns>The sanitized path segment.</returns>
-    public static string SanitizePathSegment(string segment, char replacement = '_', OSPlatform? os = null) => SanitizeFilename(segment, replacement, os);
+    public static string SanitizePathSegment(string segment, char replacement = '_', OSPlatform? os = null)
+    {
+        var sanitized = SanitizeFilename(segment, replacement, os);
+
+        // is is possible for the result of sanitization to produce path traversal strings,
+        // which would result in traversal when combined (or throw an error because of CombineSafely)
+        // this can happen either because the segment is already periods, or because the replacement
+        // character is a period and the input one or two invalid characters.
+        // if this happens we follow the principle of least surprise and return an empty string
+        // avoid using a period for replacement (don't let users choose) and we won't have this problem
+        if (sanitized is "." or "..")
+        {
+            if (replacement is '.')
+            {
+                return string.Empty;
+            }
+
+            return replacement.ToString();
+        }
+
+        return sanitized;
+    }
 
     /// <summary>
     ///     Sanitizes the specified <paramref name="path"/> to make it suitable and safe on the local operating system
