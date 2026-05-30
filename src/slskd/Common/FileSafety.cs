@@ -269,7 +269,7 @@ public static class FileSafety
     /// <param name="path">The path to convert.</param>
     /// <param name="os">An optional operating system override, for testing.</param>
     /// <returns>The converted path.</returns>
-    public static string LocalizePath(this string path, OSPlatform? os = null)
+    public static string LocalizePath(string path, OSPlatform? os = null)
     {
         os ??= Compute.OSPlatform();
 
@@ -281,7 +281,7 @@ public static class FileSafety
     /// <summary>
     ///     Sanitizes the specified <paramref name="filename"/> (or string intended to be used as or as part of a filename)
     ///     to make it suitable and safe on the local operating system by stripping all slashes (forward or back) and
-    ///     and replacing any invalid characters with the specified <paramref name="replacement"/>.
+    ///     replacing any invalid characters with the specified <paramref name="replacement"/>.
     /// </summary>
     /// <param name="filename">The filename (or string intended to be used as/part of one).</param>
     /// <param name="replacement">The character to substitute for invalid characters.</param>
@@ -356,22 +356,26 @@ public static class FileSafety
     /// </summary>
     /// <param name="path">The path.</param>
     /// <param name="replacement">The character to substitute for invalid characters.</param>
+    /// <param name="retainRoot">An optional value indicating whether to keep the path's root, if present.</param>
     /// <param name="os">An optional operating system override, for testing.</param>
     /// <returns>The sanitized path.</returns>
-    public static string SanitizePath(this string path, char replacement = '_', OSPlatform? os = null)
+    public static string SanitizePath(string path, char replacement = '_', bool retainRoot = false, OSPlatform? os = null)
     {
         os ??= Compute.OSPlatform();
         var sep = os.Value == OSPlatform.Windows ? '\\' : '/';
 
         // flip slashes the correct way
-        path = path.LocalizePath(os);
+        path = LocalizePath(path, os);
 
-        // strip C:\ or //server, if present (regardless of slash variant, etc)
-        path = DriveRootRegex.Replace(path, string.Empty);
-        path = UncRootRegex.Replace(path, string.Empty);
+        if (!retainRoot)
+        {
+            // strip C:\ or //server, if present (regardless of slash variant, etc)
+            path = DriveRootRegex.Replace(path, string.Empty);
+            path = UncRootRegex.Replace(path, string.Empty);
 
-        // strip @@abcde prefixes used by SoulseekQt to obscure paths
-        path = SoulseekQtRootRegex.Replace(path, string.Empty);
+            // strip @@abcde prefixes used by SoulseekQt to obscure paths
+            path = SoulseekQtRootRegex.Replace(path, string.Empty);
+        }
 
         // for each segment, drop nulls (created by double slashes), sanitize, and replace traversal strings
         var segments = path
