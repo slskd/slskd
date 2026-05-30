@@ -365,4 +365,27 @@ public static class FileSafety
 
         return string.Join(sep, segments);
     }
+
+    /// <summary>
+    ///     Removes the root of the specified <paramref name="path"/>, including Window's drive prefix (e.g. C:\),
+    ///     UNC paths on any OS (e.g. \\server on Windows, //server on Linux), and drops the hashed prefix added by
+    ///     Soulseek Qt to hide the path on disk (e.g. @@abcde).
+    /// </summary>
+    /// <param name="path">The path to strip.</param>
+    /// <param name="os">An optional operating system override, for testing.</param>
+    /// <returns>The path with the root stripped, if one was present.</returns>
+    public static string StripPathRoot(string path, OSPlatform? os = null)
+    {
+        // flip slashes the correct way
+        path = LocalizePath(path, os);
+
+        // strip C:\ or //server, if present (regardless of slash variant)
+        path = DriveRootRegex.Replace(path, string.Empty);
+        path = UncRootRegex.Replace(path, string.Empty);
+
+        // strip @@abcde prefixes used by SoulseekQt to obscure paths
+        path = SoulseekQtRootRegex.Replace(path, string.Empty);
+
+        return path;
+    }
 }
