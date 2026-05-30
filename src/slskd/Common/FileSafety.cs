@@ -247,21 +247,15 @@ public static class FileSafety
     ///     each of the remaining segments.
     /// </summary>
     /// <param name="path">The path from which to extract the directory name.</param>
-    /// <param name="stripRoot">An optional value indicating that root segments should not be stripped.</param>
     /// <param name="sanitize">An optional value indicating that path segments should not be sanitized.</param>
     /// <param name="os">An optional operating system override, for testing.</param>
     /// <returns>The directory name.</returns>
     /// <exception cref="ArgumentNullException">Thrown if the specified path is null.</exception>
-    public static string GetDirectoryNameSafely(string path, bool stripRoot = true, bool sanitize = true, OSPlatform? os = null)
+    public static string GetDirectoryNameSafely(string path, bool sanitize = true, OSPlatform? os = null)
     {
         ArgumentNullException.ThrowIfNull(path);
 
         var local = LocalizePath(path, os: os);
-
-        if (stripRoot)
-        {
-            local = StripPathRoot(local);
-        }
 
         return string.Join(Path.DirectorySeparatorChar, local
             .Split(Path.DirectorySeparatorChar)
