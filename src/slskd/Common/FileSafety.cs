@@ -229,6 +229,11 @@ public static class FileSafety
     {
         ArgumentNullException.ThrowIfNull(path);
 
+        if (path.EndsWith('/') || path.EndsWith('\\'))
+        {
+            return null;
+        }
+
         return LocalizePath(path, os)
             .Split(Path.DirectorySeparatorChar)
             .TakeLast(1)
