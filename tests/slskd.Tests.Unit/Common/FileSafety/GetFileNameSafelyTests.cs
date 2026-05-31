@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using Xunit;
 
 namespace slskd.Tests.Unit.Common;
@@ -7,19 +8,19 @@ public partial class FileSafetyTests
     public class GetFileNameSafelyTests
     {
         [Fact]
-        public void Throws_Given_Null()
+        public void Returns_Null_Given_Null()
         {
-            var ex = Record.Exception(() => FileSafety.GetFileNameSafely(null));
+            var result = FileSafety.GetFileNameSafely(null);
 
-            Assert.NotNull(ex);
+            Assert.Null(result);
         }
 
         [Fact]
-        public void Returns_Empty_Given_Empty()
+        public void Returns_Null_Given_Empty()
         {
             var result = FileSafety.GetFileNameSafely("");
 
-            Assert.Equal(string.Empty, result);
+            Assert.Null(result);
         }
 
         [Theory]
@@ -33,22 +34,23 @@ public partial class FileSafetyTests
         [InlineData("foo//")]
         [InlineData("C:\\foo//bar\\")]
         [InlineData("C:/foo\\bar/")]
-        public void Returns_Empty_Given_Path_Ending_In_Separator(string input)
+        public void Returns_Null_Given_Path_Ending_In_Separator(string input)
         {
             var result = FileSafety.GetFileNameSafely(input);
 
-            Assert.Equal(string.Empty, result);
+            Assert.Null(result);
         }
 
         [Theory]
-        [InlineData("//server", "server")]
-        [InlineData("\\\\server", "server")]
-        public void Returns_LastSegment_Given_UncRoot(string input, string expected)
+        [InlineData("//server")]
+        [InlineData("\\\\server")]
+        [InlineData("C:")]
+        [InlineData("@@abcde")]
+        public void Returns_Null_Given_Just_Rooted_Path(string input)
         {
-            // StripPathRoot is not called; the last segment of the localized + split path is returned
             var result = FileSafety.GetFileNameSafely(input);
 
-            Assert.Equal(expected, result);
+            Assert.Null(result);
         }
 
         [Theory]
@@ -69,26 +71,42 @@ public partial class FileSafetyTests
         }
 
         [Fact]
-        public void Sanitize_True_Replaces_InvalidCharacters()
+        public void Sanitize_True_Replaces_InvalidCharacters_On_Windows()
         {
-            var result = FileSafety.GetFileNameSafely("Music\\file:name.flac", sanitize: true);
+            var result = FileSafety.GetFileNameSafely("Music\\file:name.flac", sanitize: true, os: OSPlatform.Windows);
 
             Assert.Equal("file_name.flac", result);
         }
 
         [Fact]
-        public void Sanitize_False_Preserves_InvalidCharacters()
+        public void Sanitize_True_Replaces_InvalidCharacters_On_Linux()
         {
-            var result = FileSafety.GetFileNameSafely("Music\\file:name.flac", sanitize: false);
+            var result = FileSafety.GetFileNameSafely("Music\\file\0name.flac", sanitize: true, os: OSPlatform.Linux);
+
+            Assert.Equal("file_name.flac", result);
+        }
+
+        [Fact]
+        public void Sanitize_False_Preserves_InvalidCharacters_On_Windows()
+        {
+            var result = FileSafety.GetFileNameSafely("Music\\file:name.flac", sanitize: false, os: OSPlatform.Windows);
 
             Assert.Equal("file:name.flac", result);
         }
 
         [Fact]
+        public void Sanitize_False_Preserves_InvalidCharacters_On_Linux()
+        {
+            var result = FileSafety.GetFileNameSafely("Music\\file\0name.flac", sanitize: false, os: OSPlatform.Linux);
+
+            Assert.Equal("file\0name.flac", result);
+        }
+
+        [Fact]
         public void Default_Sanitize_Is_True()
         {
-            var resultDefault = FileSafety.GetFileNameSafely("Music\\file:name.flac");
-            var resultExplicit = FileSafety.GetFileNameSafely("Music\\file:name.flac", sanitize: true);
+            var resultDefault = FileSafety.GetFileNameSafely("Music\\file:name.flac", os: OSPlatform.Windows);
+            var resultExplicit = FileSafety.GetFileNameSafely("Music\\file:name.flac", sanitize: true, os: OSPlatform.Windows);
 
             Assert.Equal(resultExplicit, resultDefault);
         }
