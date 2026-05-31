@@ -54,7 +54,7 @@ public partial class FileSafetyTests
         [Fact]
         public void Respects_Replacement_Character()
         {
-            var s = FileSafety.SanitizePathSegment("???", replacement: '!');
+            var s = FileSafety.SanitizePathSegment("\0\0\0", replacement: '!');
 
             Assert.Equal("!!!", s);
         }

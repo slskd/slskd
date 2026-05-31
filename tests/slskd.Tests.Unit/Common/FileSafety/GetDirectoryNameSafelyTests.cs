@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using Xunit;
 
 namespace slskd.Tests.Unit.Common;
@@ -7,29 +8,29 @@ public partial class FileSafetyTests
     public class GetDirectoryNameSafelyTests
     {
         [Fact]
-        public void Throws_Given_Null()
+        public void Returns_Null_Given_Null()
         {
-            var ex = Record.Exception(() => FileSafety.GetDirectoryNameSafely(null));
+            var result = FileSafety.GetDirectoryNameSafely(null);
 
-            Assert.NotNull(ex);
+            Assert.Null(result);
         }
 
         [Fact]
-        public void Returns_Empty_Given_Empty()
+        public void Returns_Null_Given_Empty()
         {
             var result = FileSafety.GetDirectoryNameSafely("");
 
-            Assert.Equal(string.Empty, result);
+            Assert.Null(result);
         }
 
         [Theory]
         [InlineData("foo")]
         [InlineData("foo.bar")]
-        public void Returns_Empty_Given_Bare_File(string input)
+        public void Returns_Null_Given_Bare_File(string input)
         {
             var result = FileSafety.GetDirectoryNameSafely(input);
 
-            Assert.Equal(string.Empty, result);
+            Assert.Null(result);
         }
 
         [Theory]
@@ -40,51 +41,149 @@ public partial class FileSafetyTests
         [InlineData("\\")]         // single backslash root
         [InlineData("//server")]   // UNC root — StripPathRoot removes server, nothing left
         [InlineData("\\\\server")] // UNC root, backslashes
-        public void Returns_Empty_Given_Root(string input)
+        public void Returns_Null_Given_Root(string input)
         {
             var result = FileSafety.GetDirectoryNameSafely(input);
 
-            Assert.Equal(string.Empty, result);
+            Assert.Null(result);
+        }
+
+        [Fact]
+        public void Sanitizes_Path_When_Sanitize_True()
+        {
+            var result = FileSafety.GetDirectoryNameSafely("foo/b\0ar/baz", sanitize: true);
+
+            Assert.DoesNotContain('\0', result);
+        }
+
+        [Fact]
+        public void Does_Not_Sanitize_Path_When_Sanitize_False()
+        {
+            var result = FileSafety.GetDirectoryNameSafely("foo/b\0ar/baz", sanitize: false);
+
+            Assert.Contains('\0', result);
+        }
+
+        [Fact]
+        public void Sanitize_Defaults_To_True()
+        {
+            var result = FileSafety.GetDirectoryNameSafely("foo/b\0ar/baz");
+
+            Assert.DoesNotContain('\0', result);
+        }
+
+        [Theory]
+        [InlineData("\\foo\\\\bar\\\\baz", "foo\\bar")]
+        [InlineData("/foo//bar//baz", "foo\\bar")]
+        public void Removes_Empty_Segments_And_Leading_Slashes_Windows(string input, string expected)
+        {
+            var result = FileSafety.GetDirectoryNameSafely(input, sanitize: true, retainRoot: false, os: OSPlatform.Windows);
+
+            Assert.Equal(expected, result);
+        }
+
+        [Theory]
+        [InlineData("\\foo\\\\bar\\\\baz", "foo/bar")]
+        [InlineData("/foo//bar//baz", "foo/bar")]
+        public void Removes_Empty_Segments_And_Leading_Slashes_Linux(string input, string expected)
+        {
+            var result = FileSafety.GetDirectoryNameSafely(input, sanitize: true, retainRoot: false, os: OSPlatform.Linux);
+
+            Assert.Equal(expected, result);
+        }
+
+        [Theory]
+        [InlineData("fo\0o\\bar", "fo_o")]
+        [InlineData("foo/bar", "foo")]
+        [InlineData("C:\\Music\\song.flac", "Music")]
+        [InlineData("C:/Music/song.flac", "Music")]
+        [InlineData("C:\\M\0usic\\Artist\\song.flac", "M_usic/Artist")]
+        [InlineData("C:\\foo.txt", null)]
+        [InlineData("//server/share/song.flac", "share")]
+        [InlineData("\\\\server\\share\\song.flac", "share")]
+        [InlineData("@@abcde\\foo\\bar", "foo")]
+        public void Returns_Unrooted_Sanitized_Directory_Given_Path_With_File_Linux(string input, string expected)
+        {
+            var result = FileSafety.GetDirectoryNameSafely(input, sanitize: true, retainRoot: false, os: OSPlatform.Linux);
+
+            Assert.Equal(expected, result);
+        }
+
+        [Theory]
+        [InlineData("fo\0o\\bar", "fo_o")]
+        [InlineData("foo/bar", "foo")]
+        [InlineData("C:\\Music\\song.flac", "Music")]
+        [InlineData("C:/Music/song.flac", "Music")]
+        [InlineData("C:\\M\0usic\\Artist\\song.flac", "M_usic\\Artist")]
+        [InlineData("C:\\foo.txt", null)]
+        [InlineData("//server/share/song.flac", "share")]
+        [InlineData("\\\\server\\share\\song.flac", "share")]
+        [InlineData("@@abcde\\foo\\bar", "foo")]
+        public void Returns_Unrooted_Sanitized_Directory_Given_Path_With_File_Windows(string input, string expected)
+        {
+            var result = FileSafety.GetDirectoryNameSafely(input, sanitize: true, retainRoot: false, os: OSPlatform.Windows);
+
+            Assert.Equal(expected, result);
         }
 
         [Theory]
         [InlineData("foo\\bar", "foo")]
         [InlineData("foo/bar", "foo")]
-        [InlineData("C:\\Music\\song.flac", "Music")]
-        [InlineData("C:/Music/song.flac", "Music")]
-        [InlineData("C:\\Music\\Artist\\song.flac", "Music\\Artist")]
-        [InlineData("//server/share/song.flac", "share")]
-        [InlineData("\\\\server\\share\\song.flac", "share")]
-        public void Returns_Directory_Given_Path_With_File(string input, string expected)
+        [InlineData("C:\\Music\\song.flac", "C_\\Music")]
+        [InlineData("C:/Music/song.flac", "C_\\Music")]
+        [InlineData("C:\\Music\\Artist\\song.flac", "C_\\Music\\Artist")]
+        [InlineData("//server/share/song.flac", "\\\\server\\share")]
+        [InlineData("\\\\server\\share\\song.flac", "\\\\server\\share")]
+        [InlineData("@@abcde\\foo\\bar", "@@abcde\\foo")]
+        public void Retains_Path_Root_When_RetainRoot_True_Windows(string input, string expected)
         {
-            var result = FileSafety.GetDirectoryNameSafely(input);
+            var result = FileSafety.GetDirectoryNameSafely(input, retainRoot: true, os: OSPlatform.Windows);
 
             Assert.Equal(expected, result);
         }
 
-        [Fact]
-        public void Sanitize_True_Replaces_InvalidCharacters_In_Segments()
+        [Theory]
+        [InlineData("foo\\bar", "foo")]
+        [InlineData("foo/bar", "foo")]
+        [InlineData("C:\\Music\\song.flac", "C:/Music")]
+        [InlineData("C:/Music/song.flac", "C:/Music")]
+        [InlineData("C:\\Music\\Artist\\song.flac", "C:/Music/Artist")]
+        [InlineData("//server/share/song.flac", "//server/share")]
+        [InlineData("\\\\server\\share\\song.flac", "//server/share")]
+        [InlineData("@@abcde\\foo\\bar", "@@abcde/foo")]
+        public void Retains_Path_Root_When_RetainRoot_True_Linux(string input, string expected)
         {
-            var result = FileSafety.GetDirectoryNameSafely("Music*\\Artist\\song.flac", sanitize: true);
+            var result = FileSafety.GetDirectoryNameSafely(input, retainRoot: true, os: OSPlatform.Linux);
 
-            Assert.Equal("Music_\\Artist", result);
+            Assert.Equal(expected, result);
         }
 
-        [Fact]
-        public void Sanitize_False_Preserves_InvalidCharacters_In_Segments()
+        [Theory]
+        [InlineData("C:\\Mu\0sic\\song.flac", "C:\\Mu\0sic")]
+        [InlineData("C:/Music/song.flac", "C:\\Music")]
+        [InlineData("//server/share/song.flac", "\\\\server\\share")]
+        [InlineData("\\\\serv?er\\share\\song.flac", "\\\\serv?er\\share")]
+        [InlineData("@@abcde\\fo:o\\bar", "@@abcde\\fo:o")]
+        [InlineData("@@abcde/fo*o/bar", "@@abcde\\fo*o")] 
+        public void Returns_Rooted_Unsanitized_If_Directed_Windows(string input, string expected)
         {
-            var result = FileSafety.GetDirectoryNameSafely("Music*\\Artist\\song.flac", sanitize: false);
+            var result = FileSafety.GetDirectoryNameSafely(input, sanitize: false, retainRoot: true, os: OSPlatform.Windows);
 
-            Assert.Equal("Music*\\Artist", result);
+            Assert.Equal(expected, result);
         }
 
-        [Fact]
-        public void Default_Sanitize_Is_True()
+        [Theory]
+        [InlineData("C:\\Mu\0sic\\song.flac", "C:/Mu\0sic")]
+        [InlineData("C:/Music/song.flac", "C:/Music")]
+        [InlineData("//server/share/song.flac", "//server/share")]
+        [InlineData("\\\\serv?er\\share\\song.flac", "//serv?er/share")]
+        [InlineData("@@abcde\\fo:o\\bar", "@@abcde/fo:o")]
+        [InlineData("@@abcde/fo*o/bar", "@@abcde/fo*o")] 
+        public void Returns_Rooted_Unsanitized_If_Directed_Linux(string input, string expected)
         {
-            var resultDefault = FileSafety.GetDirectoryNameSafely("Music*\\Artist\\song.flac");
-            var resultExplicit = FileSafety.GetDirectoryNameSafely("Music*\\Artist\\song.flac", sanitize: true);
+            var result = FileSafety.GetDirectoryNameSafely(input, sanitize: false, retainRoot: true, os: OSPlatform.Linux);
 
-            Assert.Equal(resultExplicit, resultDefault);
+            Assert.Equal(expected, result);
         }
     }
 }

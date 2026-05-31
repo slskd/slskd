@@ -241,7 +241,7 @@ public static class FileSafety
 
         return segments
             .TakeLast(1)
-            .Select(s => sanitize == true ? SanitizePathSegment(s, os: os) : s)
+            .Select(s => sanitize ? SanitizePathSegment(s, os: os) : s)
             .Single();
     }
 
@@ -251,20 +251,63 @@ public static class FileSafety
     ///     each of the remaining segments.
     /// </summary>
     /// <param name="path">The path from which to extract the directory name.</param>
+    /// <param name="retainRoot">An optional value indicating whether to keep the path's root, if present.</param>
     /// <param name="sanitize">An optional value indicating that path segments should not be sanitized.</param>
     /// <param name="os">An optional operating system override, for testing.</param>
     /// <returns>The directory name.</returns>
     /// <exception cref="ArgumentNullException">Thrown if the specified path is null.</exception>
-    public static string GetDirectoryNameSafely(string path, bool sanitize = true, OSPlatform? os = null)
+    public static string GetDirectoryNameSafely(string path, bool retainRoot = false, bool sanitize = true, OSPlatform? os = null)
     {
-        ArgumentNullException.ThrowIfNull(path);
+        if (path is null or "")
+        {
+            return null;
+        }
 
-        var local = LocalizePath(path, os);
+        // a plain string is assumed to be a file. matches the behavior of the BCL method
+        if (!path.Contains('/') && !path.Contains('\\'))
+        {
+            return null;
+        }
 
-        return string.Join(Path.DirectorySeparatorChar, local
+        var isUNC = path.StartsWith("//") || path.StartsWith("\\\\");
+
+        os ??= Compute.OSPlatform();
+        var sep = os.Value == OSPlatform.Windows ? '\\' : '/';
+
+        var local = LocalizePath(path, os)
+            .TrimEnd('/', '\\'); // treat file-less paths the same as files
+
+        var unrooted = StripPathRoot(local, os);
+
+        // were given a root; C:\, //server, @@abcde
+        if (unrooted is null or "")
+        {
+            return null;
+        }
+
+        if (!retainRoot)
+        {
+            local = unrooted;
+        }
+
+        // strip empty segments
+        var segments = local
             .Split('/', '\\')
+            .Where(s => s is not "")
+            .ToArray();
+
+        // we were given all slashes, a file in the root, or some other case where
+        // only a file or subdirectory remains; no parent directory
+        if (segments.Length <= 1)
+        {
+            return null;
+        }
+
+        var newPath = string.Join(sep, segments
             .SkipLast(1)
-            .Select(s => sanitize == true ? SanitizePathSegment(s, os: os) : s));
+            .Select(s => sanitize ? SanitizePathSegment(s, os: os) : s));
+
+        return (retainRoot && isUNC) ? $"{sep}{sep}{newPath}" : newPath;
     }
 
     /// <summary>
@@ -276,7 +319,6 @@ public static class FileSafety
     public static string LocalizePath(string path, OSPlatform? os = null)
     {
         os ??= Compute.OSPlatform();
-
         var sep = os.Value == OSPlatform.Windows ? '\\' : '/';
 
         return path.Replace('\\', sep).Replace('/', sep);
@@ -380,8 +422,8 @@ public static class FileSafety
         // for each segment, drop nulls (created by double slashes), sanitize, and replace traversal strings
         var segments = path
             .Split('/', '\\')
-            .Select(s => SanitizeFilename(s, replacement, os))
-            .Select(s => s is "." or ".." ? replacement.ToString() : s);
+            .Where(s => s is not "")
+            .Select(s => SanitizePathSegment(s, replacement, os));
 
         return string.Join(sep, segments);
     }
