@@ -224,17 +224,22 @@ public static class FileSafety
     /// <param name="sanitize">An optional value indicating that invalid characters should not be replaced.</param>
     /// <param name="os">An optional operating system override, for testing.</param>
     /// <returns>The extracted filename.</returns>
-    /// <exception cref="ArgumentNullException">Thrown if the specified path is null.</exception>
     public static string GetFileNameSafely(string path, bool sanitize = true, OSPlatform? os = null)
     {
-        ArgumentNullException.ThrowIfNull(path);
-
-        if (path.EndsWith('/') || path.EndsWith('\\'))
+        if (path is null or "" || path.EndsWith('/') || path.EndsWith('\\'))
         {
             return null;
         }
 
+        if (StripPathRoot(path, os) == string.Empty)
+        {
+            return null;
+        }
+
+        var localPath = LocalizePath(path, os);
         var segments = localPath.Split('/', '\\');
+
+        return segments
             .TakeLast(1)
             .Select(s => sanitize == true ? SanitizePathSegment(s, os: os) : s)
             .Single();
@@ -254,7 +259,7 @@ public static class FileSafety
     {
         ArgumentNullException.ThrowIfNull(path);
 
-        var local = LocalizePath(path, os: os);
+        var local = LocalizePath(path, os);
 
         return string.Join(Path.DirectorySeparatorChar, local
             .Split('/', '\\')
