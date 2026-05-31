@@ -130,7 +130,7 @@ public static class FileSafety
                 }
             }
 
-            var parts = segment.Split(Path.DirectorySeparatorChar, '\\', '/');
+            var parts = segment.Split('\\', '/');
 
             // ensure the segments we're combining don't contain traversal segments "." or ".."
             // untrusted input could use this to "break out" of the root directory and access sensitive areas
@@ -234,8 +234,7 @@ public static class FileSafety
             return null;
         }
 
-        return LocalizePath(path, os)
-            .Split(Path.DirectorySeparatorChar)
+        var segments = localPath.Split('/', '\\');
             .TakeLast(1)
             .Select(s => sanitize == true ? SanitizePathSegment(s, os: os) : s)
             .Single();
@@ -258,7 +257,7 @@ public static class FileSafety
         var local = LocalizePath(path, os: os);
 
         return string.Join(Path.DirectorySeparatorChar, local
-            .Split(Path.DirectorySeparatorChar)
+            .Split('/', '\\')
             .SkipLast(1)
             .Select(s => sanitize == true ? SanitizePathSegment(s, os: os) : s));
     }
@@ -379,7 +378,7 @@ public static class FileSafety
 
         // for each segment, drop nulls (created by double slashes), sanitize, and replace traversal strings
         var segments = path
-            .Split(sep)
+            .Split('/', '\\')
             .Select(s => SanitizeFilename(s, replacement, os))
             .Select(s => s is "." or ".." ? replacement.ToString() : s);
 
