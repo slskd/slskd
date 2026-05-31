@@ -369,11 +369,7 @@ public static class FileSafety
         if (!retainRoot)
         {
             // strip C:\ or //server, if present (regardless of slash variant, etc)
-            path = DriveRootRegex.Replace(path, string.Empty);
-            path = UncRootRegex.Replace(path, string.Empty);
-
-            // strip @@abcde prefixes used by SoulseekQt to obscure paths
-            path = SoulseekQtRootRegex.Replace(path, string.Empty);
+            path = StripPathRoot(path);
         }
 
         // for each segment, drop nulls (created by double slashes), sanitize, and replace traversal strings
