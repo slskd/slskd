@@ -10,7 +10,7 @@ public partial class FileSafetyTests
         [Fact]
         public void NullOs_UsesPlatformDefault_DoesNotThrow()
         {
-            var result = "foo/bar".SanitizePath();
+            var result = FileSafety.SanitizePath("foo/bar");
 
             Assert.NotNull(result);
         }
@@ -22,7 +22,7 @@ public partial class FileSafetyTests
         [InlineData("Ünïcödé/пользователь", "Ünïcödé/пользователь")]
         public void Linux_NormalizesSlashes(string input, string expected)
         {
-            var result = input.SanitizePath(os: OSPlatform.Linux);
+            var result = FileSafety.SanitizePath(input, os: OSPlatform.Linux);
 
             Assert.Equal(expected, result);
         }
@@ -33,7 +33,7 @@ public partial class FileSafetyTests
         [InlineData("Artist/Album/song.flac", "Artist\\Album\\song.flac")]
         public void Windows_NormalizesSlashes(string input, string expected)
         {
-            var result = input.SanitizePath(os: OSPlatform.Windows);
+            var result = FileSafety.SanitizePath(input, os: OSPlatform.Windows);
 
             Assert.Equal(expected, result);
         }
@@ -45,7 +45,7 @@ public partial class FileSafetyTests
         [InlineData("Z:\\", "")]
         public void Windows_Strips_DriveRoot(string input, string expected)
         {
-            var result = input.SanitizePath(os: OSPlatform.Windows);
+            var result = FileSafety.SanitizePath(input, os: OSPlatform.Windows);
 
             Assert.Equal(expected, result);
         }
@@ -56,7 +56,7 @@ public partial class FileSafetyTests
         [InlineData("D:\\path", "path")]
         public void Linux_Strips_DriveRoot(string input, string expected)
         {
-            var result = input.SanitizePath(os: OSPlatform.Linux);
+            var result = FileSafety.SanitizePath(input, os: OSPlatform.Linux);
 
             Assert.Equal(expected, result);
         }
@@ -67,7 +67,7 @@ public partial class FileSafetyTests
         [InlineData("\\\\192.168.1.1\\share\\folder", "share\\folder")]
         public void Windows_Strips_UncRoot(string input, string expected)
         {
-            var result = input.SanitizePath(os: OSPlatform.Windows);
+            var result = FileSafety.SanitizePath(input, os: OSPlatform.Windows);
 
             Assert.Equal(expected, result);
         }
@@ -78,7 +78,7 @@ public partial class FileSafetyTests
         [InlineData("//192.168.1.1/share/folder", "share/folder")]
         public void Linux_Strips_UncRoot(string input, string expected)
         {
-            var result = input.SanitizePath(os: OSPlatform.Linux);
+            var result = FileSafety.SanitizePath(input, os: OSPlatform.Linux);
 
             Assert.Equal(expected, result);
         }
@@ -89,7 +89,7 @@ public partial class FileSafetyTests
         [InlineData("@@abcde\\Music\\Artist", "Music/Artist")]
         public void Linux_Strips_SoulseekQtPrefix(string input, string expected)
         {
-            var result = input.SanitizePath(os: OSPlatform.Linux);
+            var result = FileSafety.SanitizePath(input, os: OSPlatform.Linux);
 
             Assert.Equal(expected, result);
         }
@@ -100,7 +100,7 @@ public partial class FileSafetyTests
         [InlineData("@@abcde/Music/Artist", "Music\\Artist")]
         public void Windows_Strips_SoulseekQtPrefix(string input, string expected)
         {
-            var result = input.SanitizePath(os: OSPlatform.Windows);
+            var result = FileSafety.SanitizePath(input, os: OSPlatform.Windows);
 
             Assert.Equal(expected, result);
         }
@@ -110,7 +110,7 @@ public partial class FileSafetyTests
         [InlineData("@@abcd/Music")]   // only 4 — does not match
         public void DoesNotStrip_SoulseekQtPrefix_When_Prefix_Too_Short(string input)
         {
-            var result = input.SanitizePath(os: OSPlatform.Linux);
+            var result = FileSafety.SanitizePath(input, os: OSPlatform.Linux);
 
             Assert.StartsWith("@@", result);
         }
@@ -124,7 +124,7 @@ public partial class FileSafetyTests
         [InlineData("foo/.", "foo/_")]
         public void Linux_Replaces_TraversalSegments(string input, string expected)
         {
-            var result = input.SanitizePath(os: OSPlatform.Linux);
+            var result = FileSafety.SanitizePath(input, os: OSPlatform.Linux);
 
             Assert.Equal(expected, result);
         }
@@ -135,7 +135,7 @@ public partial class FileSafetyTests
         [InlineData("..\\etc", "_\\etc")]
         public void Windows_Replaces_TraversalSegments(string input, string expected)
         {
-            var result = input.SanitizePath(os: OSPlatform.Windows);
+            var result = FileSafety.SanitizePath(input, os: OSPlatform.Windows);
 
             Assert.Equal(expected, result);
         }
@@ -143,7 +143,7 @@ public partial class FileSafetyTests
         [Fact]
         public void Linux_Replaces_InvalidFilenameChars_In_Segments()
         {
-            var result = "seg\0ment/file\0name".SanitizePath(os: OSPlatform.Linux);
+            var result = FileSafety.SanitizePath("seg\0ment/file\0name", os: OSPlatform.Linux);
 
             Assert.Equal("seg_ment/file_name", result);
         }
@@ -151,7 +151,7 @@ public partial class FileSafetyTests
         [Fact]
         public void Windows_Replaces_InvalidFilenameChars_In_Segments()
         {
-            var result = "seg*ment\\file:name".SanitizePath(os: OSPlatform.Windows);
+            var result = FileSafety.SanitizePath("seg*ment\\file:name", os: OSPlatform.Windows);
 
             Assert.Equal("seg_ment\\file_name", result);
         }
@@ -159,7 +159,7 @@ public partial class FileSafetyTests
         [Fact]
         public void Uses_Custom_Replacement()
         {
-            var result = "foo/../bar".SanitizePath(replacement: '-', os: OSPlatform.Linux);
+            var result = FileSafety.SanitizePath("foo/../bar", replacement: '-', os: OSPlatform.Linux);
 
             Assert.Equal("foo/-/bar", result);
         }

@@ -460,6 +460,104 @@ public partial class DownloadServiceTests
 
             Assert.False(FileSafety.ContainsTraversalSegments(result));
         }
+
+        [Fact]
+        public async Task SEARCH_TEXT_Null_Byte_In_Value_Replaced_With_Underscore()
+        {
+            var searchId = Guid.NewGuid();
+            var batchId = Guid.NewGuid();
+            var batch = new Batch { Id = batchId, SearchId = searchId };
+            var search = new Search { Id = searchId, SearchText = "foo\0bar" };
+            var (service, _) = GetFixture("{SEARCH_TEXT}", batch: batch, search: search);
+            var result = await service.DeriveDestination(new Transfer { Username = "alice", Filename = "@alice\\track.mp3", BatchId = batchId });
+
+            Assert.Equal("foo_bar", result);
+        }
+
+        [Fact]
+        public async Task SEARCH_TEXT_Is_Fallback_When_Search_Not_Found()
+        {
+            var batchId = Guid.NewGuid();
+            var batch = new Batch { Id = batchId, SearchId = Guid.NewGuid() };
+            var (service, _) = GetFixture("{SEARCH_TEXT}", batch: batch, search: null);
+            var result = await service.DeriveDestination(new Transfer { Username = "alice", Filename = "@alice\\track.mp3", BatchId = batchId });
+
+            Assert.Equal("unknown_search_text", result);
+        }
+
+        [Fact]
+        public async Task SEARCH_TEXT_Is_Fallback_When_Batch_Has_No_SearchId()
+        {
+            var batchId = Guid.NewGuid();
+            var batch = new Batch { Id = batchId, SearchId = null };
+            var (service, _) = GetFixture("{SEARCH_TEXT}", batch: batch);
+            var result = await service.DeriveDestination(new Transfer { Username = "alice", Filename = "@alice\\track.mp3", BatchId = batchId });
+
+            Assert.Equal("unknown_search_text", result);
+        }
+
+        [Fact]
+        public async Task SEARCH_TEXT_Is_Fallback_When_Search_Text_Is_Empty()
+        {
+            // fails until code uses IsNullOrWhiteSpace instead of ?? for search_text (parity with batch_external_id)
+            var searchId = Guid.NewGuid();
+            var batchId = Guid.NewGuid();
+            var batch = new Batch { Id = batchId, SearchId = searchId };
+            var search = new Search { Id = searchId, SearchText = "" };
+            var (service, _) = GetFixture("{SEARCH_TEXT}", batch: batch, search: search);
+            var result = await service.DeriveDestination(new Transfer { Username = "alice", Filename = "@alice\\track.mp3", BatchId = batchId });
+
+            Assert.Equal("unknown_search_text", result);
+        }
+
+        [Fact]
+        public async Task SEARCH_TEXT_Is_Fallback_When_Search_Text_Is_Whitespace()
+        {
+            // fails until code uses IsNullOrWhiteSpace instead of ?? for search_text (parity with batch_external_id)
+            var searchId = Guid.NewGuid();
+            var batchId = Guid.NewGuid();
+            var batch = new Batch { Id = batchId, SearchId = searchId };
+            var search = new Search { Id = searchId, SearchText = "   " };
+            var (service, _) = GetFixture("{SEARCH_TEXT}", batch: batch, search: search);
+            var result = await service.DeriveDestination(new Transfer { Username = "alice", Filename = "@alice\\track.mp3", BatchId = batchId });
+
+            Assert.Equal("unknown_search_text", result);
+        }
+
+        [Fact]
+        public async Task SEARCH_TEXT_Traversal_Segments_Do_Not_Survive()
+        {
+            var searchId = Guid.NewGuid();
+            var batchId = Guid.NewGuid();
+            var batch = new Batch { Id = batchId, SearchId = searchId };
+            var search = new Search { Id = searchId, SearchText = "../evil" };
+            var (service, _) = GetFixture("{SEARCH_TEXT}", batch: batch, search: search);
+            var result = await service.DeriveDestination(new Transfer { Username = "alice", Filename = "@alice\\track.mp3", BatchId = batchId });
+
+            Assert.False(FileSafety.ContainsTraversalSegments(result));
+        }
+
+        [Fact]
+        public async Task BATCH_EXTERNAL_ID_Is_Fallback_When_External_Id_Is_Empty_String()
+        {
+            var batchId = Guid.NewGuid();
+            var batch = new Batch { Id = batchId, Options = new BatchOptions { ExternalId = "" } };
+            var (service, _) = GetFixture("{BATCH_EXTERNAL_ID}", batch: batch);
+            var result = await service.DeriveDestination(new Transfer { Username = "alice", Filename = "@alice\\track.mp3", BatchId = batchId });
+
+            Assert.Equal("unknown_batch_external_id", result);
+        }
+
+        [Fact]
+        public async Task BATCH_EXTERNAL_ID_Traversal_Segments_Do_Not_Survive()
+        {
+            var batchId = Guid.NewGuid();
+            var batch = new Batch { Id = batchId, Options = new BatchOptions { ExternalId = "../evil" } };
+            var (service, _) = GetFixture("{BATCH_EXTERNAL_ID}", batch: batch);
+            var result = await service.DeriveDestination(new Transfer { Username = "alice", Filename = "@alice\\track.mp3", BatchId = batchId });
+
+            Assert.False(FileSafety.ContainsTraversalSegments(result));
+        }
     }
 
     private static (DownloadService service, Mocks mocks) GetFixture(

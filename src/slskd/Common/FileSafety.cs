@@ -43,7 +43,6 @@ using System.Text.RegularExpressions;
 /// </summary>
 public static class FileSafety
 {
-
     /// <summary>
     ///     Invalid filename characters on Unix-like operating systems (Linux, OSX, FreeBSD, etc).
     /// </summary>
@@ -63,7 +62,7 @@ public static class FileSafety
 
     private static readonly Regex DriveRootRegex = new(@"^[a-zA-Z]:[/\\]?", RegexOptions.Compiled); // C: or C:\
     private static readonly Regex UncRootRegex = new(@"^[/\\]{2}[^/\\]+[/\\]?", RegexOptions.Compiled); // \\server[\] or //server[/], any slash variants
-    private static readonly Regex SoulseekQtRootRegex = new(@"^@@[a-zA-Z0-9]{5,}[\/\\]", RegexOptions.Compiled); // @@abcde[\|/], a Soulseek Qt share prefix
+    private static readonly Regex SoulseekQtRootRegex = new(@"^@@[a-zA-Z0-9]{5,}[\/\\]?", RegexOptions.Compiled); // @@abcde[\|/], a Soulseek Qt share prefix
 
     /// <summary>
     ///     An alternative to <see cref="Path.Combine(string, string)"/> that disallows rooted segments in the second or
@@ -131,7 +130,7 @@ public static class FileSafety
                 }
             }
 
-            var parts = segment.Split(Path.DirectorySeparatorChar, '\\', '/');
+            var parts = segment.Split('\\', '/');
 
             // ensure the segments we're combining don't contain traversal segments "." or ".."
             // untrusted input could use this to "break out" of the root directory and access sensitive areas
@@ -218,15 +217,113 @@ public static class FileSafety
     public static bool IsPathRelative(string path, OSPlatform? os = null) => !IsPathAbsolute(path, os);
 
     /// <summary>
+    ///     Returns the filename from the specified <paramref name="path"/>, properly
+    ///     handling both forward and backslashes and removing invalid characters.
+    /// </summary>
+    /// <param name="path">The path from which to extract the filename.</param>
+    /// <param name="sanitize">An optional value indicating that invalid characters should not be replaced.</param>
+    /// <param name="os">An optional operating system override, for testing.</param>
+    /// <returns>The extracted filename.</returns>
+    public static string GetFileNameSafely(string path, bool sanitize = true, OSPlatform? os = null)
+    {
+        if (path is null or "" || path.EndsWith('/') || path.EndsWith('\\'))
+        {
+            return null;
+        }
+
+        if (StripPathRoot(path, os) == string.Empty)
+        {
+            return null;
+        }
+
+        var localPath = LocalizePath(path, os);
+        var segments = localPath.Split('/', '\\');
+
+        return segments
+            .TakeLast(1)
+            .Select(s => sanitize ? SanitizePathSegment(s, os: os) : s)
+            .Single();
+    }
+
+    /// <summary>
+    ///     Returns the full directory name from the specified <paramref name="path"/>, properly handling both
+    ///     forward and backslashes, removing Windows drive, UNC and Soulseek QT root segments, and sanitizing
+    ///     each of the remaining segments.
+    /// </summary>
+    /// <param name="path">The path from which to extract the directory name.</param>
+    /// <param name="retainRoot">An optional value indicating whether to keep the path's root, if present.</param>
+    /// <param name="sanitize">An optional value indicating that path segments should not be sanitized.</param>
+    /// <param name="os">An optional operating system override, for testing.</param>
+    /// <returns>The directory name.</returns>
+    /// <exception cref="ArgumentNullException">Thrown if the specified path is null.</exception>
+    public static string GetDirectoryNameSafely(string path, bool retainRoot = false, bool sanitize = true, OSPlatform? os = null)
+    {
+        if (path is null or "")
+        {
+            return null;
+        }
+
+        // a plain string is assumed to be a file. matches the behavior of the BCL method
+        if (!path.Contains('/') && !path.Contains('\\'))
+        {
+            return null;
+        }
+
+        var leadingSlashCount = path.TakeWhile(c => c == '/' || c == '\\').Count();
+
+        os ??= Compute.OSPlatform();
+        var sep = os.Value == OSPlatform.Windows ? '\\' : '/';
+
+        var local = LocalizePath(path, os)
+            .TrimEnd('/', '\\'); // treat file-less paths the same as files
+
+        var unrooted = StripPathRoot(local, os);
+
+        // were given a root; C:\, //server, @@abcde
+        if (unrooted is null or "")
+        {
+            return null;
+        }
+
+        if (!retainRoot)
+        {
+            local = unrooted;
+        }
+
+        // strip empty segments
+        var segments = local
+            .Split('/', '\\')
+            .Where(s => s is not "")
+            .ToArray();
+
+        // we were given all slashes, a file in the root, or some other case where
+        // only a file or subdirectory remains; no parent directory
+        if (segments.Length <= 1)
+        {
+            return null;
+        }
+
+        var newPath = string.Join(sep, segments
+            .SkipLast(1)
+            .Select(s => sanitize ? SanitizePathSegment(s, os: os) : s));
+
+        if (retainRoot)
+        {
+            return new string(sep, leadingSlashCount) + newPath;
+        }
+
+        return newPath;
+    }
+
+    /// <summary>
     ///     Converts the given path to the local format (normalizes path separators to Path.DirectorySeparatorChar).
     /// </summary>
     /// <param name="path">The path to convert.</param>
     /// <param name="os">An optional operating system override, for testing.</param>
     /// <returns>The converted path.</returns>
-    public static string LocalizePath(this string path, OSPlatform? os = null)
+    public static string LocalizePath(string path, OSPlatform? os = null)
     {
         os ??= Compute.OSPlatform();
-
         var sep = os.Value == OSPlatform.Windows ? '\\' : '/';
 
         return path.Replace('\\', sep).Replace('/', sep);
@@ -235,7 +332,7 @@ public static class FileSafety
     /// <summary>
     ///     Sanitizes the specified <paramref name="filename"/> (or string intended to be used as or as part of a filename)
     ///     to make it suitable and safe on the local operating system by stripping all slashes (forward or back) and
-    ///     and replacing any invalid characters with the specified <paramref name="replacement"/>.
+    ///     replacing any invalid characters with the specified <paramref name="replacement"/>.
     /// </summary>
     /// <param name="filename">The filename (or string intended to be used as/part of one).</param>
     /// <param name="replacement">The character to substitute for invalid characters.</param>
@@ -272,35 +369,90 @@ public static class FileSafety
     }
 
     /// <summary>
+    ///     Sanitizes the specified <paramref name="segment"/> to make it suitable and safe on the local operating
+    ///     system by stripping all slashes (forward or back) and replacing any invalid characters with the specified
+    ///     <paramref name="replacement"/>.
+    /// </summary>
+    /// <param name="segment">The path segment.</param>
+    /// <param name="replacement">The character to substitute for invalid characters.</param>
+    /// <param name="os">An optional operating system override, for testing.</param>
+    /// <returns>The sanitized path segment.</returns>
+    public static string SanitizePathSegment(string segment, char replacement = '_', OSPlatform? os = null)
+    {
+        var sanitized = SanitizeFilename(segment, replacement, os);
+
+        // is is possible for the result of sanitization to produce path traversal strings,
+        // which would result in traversal when combined (or throw an error because of CombineSafely)
+        // this can happen either because the segment is already periods, or because the replacement
+        // character is a period and the input one or two invalid characters.
+        // if this happens we follow the principle of least surprise and return an empty string
+        // avoid using a period for replacement (don't let users choose) and we won't have this problem
+        if (sanitized is "." or "..")
+        {
+            if (replacement is '.')
+            {
+                return string.Empty;
+            }
+
+            return replacement.ToString();
+        }
+
+        return sanitized;
+    }
+
+    /// <summary>
     ///     Sanitizes the specified <paramref name="path"/> to make it suitable and safe on the local operating system
     ///     by converting to the correct slashes, dropping a root (if present), replacing any invalid characters with
     ///     the specified <paramref name="replacement"/>, and by dropping any path traversal segments.
     /// </summary>
     /// <param name="path">The path.</param>
     /// <param name="replacement">The character to substitute for invalid characters.</param>
+    /// <param name="retainRoot">An optional value indicating whether to keep the path's root, if present.</param>
     /// <param name="os">An optional operating system override, for testing.</param>
     /// <returns>The sanitized path.</returns>
-    public static string SanitizePath(this string path, char replacement = '_', OSPlatform? os = null)
+    public static string SanitizePath(string path, char replacement = '_', bool retainRoot = false, OSPlatform? os = null)
     {
         os ??= Compute.OSPlatform();
         var sep = os.Value == OSPlatform.Windows ? '\\' : '/';
 
         // flip slashes the correct way
-        path = path.LocalizePath(os);
+        path = LocalizePath(path, os);
 
-        // strip C:\ or //server, if present (regardless of slash variant, etc)
+        if (!retainRoot)
+        {
+            // strip C:\ or //server, if present (regardless of slash variant, etc)
+            path = StripPathRoot(path);
+        }
+
+        // for each segment, drop nulls (created by double slashes), sanitize, and replace traversal strings
+        var segments = path
+            .Split('/', '\\')
+            .Where(s => s is not "")
+            .Select(s => SanitizePathSegment(s, replacement, os));
+
+        return string.Join(sep, segments);
+    }
+
+    /// <summary>
+    ///     Removes the root of the specified <paramref name="path"/>, including Window's drive prefix (e.g. C:\),
+    ///     UNC paths on any OS (e.g. \\server on Windows, //server on Linux), and drops the hashed prefix added by
+    ///     Soulseek Qt to hide the path on disk (e.g. @@abcde).
+    /// </summary>
+    /// <param name="path">The path to strip.</param>
+    /// <param name="os">An optional operating system override, for testing.</param>
+    /// <returns>The path with the root stripped, if one was present.</returns>
+    public static string StripPathRoot(string path, OSPlatform? os = null)
+    {
+        // flip slashes the correct way
+        path = LocalizePath(path, os);
+
+        // strip C:\ or //server, if present (regardless of slash variant)
         path = DriveRootRegex.Replace(path, string.Empty);
         path = UncRootRegex.Replace(path, string.Empty);
 
         // strip @@abcde prefixes used by SoulseekQt to obscure paths
         path = SoulseekQtRootRegex.Replace(path, string.Empty);
 
-        // for each segment, drop nulls (created by double slashes), sanitize, and replace traversal strings
-        var segments = path
-            .Split(sep)
-            .Select(s => SanitizeFilename(s, replacement, os))
-            .Select(s => s is "." or ".." ? replacement.ToString() : s);
-
-        return string.Join(sep, segments);
+        return path;
     }
 }

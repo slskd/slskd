@@ -410,16 +410,6 @@ namespace slskd
         }
 
         /// <summary>
-        ///     Converts the given path to the local format (normalizes path separators to Path.DirectorySeparatorChar).
-        /// </summary>
-        /// <param name="path">The path to convert.</param>
-        /// <returns>The converted path.</returns>
-        public static string LocalizePath(this string path)
-        {
-            return path.Replace('\\', Path.DirectorySeparatorChar).Replace('/', Path.DirectorySeparatorChar);
-        }
-
-        /// <summary>
         ///     <see cref="Path.GetDirectoryName(string)"/>, but for paths normalized to use backslashes.
         /// </summary>
         /// <param name="path"></param>
@@ -455,7 +445,7 @@ namespace slskd
             }
 
             // normalize path separators
-            var localizedRemoteFilename = remoteFilename.LocalizePath();
+            var localizedRemoteFilename = FileSafety.LocalizePath(remoteFilename);
 
             var parts = localizedRemoteFilename.Split(Path.DirectorySeparatorChar);
 
@@ -468,22 +458,6 @@ namespace slskd
             var directory = FileSafety.SanitizeFilename(parts.Reverse().Skip(1).Take(1).Single());
 
             return FileSafety.CombineSafely(directory, file);
-        }
-
-        /// <summary>
-        ///     Replaces any path traversal segments in the specified <paramref name="path"/> with the specified
-        ///     <paramref name="replacement"/>.
-        /// </summary>
-        /// <param name="path">The path to sanitize.</param>
-        /// <param name="replacement">The string with which to replace path traversal segments.</param>
-        /// <returns>The sanitized path.</returns>
-        public static string ReplacePathTraversalSegments(this string path, string replacement = "_")
-        {
-            return string.Join(Path.DirectorySeparatorChar,
-                path
-                    .LocalizePath()
-                    .Split(Path.DirectorySeparatorChar)
-                    .Select(s => s is "." or ".." ? replacement : s));
         }
 
         /// <summary>
