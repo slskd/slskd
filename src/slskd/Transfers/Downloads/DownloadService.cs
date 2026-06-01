@@ -753,6 +753,16 @@ namespace slskd.Transfers.Downloads
         /// <exception cref="SlskdException">Thrown if the derivation logic produces an absolute path, or one with traversal segments.</exception>
         public async Task<string> DeriveDestination(Transfer transfer)
         {
+            // validation should ensure this is a relative path and that it contains no traversal segments
+            // we accept any type of slash in the pattern and convert it to the correct variant for the local OS
+            var pattern = OptionsMonitor.CurrentValue.Transfers.Download.Destination.Subdirectory;
+
+            // users can enter '{}' if they want the files to go directly into the root of the downloads directory
+            if (pattern.Equals("{}", StringComparison.OrdinalIgnoreCase))
+            {
+                return string.Empty;
+            }
+
             string source_username;
             string source_path;
             string source_directory;
@@ -840,10 +850,6 @@ namespace slskd.Transfers.Downloads
                 ["SEARCH_ID"] = search_id,
                 ["SEARCH_TEXT"] = search_text,
             };
-
-            // validation should ensure this is a relative path and that it contains no traversal segments
-            // we accept any type of slash in the pattern and convert it to the correct variant for the local OS
-            var pattern = OptionsMonitor.CurrentValue.Transfers.Download.Destination.Subdirectory;
 
             // use Regex.Replace here because it makes one pass; if we chained .Replace() calls the output from one could
             // cascade into others and produce unintended results
@@ -1247,7 +1253,7 @@ namespace slskd.Transfers.Downloads
 
                 var incompleteFilename = FileSafety.CombineSafely(incompleteDirectory, sanitizedUsername, sanitizedRemotePath, sanitizedFilename);
 
-                Log.Warning("Incomplete file for {Filename} from {Username} will be: {Filename}", FileSafety.GetFileNameSafely(transfer.Filename), transfer.Username, incompleteFilename);
+                Log.Debug("Incomplete file for {Filename} from {Username} will be: {IncompleteFilename}", FileSafety.GetFileNameSafely(transfer.Filename), transfer.Username, incompleteFilename);
 
                 Log.Debug("Invoking Soulseek DownloadAsync() for {Filename} from {Username}", transfer.Filename, transfer.Username);
                 transfer.Attempts = 1;
