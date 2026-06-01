@@ -247,7 +247,7 @@ public static class FileSafety
 
     /// <summary>
     ///     Returns the full directory name from the specified <paramref name="path"/>, properly handling both
-    ///     forward and backslashes, removing Windows drive, UNC and Soulseek QT root segments and sanitizing
+    ///     forward and backslashes, removing Windows drive, UNC and Soulseek QT root segments, and sanitizing
     ///     each of the remaining segments.
     /// </summary>
     /// <param name="path">The path from which to extract the directory name.</param>
@@ -269,7 +269,7 @@ public static class FileSafety
             return null;
         }
 
-        var isUNC = path.StartsWith("//") || path.StartsWith("\\\\");
+        var leadingSlashCount = path.TakeWhile(c => c == '/' || c == '\\').Count();
 
         os ??= Compute.OSPlatform();
         var sep = os.Value == OSPlatform.Windows ? '\\' : '/';
@@ -307,7 +307,12 @@ public static class FileSafety
             .SkipLast(1)
             .Select(s => sanitize ? SanitizePathSegment(s, os: os) : s));
 
-        return (retainRoot && isUNC) ? $"{sep}{sep}{newPath}" : newPath;
+        if (retainRoot)
+        {
+            return new string(sep, leadingSlashCount) + newPath;
+        }
+
+        return newPath;
     }
 
     /// <summary>
