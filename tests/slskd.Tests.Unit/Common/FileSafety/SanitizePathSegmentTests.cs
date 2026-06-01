@@ -95,5 +95,13 @@ public partial class FileSafetyTests
 
             Assert.Equal(expected, result);
         }
+
+        [Fact]
+        public void Returns_Null_Given_Null()
+        {
+            var result = FileSafety.SanitizePathSegment(null);
+
+            Assert.Null(result);
+        }
     }
 }

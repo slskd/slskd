@@ -15,6 +15,14 @@ public partial class FileSafetyTests
             Assert.NotNull(result);
         }
 
+        [Fact]
+        public void Returns_Null_Given_Null_Path()
+        {
+            var result = FileSafety.StripPathRoot(null);
+
+            Assert.Null(result);
+        }
+
         [Theory]
         [InlineData("C:\\Music\\Artist", "Music/Artist")]
         [InlineData("C:/Music/Artist", "Music/Artist")]

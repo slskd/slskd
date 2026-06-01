@@ -163,5 +163,14 @@ public partial class FileSafetyTests
 
             Assert.Equal("foo/-/bar", result);
         }
+
+        [Fact]
+        public void Returns_Null_Given_Null_Path()
+        {
+            var result = FileSafety.SanitizePath(null);
+
+            Assert.Null(result);
+        }
+
     }
 }

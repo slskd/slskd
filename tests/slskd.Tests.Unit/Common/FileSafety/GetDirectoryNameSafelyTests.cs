@@ -112,7 +112,7 @@ public partial class FileSafetyTests
         [InlineData("\\\\server\\file.txt", "\\\\server")]
         [InlineData("@@abcde/file.txt", "@@abcde")]
         [InlineData("@@abcde\\file.txt", "@@abcde")]
-        public void Returns_Null_When_File_Is_Directly_In_Root_With_RetainRoot_True_Windows(string input, string expected)
+        public void Returns_Sanitized_Root_When_File_Is_Directly_In_Root_With_RetainRoot_True_Windows(string input, string expected)
         {
             var result = FileSafety.GetDirectoryNameSafely(input, retainRoot: true, os: OSPlatform.Windows);
 

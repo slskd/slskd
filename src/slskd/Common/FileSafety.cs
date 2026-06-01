@@ -323,6 +323,11 @@ public static class FileSafety
     /// <returns>The converted path.</returns>
     public static string LocalizePath(string path, OSPlatform? os = null)
     {
+        if (path is null)
+        {
+            return null;
+        }
+
         os ??= Compute.OSPlatform();
         var sep = os.Value == OSPlatform.Windows ? '\\' : '/';
 
@@ -340,6 +345,11 @@ public static class FileSafety
     /// <returns>The sanitized filename.</returns>
     public static string SanitizeFilename(string filename, char replacement = '_', OSPlatform? os = null)
     {
+        if (filename is null)
+        {
+            return null;
+        }
+
         if (replacement is '/' or '\\')
         {
             throw new ArgumentException($"The provided replacement character '{replacement}' is invalid in filenames");
@@ -412,6 +422,11 @@ public static class FileSafety
     /// <returns>The sanitized path.</returns>
     public static string SanitizePath(string path, char replacement = '_', bool retainRoot = false, OSPlatform? os = null)
     {
+        if (path is null)
+        {
+            return null;
+        }
+
         os ??= Compute.OSPlatform();
         var sep = os.Value == OSPlatform.Windows ? '\\' : '/';
 
@@ -421,7 +436,7 @@ public static class FileSafety
         if (!retainRoot)
         {
             // strip C:\ or //server, if present (regardless of slash variant, etc)
-            path = StripPathRoot(path);
+            path = StripPathRoot(path, os);
         }
 
         // for each segment, drop nulls (created by double slashes), sanitize, and replace traversal strings
@@ -443,6 +458,11 @@ public static class FileSafety
     /// <returns>The path with the root stripped, if one was present.</returns>
     public static string StripPathRoot(string path, OSPlatform? os = null)
     {
+        if (path is null)
+        {
+            return null;
+        }
+
         // flip slashes the correct way
         path = LocalizePath(path, os);
 

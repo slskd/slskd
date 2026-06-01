@@ -54,5 +54,13 @@ public partial class FileSafetyTests
 
             Assert.False(string.IsNullOrEmpty(result));
         }
+
+        [Fact]
+        public void Returns_Null_Given_Null_Path()
+        {
+            var result = FileSafety.LocalizePath(null);
+
+            Assert.Null(result);
+        }
     }
 }
