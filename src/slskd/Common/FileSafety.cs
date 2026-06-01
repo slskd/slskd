@@ -309,6 +309,7 @@ public static class FileSafety
 
         if (retainRoot)
         {
+            // leading slashes are stripped of leading slashes by Split() so we must add them back
             return new string(sep, leadingSlashCount) + newPath;
         }
 
@@ -427,6 +428,8 @@ public static class FileSafety
             return null;
         }
 
+        var leadingSlashCount = path.TakeWhile(c => c == '/' || c == '\\').Count();
+
         os ??= Compute.OSPlatform();
         var sep = os.Value == OSPlatform.Windows ? '\\' : '/';
 
@@ -445,7 +448,15 @@ public static class FileSafety
             .Where(s => s is not "")
             .Select(s => SanitizePathSegment(s, replacement, os));
 
-        return string.Join(sep, segments);
+        var newPath = string.Join(sep, segments);
+
+        if (retainRoot)
+        {
+            // leading slashes are stripped of leading slashes by Split() so we must add them back
+            return new string(sep, leadingSlashCount) + newPath;
+        }
+
+        return newPath;
     }
 
     /// <summary>

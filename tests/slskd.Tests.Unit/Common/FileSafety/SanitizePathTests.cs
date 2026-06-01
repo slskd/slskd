@@ -1,3 +1,4 @@
+using System;
 using System.Runtime.InteropServices;
 using Xunit;
 
@@ -172,5 +173,97 @@ public partial class FileSafetyTests
             Assert.Null(result);
         }
 
+        // --- retainRoot: true ---
+        // These verify that SanitizePath honours retainRoot. The UNC and single-slash absolute
+        // cases are EXPECTED TO FAIL: SanitizePath filters empty segments produced by splitting on
+        // leading slashes, so "//server/share" becomes "server/share" — the root is silently lost.
+        // Drive-letter and @@-prefix cases pass because they produce no empty segments.
+
+
+        [Theory]
+        [InlineData("C:/Music/Artist", "C:/Music/Artist")]
+        [InlineData("C:\\Music\\Artist", "C:/Music/Artist")]
+        public void Linux_RetainsDriveRoot_When_RetainRoot_True(string input, string expected)
+        {
+            var result = FileSafety.SanitizePath(input, retainRoot: true, os: OSPlatform.Linux);
+
+            Assert.Equal(expected, result);
+        }
+
+        [Theory]
+        [InlineData("C:\\Music\\Artist", "C_\\Music\\Artist")]
+        [InlineData("C:/Music/Artist", "C_\\Music\\Artist")]
+        public void Windows_RetainsDriveRoot_When_RetainRoot_True(string input, string expected)
+        {
+            var result = FileSafety.SanitizePath(input, retainRoot: true, os: OSPlatform.Windows);
+
+            Assert.Equal(expected, result);
+        }
+
+        [Theory]
+        [InlineData("@@abcde/Music/Artist", "@@abcde/Music/Artist")]
+        [InlineData("@@abcde\\Music\\Artist", "@@abcde/Music/Artist")]
+        public void Linux_RetainsSoulseekQtPrefix_When_RetainRoot_True(string input, string expected)
+        {
+            var result = FileSafety.SanitizePath(input, retainRoot: true, os: OSPlatform.Linux);
+
+            Assert.Equal(expected, result);
+        }
+
+        [Theory]
+        [InlineData("@@abcde\\Music\\Artist", "@@abcde\\Music\\Artist")]
+        [InlineData("@@abcde/Music/Artist", "@@abcde\\Music\\Artist")]
+        public void Windows_RetainsSoulseekQtPrefix_When_RetainRoot_True(string input, string expected)
+        {
+            var result = FileSafety.SanitizePath(input, retainRoot: true, os: OSPlatform.Windows);
+
+            Assert.Equal(expected, result);
+        }
+
+        [Theory]
+        [InlineData("//server/share/Music", "//server/share/Music")]
+        [InlineData("//server/Music", "//server/Music")]
+        [InlineData("\\\\server\\share\\Music", "//server/share/Music")]
+        [InlineData("\\\\server\\Music", "//server/Music")]
+        public void Linux_RetainsUncRoot_When_RetainRoot_True(string input, string expected)
+        {
+            var result = FileSafety.SanitizePath(input, retainRoot: true, os: OSPlatform.Linux);
+
+            Assert.Equal(expected, result);
+        }
+
+        [Theory]
+        [InlineData("/absolute/Music", "/absolute/Music")]
+        [InlineData("/single", "/single")]
+        [InlineData("\\absolute\\Music", "/absolute/Music")]
+        [InlineData("\\single", "/single")]
+        public void Linux_RetainsAbsoluteRoot_When_RetainRoot_True(string input, string expected)
+        {
+            var result = FileSafety.SanitizePath(input, retainRoot: true, os: OSPlatform.Linux);
+
+            Assert.Equal(expected, result);
+        }
+
+        [Theory]
+        [InlineData("\\\\server\\share\\Music", "\\\\server\\share\\Music")]
+        [InlineData("\\\\server\\Music", "\\\\server\\Music")]
+        [InlineData("//server/share/Music", "\\\\server\\share\\Music")]
+        [InlineData("//server/Music", "\\\\server\\Music")]
+        public void Windows_RetainsUncRoot_When_RetainRoot_True(string input, string expected)
+        {
+            var result = FileSafety.SanitizePath(input, retainRoot: true, os: OSPlatform.Windows);
+
+            Assert.Equal(expected, result);
+        }
+
+        [Theory]
+        [InlineData("\\absolute\\Music", "\\absolute\\Music")]
+        [InlineData("/absolute/Music", "\\absolute\\Music")]
+        public void Windows_RetainsDriveRelativeRoot_When_RetainRoot_True(string input, string expected)
+        {
+            var result = FileSafety.SanitizePath(input, retainRoot: true, os: OSPlatform.Windows);
+
+            Assert.Equal(expected, result);
+        }
     }
 }
