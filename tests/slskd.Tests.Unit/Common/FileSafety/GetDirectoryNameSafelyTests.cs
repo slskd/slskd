@@ -245,7 +245,7 @@ public partial class FileSafetyTests
         [InlineData("/abs\0olute/path", "\\abs\0olute")]
         [InlineData("\\abs\0olute\\path", "\\abs\0olute")]
         [InlineData("@@abcde\\fo:o\\bar", "@@abcde\\fo:o")]
-        [InlineData("@@abcde/fo*o/bar", "@@abcde\\fo*o")] 
+        [InlineData("@@abcde/fo*o/bar", "@@abcde\\fo*o")]
         public void Returns_Rooted_Unsanitized_If_Directed_Windows(string input, string expected)
         {
             var result = FileSafety.GetDirectoryNameSafely(input, sanitize: false, retainRoot: true, os: OSPlatform.Windows);
@@ -261,7 +261,7 @@ public partial class FileSafetyTests
         [InlineData("/abs\0olute/path", "/abs\0olute")]
         [InlineData("\\abs\0olute\\path", "/abs\0olute")]
         [InlineData("@@abcde\\fo:o\\bar", "@@abcde/fo:o")]
-        [InlineData("@@abcde/fo*o/bar", "@@abcde/fo*o")] 
+        [InlineData("@@abcde/fo*o/bar", "@@abcde/fo*o")]
         public void Returns_Rooted_Unsanitized_If_Directed_Linux(string input, string expected)
         {
             var result = FileSafety.GetDirectoryNameSafely(input, sanitize: false, retainRoot: true, os: OSPlatform.Linux);
