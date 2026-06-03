@@ -1218,8 +1218,8 @@ namespace slskd.Transfers.Downloads
                     }),
                     disposeOutputStreamOnCompletion: true);
 
-                UnixFileMode? unixFileMode = !string.IsNullOrEmpty(OptionsMonitor.CurrentValue.Transfers.Download.Destination.Permissions.Mode)
-                    ? OptionsMonitor.CurrentValue.Transfers.Download.Destination.Permissions.Mode.ToUnixFileMode()
+                UnixFileMode? unixFileMode = !string.IsNullOrEmpty(OptionsMonitor.CurrentValue.Permissions.File.Mode)
+                    ? OptionsMonitor.CurrentValue.Permissions.File.Mode.ToUnixFileMode()
                     : null;
 
                 /*

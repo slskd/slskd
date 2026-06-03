@@ -1082,43 +1082,6 @@ namespace slskd
                     /// </summary>
                     [Enum(typeof(DestinationExistsStrategy))]
                     public string Exists { get; init; } = DestinationExistsStrategy.Rename.ToString().ToLowerInvariant();
-
-                    /// <summary>
-                    ///     Gets the permissions to apply to downloaded files and directories.
-                    /// </summary>
-                    [Validate]
-                    public DestinationPermissionsOptions Permissions { get; init; } = new DestinationPermissionsOptions();
-
-                    /// <summary>
-                    ///     Download destination permission options.
-                    /// </summary>
-                    public class DestinationPermissionsOptions : IValidatableObject
-                    {
-                        /// <summary>
-                        ///     Gets the permissions to apply to newly created files.
-                        /// </summary>
-                        /// <remarks>
-                        ///     Applicable to non-Windows operating systems, only.
-                        /// </remarks>
-                        public string Mode { get; init; }
-
-                        public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
-                        {
-                            var results = new List<ValidationResult>();
-
-                            if (!string.IsNullOrEmpty(Mode))
-                            {
-                                var regEx = new Regex("^[0-7]{3,4}$", RegexOptions.Compiled);
-
-                                if (!regEx.IsMatch(Mode))
-                                {
-                                    results.Add(new ValidationResult($"Field {nameof(Mode)} is invalid. Specify a three- or four-character string consisting of only 0-7 (chmod syntax, [0]000-[7]777, inclusive)"));
-                                }
-                            }
-
-                            return results;
-                        }
-                    }
                 }
             }
 

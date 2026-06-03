@@ -81,8 +81,6 @@
 #     destination:
 #       subdirectory: {SOURCE_DIRECTORY}
 #       exists: rename # 'overwrite' or 'rename'
-#       permissions:
-#         mode: ~ # chmod syntax, e.g. 644, 777. does nothing on Windows. 
 #   groups:
 #     default:
 #       upload:
