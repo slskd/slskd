@@ -40,8 +40,9 @@ namespace slskd.Validation
     /// </summary>
     public class RelativePathAttribute : ValidationAttribute
     {
-        public RelativePathAttribute()
+        public RelativePathAttribute(bool platformAgnostic = false)
         {
+            PlatformAgnostic = platformAgnostic;
         }
 
         public RelativePathAttribute(OSPlatform? os = null)
@@ -50,15 +51,44 @@ namespace slskd.Validation
         }
 
         public OSPlatform? OS { get; }
+        public bool PlatformAgnostic { get; }
+
         protected override ValidationResult IsValid(object value, ValidationContext validationContext)
         {
             if (value != null && value is string str && !string.IsNullOrEmpty(str))
             {
                 var path = value.ToString();
 
-                if (!FileSafety.IsPathRelative(path, os: OS))
+                if (OS.HasValue)
                 {
-                    return new ValidationResult($"The {validationContext.DisplayName} field must be a relative path.");
+                    // this can only be exercised via unit tests; OSPlatform can't be passeed as an attribute argument
+                    // so, this takes precedent over PlatformAgnostic
+                    if (!FileSafety.IsPathRelative(path, os: OS))
+                    {
+                        return new ValidationResult($"The {validationContext.DisplayName} field must be a relative path.");
+                    }
+                }
+                else
+                {
+                    if (!PlatformAgnostic)
+                    {
+                        if (!FileSafety.IsPathRelative(path, os: null)) // this OS
+                        {
+                            return new ValidationResult($"The {validationContext.DisplayName} field must be a relative path.");
+                        }
+                    }
+                    else
+                    {
+                        if (!FileSafety.IsPathRelative(path, os: OSPlatform.Linux))
+                        {
+                            return new ValidationResult($"The {validationContext.DisplayName} field must be a relative path.");
+                        }
+
+                        if (!FileSafety.IsPathRelative(path, os: OSPlatform.Windows))
+                        {
+                            return new ValidationResult($"The {validationContext.DisplayName} field must be a relative path.");
+                        }
+                    }
                 }
             }
 

@@ -40,16 +40,19 @@ namespace slskd.Validation
     /// </summary>
     public class AbsolutePathAttribute : ValidationAttribute
     {
-        public AbsolutePathAttribute()
+        public AbsolutePathAttribute(bool platformAgnostic = false)
         {
+            PlatformAgnostic = platformAgnostic;
         }
 
-        public AbsolutePathAttribute(OSPlatform? os = null)
+        public AbsolutePathAttribute(bool platformAgnostic = false, OSPlatform? os = null)
         {
+            PlatformAgnostic = platformAgnostic;
             OS = os;
         }
 
         public OSPlatform? OS { get; }
+        public bool PlatformAgnostic { get; }
 
         protected override ValidationResult IsValid(object value, ValidationContext validationContext)
         {
@@ -57,9 +60,34 @@ namespace slskd.Validation
             {
                 var path = value.ToString();
 
-                if (!FileSafety.IsPathAbsolute(path, os: OS))
+                if (OS.HasValue)
                 {
-                    return new ValidationResult($"The {validationContext.DisplayName} field must be an absolute file path.");
+                    if (!FileSafety.IsPathAbsolute(path, os: OS))
+                    {
+                        return new ValidationResult($"The {validationContext.DisplayName} field must be an absolute file path.");
+                    }
+                }
+                else
+                {
+                    if (!PlatformAgnostic)
+                    {
+                        if (!FileSafety.IsPathAbsolute(path, os: OS)) // this OS
+                        {
+                            return new ValidationResult($"The {validationContext.DisplayName} field must be an absolute file path.");
+                        }
+                    }
+                    else
+                    {
+                        if (!FileSafety.IsPathAbsolute(path, os: OSPlatform.Linux))
+                        {
+                            return new ValidationResult($"The {validationContext.DisplayName} field must be an absolute file path.");
+                        }
+
+                        if (!FileSafety.IsPathAbsolute(path, os: OSPlatform.Windows))
+                        {
+                            return new ValidationResult($"The {validationContext.DisplayName} field must be an absolute file path.");
+                        }
+                    }
                 }
             }
 
