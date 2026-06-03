@@ -382,21 +382,6 @@ namespace slskd
             .Deserialize<T>(str);
 
         /// <summary>
-        ///     Converts a fully qualified remote filename to a local filename based in the provided
-        ///     <paramref name="baseDirectory"/>, swapping directory characters for those specific to the local OS, removing any
-        ///     characters that are invalid for the local OS, and making the path relative to the remote store (including the
-        ///     filename and the parent folder).
-        /// </summary>
-        /// <param name="remoteFilename">The fully qualified remote filename to convert.</param>
-        /// <param name="baseDirectory">The base directory for the local filename.</param>
-        /// <returns>The converted filename.</returns>
-        [Obsolete("Find something more intelligent to do instead of this")]
-        public static string ToLocalFilename(this string remoteFilename, string baseDirectory)
-        {
-            return FileSafety.CombineSafely(baseDirectory, remoteFilename.ToLocalRelativeFilename());
-        }
-
-        /// <summary>
         ///     Converts the given path to the normalized format (normalizes path separators to backslashes).
         /// </summary>
         /// <remarks>
@@ -427,37 +412,6 @@ namespace slskd
         public static string GetNormalizedFileName(this string path)
         {
             return path.Split('\\').TakeLast(1).First();
-        }
-
-        /// <summary>
-        ///     Converts a fully qualified remote filename to a local filename, swapping directory characters for those specific
-        ///     to the local OS, removing any characters that are invalid for the local OS, and making the path relative to the
-        ///     remote store (including the filename and the parent folder).
-        /// </summary>
-        /// <param name="remoteFilename">The fully qualified remote filename to convert.</param>
-        /// <returns>The converted filename.</returns>
-        [Obsolete("Find something more intelligent to do instead of this")]
-        public static string ToLocalRelativeFilename(this string remoteFilename)
-        {
-            if (string.IsNullOrWhiteSpace(remoteFilename))
-            {
-                throw new ArgumentException($"Invalid remote filename; expected a non-whitespace value, received '{remoteFilename}'", nameof(remoteFilename));
-            }
-
-            // normalize path separators
-            var localizedRemoteFilename = FileSafety.LocalizePath(remoteFilename);
-
-            var parts = localizedRemoteFilename.Split(Path.DirectorySeparatorChar);
-
-            if (parts.Length == 1)
-            {
-                return FileSafety.SanitizeFilename(parts.First());
-            }
-
-            var file = FileSafety.SanitizeFilename(parts.Last());
-            var directory = FileSafety.SanitizeFilename(parts.Reverse().Skip(1).Take(1).Single());
-
-            return FileSafety.CombineSafely(directory, file);
         }
 
         /// <summary>
