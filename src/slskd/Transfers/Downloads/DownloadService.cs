@@ -1363,7 +1363,7 @@ namespace slskd.Transfers.Downloads
                     overwrite: existsStrategy == DestinationExistsStrategy.Overwrite,
                     deleteSourceDirectoryIfEmptyAfterMove: true);
 
-                Log.Debug("Moved file {Filename} to {Destination}", transfer.Filename, finalFilename);
+                Log.Information("Moved file {Filename} from {Username} from {Incomplete} to {Destination}", FileSafety.GetFileNameSafely(transfer.Filename), transfer.Username, incompleteFilename, finalFilename);
 
                 if (OptionsMonitor.CurrentValue.Relay.Enabled)
                 {
