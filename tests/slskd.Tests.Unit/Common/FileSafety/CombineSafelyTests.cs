@@ -103,6 +103,9 @@ public partial class FileSafetyTests
         [InlineData("用户/音乐")]
         [InlineData("ユーザー/音楽")]
         [InlineData("사용자/음악")]
+        [InlineData("foo\\bar\\baz\\qux\\deeply\\nested")]
+        [InlineData("foo/bar/baz/qux/deeply/nested")]
+        [InlineData("foo/bar\\baz/qux\\deeply/nested")]
         public void Combines_Safe_Segments(string segment)
         {
             var result = FileSafety.CombineSafely(Base, segment);
