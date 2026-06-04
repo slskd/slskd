@@ -1,8 +1,10 @@
 import * as sharesLibrary from '../../../lib/shares';
+import * as transfersLibrary from '../../../lib/transfers';
 import { LoaderSegment, ShrinkableButton, Switch } from '../../Shared';
 import ContentsModal from './ContentsModal';
 import ExclusionTable from './ExclusionTable';
 import ShareTable from './ShareTable';
+import TrafficStatsTable from './TrafficStatsTable';
 import React, { useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
 import { Divider } from 'semantic-ui-react';
@@ -38,6 +40,7 @@ const Shares = ({ state = {}, theme } = {}) => {
   const [working, setWorking] = useState(false);
   const [shares, setShares] = useState([]);
   const [modal, setModal] = useState(false);
+  const [trafficStats, setTrafficStats] = useState({});
 
   const { directories, files, scanPending, scanProgress, scanning } = state;
 
@@ -78,6 +81,30 @@ const Shares = ({ state = {}, theme } = {}) => {
       setTimeout(() => getAll(true), 1_000);
     }
   }, [scanPending, scanning]);
+
+  useEffect(() => {
+    const bytesTransferred = (statuses) =>
+      Object.values(statuses).reduce(
+        (accumulator, current) => current.totalBytes + accumulator,
+        0,
+      );
+    const fetchStats = async () => {
+      const statsResponse = await transfersLibrary.getStats();
+      const stats = statsResponse.data;
+      const uploadedFiles = stats.Upload?.Succeeded?.count ?? 0;
+      const downloadedFiles = stats.Download?.Succeeded?.count ?? 0;
+      const uploadedBytes = bytesTransferred(stats.Upload);
+      const downloadedBytes = bytesTransferred(stats.Download);
+      setTrafficStats({
+        uploadedBytes,
+        uploadedFiles,
+        downloadedBytes,
+        downloadedFiles,
+      });
+    };
+
+    fetchStats();
+  }, []);
 
   const rescan = async () => {
     try {
@@ -151,6 +178,7 @@ const Shares = ({ state = {}, theme } = {}) => {
           shares={shared}
         />
         <ExclusionTable exclusions={excluded} />
+        <TrafficStatsTable stats={trafficStats} />
       </Switch>
       <ContentsModal
         onClose={() => setModal(false)}
