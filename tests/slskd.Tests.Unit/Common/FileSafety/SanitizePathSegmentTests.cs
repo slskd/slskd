@@ -66,7 +66,7 @@ public partial class FileSafetyTests
         [InlineData("пользователь", "пользователь")]
         public void Linux_ReturnsUnchanged_Given_Safe_Segment(string input, string expected)
         {
-            var result = FileSafety.SanitizePathSegment(input, '_', OSPlatform.Linux);
+            var result = FileSafety.SanitizePathSegment(input, '_', OperatingSystem.Linux);
 
             Assert.Equal(expected, result);
         }
@@ -77,7 +77,7 @@ public partial class FileSafetyTests
         [InlineData("has/both\\types", "has_both_types")]
         public void Linux_Replaces_Slashes(string input, string expected)
         {
-            var result = FileSafety.SanitizePathSegment(input, '_', OSPlatform.Linux);
+            var result = FileSafety.SanitizePathSegment(input, '_', OperatingSystem.Linux);
 
             Assert.Equal(expected, result);
         }
@@ -91,7 +91,7 @@ public partial class FileSafetyTests
         [InlineData("file\\name", "file_name")]
         public void Windows_Replaces_InvalidCharacters(string input, string expected)
         {
-            var result = FileSafety.SanitizePathSegment(input, '_', OSPlatform.Windows);
+            var result = FileSafety.SanitizePathSegment(input, '_', OperatingSystem.Windows);
 
             Assert.Equal(expected, result);
         }

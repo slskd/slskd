@@ -280,7 +280,7 @@ public class QueueDownloadBatchRequestTests
         [InlineData("\\\\server\\share")]   // UNC
         public void AbsolutePath_Fails_Windows(string value)
         {
-            if (OperatingSystem.IsWindows())
+            if (System.OperatingSystem.IsWindows())
             {
                 var (isValid, results) = Validate(new EnqueueDownloadBatchOptions { Destination = value });
                 Assert.False(isValid);
@@ -295,7 +295,7 @@ public class QueueDownloadBatchRequestTests
         [InlineData("//server/share")]     // UNC
         public void AbsolutePath_Fails_Non_Windows(string value)
         {
-            if (!OperatingSystem.IsWindows())
+            if (!System.OperatingSystem.IsWindows())
             {
                 var (isValid, results) = Validate(new EnqueueDownloadBatchOptions { Destination = value });
                 Assert.False(isValid);

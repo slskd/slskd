@@ -33,8 +33,8 @@ public partial class FileSafetyTests
                 [InlineData("\\\\server\\share\\用户\\音乐")]
                 public void IsAbsolute_NotRelative(string path)
                 {
-                    Assert.True(FileSafety.IsPathAbsolute(path, OSPlatform.Windows));
-                    Assert.False(FileSafety.IsPathRelative(path, OSPlatform.Windows));
+                    Assert.True(FileSafety.IsPathAbsolute(path, OperatingSystem.Windows));
+                    Assert.False(FileSafety.IsPathRelative(path, OperatingSystem.Windows));
                 }
             }
 
@@ -68,8 +68,8 @@ public partial class FileSafetyTests
                 [InlineData("D:path")]              // drive-relative — no separator after colon, not absolute
                 public void IsRelative_NotAbsolute(string path)
                 {
-                    Assert.False(FileSafety.IsPathAbsolute(path, OSPlatform.Windows));
-                    Assert.True(FileSafety.IsPathRelative(path, OSPlatform.Windows));
+                    Assert.False(FileSafety.IsPathAbsolute(path, OperatingSystem.Windows));
+                    Assert.True(FileSafety.IsPathRelative(path, OperatingSystem.Windows));
                 }
             }
         }
@@ -95,8 +95,8 @@ public partial class FileSafetyTests
                 [InlineData("//192.168.1.1/share")]
                 public void IsAbsolute_NotRelative(string path)
                 {
-                    Assert.True(FileSafety.IsPathAbsolute(path, OSPlatform.Linux));
-                    Assert.False(FileSafety.IsPathRelative(path, OSPlatform.Linux));
+                    Assert.True(FileSafety.IsPathAbsolute(path, OperatingSystem.Linux));
+                    Assert.False(FileSafety.IsPathRelative(path, OperatingSystem.Linux));
                 }
             }
 
@@ -122,8 +122,8 @@ public partial class FileSafetyTests
                 [InlineData("\\Music")]             // Windows root-relative — not absolute on Linux
                 public void IsRelative_NotAbsolute(string path)
                 {
-                    Assert.False(FileSafety.IsPathAbsolute(path, OSPlatform.Linux));
-                    Assert.True(FileSafety.IsPathRelative(path, OSPlatform.Linux));
+                    Assert.False(FileSafety.IsPathAbsolute(path, OperatingSystem.Linux));
+                    Assert.True(FileSafety.IsPathRelative(path, OperatingSystem.Linux));
                 }
             }
         }

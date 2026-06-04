@@ -72,7 +72,7 @@ public partial class FileSafetyTests
         [InlineData("@@abcde\\file.txt")]
         public void Returns_Null_When_File_Is_Directly_In_Root_With_RetainRoot_False_Linux(string input)
         {
-            var result = FileSafety.GetDirectoryNameSafely(input, retainRoot: false, os: OSPlatform.Linux);
+            var result = FileSafety.GetDirectoryNameSafely(input, retainRoot: false, os: OperatingSystem.Linux);
 
             Assert.Null(result);
         }
@@ -86,7 +86,7 @@ public partial class FileSafetyTests
         [InlineData("@@abcde\\file.txt")]
         public void Returns_Null_When_File_Is_Directly_In_Root_With_RetainRoot_False_Windows(string input)
         {
-            var result = FileSafety.GetDirectoryNameSafely(input, retainRoot: false, os: OSPlatform.Windows);
+            var result = FileSafety.GetDirectoryNameSafely(input, retainRoot: false, os: OperatingSystem.Windows);
 
             Assert.Null(result);
         }
@@ -100,7 +100,7 @@ public partial class FileSafetyTests
         [InlineData("@@abcde\\file.txt", "@@abcde")]
         public void Returns_Root_When_File_Is_Directly_In_Root_With_RetainRoot_True_Linux(string input, string expected)
         {
-            var result = FileSafety.GetDirectoryNameSafely(input, retainRoot: true, os: OSPlatform.Linux);
+            var result = FileSafety.GetDirectoryNameSafely(input, retainRoot: true, os: OperatingSystem.Linux);
 
             Assert.Equal(expected, result);
         }
@@ -114,7 +114,7 @@ public partial class FileSafetyTests
         [InlineData("@@abcde\\file.txt", "@@abcde")]
         public void Returns_Sanitized_Root_When_File_Is_Directly_In_Root_With_RetainRoot_True_Windows(string input, string expected)
         {
-            var result = FileSafety.GetDirectoryNameSafely(input, retainRoot: true, os: OSPlatform.Windows);
+            var result = FileSafety.GetDirectoryNameSafely(input, retainRoot: true, os: OperatingSystem.Windows);
 
             Assert.Equal(expected, result);
         }
@@ -148,7 +148,7 @@ public partial class FileSafetyTests
         [InlineData("/foo//bar//baz", "foo\\bar")]
         public void Removes_Empty_Segments_And_Leading_Slashes_Windows(string input, string expected)
         {
-            var result = FileSafety.GetDirectoryNameSafely(input, sanitize: true, retainRoot: false, os: OSPlatform.Windows);
+            var result = FileSafety.GetDirectoryNameSafely(input, sanitize: true, retainRoot: false, os: OperatingSystem.Windows);
 
             Assert.Equal(expected, result);
         }
@@ -158,7 +158,7 @@ public partial class FileSafetyTests
         [InlineData("/foo//bar//baz", "foo/bar")]
         public void Removes_Empty_Segments_And_Leading_Slashes_Linux(string input, string expected)
         {
-            var result = FileSafety.GetDirectoryNameSafely(input, sanitize: true, retainRoot: false, os: OSPlatform.Linux);
+            var result = FileSafety.GetDirectoryNameSafely(input, sanitize: true, retainRoot: false, os: OperatingSystem.Linux);
 
             Assert.Equal(expected, result);
         }
@@ -177,7 +177,7 @@ public partial class FileSafetyTests
         [InlineData("@@abcde\\foo\\bar", "foo")]
         public void Returns_Unrooted_Sanitized_Directory_Given_Path_With_File_Linux(string input, string expected)
         {
-            var result = FileSafety.GetDirectoryNameSafely(input, sanitize: true, retainRoot: false, os: OSPlatform.Linux);
+            var result = FileSafety.GetDirectoryNameSafely(input, sanitize: true, retainRoot: false, os: OperatingSystem.Linux);
 
             Assert.Equal(expected, result);
         }
@@ -196,7 +196,7 @@ public partial class FileSafetyTests
         [InlineData("@@abcde\\foo\\bar", "foo")]
         public void Returns_Unrooted_Sanitized_Directory_Given_Path_With_File_Windows(string input, string expected)
         {
-            var result = FileSafety.GetDirectoryNameSafely(input, sanitize: true, retainRoot: false, os: OSPlatform.Windows);
+            var result = FileSafety.GetDirectoryNameSafely(input, sanitize: true, retainRoot: false, os: OperatingSystem.Windows);
 
             Assert.Equal(expected, result);
         }
@@ -214,7 +214,7 @@ public partial class FileSafetyTests
         [InlineData("@@abcde\\foo\\bar", "@@abcde\\foo")]
         public void Retains_Path_Root_When_RetainRoot_True_Windows(string input, string expected)
         {
-            var result = FileSafety.GetDirectoryNameSafely(input, retainRoot: true, os: OSPlatform.Windows);
+            var result = FileSafety.GetDirectoryNameSafely(input, retainRoot: true, os: OperatingSystem.Windows);
 
             Assert.Equal(expected, result);
         }
@@ -232,7 +232,7 @@ public partial class FileSafetyTests
         [InlineData("@@abcde\\foo\\bar", "@@abcde/foo")]
         public void Retains_Path_Root_When_RetainRoot_True_Linux(string input, string expected)
         {
-            var result = FileSafety.GetDirectoryNameSafely(input, retainRoot: true, os: OSPlatform.Linux);
+            var result = FileSafety.GetDirectoryNameSafely(input, retainRoot: true, os: OperatingSystem.Linux);
 
             Assert.Equal(expected, result);
         }
@@ -248,7 +248,7 @@ public partial class FileSafetyTests
         [InlineData("@@abcde/fo*o/bar", "@@abcde\\fo*o")]
         public void Returns_Rooted_Unsanitized_If_Directed_Windows(string input, string expected)
         {
-            var result = FileSafety.GetDirectoryNameSafely(input, sanitize: false, retainRoot: true, os: OSPlatform.Windows);
+            var result = FileSafety.GetDirectoryNameSafely(input, sanitize: false, retainRoot: true, os: OperatingSystem.Windows);
 
             Assert.Equal(expected, result);
         }
@@ -264,7 +264,7 @@ public partial class FileSafetyTests
         [InlineData("@@abcde/fo*o/bar", "@@abcde/fo*o")]
         public void Returns_Rooted_Unsanitized_If_Directed_Linux(string input, string expected)
         {
-            var result = FileSafety.GetDirectoryNameSafely(input, sanitize: false, retainRoot: true, os: OSPlatform.Linux);
+            var result = FileSafety.GetDirectoryNameSafely(input, sanitize: false, retainRoot: true, os: OperatingSystem.Linux);
 
             Assert.Equal(expected, result);
         }
