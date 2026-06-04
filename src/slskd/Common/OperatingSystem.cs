@@ -35,8 +35,9 @@ namespace slskd;
 public enum OperatingSystem
 {
     None = 0,
-    Current = 1,
-    Linux = 2,
-    Windows = 3,
+    Linux = 1,
+    Windows = 2,
+    Current = 3,
     Any = 4,
+    All = 5,
 }
