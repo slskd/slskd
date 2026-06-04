@@ -69,8 +69,20 @@ public partial class FileSafetyTests
         [InlineData("\\\\server\\share\\Music", "share\\Music")]
         [InlineData("\\\\server\\Music", "Music")]
         [InlineData("\\\\192.168.1.1\\share\\folder", "share\\folder")]
-        [InlineData("\\\\server", "")]   // no path after server
+        [InlineData("\\\\server", "")]    // no path after server
         public void Windows_Strips_UncRoot(string input, string expected)
+        {
+            var result = FileSafety.StripPathRoot(input, OperatingSystem.Windows);
+
+            Assert.Equal(expected, result);
+        }
+
+        [Theory]
+        [InlineData("//server/share/Music", "share\\Music")]
+        [InlineData("//server/Music", "Music")]
+        [InlineData("//192.168.1.1/share/folder", "share\\folder")]
+        [InlineData("//server", "")]
+        public void Windows_Strips_ForwardSlash_UncRoot(string input, string expected)
         {
             var result = FileSafety.StripPathRoot(input, OperatingSystem.Windows);
 

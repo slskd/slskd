@@ -1,7 +1,6 @@
-using System.Runtime.InteropServices;
-using Xunit;
-
 namespace slskd.Tests.Unit.Common;
+
+using Xunit;
 
 public partial class FileSafetyTests
 {
@@ -109,6 +108,56 @@ public partial class FileSafetyTests
             var resultExplicit = FileSafety.GetFileNameSafely("Music\\file:name.flac", sanitize: true, os: OperatingSystem.Windows);
 
             Assert.Equal(resultExplicit, resultDefault);
+        }
+
+        [Fact]
+        public void NullOs_UsesPlatformDefault_DoesNotThrow()
+        {
+            var result = FileSafety.GetFileNameSafely("Music/song.flac");
+
+            Assert.Equal("song.flac", result);
+        }
+
+        [Theory]
+        [InlineData(".")]
+        [InlineData("..")]
+        public void Sanitize_True_Replaces_BareTraversalFilename(string input)
+        {
+            var result = FileSafety.GetFileNameSafely(input, sanitize: true);
+
+            Assert.Equal("_", result);
+        }
+
+        [Theory]
+        [InlineData(".")]
+        [InlineData("..")]
+        public void Sanitize_False_Preserves_BareTraversalFilename(string input)
+        {
+            var result = FileSafety.GetFileNameSafely(input, sanitize: false);
+
+            Assert.Equal(input, result);
+        }
+
+        [Theory]
+        [InlineData("@@abcde/song.flac", "song.flac")]
+        [InlineData("@@abcde\\song.flac", "song.flac")]
+        [InlineData("@@abcdefgh/Music/song.flac", "song.flac")]
+        public void Returns_Filename_Given_SoulseekQt_Prefixed_Path_Linux(string input, string expected)
+        {
+            var result = FileSafety.GetFileNameSafely(input, os: OperatingSystem.Linux);
+
+            Assert.Equal(expected, result);
+        }
+
+        [Theory]
+        [InlineData("@@abcde\\song.flac", "song.flac")]
+        [InlineData("@@abcde/song.flac", "song.flac")]
+        [InlineData("@@abcdefgh\\Music\\song.flac", "song.flac")]
+        public void Returns_Filename_Given_SoulseekQt_Prefixed_Path_Windows(string input, string expected)
+        {
+            var result = FileSafety.GetFileNameSafely(input, os: OperatingSystem.Windows);
+
+            Assert.Equal(expected, result);
         }
     }
 }

@@ -13,6 +13,7 @@ public partial class FileSafetyTests
 
         [Theory]
         [InlineData(null)]
+        [InlineData("")]
         [InlineData("   ")]
         public void Throws_ArgumentException_Given_NullOrWhiteSpaceRoot(string root)
         {
@@ -23,6 +24,10 @@ public partial class FileSafetyTests
         }
 
         [Theory]
+        [InlineData(".")]
+        [InlineData("..")]
+        [InlineData("./foo")]
+        [InlineData("../bar")]
         [InlineData("foo/../bar")]
         [InlineData("foo\\..\\bar")]
         public void Throws_ArgumentException_Given_TraversingRoot(string root)

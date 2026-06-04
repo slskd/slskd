@@ -1,7 +1,6 @@
-using System.Runtime.InteropServices;
-using Xunit;
-
 namespace slskd.Tests.Unit.Common;
+
+using Xunit;
 
 public partial class FileSafetyTests
 {
@@ -31,6 +30,7 @@ public partial class FileSafetyTests
                 [InlineData("\\\\server\\Ünïcödé")]
                 [InlineData("\\\\server\\share\\пользователь")]
                 [InlineData("\\\\server\\share\\用户\\音乐")]
+                [InlineData("\\\\server")]
                 public void IsAbsolute_NotRelative(string path)
                 {
                     Assert.True(FileSafety.IsPathAbsolute(path, OperatingSystem.Windows));
@@ -59,13 +59,14 @@ public partial class FileSafetyTests
                 [InlineData(".")]
                 [InlineData("Ünïcödé")]
                 [InlineData("пользователь/Музыка")]
-                [InlineData("/Music")]              // root-relative — no drive letter, not absolute on Windows
-                [InlineData("\\Music")]             // root-relative — no drive letter, not absolute on Windows
-                [InlineData("/home/user")]          // Unix-style — not recognised as absolute on Windows
-                [InlineData("//server/share")]      // Unix UNC — not recognised as absolute on Windows
-                [InlineData("C:")]                  // bare drive letter — length < 3, not absolute
-                [InlineData("C:Music")]             // drive-relative — no separator after colon, not absolute
-                [InlineData("D:path")]              // drive-relative — no separator after colon, not absolute
+                [InlineData("/Music")]
+                [InlineData("\\Music")]
+                [InlineData("/home/user")]
+                [InlineData("//server/share")]
+                [InlineData("//server")]
+                [InlineData("C:")]
+                [InlineData("C:Music")]
+                [InlineData("D:path")]
                 public void IsRelative_NotAbsolute(string path)
                 {
                     Assert.False(FileSafety.IsPathAbsolute(path, OperatingSystem.Windows));
@@ -116,10 +117,10 @@ public partial class FileSafetyTests
                 [InlineData(".")]
                 [InlineData("Ünïcödé")]
                 [InlineData("пользователь/Музыка")]
-                [InlineData("C:\\Music")]           // Windows drive-letter — not absolute on Linux
-                [InlineData("C:/Music")]            // Windows drive-letter — not absolute on Linux
-                [InlineData("\\\\server\\share")]   // Windows UNC — not absolute on Linux
-                [InlineData("\\Music")]             // Windows root-relative — not absolute on Linux
+                [InlineData("C:\\Music")]
+                [InlineData("C:/Music")]
+                [InlineData("\\\\server\\share")]
+                [InlineData("\\Music")]
                 public void IsRelative_NotAbsolute(string path)
                 {
                     Assert.False(FileSafety.IsPathAbsolute(path, OperatingSystem.Linux));

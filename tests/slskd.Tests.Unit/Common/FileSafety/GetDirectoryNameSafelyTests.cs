@@ -1,12 +1,19 @@
-using System.Runtime.InteropServices;
-using Xunit;
-
 namespace slskd.Tests.Unit.Common;
+
+using Xunit;
 
 public partial class FileSafetyTests
 {
     public class GetDirectoryNameSafelyTests
     {
+        [Fact]
+        public void NullOs_UsesPlatformDefault_DoesNotThrow()
+        {
+            var result = FileSafety.GetDirectoryNameSafely("foo/bar");
+
+            Assert.Equal("foo", result);
+        }
+
         [Fact]
         public void Returns_Null_Given_Null()
         {
@@ -159,6 +166,28 @@ public partial class FileSafetyTests
         public void Removes_Empty_Segments_And_Leading_Slashes_Linux(string input, string expected)
         {
             var result = FileSafety.GetDirectoryNameSafely(input, sanitize: true, retainRoot: false, os: OperatingSystem.Linux);
+
+            Assert.Equal(expected, result);
+        }
+
+        [Theory]
+        [InlineData("foo/../bar/file.txt", "foo/_/bar")]
+        [InlineData("../bar/file.txt", "_/bar")]
+        [InlineData("a/./b/file.txt", "a/_/b")]
+        public void Sanitizes_Traversal_Segments_In_Directory_Linux(string input, string expected)
+        {
+            var result = FileSafety.GetDirectoryNameSafely(input, os: OperatingSystem.Linux);
+
+            Assert.Equal(expected, result);
+        }
+
+        [Theory]
+        [InlineData("foo\\..\\bar\\file.txt", "foo\\_\\bar")]
+        [InlineData("..\\bar\\file.txt", "_\\bar")]
+        [InlineData("a\\.\\b\\file.txt", "a\\_\\b")]
+        public void Sanitizes_Traversal_Segments_In_Directory_Windows(string input, string expected)
+        {
+            var result = FileSafety.GetDirectoryNameSafely(input, os: OperatingSystem.Windows);
 
             Assert.Equal(expected, result);
         }

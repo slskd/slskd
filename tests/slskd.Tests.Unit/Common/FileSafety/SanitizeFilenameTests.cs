@@ -160,5 +160,13 @@ public partial class FileSafetyTests
 
             Assert.Null(result);
         }
+
+        [Fact]
+        public void Returns_EmptyString_Given_EmptyString()
+        {
+            var result = FileSafety.SanitizeFilename(string.Empty);
+
+            Assert.Equal(string.Empty, result);
+        }
     }
 }
