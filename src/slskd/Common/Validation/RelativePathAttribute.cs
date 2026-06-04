@@ -59,20 +59,9 @@ namespace slskd.Validation
             {
                 var path = value.ToString();
 
-                // this property can only be set via reflection in a unit test; this is here only to make this testable
-                if (Injected.HasValue)
-                {
-                    if (!FileSafety.IsPathRelative(path, os: Injected))
-                    {
-                        return new ValidationResult($"The {validationContext.DisplayName} field must be a relative path on the current operating system.");
-                    }
-
-                    return ValidationResult.Success;
-                }
-
                 if (OS == OperatingSystem.Current)
                 {
-                    if (!FileSafety.IsPathRelative(path, os: Compute.OperatingSystem()))
+                    if (!FileSafety.IsPathRelative(path, os: Injected ?? Compute.OperatingSystem()))
                     {
                         return new ValidationResult($"The {validationContext.DisplayName} field must be a relative path on all operating systems.");
                     }
