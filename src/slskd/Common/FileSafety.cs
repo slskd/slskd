@@ -35,7 +35,6 @@ namespace slskd;
 using System;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 
 /// <summary>
@@ -85,7 +84,7 @@ public static class FileSafety
     /// <returns>The combined path.</returns>
     /// <exception cref="ArgumentNullException">Thrown if the root, list of segments, or one or more segments is null.</exception>
     /// <exception cref="ArgumentException">Thrown if any of the specified segments is rooted, or if any contain path traversal characters.</exception>
-    public static string CombineSafely(string root, OSPlatform? os, params string[] segments)
+    public static string CombineSafely(string root, OperatingSystem? os, params string[] segments)
     {
         // ensure no inputs are null. matches the behavior of Path.Combine()
         if (string.IsNullOrWhiteSpace(root))
@@ -103,7 +102,7 @@ public static class FileSafety
             throw new ArgumentNullException(nameof(segments), $"One or more segments is null");
         }
 
-        var isWindows = os.HasValue ? os.Value == OSPlatform.Windows : OperatingSystem.IsWindows();
+        var isWindows = os.HasValue ? os.Value == OperatingSystem.Windows : System.OperatingSystem.IsWindows();
 
         foreach (var segment in segments)
         {
@@ -170,15 +169,18 @@ public static class FileSafety
     /// <param name="path">The path to check.</param>
     /// <param name="os">An optional operating system override, for testing.</param>
     /// <returns>True if the path is absolute, false otherwise.</returns>
-    public static bool IsPathAbsolute(string path, OSPlatform? os = null)
+    public static bool IsPathAbsolute(string path, OperatingSystem? os = null)
     {
         if (string.IsNullOrEmpty(path))
         {
             return false;
         }
 
-        if (os.HasValue ? os.Value == OSPlatform.Windows : OperatingSystem.IsWindows())
+        Console.WriteLine($"IsPathAbsolute? path: {path}, os: {os}, iswindows? {System.OperatingSystem.IsWindows()}");
+
+        if (os.HasValue ? os.Value == OperatingSystem.Windows : System.OperatingSystem.IsWindows())
         {
+            Console.WriteLine("Windows!");
             // Windows drive-letter path: X:\ or X:/
             // X:foo is relative on windows
             if (path.Length >= 3
@@ -198,6 +200,8 @@ public static class FileSafety
             return false;
         }
 
+        Console.WriteLine("Linux!");
+
         // Unix/Linux/macOS absolute paths and UNC paths with forward slashes start with /
         if (path.StartsWith('/'))
         {
@@ -214,7 +218,7 @@ public static class FileSafety
     /// <param name="path">The path to check.</param>
     /// <param name="os">An optional operating system override, for testing.</param>
     /// <returns>True if the path is relative, false otherwise.</returns>
-    public static bool IsPathRelative(string path, OSPlatform? os = null) => !IsPathAbsolute(path, os);
+    public static bool IsPathRelative(string path, OperatingSystem? os = null) => !IsPathAbsolute(path, os);
 
     /// <summary>
     ///     Returns the filename from the specified <paramref name="path"/>, properly
@@ -224,7 +228,7 @@ public static class FileSafety
     /// <param name="sanitize">An optional value indicating that invalid characters should not be replaced.</param>
     /// <param name="os">An optional operating system override, for testing.</param>
     /// <returns>The extracted filename.</returns>
-    public static string GetFileNameSafely(string path, bool sanitize = true, OSPlatform? os = null)
+    public static string GetFileNameSafely(string path, bool sanitize = true, OperatingSystem? os = null)
     {
         if (path is null or "" || path.EndsWith('/') || path.EndsWith('\\'))
         {
@@ -256,7 +260,7 @@ public static class FileSafety
     /// <param name="os">An optional operating system override, for testing.</param>
     /// <returns>The directory name.</returns>
     /// <exception cref="ArgumentNullException">Thrown if the specified path is null.</exception>
-    public static string GetDirectoryNameSafely(string path, bool retainRoot = false, bool sanitize = true, OSPlatform? os = null)
+    public static string GetDirectoryNameSafely(string path, bool retainRoot = false, bool sanitize = true, OperatingSystem? os = null)
     {
         if (path is null or "")
         {
@@ -271,8 +275,8 @@ public static class FileSafety
 
         var leadingSlashCount = path.TakeWhile(c => c == '/' || c == '\\').Count();
 
-        os ??= Compute.OSPlatform();
-        var sep = os.Value == OSPlatform.Windows ? '\\' : '/';
+        os ??= Compute.OperatingSystem();
+        var sep = os.Value == OperatingSystem.Windows ? '\\' : '/';
 
         var local = LocalizePath(path, os)
             .TrimEnd('/', '\\'); // treat file-less paths the same as files
@@ -322,15 +326,15 @@ public static class FileSafety
     /// <param name="path">The path to convert.</param>
     /// <param name="os">An optional operating system override, for testing.</param>
     /// <returns>The converted path.</returns>
-    public static string LocalizePath(string path, OSPlatform? os = null)
+    public static string LocalizePath(string path, OperatingSystem? os = null)
     {
         if (path is null)
         {
             return null;
         }
 
-        os ??= Compute.OSPlatform();
-        var sep = os.Value == OSPlatform.Windows ? '\\' : '/';
+        os ??= Compute.OperatingSystem();
+        var sep = os.Value == OperatingSystem.Windows ? '\\' : '/';
 
         return path.Replace('\\', sep).Replace('/', sep);
     }
@@ -344,7 +348,7 @@ public static class FileSafety
     /// <param name="replacement">The character to substitute for invalid characters.</param>
     /// <param name="os">An optional operating system override, for testing.</param>
     /// <returns>The sanitized filename.</returns>
-    public static string SanitizeFilename(string filename, char replacement = '_', OSPlatform? os = null)
+    public static string SanitizeFilename(string filename, char replacement = '_', OperatingSystem? os = null)
     {
         if (filename is null)
         {
@@ -356,9 +360,9 @@ public static class FileSafety
             throw new ArgumentException($"The provided replacement character '{replacement}' is invalid in filenames");
         }
 
-        os ??= Compute.OSPlatform();
+        os ??= Compute.OperatingSystem();
 
-        var characters = os.Value == OSPlatform.Windows ? InvalidFileNameCharactersOnWindows : InvalidFileNameCharactersOnUnix;
+        var characters = os.Value == OperatingSystem.Windows ? InvalidFileNameCharactersOnWindows : InvalidFileNameCharactersOnUnix;
 
         if (characters.Contains(replacement))
         {
@@ -388,7 +392,7 @@ public static class FileSafety
     /// <param name="replacement">The character to substitute for invalid characters.</param>
     /// <param name="os">An optional operating system override, for testing.</param>
     /// <returns>The sanitized path segment.</returns>
-    public static string SanitizePathSegment(string segment, char replacement = '_', OSPlatform? os = null)
+    public static string SanitizePathSegment(string segment, char replacement = '_', OperatingSystem? os = null)
     {
         var sanitized = SanitizeFilename(segment, replacement, os);
 
@@ -418,10 +422,10 @@ public static class FileSafety
     /// </summary>
     /// <param name="path">The path.</param>
     /// <param name="replacement">The character to substitute for invalid characters.</param>
-    /// <param name="retainRoot">An optional value indicating whether to keep the path's root, if present.</param>
+    /// <param name="stripRoot">An optional value indicating whether to strip the path's root, if present.</param>
     /// <param name="os">An optional operating system override, for testing.</param>
     /// <returns>The sanitized path.</returns>
-    public static string SanitizePath(string path, char replacement = '_', bool retainRoot = false, OSPlatform? os = null)
+    public static string SanitizePath(string path, char replacement = '_', bool stripRoot = false, OperatingSystem? os = null)
     {
         if (path is null)
         {
@@ -430,13 +434,13 @@ public static class FileSafety
 
         var leadingSlashCount = path.TakeWhile(c => c == '/' || c == '\\').Count();
 
-        os ??= Compute.OSPlatform();
-        var sep = os.Value == OSPlatform.Windows ? '\\' : '/';
+        os ??= Compute.OperatingSystem();
+        var sep = os.Value == OperatingSystem.Windows ? '\\' : '/';
 
         // flip slashes the correct way
         path = LocalizePath(path, os);
 
-        if (!retainRoot)
+        if (stripRoot)
         {
             // strip C:\ or //server, if present (regardless of slash variant, etc)
             path = StripPathRoot(path, os);
@@ -450,9 +454,10 @@ public static class FileSafety
 
         var newPath = string.Join(sep, segments);
 
-        if (retainRoot)
+        if (!stripRoot)
         {
-            // leading slashes are stripped of leading slashes by Split() so we must add them back
+            // leading slashes are stripped by Split() so we must add them back,
+            // unless we intended to strip the root
             return new string(sep, leadingSlashCount) + newPath;
         }
 
@@ -467,7 +472,7 @@ public static class FileSafety
     /// <param name="path">The path to strip.</param>
     /// <param name="os">An optional operating system override, for testing.</param>
     /// <returns>The path with the root stripped, if one was present.</returns>
-    public static string StripPathRoot(string path, OSPlatform? os = null)
+    public static string StripPathRoot(string path, OperatingSystem? os = null)
     {
         if (path is null)
         {

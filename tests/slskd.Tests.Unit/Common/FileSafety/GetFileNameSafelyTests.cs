@@ -73,7 +73,7 @@ public partial class FileSafetyTests
         [Fact]
         public void Sanitize_True_Replaces_InvalidCharacters_On_Windows()
         {
-            var result = FileSafety.GetFileNameSafely("Music\\file:name.flac", sanitize: true, os: OSPlatform.Windows);
+            var result = FileSafety.GetFileNameSafely("Music\\file:name.flac", sanitize: true, os: OperatingSystem.Windows);
 
             Assert.Equal("file_name.flac", result);
         }
@@ -81,7 +81,7 @@ public partial class FileSafetyTests
         [Fact]
         public void Sanitize_True_Replaces_InvalidCharacters_On_Linux()
         {
-            var result = FileSafety.GetFileNameSafely("Music\\file\0name.flac", sanitize: true, os: OSPlatform.Linux);
+            var result = FileSafety.GetFileNameSafely("Music\\file\0name.flac", sanitize: true, os: OperatingSystem.Linux);
 
             Assert.Equal("file_name.flac", result);
         }
@@ -89,7 +89,7 @@ public partial class FileSafetyTests
         [Fact]
         public void Sanitize_False_Preserves_InvalidCharacters_On_Windows()
         {
-            var result = FileSafety.GetFileNameSafely("Music\\file:name.flac", sanitize: false, os: OSPlatform.Windows);
+            var result = FileSafety.GetFileNameSafely("Music\\file:name.flac", sanitize: false, os: OperatingSystem.Windows);
 
             Assert.Equal("file:name.flac", result);
         }
@@ -97,7 +97,7 @@ public partial class FileSafetyTests
         [Fact]
         public void Sanitize_False_Preserves_InvalidCharacters_On_Linux()
         {
-            var result = FileSafety.GetFileNameSafely("Music\\file\0name.flac", sanitize: false, os: OSPlatform.Linux);
+            var result = FileSafety.GetFileNameSafely("Music\\file\0name.flac", sanitize: false, os: OperatingSystem.Linux);
 
             Assert.Equal("file\0name.flac", result);
         }
@@ -105,8 +105,8 @@ public partial class FileSafetyTests
         [Fact]
         public void Default_Sanitize_Is_True()
         {
-            var resultDefault = FileSafety.GetFileNameSafely("Music\\file:name.flac", os: OSPlatform.Windows);
-            var resultExplicit = FileSafety.GetFileNameSafely("Music\\file:name.flac", sanitize: true, os: OSPlatform.Windows);
+            var resultDefault = FileSafety.GetFileNameSafely("Music\\file:name.flac", os: OperatingSystem.Windows);
+            var resultExplicit = FileSafety.GetFileNameSafely("Music\\file:name.flac", sanitize: true, os: OperatingSystem.Windows);
 
             Assert.Equal(resultExplicit, resultDefault);
         }

@@ -765,7 +765,7 @@ namespace slskd
             [Argument(default, "incomplete")]
             [EnvironmentVariable("INCOMPLETE_DIR")]
             [Description("path where incomplete downloads are saved")]
-            [AbsolutePath(platformAgnostic: true)]
+            [AbsolutePath(OperatingSystem.Current)]
             [NonTraversingPath]
             [DirectoryExists(ensureWriteable: true)]
             [RequiresRestart]
@@ -777,7 +777,7 @@ namespace slskd
             [Argument('o', "downloads")]
             [EnvironmentVariable("DOWNLOADS_DIR")]
             [Description("path where downloaded files are saved")]
-            [AbsolutePath(platformAgnostic: true)]
+            [AbsolutePath(OperatingSystem.Current)]
             [NonTraversingPath]
             [DirectoryExists(ensureWriteable: true)]
             [RequiresRestart]
@@ -1072,7 +1072,7 @@ namespace slskd
                     /// <summary>
                     ///     Gets the destination subdirectory for the files in the batch.
                     /// </summary>
-                    [RelativePath(platformAgnostic: true)]
+                    [RelativePath(OperatingSystem.All)]
                     [NonTraversingPath]
                     [String(AllowNull = true, AllowEmpty = false, AllowWhiteSpace = false, MinimumLength = 1)]
                     public string Subdirectory { get; init; } = "{SOURCE_DIRECTORY}";
@@ -2046,7 +2046,7 @@ namespace slskd
             [Argument(default, "http-socket")]
             [EnvironmentVariable("HTTP_SOCKET")]
             [Description("HTTP listen unix domain socket (UDS) path for web UI")]
-            [AbsolutePath(platformAgnostic: false)]
+            [AbsolutePath(OperatingSystem.Current)]
             [NonTraversingPath]
             [RequiresRestart]
             public string Socket { get; init; }

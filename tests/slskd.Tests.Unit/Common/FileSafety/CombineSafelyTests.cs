@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using System.Runtime.InteropServices;
 using Xunit;
 
 namespace slskd.Tests.Unit.Common;
@@ -9,7 +8,7 @@ public partial class FileSafetyTests
 {
     public class CombineSafelyTests
     {
-        public static string Base = OperatingSystem.IsWindows() ? "C:\\base" : "/base";
+        public static string Base = System.OperatingSystem.IsWindows() ? "C:\\base" : "/base";
         public static string ExpectedStartsWith = Base + Path.DirectorySeparatorChar;
 
         [Theory]
@@ -119,7 +118,7 @@ public partial class FileSafetyTests
         [InlineData("//server/share")]
         public void Throws_ArgumentException_Given_AbsolutePath_On_Unix(string segment)
         {
-            var ex = Record.Exception(() => FileSafety.CombineSafely(Base, OSPlatform.Linux, segment));
+            var ex = Record.Exception(() => FileSafety.CombineSafely(Base, OperatingSystem.Linux, segment));
 
             Assert.NotNull(ex);
             Assert.Contains("Absolute", ex.Message);
@@ -131,7 +130,7 @@ public partial class FileSafetyTests
         [InlineData("\\\\server\\share")]
         public void Throws_ArgumentException_Given_AbsolutePath_On_Windows(string segment)
         {
-            var ex = Record.Exception(() => FileSafety.CombineSafely(Base, OSPlatform.Windows, segment));
+            var ex = Record.Exception(() => FileSafety.CombineSafely(Base, OperatingSystem.Windows, segment));
 
             Assert.NotNull(ex);
             Assert.Contains("Absolute", ex.Message);
@@ -144,7 +143,7 @@ public partial class FileSafetyTests
         [InlineData("sub/foo/bar:qux")]
         public void Throws_ArgumentException_Given_Colon_In_Segment_On_Windows(string segment)
         {
-            var ex = Record.Exception(() => FileSafety.CombineSafely(Base, OSPlatform.Windows, segment));
+            var ex = Record.Exception(() => FileSafety.CombineSafely(Base, OperatingSystem.Windows, segment));
 
             Assert.NotNull(ex);
             Assert.Contains("Colon", ex.Message);
@@ -156,7 +155,7 @@ public partial class FileSafetyTests
         [InlineData("sub/foo/bar:qux")]
         public void Accepts_Colon_In_Segment_On_Linux(string segment)
         {
-            var result = Record.Exception(() => FileSafety.CombineSafely(Base, OSPlatform.Linux, segment));
+            var result = Record.Exception(() => FileSafety.CombineSafely(Base, OperatingSystem.Linux, segment));
 
             Assert.Null(result);
         }
@@ -165,9 +164,9 @@ public partial class FileSafetyTests
         [InlineData("C:relative")]
         public void Accepts_Colon_In_Segment_On_Linux_Hits_Backstop_On_Windows(string segment)
         {
-            var result = Record.Exception(() => FileSafety.CombineSafely(Base, OSPlatform.Linux, segment));
+            var result = Record.Exception(() => FileSafety.CombineSafely(Base, OperatingSystem.Linux, segment));
 
-            if (!OperatingSystem.IsWindows())
+            if (!System.OperatingSystem.IsWindows())
             {
                 Assert.Null(result);
             }
@@ -187,7 +186,7 @@ public partial class FileSafetyTests
         [InlineData("\\Music")]
         public void Throws_ArgumentException_Given_Leading_Slash_In_Segment_On_Windows(string segment)
         {
-            var ex = Record.Exception(() => FileSafety.CombineSafely(Base, OSPlatform.Windows, segment));
+            var ex = Record.Exception(() => FileSafety.CombineSafely(Base, OperatingSystem.Windows, segment));
 
             Assert.NotNull(ex);
             Assert.Contains("Drive-relative", ex.Message);
@@ -197,9 +196,9 @@ public partial class FileSafetyTests
         [InlineData("\\Music")]
         public void Accepts_Leading_Backslash_In_Segment_On_Linux(string segment)
         {
-            var result = Record.Exception(() => FileSafety.CombineSafely(Base, OSPlatform.Linux, segment));
+            var result = Record.Exception(() => FileSafety.CombineSafely(Base, OperatingSystem.Linux, segment));
 
-            if (!OperatingSystem.IsWindows())
+            if (!System.OperatingSystem.IsWindows())
             {
                 Assert.Null(result);
             }

@@ -7,7 +7,7 @@ namespace slskd.Tests.Unit.Common.Validation;
 
 public class RelativePathAttributeTests
 {
-    private static (bool IsValid, string ErrorMessage) Validate(string value, OSPlatform? os = null)
+    private static (bool IsValid, string ErrorMessage) Validate(string value, OperatingSystem os = OperatingSystem.Any)
     {
         var attribute = new RelativePathAttribute(os);
         var context = new ValidationContext(new object()) { DisplayName = "Field", MemberName = "Field" };
@@ -47,11 +47,11 @@ public class RelativePathAttributeTests
         [InlineData(".")]                   // current-dir but fundamentally not absolute
         public void RelativePath_Passes(string value)
         {
-            var (isValid, _) = Validate(value, OSPlatform.Linux);
+            var (isValid, _) = Validate(value, OperatingSystem.Linux);
 
             Assert.True(isValid);
 
-            var (isValid2, _) = Validate(value, OSPlatform.Windows);
+            var (isValid2, _) = Validate(value, OperatingSystem.Windows);
 
             Assert.True(isValid2);
         }
@@ -67,7 +67,7 @@ public class RelativePathAttributeTests
         [InlineData("C:/Music/My Artist")]
         public void Windows_DriveLetterPaths_Fail(string value)
         {
-            var (isValid, _) = Validate(value, OSPlatform.Windows);
+            var (isValid, _) = Validate(value, OperatingSystem.Windows);
 
             Assert.False(isValid);
         }
@@ -78,7 +78,7 @@ public class RelativePathAttributeTests
         [InlineData("C:/")]
         public void Windows_RootPaths_Fail(string value)
         {
-            var (isValid, _) = Validate(value, OSPlatform.Windows);
+            var (isValid, _) = Validate(value, OperatingSystem.Windows);
 
             Assert.False(isValid);
         }
@@ -89,7 +89,7 @@ public class RelativePathAttributeTests
         [InlineData("\\\\192.168.1.1\\share")]
         public void Windows_UNCPaths_Fail(string value)
         {
-            var (isValid, _) = Validate(value, OSPlatform.Windows);
+            var (isValid, _) = Validate(value, OperatingSystem.Windows);
 
             Assert.False(isValid);
         }
@@ -102,7 +102,7 @@ public class RelativePathAttributeTests
         [InlineData("C:Music")]
         public void Windows_RootRelativePaths_Pass(string value)
         {
-            var (isValid, _) = Validate(value, OSPlatform.Windows);
+            var (isValid, _) = Validate(value, OperatingSystem.Windows);
 
             Assert.True(isValid);
         }
@@ -116,7 +116,7 @@ public class RelativePathAttributeTests
         [InlineData("/home/user")]
         public void Unix_Paths_Fail(string value)
         {
-            var (isValid, _) = Validate(value, OSPlatform.Linux);
+            var (isValid, _) = Validate(value, OperatingSystem.Linux);
 
             Assert.False(isValid);
         }
@@ -127,7 +127,7 @@ public class RelativePathAttributeTests
         [InlineData("//192.168.1.1/share")]
         public void Unix_UNCPaths_Fail(string value)
         {
-            var (isValid, _) = Validate(value, OSPlatform.Linux);
+            var (isValid, _) = Validate(value, OperatingSystem.Linux);
 
             Assert.False(isValid);
         }
@@ -137,7 +137,7 @@ public class RelativePathAttributeTests
         [InlineData("\\home")]
         public void Unix_Backslash_Pass(string value)
         {
-            var (isValid, _) = Validate(value, OSPlatform.Linux);
+            var (isValid, _) = Validate(value, OperatingSystem.Linux);
 
             Assert.True(isValid);
         }

@@ -33,26 +33,24 @@
 namespace slskd.Validation
 {
     using System.ComponentModel.DataAnnotations;
-    using System.Runtime.InteropServices;
 
     /// <summary>
     ///     Validates that the specified path is absolute.
     /// </summary>
     public class AbsolutePathAttribute : ValidationAttribute
     {
-        public AbsolutePathAttribute(bool platformAgnostic = false)
+        public AbsolutePathAttribute(OperatingSystem os = OperatingSystem.Current)
         {
-            PlatformAgnostic = platformAgnostic;
-        }
+            if (os != OperatingSystem.Current && os != OperatingSystem.Any && os != OperatingSystem.All)
+            {
+                throw new System.ArgumentException("OperatingSystem argument for AbsolutePathAttribute must be one of: Current, Any, All", nameof(os));
+            }
 
-        public AbsolutePathAttribute(bool platformAgnostic = false, OSPlatform? os = null)
-        {
-            PlatformAgnostic = platformAgnostic;
             OS = os;
         }
 
-        public OSPlatform? OS { get; }
-        public bool PlatformAgnostic { get; }
+        public OperatingSystem? OS { get; }
+        private OperatingSystem? Injected { get; }
 
         protected override ValidationResult IsValid(object value, ValidationContext validationContext)
         {
@@ -60,34 +58,31 @@ namespace slskd.Validation
             {
                 var path = value.ToString();
 
-                if (OS.HasValue)
+                // this property can only be set via reflection in a unit test; this is here only to make this testable
+                if (Injected.HasValue)
                 {
-                    if (!FileSafety.IsPathAbsolute(path, os: OS))
+                    if (!FileSafety.IsPathAbsolute(path, os: Injected))
                     {
-                        return new ValidationResult($"The {validationContext.DisplayName} field must be an absolute file path.");
+                        return new ValidationResult($"The {validationContext.DisplayName} field must be an absolute path.");
                     }
-                }
-                else
-                {
-                    if (!PlatformAgnostic)
-                    {
-                        if (!FileSafety.IsPathAbsolute(path, os: OS)) // this OS
-                        {
-                            return new ValidationResult($"The {validationContext.DisplayName} field must be an absolute file path.");
-                        }
-                    }
-                    else
-                    {
-                        if (!FileSafety.IsPathAbsolute(path, os: OSPlatform.Linux))
-                        {
-                            return new ValidationResult($"The {validationContext.DisplayName} field must be an absolute file path.");
-                        }
 
-                        if (!FileSafety.IsPathAbsolute(path, os: OSPlatform.Windows))
-                        {
-                            return new ValidationResult($"The {validationContext.DisplayName} field must be an absolute file path.");
-                        }
+                    return ValidationResult.Success;
+                }
+
+                if (OS == OperatingSystem.Current)
+                {
+                    if (!FileSafety.IsPathAbsolute(path, os: Compute.OperatingSystem()))
+                    {
+                        return new ValidationResult($"The {validationContext.DisplayName} field must be an absolute path on the current operating system.");
                     }
+
+                    return ValidationResult.Success;
+                }
+
+                // OS == OperatingSystem.All or .Any
+                if (!FileSafety.IsPathAbsolute(path, os: OperatingSystem.Linux) || !FileSafety.IsPathAbsolute(path, os: OperatingSystem.Windows))
+                {
+                    return new ValidationResult($"The {validationContext.DisplayName} field must be an absolute path on all operating systems.");
                 }
             }
 

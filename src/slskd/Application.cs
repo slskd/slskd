@@ -551,7 +551,7 @@ namespace slskd
             {
                 socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
 
-                if (OperatingSystem.IsWindows() && OptionsAtStartup.Flags.LegacyWindowsTcpKeepalive)
+                if (System.OperatingSystem.IsWindows() && OptionsAtStartup.Flags.LegacyWindowsTcpKeepalive)
                 {
                     return;
                 }

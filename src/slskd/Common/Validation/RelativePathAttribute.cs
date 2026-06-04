@@ -33,25 +33,25 @@
 namespace slskd.Validation
 {
     using System.ComponentModel.DataAnnotations;
-    using System.Runtime.InteropServices;
 
     /// <summary>
     ///     Validates that the specified path is relative.
     /// </summary>
     public class RelativePathAttribute : ValidationAttribute
     {
-        public RelativePathAttribute(bool platformAgnostic = false)
+        public RelativePathAttribute(OperatingSystem os = OperatingSystem.Current)
         {
-            PlatformAgnostic = platformAgnostic;
-        }
+            if (os != OperatingSystem.Current && os != OperatingSystem.Any && os != OperatingSystem.All)
+            {
+                throw new System.ArgumentException("OperatingSystem argument for RelativePathAttribute must be one of: Current, Any, All", nameof(os));
+            }
 
-        public RelativePathAttribute(OSPlatform? os = null)
-        {
             OS = os;
         }
 
-        public OSPlatform? OS { get; }
-        public bool PlatformAgnostic { get; }
+        public OperatingSystem OS { get; }
+
+        private OperatingSystem? Injected { get; }
 
         protected override ValidationResult IsValid(object value, ValidationContext validationContext)
         {
@@ -59,7 +59,29 @@ namespace slskd.Validation
             {
                 var path = value.ToString();
 
-                if (OS.HasValue)
+                // this property can only be set via reflection in a unit test; this is here only to make this testable
+                if (Injected.HasValue)
+                {
+                    if (!FileSafety.IsPathRelative(path, os: Injected))
+                    {
+                        return new ValidationResult($"The {validationContext.DisplayName} field must be a relative path on the current operating system.");
+                    }
+
+                    return ValidationResult.Success;
+                }
+
+                if (OS == OperatingSystem.Current)
+                {
+                    if (!FileSafety.IsPathRelative(path, os: Compute.OperatingSystem()))
+                    {
+                        return new ValidationResult($"The {validationContext.DisplayName} field must be a relative path on all operating systems.");
+                    }
+
+                    return ValidationResult.Success;
+                }
+
+                // OS == OperatingSystem.All or .Any;
+                if (!FileSafety.IsPathRelative(path, os: OperatingSystem.Linux) || !FileSafety.IsPathRelative(path, os: OperatingSystem.Windows))
                 {
                     // this can only be exercised via unit tests; OSPlatform can't be passeed as an attribute argument
                     // so, this takes precedent over PlatformAgnostic
