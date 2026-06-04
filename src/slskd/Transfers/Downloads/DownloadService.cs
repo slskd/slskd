@@ -865,7 +865,7 @@ namespace slskd.Transfers.Downloads
                     return match.Value;
                 });
 
-            destination = FileSafety.SanitizePath(destination);
+            destination = FileSafety.SanitizePath(destination, replacement: '_', stripRoot: false);
 
             Log.Debug("Derived destination for download of {Filename} from {User}: {Destination} (id: {Id}, configuration: {Pattern}, args: {Args})", FileSafety.GetFileNameSafely(transfer.Filename), transfer.Username, destination, transfer.Id, pattern, new { source_username, source_path, source_directory, batch_id, batch_external_id, search_id, search_text });
 
