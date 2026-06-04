@@ -176,11 +176,8 @@ public static class FileSafety
             return false;
         }
 
-        Console.WriteLine($"IsPathAbsolute? path: {path}, os: {os}, iswindows? {System.OperatingSystem.IsWindows()}");
-
         if (os.HasValue ? os.Value == OperatingSystem.Windows : System.OperatingSystem.IsWindows())
         {
-            Console.WriteLine("Windows!");
             // Windows drive-letter path: X:\ or X:/
             // X:foo is relative on windows
             if (path.Length >= 3
@@ -199,8 +196,6 @@ public static class FileSafety
 
             return false;
         }
-
-        Console.WriteLine("Linux!");
 
         // Unix/Linux/macOS absolute paths and UNC paths with forward slashes start with /
         if (path.StartsWith('/'))
