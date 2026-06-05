@@ -129,5 +129,41 @@ public partial class FileSafetyTests
 
             Assert.False(result.StartsWith('/') || result.StartsWith('\\'));
         }
+
+        [Fact]
+        public void Linux_NeverReturns_LeadingSlash_When_First_Segment_Sanitizes_To_Empty()
+        {
+            // '\0' replaced with '.' produces "." — SanitizePathSegment converts that to ""
+            // joining ["", "foo"] with '/' would yield "/foo" without a guard
+            var result = FileSafety.SanitizePath("\0/foo", replacement: '.', os: OperatingSystem.Linux);
+
+            Assert.False(result.StartsWith('/') || result.StartsWith('\\'));
+        }
+
+        [Theory]
+        [InlineData("../..")]
+        [InlineData("./.")]
+        public void Linux_Replaces_All_Traversal_Segments(string input)
+        {
+            var result = FileSafety.SanitizePath(input, os: OperatingSystem.Linux);
+
+            Assert.Equal("_/_", result);
+        }
+
+        [Fact]
+        public void Linux_Handles_SoulseekQt_Prefixed_Path()
+        {
+            var result = FileSafety.SanitizePath("@@abcde/foo/bar", os: OperatingSystem.Linux);
+
+            Assert.Equal("@@abcde/foo/bar", result);
+        }
+
+        [Fact]
+        public void Windows_Sanitizes_Colon_In_Drive_Like_Segment()
+        {
+            var result = FileSafety.SanitizePath("C:/Music/song.flac", os: OperatingSystem.Windows);
+
+            Assert.Equal("C_\\Music\\song.flac", result);
+        }
     }
 }

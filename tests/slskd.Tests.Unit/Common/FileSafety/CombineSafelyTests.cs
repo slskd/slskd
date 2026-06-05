@@ -218,6 +218,44 @@ public partial class FileSafetyTests
             }
         }
 
+        [Fact]
+        public void Returns_Root_Given_Single_Empty_Segment()
+        {
+            var result = FileSafety.CombineSafely(Base, "");
+
+            Assert.Equal(Base, result);
+        }
+
+        [Fact]
+        public void Returns_Root_Given_All_Empty_Segments()
+        {
+            var result = FileSafety.CombineSafely(Base, "", "");
+
+            Assert.Equal(Base, result);
+        }
+
+        [Fact]
+        public void Handles_Root_With_Trailing_Separator()
+        {
+            var rootWithTrailing = Base + Path.DirectorySeparatorChar;
+            var result = FileSafety.CombineSafely(rootWithTrailing, "foo");
+
+            Assert.StartsWith(ExpectedStartsWith, result);
+            Assert.EndsWith("foo", result);
+        }
+
+        [Theory]
+        [InlineData("./foo")]
+        [InlineData("../bar")]
+        [InlineData("foo/../bar")]
+        public void Throws_ArgumentException_Given_TraversingRoot_With_Os_Override(string root)
+        {
+            var ex = Record.Exception(() => FileSafety.CombineSafely(root, OperatingSystem.Linux, "segment"));
+
+            Assert.NotNull(ex);
+            Assert.IsType<ArgumentException>(ex);
+        }
+
         [Theory]
         // Bare traversal
         [InlineData("..")]

@@ -123,6 +123,7 @@ public partial class FileSafetyTests
         [Theory]
         [InlineData("*")]
         [InlineData("*?")]
+        [InlineData("*.")]   // one invalid char + one period → ".."
         public void Windows_Returns_EmptyString_When_Period_Replacement_Produces_Traversal(string input)
         {
             var result = FileSafety.SanitizePathSegment(input, replacement: '.', os: OperatingSystem.Windows);

@@ -121,6 +121,24 @@ public partial class FileSafetyTests
             Assert.StartsWith("@@", result);
         }
 
+        [Fact]
+        public void Linux_Strips_Bare_SoulseekQtPrefix_Returning_Empty()
+        {
+            var result = FileSafety.StripPathRoot("@@abcde", OperatingSystem.Linux);
+
+            Assert.Equal(string.Empty, result);
+        }
+
+        [Theory]
+        [InlineData("/")]
+        [InlineData("//")]
+        public void Linux_ReturnsUnchanged_Given_Slash_Only_Path(string input)
+        {
+            var result = FileSafety.StripPathRoot(input, OperatingSystem.Linux);
+
+            Assert.Equal(input, result);
+        }
+
         [Theory]
         [InlineData("Music/Artist", "Music/Artist")]
         [InlineData("Artist/Album/song.flac", "Artist/Album/song.flac")]

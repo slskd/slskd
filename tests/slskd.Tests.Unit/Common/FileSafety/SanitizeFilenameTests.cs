@@ -154,6 +154,22 @@ public partial class FileSafetyTests
         }
 
         [Fact]
+        public void Linux_Accepts_Period_As_Replacement()
+        {
+            var result = FileSafety.SanitizeFilename("file\0name", '.', OperatingSystem.Linux);
+
+            Assert.Equal("file.name", result);
+        }
+
+        [Fact]
+        public void Windows_Accepts_Period_As_Replacement()
+        {
+            var result = FileSafety.SanitizeFilename("file*name", '.', OperatingSystem.Windows);
+
+            Assert.Equal("file.name", result);
+        }
+
+        [Fact]
         public void Returns_Null_Given_Null()
         {
             var result = FileSafety.SanitizeFilename(null);

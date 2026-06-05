@@ -22,6 +22,9 @@ public partial class FileSafetyTests
                 [InlineData("C:\\Users\\Ünïcödé\\Music")]
                 [InlineData("C:\\Users\\пользователь\\Музыка")]
                 [InlineData("C:\\Users\\用户\\音乐")]
+                // lowercase drive letters
+                [InlineData("c:\\Music")]
+                [InlineData("a:/path")]
                 // UNC paths (\\ prefix)
                 [InlineData("\\\\server\\share")]
                 [InlineData("\\\\server\\share\\folder")]

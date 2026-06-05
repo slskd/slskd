@@ -432,11 +432,13 @@ public static class FileSafety
         // flip slashes the correct way
         path = LocalizePath(path, os);
 
-        // for each segment, drop nulls (created by double slashes), sanitize, and replace traversal strings
+        // for each segment, drop nulls (created by double slashes), sanitize, replace traversal strings,
+        // and drop any segments that sanitization reduced to empty (e.g. a single invalid char with '.' replacement)
         var segments = path
             .Split('/', '\\')
             .Where(s => s is not "")
-            .Select(s => SanitizePathSegment(s, replacement, os));
+            .Select(s => SanitizePathSegment(s, replacement, os))
+            .Where(s => s is not "");
 
         var newPath = string.Join(sep, segments);
 

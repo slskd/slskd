@@ -45,6 +45,14 @@ public partial class FileSafetyTests
             Assert.Null(result);
         }
 
+        [Fact]
+        public void Returns_Null_Given_Whitespace_Only()
+        {
+            var result = FileSafety.GetDirectoryNameSafely("   ");
+
+            Assert.Null(result);
+        }
+
         [Theory]
         [InlineData("foo")]
         [InlineData("foo.bar")]
@@ -190,6 +198,77 @@ public partial class FileSafetyTests
             var result = FileSafety.GetDirectoryNameSafely(input, os: OperatingSystem.Windows);
 
             Assert.Equal(expected, result);
+        }
+
+        [Theory]
+        [InlineData("Artist/Album/", "Artist")]
+        [InlineData("Artist\\Album\\", "Artist")]
+        [InlineData("foo/bar/baz/", "foo/bar")]
+        public void Treats_Trailing_Slash_As_Directory_Linux(string input, string expected)
+        {
+            var result = FileSafety.GetDirectoryNameSafely(input, os: OperatingSystem.Linux);
+
+            Assert.Equal(expected, result);
+        }
+
+        [Theory]
+        [InlineData("Artist/Album/", "Artist")]
+        [InlineData("Artist\\Album\\", "Artist")]
+        [InlineData("foo/bar/baz/", "foo\\bar")]
+        public void Treats_Trailing_Slash_As_Directory_Windows(string input, string expected)
+        {
+            var result = FileSafety.GetDirectoryNameSafely(input, os: OperatingSystem.Windows);
+
+            Assert.Equal(expected, result);
+        }
+
+        [Theory]
+        [InlineData("fo\0o/bar", "fo\0o")]
+        [InlineData("C:/Mu\0sic/song.flac", "Mu\0sic")]
+        public void Returns_Unrooted_Unsanitized_Directory_Linux(string input, string expected)
+        {
+            var result = FileSafety.GetDirectoryNameSafely(input, retainRoot: false, sanitize: false, os: OperatingSystem.Linux);
+
+            Assert.Equal(expected, result);
+        }
+
+        [Theory]
+        [InlineData("fo\0o\\bar", "fo\0o")]
+        [InlineData("C:\\Mu\0sic\\song.flac", "Mu\0sic")]
+        public void Returns_Unrooted_Unsanitized_Directory_Windows(string input, string expected)
+        {
+            var result = FileSafety.GetDirectoryNameSafely(input, retainRoot: false, sanitize: false, os: OperatingSystem.Windows);
+
+            Assert.Equal(expected, result);
+        }
+
+        [Theory]
+        [InlineData("foo/../bar/file.txt", "foo/../bar")]
+        [InlineData("../etc/file.txt", "../etc")]
+        public void Preserves_Traversal_Segments_When_Sanitize_False_Linux(string input, string expected)
+        {
+            var result = FileSafety.GetDirectoryNameSafely(input, sanitize: false, retainRoot: false, os: OperatingSystem.Linux);
+
+            Assert.Equal(expected, result);
+        }
+
+        [Theory]
+        [InlineData("foo\\..\\bar\\file.txt", "foo\\..\\bar")]
+        [InlineData("..\\etc\\file.txt", "..\\etc")]
+        public void Preserves_Traversal_Segments_When_Sanitize_False_Windows(string input, string expected)
+        {
+            var result = FileSafety.GetDirectoryNameSafely(input, sanitize: false, retainRoot: false, os: OperatingSystem.Windows);
+
+            Assert.Equal(expected, result);
+        }
+
+        [Theory]
+        [InlineData("@@abcd/foo/bar/file.txt")]
+        public void Short_Qt_Prefix_Treated_As_Segment_Linux(string input)
+        {
+            var result = FileSafety.GetDirectoryNameSafely(input, os: OperatingSystem.Linux);
+
+            Assert.StartsWith("@@abcd", result);
         }
 
         [Theory]

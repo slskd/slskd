@@ -139,6 +139,38 @@ public partial class FileSafetyTests
         }
 
         [Theory]
+        [InlineData("foo/.")]
+        [InlineData("foo/..")]
+        [InlineData("foo\\..")]
+        public void Sanitize_True_Replaces_Traversal_As_Last_Path_Segment(string input)
+        {
+            var result = FileSafety.GetFileNameSafely(input, sanitize: true);
+
+            Assert.Equal("_", result);
+        }
+
+        [Theory]
+        [InlineData("foo/.", ".")]
+        [InlineData("foo/..", "..")]
+        [InlineData("foo\\..", "..")]
+        public void Sanitize_False_Preserves_Traversal_As_Last_Path_Segment(string input, string expected)
+        {
+            var result = FileSafety.GetFileNameSafely(input, sanitize: false);
+
+            Assert.Equal(expected, result);
+        }
+
+        [Theory]
+        [InlineData("foo//bar.flac", "bar.flac")]
+        [InlineData("foo\\\\bar.flac", "bar.flac")]
+        public void Returns_Filename_Given_Double_Separator(string input, string expected)
+        {
+            var result = FileSafety.GetFileNameSafely(input);
+
+            Assert.Equal(expected, result);
+        }
+
+        [Theory]
         [InlineData("@@abcde/song.flac", "song.flac")]
         [InlineData("@@abcde\\song.flac", "song.flac")]
         [InlineData("@@abcdefgh/Music/song.flac", "song.flac")]
