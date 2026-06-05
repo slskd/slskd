@@ -412,34 +412,25 @@ public static class FileSafety
 
     /// <summary>
     ///     Sanitizes the specified <paramref name="path"/> to make it suitable and safe on the local operating system
-    ///     by converting to the correct slashes, dropping a root (if present), replacing any invalid characters with
-    ///     the specified <paramref name="replacement"/>, and by dropping any path traversal segments.
+    ///     by converting to the correct slashes, replacing any invalid characters with the specified
+    ///     <paramref name="replacement"/>, and by dropping any path traversal segments.
     /// </summary>
     /// <param name="path">The path.</param>
     /// <param name="replacement">The character to substitute for invalid characters.</param>
-    /// <param name="stripRoot">An optional value indicating whether to strip the path's root, if present.</param>
     /// <param name="os">An optional operating system override, for testing.</param>
     /// <returns>The sanitized path.</returns>
-    public static string SanitizePath(string path, char replacement = '_', bool stripRoot = false, OperatingSystem? os = null)
+    public static string SanitizePath(string path, char replacement = '_', OperatingSystem? os = null)
     {
         if (path is null)
         {
             return null;
         }
 
-        var leadingSlashCount = path.TakeWhile(c => c == '/' || c == '\\').Count();
-
         os ??= Compute.OperatingSystem();
         var sep = os.Value == OperatingSystem.Windows ? '\\' : '/';
 
         // flip slashes the correct way
         path = LocalizePath(path, os);
-
-        if (stripRoot)
-        {
-            // strip C:\ or //server, if present (regardless of slash variant, etc)
-            path = StripPathRoot(path, os);
-        }
 
         // for each segment, drop nulls (created by double slashes), sanitize, and replace traversal strings
         var segments = path
@@ -448,13 +439,6 @@ public static class FileSafety
             .Select(s => SanitizePathSegment(s, replacement, os));
 
         var newPath = string.Join(sep, segments);
-
-        if (!stripRoot)
-        {
-            // leading slashes are stripped by Split() so we must add them back,
-            // unless we intended to strip the root
-            return new string(sep, leadingSlashCount) + newPath;
-        }
 
         return newPath;
     }
