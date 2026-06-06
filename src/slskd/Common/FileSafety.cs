@@ -102,7 +102,15 @@ public static class FileSafety
             throw new ArgumentNullException(nameof(segments), $"One or more segments is null");
         }
 
+        root = LocalizePath(root, os).TrimEnd('/').TrimEnd('\\');
+
+        if (segments.Length == 0)
+        {
+            return root;
+        }
+
         var isWindows = os.HasValue ? os.Value == OperatingSystem.Windows : System.OperatingSystem.IsWindows();
+        var sep = isWindows ? '\\' : '/';
 
         foreach (var segment in segments)
         {
@@ -139,11 +147,17 @@ public static class FileSafety
             }
         }
 
-        var combined = Path.Combine(root, Path.Combine(segments));
+        segments = [.. segments
+            .Where(s => !string.IsNullOrEmpty(s))
+            .Select(s => LocalizePath(s))];
+
+        var combined = string.Join(sep, [root, .. segments]);
 
         // this is a backstop to catch any condition we haven't thought of; it makes sure that the resulting
         // path is actually rooted in the root we provided; if not the input was successful in traversal
-        if (!Path.GetFullPath(combined).StartsWith(Path.GetFullPath(root)))
+        var expectedPrefix = root + sep;
+
+        if (combined != root && !combined.StartsWith(expectedPrefix))
         {
             throw new ArgumentException($"Path traversal detected in combined path '{combined}', which is not allowed");
         }
