@@ -102,7 +102,7 @@ public static class FileSafety
             throw new ArgumentNullException(nameof(segments), $"One or more segments is null");
         }
 
-        root = root.TrimEnd('/').TrimEnd('\\');
+        root = root.TrimEnd('/', '\\');
 
         if (segments.Length == 0)
         {
@@ -114,9 +114,9 @@ public static class FileSafety
 
         foreach (var segment in segments)
         {
-            // if any segment is rooted (leading slash), Path.Combine drops everyting up to that segment
-            // and it becomes the new root. example: Path.Combine("/home/users/foo", "/etc") results in "/etc"
-            // not what we want!
+            // disallow any segments that:
+            //   windows: are drive letter (C:\) or UNC path (\\)
+            //   linux: begin with a forward slash (any number, covering both local and UNC paths)
             if (IsPathAbsolute(segment, os))
             {
                 throw new ArgumentException($"Absolute paths are not permitted in segments: '{segment}'");
@@ -141,6 +141,7 @@ public static class FileSafety
 
             // ensure the segments we're combining don't contain traversal segments "." or ".."
             // untrusted input could use this to "break out" of the root directory and access sensitive areas
+            // this covers cases where the entire segment is . or .., or foo\..\bar, or \.. or ..\ or \..\
             if (parts.Any(s => s is "." or ".."))
             {
                 throw new ArgumentException($"Path traversal is not permitted in segments: '{segment}'");
@@ -152,7 +153,7 @@ public static class FileSafety
 
         var combined = string.Join(sep, [root, .. segments]);
 
-        if (combined.TrimEnd('/').TrimEnd('\\') == root.TrimEnd('/').TrimEnd('\\'))
+        if (combined.TrimEnd('/', '\\') == root.TrimEnd('/', '\\'))
         {
             return combined;
         }

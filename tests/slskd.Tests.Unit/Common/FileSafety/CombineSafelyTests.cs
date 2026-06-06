@@ -15,7 +15,7 @@ public partial class FileSafetyTests
         [InlineData(null)]
         [InlineData("")]
         [InlineData("   ")]
-        public void Throws_ArgumentException_Given_NullOrWhiteSpaceRoot(string root)
+        public void Throws_ArgumentNullException_Given_NullOrWhiteSpaceRoot(string root)
         {
             var ex = Record.Exception(() => FileSafety.CombineSafely(root));
 
@@ -167,7 +167,7 @@ public partial class FileSafetyTests
 
         [Theory]
         [InlineData("C:relative")]
-        public void Accepts_Colon_In_Segment_On_Linux_Hits_Backstop_On_Windows(string segment)
+        public void Accepts_Colon_In_Segment_On_Linux_When_Running_On_Windows(string segment)
         {
             var result = FileSafety.CombineSafely(Base, OperatingSystem.Linux, segment);
 
