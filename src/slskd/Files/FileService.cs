@@ -389,13 +389,15 @@ namespace slskd.Files
 
             var path = Path.GetDirectoryName(filename);
 
-            UnixFileMode? unixCreateMode = options?.UnixCreateMode ?? OptionsMonitor.CurrentValue.Permissions.File.Mode?.ToUnixFileMode();
+            UnixFileMode? unixCreateMode = options?.UnixCreateMode ?? OptionsMonitor.CurrentValue.Transfers.Download.Destination.Permissions.Mode?.ToUnixFileMode();
 
             if (!Directory.Exists(path))
             {
                 if (!OperatingSystem.IsWindows() && unixCreateMode.HasValue)
                 {
-                    Directory.CreateDirectory(path, unixCreateMode.Value.WithExecuteFlagsForEachReadFlag());
+                    var mode = unixCreateMode.Value.WithExecuteFlagsForEachReadFlag();
+                    Directory.CreateDirectory(path, unixCreateMode: mode);
+                    File.SetUnixFileMode(path, mode: mode);
                 }
                 else
                 {
@@ -469,13 +471,15 @@ namespace slskd.Files
                 throw new FileNotFoundException($"The specified source file does not exist", fileName: sourceFilename);
             }
 
-            UnixFileMode? unixCreateMode = unixFileMode ?? OptionsMonitor.CurrentValue.Permissions.File.Mode?.ToUnixFileMode();
+            UnixFileMode? unixCreateMode = unixFileMode ?? OptionsMonitor.CurrentValue.Transfers.Download.Destination.Permissions.Mode?.ToUnixFileMode();
 
             if (!Directory.Exists(destinationDirectory))
             {
                 if (!OperatingSystem.IsWindows() && unixCreateMode.HasValue)
                 {
-                    Directory.CreateDirectory(destinationDirectory, unixCreateMode.Value.WithExecuteFlagsForEachReadFlag());
+                    var mode = unixCreateMode.Value.WithExecuteFlagsForEachReadFlag();
+                    Directory.CreateDirectory(destinationDirectory, unixCreateMode: mode);
+                    File.SetUnixFileMode(destinationDirectory, mode: mode);
                 }
                 else
                 {
