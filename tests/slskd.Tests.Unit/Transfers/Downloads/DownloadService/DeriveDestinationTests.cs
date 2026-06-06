@@ -20,7 +20,7 @@ public partial class DownloadServiceTests
         {
             var batchId = Guid.NewGuid();
             var batch = new Batch { Id = batchId, Options = new BatchOptions { Destination = "explicit-dir" } };
-            var (service, _) = GetFixture("{SOURCE_USERNAME}", batch: batch);
+            var (service, _) = GetFixture("${SOURCE_USERNAME}", batch: batch);
             var result = await service.DeriveDestination(new Transfer { Username = "alice", Filename = "@alice\\track.mp3", BatchId = batchId });
 
             Assert.Equal("explicit-dir", result);
@@ -31,11 +31,11 @@ public partial class DownloadServiceTests
         {
             // explicit destination is sanitized but not token-substituted
             var batchId = Guid.NewGuid();
-            var batch = new Batch { Id = batchId, Options = new BatchOptions { Destination = "{SOURCE_USERNAME}" } };
-            var (service, _) = GetFixture("{SOURCE_USERNAME}", batch: batch);
+            var batch = new Batch { Id = batchId, Options = new BatchOptions { Destination = "${SOURCE_USERNAME}" } };
+            var (service, _) = GetFixture("${SOURCE_USERNAME}", batch: batch);
             var result = await service.DeriveDestination(new Transfer { Username = "alice", Filename = "@alice\\track.mp3", BatchId = batchId });
 
-            Assert.Equal("{SOURCE_USERNAME}", result);
+            Assert.Equal("${SOURCE_USERNAME}", result);
         }
 
         [Fact]
@@ -74,7 +74,7 @@ public partial class DownloadServiceTests
         [Fact]
         public async Task SOURCE_USERNAME_Is_Substituted()
         {
-            var (service, _) = GetFixture("{SOURCE_USERNAME}");
+            var (service, _) = GetFixture("${SOURCE_USERNAME}");
             var result = await service.DeriveDestination(new Transfer { Username = "alice", Filename = "@alice\\track.mp3" });
 
             Assert.Equal("alice", result);
@@ -83,7 +83,7 @@ public partial class DownloadServiceTests
         [Fact]
         public async Task SOURCE_USERNAME_Pattern_Match_Is_Case_Insensitive()
         {
-            var (service, _) = GetFixture("{source_username}");
+            var (service, _) = GetFixture("${source_username}");
             var result = await service.DeriveDestination(new Transfer { Username = "alice", Filename = "@alice\\track.mp3" });
 
             Assert.Equal("alice", result);
@@ -92,7 +92,7 @@ public partial class DownloadServiceTests
         [Fact]
         public async Task SOURCE_USERNAME_Forward_Slash_Replaced_With_Underscore()
         {
-            var (service, _) = GetFixture("{SOURCE_USERNAME}");
+            var (service, _) = GetFixture("${SOURCE_USERNAME}");
             var result = await service.DeriveDestination(new Transfer { Username = "al/ice", Filename = "@alice\\track.mp3" });
 
             Assert.Equal("al_ice", result);
@@ -101,7 +101,7 @@ public partial class DownloadServiceTests
         [Fact]
         public async Task SOURCE_USERNAME_Backslash_Replaced_With_Underscore()
         {
-            var (service, _) = GetFixture("{SOURCE_USERNAME}");
+            var (service, _) = GetFixture("${SOURCE_USERNAME}");
             var result = await service.DeriveDestination(new Transfer { Username = "al\\ice", Filename = "@alice\\track.mp3" });
 
             Assert.Equal("al_ice", result);
@@ -110,7 +110,7 @@ public partial class DownloadServiceTests
         [Fact]
         public async Task SOURCE_USERNAME_Null_Byte_Replaced_With_Underscore()
         {
-            var (service, _) = GetFixture("{SOURCE_USERNAME}");
+            var (service, _) = GetFixture("${SOURCE_USERNAME}");
             var result = await service.DeriveDestination(new Transfer { Username = "al\0ice", Filename = "@alice\\track.mp3" });
 
             Assert.Equal("al_ice", result);
@@ -123,7 +123,7 @@ public partial class DownloadServiceTests
         [InlineData("al/..\\ice")]
         public async Task SOURCE_USERNAME_Traversal_Segment_Periods_Remains_After_Replacing_Slashes_With_Underscore(string username)
         {
-            var (service, _) = GetFixture("{SOURCE_USERNAME}");
+            var (service, _) = GetFixture("${SOURCE_USERNAME}");
             var result = await service.DeriveDestination(new Transfer { Username = username, Filename = "@alice\\track.mp3" });
 
             Assert.Equal("al_.._ice", result);
@@ -132,7 +132,7 @@ public partial class DownloadServiceTests
         [Fact]
         public async Task SOURCE_DIRECTORY_Is_Immediate_Parent_Of_Remote_Filename_Backslash()
         {
-            var (service, _) = GetFixture("{SOURCE_DIRECTORY}");
+            var (service, _) = GetFixture("${SOURCE_DIRECTORY}");
             var result = await service.DeriveDestination(new Transfer { Username = "alice", Filename = "@alice\\Music\\album\\track.mp3" });
 
             Assert.Equal("album", result);
@@ -141,7 +141,7 @@ public partial class DownloadServiceTests
         [Fact]
         public async Task SOURCE_DIRECTORY_Is_Immediate_Parent_Of_Remote_Filename_Forward_Slash()
         {
-            var (service, _) = GetFixture("{SOURCE_DIRECTORY}");
+            var (service, _) = GetFixture("${SOURCE_DIRECTORY}");
             var result = await service.DeriveDestination(new Transfer { Username = "alice", Filename = "@alice/Music/album/track.mp3" });
 
             Assert.Equal("album", result);
@@ -150,7 +150,7 @@ public partial class DownloadServiceTests
         [Fact]
         public async Task SOURCE_DIRECTORY_Is_Empty_If_File_Is_In_Root()
         {
-            var (service, _) = GetFixture("{SOURCE_DIRECTORY}");
+            var (service, _) = GetFixture("${SOURCE_DIRECTORY}");
             var result = await service.DeriveDestination(new Transfer { Username = "alice", Filename = "track.mp3" });
 
             Assert.Equal(string.Empty, result);
@@ -159,7 +159,7 @@ public partial class DownloadServiceTests
         [Fact]
         public async Task SOURCE_PATH_Is_Full_Directory_Of_Remote_Filename()
         {
-            var (service, _) = GetFixture("{SOURCE_PATH}");
+            var (service, _) = GetFixture("${SOURCE_PATH}");
             var result = await service.DeriveDestination(new Transfer { Username = "alice", Filename = "@alice\\Music\\album\\track.mp3" });
 
             Assert.Equal(Path.Combine("@alice", "Music", "album"), result);
@@ -168,7 +168,7 @@ public partial class DownloadServiceTests
         [Fact]
         public async Task SOURCE_PATH_Is_Empty_If_File_Is_In_Root()
         {
-            var (service, _) = GetFixture("{SOURCE_PATH}");
+            var (service, _) = GetFixture("${SOURCE_PATH}");
             var result = await service.DeriveDestination(new Transfer { Username = "alice", Filename = "track.mp3" });
 
             Assert.Equal(string.Empty, result);
@@ -177,7 +177,7 @@ public partial class DownloadServiceTests
         [Fact]
         public async Task SOURCE_PATH_And_SOURCE_DIRECTORY_Match_If_File_Is_In_One_Subdirectory()
         {
-            var (service, _) = GetFixture("{SOURCE_PATH}-{SOURCE_DIRECTORY}");
+            var (service, _) = GetFixture("${SOURCE_PATH}-${SOURCE_DIRECTORY}");
             var result = await service.DeriveDestination(new Transfer { Username = "alice", Filename = "@alice\\track.mp3" });
 
             Assert.Equal("@alice-@alice", result);
@@ -188,7 +188,7 @@ public partial class DownloadServiceTests
         {
             var batchId = Guid.NewGuid();
             var batch = new Batch { Id = batchId };
-            var (service, _) = GetFixture("{BATCH_ID}", batch: batch);
+            var (service, _) = GetFixture("${BATCH_ID}", batch: batch);
             var result = await service.DeriveDestination(new Transfer { Username = "alice", Filename = "@alice\\track.mp3", BatchId = batchId });
 
             Assert.Equal(batchId.ToString(), result);
@@ -197,7 +197,7 @@ public partial class DownloadServiceTests
         [Fact]
         public async Task BATCH_ID_Is_Fallback_When_No_Batch()
         {
-            var (service, _) = GetFixture("{BATCH_ID}");
+            var (service, _) = GetFixture("${BATCH_ID}");
             var result = await service.DeriveDestination(new Transfer { Username = "alice", Filename = "@alice\\track.mp3" });
             Assert.Equal("unknown_batch_id", result);
         }
@@ -206,7 +206,7 @@ public partial class DownloadServiceTests
         public async Task BATCH_ID_Is_Fallback_When_Batch_Id_Is_Empty_Guid()
         {
             var batch = new Batch { Id = Guid.Empty };
-            var (service, _) = GetFixture("{BATCH_ID}", batch: batch);
+            var (service, _) = GetFixture("${BATCH_ID}", batch: batch);
             var result = await service.DeriveDestination(new Transfer { Username = "alice", Filename = "@alice\\track.mp3", BatchId = Guid.Empty });
 
             Assert.Equal("unknown_batch_id", result);
@@ -217,7 +217,7 @@ public partial class DownloadServiceTests
         {
             var batchId = Guid.NewGuid();
             var batch = new Batch { Id = batchId, Options = new BatchOptions { ExternalId = "my-ext-id" } };
-            var (service, _) = GetFixture("{BATCH_EXTERNAL_ID}", batch: batch);
+            var (service, _) = GetFixture("${BATCH_EXTERNAL_ID}", batch: batch);
             var result = await service.DeriveDestination(new Transfer { Username = "alice", Filename = "@alice\\track.mp3", BatchId = batchId });
 
             Assert.Equal("my-ext-id", result);
@@ -226,7 +226,7 @@ public partial class DownloadServiceTests
         [Fact]
         public async Task BATCH_EXTERNAL_ID_Is_Fallback_When_No_Batch()
         {
-            var (service, _) = GetFixture("{BATCH_EXTERNAL_ID}");
+            var (service, _) = GetFixture("${BATCH_EXTERNAL_ID}");
             var result = await service.DeriveDestination(new Transfer { Username = "alice", Filename = "@alice\\track.mp3" });
 
             Assert.Equal("unknown_batch_external_id", result);
@@ -237,7 +237,7 @@ public partial class DownloadServiceTests
         {
             var batchId = Guid.NewGuid();
             var batch = new Batch { Id = batchId, Options = new BatchOptions { ExternalId = null } };
-            var (service, _) = GetFixture("{BATCH_EXTERNAL_ID}", batch: batch);
+            var (service, _) = GetFixture("${BATCH_EXTERNAL_ID}", batch: batch);
             var result = await service.DeriveDestination(new Transfer { Username = "alice", Filename = "@alice\\track.mp3", BatchId = batchId });
 
             Assert.Equal("unknown_batch_external_id", result);
@@ -248,7 +248,7 @@ public partial class DownloadServiceTests
         {
             var batchId = Guid.NewGuid();
             var batch = new Batch { Id = batchId, Options = new BatchOptions { ExternalId = "   " } };
-            var (service, _) = GetFixture("{BATCH_EXTERNAL_ID}", batch: batch);
+            var (service, _) = GetFixture("${BATCH_EXTERNAL_ID}", batch: batch);
             var result = await service.DeriveDestination(new Transfer { Username = "alice", Filename = "@alice\\track.mp3", BatchId = batchId });
 
             Assert.Equal("unknown_batch_external_id", result);
@@ -259,7 +259,7 @@ public partial class DownloadServiceTests
         {
             var batchId = Guid.NewGuid();
             var batch = new Batch { Id = batchId, Options = new BatchOptions { ExternalId = "foo/bar" } };
-            var (service, _) = GetFixture("{BATCH_EXTERNAL_ID}", batch: batch);
+            var (service, _) = GetFixture("${BATCH_EXTERNAL_ID}", batch: batch);
             var result = await service.DeriveDestination(new Transfer { Username = "alice", Filename = "@alice\\track.mp3", BatchId = batchId });
 
             Assert.Equal("foo_bar", result);
@@ -270,7 +270,7 @@ public partial class DownloadServiceTests
         {
             var batchId = Guid.NewGuid();
             var batch = new Batch { Id = batchId, Options = new BatchOptions { ExternalId = "foo\\bar" } };
-            var (service, _) = GetFixture("{BATCH_EXTERNAL_ID}", batch: batch);
+            var (service, _) = GetFixture("${BATCH_EXTERNAL_ID}", batch: batch);
             var result = await service.DeriveDestination(new Transfer { Username = "alice", Filename = "@alice\\track.mp3", BatchId = batchId });
 
             Assert.Equal("foo_bar", result);
@@ -281,7 +281,7 @@ public partial class DownloadServiceTests
         {
             var batchId = Guid.NewGuid();
             var batch = new Batch { Id = batchId, Options = new BatchOptions { ExternalId = "foo\0bar" } };
-            var (service, _) = GetFixture("{BATCH_EXTERNAL_ID}", batch: batch);
+            var (service, _) = GetFixture("${BATCH_EXTERNAL_ID}", batch: batch);
             var result = await service.DeriveDestination(new Transfer { Username = "alice", Filename = "@alice\\track.mp3", BatchId = batchId });
 
             Assert.Equal("foo_bar", result);
@@ -294,7 +294,7 @@ public partial class DownloadServiceTests
             var batchId = Guid.NewGuid();
             var batch = new Batch { Id = batchId, SearchId = searchId };
             var search = new Search { Id = searchId, SearchText = "some query" };
-            var (service, _) = GetFixture("{SEARCH_ID}", batch: batch, search: search);
+            var (service, _) = GetFixture("${SEARCH_ID}", batch: batch, search: search);
             var result = await service.DeriveDestination(new Transfer { Username = "alice", Filename = "@alice\\track.mp3", BatchId = batchId });
 
             Assert.Equal(searchId.ToString(), result);
@@ -304,7 +304,7 @@ public partial class DownloadServiceTests
         public async Task SEARCH_ID_Is_Fallback_When_No_Batch()
         {
             // no batch → SearchId is never consulted
-            var (service, _) = GetFixture("{SEARCH_ID}");
+            var (service, _) = GetFixture("${SEARCH_ID}");
             var result = await service.DeriveDestination(new Transfer { Username = "alice", Filename = "@alice\\track.mp3" });
 
             Assert.Equal("unknown_search_id", result);
@@ -315,7 +315,7 @@ public partial class DownloadServiceTests
         {
             var batchId = Guid.NewGuid();
             var batch = new Batch { Id = batchId, SearchId = null };
-            var (service, _) = GetFixture("{SEARCH_ID}", batch: batch);
+            var (service, _) = GetFixture("${SEARCH_ID}", batch: batch);
             var result = await service.DeriveDestination(new Transfer { Username = "alice", Filename = "@alice\\track.mp3", BatchId = batchId });
 
             Assert.Equal("unknown_search_id", result);
@@ -326,7 +326,7 @@ public partial class DownloadServiceTests
         {
             var batchId = Guid.NewGuid();
             var batch = new Batch { Id = batchId, SearchId = Guid.NewGuid() };
-            var (service, _) = GetFixture("{SEARCH_ID}", batch: batch, search: null);
+            var (service, _) = GetFixture("${SEARCH_ID}", batch: batch, search: null);
             var result = await service.DeriveDestination(new Transfer { Username = "alice", Filename = "@alice\\track.mp3", BatchId = batchId });
 
             Assert.Equal("unknown_search_id", result);
@@ -339,7 +339,7 @@ public partial class DownloadServiceTests
             var batchId = Guid.NewGuid();
             var batch = new Batch { Id = batchId, SearchId = searchId };
             var search = new Search { Id = searchId, SearchText = "some query" };
-            var (service, _) = GetFixture("{SEARCH_ID}", batch: batch, search: search);
+            var (service, _) = GetFixture("${SEARCH_ID}", batch: batch, search: search);
             var result = await service.DeriveDestination(new Transfer { Username = "alice", Filename = "@alice\\track.mp3", BatchId = batchId });
 
             Assert.Equal("unknown_search_id", result);
@@ -352,7 +352,7 @@ public partial class DownloadServiceTests
             var batchId = Guid.NewGuid();
             var batch = new Batch { Id = batchId, SearchId = searchId };
             var search = new Search { Id = searchId, SearchText = "foo bar baz" };
-            var (service, _) = GetFixture("{SEARCH_TEXT}", batch: batch, search: search);
+            var (service, _) = GetFixture("${SEARCH_TEXT}", batch: batch, search: search);
             var result = await service.DeriveDestination(new Transfer { Username = "alice", Filename = "@alice\\track.mp3", BatchId = batchId });
 
             Assert.Equal("foo bar baz", result);
@@ -361,7 +361,7 @@ public partial class DownloadServiceTests
         [Fact]
         public async Task SEARCH_TEXT_Is_Fallback_When_No_Search()
         {
-            var (service, _) = GetFixture("{SEARCH_TEXT}");
+            var (service, _) = GetFixture("${SEARCH_TEXT}");
             var result = await service.DeriveDestination(new Transfer { Username = "alice", Filename = "@alice\\track.mp3" });
 
             Assert.Equal("unknown_search_text", result);
@@ -374,7 +374,7 @@ public partial class DownloadServiceTests
             var batchId = Guid.NewGuid();
             var batch = new Batch { Id = batchId, SearchId = searchId };
             var search = new Search { Id = searchId, SearchText = "foo/bar" };
-            var (service, _) = GetFixture("{SEARCH_TEXT}", batch: batch, search: search);
+            var (service, _) = GetFixture("${SEARCH_TEXT}", batch: batch, search: search);
             var result = await service.DeriveDestination(new Transfer { Username = "alice", Filename = "@alice\\track.mp3", BatchId = batchId });
 
             Assert.Equal("foo_bar", result);
@@ -387,7 +387,7 @@ public partial class DownloadServiceTests
             var batchId = Guid.NewGuid();
             var batch = new Batch { Id = batchId, SearchId = searchId };
             var search = new Search { Id = searchId, SearchText = "foo\\bar" };
-            var (service, _) = GetFixture("{SEARCH_TEXT}", batch: batch, search: search);
+            var (service, _) = GetFixture("${SEARCH_TEXT}", batch: batch, search: search);
             var result = await service.DeriveDestination(new Transfer { Username = "alice", Filename = "@alice\\track.mp3", BatchId = batchId });
 
             Assert.Equal("foo_bar", result);
@@ -398,7 +398,7 @@ public partial class DownloadServiceTests
         {
             var batchId = Guid.NewGuid();
             var batch = new Batch { Id = batchId, Options = null };
-            var (service, _) = GetFixture("{SOURCE_USERNAME}", batch: batch);
+            var (service, _) = GetFixture("${SOURCE_USERNAME}", batch: batch);
             var result = await service.DeriveDestination(new Transfer { Username = "alice", Filename = "@alice\\track.mp3", BatchId = batchId });
 
             Assert.Equal("alice", result);
@@ -409,7 +409,7 @@ public partial class DownloadServiceTests
         {
             var batchId = Guid.NewGuid();
             var batch = new Batch { Id = batchId, Options = new BatchOptions { Destination = "   " } };
-            var (service, _) = GetFixture("{SOURCE_USERNAME}", batch: batch);
+            var (service, _) = GetFixture("${SOURCE_USERNAME}", batch: batch);
             var result = await service.DeriveDestination(new Transfer { Username = "alice", Filename = "@alice\\track.mp3", BatchId = batchId });
 
             Assert.Equal("alice", result);
@@ -418,7 +418,7 @@ public partial class DownloadServiceTests
         [Fact]
         public async Task Pattern_Forward_Slash_Separator_Preserved_In_Output()
         {
-            var (service, _) = GetFixture("{SOURCE_USERNAME}/downloads");
+            var (service, _) = GetFixture("${SOURCE_USERNAME}/downloads");
             var result = await service.DeriveDestination(new Transfer { Username = "alice", Filename = "@alice\\track.mp3" });
 
             Assert.Equal(Path.Combine("alice", "downloads"), result);
@@ -427,7 +427,7 @@ public partial class DownloadServiceTests
         [Fact]
         public async Task Pattern_Backslash_Separator_Preserved_In_Output()
         {
-            var (service, _) = GetFixture("{SOURCE_USERNAME}\\downloads");
+            var (service, _) = GetFixture("${SOURCE_USERNAME}\\downloads");
             var result = await service.DeriveDestination(new Transfer { Username = "alice", Filename = "@alice\\track.mp3" });
 
             Assert.Equal(Path.Combine("alice", "downloads"), result);
@@ -455,7 +455,7 @@ public partial class DownloadServiceTests
         public async Task Username_Containing_Traversal_Is_Safe()
         {
             // exact '..' in username must not produce a traversal segment in the final output
-            var (service, _) = GetFixture("{SOURCE_USERNAME}");
+            var (service, _) = GetFixture("${SOURCE_USERNAME}");
             var result = await service.DeriveDestination(new Transfer { Username = "..", Filename = "@alice\\track.mp3" });
 
             Assert.False(FileSafety.ContainsTraversalSegments(result));
@@ -468,7 +468,7 @@ public partial class DownloadServiceTests
             var batchId = Guid.NewGuid();
             var batch = new Batch { Id = batchId, SearchId = searchId };
             var search = new Search { Id = searchId, SearchText = "foo\0bar" };
-            var (service, _) = GetFixture("{SEARCH_TEXT}", batch: batch, search: search);
+            var (service, _) = GetFixture("${SEARCH_TEXT}", batch: batch, search: search);
             var result = await service.DeriveDestination(new Transfer { Username = "alice", Filename = "@alice\\track.mp3", BatchId = batchId });
 
             Assert.Equal("foo_bar", result);
@@ -479,7 +479,7 @@ public partial class DownloadServiceTests
         {
             var batchId = Guid.NewGuid();
             var batch = new Batch { Id = batchId, SearchId = Guid.NewGuid() };
-            var (service, _) = GetFixture("{SEARCH_TEXT}", batch: batch, search: null);
+            var (service, _) = GetFixture("${SEARCH_TEXT}", batch: batch, search: null);
             var result = await service.DeriveDestination(new Transfer { Username = "alice", Filename = "@alice\\track.mp3", BatchId = batchId });
 
             Assert.Equal("unknown_search_text", result);
@@ -490,7 +490,7 @@ public partial class DownloadServiceTests
         {
             var batchId = Guid.NewGuid();
             var batch = new Batch { Id = batchId, SearchId = null };
-            var (service, _) = GetFixture("{SEARCH_TEXT}", batch: batch);
+            var (service, _) = GetFixture("${SEARCH_TEXT}", batch: batch);
             var result = await service.DeriveDestination(new Transfer { Username = "alice", Filename = "@alice\\track.mp3", BatchId = batchId });
 
             Assert.Equal("unknown_search_text", result);
@@ -503,7 +503,7 @@ public partial class DownloadServiceTests
             var batchId = Guid.NewGuid();
             var batch = new Batch { Id = batchId, SearchId = searchId };
             var search = new Search { Id = searchId, SearchText = "" };
-            var (service, _) = GetFixture("{SEARCH_TEXT}", batch: batch, search: search);
+            var (service, _) = GetFixture("${SEARCH_TEXT}", batch: batch, search: search);
             var result = await service.DeriveDestination(new Transfer { Username = "alice", Filename = "@alice\\track.mp3", BatchId = batchId });
 
             Assert.Equal("unknown_search_text", result);
@@ -516,7 +516,7 @@ public partial class DownloadServiceTests
             var batchId = Guid.NewGuid();
             var batch = new Batch { Id = batchId, SearchId = searchId };
             var search = new Search { Id = searchId, SearchText = "   " };
-            var (service, _) = GetFixture("{SEARCH_TEXT}", batch: batch, search: search);
+            var (service, _) = GetFixture("${SEARCH_TEXT}", batch: batch, search: search);
             var result = await service.DeriveDestination(new Transfer { Username = "alice", Filename = "@alice\\track.mp3", BatchId = batchId });
 
             Assert.Equal("unknown_search_text", result);
@@ -529,7 +529,7 @@ public partial class DownloadServiceTests
             var batchId = Guid.NewGuid();
             var batch = new Batch { Id = batchId, SearchId = searchId };
             var search = new Search { Id = searchId, SearchText = "../evil" };
-            var (service, _) = GetFixture("{SEARCH_TEXT}", batch: batch, search: search);
+            var (service, _) = GetFixture("${SEARCH_TEXT}", batch: batch, search: search);
             var result = await service.DeriveDestination(new Transfer { Username = "alice", Filename = "@alice\\track.mp3", BatchId = batchId });
 
             Assert.False(FileSafety.ContainsTraversalSegments(result));
@@ -540,7 +540,7 @@ public partial class DownloadServiceTests
         {
             var batchId = Guid.NewGuid();
             var batch = new Batch { Id = batchId, Options = new BatchOptions { ExternalId = "" } };
-            var (service, _) = GetFixture("{BATCH_EXTERNAL_ID}", batch: batch);
+            var (service, _) = GetFixture("${BATCH_EXTERNAL_ID}", batch: batch);
             var result = await service.DeriveDestination(new Transfer { Username = "alice", Filename = "@alice\\track.mp3", BatchId = batchId });
 
             Assert.Equal("unknown_batch_external_id", result);
@@ -551,7 +551,7 @@ public partial class DownloadServiceTests
         {
             var batchId = Guid.NewGuid();
             var batch = new Batch { Id = batchId, Options = new BatchOptions { ExternalId = "../evil" } };
-            var (service, _) = GetFixture("{BATCH_EXTERNAL_ID}", batch: batch);
+            var (service, _) = GetFixture("${BATCH_EXTERNAL_ID}", batch: batch);
             var result = await service.DeriveDestination(new Transfer { Username = "alice", Filename = "@alice\\track.mp3", BatchId = batchId });
 
             Assert.False(FileSafety.ContainsTraversalSegments(result));
@@ -559,7 +559,7 @@ public partial class DownloadServiceTests
     }
 
     private static (DownloadService service, Mocks mocks) GetFixture(
-        string subdirectory = "{SOURCE_USERNAME}",
+        string subdirectory = "${SOURCE_USERNAME}",
         Batch batch = null,
         Search search = null)
     {

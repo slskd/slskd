@@ -79,7 +79,7 @@
 #       delay: 5000 # initial time between retries, in milliseconds
 #       max_delay: 60000 # maximum time between retries, in milliseconds
 #     destination:
-#       subdirectory: {SOURCE_DIRECTORY}
+#       subdirectory: ${SOURCE_DIRECTORY} # options: SOURCE_USERNAME, SOURCE_PATH, SOURCE_DIRECTORY, BATCH_ID, BATCH_EXTERNAL_ID, SEARCH_ID, SEARCH_TEXT
 #       exists: rename # 'overwrite' or 'rename'
 #   groups:
 #     default:

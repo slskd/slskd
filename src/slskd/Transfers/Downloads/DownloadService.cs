@@ -243,7 +243,7 @@ namespace slskd.Transfers.Downloads
         private ILogger Log { get; } = Serilog.Log.ForContext<DownloadService>();
         private IOptionsMonitor<Options> OptionsMonitor { get; }
         private EventBus EventBus { get; }
-        private Regex SubdirectoryPatternTokenRegex { get; } = new Regex(@"\{([^\{\}]*)\}", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        private Regex SubdirectoryPatternTokenRegex { get; } = new Regex(@"\$\{([^\{\}]*)\}", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
         /// <summary>
         ///     Allow only one enqueue operation for a given user at a time. Entries are added on the fly if they
