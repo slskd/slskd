@@ -10,6 +10,7 @@
 /dist/
 /logs/
 coverage.json
+openapi.yml
 
 # global.json is (at the time this was added) being used to pin the SDK to 9.0.203, which is the most recent
 # version of the SDK that _doesn't_ strip colors from 'dotnet watch' output. once this problem is fixed, remove

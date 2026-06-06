@@ -1007,6 +1007,14 @@ namespace slskd
                 services.AddSwaggerGen(options =>
                 {
                     options.DescribeAllParametersInCamelCase();
+
+                    // types reuse simple names both across namespaces (e.g. slskd.Transfers.Transfer vs
+                    // Soulseek.Transfer) and across nested option classes (e.g. multiple 'RetryOptions').
+                    // these collide under Swashbuckle's default short-name schemaIds and throw during
+                    // generation, so use the namespace-qualified full name (nested types joined with '.',
+                    // which is a valid OpenAPI component key character) to keep schemaIds unique.
+                    options.CustomSchemaIds(type => type.FullName.Replace("+", "."));
+
                     options.SwaggerDoc("v0", new OpenApiInfo
                     {
                         Version = "v0",
