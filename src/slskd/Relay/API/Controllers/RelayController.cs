@@ -345,7 +345,7 @@ namespace slskd.Relay
             }
 
             Directory.CreateDirectory(FileSafety.CombineSafely(Path.GetTempPath(), Program.AppName));
-            var temp = FileSafety.CombineSafely(Path.GetTempPath(), Program.AppName, $"share_{agentName.ReplaceInvalidFileNameCharacters()}_{Path.GetRandomFileName()}.db");
+            var temp = FileSafety.CombineSafely(Path.GetTempPath(), Program.AppName, $"share_{FileSafety.SanitizeFilename(agentName)}_{Path.GetRandomFileName()}.db");
 
             try
             {

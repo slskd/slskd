@@ -765,7 +765,7 @@ namespace slskd
             [Argument(default, "incomplete")]
             [EnvironmentVariable("INCOMPLETE_DIR")]
             [Description("path where incomplete downloads are saved")]
-            [AbsolutePath]
+            [AbsolutePath(OperatingSystem.Current)]
             [NonTraversingPath]
             [DirectoryExists(ensureWriteable: true)]
             [RequiresRestart]
@@ -777,7 +777,7 @@ namespace slskd
             [Argument('o', "downloads")]
             [EnvironmentVariable("DOWNLOADS_DIR")]
             [Description("path where downloaded files are saved")]
-            [AbsolutePath]
+            [AbsolutePath(OperatingSystem.Current)]
             [NonTraversingPath]
             [DirectoryExists(ensureWriteable: true)]
             [RequiresRestart]
@@ -832,22 +832,22 @@ namespace slskd
 
                 var directories = Directories ?? Enumerable.Empty<string>();
 
-                bool IsBlankPath(string share) => Regex.IsMatch(share.LocalizePath(), @"^(!|-){0,1}(\[.*\])$");
+                bool IsBlankPath(string share) => Regex.IsMatch(FileSafety.LocalizePath(share), @"^(!|-){0,1}(\[.*\])$");
                 directories?.Where(share => IsBlankPath(share)).ToList()
                     .ForEach(blank => results.Add(new ValidationResult($"Share {blank} does not specify a path")));
 
-                bool IsRootMount(string share) => Regex.IsMatch(share.LocalizePath(), @"^(!|-){0,1}(\[.*\])/$");
+                bool IsRootMount(string share) => Regex.IsMatch(FileSafety.LocalizePath(share), @"^(!|-){0,1}(\[.*\])/$");
                 directories?.Where(share => IsRootMount(share)).ToList()
                     .ForEach(blank => results.Add(new ValidationResult($"Share {blank} specifies a root mount, which is not supported.")));
 
                 // starts with '/', 'X:', or '\\'
-                bool IsAbsolutePath(string share) => Regex.IsMatch(share.LocalizePath(), @"^(!|-){0,1}(\[.*\])?(\/|[a-zA-Z]:|\\\\).*$");
+                bool IsAbsolutePath(string share) => Regex.IsMatch(FileSafety.LocalizePath(share), @"^(!|-){0,1}(\[.*\])?(\/|[a-zA-Z]:|\\\\).*$");
                 directories?.Where(share => !IsAbsolutePath(share)).ToList()
                     .ForEach(relativePath => results.Add(new ValidationResult($"Share {relativePath} contains a relative path; only absolute paths are supported.")));
 
                 // contains /./ or /../ or \.\ or \..\ or ..\ or ../ or \.. or /..
                 // which is resolved by some OS and will cause weird, unintended side effects
-                bool ContainsTraversalSegments(string share) => Regex.IsMatch(share.LocalizePath(), @"^\.+[\/\\]?|[\/\\]\.+[\/\\]|[\/\\]\.+$");
+                bool ContainsTraversalSegments(string share) => Regex.IsMatch(FileSafety.LocalizePath(share), @"^\.+[\/\\]?|[\/\\]\.+[\/\\]|[\/\\]\.+$");
                 directories?.Where(share => ContainsTraversalSegments(share)).ToList()
                     .ForEach(badPath => results.Add(new ValidationResult($"Share {badPath} contains an unsafe path traversal segment.")));
 
@@ -1029,6 +1029,12 @@ namespace slskd
                 public RetryOptions Retry { get; init; } = new RetryOptions();
 
                 /// <summary>
+                ///     Gets download destination options.
+                /// </summary>
+                [Validate]
+                public DestinationOptions Destination { get; init; } = new DestinationOptions();
+
+                /// <summary>
                 ///     Download retry options.
                 /// </summary>
                 public class RetryOptions
@@ -1056,6 +1062,26 @@ namespace slskd
                     /// </summary>
                     [Enum(typeof(RetryPartialStrategy))]
                     public string Partial { get; init; } = RetryPartialStrategy.Resume.ToString().ToLowerInvariant();
+                }
+
+                /// <summary>
+                ///     Download destination options.
+                /// </summary>
+                public class DestinationOptions
+                {
+                    /// <summary>
+                    ///     Gets the destination subdirectory for the files in the batch.
+                    /// </summary>
+                    [RelativePath(OperatingSystem.All)]
+                    [NonTraversingPath]
+                    [String(AllowNull = true, AllowEmpty = false, AllowWhiteSpace = false, MinimumLength = 1)]
+                    public string Subdirectory { get; init; } = "{SOURCE_DIRECTORY}";
+
+                    /// <summary>
+                    ///     Gets the strategy for handling existing files on disk.
+                    /// </summary>
+                    [Enum(typeof(DestinationExistsStrategy))]
+                    public string Exists { get; init; } = DestinationExistsStrategy.Rename.ToString().ToLowerInvariant();
                 }
             }
 
@@ -2020,7 +2046,7 @@ namespace slskd
             [Argument(default, "http-socket")]
             [EnvironmentVariable("HTTP_SOCKET")]
             [Description("HTTP listen unix domain socket (UDS) path for web UI")]
-            [AbsolutePath]
+            [AbsolutePath(OperatingSystem.Current)]
             [NonTraversingPath]
             [RequiresRestart]
             public string Socket { get; init; }

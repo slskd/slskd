@@ -66,24 +66,14 @@ namespace slskd
             return BitConverter.ToString(sha256.ComputeHash(Encoding.UTF8.GetBytes(str))).Replace("-", string.Empty);
         }
 
-        public static OSPlatform OSPlatform()
+        public static OperatingSystem OperatingSystem()
         {
-            if (OperatingSystem.IsWindows())
+            if (System.OperatingSystem.IsWindows())
             {
-                return System.Runtime.InteropServices.OSPlatform.Windows;
+                return slskd.OperatingSystem.Windows;
             }
 
-            if (OperatingSystem.IsMacOS())
-            {
-                return System.Runtime.InteropServices.OSPlatform.OSX;
-            }
-
-            if (OperatingSystem.IsFreeBSD())
-            {
-                return System.Runtime.InteropServices.OSPlatform.FreeBSD;
-            }
-
-            return System.Runtime.InteropServices.OSPlatform.Linux;
+            return slskd.OperatingSystem.Linux;
         }
     }
 }
