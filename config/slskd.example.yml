@@ -81,6 +81,8 @@
 #     destination:
 #       subdirectory: ${SOURCE_DIRECTORY} # options: SOURCE_USERNAME, SOURCE_PATH, SOURCE_DIRECTORY, BATCH_ID, BATCH_EXTERNAL_ID, SEARCH_ID, SEARCH_TEXT
 #       exists: rename # 'overwrite' or 'rename'
+#       permissions:
+#         mode: ~ # chmod syntax, e.g. 644, 777. does nothing on Windows. 
 #   groups:
 #     default:
 #       upload:
