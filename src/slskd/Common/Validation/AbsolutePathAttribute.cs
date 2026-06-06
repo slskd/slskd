@@ -49,7 +49,7 @@ namespace slskd.Validation
             OS = os;
         }
 
-        public OperatingSystem? OS { get; }
+        public OperatingSystem OS { get; }
         private OperatingSystem? Injected { get; }
 
         protected override ValidationResult IsValid(object value, ValidationContext validationContext)

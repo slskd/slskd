@@ -499,7 +499,6 @@ public partial class DownloadServiceTests
         [Fact]
         public async Task SEARCH_TEXT_Is_Fallback_When_Search_Text_Is_Empty()
         {
-            // fails until code uses IsNullOrWhiteSpace instead of ?? for search_text (parity with batch_external_id)
             var searchId = Guid.NewGuid();
             var batchId = Guid.NewGuid();
             var batch = new Batch { Id = batchId, SearchId = searchId };
@@ -513,7 +512,6 @@ public partial class DownloadServiceTests
         [Fact]
         public async Task SEARCH_TEXT_Is_Fallback_When_Search_Text_Is_Whitespace()
         {
-            // fails until code uses IsNullOrWhiteSpace instead of ?? for search_text (parity with batch_external_id)
             var searchId = Guid.NewGuid();
             var batchId = Guid.NewGuid();
             var batch = new Batch { Id = batchId, SearchId = searchId };

@@ -169,21 +169,9 @@ public partial class FileSafetyTests
         [InlineData("C:relative")]
         public void Accepts_Colon_In_Segment_On_Linux_Hits_Backstop_On_Windows(string segment)
         {
-            var result = Record.Exception(() => FileSafety.CombineSafely(Base, OperatingSystem.Linux, segment));
+            var result = FileSafety.CombineSafely(Base, OperatingSystem.Linux, segment);
 
-            if (!System.OperatingSystem.IsWindows())
-            {
-                Assert.Null(result);
-            }
-            else
-            {
-                // this test breaks when run on windows
-                // this is valid on linux (which we're trying to test for)
-                // but invalid on windows because it is a drive-relative path and it successfully traverses
-                Assert.NotNull(result);
-                Assert.IsType<ArgumentException>(result);
-                Assert.Contains("traversal detected", result.Message);
-            }
+            Assert.Equal($"{Base}/C:relative", result);
         }
 
         [Theory]
@@ -201,21 +189,9 @@ public partial class FileSafetyTests
         [InlineData("\\Music")]
         public void Accepts_Leading_Backslash_In_Segment_On_Linux(string segment)
         {
-            var result = Record.Exception(() => FileSafety.CombineSafely(Base, OperatingSystem.Linux, segment));
+            var result = FileSafety.CombineSafely(Base, OperatingSystem.Linux, segment);
 
-            if (!System.OperatingSystem.IsWindows())
-            {
-                Assert.Null(result);
-            }
-            else
-            {
-                // this test breaks when run on windows
-                // this is valid on linux (which we're trying to test for)
-                // but invalid on windows because it is a drive-relative path and it successfully traverses
-                Assert.NotNull(result);
-                Assert.IsType<ArgumentException>(result);
-                Assert.Contains("traversal detected", result.Message);
-            }
+            Assert.Equal($"{Base}/\\Music", result);
         }
 
         [Fact]
