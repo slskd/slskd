@@ -130,7 +130,7 @@ public class RelativePathAttributeTests
             // Note: the implementation uses the same message for Current as for Any/All.
             // "on all operating systems" is misleading here since Current only validates
             // against the current (or injected) OS.
-            Assert.Equal("The Field field must be a relative path on all operating systems.", msg);
+            Assert.Equal("The Field field must be a relative path on the current operating system.", msg);
         }
 
         [Fact]

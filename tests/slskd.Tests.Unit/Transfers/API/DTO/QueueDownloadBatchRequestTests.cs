@@ -285,7 +285,7 @@ public class QueueDownloadBatchRequestTests
                 var (isValid, results) = Validate(new EnqueueDownloadBatchOptions { Destination = value });
                 Assert.False(isValid);
                 Assert.Single(results);
-                Assert.Equal("The Destination field must be a relative path.", results[0].ErrorMessage);
+                Assert.Contains("must be a relative path", results[0].ErrorMessage);
             }
         }
 
@@ -300,7 +300,7 @@ public class QueueDownloadBatchRequestTests
                 var (isValid, results) = Validate(new EnqueueDownloadBatchOptions { Destination = value });
                 Assert.False(isValid);
                 Assert.Single(results);
-                Assert.Equal("The Destination field must be a relative path.", results[0].ErrorMessage);
+                Assert.Contains("must be a relative path", results[0].ErrorMessage);
             }
         }
 

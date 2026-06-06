@@ -815,7 +815,7 @@ namespace slskd.Transfers.Downloads
                 // full remote path, e.g. '@@abcd\Foo\Bar\Baz\Qux.ext' => '@@abcd\Foo\Bar\Baz'
                 // retains the path root, if there is one (Soulseek NS does this), which may not be what
                 // people want, so possibly revisit and add StripPathRoot()
-                source_path = (FileSafety.GetDirectoryNameSafely(filename) ?? string.Empty).TrimEnd('/', '\\');
+                source_path = (FileSafety.GetDirectoryNameSafely(filename, retainRoot: false) ?? string.Empty).TrimEnd('/', '\\');
 
                 // name of the remote parent directory, so using the example above, 'Baz'
                 source_directory = (FileSafety.GetFileNameSafely(source_path) ?? string.Empty).TrimEnd('/', '\\');
@@ -1249,7 +1249,7 @@ namespace slskd.Transfers.Downloads
                 var incompleteDirectory = OptionsMonitor.CurrentValue.Directories.Incomplete;
                 var sanitizedUsername = FileSafety.SanitizePathSegment(transfer.Username);
                 var sanitizedFilename = FileSafety.GetFileNameSafely(transfer.Filename, sanitize: true);
-                var sanitizedRemotePath = FileSafety.GetDirectoryNameSafely(transfer.Filename, sanitize: true);
+                var sanitizedRemotePath = FileSafety.GetDirectoryNameSafely(transfer.Filename, sanitize: true) ?? string.Empty;
 
                 var incompleteFilename = FileSafety.CombineSafely(incompleteDirectory, sanitizedUsername, sanitizedRemotePath, sanitizedFilename);
 

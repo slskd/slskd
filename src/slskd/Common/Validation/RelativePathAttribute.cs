@@ -63,7 +63,7 @@ namespace slskd.Validation
                 {
                     if (!FileSafety.IsPathRelative(path, os: Injected ?? Compute.OperatingSystem()))
                     {
-                        return new ValidationResult($"The {validationContext.DisplayName} field must be a relative path on all operating systems.");
+                        return new ValidationResult($"The {validationContext.DisplayName} field must be a relative path on the current operating system.");
                     }
 
                     return ValidationResult.Success;
@@ -72,7 +72,7 @@ namespace slskd.Validation
                 // OS == OperatingSystem.All or .Any;
                 if (!FileSafety.IsPathRelative(path, os: OperatingSystem.Linux) || !FileSafety.IsPathRelative(path, os: OperatingSystem.Windows))
                 {
-                    return new ValidationResult($"The {validationContext.DisplayName} field must be a relative path.");
+                    return new ValidationResult($"The {validationContext.DisplayName} field must be a relative path on all operating systems.");
                 }
             }
 
