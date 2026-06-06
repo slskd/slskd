@@ -1075,7 +1075,7 @@ namespace slskd
                     [RelativePath(OperatingSystem.All)]
                     [NonTraversingPath]
                     [String(AllowNull = true, AllowEmpty = false, AllowWhiteSpace = false, MinimumLength = 1)]
-                    public string Subdirectory { get; init; } = "{SOURCE_DIRECTORY}";
+                    public string Subdirectory { get; init; } = "${SOURCE_DIRECTORY}";
 
                     /// <summary>
                     ///     Gets the strategy for handling existing files on disk.
