@@ -67,6 +67,7 @@ namespace slskd
     using Prometheus.SystemMetrics;
     using Serilog;
     using Serilog.Events;
+    using Serilog.Formatting.Display;
     using Serilog.Sinks.Grafana.Loki;
     using Serilog.Sinks.SystemConsole.Themes;
     using slskd.Authentication;
@@ -1236,7 +1237,7 @@ namespace slskd
                     e => !string.IsNullOrEmpty(OptionsAtStartup.Logger.Loki),
                     config => config.GrafanaLoki(
                         OptionsAtStartup.Logger.Loki ?? string.Empty,
-                        outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}"))
+                        textFormatter: new MessageTemplateTextFormatter("[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")))
                 .WriteTo.Sink(new DelegatingSink(logEvent =>
                 {
                     string message = default;
