@@ -106,6 +106,9 @@ public partial class FileSafetyTests
         [InlineData("Ünïcödé/..hidden")]
         [InlineData("пользователь/...dir")]
         [InlineData("用户/..名前")]
+        // Segments that look like traversal but have surrounding whitespace — not exact matches
+        [InlineData(" . ")]
+        [InlineData(" .. ")]
         public void Path_DoesNotContainTraversal(string path)
         {
             Assert.False(FileSafety.ContainsTraversalSegments(path));

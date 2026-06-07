@@ -1,4 +1,4 @@
-// <copyright file="AbsolutePathAttribute.cs" company="JP Dillingham">
+// <copyright file="DestinationConflictStrategy.cs" company="JP Dillingham">
 //           ▄▄▄▄     ▄▄▄▄     ▄▄▄▄
 //     ▄▄▄▄▄▄█  █▄▄▄▄▄█  █▄▄▄▄▄█  █
 //     █__ --█  █__ --█    ◄█  -  █
@@ -30,52 +30,20 @@
 //   ╰───────────────────────────────────────────╶──── ─ ─── ─  ── ──┈  ┈
 // </copyright>
 
-namespace slskd.Validation
+namespace slskd.Transfers;
+
+/// <summary>
+///     Strategy for handling downloaded files with conflicting names.
+/// </summary>
+public enum DestinationConflictStrategy
 {
-    using System.ComponentModel.DataAnnotations;
+    /// <summary>
+    ///     Rename the new file by appending something.
+    /// </summary>
+    Rename = 0,
 
     /// <summary>
-    ///     Validates that the specified path is absolute.
+    ///     Overwrite the existing file.
     /// </summary>
-    public class AbsolutePathAttribute : ValidationAttribute
-    {
-        public AbsolutePathAttribute(OperatingSystem os = OperatingSystem.Current)
-        {
-            if (os != OperatingSystem.Current && os != OperatingSystem.Any && os != OperatingSystem.All)
-            {
-                throw new System.ArgumentException("OperatingSystem argument for AbsolutePathAttribute must be one of: Current, Any, All", nameof(os));
-            }
-
-            OS = os;
-        }
-
-        public OperatingSystem OS { get; }
-        private OperatingSystem? Injected { get; }
-
-        protected override ValidationResult IsValid(object value, ValidationContext validationContext)
-        {
-            if (value != null && value is string str && !string.IsNullOrEmpty(str))
-            {
-                var path = value.ToString();
-
-                if (OS == OperatingSystem.Current)
-                {
-                    if (!FileSafety.IsPathAbsolute(path, os: Injected ?? Compute.OperatingSystem()))
-                    {
-                        return new ValidationResult($"The {validationContext.DisplayName} field must be an absolute path on the current operating system.");
-                    }
-
-                    return ValidationResult.Success;
-                }
-
-                // OS == OperatingSystem.All or .Any
-                if (!FileSafety.IsPathAbsolute(path, os: OperatingSystem.Linux) || !FileSafety.IsPathAbsolute(path, os: OperatingSystem.Windows))
-                {
-                    return new ValidationResult($"The {validationContext.DisplayName} field must be an absolute path on all operating systems.");
-                }
-            }
-
-            return ValidationResult.Success;
-        }
-    }
+    Overwrite = 1,
 }

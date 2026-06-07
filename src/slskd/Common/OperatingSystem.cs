@@ -1,4 +1,4 @@
-// <copyright file="BatchOptions.cs" company="JP Dillingham">
+// <copyright file="OperatingSystem.cs" company="JP Dillingham">
 //           ▄▄▄▄     ▄▄▄▄     ▄▄▄▄
 //     ▄▄▄▄▄▄█  █▄▄▄▄▄█  █▄▄▄▄▄█  █
 //     █__ --█  █__ --█    ◄█  -  █
@@ -30,24 +30,14 @@
 //   ╰───────────────────────────────────────────╶──── ─ ─── ─  ── ──┈  ┈
 // </copyright>
 
-namespace slskd.Transfers;
+namespace slskd;
 
-/// <summary>
-///     Options for <see cref="Batch"/>es.
-/// </summary>
-public record BatchOptions
+public enum OperatingSystem
 {
-    /// <summary>
-    ///     Gets the optional destination directory for the files in the Batch, relative to the configured
-    ///     download directory.
-    /// </summary>
-    /// <remarks>
-    ///     If specified, takes precedence over other configured placement rules.
-    /// </remarks>
-    public string Destination { get; init; }
-
-    /// <summary>
-    ///     Gets an optional external ID for the batch.
-    /// </summary>
-    public string ExternalId { get; init; }
+    None = 0,
+    Linux = 1,
+    Windows = 2,
+    Current = 3,
+    Any = 4,
+    All = 5,
 }

@@ -280,12 +280,12 @@ public class QueueDownloadBatchRequestTests
         [InlineData("\\\\server\\share")]   // UNC
         public void AbsolutePath_Fails_Windows(string value)
         {
-            if (OperatingSystem.IsWindows())
+            if (System.OperatingSystem.IsWindows())
             {
                 var (isValid, results) = Validate(new EnqueueDownloadBatchOptions { Destination = value });
                 Assert.False(isValid);
                 Assert.Single(results);
-                Assert.Equal("The Destination field must be a relative path.", results[0].ErrorMessage);
+                Assert.Contains("must be a relative path", results[0].ErrorMessage);
             }
         }
 
@@ -295,12 +295,12 @@ public class QueueDownloadBatchRequestTests
         [InlineData("//server/share")]     // UNC
         public void AbsolutePath_Fails_Non_Windows(string value)
         {
-            if (!OperatingSystem.IsWindows())
+            if (!System.OperatingSystem.IsWindows())
             {
                 var (isValid, results) = Validate(new EnqueueDownloadBatchOptions { Destination = value });
                 Assert.False(isValid);
                 Assert.Single(results);
-                Assert.Equal("The Destination field must be a relative path.", results[0].ErrorMessage);
+                Assert.Contains("must be a relative path", results[0].ErrorMessage);
             }
         }
 

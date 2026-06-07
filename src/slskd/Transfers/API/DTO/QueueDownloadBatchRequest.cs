@@ -106,8 +106,13 @@ public record EnqueueDownloadBatchOptions
     /// <summary>
     ///     The destination directory for the files, relative to the configured download directory.
     /// </summary>
-    [RelativePath]
+    [RelativePath(OperatingSystem.All)]
     [NonTraversingPath]
     [String(AllowNull = true, AllowEmpty = false, AllowWhiteSpace = false, MinimumLength = 1)]
     public string Destination { get; init; }
+
+    /// <summary>
+    ///     An optional external ID for the batch.
+    /// </summary>
+    public string ExternalId { get; init; }
 }
