@@ -1235,9 +1235,15 @@ namespace slskd
                             retainedFileTimeLimit: TimeSpan.FromDays(OptionsAtStartup.Retention.Logs))))
                 .WriteTo.Conditional(
                     e => !string.IsNullOrEmpty(OptionsAtStartup.Logger.Loki),
-                    config => config.GrafanaLoki(
-                        OptionsAtStartup.Logger.Loki ?? string.Empty,
-                        textFormatter: new MessageTemplateTextFormatter("[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")))
+                    config =>
+                    {
+                        if (!string.IsNullOrEmpty(OptionsAtStartup.Logger.Loki))
+                        {
+                            config.GrafanaLoki(
+                                OptionsAtStartup.Logger.Loki,
+                                textFormatter: new MessageTemplateTextFormatter("[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}"));
+                        }
+                    })
                 .WriteTo.Sink(new DelegatingSink(logEvent =>
                 {
                     string message = default;
