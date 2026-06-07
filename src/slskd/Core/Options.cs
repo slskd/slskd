@@ -235,11 +235,8 @@ namespace slskd
         [Validate]
         public RelayOptions Relay { get; init; } = new RelayOptions();
 
-        /// <summary>
-        ///     Gets permission options.
-        /// </summary>
-        [Validate]
-        public PermissionsOptions Permissions { get; init; } = new PermissionsOptions();
+        [Obsolete("temporary sentinel to warn users about breaking change.  use Transfers.Download.Destination.Permissions instead.")]
+        public object Permissions { get; init; } = null;
 
         /// <summary>
         ///     Gets directory options.
@@ -363,6 +360,11 @@ namespace slskd
             if (Integration is not null)
             {
                 results.Add(new ValidationResult("The 'integration' key has been renamed to 'integrations'.  Add an 's' to the end of the key to remove this error (no other changes were made)"));
+            }
+
+            if (Permissions is not null)
+            {
+                results.Add(new ValidationResult("The 'permissions' keys have been moved under a new 'destination' key under transfers -> download, and the behavior has changed.  See https://github.com/slskd/slskd/pull/1756 for details"));
             }
 #pragma warning restore CS0618 // Type or member is obsolete
 
@@ -1075,13 +1077,50 @@ namespace slskd
                     [RelativePath(OperatingSystem.All)]
                     [NonTraversingPath]
                     [String(AllowNull = true, AllowEmpty = false, AllowWhiteSpace = false, MinimumLength = 1)]
-                    public string Subdirectory { get; init; } = "{SOURCE_DIRECTORY}";
+                    public string Subdirectory { get; init; } = "${SOURCE_DIRECTORY}";
 
                     /// <summary>
                     ///     Gets the strategy for handling existing files on disk.
                     /// </summary>
                     [Enum(typeof(DestinationExistsStrategy))]
                     public string Exists { get; init; } = DestinationExistsStrategy.Rename.ToString().ToLowerInvariant();
+
+                    /// <summary>
+                    ///     Gets the permissions to apply to downloaded files and directories.
+                    /// </summary>
+                    [Validate]
+                    public DestinationPermissionsOptions Permissions { get; init; } = new DestinationPermissionsOptions();
+
+                    /// <summary>
+                    ///     Download destination permission options.
+                    /// </summary>
+                    public class DestinationPermissionsOptions : IValidatableObject
+                    {
+                        /// <summary>
+                        ///     Gets the permissions to apply to newly created files.
+                        /// </summary>
+                        /// <remarks>
+                        ///     Applicable to non-Windows operating systems, only.
+                        /// </remarks>
+                        public string Mode { get; init; }
+
+                        public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+                        {
+                            var results = new List<ValidationResult>();
+
+                            if (!string.IsNullOrEmpty(Mode))
+                            {
+                                var regEx = new Regex("^[0-7]{3,4}$", RegexOptions.Compiled);
+
+                                if (!regEx.IsMatch(Mode))
+                                {
+                                    results.Add(new ValidationResult($"Field {nameof(Mode)} is invalid. Specify a three- or four-character string consisting of only 0-7 (chmod syntax, [0]000-[7]777, inclusive)"));
+                                }
+                            }
+
+                            return results;
+                        }
+                    }
                 }
             }
 
