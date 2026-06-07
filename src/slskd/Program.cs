@@ -1008,6 +1008,7 @@ namespace slskd
                 services.AddSwaggerGen(options =>
                 {
                     options.DescribeAllParametersInCamelCase();
+                    options.CustomSchemaIds(type => type.FullName);
                     options.SwaggerDoc("v0", new OpenApiInfo
                     {
                         Version = "v0",
@@ -1217,6 +1218,7 @@ namespace slskd
                 .MinimumLevel.Override("slskd.Authentication.PassthroughAuthenticationHandler", LogEventLevel.Warning)
                 .MinimumLevel.Override("slskd.Authentication.ApiKeyAuthenticationHandler", LogEventLevel.Warning)
                 .MinimumLevel.Override("Microsoft.EntityFrameworkCore.Database.Command", LogEventLevel.Warning) // bump this down to Information to show SQL
+                .Enrich.WithProperty("App", AppName)
                 .Enrich.WithProperty("InstanceName", OptionsAtStartup.InstanceName)
                 .Enrich.WithProperty("InvocationId", InvocationId)
                 .Enrich.WithProperty("ProcessId", ProcessId)
@@ -1239,9 +1241,7 @@ namespace slskd
                     {
                         if (!string.IsNullOrEmpty(OptionsAtStartup.Logger.Loki))
                         {
-                            config.GrafanaLoki(
-                                OptionsAtStartup.Logger.Loki,
-                                textFormatter: new MessageTemplateTextFormatter("[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}"));
+                            config.GrafanaLoki(OptionsAtStartup.Logger.Loki);
                         }
                     })
                 .WriteTo.Sink(new DelegatingSink(logEvent =>
