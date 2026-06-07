@@ -418,7 +418,7 @@ namespace slskd.Shares
 
                 while (reader.Read())
                 {
-                    var filename = reader.GetString(0);
+                    var maskedFilename = reader.GetString(0);
                     var code = reader.GetInt32(1);
                     var size = reader.GetInt64(2);
                     var extension = reader.GetString(3);
@@ -426,9 +426,9 @@ namespace slskd.Shares
 
                     var attributeList = attributeJson.FromJson<List<FileAttribute>>();
 
-                    filename = includeFullPath ? filename : filename.GetNormalizedFileName();
+                    maskedFilename = includeFullPath ? maskedFilename : maskedFilename.GetNormalizedFileName();
 
-                    var file = new Soulseek.File(code, filename, size, extension, attributeList);
+                    var file = new Soulseek.File(code, maskedFilename, size, extension, attributeList);
 
                     results.Add(file);
                 }

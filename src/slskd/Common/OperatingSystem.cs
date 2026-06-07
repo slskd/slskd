@@ -1,4 +1,4 @@
-// <copyright file="AbsoluteFilePathAttribute.cs" company="JP Dillingham">
+// <copyright file="OperatingSystem.cs" company="JP Dillingham">
 //           ▄▄▄▄     ▄▄▄▄     ▄▄▄▄
 //     ▄▄▄▄▄▄█  █▄▄▄▄▄█  █▄▄▄▄▄█  █
 //     █__ --█  █__ --█    ◄█  -  █
@@ -30,29 +30,14 @@
 //   ╰───────────────────────────────────────────╶──── ─ ─── ─  ── ──┈  ┈
 // </copyright>
 
-namespace slskd.Validation
+namespace slskd;
+
+public enum OperatingSystem
 {
-    using System.ComponentModel.DataAnnotations;
-    using System.IO;
-
-    /// <summary>
-    ///     Validates that the specified path is absolute.
-    /// </summary>
-    public class AbsoluteFilePathAttribute : ValidationAttribute
-    {
-        protected override ValidationResult IsValid(object value, ValidationContext validationContext)
-        {
-            if (value != null)
-            {
-                var filePath = value.ToString();
-
-                if (!string.IsNullOrEmpty(filePath) && !Path.IsPathRooted(filePath))
-                {
-                    return new ValidationResult($"The {validationContext.DisplayName} field must specify an absolute file path.");
-                }
-            }
-
-            return ValidationResult.Success;
-        }
-    }
+    None = 0,
+    Linux = 1,
+    Windows = 2,
+    Current = 3,
+    Any = 4,
+    All = 5,
 }

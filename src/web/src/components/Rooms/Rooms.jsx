@@ -32,11 +32,42 @@ const initialState = {
   },
   joined: [],
   loading: false,
+  message: '',
   room: {
     messages: [],
     users: [],
   },
 };
+
+const RoomMessageHistory = React.memo(
+  ({ formatTimestamp, messages, onHandleContextMenu }) => {
+    return (
+      <>
+        {messages.map((message) => (
+          <div
+            key={`${message.timestamp}+${message.message}`}
+            onContextMenu={(clickEvent) =>
+              onHandleContextMenu(clickEvent, message)
+            }
+          >
+            <List.Content
+              className={`room-message ${message.self ? 'room-message-self' : ''}`}
+            >
+              <span className="room-message-time">
+                {formatTimestamp(message.timestamp)}
+              </span>
+              <span className="room-message-name">{message.username}: </span>
+              <span className="room-message-message">{message.message}</span>
+            </List.Content>
+          </div>
+        ))}
+        <List.Content id="room-history-scroll-anchor" />
+      </>
+    );
+  },
+);
+
+RoomMessageHistory.displayName = 'RoomMessageHistory';
 
 class Rooms extends Component {
   constructor(props) {
@@ -114,11 +145,12 @@ class Rooms extends Component {
 
   selectRoom = async (roomName) => {
     this.setState(
-      {
+      (previousState) => ({
         active: roomName,
         loading: true,
+        message: previousState.active === roomName ? previousState.message : '',
         room: initialState.room,
-      },
+      }),
       async () => {
         const { active } = this.state;
 
@@ -128,6 +160,12 @@ class Rooms extends Component {
         this.setState({ loading: false }, () => {
           try {
             this.listRef.current.lastChild.scrollIntoView();
+          } catch {
+            // no-op
+          }
+
+          try {
+            this.messageRef.current.focus();
           } catch {
             // no-op
           }
@@ -150,12 +188,7 @@ class Rooms extends Component {
 
   validInput = () =>
     (this.state.active || '').length > 0 &&
-    (
-      (this.messageRef &&
-        this.messageRef.current &&
-        this.messageRef.current.value) ||
-      ''
-    ).length > 0;
+    (this.state.message || '').length > 0;
 
   focusInput = () => {
     this.messageRef.current.focus();
@@ -174,15 +207,14 @@ class Rooms extends Component {
   };
 
   sendMessage = async () => {
-    const { active } = this.state;
-    const message = this.messageRef.current.value;
+    const { active, message } = this.state;
 
     if (!this.validInput()) {
       return;
     }
 
     await rooms.sendMessage({ message, roomName: active });
-    this.messageRef.current.value = '';
+    this.setState({ message: '' });
   };
 
   handleContextMenu = (clickEvent, message) => {
@@ -207,8 +239,12 @@ class Rooms extends Component {
   };
 
   handleReply = () => {
-    this.messageRef.current.value = `[${this.state.contextMenu.message.username}] ${this.state.contextMenu.message.message} --> `;
-    this.focusInput();
+    this.setState(
+      (previousState) => ({
+        message: `[${previousState.contextMenu.message.username}] ${previousState.contextMenu.message.message} --> `,
+      }),
+      () => this.focusInput(),
+    );
   };
 
   handleUserProfile = () => {
@@ -319,29 +355,11 @@ class Rooms extends Component {
                       <Segment className="room-history">
                         <Ref innerRef={this.listRef}>
                           <List>
-                            {room.messages.map((message) => (
-                              <div
-                                key={`${message.timestamp}+${message.message}`}
-                                onContextMenu={(clickEvent) =>
-                                  this.handleContextMenu(clickEvent, message)
-                                }
-                              >
-                                <List.Content
-                                  className={`room-message ${message.self ? 'room-message-self' : ''}`}
-                                >
-                                  <span className="room-message-time">
-                                    {this.formatTimestamp(message.timestamp)}
-                                  </span>
-                                  <span className="room-message-name">
-                                    {message.username}:{' '}
-                                  </span>
-                                  <span className="room-message-message">
-                                    {message.message}
-                                  </span>
-                                </List.Content>
-                              </div>
-                            ))}
-                            <List.Content id="room-history-scroll-anchor" />
+                            <RoomMessageHistory
+                              formatTimestamp={this.formatTimestamp}
+                              messages={room.messages}
+                              onHandleContextMenu={this.handleContextMenu}
+                            />
                           </List>
                         </Ref>
                       </Segment>
@@ -364,7 +382,11 @@ class Rooms extends Component {
                               autoComplete="off"
                               data-lpignore="true"
                               id="room-message-input"
+                              onChange={(event) =>
+                                this.setState({ message: event.target.value })
+                              }
                               type="text"
+                              value={this.state.message}
                             />
                           }
                           onKeyUp={(event) =>

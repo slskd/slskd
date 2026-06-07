@@ -79,6 +79,17 @@ namespace slskd.Files
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(filename, nameof(filename));
 
+            if (Path.GetFullPath(filename) != filename)
+            {
+                throw new ArgumentException("Only absolute paths may be specified", nameof(filename));
+            }
+
+            if (FileSafety.ContainsTraversalSegments(filename))
+            {
+                Log.Warning("Suspicious attempt to resolve file info for a filename containing unsafe path segments (one or more of path traversal characters '.' and '..'). Requested file: {File}", filename);
+                throw new ArgumentException("Filenames containing traversal segments are not allowed", nameof(filename));
+            }
+
             FileInfo info;
 
             try
@@ -153,9 +164,20 @@ namespace slskd.Files
         /// <exception cref="UnauthorizedException">Thrown if a specified directory is restricted.</exception>
         public virtual async Task<Dictionary<string, OneOf<bool, Exception>>> DeleteDirectoriesAsync(params string[] directories)
         {
+            if (directories is null or [] || directories.Any(directory => string.IsNullOrEmpty(directory)))
+            {
+                throw new ArgumentException("One or more directories are null or empty");
+            }
+
             if (directories.Any(directory => Path.GetFullPath(directory) != directory))
             {
                 throw new ArgumentException("Only absolute paths may be specified", nameof(directories));
+            }
+
+            if (directories.Any(directory => FileSafety.ContainsTraversalSegments(directory)))
+            {
+                Log.Warning("Suspicious attempt to delete a directory with a path containing unsafe path segments (one or more of path traversal characters '.' and '..'). Requested directories: {Directories}", string.Join(", ", directories));
+                throw new ArgumentException("Directories containing traversal segments are not allowed", nameof(directories));
             }
 
             if (directories.Any(directory => AllowedDirectories.Contains(directory)))
@@ -164,7 +186,7 @@ namespace slskd.Files
             }
 
             // important! we must fully expand the given paths with GetFullPath() to resolve a given relative directory, like '..'
-            bool IsAllowed(string path) => AllowedDirectories.Any(allowed => path.StartsWith(allowed));
+            bool IsAllowed(string path) => AllowedDirectories.Any(allowed => path.StartsWith(allowed + Path.DirectorySeparatorChar) || path == allowed);
 
             // if any of the resolved directory paths aren't rooted in one of the allowed directories, forbid the entire request
             if (!directories.All(directory => IsAllowed(directory)))
@@ -216,13 +238,24 @@ namespace slskd.Files
         /// <exception cref="UnauthorizedException">Thrown if a specified file is restricted.</exception>
         public virtual async Task<Dictionary<string, OneOf<bool, Exception>>> DeleteFilesAsync(params string[] files)
         {
+            if (files is null or [] || files.Any(file => string.IsNullOrWhiteSpace(file)))
+            {
+                throw new ArgumentException("One or more files are null or empty", nameof(files));
+            }
+
             if (files.Any(file => Path.GetFullPath(file) != file))
             {
                 throw new ArgumentException("Only absolute paths may be specified", nameof(files));
             }
 
+            if (files.Any(file => FileSafety.ContainsTraversalSegments(file)))
+            {
+                Log.Warning("Suspicious attempt to delete a file with a filename containing unsafe path segments (one or more of path traversal characters '.' and '..'). Requested file(s): {File}", string.Join(", ", files));
+                throw new ArgumentException("Paths containing traversal segments are not allowed", nameof(files));
+            }
+
             // important! we must fully expand the given paths with GetFullPath() to resolve a given relative directory, like '..'
-            bool IsAllowed(string path) => AllowedDirectories.Any(allowed => path.StartsWith(allowed));
+            bool IsAllowed(string path) => AllowedDirectories.Any(allowed => path.StartsWith(allowed + Path.DirectorySeparatorChar) || path == allowed);
 
             // if any of the resolved file paths aren't rooted in one of the allowed directories, forbid the entire request
             if (!files.All(file => IsAllowed(file)))
@@ -269,15 +302,23 @@ namespace slskd.Files
         /// <exception cref="UnauthorizedException">Thrown if the specified root directory is restricted.</exception>
         public virtual async Task<FilesystemDirectory> ListContentsAsync(string directory, EnumerationOptions enumerationOptions = null)
         {
+            ArgumentException.ThrowIfNullOrWhiteSpace(directory);
+
             if (Path.GetFullPath(directory) != directory)
             {
                 throw new ArgumentException("Only absolute paths may be specified", nameof(directory));
             }
 
-            // important! we must fully expand the path with GetFullPath() to resolve a given relative directory, like '..'
-            if (!AllowedDirectories.Any(allowed => directory.StartsWith(allowed)))
+            if (FileSafety.ContainsTraversalSegments(directory))
             {
-                throw new UnauthorizedException($"Only application-controlled directories can be deleted");
+                Log.Warning("Suspicious attempt to list a directory with a path containing unsafe path segments (one or more of path traversal characters '.' and '..'). Requested directory: {Directory}", directory);
+                throw new ArgumentException("Paths containing traversal segments are not allowed", nameof(directory));
+            }
+
+            // important! we must fully expand the path with GetFullPath() to resolve a given relative directory, like '..'
+            if (!AllowedDirectories.Any(allowed => directory.StartsWith(allowed + Path.DirectorySeparatorChar) || directory == allowed))
+            {
+                throw new UnauthorizedException($"Only application-controlled directories can be listed");
             }
 
             if (!Directory.Exists(directory))
@@ -340,15 +381,23 @@ namespace slskd.Files
         {
             ArgumentNullException.ThrowIfNullOrWhiteSpace(filename, nameof(filename));
 
+            if (FileSafety.ContainsTraversalSegments(filename))
+            {
+                Log.Warning("Suspicious attempt to create a file with a filename containing unsafe path segments (one or more of path traversal characters '.' and '..'). Requested file: {File}", filename);
+                throw new ArgumentException("Filenames containing traversal segments are not allowed");
+            }
+
             var path = Path.GetDirectoryName(filename);
 
-            UnixFileMode? unixCreateMode = options?.UnixCreateMode ?? OptionsMonitor.CurrentValue.Permissions.File.Mode?.ToUnixFileMode();
+            UnixFileMode? unixCreateMode = options?.UnixCreateMode ?? OptionsMonitor.CurrentValue.Transfers.Download.Destination.Permissions.Mode?.ToUnixFileMode();
 
             if (!Directory.Exists(path))
             {
                 if (!OperatingSystem.IsWindows() && unixCreateMode.HasValue)
                 {
-                    Directory.CreateDirectory(path, unixCreateMode.Value.WithExecuteFlagsForEachReadFlag());
+                    var mode = unixCreateMode.Value.WithExecuteFlagsForEachReadFlag();
+                    Directory.CreateDirectory(path, unixCreateMode: mode);
+                    File.SetUnixFileMode(path, mode: mode);
                 }
                 else
                 {
@@ -411,18 +460,26 @@ namespace slskd.Files
             ArgumentNullException.ThrowIfNullOrWhiteSpace(sourceFilename, nameof(sourceFilename));
             ArgumentNullException.ThrowIfNullOrWhiteSpace(destinationDirectory, nameof(destinationDirectory));
 
+            if (FileSafety.ContainsTraversalSegments(sourceFilename) || FileSafety.ContainsTraversalSegments(destinationDirectory))
+            {
+                Log.Warning("Suspicious attempt to move a file with either a source filename or destination directory name containing unsafe path segments (one or more of path traversal characters '.' and '..'). Source: {Source}, Destination: {Destination}", sourceFilename, destinationDirectory);
+                throw new ArgumentException("Filenames and directories containing traversal segments are not allowed");
+            }
+
             if (!File.Exists(sourceFilename))
             {
                 throw new FileNotFoundException($"The specified source file does not exist", fileName: sourceFilename);
             }
 
-            UnixFileMode? unixCreateMode = unixFileMode ?? OptionsMonitor.CurrentValue.Permissions.File.Mode?.ToUnixFileMode();
+            UnixFileMode? unixCreateMode = unixFileMode ?? OptionsMonitor.CurrentValue.Transfers.Download.Destination.Permissions.Mode?.ToUnixFileMode();
 
             if (!Directory.Exists(destinationDirectory))
             {
                 if (!OperatingSystem.IsWindows() && unixCreateMode.HasValue)
                 {
-                    Directory.CreateDirectory(destinationDirectory, unixCreateMode.Value.WithExecuteFlagsForEachReadFlag());
+                    var mode = unixCreateMode.Value.WithExecuteFlagsForEachReadFlag();
+                    Directory.CreateDirectory(destinationDirectory, unixCreateMode: mode);
+                    File.SetUnixFileMode(destinationDirectory, mode: mode);
                 }
                 else
                 {

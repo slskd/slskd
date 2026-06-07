@@ -117,21 +117,11 @@ Users wishing to create files with different permissions can change the umask va
 
 When running within a docker container the environment variable `SLSKD_UMASK` can be used to change the umask for the process within the container, and this will in turn change the resulting file mode on a mounted volume.
 
-Users can optionally configure alternative permissions for files by setting the file permission mode option.  It's not possible to supersede the configured umask value; setting a mode of 777, for example, will have no effect with a umask of 022.
-
-These options have no effect on Windows.
+This option has no effect on Windows.
 
 | Command-Line             | Environment Variable         | Description                                                                      |
 | ------------------------ | -----------------------------| -------------------------------------------------------------------------------- |
 | n/a                      | `SLSKD_UMASK`                | When running within the slskd Docker container, the umask for the process        |
-| `--file-permission-mode` | `SLSKD_FILE_PERMISSION_MODE` | The permissions to apply to newly created files (chmod syntax, non-Windows only) |
-
-#### **YAML**
-```yaml
-permissions:
-  file:
-    mode: 644 # not for Windows, chmod syntax, e.g. 644, 777. can't escalate beyond umask
-```
 
 # Application Directory Configuration
 
@@ -362,17 +352,38 @@ transfers:
 
 Failed downloads can be retried automatically up to the configured number of attempts.  If an attempt fails initially, the application delays the second attempt by the configured delay, and an exponential backoff is used to compute the delay for all subsequent events, up to the configured maximum delay.
 
-By default, partial downloads are resumed based on the size of the incomplete file.  Users can choose to always overwrite files if they wish.
+By default, partial downloads are resumed based on the size of the file on disk.  Users can choose to always overwrite files if they wish.
+
+Incomplete files are stored in subdirectories including the remote user's username and the name of the containing directory on the remote user's PC, which minimizes (but does not completely eliminate!) the risk that a partial file is resumed incorrectly.  Choosing to always overwrite files eliminates this risk but is less efficient and it increases the risk that the file will fail to fully transfer successfully.
 
 **YAML**
 ```yaml
 transfers:
   download:
     retry:
-      incomplete: resume # 'overwrite' or 'resume'
+      partial: resume # 'overwrite' or 'resume'
       attempts: 3
       delay: 5000 # initial time between retries, in milliseconds
       max_delay: 60000 # maximum time between retries, in milliseconds
+```
+
+## Destination
+
+### Permissions
+
+On [Unix-like](https://en.wikipedia.org/wiki/Unix-like) operating systems, downloaded files will be created according to the [umask](https://en.wikipedia.org/wiki/Umask) of the process (see [Permissions](#permissions) for more info).
+
+Users can optionally configure alternative permissions by setting the permission mode option which, when enabled, effectively causes slskd to `chmod` files and directories with the configured mode immediately after creation.
+
+This option has no effect on Windows.
+
+#### **YAML**
+```yaml
+transfers:
+  download:
+    destination:
+      permissions:
+        mode: 644 # chmod syntax, e.g. 644, 777.  has no effect on Windows
 ```
 
 ## Global Upload Limits

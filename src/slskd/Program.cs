@@ -62,11 +62,12 @@ namespace slskd
     using Microsoft.Extensions.FileProviders;
     using Microsoft.Extensions.FileProviders.Physical;
     using Microsoft.IdentityModel.Tokens;
-    using Microsoft.OpenApi.Models;
+    using Microsoft.OpenApi;
     using Prometheus.DotNetRuntime;
     using Prometheus.SystemMetrics;
     using Serilog;
     using Serilog.Events;
+    using Serilog.Formatting.Display;
     using Serilog.Sinks.Grafana.Loki;
     using Serilog.Sinks.SystemConsole.Themes;
     using slskd.Authentication;
@@ -780,6 +781,7 @@ namespace slskd
             services.AddSingleton<TransferService>();
             services.AddSingleton<IDownloadService, DownloadService>();
             services.AddSingleton<IUploadService, UploadService>();
+            services.AddSingleton<IBatchService, BatchService>();
             services.AddSingleton<FileService>();
 
             services.AddSingleton<IRelayService, RelayService>();
@@ -1006,6 +1008,7 @@ namespace slskd
                 services.AddSwaggerGen(options =>
                 {
                     options.DescribeAllParametersInCamelCase();
+                    options.CustomSchemaIds(type => type.FullName);
                     options.SwaggerDoc("v0", new OpenApiInfo
                     {
                         Version = "v0",
@@ -1215,6 +1218,7 @@ namespace slskd
                 .MinimumLevel.Override("slskd.Authentication.PassthroughAuthenticationHandler", LogEventLevel.Warning)
                 .MinimumLevel.Override("slskd.Authentication.ApiKeyAuthenticationHandler", LogEventLevel.Warning)
                 .MinimumLevel.Override("Microsoft.EntityFrameworkCore.Database.Command", LogEventLevel.Warning) // bump this down to Information to show SQL
+                .Enrich.WithProperty("App", AppName)
                 .Enrich.WithProperty("InstanceName", OptionsAtStartup.InstanceName)
                 .Enrich.WithProperty("InvocationId", InvocationId)
                 .Enrich.WithProperty("ProcessId", ProcessId)
@@ -1233,9 +1237,13 @@ namespace slskd
                             retainedFileTimeLimit: TimeSpan.FromDays(OptionsAtStartup.Retention.Logs))))
                 .WriteTo.Conditional(
                     e => !string.IsNullOrEmpty(OptionsAtStartup.Logger.Loki),
-                    config => config.GrafanaLoki(
-                        OptionsAtStartup.Logger.Loki ?? string.Empty,
-                        outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}"))
+                    config =>
+                    {
+                        if (!string.IsNullOrEmpty(OptionsAtStartup.Logger.Loki))
+                        {
+                            config.GrafanaLoki(OptionsAtStartup.Logger.Loki);
+                        }
+                    })
                 .WriteTo.Sink(new DelegatingSink(logEvent =>
                 {
                     string message = default;

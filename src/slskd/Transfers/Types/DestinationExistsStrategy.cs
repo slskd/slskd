@@ -1,4 +1,4 @@
-// <copyright file="RetryIncompleteStrategy.cs" company="JP Dillingham">
+// <copyright file="DestinationExistsStrategy.cs" company="JP Dillingham">
 //           ▄▄▄▄     ▄▄▄▄     ▄▄▄▄
 //     ▄▄▄▄▄▄█  █▄▄▄▄▄█  █▄▄▄▄▄█  █
 //     █__ --█  █__ --█    ◄█  -  █
@@ -33,17 +33,17 @@
 namespace slskd.Transfers;
 
 /// <summary>
-///     Strategy for retrying incomplete files.
+///     Strategy for handling downloaded files when the destination file already exists.
 /// </summary>
-public enum RetryIncompleteStrategy
+public enum DestinationExistsStrategy
 {
+    /// <summary>
+    ///     Rename the new file by appending something to the file name.
+    /// </summary>
+    Rename = 0,
+
     /// <summary>
     ///     Overwrite the existing file.
     /// </summary>
-    Overwrite = 0,
-
-    /// <summary>
-    ///     Resume the transfer using the size of the incomplete file as the initial offset.
-    /// </summary>
-    Resume = 1,
+    Overwrite = 1,
 }

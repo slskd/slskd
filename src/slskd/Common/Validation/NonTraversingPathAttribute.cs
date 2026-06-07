@@ -1,4 +1,4 @@
-// <copyright file="EnqueueDownloadBatchRequest.cs" company="JP Dillingham">
+// <copyright file="NonTraversingPathAttribute.cs" company="JP Dillingham">
 //           ▄▄▄▄     ▄▄▄▄     ▄▄▄▄
 //     ▄▄▄▄▄▄█  █▄▄▄▄▄█  █▄▄▄▄▄█  █
 //     █__ --█  █__ --█    ◄█  -  █
@@ -30,28 +30,28 @@
 //   ╰───────────────────────────────────────────╶──── ─ ─── ─  ── ──┈  ┈
 // </copyright>
 
-using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-
-namespace slskd.Transfers.API;
-
-public record EnqueueDownloadBatchRequest
+namespace slskd.Validation
 {
-    public Guid? BatchId { get; init; }
-    public Guid? SearchId { get; init; }
+    using System.ComponentModel.DataAnnotations;
 
-    [Required]
-    [StringLength(500, MinimumLength = 1)]
-    public string Username { get; init; }
-    public List<EnqueueDownloadBatchItem> Files { get; init; } = [];
-}
+    /// <summary>
+    ///     Validates that the specified path does not contain traversal segments '.' or '..'.
+    /// </summary>
+    public class NonTraversingPathAttribute : ValidationAttribute
+    {
+        protected override ValidationResult IsValid(object value, ValidationContext validationContext)
+        {
+            if (value != null && value is string str && !string.IsNullOrEmpty(str))
+            {
+                var path = value.ToString();
 
-public record EnqueueDownloadBatchItem
-{
-    [Required]
-    public string Filename { get; set; }
+                if (FileSafety.ContainsTraversalSegments(path))
+                {
+                    return new ValidationResult($"The {validationContext.DisplayName} field contains one or more unsafe path traversal segments ('.' or '..')");
+                }
+            }
 
-    [Range(0, int.MaxValue)]
-    public long Size { get; set; }
+            return ValidationResult.Success;
+        }
+    }
 }

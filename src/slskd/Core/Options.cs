@@ -235,11 +235,8 @@ namespace slskd
         [Validate]
         public RelayOptions Relay { get; init; } = new RelayOptions();
 
-        /// <summary>
-        ///     Gets permission options.
-        /// </summary>
-        [Validate]
-        public PermissionsOptions Permissions { get; init; } = new PermissionsOptions();
+        [Obsolete("temporary sentinel to warn users about breaking change.  use Transfers.Download.Destination.Permissions instead.")]
+        public object Permissions { get; init; } = null;
 
         /// <summary>
         ///     Gets directory options.
@@ -363,6 +360,11 @@ namespace slskd
             if (Integration is not null)
             {
                 results.Add(new ValidationResult("The 'integration' key has been renamed to 'integrations'.  Add an 's' to the end of the key to remove this error (no other changes were made)"));
+            }
+
+            if (Permissions is not null)
+            {
+                results.Add(new ValidationResult("The 'permissions' keys have been moved under a new 'destination' key under transfers -> download, and the behavior has changed.  See https://github.com/slskd/slskd/pull/1756 for details"));
             }
 #pragma warning restore CS0618 // Type or member is obsolete
 
@@ -704,57 +706,6 @@ namespace slskd
         }
 
         /// <summary>
-        ///     Permission options.
-        /// </summary>
-        public class PermissionsOptions
-        {
-            /// <summary>
-            ///     Gets file permission options.
-            /// </summary>
-            [Validate]
-            public FileOptions File { get; init; } = new FileOptions();
-
-            /// <summary>
-            ///     File permission options.
-            /// </summary>
-            public class FileOptions : IValidatableObject
-            {
-                /// <summary>
-                ///     Gets the permissions to apply to newly created files.
-                /// </summary>
-                /// <remarks>
-                ///     Applicable to non-Windows operating systems, only.
-                /// </remarks>
-                [Argument(default, "file-permission-mode")]
-                [EnvironmentVariable("FILE_PERMISSION_MODE")]
-                [Description("the permissions to apply to newly created files (chmod syntax, non-Windows only)")]
-                public string Mode { get; init; }
-
-                /// <summary>
-                ///     Extended validation.
-                /// </summary>
-                /// <param name="validationContext"></param>
-                /// <returns></returns>
-                public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
-                {
-                    var results = new List<ValidationResult>();
-
-                    if (!string.IsNullOrEmpty(Mode))
-                    {
-                        var regEx = new Regex("^[0-7]{3,4}$", RegexOptions.Compiled);
-
-                        if (!regEx.IsMatch(Mode))
-                        {
-                            results.Add(new ValidationResult($"Field {nameof(Mode)} is invalid. Specify a three- or four-character string consisting of only 0-7 (chmod syntax, [0]000-[7]777, inclusive)"));
-                        }
-                    }
-
-                    return results;
-                }
-            }
-        }
-
-        /// <summary>
         ///     Directory options.
         /// </summary>
         public class DirectoriesOptions
@@ -765,6 +716,8 @@ namespace slskd
             [Argument(default, "incomplete")]
             [EnvironmentVariable("INCOMPLETE_DIR")]
             [Description("path where incomplete downloads are saved")]
+            [AbsolutePath(OperatingSystem.Current)]
+            [NonTraversingPath]
             [DirectoryExists(ensureWriteable: true)]
             [RequiresRestart]
             public string Incomplete { get; init; } = Program.DefaultIncompleteDirectory;
@@ -775,6 +728,8 @@ namespace slskd
             [Argument('o', "downloads")]
             [EnvironmentVariable("DOWNLOADS_DIR")]
             [Description("path where downloaded files are saved")]
+            [AbsolutePath(OperatingSystem.Current)]
+            [NonTraversingPath]
             [DirectoryExists(ensureWriteable: true)]
             [RequiresRestart]
             public string Downloads { get; init; } = Program.DefaultDownloadsDirectory;
@@ -828,22 +783,28 @@ namespace slskd
 
                 var directories = Directories ?? Enumerable.Empty<string>();
 
-                bool IsBlankPath(string share) => Regex.IsMatch(share.LocalizePath(), @"^(!|-){0,1}(\[.*\])$");
+                bool IsBlankPath(string share) => Regex.IsMatch(FileSafety.LocalizePath(share), @"^(!|-){0,1}(\[.*\])$");
                 directories?.Where(share => IsBlankPath(share)).ToList()
                     .ForEach(blank => results.Add(new ValidationResult($"Share {blank} does not specify a path")));
 
-                bool IsRootMount(string share) => Regex.IsMatch(share.LocalizePath(), @"^(!|-){0,1}(\[.*\])/$");
+                bool IsRootMount(string share) => Regex.IsMatch(FileSafety.LocalizePath(share), @"^(!|-){0,1}(\[.*\])/$");
                 directories?.Where(share => IsRootMount(share)).ToList()
                     .ForEach(blank => results.Add(new ValidationResult($"Share {blank} specifies a root mount, which is not supported.")));
 
                 // starts with '/', 'X:', or '\\'
-                bool IsAbsolutePath(string share) => Regex.IsMatch(share.LocalizePath(), @"^(!|-){0,1}(\[.*\])?(\/|[a-zA-Z]:|\\\\).*$");
+                bool IsAbsolutePath(string share) => Regex.IsMatch(FileSafety.LocalizePath(share), @"^(!|-){0,1}(\[.*\])?(\/|[a-zA-Z]:|\\\\).*$");
                 directories?.Where(share => !IsAbsolutePath(share)).ToList()
                     .ForEach(relativePath => results.Add(new ValidationResult($"Share {relativePath} contains a relative path; only absolute paths are supported.")));
 
+                // contains /./ or /../ or \.\ or \..\ or ..\ or ../ or \.. or /..
+                // which is resolved by some OS and will cause weird, unintended side effects
+                bool ContainsTraversalSegments(string share) => Regex.IsMatch(FileSafety.LocalizePath(share), @"^\.+[\/\\]?|[\/\\]\.+[\/\\]|[\/\\]\.+$");
+                directories?.Where(share => ContainsTraversalSegments(share)).ToList()
+                    .ForEach(badPath => results.Add(new ValidationResult($"Share {badPath} contains an unsafe path traversal segment.")));
+
                 (string Raw, string Alias, string Path) Digest(string share)
                 {
-                    var matches = Regex.Matches(share, @"^(!|-){0,1}\[(.*)\](.*)$");
+                    var matches = Regex.Matches(share, @"^(!|-){0,1}\[([^\]]*)\](.*)$");
 
                     if (matches.Any())
                     {
@@ -1019,6 +980,12 @@ namespace slskd
                 public RetryOptions Retry { get; init; } = new RetryOptions();
 
                 /// <summary>
+                ///     Gets download destination options.
+                /// </summary>
+                [Validate]
+                public DestinationOptions Destination { get; init; } = new DestinationOptions();
+
+                /// <summary>
                 ///     Download retry options.
                 /// </summary>
                 public class RetryOptions
@@ -1042,10 +1009,67 @@ namespace slskd
                     public int MaxDelay { get; init; } = 60_000;
 
                     /// <summary>
-                    ///     Gets the strategy for handling incomplete files upon retry.
+                    ///     Gets the strategy for handling partial files upon retry.
                     /// </summary>
-                    [Enum(typeof(RetryIncompleteStrategy))]
-                    public string Incomplete { get; init; } = RetryIncompleteStrategy.Overwrite.ToString().ToLowerInvariant();
+                    [Enum(typeof(RetryPartialStrategy))]
+                    public string Partial { get; init; } = RetryPartialStrategy.Resume.ToString().ToLowerInvariant();
+                }
+
+                /// <summary>
+                ///     Download destination options.
+                /// </summary>
+                public class DestinationOptions
+                {
+                    /// <summary>
+                    ///     Gets the destination subdirectory for the files in the batch.
+                    /// </summary>
+                    [RelativePath(OperatingSystem.All)]
+                    [NonTraversingPath]
+                    [String(AllowNull = true, AllowEmpty = false, AllowWhiteSpace = false, MinimumLength = 1)]
+                    public string Subdirectory { get; init; } = "${SOURCE_DIRECTORY}";
+
+                    /// <summary>
+                    ///     Gets the strategy for handling existing files on disk.
+                    /// </summary>
+                    [Enum(typeof(DestinationExistsStrategy))]
+                    public string Exists { get; init; } = DestinationExistsStrategy.Rename.ToString().ToLowerInvariant();
+
+                    /// <summary>
+                    ///     Gets the permissions to apply to downloaded files and directories.
+                    /// </summary>
+                    [Validate]
+                    public DestinationPermissionsOptions Permissions { get; init; } = new DestinationPermissionsOptions();
+
+                    /// <summary>
+                    ///     Download destination permission options.
+                    /// </summary>
+                    public class DestinationPermissionsOptions : IValidatableObject
+                    {
+                        /// <summary>
+                        ///     Gets the permissions to apply to newly created files.
+                        /// </summary>
+                        /// <remarks>
+                        ///     Applicable to non-Windows operating systems, only.
+                        /// </remarks>
+                        public string Mode { get; init; }
+
+                        public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+                        {
+                            var results = new List<ValidationResult>();
+
+                            if (!string.IsNullOrEmpty(Mode))
+                            {
+                                var regEx = new Regex("^[0-7]{3,4}$", RegexOptions.Compiled);
+
+                                if (!regEx.IsMatch(Mode))
+                                {
+                                    results.Add(new ValidationResult($"Field {nameof(Mode)} is invalid. Specify a three- or four-character string consisting of only 0-7 (chmod syntax, [0]000-[7]777, inclusive)"));
+                                }
+                            }
+
+                            return results;
+                        }
+                    }
                 }
             }
 
@@ -2010,7 +2034,8 @@ namespace slskd
             [Argument(default, "http-socket")]
             [EnvironmentVariable("HTTP_SOCKET")]
             [Description("HTTP listen unix domain socket (UDS) path for web UI")]
-            [AbsoluteFilePath]
+            [AbsolutePath(OperatingSystem.Current)]
+            [NonTraversingPath]
             [RequiresRestart]
             public string Socket { get; init; }
 
