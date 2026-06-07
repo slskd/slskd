@@ -62,7 +62,7 @@ namespace slskd
     using Microsoft.Extensions.FileProviders;
     using Microsoft.Extensions.FileProviders.Physical;
     using Microsoft.IdentityModel.Tokens;
-    using Microsoft.OpenApi.Models;
+    using Microsoft.OpenApi;
     using Prometheus.DotNetRuntime;
     using Prometheus.SystemMetrics;
     using Serilog;
