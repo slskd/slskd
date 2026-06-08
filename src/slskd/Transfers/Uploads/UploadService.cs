@@ -528,13 +528,11 @@ namespace slskd.Transfers.Uploads
 
                 if (TransferStateCategories.InProgress.Contains(mostRecentQueuedOrInProgressState))
                 {
-                    // if the transfer was ever in progress at any time, we decrement because we should have incremented on that transition
                     Telemetry.Metrics.Transfers.Uploads.InProgress.Files.Dec(1);
                     Telemetry.Metrics.Transfers.Uploads.InProgress.Bytes.Dec(transfer.Size);
                 }
                 else if (TransferStateCategories.Queued.Contains(mostRecentQueuedOrInProgressState))
                 {
-                    // if the transfer never transitioned to in progress but it was queued at any point, decrement queued
                     Telemetry.Metrics.Transfers.Uploads.Queued.Files.Dec(1);
                     Telemetry.Metrics.Transfers.Uploads.Queued.Bytes.Dec(transfer.Size);
                 }
