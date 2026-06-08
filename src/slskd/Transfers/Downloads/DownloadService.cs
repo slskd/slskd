@@ -1132,6 +1132,8 @@ namespace slskd.Transfers.Downloads
             var retryOptions = OptionsMonitor.CurrentValue.Transfers.Download.Retry;
             var updateSyncRoot = new SemaphoreSlim(1, 1);
 
+            var stateHistory = new List<TransferStates>();
+
             try
             {
                 using var rateLimiter = new RateLimiter(250, concurrencyLimit: 1, flushOnDispose: true);
@@ -1171,6 +1173,24 @@ namespace slskd.Transfers.Downloads
                             {
                                 transfer.State = TransferStates.Queued | TransferStates.Locally;
                             }
+
+                            transfer = transfer.WithSoulseekTransfer(args.Transfer);
+
+                            if (!TransferStateCategories.Queued.Contains(args.PreviousState) && TransferStateCategories.Queued.Contains(transfer.State))
+                            {
+                                Telemetry.Metrics.Transfers.Downloads.Queued.Files.Inc(1);
+                                Telemetry.Metrics.Transfers.Downloads.Queued.Bytes.Inc(transfer.Size);
+                            }
+
+                            if (!TransferStateCategories.InProgress.Contains(args.PreviousState) && TransferStateCategories.InProgress.Contains(transfer.State))
+                            {
+                                Telemetry.Metrics.Transfers.Downloads.Queued.Files.Dec(1);
+                                Telemetry.Metrics.Transfers.Downloads.Queued.Bytes.Dec(transfer.Size);
+                                Telemetry.Metrics.Transfers.Downloads.InProgress.Files.Inc(1);
+                                Telemetry.Metrics.Transfers.Downloads.InProgress.Bytes.Inc(transfer.Size);
+                            }
+
+                            stateHistory.Add(transfer.State);
 
                             // todo: broadcast
                             SynchronizedUpdate(transfer, semaphore: updateSyncRoot, cancellationToken: cancellationToken);
@@ -1335,6 +1355,10 @@ namespace slskd.Transfers.Downloads
                 // todo: broadcast to signalr hub
                 SynchronizedUpdate(transfer, semaphore: updateSyncRoot, cancellationToken: CancellationToken.None);
 
+                Telemetry.Metrics.Transfers.Downloads.Completed.Succeeded.Inc(1);
+                Telemetry.Metrics.Transfers.Downloads.Completed.Bytes.Inc(transfer.BytesTransferred);
+                Telemetry.Metrics.Transfers.Downloads.Completed.AverageSpeed.Observe(transfer.AverageSpeed);
+
                 Log.Debug("Successfully updated Transfer for {Filename} from {Username} (state: {State}, progress: {Progress})", transfer.Filename, transfer.Username, transfer.State, transfer.PercentComplete);
 
                 /*
@@ -1430,6 +1454,7 @@ namespace slskd.Transfers.Downloads
 
                 // todo: broadcast
                 SynchronizedUpdate(transfer, semaphore: updateSyncRoot, cancellationToken: CancellationToken.None);
+                Telemetry.Metrics.Transfers.Downloads.Completed.Failed.Inc(1);
 
                 throw;
             }
@@ -1441,11 +1466,33 @@ namespace slskd.Transfers.Downloads
 
                 // todo: broadcast
                 SynchronizedUpdate(transfer, semaphore: updateSyncRoot, cancellationToken: CancellationToken.None);
+                Telemetry.Metrics.Transfers.Downloads.Completed.Failed.Inc(1);
 
                 throw;
             }
             finally
             {
+                Log.Debug("Download of {Filename} from user {Username} completed with states: {@States}", stateHistory);
+
+                // figure out the most recent state that was either InProgress or Queued so that we can decrement the count and bytes
+                // for transfers that succeed this will be InProgress, for transfers that never started this will be Queued (cancelled or something)
+                // state will almost certainly transition to errored or completed before we get here, so we can't just take the last state
+                var mostRecentQueuedOrInProgressState = stateHistory
+                    .LastOrDefault(s => TransferStateCategories.InProgress.Contains(s) || TransferStateCategories.Queued.Contains(s));
+
+                if (TransferStateCategories.InProgress.Contains(mostRecentQueuedOrInProgressState))
+                {
+                    // if the transfer was ever in progress at any time, we decrement because we should have incremented on that transition
+                    Telemetry.Metrics.Transfers.Downloads.InProgress.Files.Dec(1);
+                    Telemetry.Metrics.Transfers.Downloads.InProgress.Bytes.Dec(transfer.Size);
+                }
+                else if (TransferStateCategories.Queued.Contains(mostRecentQueuedOrInProgressState))
+                {
+                    // if the transfer never transitioned to in progress but it was queued at any point, decrement queued
+                    Telemetry.Metrics.Transfers.Downloads.Queued.Files.Dec(1);
+                    Telemetry.Metrics.Transfers.Downloads.Queued.Bytes.Dec(transfer.Size);
+                }
+
                 if (CancellationTokens.TryRemove(transfer.Id, out var storedCancellationTokenSource))
                 {
                     storedCancellationTokenSource?.Dispose();

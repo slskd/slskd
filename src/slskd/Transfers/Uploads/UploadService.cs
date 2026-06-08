@@ -357,7 +357,7 @@ namespace slskd.Transfers.Uploads
                         if (!TransferStateCategories.InProgress.Contains(args.PreviousState) && TransferStateCategories.InProgress.Contains(transfer.State))
                         {
                             Telemetry.Metrics.Transfers.Uploads.Queued.Files.Dec(1);
-                            Telemetry.Metrics.Transfers.Uploads.Queued.Bytes.Dec(transfer.Size - transfer.StartOffset);
+                            Telemetry.Metrics.Transfers.Uploads.Queued.Bytes.Dec(transfer.Size);
                             Telemetry.Metrics.Transfers.Uploads.InProgress.Files.Inc(1);
                             Telemetry.Metrics.Transfers.Uploads.InProgress.Bytes.Inc(transfer.Size);
                         }
@@ -520,19 +520,23 @@ namespace slskd.Transfers.Uploads
             {
                 Log.Debug("Upload of {Filename} to user {Username} completed with states: {@States}", stateHistory);
 
-                // make sure we decrement the right offset. we have to do it here and inspect history; we have
-                // no other way of knowing, and we can't do it on the fly because state transitions may not be deterministic
-                if (stateHistory.Any(s => TransferStateCategories.InProgress.Contains(s)))
+                // figure out the most recent state that was either InProgress or Queued so that we can decrement the count and bytes
+                // for transfers that succeed this will be InProgress, for transfers that never started this will be Quued (cancelled or something)
+                // state will almost certainly transition to errored or completed before we get here, so we can't just take the last state
+                var mostRecentQueuedOrInProgressState = stateHistory
+                    .LastOrDefault(s => TransferStateCategories.InProgress.Contains(s) || TransferStateCategories.Queued.Contains(s));
+
+                if (TransferStateCategories.InProgress.Contains(mostRecentQueuedOrInProgressState))
                 {
                     // if the transfer was ever in progress at any time, we decrement because we should have incremented on that transition
                     Telemetry.Metrics.Transfers.Uploads.InProgress.Files.Dec(1);
-                    Telemetry.Metrics.Transfers.Uploads.InProgress.Bytes.Dec(transfer.Size - transfer.StartOffset);
+                    Telemetry.Metrics.Transfers.Uploads.InProgress.Bytes.Dec(transfer.Size);
                 }
-                else if (stateHistory.Any(s => TransferStateCategories.Queued.Contains(s)))
+                else if (TransferStateCategories.Queued.Contains(mostRecentQueuedOrInProgressState))
                 {
                     // if the transfer never transitioned to in progress but it was queued at any point, decrement queued
                     Telemetry.Metrics.Transfers.Uploads.Queued.Files.Dec(1);
-                    Telemetry.Metrics.Transfers.Uploads.Queued.Bytes.Dec(transfer.Size - transfer.StartOffset);
+                    Telemetry.Metrics.Transfers.Uploads.Queued.Bytes.Dec(transfer.Size);
                 }
 
                 if (host != Program.LocalHostName)
