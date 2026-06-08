@@ -64,7 +64,7 @@ namespace slskd.Transfers.API
         /// <param name="userService"></param>
         /// <param name="transferService"></param>
         public TransfersController(
-            ITransferService transferService,
+            TransferService transferService,
             IUserService userService,
             IOptionsSnapshot<Options> optionsSnapshot)
         {
@@ -74,7 +74,7 @@ namespace slskd.Transfers.API
         }
 
         private static SemaphoreSlim DownloadRequestLimiter { get; } = new SemaphoreSlim(2, 2);
-        private ITransferService Transfers { get; }
+        private TransferService Transfers { get; }
         private IUserService Users { get; }
         private IOptionsSnapshot<Options> OptionsSnapshot { get; }
         private ILogger Log { get; set; } = Serilog.Log.ForContext<TransfersController>();
