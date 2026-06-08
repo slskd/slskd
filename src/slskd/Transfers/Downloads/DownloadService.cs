@@ -1096,37 +1096,37 @@ namespace slskd.Transfers.Downloads
         {
             void EmitQueuedMetrics()
             {
-                var queued = Client.Uploads.Where(u => u.State.HasFlag(TransferStates.Queued));
+                var queued = Client.Downloads.Where(u => u.State.HasFlag(TransferStates.Queued));
 
-                Telemetry.Metrics.Transfers.Uploads.Queued.Users
+                Telemetry.Metrics.Transfers.Downloads.Queued.Users
                     .Set(queued.Select(u => u.Username).Distinct().Count());
 
-                Telemetry.Metrics.Transfers.Uploads.Queued.Files
+                Telemetry.Metrics.Transfers.Downloads.Queued.Files
                     .Set(queued.Count());
 
-                Telemetry.Metrics.Transfers.Uploads.Queued.Bytes
+                Telemetry.Metrics.Transfers.Downloads.Queued.Bytes
                     .Set(queued.Sum(q => q.Size));
 
-                Log.Warning("Metrics: Set Upload Queued Users, Files, and Bytes to {Users}, {Files} and {Bytes}, respectively", Telemetry.Metrics.Transfers.Uploads.Queued.Users.Value, Telemetry.Metrics.Transfers.Uploads.Queued.Files.Value, Telemetry.Metrics.Transfers.Uploads.Queued.Bytes.Value);
+                Log.Warning("Metrics: Set Downloads Queued Users, Files, and Bytes to {Users}, {Files} and {Bytes}, respectively", Telemetry.Metrics.Transfers.Downloads.Queued.Users.Value, Telemetry.Metrics.Transfers.Downloads.Queued.Files.Value, Telemetry.Metrics.Transfers.Downloads.Queued.Bytes.Value);
             }
 
             void EmitInProgressMetrics()
             {
-                var inProgress = Client.Uploads.Where(u => u.State == TransferStates.InProgress);
+                var inProgress = Client.Downloads.Where(u => u.State == TransferStates.InProgress);
 
-                Telemetry.Metrics.Transfers.Uploads.InProgress.Users
+                Telemetry.Metrics.Transfers.Downloads.InProgress.Users
                     .Set(inProgress.Select(u => u.Username).Distinct().Count());
 
-                Telemetry.Metrics.Transfers.Uploads.InProgress.Files
+                Telemetry.Metrics.Transfers.Downloads.InProgress.Files
                     .Set(inProgress.Count());
 
-                Telemetry.Metrics.Transfers.Uploads.InProgress.Bytes
+                Telemetry.Metrics.Transfers.Downloads.InProgress.Bytes
                     .Set(inProgress.Sum(u => u.Size));
 
-                Telemetry.Metrics.Transfers.Uploads.InProgress.CurrentTotalSpeed
+                Telemetry.Metrics.Transfers.Downloads.InProgress.CurrentTotalSpeed
                     .Update(inProgress.Sum(u => u.AverageSpeed));
 
-                Log.Warning("Metrics: Set Upload InProgress Users, Files, and Bytes to {Users}, {Files} and {Bytes}, respectively", Telemetry.Metrics.Transfers.Uploads.InProgress.Users.Value, Telemetry.Metrics.Transfers.Uploads.InProgress.Files.Value, Telemetry.Metrics.Transfers.Uploads.InProgress.Bytes.Value);
+                Log.Warning("Metrics: Set Downloads InProgress Users, Files, and Bytes to {Users}, {Files} and {Bytes}, respectively", Telemetry.Metrics.Transfers.Downloads.InProgress.Users.Value, Telemetry.Metrics.Transfers.Downloads.InProgress.Files.Value, Telemetry.Metrics.Transfers.Downloads.InProgress.Bytes.Value);
             }
 
             EmitQueuedMetrics();
