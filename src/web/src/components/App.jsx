@@ -7,6 +7,7 @@ import { connect, disconnect } from '../lib/server';
 import * as session from '../lib/session';
 import { isPassthroughEnabled } from '../lib/token';
 import AppContext from './AppContext';
+import AppFooter from './AppFooter';
 import Browse from './Browse/Browse';
 import Chat from './Chat/Chat';
 import LoginForm from './LoginForm';
@@ -522,122 +523,129 @@ class App extends Component {
             </Menu>
           </Sidebar>
           <Sidebar.Pusher className="app-content">
-            <AppContext.Provider
-              // eslint-disable-next-line no-warning-comments
-              // TODO: needs useMemo, but class component. yolo for now.
-              // eslint-disable-next-line react/jsx-no-constructed-context-values
-              value={{ options: applicationOptions, state: applicationState }}
-            >
-              {isAgent ? (
-                <Switch>
-                  <Route
-                    path={`${urlBase}/system/:tab?`}
-                    render={(props) =>
-                      this.withTokenCheck(
-                        <System
-                          {...props}
-                          options={applicationOptions}
-                          state={applicationState}
-                        />,
-                      )
-                    }
-                  />
-                  <Redirect
-                    from="*"
-                    to={`${urlBase}/system`}
-                  />
-                </Switch>
-              ) : (
-                <Switch>
-                  <Route
-                    path={`${urlBase}/searches/:id?`}
-                    render={(props) =>
-                      this.withTokenCheck(
-                        <div className="view">
-                          <Searches
-                            server={applicationState.server}
+            <div className="app-content-body">
+              <AppContext.Provider
+                // eslint-disable-next-line no-warning-comments
+                // TODO: needs useMemo, but class component. yolo for now.
+                // eslint-disable-next-line react/jsx-no-constructed-context-values
+                value={{ options: applicationOptions, state: applicationState }}
+              >
+                {isAgent ? (
+                  <Switch>
+                    <Route
+                      path={`${urlBase}/system/:tab?`}
+                      render={(props) =>
+                        this.withTokenCheck(
+                          <System
                             {...props}
-                          />
-                        </div>,
-                      )
-                    }
-                  />
-                  <Route
-                    path={`${urlBase}/browse`}
-                    render={(props) =>
-                      this.withTokenCheck(<Browse {...props} />)
-                    }
-                  />
-                  <Route
-                    path={`${urlBase}/users`}
-                    render={(props) =>
-                      this.withTokenCheck(<Users {...props} />)
-                    }
-                  />
-                  <Route
-                    path={`${urlBase}/chat`}
-                    render={(props) =>
-                      this.withTokenCheck(
-                        <Chat
-                          {...props}
-                          state={applicationState}
-                        />,
-                      )
-                    }
-                  />
-                  <Route
-                    path={`${urlBase}/rooms`}
-                    render={(props) =>
-                      this.withTokenCheck(<Rooms {...props} />)
-                    }
-                  />
-                  <Route
-                    path={`${urlBase}/uploads`}
-                    render={(props) =>
-                      this.withTokenCheck(
-                        <div className="view">
-                          <Transfers
+                            options={applicationOptions}
+                            state={applicationState}
+                          />,
+                        )
+                      }
+                    />
+                    <Redirect
+                      from="*"
+                      to={`${urlBase}/system`}
+                    />
+                  </Switch>
+                ) : (
+                  <Switch>
+                    <Route
+                      path={`${urlBase}/searches/:id?`}
+                      render={(props) =>
+                        this.withTokenCheck(
+                          <div className="view">
+                            <Searches
+                              server={applicationState.server}
+                              {...props}
+                            />
+                          </div>,
+                        )
+                      }
+                    />
+                    <Route
+                      path={`${urlBase}/browse`}
+                      render={(props) =>
+                        this.withTokenCheck(<Browse {...props} />)
+                      }
+                    />
+                    <Route
+                      path={`${urlBase}/users`}
+                      render={(props) =>
+                        this.withTokenCheck(<Users {...props} />)
+                      }
+                    />
+                    <Route
+                      path={`${urlBase}/chat`}
+                      render={(props) =>
+                        this.withTokenCheck(
+                          <Chat
                             {...props}
-                            direction="upload"
-                          />
-                        </div>,
-                      )
-                    }
-                  />
-                  <Route
-                    path={`${urlBase}/downloads`}
-                    render={(props) =>
-                      this.withTokenCheck(
-                        <div className="view">
-                          <Transfers
+                            state={applicationState}
+                          />,
+                        )
+                      }
+                    />
+                    <Route
+                      path={`${urlBase}/rooms`}
+                      render={(props) =>
+                        this.withTokenCheck(<Rooms {...props} />)
+                      }
+                    />
+                    <Route
+                      path={`${urlBase}/uploads`}
+                      render={(props) =>
+                        this.withTokenCheck(
+                          <div className="view">
+                            <Transfers
+                              {...props}
+                              direction="upload"
+                            />
+                          </div>,
+                        )
+                      }
+                    />
+                    <Route
+                      path={`${urlBase}/downloads`}
+                      render={(props) =>
+                        this.withTokenCheck(
+                          <div className="view">
+                            <Transfers
+                              {...props}
+                              direction="download"
+                              server={applicationState.server}
+                            />
+                          </div>,
+                        )
+                      }
+                    />
+                    <Route
+                      path={`${urlBase}/system/:tab?`}
+                      render={(props) =>
+                        this.withTokenCheck(
+                          <System
                             {...props}
-                            direction="download"
-                            server={applicationState.server}
-                          />
-                        </div>,
-                      )
-                    }
-                  />
-                  <Route
-                    path={`${urlBase}/system/:tab?`}
-                    render={(props) =>
-                      this.withTokenCheck(
-                        <System
-                          {...props}
-                          options={applicationOptions}
-                          state={applicationState}
-                          theme={theme}
-                        />,
-                      )
-                    }
-                  />
-                  <Redirect
-                    from="*"
-                    to={`${urlBase}/searches`}
-                  />
-                </Switch>
-              )}
-            </AppContext.Provider>
+                            options={applicationOptions}
+                            state={applicationState}
+                            theme={theme}
+                          />,
+                        )
+                      }
+                    />
+                    <Redirect
+                      from="*"
+                      to={`${urlBase}/searches`}
+                    />
+                  </Switch>
+                )}
+              </AppContext.Provider>
+            </div>
+            <AppFooter
+              server={server}
+              user={user}
+              version={version}
+            />
           </Sidebar.Pusher>
         </Sidebar.Pushable>
         <ToastContainer

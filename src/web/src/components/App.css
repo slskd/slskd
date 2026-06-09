@@ -123,6 +123,12 @@ body {
 .pushable > .pusher.app-content {
     min-height: calc(100% - 71px);
     background: var(--background-color);
+    display: flex;
+    flex-direction: column;
+}
+
+.app-content-body {
+    flex: 1;
 }
 
 .navigation {
@@ -264,4 +270,31 @@ body {
 
 .message {
     padding: 8px 12px 8px 12px !important;
+}
+
+.footer.ui.menu {
+    position: sticky !important;
+    bottom: 0 !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+}
+
+.footer-logo {
+    height: 14px;
+    width: auto;
+    margin-right: 6px;
+    vertical-align: middle;
+}
+
+.footer-version {
+    margin-left: 6px;
+    font-family: monospace;
+    font-size: 11px;
+    opacity: 0.6;
+}
+
+.footer-license {
+    margin-left: 6px;
+    font-size: 11px;
+    opacity: 0.4;
 }
