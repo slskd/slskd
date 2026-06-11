@@ -844,12 +844,12 @@ namespace slskd
             //  These adapters start lazily on first scrape, so configuring them here is fine.
             // ============================================================================
 
-            // ---- (A) Registry-wide settings: apply to EVERY exported series ------------
-            Prometheus.Metrics.DefaultRegistry.SetStaticLabels(new Dictionary<string, string>
-            {
-                // ["app"]      = "slskd",
-                // ["instance"] = Environment.MachineName,
-            });
+            // // ---- (A) Registry-wide settings: apply to EVERY exported series ------------
+            // Prometheus.Metrics.DefaultRegistry.SetStaticLabels(new Dictionary<string, string>
+            // {
+            //     // ["app"]      = "slskd",
+            //     // ["instance"] = Environment.MachineName,
+            // });
 
             // Invoked on every scrape, before collection — refresh pull-style gauges here.
             // Prometheus.Metrics.DefaultRegistry.AddBeforeCollectCallback(() => { /* sync  */ });
@@ -870,42 +870,47 @@ namespace slskd
             //  dead code. Pick ONE approach per bridge.
             // Prometheus.Metrics.SuppressDefaultMetrics(new SuppressDefaultMetricOptions
             // {
-            //     SuppressMeters        = true,  // System.Diagnostics.Metrics bridge (QUIC, kestrel, http, dns, EF, ...)
+            //     SuppressMeters = true,  // System.Diagnostics.Metrics bridge (QUIC, kestrel, http, dns, EF, ...)
             //     SuppressEventCounters = true,  // EventCounters bridge (System.Runtime, sockets, tls, ...)
-            //     SuppressProcessMetrics= false, // process_cpu_seconds_total, process_working_set_bytes, open FDs, ...
-            //     SuppressDebugMetrics  = false, // dotnet_collect_* (prometheus-net's own collection timing)
+            //     SuppressProcessMetrics = true, // process_cpu_seconds_total, process_working_set_bytes, open FDs, ...
+            //     SuppressDebugMetrics = false, // dotnet_collect_* (prometheus-net's own collection timing)
             // });
 
+
             // ---- (C) METER BRIDGE (System.Diagnostics.Metrics) — THE QUIC FILTER -------
-            //  Filter by Meter.Name. Below: drop the noisy framework meters, keep the rest.
-            //  Known built-in .NET meters (names → exported as lower_snake_case):
-            //    System.Net.Quic                              <-- your QUIC noise (.NET 9+)
-            //    System.Net.Http / System.Net.NameResolution / System.Net.Security
-            //    System.Runtime
-            //    Microsoft.AspNetCore.Hosting
-            //    Microsoft.AspNetCore.Server.Kestrel
-            //    Microsoft.AspNetCore.Routing
-            //    Microsoft.AspNetCore.Diagnostics
-            //    Microsoft.AspNetCore.RateLimiting
-            //    Microsoft.AspNetCore.HeaderParsing
-            //    Microsoft.AspNetCore.Http.Connections        (SignalR — you use 4 hubs)
-            //    Microsoft.EntityFrameworkCore / Microsoft.Extensions.Diagnostics.HealthChecks
-            var suppressedMeterTokens = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-  {
-      "System.Net.Quic",              // matches System.Net.Quic AND Private.InternalDiagnostics.System.Net.Quic.MsQuic
-      "Microsoft.EntityFrameworkCore",
-  };
-
-
             Prometheus.Metrics.ConfigureMeterAdapter(options =>
             {
+                //  Filter by Meter.Name. Below: drop the noisy framework meters, keep the rest.
+                //  Known built-in .NET meters (names → exported as lower_snake_case):
+                //    System.Net.Quic                              <-- your QUIC noise (.NET 9+)
+                //    System.Net.Http / System.Net.NameResolution / System.Net.Security
+                //    System.Runtime
+                //    Microsoft.AspNetCore.Hosting
+                //    Microsoft.AspNetCore.Server.Kestrel
+                //    Microsoft.AspNetCore.Routing
+                //    Microsoft.AspNetCore.Diagnostics
+                //    Microsoft.AspNetCore.RateLimiting
+                //    Microsoft.AspNetCore.HeaderParsing
+                //    Microsoft.AspNetCore.Http.Connections        (SignalR — you use 4 hubs)
+                //    Microsoft.EntityFrameworkCore / Microsoft.Extensions.Diagnostics.HealthChecks
+                var suppressedMeterTokens = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    "Private.InternalDiagnostics",              // matches System.Net.Quic AND Private.InternalDiagnostics.System.Net.Quic.MsQuic
+                    "Microsoft.EntityFrameworkCore",
+                    "Microsoft.AspNetCore.Authentication",
+                };
+
                 // Return false to DROP an instrument before it ever becomes a Prometheus series.
-                options.InstrumentFilterPredicate = instrument =>
-                    !suppressedMeterTokens.Any(token =>
-                        instrument.Meter.Name.Contains(token, StringComparison.OrdinalIgnoreCase));
+                // options.InstrumentFilterPredicate = instrument =>
+                // {
+                //     Log.Warning("{Instrument} {Desc}", instrument.Meter.Name, instrument.Description);
+
+                //     return !suppressedMeterTokens.Any(token =>
+                //         instrument.Meter.Name.Contains(token, StringComparison.OrdinalIgnoreCase));
+                // };
 
                 // Series with no fresh measurements are dropped after this window.
-                options.MetricsExpireAfter = TimeSpan.FromMinutes(5);
+                options.MetricsExpireAfter = TimeSpan.FromMinutes(5); // <-- the default
 
                 // Override histogram bucketing per instrument (return null → adapter default).
                 // options.ResolveHistogramBuckets = instrument => MeterAdapterOptions.DefaultHistogramBuckets;
@@ -921,19 +926,24 @@ namespace slskd
             //  Compose with the library default so you only ADD exclusions.
             Prometheus.Metrics.ConfigureEventCounterAdapter(options =>
             {
-                var suppressedEventSources = new[] { "Quic", "EntityFrameworkCore" };
+                // var suppressedEventSources = new[] { "Quic", "EntityFrameworkCore" };
                 var allowDefault = EventCounterAdapter.DefaultEventSourceFilterPredicate;
+                string[] suppressedEventSources = [];
 
-                options.EventSourceFilterPredicate = name =>
-                    !suppressedEventSources.Any(s => name.Contains(s, StringComparison.OrdinalIgnoreCase))
-                    && (allowDefault?.Invoke(name) ?? true);
+                // options.EventSourceFilterPredicate = name =>
+                // {
+                //     Log.Warning("{Instrument}", name);
 
-                // Per-source verbosity/keyword control (drives which counters a source emits).
-                options.EventSourceSettingsProvider = sourceName => new EventCounterAdapterEventSourceSettings
-                {
-                    MinimumLevel = EventLevel.Informational,   // Critical..Verbose
-                    MatchKeywords = EventKeywords.All,
-                };
+                //     return !suppressedEventSources.Any(s => name.Contains(s, StringComparison.OrdinalIgnoreCase))
+                //     && (allowDefault?.Invoke(name) ?? true);
+                // };
+
+                // // Per-source verbosity/keyword control (drives which counters a source emits).
+                // options.EventSourceSettingsProvider = sourceName => new EventCounterAdapterEventSourceSettings
+                // {
+                //     MinimumLevel = EventLevel.Informational,   // Critical..Verbose
+                //     MatchKeywords = EventKeywords.All,
+                // };
 
                 // Polling cadence for counters.
                 options.UpdateInterval = TimeSpan.FromSeconds(10);
@@ -947,29 +957,58 @@ namespace slskd
             //  Default() == every collector at default levels. Customize() lets you prune.
             //  CaptureLevel: Counters < Errors < Informational < Verbose (higher = more detail, more cost).
             //  SampleEvery:  OneEvent | TwoEvents | FiveEvents | TenEvents | TwentyEvents | FiftyEvents | HundredEvents
-            DotNetRuntimeStats = DotNetRuntimeStatsBuilder.Customize()
-                // .WithGcStats(
-                //     atLevel: CaptureLevel.Verbose,
-                //     histogramBuckets: new[] { 0.001, 0.01, 0.1, 0.5, 1.0, 5.0, 10.0 })   // GC pause seconds
-                .WithGcStats()
-                .WithThreadPoolStats(
-                    level: CaptureLevel.Informational,
-                    options: new ThreadPoolMetricsProducer.Options
-                    {
-                        QueueLengthHistogramBuckets = new[] { 0.0, 10, 50, 100, 500, 1000 },
-                    })
-                .WithContentionStats(level: CaptureLevel.Informational, sampleRate: SampleEvery.TenEvents)
-                .WithJitStats(captureLevel: CaptureLevel.Verbose, sampleRate: SampleEvery.TenEvents)
-                .WithExceptionStats(captureLevel: CaptureLevel.Errors)
-                .WithSocketStats()                                          // dotnet_sockets_* (no level/sample knob)
-                                                                            // .RecycleCollectorsEvery(TimeSpan.FromMinutes(5))            // periodic listener reset (mem hygiene)
-                                                                            // .WithDebuggingMetrics(generateDebugMetrics: false)         // emit prometheus-net's own diagnostics
-                .WithErrorHandler(ex => Log.Warning(ex, "DotNetRuntime stats collector error"))
-                .StartCollecting();                                        // -> assigned to DotNetRuntimeStats (Program.cs:276)
+            /*
+                dotnet_build_info{version="4.4.1.0",target_framework=".NETCoreApp,Version=v10.0",runtime_version=".NET 10.0.8",os_version="Debian GNU/Linux 13 (trixie)",process_architecture="X64",gc_mode="Server"} 1
+dotnet_collection_count_total{generation="0"} 5
+dotnet_collection_count_total{generation="1"} 1
+dotnet_collection_count_total{generation="2"} 0
+dotnet_contention_total 13
+dotnet_gc_allocated_bytes_total 31261944
+dotnet_gc_heap_size_bytes{gc_generation="0"} 0
+dotnet_gc_heap_size_bytes{gc_generation="1"} 6445960
+dotnet_gc_heap_size_bytes{gc_generation="2"} 367280
+dotnet_gc_heap_size_bytes{gc_generation="loh"} 98384
+dotnet_gc_memory_total_available_bytes 33534750720
+dotnet_gc_pause_ratio 0.02
+dotnet_sockets_bytes_received_total 316
+dotnet_sockets_bytes_sent_total 228
+dotnet_sockets_connections_established_incoming_total 0
+dotnet_sockets_connections_established_outgoing_total 2
+dotnet_threadpool_num_threads 9
+dotnet_threadpool_queue_length_bucket{le="+Inf"} 4
+dotnet_threadpool_queue_length_bucket{le="0"} 4
+dotnet_threadpool_queue_length_bucket{le="1"} 4
+dotnet_threadpool_queue_length_bucket{le="10"} 4
+dotnet_threadpool_queue_length_bucket{le="100"} 4
+dotnet_threadpool_queue_length_bucket{le="1000"} 4
+dotnet_threadpool_queue_length_count 4
+dotnet_threadpool_queue_length_sum 0
+dotnet_threadpool_throughput_total 376
+dotnet_threadpool_timer_count 27
+            */
+            var runtime = false;
+
+            if (runtime)
+            {
+                DotNetRuntimeStats = DotNetRuntimeStatsBuilder.Customize() // https://github.com/djluck/prometheus-net.DotNetRuntime
+                                                                           // .WithGcStats(
+                                                                           //     atLevel: CaptureLevel.Verbose,
+                                                                           //     histogramBuckets: new[] { 0.001, 0.01, 0.1, 0.5, 1.0, 5.0, 10.0 })   // GC pause seconds
+                    .WithGcStats()
+                    .WithThreadPoolStats()
+                    .WithContentionStats()
+                    // .WithJitStats()
+                    // .WithExceptionStats()
+                    .WithSocketStats()                                          // dotnet_sockets_* (no level/sample knob)
+                                                                                // .RecycleCollectorsEvery(TimeSpan.FromMinutes(5))            // periodic listener reset (mem hygiene)
+                                                                                // .WithDebuggingMetrics(generateDebugMetrics: false)         // emit prometheus-net's own diagnostics
+                    .WithErrorHandler(ex => Log.Warning(ex, "DotNetRuntime stats collector error"))
+                    .StartCollecting();                                        // -> assigned to DotNetRuntimeStats (Program.cs:276)
+            }
 
             // ---- (F) HOST / OS METRICS (cpu / memory / disk / network / load average) --
             //  registerDefaultCollectors:true == all of the below auto-selected per-OS.
-            services.AddSystemMetrics(registerDefaultCollectors: true);
+            // services.AddSystemMetrics(registerDefaultCollectors: true);
 
             //  OR opt in individually (set registerDefaultCollectors:false above), e.g.:
             // services.AddSystemMetricCollector<CpuUsageCollector>();      // resolves Linux/Windows impl
@@ -986,28 +1025,16 @@ namespace slskd
             //  .NET's Microsoft.Extensions.Diagnostics.Metrics enable/disable RULES do NOT
             //  affect prometheus-net — its adapter uses its own MeterListener and ignores
             //  IMetricsBuilder rules. The effective filter for built-in meters is (C) above.
-            //  services.AddMetrics();   // only needed if you also wire OpenTelemetry/other listeners
+            // services.AddMetrics();   // only needed if you also wire OpenTelemetry/other listeners
+
+            var system = true;
+
+            if (system)
+            {
+                services.AddSystemMetrics(); // https://github.com/Daniel15/prometheus-net.SystemMetrics
+            }
 
             return services;
-
-            // ============================================================================
-            //  PIPELINE-SIDE OPTIONS (cannot live here — these take IApplicationBuilder /
-            //  IEndpointRouteBuilder; put them in ConfigureWebApplication, NOT this method):
-            //
-            //    app.UseHttpMetrics(o =>            // per-request http_request_* labels/cardinality
-            //    {
-            //        o.ReduceStatusCodeCardinality();
-            //        o.AddRouteParameter(...); o.AddCustomLabel("host", ctx => ctx.Request.Host.Host);
-            //        o.RequestDuration.Histogram = ...; o.InProgress.Enabled = false; o.CaptureMetricsUrl = false;
-            //    });
-            //    app.UseMetricServer(url: "/metrics");                       // built-in middleware exporter
-            //    endpoints.MapMetrics(pattern: "/metrics");                  // endpoint-routing exporter
-            //    services.AddMetricServer(o => { o.Port = 9100; o.Url = "/metrics"; o.TlsCertificate = ...; });
-            //                                                                // standalone Kestrel exporter —
-            //                                                                // you ALREADY serve via the custom
-            //                                                                // MapGet at Program.cs:1133, so this
-            //                                                                // would double-publish.
-            // ============================================================================
         }
 
         private static IServiceCollection ConfigureAspDotNetServices(this IServiceCollection services)
