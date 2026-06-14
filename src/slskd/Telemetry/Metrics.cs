@@ -371,6 +371,14 @@ public static class Metrics
                     help: "Total number of uploads that failed");
 
                 /// <summary>
+                ///     Gets a gauge representing the current average speed, in bytes per second, of completed downloads.
+                /// </summary>
+                public static ExponentialMovingAverage CurrentAverageSpeed { get; } = new ExponentialMovingAverage(smoothingFactor: 0.5, onUpdate: value => CurrentAverageSpeedGauge.Set(value));
+                public static Gauge CurrentAverageSpeedGauge { get; } = Prometheus.Metrics.CreateGauge(
+                    name: "slskd_transfers_uploads_completed_speed_average_current",
+                    help: "Current average speed, in bytes per second, of completed uploads");
+
+                /// <summary>
                 ///     Gets a histogram representing the the average speed of completed uploads, in bytes per second.
                 /// </summary>
                 public static Histogram AverageSpeed { get; } = Prometheus.Metrics.CreateHistogram(
@@ -503,6 +511,14 @@ public static class Metrics
                 public static Counter Failed { get; } = Prometheus.Metrics.CreateCounter(
                     name: "slskd_transfers_downloads_completed_failed",
                     help: "Total number of downloads that failed");
+
+                /// <summary>
+                ///     Gets a gauge representing the current average speed, in bytes per second, of completed downloads.
+                /// </summary>
+                public static ExponentialMovingAverage CurrentAverageSpeed { get; } = new ExponentialMovingAverage(smoothingFactor: 0.5, onUpdate: value => CurrentAverageSpeedGauge.Set(value));
+                public static Gauge CurrentAverageSpeedGauge { get; } = Prometheus.Metrics.CreateGauge(
+                    name: "slskd_transfers_downloads_completed_speed_average_current",
+                    help: "Current average speed, in bytes per second, of completed downloads");
 
                 /// <summary>
                 ///     Gets a histogram representing the the average speed of completed downloads, in bytes per second.
