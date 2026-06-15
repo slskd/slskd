@@ -37,14 +37,14 @@ namespace slskd.Telemetry;
 
 public static class MetricsHubMethods
 {
-    public static readonly string TRANSFERS = nameof(TRANSFERS);
+    public static readonly string Transfers = nameof(Transfers);
 }
 
-public static class ApplicationHubExtensions
+public static class MetricsHubExtensions
 {
     public static Task BroadcastTransferMetrics(this IHubContext<MetricsHub> hub)
     {
-        return hub.Clients.All.SendAsync(MetricsHubMethods.TRANSFERS, new { });
+        return hub.Clients.All.SendAsync(MetricsHubMethods.Transfers, new { });
     }
 }
 
@@ -52,10 +52,48 @@ public class MetricsHub : Hub
 {
     public MetricsHub()
     {
+        Clock.EverySecond += (_, _) => Clients.All.SendAsync(MetricsHubMethods.Transfers, GetMetrics());
     }
 
     public override async Task OnConnectedAsync()
     {
-        await Clients.Caller.SendAsync(MetricsHubMethods.TRANSFERS, new { });
+        await Clients.Caller.SendAsync(MetricsHubMethods.Transfers, GetMetrics());
+    }
+
+    private object GetMetrics()
+    {
+        return new
+        {
+            Downloads = new
+            {
+                InProgress = new
+                {
+                    Files = Metrics.Transfers.Downloads.InProgress.Files.Value,
+                    AverageSpeed = Metrics.Transfers.Downloads.InProgress.CurrentAverageSpeed.Value,
+                    TotalSpeed = Metrics.Transfers.Downloads.InProgress.CurrentTotalSpeed.Value,
+                },
+                Queued = new
+                {
+                    Files = Metrics.Transfers.Downloads.Queued.Files.Value,
+                    Users = Metrics.Transfers.Downloads.Queued.Users.Value,
+                    Bytes = Metrics.Transfers.Downloads.Queued.Bytes.Value,
+                },
+            },
+            Uploads = new
+            {
+                InProgress = new
+                {
+                    Files = Metrics.Transfers.Uploads.InProgress.Files.Value,
+                    AverageSpeed = Metrics.Transfers.Uploads.InProgress.CurrentAverageSpeed.Value,
+                    TotalSpeed = Metrics.Transfers.Uploads.InProgress.CurrentTotalSpeed.Value,
+                },
+                Queued = new
+                {
+                    Files = Metrics.Transfers.Uploads.Queued.Files.Value,
+                    Users = Metrics.Transfers.Uploads.Queued.Users.Value,
+                    Bytes = Metrics.Transfers.Uploads.Queued.Bytes.Value,
+                },
+            },
+        };
     }
 }
