@@ -1113,6 +1113,7 @@ namespace slskd
                 endpoints.MapHub<LogsHub>("/hub/logs");
                 endpoints.MapHub<SearchHub>("/hub/search");
                 endpoints.MapHub<RelayHub>("/hub/relay");
+                endpoints.MapHub<MetricsHub>("/hub/metrics");
 
                 endpoints.MapControllers();
                 endpoints.MapHealthChecks("/health");
