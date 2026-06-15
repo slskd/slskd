@@ -49,6 +49,8 @@ namespace slskd
             EveryFiveMinutesTimer.Elapsed += (_, _) => Fire(EveryFiveMinutes);
             EveryThirtyMinutesTimer.Elapsed += (_, _) => Fire(EveryThirtyMinutes);
             EveryHourTimer.Elapsed += (_, _) => Fire(EveryHour);
+            EverySecondTimer.Elapsed += (_, _) => Fire(EverySecond);
+            EveryFiveHundredMillisecondsTimer.Elapsed += (_, _) => Fire(EveryFiveHundredMilliseconds);
         }
 
         /// <summary>
@@ -77,6 +79,16 @@ namespace slskd
         public static event EventHandler<ClockEventArgs> EveryFifteenSeconds;
 
         /// <summary>
+        ///     Fires every second.
+        /// </summary>
+        public static event EventHandler<ClockEventArgs> EverySecond;
+
+        /// <summary>
+        ///     Fires every 500 milliseconds.
+        /// </summary>
+        public static event EventHandler<ClockEventArgs> EveryFiveHundredMilliseconds;
+
+        /// <summary>
         ///     Fires every 30 minutes.
         /// </summary>
         public static event EventHandler<ClockEventArgs> EveryThirtyMinutes;
@@ -87,6 +99,8 @@ namespace slskd
         private static Timer EveryThirtySecondsTimer { get; } = CreateTimer(interval: 1000 * 30);
         private static Timer EveryFifteenSecondsTimer { get; } = CreateTimer(interval: 1000 * 15);
         private static Timer EveryThirtyMinutesTimer { get; } = CreateTimer(interval: 1000 * 60 * 30);
+        private static Timer EverySecondTimer { get; } = CreateTimer(interval: 1000);
+        private static Timer EveryFiveHundredMillisecondsTimer { get; } = CreateTimer(interval: 500);
 
         /// <summary>
         ///     Starts the clock.
@@ -100,6 +114,8 @@ namespace slskd
             EveryFiveMinutesTimer.Enabled = true;
             EveryThirtyMinutesTimer.Enabled = true;
             EveryHourTimer.Enabled = true;
+            EverySecondTimer.Enabled = true;
+            EveryFiveHundredMillisecondsTimer.Enabled = true;
 
             var firstRunArgs = new ClockEventArgs(firstRun: true);
 
@@ -109,7 +125,9 @@ namespace slskd
                 Task.Run(() => Fire(EveryFifteenSeconds, firstRunArgs)),
                 Task.Run(() => Fire(EveryFiveMinutes, firstRunArgs)),
                 Task.Run(() => Fire(EveryThirtyMinutes, firstRunArgs)),
-                Task.Run(() => Fire(EveryHour, firstRunArgs)));
+                Task.Run(() => Fire(EveryHour, firstRunArgs)),
+                Task.Run(() => Fire(EverySecond, firstRunArgs)),
+                Task.Run(() => Fire(EveryFiveHundredMilliseconds, firstRunArgs)));
         }
 
         /// <summary>
@@ -123,6 +141,8 @@ namespace slskd
             EveryFiveMinutesTimer.Stop();
             EveryThirtyMinutesTimer.Stop();
             EveryHourTimer.Stop();
+            EverySecondTimer.Stop();
+            EveryFiveHundredMillisecondsTimer.Stop();
         }
 
         private static Timer CreateTimer(double interval) => new() { AutoReset = true, Interval = interval, Enabled = false };
