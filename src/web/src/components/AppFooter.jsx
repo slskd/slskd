@@ -19,8 +19,12 @@ const AppFooter = ({
   const { isConnected } = server;
   const { username } = user;
   const { current } = version;
-  const downloadSpeed = transferMetrics?.downloads?.inProgress?.totalSpeed;
-  const uploadSpeed = transferMetrics?.uploads?.inProgress?.totalSpeed;
+  const downloadSpeed = transferMetrics?.downloads?.inProgress?.averageSpeed;
+  const downloadActive = transferMetrics?.downloads?.inProgress?.files ?? 0;
+  const downloadQueued = transferMetrics?.downloads?.queued?.files ?? 0;
+  const uploadSpeed = transferMetrics?.uploads?.inProgress?.averageSpeed;
+  const uploadActive = transferMetrics?.uploads?.inProgress?.files ?? 0;
+  const uploadQueued = transferMetrics?.uploads?.queued?.files ?? 0;
 
   return (
     <Menu
@@ -37,10 +41,16 @@ const AppFooter = ({
       <Menu.Item>
         <Icon name="arrow up" />
         {formatSpeed(uploadSpeed)}
+        <span className="footer-stat-detail">
+          {uploadActive} active &middot; {uploadQueued} queued
+        </span>
       </Menu.Item>
       <Menu.Item>
         <Icon name="arrow down" />
         {formatSpeed(downloadSpeed)}
+        <span className="footer-stat-detail">
+          {downloadActive} active &middot; {downloadQueued} queued
+        </span>
       </Menu.Item>
       <Menu.Menu position="right">
         <Menu.Item
