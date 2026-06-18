@@ -1,10 +1,26 @@
+import { formatBytes } from '../lib/util';
 import React from 'react';
 import { Icon, Menu } from 'semantic-ui-react';
 
-const AppFooter = ({ server = {}, user = {}, version = {} }) => {
+const formatSpeed = (bytesPerSecond) => {
+  if (!bytesPerSecond) {
+    return '0 B/s';
+  }
+
+  return `${formatBytes(bytesPerSecond)}/s`;
+};
+
+const AppFooter = ({
+  server = {},
+  transferMetrics = {},
+  user = {},
+  version = {},
+}) => {
   const { isConnected } = server;
   const { username } = user;
   const { current } = version;
+  const downloadSpeed = transferMetrics?.downloads?.inProgress?.totalSpeed;
+  const uploadSpeed = transferMetrics?.uploads?.inProgress?.totalSpeed;
 
   return (
     <Menu
@@ -19,10 +35,12 @@ const AppFooter = ({ server = {}, user = {}, version = {} }) => {
         {isConnected ? username : 'Disconnected'}
       </Menu.Item>
       <Menu.Item>
-        <Icon name="arrow up" />—
+        <Icon name="arrow up" />
+        {formatSpeed(uploadSpeed)}
       </Menu.Item>
       <Menu.Item>
-        <Icon name="arrow down" />—
+        <Icon name="arrow down" />
+        {formatSpeed(downloadSpeed)}
       </Menu.Item>
       <Menu.Menu position="right">
         <Menu.Item

@@ -1,7 +1,10 @@
 import 'react-toastify/dist/ReactToastify.css';
 import './App.css';
 import { urlBase } from '../config';
-import { createApplicationHubConnection } from '../lib/hubFactory';
+import {
+  createApplicationHubConnection,
+  createMetricsHubConnection,
+} from '../lib/hubFactory';
 import * as relayAPI from '../lib/relay';
 import { connect, disconnect } from '../lib/server';
 import * as session from '../lib/session';
@@ -41,6 +44,7 @@ const initialState = {
     pending: false,
   },
   retriesExhausted: false,
+  transferMetrics: {},
 };
 
 const ModeSpecificConnectButton = ({
@@ -205,6 +209,14 @@ class App extends Component {
           );
 
           await appHub.start();
+
+          const metricsHub = createMetricsHubConnection();
+
+          metricsHub.on('Transfers', (metrics) => {
+            this.setState({ transferMetrics: metrics });
+          });
+
+          await metricsHub.start();
         }
 
         const savedTheme = this.getSavedTheme();
@@ -281,6 +293,7 @@ class App extends Component {
         (window.matchMedia('(prefers-color-scheme: dark)').matches
           ? 'dark'
           : 'light'),
+      transferMetrics = {},
     } = this.state;
     const {
       connectionWatchdog = {},
@@ -643,6 +656,7 @@ class App extends Component {
             </div>
             <AppFooter
               server={server}
+              transferMetrics={transferMetrics}
               user={user}
               version={version}
             />
