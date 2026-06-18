@@ -1126,6 +1126,9 @@ namespace slskd.Transfers.Downloads
                 Telemetry.Metrics.Transfers.Downloads.InProgress.CurrentTotalSpeed
                     .Update(inProgress.Sum(u => u.AverageSpeed));
 
+                Telemetry.Metrics.Transfers.Downloads.InProgress.CurrentAverageSpeed
+                    .Update(inProgress.Any() ? inProgress.Average(u => u.AverageSpeed) : 0);
+
                 Log.Warning("Metrics: Set Downloads InProgress Users, Files, and Bytes to {Users}, {Files} and {Bytes}, respectively", Telemetry.Metrics.Transfers.Downloads.InProgress.Users.Value, Telemetry.Metrics.Transfers.Downloads.InProgress.Files.Value, Telemetry.Metrics.Transfers.Downloads.InProgress.Bytes.Value);
             }
 
@@ -1392,7 +1395,7 @@ namespace slskd.Transfers.Downloads
                         }
 
                         // reset the history to make detection logic above easier and more accurate
-                        Log.Debug("Previous attempt to download {Filename} from user {Username} completed with states: {@States}", stateHistory);
+                        Log.Debug("Previous attempt to download {Filename} from user {Username} completed with states: {@States}", FileSafety.GetFileNameSafely(transfer.Filename), transfer.Username, stateHistory);
                         stateHistory = [];
 
                         Log.Information("Waiting about {Delay} second(s) to retry attempt #{Attempt} to download {Filename} from user {Username} in {Delay}ms", (int)Math.Ceiling((double)delay / 1000), attempts, transfer.Filename, transfer.Username);

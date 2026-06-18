@@ -32,6 +32,7 @@
 
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.SignalR;
+using Serilog;
 
 namespace slskd.Telemetry;
 
@@ -44,7 +45,7 @@ public static class MetricsHubExtensions
 {
     public static Task BroadcastTransferMetrics(this IHubContext<MetricsHub> hub)
     {
-        return hub.Clients.All.SendAsync(MetricsHubMethods.Transfers, new { });
+        return hub.Clients.All.SendAsync(MetricsHubMethods.Transfers, MetricsHub.GetMetrics());
     }
 }
 
@@ -52,7 +53,6 @@ public class MetricsHub : Hub
 {
     public MetricsHub()
     {
-        Clock.EverySecond += (_, _) => Clients.All.SendAsync(MetricsHubMethods.Transfers, GetMetrics());
     }
 
     public override async Task OnConnectedAsync()
@@ -60,9 +60,11 @@ public class MetricsHub : Hub
         await Clients.Caller.SendAsync(MetricsHubMethods.Transfers, GetMetrics());
     }
 
-    private object GetMetrics()
+    private static ILogger Log { get; } = Serilog.Log.ForContext<MetricsHub>();
+
+    public static object GetMetrics()
     {
-        return new
+        var metrics = new
         {
             Downloads = new
             {
@@ -95,5 +97,8 @@ public class MetricsHub : Hub
                 },
             },
         };
+
+        Log.Warning("{Metrics}", metrics);
+        return metrics;
     }
 }

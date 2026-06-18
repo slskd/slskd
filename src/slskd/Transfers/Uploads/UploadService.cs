@@ -1022,6 +1022,9 @@ namespace slskd.Transfers.Uploads
                 Telemetry.Metrics.Transfers.Uploads.InProgress.CurrentTotalSpeed
                     .Update(inProgress.Sum(u => u.AverageSpeed));
 
+                Telemetry.Metrics.Transfers.Uploads.InProgress.CurrentAverageSpeed
+                    .Update(inProgress.Any() ? inProgress.Average(u => u.AverageSpeed) : 0);
+
                 Log.Warning("Metrics: Set Upload InProgress Users, Files, and Bytes to {Users}, {Files} and {Bytes}, respectively", Telemetry.Metrics.Transfers.Uploads.InProgress.Users.Value, Telemetry.Metrics.Transfers.Uploads.InProgress.Files.Value, Telemetry.Metrics.Transfers.Uploads.InProgress.Bytes.Value);
             }
 
