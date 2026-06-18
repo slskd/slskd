@@ -629,6 +629,7 @@ namespace slskd
                 _ = app.Services.GetService<ScriptService>();
                 _ = app.Services.GetService<WebhookService>();
                 _ = app.Services.GetService<VPNService>();
+                _ = app.Services.GetService<TelemetryService>();
 
                 app.ConfigureAspDotNetPipeline();
 
