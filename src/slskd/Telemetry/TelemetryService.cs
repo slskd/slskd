@@ -30,16 +30,26 @@
 //   ╰───────────────────────────────────────────╶──── ─ ─── ─  ── ──┈  ┈
 // </copyright>
 
+using Microsoft.AspNetCore.SignalR;
+
 namespace slskd.Telemetry;
 
 public class TelemetryService
 {
-    public TelemetryService(PrometheusService prometheusService, ReportsService reportsService)
+    public TelemetryService(PrometheusService prometheusService, ReportsService reportsService, IHubContext<MetricsHub> metricsHub)
     {
         Prometheus = prometheusService;
         Reports = reportsService;
+
+        MetricsHub = metricsHub;
+
+        Clock.EverySecond += (_, _) =>
+        {
+            MetricsHub.BroadcastTransferMetrics();
+        };
     }
 
     public PrometheusService Prometheus { get; }
     public ReportsService Reports { get; }
+    private IHubContext<MetricsHub> MetricsHub { get; }
 }
