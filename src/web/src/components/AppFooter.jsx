@@ -4,10 +4,10 @@ import { Icon, Menu } from 'semantic-ui-react';
 
 const formatSpeed = (bytesPerSecond) => {
   if (!bytesPerSecond) {
-    return '0 B/s';
+    return '   0 B/s';
   }
 
-  return `${formatBytes(bytesPerSecond)}/s`;
+  return `${formatBytes(bytesPerSecond, 0, 4, ' ')}/s`;
 };
 
 const AppFooter = ({
@@ -40,15 +40,21 @@ const AppFooter = ({
         {isConnected ? username : 'Disconnected'}
       </Menu.Item>
       <Menu.Item>
-        <Icon name="arrow down" />
-        {formatSpeed(downloadSpeed)}
+        <Icon
+          color="blue"
+          name="arrow down"
+        />
+        <span className="footer-download">{formatSpeed(downloadSpeed)}</span>
         <span className="footer-stat-detail">
           {downloadActive} active &middot; {downloadQueued} queued
         </span>
       </Menu.Item>
       <Menu.Item>
-        <Icon name="arrow up" />
-        {formatSpeed(uploadSpeed)}
+        <Icon
+          color="orange"
+          name="arrow up"
+        />
+        <span className="footer-upload">{formatSpeed(uploadSpeed)}</span>
         <span className="footer-stat-detail">
           {uploadActive} active &middot; {uploadQueued} queued
         </span>
