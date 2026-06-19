@@ -212,7 +212,7 @@ class App extends Component {
 
           const metricsHub = createMetricsHubConnection();
 
-          metricsHub.on('Transfers', (metrics) => {
+          metricsHub.on('Update', (metrics) => {
             this.setState({ transferMetrics: metrics });
           });
 
