@@ -19,6 +19,7 @@ const AppFooter = ({
   const { isConnected } = server;
   const { username } = user;
   const { current } = version;
+  // const { downloads, uploads } = transferMetrics ?? {};
   const downloadSpeed = transferMetrics?.downloads?.inProgress?.averageSpeed;
   const downloadActive = transferMetrics?.downloads?.inProgress?.files ?? 0;
   const downloadQueued = transferMetrics?.downloads?.queued?.files ?? 0;
@@ -39,17 +40,17 @@ const AppFooter = ({
         {isConnected ? username : 'Disconnected'}
       </Menu.Item>
       <Menu.Item>
-        <Icon name="arrow up" />
-        {formatSpeed(uploadSpeed)}
-        <span className="footer-stat-detail">
-          {uploadActive} active &middot; {uploadQueued} queued
-        </span>
-      </Menu.Item>
-      <Menu.Item>
         <Icon name="arrow down" />
         {formatSpeed(downloadSpeed)}
         <span className="footer-stat-detail">
           {downloadActive} active &middot; {downloadQueued} queued
+        </span>
+      </Menu.Item>
+      <Menu.Item>
+        <Icon name="arrow up" />
+        {formatSpeed(uploadSpeed)}
+        <span className="footer-stat-detail">
+          {uploadActive} active &middot; {uploadQueued} queued
         </span>
       </Menu.Item>
       <Menu.Menu position="right">
@@ -66,7 +67,7 @@ const AppFooter = ({
           />
           slskd
           {current && <span className="footer-version">{current}</span>}
-          <span className="footer-license">AGPL-3.0</span>
+          <span className="footer-license">AGPLv3</span>
         </Menu.Item>
       </Menu.Menu>
     </Menu>
