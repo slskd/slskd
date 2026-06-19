@@ -1106,8 +1106,6 @@ namespace slskd.Transfers.Downloads
 
                 Telemetry.Metrics.Transfers.Downloads.Queued.Bytes
                     .Set(queued.Sum(q => q.Size));
-
-                Log.Warning("Metrics: Set Downloads Queued Users, Files, and Bytes to {Users}, {Files} and {Bytes}, respectively", Telemetry.Metrics.Transfers.Downloads.Queued.Users.Value, Telemetry.Metrics.Transfers.Downloads.Queued.Files.Value, Telemetry.Metrics.Transfers.Downloads.Queued.Bytes.Value);
             }
 
             void EmitInProgressMetrics()
@@ -1136,8 +1134,6 @@ namespace slskd.Transfers.Downloads
                     Telemetry.Metrics.Transfers.Downloads.InProgress.CurrentTotalSpeed.Reset();
                     Telemetry.Metrics.Transfers.Downloads.InProgress.CurrentAverageSpeed.Reset();
                 }
-
-                Log.Warning("Metrics: Set Downloads InProgress Users, Files, and Bytes to {Users}, {Files} and {Bytes}, respectively", Telemetry.Metrics.Transfers.Downloads.InProgress.Users.Value, Telemetry.Metrics.Transfers.Downloads.InProgress.Files.Value, Telemetry.Metrics.Transfers.Downloads.InProgress.Bytes.Value);
             }
 
             EmitQueuedMetrics();

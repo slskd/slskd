@@ -574,8 +574,6 @@ namespace slskd.Transfers.Uploads
         {
             Telemetry.Metrics.Transfers.Uploads.Queued.Users.Set(UploadDictionary.Values.Count(u => u.Any(t => t.Started is null)));
             Telemetry.Metrics.Transfers.Uploads.InProgress.Users.Set(UploadDictionary.Values.Count(u => u.Any(t => t.Started is not null)));
-
-            Log.Warning("Metrics: Set Upload Queued and In Progress Users to {Queued} and {InProgress}, respectively", Telemetry.Metrics.Transfers.Uploads.Queued.Users.Value, Telemetry.Metrics.Transfers.Uploads.InProgress.Users.Value);
         }
     }
 }
