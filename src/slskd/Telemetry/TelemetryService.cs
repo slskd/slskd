@@ -36,20 +36,26 @@ namespace slskd.Telemetry;
 
 public class TelemetryService
 {
-    public TelemetryService(PrometheusService prometheusService, ReportsService reportsService, IHubContext<MetricsHub> metricsHub)
+    public TelemetryService(
+        PrometheusService prometheusService,
+        ReportsService reportsService,
+        MetricsService metricsService,
+        IHubContext<MetricsHub, IMetricsHub> metricsHub)
     {
         Prometheus = prometheusService;
         Reports = reportsService;
+        Metrics = metricsService;
 
         MetricsHub = metricsHub;
 
         Clock.EverySecond += (_, _) =>
         {
-            MetricsHub.BroadcastTransferMetrics();
+            MetricsHub.Clients.All.Update(Metrics.Current());
         };
     }
 
     public PrometheusService Prometheus { get; }
     public ReportsService Reports { get; }
-    private IHubContext<MetricsHub> MetricsHub { get; }
+    public MetricsService Metrics { get; }
+    private IHubContext<MetricsHub, IMetricsHub> MetricsHub { get; }
 }

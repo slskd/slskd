@@ -760,6 +760,7 @@ namespace slskd
 
             services.AddSingleton<PrometheusService>();
             services.AddSingleton<ReportsService>();
+            services.AddSingleton<MetricsService>();
             services.AddSingleton<TelemetryService>();
 
             services.AddSingleton<VPNService>();

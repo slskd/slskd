@@ -30,75 +30,31 @@
 //   ╰───────────────────────────────────────────╶──── ─ ─── ─  ── ──┈  ┈
 // </copyright>
 
+namespace slskd.Telemetry;
+
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using Serilog;
 
-namespace slskd.Telemetry;
-
-public static class MetricsHubMethods
+public interface IMetricsHub
 {
-    public static readonly string Transfers = nameof(Transfers);
+    Task Update(object metrics);
 }
 
-public static class MetricsHubExtensions
+[Authorize]
+public class MetricsHub : Hub<IMetricsHub>
 {
-    public static Task BroadcastTransferMetrics(this IHubContext<MetricsHub> hub)
+    public MetricsHub(MetricsService metricsService)
     {
-        return hub.Clients.All.SendAsync(MetricsHubMethods.Transfers, MetricsHub.GetMetrics());
+        Metrics = metricsService;
     }
-}
 
-public class MetricsHub : Hub
-{
-    public MetricsHub()
-    {
-    }
+    private MetricsService Metrics { get; }
+    private static ILogger Log { get; } = Serilog.Log.ForContext<MetricsHub>();
 
     public override async Task OnConnectedAsync()
     {
-        await Clients.Caller.SendAsync(MetricsHubMethods.Transfers, GetMetrics());
-    }
-
-    private static ILogger Log { get; } = Serilog.Log.ForContext<MetricsHub>();
-
-    public static object GetMetrics()
-    {
-        var metrics = new
-        {
-            Downloads = new
-            {
-                InProgress = new
-                {
-                    Files = Metrics.Transfers.Downloads.InProgress.Files.Value,
-                    AverageSpeed = Metrics.Transfers.Downloads.InProgress.CurrentAverageSpeed.Value,
-                    TotalSpeed = Metrics.Transfers.Downloads.InProgress.CurrentTotalSpeed.Value,
-                },
-                Queued = new
-                {
-                    Files = Metrics.Transfers.Downloads.Queued.Files.Value,
-                    Users = Metrics.Transfers.Downloads.Queued.Users.Value,
-                    Bytes = Metrics.Transfers.Downloads.Queued.Bytes.Value,
-                },
-            },
-            Uploads = new
-            {
-                InProgress = new
-                {
-                    Files = Metrics.Transfers.Uploads.InProgress.Files.Value,
-                    AverageSpeed = Metrics.Transfers.Uploads.InProgress.CurrentAverageSpeed.Value,
-                    TotalSpeed = Metrics.Transfers.Uploads.InProgress.CurrentTotalSpeed.Value,
-                },
-                Queued = new
-                {
-                    Files = Metrics.Transfers.Uploads.Queued.Files.Value,
-                    Users = Metrics.Transfers.Uploads.Queued.Users.Value,
-                    Bytes = Metrics.Transfers.Uploads.Queued.Bytes.Value,
-                },
-            },
-        };
-
-        Log.Warning("{Metrics}", metrics);
-        return metrics;
+        await Clients.Caller.Update(Metrics.Current());
     }
 }
