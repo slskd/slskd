@@ -1123,11 +1123,19 @@ namespace slskd.Transfers.Downloads
                 Telemetry.Metrics.Transfers.Downloads.InProgress.Bytes
                     .Set(inProgress.Sum(u => u.Size));
 
-                Telemetry.Metrics.Transfers.Downloads.InProgress.CurrentTotalSpeed
-                    .Update(inProgress.Sum(u => u.AverageSpeed));
+                if (inProgress.Any())
+                {
+                    Telemetry.Metrics.Transfers.Downloads.InProgress.CurrentTotalSpeed
+                        .Update(inProgress.Sum(u => u.AverageSpeed));
 
-                Telemetry.Metrics.Transfers.Downloads.InProgress.CurrentAverageSpeed
-                    .Update(inProgress.Any() ? inProgress.Average(u => u.AverageSpeed) : 0);
+                    Telemetry.Metrics.Transfers.Downloads.InProgress.CurrentAverageSpeed
+                        .Update(inProgress.Any() ? inProgress.Average(u => u.AverageSpeed) : 0);
+                }
+                else
+                {
+                    Telemetry.Metrics.Transfers.Downloads.InProgress.CurrentTotalSpeed.Reset();
+                    Telemetry.Metrics.Transfers.Downloads.InProgress.CurrentAverageSpeed.Reset();
+                }
 
                 Log.Warning("Metrics: Set Downloads InProgress Users, Files, and Bytes to {Users}, {Files} and {Bytes}, respectively", Telemetry.Metrics.Transfers.Downloads.InProgress.Users.Value, Telemetry.Metrics.Transfers.Downloads.InProgress.Files.Value, Telemetry.Metrics.Transfers.Downloads.InProgress.Bytes.Value);
             }
