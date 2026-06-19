@@ -654,14 +654,14 @@ class App extends Component {
                 )}
               </AppContext.Provider>
             </div>
-            <AppFooter
-              server={server}
-              transferMetrics={transferMetrics}
-              user={user}
-              version={version}
-            />
           </Sidebar.Pusher>
         </Sidebar.Pushable>
+        <AppFooter
+          server={server}
+          transferMetrics={transferMetrics}
+          user={user}
+          version={version}
+        />
         <ToastContainer
           autoClose={5_000}
           closeOnClick

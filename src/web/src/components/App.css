@@ -129,6 +129,7 @@ body {
 
 .app-content-body {
     flex: 1;
+    padding-bottom: 45px; /* footer */
 }
 
 .navigation {
@@ -273,34 +274,39 @@ body {
 }
 
 .footer.ui.menu {
-    position: sticky !important;
+    position: fixed !important;
     bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    z-index: 1000 !important;
     margin: 0 !important;
     border-radius: 0 !important;
 }
 
 .footer-logo {
-    height: 14px;
-    width: auto;
-    margin-right: 6px;
+    height: 18px;
+    width: 18px !important;
     vertical-align: middle;
 }
 
 .footer-version {
     margin-left: 6px;
     font-family: monospace;
-    font-size: 13px;
+    font-size: 14px;
     opacity: 0.7;
+    margin-top: 1px;
 }
 
 .footer-license {
     margin-left: 6px;
-    font-size: 13px;
+    font-family: monospace;
+    font-size: 14px;
     opacity: 0.5;
+    margin-top: 1px;
 }
 
 .footer-stat-detail {
     margin-left: 6px;
-    font-size: 13px;
+    font-size: 14px;
     opacity: 0.7;
 }
