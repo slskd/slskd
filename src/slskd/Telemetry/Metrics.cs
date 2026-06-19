@@ -33,6 +33,7 @@
 namespace slskd.Telemetry;
 
 using System;
+using System.Threading;
 using Prometheus;
 
 /// <summary>
@@ -45,6 +46,26 @@ using Prometheus;
 /// </remarks>
 public static class Metrics
 {
+    private static SemaphoreSlim SyncRoot { get; } = new SemaphoreSlim(1, 1);
+
+    /// <summary>
+    ///     Updates metrics under a mutex to prevent mismatches and under/overruns.
+    /// </summary>
+    /// <param name="work">Updates to execute.</param>
+    public static void Update(Action work)
+    {
+        SyncRoot.Wait();
+
+        try
+        {
+            work.Invoke();
+        }
+        finally
+        {
+            SyncRoot.Release();
+        }
+    }
+
     /// <summary>
     ///     Metrics related to search requests and responses.
     /// </summary>

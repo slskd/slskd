@@ -195,7 +195,7 @@ namespace slskd.Transfers.Uploads
             Governor = new UploadGovernor(userService, optionsMonitor);
             Queue = new UploadQueue(userService, optionsMonitor);
 
-            Clock.EveryFifteenSeconds += (_, _) => EmitMetrics();
+            Clock.EveryFiveSeconds += (_, _) => EmitMetrics();
         }
 
         /// <summary>
@@ -348,19 +348,22 @@ namespace slskd.Transfers.Uploads
 
                         transfer = transfer.WithSoulseekTransfer(args.Transfer);
 
-                        if (!TransferStateCategories.Queued.Contains(args.PreviousState) && TransferStateCategories.Queued.Contains(transfer.State))
+                        Telemetry.Metrics.Update(() =>
                         {
-                            Telemetry.Metrics.Transfers.Uploads.Queued.Files.Inc(1);
-                            Telemetry.Metrics.Transfers.Uploads.Queued.Bytes.Inc(transfer.Size);
-                        }
+                            if (!TransferStateCategories.Queued.Contains(args.PreviousState) && TransferStateCategories.Queued.Contains(transfer.State))
+                            {
+                                Telemetry.Metrics.Transfers.Uploads.Queued.Files.Inc(1);
+                                Telemetry.Metrics.Transfers.Uploads.Queued.Bytes.Inc(transfer.Size);
+                            }
 
-                        if (!TransferStateCategories.InProgress.Contains(args.PreviousState) && TransferStateCategories.InProgress.Contains(transfer.State))
-                        {
-                            Telemetry.Metrics.Transfers.Uploads.Queued.Files.Dec(1);
-                            Telemetry.Metrics.Transfers.Uploads.Queued.Bytes.Dec(transfer.Size);
-                            Telemetry.Metrics.Transfers.Uploads.InProgress.Files.Inc(1);
-                            Telemetry.Metrics.Transfers.Uploads.InProgress.Bytes.Inc(transfer.Size);
-                        }
+                            if (!TransferStateCategories.InProgress.Contains(args.PreviousState) && TransferStateCategories.InProgress.Contains(transfer.State))
+                            {
+                                Telemetry.Metrics.Transfers.Uploads.Queued.Files.Dec(1);
+                                Telemetry.Metrics.Transfers.Uploads.Queued.Bytes.Dec(transfer.Size);
+                                Telemetry.Metrics.Transfers.Uploads.InProgress.Files.Inc(1);
+                                Telemetry.Metrics.Transfers.Uploads.InProgress.Bytes.Inc(transfer.Size);
+                            }
+                        });
 
                         stateHistory.Add(transfer.State);
 
@@ -392,7 +395,10 @@ namespace slskd.Transfers.Uploads
                                         .SetProperty(t => t.BytesTransferred, transfer.BytesTransferred)
                                         .SetProperty(t => t.AverageSpeed, transfer.AverageSpeed));
 
-                                    Telemetry.Metrics.Transfers.Uploads.InProgress.CurrentAverageSpeed.Update(transfer.AverageSpeed);
+                                    Telemetry.Metrics.Update(() =>
+                                    {
+                                        Telemetry.Metrics.Transfers.Uploads.InProgress.CurrentAverageSpeed.Update(transfer.AverageSpeed);
+                                    });
                                 }
                                 finally
                                 {
@@ -465,9 +471,12 @@ namespace slskd.Transfers.Uploads
                 // todo: broadcast
                 SynchronizedUpdate(transfer, semaphore: syncRoot, cancellationToken: CancellationToken.None);
 
-                Telemetry.Metrics.Transfers.Uploads.Completed.Succeeded.Inc(1);
-                Telemetry.Metrics.Transfers.Uploads.Completed.Bytes.Inc(transfer.BytesTransferred);
-                Telemetry.Metrics.Transfers.Uploads.Completed.AverageSpeed.Observe(transfer.AverageSpeed);
+                Telemetry.Metrics.Update(() =>
+                {
+                    Telemetry.Metrics.Transfers.Uploads.Completed.Succeeded.Inc(1);
+                    Telemetry.Metrics.Transfers.Uploads.Completed.Bytes.Inc(transfer.BytesTransferred);
+                    Telemetry.Metrics.Transfers.Uploads.Completed.AverageSpeed.Observe(transfer.AverageSpeed);
+                });
 
                 EventBus.Raise(new UploadFileCompleteEvent
                 {
@@ -488,7 +497,10 @@ namespace slskd.Transfers.Uploads
                 // todo: broadcast
                 SynchronizedUpdate(transfer, semaphore: syncRoot, cancellationToken: CancellationToken.None);
 
-                Telemetry.Metrics.Transfers.Uploads.Completed.Failed.Inc(1);
+                Telemetry.Metrics.Update(() =>
+                {
+                    Telemetry.Metrics.Transfers.Uploads.Completed.Failed.Inc(1);
+                });
 
                 throw;
             }
@@ -500,7 +512,11 @@ namespace slskd.Transfers.Uploads
 
                 // todo: broadcast
                 SynchronizedUpdate(transfer, semaphore: syncRoot, cancellationToken: CancellationToken.None);
-                Telemetry.Metrics.Transfers.Uploads.Completed.Failed.Inc(1);
+
+                Telemetry.Metrics.Update(() =>
+                {
+                    Telemetry.Metrics.Transfers.Uploads.Completed.Failed.Inc(1);
+                });
 
                 throw;
             }
@@ -512,7 +528,11 @@ namespace slskd.Transfers.Uploads
 
                 // todo: broadcast
                 SynchronizedUpdate(transfer, semaphore: syncRoot, cancellationToken: CancellationToken.None);
-                Telemetry.Metrics.Transfers.Uploads.Completed.Failed.Inc(1);
+
+                Telemetry.Metrics.Update(() =>
+                {
+                    Telemetry.Metrics.Transfers.Uploads.Completed.Failed.Inc(1);
+                });
 
                 throw;
             }
@@ -526,16 +546,19 @@ namespace slskd.Transfers.Uploads
                 var mostRecentQueuedOrInProgressState = stateHistory
                     .LastOrDefault(s => TransferStateCategories.InProgress.Contains(s) || TransferStateCategories.Queued.Contains(s));
 
-                if (TransferStateCategories.InProgress.Contains(mostRecentQueuedOrInProgressState))
+                Telemetry.Metrics.Update(() =>
                 {
-                    Telemetry.Metrics.Transfers.Uploads.InProgress.Files.Dec(1);
-                    Telemetry.Metrics.Transfers.Uploads.InProgress.Bytes.Dec(transfer.Size);
-                }
-                else if (TransferStateCategories.Queued.Contains(mostRecentQueuedOrInProgressState))
-                {
-                    Telemetry.Metrics.Transfers.Uploads.Queued.Files.Dec(1);
-                    Telemetry.Metrics.Transfers.Uploads.Queued.Bytes.Dec(transfer.Size);
-                }
+                    if (TransferStateCategories.InProgress.Contains(mostRecentQueuedOrInProgressState))
+                    {
+                        Telemetry.Metrics.Transfers.Uploads.InProgress.Files.Dec(1);
+                        Telemetry.Metrics.Transfers.Uploads.InProgress.Bytes.Dec(transfer.Size);
+                    }
+                    else if (TransferStateCategories.Queued.Contains(mostRecentQueuedOrInProgressState))
+                    {
+                        Telemetry.Metrics.Transfers.Uploads.Queued.Files.Dec(1);
+                        Telemetry.Metrics.Transfers.Uploads.Queued.Bytes.Dec(transfer.Size);
+                    }
+                });
 
                 if (host != Program.LocalHostName)
                 {
@@ -1032,8 +1055,11 @@ namespace slskd.Transfers.Uploads
                 }
             }
 
-            EmitQueuedMetrics();
-            EmitInProgressMetrics();
+            Telemetry.Metrics.Update(() =>
+            {
+                EmitQueuedMetrics();
+                EmitInProgressMetrics();
+            });
         }
 
         private bool TryFail(Guid id, string exception, TransferStates state)

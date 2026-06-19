@@ -572,8 +572,11 @@ namespace slskd.Transfers.Uploads
 
         private void EmitMetrics()
         {
-            Telemetry.Metrics.Transfers.Uploads.Queued.Users.Set(UploadDictionary.Values.Count(u => u.Any(t => t.Started is null)));
-            Telemetry.Metrics.Transfers.Uploads.InProgress.Users.Set(UploadDictionary.Values.Count(u => u.Any(t => t.Started is not null)));
+            Telemetry.Metrics.Update(() =>
+            {
+                Telemetry.Metrics.Transfers.Uploads.Queued.Users.Set(UploadDictionary.Values.Count(u => u.Any(t => t.Started is null)));
+                Telemetry.Metrics.Transfers.Uploads.InProgress.Users.Set(UploadDictionary.Values.Count(u => u.Any(t => t.Started is not null)));
+            });
         }
     }
 }
